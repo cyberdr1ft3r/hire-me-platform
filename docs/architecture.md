@@ -131,7 +131,8 @@ Issue #15 implements the first client CRM business module:
 - API-owned Prisma access through the Nest `PrismaService`
 - explicit client and client-contact permission codes with deny-by-default behavior for unresolved row scopes
 - commercial client fields returned only when `commercial_data:access` is effective
-- PostgreSQL-backed tests for per-client contact email uniqueness, IDOR protection, lifecycle and archival rules, authorization, and safe audit metadata
+- transaction-scoped parent-client row locking for client archival and every dependent client/contact write so concurrent archival cannot be bypassed by a later ordinary mutation
+- PostgreSQL-backed tests for per-client contact email uniqueness, IDOR protection, lifecycle and archival rules, concurrent archival races, authorization, and safe audit metadata
 
 Candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, and broader business workflow behavior remain later implementation work.
 

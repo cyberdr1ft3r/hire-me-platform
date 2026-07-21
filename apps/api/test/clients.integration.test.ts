@@ -183,6 +183,46 @@ function authHeaders(accessToken: string): Record<string, string> {
   };
 }
 
+async function readErrorCode(response: Response): Promise<string | undefined> {
+  const body = (await response.json()) as { error?: { code?: string } };
+  return body.error?.code;
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+async function raceAfterClientLock<T>(
+  clientId: string,
+  startRequests: () => Promise<T>,
+): Promise<T> {
+  let releaseLock: (() => void) | undefined;
+  let locked: (() => void) | undefined;
+  const releasePromise = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+  const lockedPromise = new Promise<void>((resolve) => {
+    locked = resolve;
+  });
+
+  const lockPromise = prisma.$transaction(
+    async (transaction) => {
+      await transaction.$queryRaw`SELECT id FROM "Client" WHERE id = ${clientId}::uuid FOR UPDATE`;
+      locked?.();
+      await releasePromise;
+    },
+    { timeout: 10000 },
+  );
+
+  await lockedPromise;
+  const resultPromise = startRequests();
+  releaseLock?.();
+  await lockPromise;
+  return resultPromise;
+}
+
 async function createClientRecord(
   baseUrl: string,
   accessToken: string,
@@ -400,6 +440,81 @@ describe('client organization and contact CRM', () => {
     expect(createUnderArchived.status).toBe(409);
     expect(persistedContact.status).toBe(ClientContactStatus.ARCHIVED);
     expect(persistedContact.archivedAt).toBeInstanceOf(Date);
+  });
+
+  it('serializes client archival against concurrent contact creation', async () => {
+    await createUser('race-create@clients.test', RoleName.HR_MANAGER);
+    const token = await loginAccessToken(baseUrl, 'race-create@clients.test');
+    const clientId = await createClientRecord(baseUrl, token, 'Issue15 Race Create Client');
+
+    const [archive, create] = await raceAfterClientLock(clientId, async () => {
+      const archivePromise = fetch(`${baseUrl}/v1/clients/${clientId}/archive`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      });
+      await sleep(75);
+      const createPromise = fetch(`${baseUrl}/v1/clients/${clientId}/contacts`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({
+          displayName: 'Race Created Contact',
+          email: 'race-created.contact@clients.test',
+        }),
+      });
+
+      return Promise.all([archivePromise, createPromise]);
+    });
+    const activeContacts = await prisma.clientContact.count({
+      where: { clientId, status: ClientContactStatus.ACTIVE },
+    });
+    const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    expect(archive.status).toBe(201);
+    expect(create.status).toBe(409);
+    expect(await readErrorCode(create)).toBe('CLIENT_ARCHIVED');
+    expect(client.status).toBe(ClientStatus.ARCHIVED);
+    expect(activeContacts).toBe(0);
+  });
+
+  it('serializes client archival against concurrent ordinary contact updates', async () => {
+    await createUser('race-update@clients.test', RoleName.HR_MANAGER);
+    const token = await loginAccessToken(baseUrl, 'race-update@clients.test');
+    const clientId = await createClientRecord(baseUrl, token, 'Issue15 Race Update Client');
+    const created = await fetch(`${baseUrl}/v1/clients/${clientId}/contacts`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        displayName: 'Original Race Contact',
+        email: 'race-update.contact@clients.test',
+      }),
+    });
+    const contact = ClientContactDetailResponseSchema.parse(await created.json()).contact;
+
+    const [archive, update] = await raceAfterClientLock(clientId, async () => {
+      const archivePromise = fetch(`${baseUrl}/v1/clients/${clientId}/archive`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      });
+      await sleep(75);
+      const updatePromise = fetch(`${baseUrl}/v1/clients/${clientId}/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(token),
+        body: JSON.stringify({ displayName: 'Post Archive Mutation' }),
+      });
+
+      return Promise.all([archivePromise, updatePromise]);
+    });
+    const persistedContact = await prisma.clientContact.findUniqueOrThrow({
+      where: { id: contact.id },
+    });
+    const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    expect(archive.status).toBe(201);
+    expect(update.status).toBe(409);
+    expect(await readErrorCode(update)).toBe('CLIENT_ARCHIVED');
+    expect(client.status).toBe(ClientStatus.ARCHIVED);
+    expect(persistedContact.displayName).toBe('Original Race Contact');
+    expect(persistedContact.status).toBe(ClientContactStatus.ARCHIVED);
   });
 
   it('manages contact lifecycle and stores only safe audit metadata', async () => {

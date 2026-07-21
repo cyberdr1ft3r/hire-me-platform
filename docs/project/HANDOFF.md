@@ -16,7 +16,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Confirm Issue #15 draft PR CI, then review the client organization and client-contact CRM implementation.
+Confirm PR #16 CI and review the client organization and client-contact CRM implementation.
 
 Check especially:
 
@@ -28,6 +28,7 @@ Check especially:
 - Commercial client fields require `commercial_data:access` even when ordinary client permissions are present.
 - Manager, team-leader, employee, guest, and client-user roles do not receive broad client CRM permissions until row scopes are implemented.
 - Client and contact archive operations preserve records and do not physically delete.
+- Client archival and every dependent client/contact write use one parent-client PostgreSQL row lock inside the mutation transaction; no separate writability read may be followed by an unrelated write.
 - CRM audit logs are safe summaries only.
 - Excluded scopes remain excluded: candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, and physical deletion.
 
@@ -86,6 +87,13 @@ Completed locally during Issue #15 work:
 - `git diff --check`
 
 Local PostgreSQL used `POSTGRES_PORT=55432` because another running project already occupied `127.0.0.1:5432`.
+
+Completed locally during the PR #16 lifecycle/concurrency review fix:
+
+- Service code now routes client archival, contact creation, client updates, client status changes, contact updates, contact status changes, and contact archival through one transaction-scoped row lock on the parent `Client`.
+- PostgreSQL race tests were added for client archival against contact creation and ordinary contact update.
+- Checks passed after the fix: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:architecture`, and `git diff --check`.
+- Local PostgreSQL validation used Docker Compose on `127.0.0.1:55432`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

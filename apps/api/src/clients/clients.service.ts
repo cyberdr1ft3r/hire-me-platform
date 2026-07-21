@@ -152,27 +152,27 @@ export class ClientsService {
   ): Promise<ClientDetailResponse> {
     const includeCommercial = await this.canAccessCommercialData(actorUserId);
     this.assertCommercialInputAllowed(input, includeCommercial);
-    await this.ensureWritableClient(clientId);
-
-    const client = await this.prisma.client.update({
-      where: { id: clientId },
-      data: {
-        ...(input.name !== undefined
-          ? { name: input.name, normalizedName: normalizeName(input.name) }
-          : {}),
-        ...(input.industry !== undefined ? { industry: nullable(input.industry) } : {}),
-        ...(input.website !== undefined ? { website: nullable(input.website) } : {}),
-        ...(input.mainPhone !== undefined ? { mainPhone: nullable(input.mainPhone) } : {}),
-        ...(input.country !== undefined ? { country: nullable(input.country) } : {}),
-        ...(input.city !== undefined ? { city: nullable(input.city) } : {}),
-        ...(input.commercialOwnerUserId !== undefined
-          ? { commercialOwnerUserId: input.commercialOwnerUserId }
-          : {}),
-        ...(input.commercialSummary !== undefined
-          ? { commercialSummary: nullable(input.commercialSummary) }
-          : {}),
-      },
-    });
+    const client = await this.withWritableClientLock(clientId, (transaction) =>
+      transaction.client.update({
+        where: { id: clientId },
+        data: {
+          ...(input.name !== undefined
+            ? { name: input.name, normalizedName: normalizeName(input.name) }
+            : {}),
+          ...(input.industry !== undefined ? { industry: nullable(input.industry) } : {}),
+          ...(input.website !== undefined ? { website: nullable(input.website) } : {}),
+          ...(input.mainPhone !== undefined ? { mainPhone: nullable(input.mainPhone) } : {}),
+          ...(input.country !== undefined ? { country: nullable(input.country) } : {}),
+          ...(input.city !== undefined ? { city: nullable(input.city) } : {}),
+          ...(input.commercialOwnerUserId !== undefined
+            ? { commercialOwnerUserId: input.commercialOwnerUserId }
+            : {}),
+          ...(input.commercialSummary !== undefined
+            ? { commercialSummary: nullable(input.commercialSummary) }
+            : {}),
+        },
+      }),
+    );
 
     await this.audit.record('clients.client.updated', context, {
       actorUserId,
@@ -191,21 +191,21 @@ export class ClientsService {
     context: RequestContext,
   ): Promise<ClientDetailResponse> {
     const includeCommercial = await this.canAccessCommercialData(actorUserId);
-    const existing = await this.ensureWritableClient(clientId);
-
     if (input.status === ClientStatus.ARCHIVED) {
       throw conflict('CLIENT_ARCHIVE_ENDPOINT_REQUIRED', 'Use the archive endpoint for archival.');
     }
-    if (!isAllowedClientTransition(existing.status, input.status)) {
-      throw conflict(
-        'CLIENT_STATUS_TRANSITION_BLOCKED',
-        'Client status transition is not allowed.',
-      );
-    }
+    const client = await this.withWritableClientLock(clientId, (transaction, existing) => {
+      if (!isAllowedClientTransition(existing.status, input.status)) {
+        throw conflict(
+          'CLIENT_STATUS_TRANSITION_BLOCKED',
+          'Client status transition is not allowed.',
+        );
+      }
 
-    const client = await this.prisma.client.update({
-      where: { id: clientId },
-      data: { status: input.status },
+      return transaction.client.update({
+        where: { id: clientId },
+        data: { status: input.status },
+      });
     });
 
     await this.audit.record('clients.client.status_updated', context, {
@@ -225,8 +225,7 @@ export class ClientsService {
   ): Promise<ClientDetailResponse> {
     const includeCommercial = await this.canAccessCommercialData(actorUserId);
     const now = new Date();
-    const client = await this.prisma.$transaction(async (transaction) => {
-      await this.ensureWritableClient(clientId, transaction);
+    const client = await this.withWritableClientLock(clientId, async (transaction) => {
       const archived = await transaction.client.update({
         where: { id: clientId },
         data: { status: ClientStatus.ARCHIVED, archivedAt: now },
@@ -303,21 +302,21 @@ export class ClientsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<ClientContactDetailResponse> {
-    await this.ensureWritableClient(clientId);
-
     try {
-      const contact = await this.prisma.clientContact.create({
-        data: {
-          clientId,
-          displayName: input.displayName,
-          email: input.email.trim(),
-          normalizedEmail: normalizeEmail(input.email),
-          phone: optional(input.phone),
-          roleTitle: optional(input.roleTitle),
-          status: input.status ?? ClientContactStatus.ACTIVE,
-          portalStatus: PortalAccessStatus.DISABLED,
-        },
-      });
+      const contact = await this.withWritableClientLock(clientId, (transaction) =>
+        transaction.clientContact.create({
+          data: {
+            clientId,
+            displayName: input.displayName,
+            email: input.email.trim(),
+            normalizedEmail: normalizeEmail(input.email),
+            phone: optional(input.phone),
+            roleTitle: optional(input.roleTitle),
+            status: input.status ?? ClientContactStatus.ACTIVE,
+            portalStatus: PortalAccessStatus.DISABLED,
+          },
+        }),
+      );
 
       await this.audit.record('clients.contact.created', context, {
         actorUserId,
@@ -345,23 +344,24 @@ export class ClientsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<ClientContactDetailResponse> {
-    await this.ensureWritableClient(clientId);
-    const existing = await this.findContactForClient(clientId, contactId);
-    if (existing.status === ClientContactStatus.ARCHIVED) {
-      throw conflict('CLIENT_CONTACT_ARCHIVED', 'Archived contacts cannot be updated.');
-    }
-
     try {
-      const contact = await this.prisma.clientContact.update({
-        where: { id: contactId },
-        data: {
-          ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
-          ...(input.email !== undefined
-            ? { email: input.email.trim(), normalizedEmail: normalizeEmail(input.email) }
-            : {}),
-          ...(input.phone !== undefined ? { phone: nullable(input.phone) } : {}),
-          ...(input.roleTitle !== undefined ? { roleTitle: nullable(input.roleTitle) } : {}),
-        },
+      const contact = await this.withWritableClientLock(clientId, async (transaction) => {
+        const existing = await this.findContactForClient(clientId, contactId, transaction);
+        if (existing.status === ClientContactStatus.ARCHIVED) {
+          throw conflict('CLIENT_CONTACT_ARCHIVED', 'Archived contacts cannot be updated.');
+        }
+
+        return transaction.clientContact.update({
+          where: { id: contactId },
+          data: {
+            ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+            ...(input.email !== undefined
+              ? { email: input.email.trim(), normalizedEmail: normalizeEmail(input.email) }
+              : {}),
+            ...(input.phone !== undefined ? { phone: nullable(input.phone) } : {}),
+            ...(input.roleTitle !== undefined ? { roleTitle: nullable(input.roleTitle) } : {}),
+          },
+        });
       });
 
       await this.audit.record('clients.contact.updated', context, {
@@ -390,19 +390,19 @@ export class ClientsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<ClientContactDetailResponse> {
-    await this.ensureWritableClient(clientId);
-    const existing = await this.findContactForClient(clientId, contactId);
-
     if (input.status === ClientContactStatus.ARCHIVED) {
       throw conflict('CLIENT_CONTACT_ARCHIVE_ENDPOINT_REQUIRED', 'Use the archive endpoint.');
     }
-    if (existing.status === ClientContactStatus.ARCHIVED) {
-      throw conflict('CLIENT_CONTACT_ARCHIVED', 'Archived contacts cannot be reactivated.');
-    }
+    const contact = await this.withWritableClientLock(clientId, async (transaction) => {
+      const existing = await this.findContactForClient(clientId, contactId, transaction);
+      if (existing.status === ClientContactStatus.ARCHIVED) {
+        throw conflict('CLIENT_CONTACT_ARCHIVED', 'Archived contacts cannot be reactivated.');
+      }
 
-    const contact = await this.prisma.clientContact.update({
-      where: { id: contactId },
-      data: { status: input.status },
+      return transaction.clientContact.update({
+        where: { id: contactId },
+        data: { status: input.status },
+      });
     });
 
     await this.audit.record('clients.contact.status_updated', context, {
@@ -421,19 +421,20 @@ export class ClientsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<ClientContactDetailResponse> {
-    await this.ensureWritableClient(clientId);
-    const existing = await this.findContactForClient(clientId, contactId);
-    if (existing.status === ClientContactStatus.ARCHIVED) {
-      throw conflict('CLIENT_CONTACT_ARCHIVED', 'Client contact is already archived.');
-    }
+    const contact = await this.withWritableClientLock(clientId, async (transaction) => {
+      const existing = await this.findContactForClient(clientId, contactId, transaction);
+      if (existing.status === ClientContactStatus.ARCHIVED) {
+        throw conflict('CLIENT_CONTACT_ARCHIVED', 'Client contact is already archived.');
+      }
 
-    const contact = await this.prisma.clientContact.update({
-      where: { id: contactId },
-      data: {
-        status: ClientContactStatus.ARCHIVED,
-        portalStatus: PortalAccessStatus.ARCHIVED,
-        archivedAt: new Date(),
-      },
+      return transaction.clientContact.update({
+        where: { id: contactId },
+        data: {
+          status: ClientContactStatus.ARCHIVED,
+          portalStatus: PortalAccessStatus.ARCHIVED,
+          archivedAt: new Date(),
+        },
+      });
     });
 
     await this.audit.record('clients.contact.archived', context, {
@@ -458,11 +459,22 @@ export class ClientsService {
     return client;
   }
 
-  private async ensureWritableClient(
+  private async withWritableClientLock<T>(
     clientId: string,
-    prisma: PrismaService | PrismaTransaction = this.prisma,
+    callback: (transaction: PrismaTransaction, client: ClientRecord) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (transaction) => {
+      const client = await this.lockWritableClient(clientId, transaction);
+      return callback(transaction, client);
+    });
+  }
+
+  private async lockWritableClient(
+    clientId: string,
+    transaction: PrismaTransaction,
   ): Promise<ClientRecord> {
-    const client = await this.findClient(clientId, prisma);
+    await transaction.$queryRaw`SELECT id FROM "Client" WHERE id = ${clientId}::uuid FOR UPDATE`;
+    const client = await this.findClient(clientId, transaction);
     if (client.status === ClientStatus.ARCHIVED || client.archivedAt) {
       throw conflict('CLIENT_ARCHIVED', 'Archived clients cannot be changed.');
     }
@@ -470,8 +482,12 @@ export class ClientsService {
     return client;
   }
 
-  private async findContactForClient(clientId: string, contactId: string): Promise<ContactRecord> {
-    const contact = await this.prisma.clientContact.findFirst({
+  private async findContactForClient(
+    clientId: string,
+    contactId: string,
+    prisma: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<ContactRecord> {
+    const contact = await prisma.clientContact.findFirst({
       where: { id: contactId, clientId },
     });
     if (!contact) {

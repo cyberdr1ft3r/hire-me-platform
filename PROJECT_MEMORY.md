@@ -44,7 +44,7 @@ First CRM business module foundation.
 - Prisma is owned by `apps/api`; web and contracts packages stay ORM-independent and are checked by `pnpm check:architecture`.
 - Local authentication uses normalized email login, Argon2id password credentials, short-lived access tokens, rotating hashed refresh sessions in HTTP-only cookies, refresh-token reuse detection, normalized permission-code resolution, deny-by-default guards, and safe authentication audit logs.
 - Internal user administration uses permission-code guarded `/v1/admin` endpoints, shared Prisma-independent contracts, safe response DTOs, transaction-protected last active `SUPER_ADMIN` checks, self-lockout prevention, session revocation on suspension/archive, and safe administration audit logs.
-- Client organization and client-contact CRM uses permission-code guarded `/v1/clients` endpoints, shared Prisma-independent contracts, archival lifecycles, nested contact ownership checks, per-client normalized contact email uniqueness, explicit commercial-data gating, and safe CRM audit logs.
+- Client organization and client-contact CRM uses permission-code guarded `/v1/clients` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-client row locks for archival and dependent writes, nested contact ownership checks, per-client normalized contact email uniqueness, explicit commercial-data gating, and safe CRM audit logs.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

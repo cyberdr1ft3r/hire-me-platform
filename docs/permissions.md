@@ -127,6 +127,8 @@ Development seed mapping gives all normal client CRM permissions to `SUPER_ADMIN
 
 Commercial client fields require `commercial_data:access` in addition to ordinary client permissions. Frontend hiding is only a usability layer; the API enforces this rule.
 
+Client archival and every dependent client/contact write use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `Client`. This prevents concurrent contact creation or ordinary client/contact mutation from committing after client archival. When archival wins the race, the dependent write receives the stable conflict code `CLIENT_ARCHIVED`.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.

@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** First CRM business module foundation
-**Health:** Issue #15 implementation passed local quality and PostgreSQL validation; draft PR CI is pending.
+**Health:** PR #16 lifecycle/concurrency fix passed local quality and PostgreSQL validation; draft PR CI is pending.
 **Current blocker:** None locally.
-**Next executable development task:** Review the Issue #15 draft PR once CI completes.
+**Next executable development task:** Review PR #16 after CI completes.
 
 ## Active work
 
@@ -18,7 +18,7 @@ Status owner: repository maintainer
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
 | Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
-| Issue #15 | In progress | Implement client organization and client-contact CRM | Open draft PR and confirm CI |
+| Issue #15 | In progress | Implement client organization and client-contact CRM | Confirm PR #16 CI and review |
 
 ## Completed foundation work
 
@@ -76,6 +76,7 @@ Status owner: repository maintainer
 - The API exposes permission-code guarded `/v1/clients` endpoints with shared Zod contracts, safe DTOs, contact ownership checks for nested routes, archival lifecycles, and safe audit summaries.
 - Client contacts keep normalized email uniqueness within one client; the same normalized email may exist under different clients.
 - Client archive is transactional and archives active contacts under the same client without physical deletion.
+- PR #16 lifecycle/concurrency correction serializes client archive, contact creation, client updates, client status changes, contact updates, contact status changes, and contact archive through one transaction-scoped PostgreSQL row lock on the parent `Client`.
 - Normal client/contact permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; unresolved team or assigned scopes do not receive broad client access by default.
 - Commercial client fields require `commercial_data:access`; ordinary client access receives `commercial: null`.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, fresh migration deploy, migration reset, seed twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
