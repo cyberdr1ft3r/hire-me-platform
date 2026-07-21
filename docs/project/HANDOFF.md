@@ -6,65 +6,63 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current situation
 
-- Issue #1 is still in progress.
-- PR #4 is a draft product and architecture documentation pull request.
-- A blocking review identified mismatches with confirmed client requirements.
-- Codex has been instructed to correct PR #4.
-- Issue #5 and PR #6 establish GitHub as the persistent project memory and agent handoff system.
-- Issue #2 must not start until PR #4 is corrected, approved, and merged.
+- Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
+- Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
+- Issue #2 is the next executable task.
+- Issue #3 must not start until issue #2 is reviewed and merged.
 
-## Next actions
+## Next action
 
-### Repository governance
+Implement GitHub issue #2: bootstrap the TypeScript monorepo and local development environment.
 
-Review and merge PR #6. Confirm that it adds:
+Before changing anything, read:
 
-- canonical project memory;
-- goals, live status, roadmap, decisions, risks, and current handoff;
-- the `project-memory` Codex skill;
-- mandatory memory instructions in `AGENTS.md`;
-- the reusable Codex issue template;
-- explicit safeguards against storing secrets, CVs, production data, or confidential client evidence.
+1. `AGENTS.md`.
+2. `PROJECT_MEMORY.md`.
+3. `docs/project/STATUS.md`.
+4. `docs/project/DECISIONS.md`.
+5. This handoff.
+6. Issue #2 and all comments.
+7. The merged architecture and product documentation relevant to repository structure and security.
 
-### Product foundation
+Load and follow these skills:
 
-Review the next update to PR #4 against:
+- `.agents/skills/project-memory/SKILL.md`
+- `.agents/skills/typescript-monorepo/SKILL.md`
+- `.agents/skills/devops-ci/SKILL.md`
+- `.agents/skills/application-security/SKILL.md`
+- `.agents/skills/quality-gates/SKILL.md`
+- `.agents/skills/prisma-postgresql/SKILL.md` only for safe Prisma/PostgreSQL wiring, not the business schema
 
-1. The blocking PR review comment.
-2. Issue #1 and all comments.
-3. `PROJECT_MEMORY.md` after PR #6 is merged.
-4. `docs/project/GOALS.md` after PR #6 is merged.
-5. Confirmed client requirements represented in the corrected documentation.
+## Issue #2 scope guardrails
 
-Check especially:
+Implement only the approved foundation:
 
-- detailed candidate and mission workflows;
-- multiple recruiters per mission;
-- training participant or enrollment modeling;
-- confirmed private messaging and discussion groups;
-- the five confirmed dashboard indicators;
-- commercial and HR document requirements;
-- integrations and migration scale;
-- French and English support;
-- responsive web requirements;
-- least-privilege permissions.
+- pnpm workspaces and Turborepo;
+- `apps/web` with React, TypeScript, and Vite;
+- `apps/api` with NestJS and a structured `GET /health` endpoint;
+- shared configuration and contracts packages;
+- PostgreSQL through Docker Compose with a health check;
+- Prisma configuration and connectivity without the complete domain schema;
+- strict TypeScript, ESLint, Prettier, environment validation, tests, and GitHub Actions CI;
+- exact local setup instructions in the README.
+
+Do not implement authentication, users, candidates, clients, missions, workflows, messaging, training, dashboards, integrations, or other business modules in issue #2.
 
 ## Completion conditions
 
-### PR #6
+Issue #2 may move toward merge only when:
 
-- Memory files are compact, accurate, non-confidential, and consistent.
-- `AGENTS.md` requires future agents to read and maintain memory.
-- PR #6 does not overwrite product documentation from PR #4.
-
-### PR #4
-
-- Every blocking review item is addressed.
-- All Mermaid diagrams render.
-- Terminology and relationships are consistent.
-- No application or infrastructure code was added.
-- The PR remains within issue #1 scope.
-- Unresolved technical choices are clearly separated from confirmed product requirements.
+- a fresh clone can be started by following the README;
+- one documented command starts the local apps and required services;
+- PostgreSQL becomes healthy through Docker Compose;
+- the API health endpoint returns a structured success response;
+- the web app can reach and display the API health status using environment-based configuration;
+- environment variables are validated and no secrets are committed;
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm format:check` pass;
+- GitHub Actions runs equivalent checks;
+- the PR contains no business-domain implementation;
+- project status and handoff files are updated before completion.
 
 ## Mandatory rehydration checklist for every new agent
 
