@@ -17,7 +17,7 @@ Secured internal administration foundation.
 - Issue #2 is complete; PR #8 merged the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI checks.
 - Issue #3 is complete; PR #9 merged the foundational Prisma schema, initial migration, role and permission seed, API-owned Prisma boundary, and database lifecycle checks.
 - Issue #10 is complete; PR #11 merged the local authentication, session security, RBAC resolution, and authentication audit foundation.
-- Active issue: #13 - draft PR pending for secured internal user administration, role assignment, account status management, permission catalog reads, and administrative session revocation.
+- Active issue: #13 - draft PR #14 implements secured internal user administration, role assignment, account status management, permission catalog reads, and administrative session revocation and is awaiting maintainer review.
 
 ## Confirmed Product Facts
 

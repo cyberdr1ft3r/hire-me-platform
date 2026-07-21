@@ -11,11 +11,11 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
 - Issue #3 is complete through merged PR #9; the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests are active on `main`.
 - Issue #10 is complete through merged PR #11; local authentication, secure refresh-session handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are active on `main`.
-- Issue #13 is in progress on branch `feat/user-access-management`.
+- Issue #13 is in review through draft PR #14 on branch `feat/user-access-management`.
 
 ## Next Action
 
-Open the Issue #13 draft PR with `Closes #13`, then confirm GitHub Actions PostgreSQL checks.
+Review draft PR #14.
 
 Check especially:
 
@@ -57,7 +57,13 @@ Blocked locally because Docker Desktop is not running and PostgreSQL is unavaila
 - `pnpm prisma:seed`
 - second `pnpm prisma:seed`
 
-Use GitHub Actions on the draft PR to confirm the real PostgreSQL migration, seed, and database integration-test path.
+Confirmed through GitHub Actions run `29861073885`:
+
+- PostgreSQL Docker Compose health.
+- Migration deploy.
+- Development seed twice.
+- Database integration tests.
+- Quality checks.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

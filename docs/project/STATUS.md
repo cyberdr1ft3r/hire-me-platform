@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Secured internal administration foundation
-**Health:** Issue #13 implementation is ready for draft PR review; local non-DB checks pass and DB checks need GitHub Actions because local Docker is unavailable.
-**Current blocker:** Local PostgreSQL cannot be started because Docker Desktop is not running in this environment.
-**Next executable development task:** Open the draft PR, confirm CI PostgreSQL checks, and request review.
+**Health:** Issue #13 draft PR #14 is review-ready after CI passed.
+**Current blocker:** None known.
+**Next executable development task:** Maintainer review of draft PR #14.
 
 ## Active work
 
@@ -17,7 +17,7 @@ Status owner: repository maintainer
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
-| Issue #13 | PR pending | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Push branch, open draft PR, confirm CI |
+| Issue #13 | In review | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Maintainer review of draft PR #14 |
 
 ## Completed foundation work
 
@@ -65,7 +65,7 @@ Status owner: repository maintainer
 - Internal user administration is implemented as permission-code guarded `/v1/admin` endpoints with shared Zod contracts and a minimal protected web administration screen.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local Docker Compose PostgreSQL startup failed because Docker Desktop is not running, so `pnpm prisma:migrate:deploy`, `pnpm prisma:seed`, and `pnpm test:db` could not complete locally.
-- GitHub Actions should confirm PostgreSQL health, migration deploy, seed twice, and database integration tests after the draft PR opens.
+- Draft PR #14 is open. GitHub Actions run `29861073885` passed PostgreSQL Docker Compose health, migration deploy, seed twice, database integration tests, and quality checks.
 
 ## Current open technical questions
 
@@ -84,9 +84,9 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete Issue #13 verification.
-2. Open a draft PR with `Closes #13`.
-3. Review internal administration authorization, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
+1. Review draft PR #14.
+2. Accept or request changes on internal administration authorization, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
+3. Merge issue #13 only after maintainer approval.
 
 ## Status Update Rules
 
