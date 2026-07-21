@@ -13,11 +13,11 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #10 is complete through merged PR #11; local authentication, secure refresh-session handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are active on `main`.
 - Issue #13 is complete through merged PR #14; secured internal user administration and central active-user authorization checks are active on `main`.
 - Issue #15 is complete through merged PR #16; client organization and client-contact CRM are active on `main`.
-- Issue #17 is in progress on branch `feat/candidate-profiles`.
+- Issue #17 is in progress on branch `feat/candidate-profiles` with draft PR #18 open.
 
 ## Next Action
 
-Review the Issue #17 candidate master/profile draft PR after CI completes.
+Review the Issue #17 candidate master/profile draft PR #18.
 
 Check especially:
 
@@ -115,6 +115,14 @@ Completed locally during Issue #17 work:
 - `git diff --check`
 
 `pnpm test:db`, `pnpm test`, `pnpm build`, and Mermaid rendering were rerun outside the filesystem sandbox when esbuild or Puppeteer needed access to local config/browser paths. PostgreSQL used Docker Compose with `POSTGRES_PORT=55432`.
+
+Confirmed through GitHub Actions run `29875687083` on draft PR #18:
+
+- PostgreSQL Docker Compose health.
+- Migration deploy.
+- Development seed.
+- Database integration tests.
+- Quality checks.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

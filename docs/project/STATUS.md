@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Core recruitment CRM foundation
-**Health:** Issue #17 candidate master/profile implementation passed local quality, Mermaid, and PostgreSQL validation.
+**Health:** Issue #17 candidate master/profile implementation passed local quality, Mermaid, PostgreSQL validation, and PR #18 CI.
 **Current blocker:** None locally.
-**Next executable development task:** Review the Issue #17 draft PR after CI completes.
+**Next executable development task:** Review draft PR #18.
 
 ## Active work
 
@@ -19,7 +19,7 @@ Status owner: repository maintainer
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
 | Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
 | Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
-| Issue #17 | In progress | Implement reusable candidate master records and structured candidate profiles | Review draft PR after CI completes |
+| Issue #17 | In progress | Implement reusable candidate master records and structured candidate profiles | Review draft PR #18 |
 
 ## Completed foundation work
 
@@ -94,6 +94,7 @@ Status owner: repository maintainer
 - Normal candidate/profile permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; only `SUPER_ADMIN` receives candidate compensation and consent permissions by default.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, fresh migration deploy, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
+- Draft PR #18 is open, linked with `Closes #17`, and GitHub Actions run `29875687083` passed PostgreSQL Docker Compose health, migration/seed/database integration tests, and quality checks.
 
 ## Current open technical questions
 
@@ -113,8 +114,7 @@ Status owner: repository maintainer
 ## Immediate next actions
 
 1. Review candidate authorization, lifecycle transitions, archival behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
-2. Confirm Issue #17 draft PR CI.
-3. Merge Issue #17 only after maintainer approval.
+2. Merge Issue #17 only after maintainer approval.
 
 ## Status Update Rules
 
