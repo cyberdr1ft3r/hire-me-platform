@@ -30,7 +30,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 ## Phase 2 — Repository and local development bootstrap
 
-**State:** Ready to start
+**State:** Complete
 
 - Issue #2.
 - pnpm and Turborepo monorepo.
@@ -52,7 +52,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 ## Phase 3 — Persistence foundation
 
-**State:** Blocked by Phase 2
+**State:** In progress
 
 - Issue #3.
 - Foundational Prisma schema.

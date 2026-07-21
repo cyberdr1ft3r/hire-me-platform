@@ -8,56 +8,66 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
-- Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`; PR #8 is open as a draft.
-- The latest PR #8 blocking review about Docker Compose PostgreSQL health verification has been addressed with a dedicated GitHub Actions job on the same branch.
-- Issue #3 must not start until issue #2 is reviewed and merged.
+- Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
+- Issue #3 is in review through draft PR #9 on branch `feat/foundational-prisma-schema`.
+- Issue #3 implements the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests.
+- The latest PR #9 blocking review required deterministic Prisma ownership in the pnpm monorepo: `apps/api` owns Prisma dependencies, schema, generated client output, seed, and database tests; `apps/web` and `packages/contracts` remain ORM-independent.
 
 ## Next Action
 
-Review PR #8 from `chore/bootstrap-typescript-monorepo`.
+Review the updated draft PR #9. The latest boundary-fix CI run passed.
 
 Check especially:
 
-- pnpm workspace and Turborepo root scripts;
-- `apps/web` React + Vite placeholder and API health display;
-- `apps/api` NestJS structured `GET /health` endpoint;
-- `packages/config` shared TypeScript configuration;
-- `packages/contracts` shared health contract;
-- Docker Compose PostgreSQL service and health check;
-- GitHub Actions Docker Compose PostgreSQL health job;
-- Prisma datasource wiring without business models;
-- safe `.env.example` placeholders and startup environment validation;
-- root `.env` loading for API development/startup and Vite environment loading;
-- consistent `127.0.0.1` local web/API/CORS URLs;
-- GitHub Actions parity with local quality commands;
-- README fresh-clone setup accuracy;
-- absence of authentication, business modules, business schema, real personal data, client data, or CV content.
+- Prisma schema coverage for required issue #3 entities and approved relationships;
+- explicit Prisma generator output at `apps/api/prisma/generated/client`;
+- generated Prisma client imports routed through `apps/api/src/persistence/prisma/generated-client.ts`;
+- absence of Prisma dependencies and imports in `apps/web` and `packages/contracts`;
+- `pnpm check:architecture` coverage for Prisma boundary and uncommitted generated output;
+- CI proof that generated output is deleted and regenerated before typecheck, tests, build, and database checks;
+- candidate-to-mission history through `MissionCandidate`;
+- multiple recruiters per mission through `MissionRecruiter`;
+- multiple client contacts per client;
+- normalized roles and permissions through join models;
+- document ownership, visibility, and version metadata;
+- explicit archival strategy and deliberate foreign-key behavior;
+- development seed containing only approved roles and safe synthetic permissions;
+- migration, reset, seed, Prisma Studio, and database-test commands;
+- PostgreSQL integration-test evidence in CI;
+- absence of controllers, services, auth flows, pages, real personal data, client data, CV content, or confidential records.
 
 ## Verification Notes
 
-Completed locally by Codex:
+Completed locally by Codex during issue #3 work:
 
 - `pnpm install`
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
+- `pnpm check:architecture`
 - `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
-- API runtime check for `GET /health`
-- Web dev server strict-port check on `127.0.0.1:5173`
-- Root `.env` loading correction for API and web development paths
-- GitHub Actions Docker Compose PostgreSQL health job added
+- `git diff --check`
+- migration SQL generation from the Prisma schema
+
+Confirmed through GitHub Actions run `29841648591` after the boundary-fix push:
+
+- `pnpm prisma:migrate:deploy` against real PostgreSQL
+- `pnpm prisma:seed` twice
+- `pnpm test:db`
+- clean Prisma regeneration from an empty `apps/api/prisma/generated/client`
+- quality checks and architecture boundary checks
 
 Blocked locally:
 
-- `docker compose up -d postgres` could not start PostgreSQL in the Codex local environment because Docker Desktop/daemon was unavailable. CI now verifies the Docker Compose health path on Ubuntu.
+- `docker compose up -d postgres` cannot start PostgreSQL in the Codex local environment because Docker Desktop/daemon is unavailable. Real PostgreSQL migration, seed, and integration-test verification should be confirmed through GitHub Actions.
 
 GitHub Actions:
 
-- The workflow is configured to run Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
-- Confirm the latest PR check result after each pushed correction.
+- The workflow runs Docker Compose PostgreSQL health, migration deploy, seed twice, database integration tests, install, Prisma validation, clean Prisma generation, architecture boundary checks, format check, lint, typecheck, tests, and build.
+- Latest PR #9 check result: passed in run `29841648591`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

@@ -1,8 +1,1071 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE    @map("active")
+  SUSPENDED @map("suspended")
+  ARCHIVED  @map("archived")
+}
+
+enum UserType {
+  INTERNAL @map("internal")
+  CLIENT   @map("client")
+  GUEST    @map("guest")
+}
+
+enum RoleName {
+  SUPER_ADMIN @map("super_admin")
+  ADMIN       @map("admin")
+  HR_MANAGER  @map("hr_manager")
+  MANAGER     @map("manager")
+  TEAM_LEADER @map("team_leader")
+  EMPLOYEE    @map("employee")
+  GUEST       @map("guest")
+  CLIENT_USER @map("client_user")
+}
+
+enum RoleStatus {
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum PermissionStatus {
+  ACTIVE     @map("active")
+  DEPRECATED @map("deprecated")
+}
+
+enum PermissionScopeType {
+  GLOBAL   @map("global")
+  ALL_DATA @map("all_data")
+  TEAM     @map("team")
+  ASSIGNED @map("assigned")
+  CLIENT   @map("client")
+  EXPLICIT @map("explicit")
+}
+
+enum ClientStatus {
+  PROSPECT @map("prospect")
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  ARCHIVED @map("archived")
+}
+
+enum ClientContactStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  ARCHIVED @map("archived")
+}
+
+enum PortalAccessStatus {
+  DISABLED @map("disabled")
+  INVITED  @map("invited")
+  ENABLED  @map("enabled")
+  ARCHIVED @map("archived")
+}
+
+enum CandidateStatus {
+  ACTIVE      @map("active")
+  INACTIVE    @map("inactive")
+  TALENT_POOL @map("talent_pool")
+  ARCHIVED    @map("archived")
+}
+
+enum ConsentStatus {
+  UNKNOWN @map("unknown")
+  GRANTED @map("granted")
+  REVOKED @map("revoked")
+  EXPIRED @map("expired")
+}
+
+enum CandidateDocumentStatus {
+  ACTIVE     @map("active")
+  SUPERSEDED @map("superseded")
+  ARCHIVED   @map("archived")
+}
+
+enum CandidateDocumentType {
+  CV            @map("cv")
+  PORTFOLIO     @map("portfolio")
+  CERTIFICATION @map("certification")
+  CONSENT       @map("consent")
+  HR_ATTACHMENT @map("hr_attachment")
+  OTHER         @map("other")
+}
+
+enum DocumentVisibility {
+  INTERNAL_ONLY @map("internal_only")
+  ASSIGNED_ONLY @map("assigned_only")
+  CLIENT_SHARED @map("client_shared")
+  PRIVATE       @map("private")
+}
+
+enum DocumentVersionSource {
+  UPLOADED  @map("uploaded")
+  GENERATED @map("generated")
+  IMPORTED  @map("imported")
+}
+
+enum RecruitmentMissionState {
+  DRAFT                            @map("draft")
+  INTERNAL_VALIDATION              @map("internal_validation")
+  ACTIVE                           @map("active")
+  JOB_DESCRIPTION_APPROVED         @map("job_description_approved")
+  CANDIDATE_SOURCING               @map("candidate_sourcing")
+  HR_PRESELECTION                  @map("hr_preselection")
+  HR_INTERVIEWS                    @map("hr_interviews")
+  TECHNICAL_TESTS                  @map("technical_tests")
+  CANDIDATE_PRESENTATION           @map("candidate_presentation")
+  CLIENT_INTERVIEWS                @map("client_interviews")
+  FINAL_SELECTION                  @map("final_selection")
+  OFFER_SENT                       @map("offer_sent")
+  CANDIDATE_INTEGRATED             @map("candidate_integrated")
+  PROBATION_MONITORING             @map("probation_monitoring")
+  WAITING_FOR_CLIENT_INFORMATION   @map("waiting_for_client_information")
+  PAUSED                           @map("paused")
+  CANCELED                         @map("canceled")
+  CLOSED_WITH_RECRUITMENT          @map("closed_with_recruitment")
+  CLOSED_WITHOUT_RECRUITMENT       @map("closed_without_recruitment")
+  DEADLINE_EXPIRED_WITHOUT_RENEWAL @map("deadline_expired_without_renewal")
+  ARCHIVED                         @map("archived")
+}
+
+enum MissionClosureReason {
+  CLIENT_CLOSED_OR_CANCELED                  @map("client_closed_or_canceled")
+  CLOSED_WITHOUT_RECRUITMENT                 @map("closed_without_recruitment")
+  DEADLINE_EXPIRED_WITHOUT_RENEWAL           @map("deadline_expired_without_renewal")
+  POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED @map("positions_filled_and_candidates_integrated")
+}
+
+enum MissionRecruiterRole {
+  LEAD_RECRUITER @map("lead_recruiter")
+  RECRUITER      @map("recruiter")
+  SOURCER        @map("sourcer")
+  CONTRIBUTOR    @map("contributor")
+}
+
+enum AssignmentStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  ARCHIVED @map("archived")
+}
+
+enum MissionCandidateState {
+  NEW                    @map("new")
+  CV_REVIEW              @map("cv_review")
+  HR_PRESELECTION        @map("hr_preselection")
+  HR_INTERVIEW_SCHEDULED @map("hr_interview_scheduled")
+  HR_INTERVIEW_COMPLETED @map("hr_interview_completed")
+  TECHNICAL_TEST         @map("technical_test")
+  INTERNAL_VALIDATION    @map("internal_validation")
+  PRESENTED_TO_CLIENT    @map("presented_to_client")
+  CLIENT_INTERVIEW_1     @map("client_interview_1")
+  CLIENT_INTERVIEW_2     @map("client_interview_2")
+  CLIENT_OFFER           @map("client_offer")
+  ACCEPTED               @map("accepted")
+  INTEGRATED             @map("integrated")
+  PROBATION_MONITORING   @map("probation_monitoring")
+  END_OF_PROBATION       @map("end_of_probation")
+  CLOSED                 @map("closed")
+  WAITING                @map("waiting")
+  ON_HOLD                @map("on_hold")
+  POSTPONED              @map("postponed")
+  CANDIDATE_DECLINED     @map("candidate_declined")
+  CLIENT_REJECTED        @map("client_rejected")
+  WITHDRAWN              @map("withdrawn")
+  TALENT_POOL            @map("talent_pool")
+  ARCHIVED               @map("archived")
+}
+
+enum InterviewType {
+  HR        @map("hr")
+  TECHNICAL @map("technical")
+  CLIENT    @map("client")
+  OTHER     @map("other")
+}
+
+enum InterviewStatus {
+  SCHEDULED @map("scheduled")
+  POSTPONED @map("postponed")
+  COMPLETED @map("completed")
+  CANCELED  @map("canceled")
+  ARCHIVED  @map("archived")
+}
+
+enum EvaluationStatus {
+  DRAFT     @map("draft")
+  SUBMITTED @map("submitted")
+  ARCHIVED  @map("archived")
+}
+
+enum EvaluationRecommendation {
+  STRONG_YES @map("strong_yes")
+  YES        @map("yes")
+  NEUTRAL    @map("neutral")
+  NO         @map("no")
+  STRONG_NO  @map("strong_no")
+}
+
+enum TaskStatus {
+  OPEN        @map("open")
+  IN_PROGRESS @map("in_progress")
+  WAITING     @map("waiting")
+  BLOCKED     @map("blocked")
+  COMPLETED   @map("completed")
+  CANCELED    @map("canceled")
+  ARCHIVED    @map("archived")
+}
+
+enum TaskPriority {
+  LOW    @map("low")
+  NORMAL @map("normal")
+  HIGH   @map("high")
+  URGENT @map("urgent")
+}
+
+enum DocumentStatus {
+  DRAFT      @map("draft")
+  ACTIVE     @map("active")
+  SUPERSEDED @map("superseded")
+  ARCHIVED   @map("archived")
+}
+
+enum DocumentType {
+  JOB_DESCRIPTION       @map("job_description")
+  INTERVIEW_REPORT      @map("interview_report")
+  CANDIDATE_SUMMARY     @map("candidate_summary")
+  QUOTATION             @map("quotation")
+  PURCHASE_ORDER        @map("purchase_order")
+  CONTRACT              @map("contract")
+  INVOICE               @map("invoice")
+  HR_DOCUMENT           @map("hr_document")
+  TECHNICAL_TEST_REPORT @map("technical_test_report")
+  TRAINING_MATERIAL     @map("training_material")
+  MESSAGE_ATTACHMENT    @map("message_attachment")
+  CLIENT_FILE           @map("client_file")
+  OTHER                 @map("other")
+}
+
+enum OutputFamily {
+  PDF   @map("pdf")
+  WORD  @map("word")
+  EXCEL @map("excel")
+  OTHER @map("other")
+}
+
+enum NotificationStatus {
+  UNREAD   @map("unread")
+  READ     @map("read")
+  ARCHIVED @map("archived")
+}
+
+enum TrainingProgramStatus {
+  PROGRAM_DRAFT    @map("program_draft")
+  PROGRAM_ACTIVE   @map("program_active")
+  PROGRAM_CLOSED   @map("program_closed")
+  PROGRAM_ARCHIVED @map("program_archived")
+}
+
+enum TrainingSessionStatus {
+  SESSION_PLANNED     @map("session_planned")
+  SESSION_SCHEDULED   @map("session_scheduled")
+  SESSION_IN_PROGRESS @map("session_in_progress")
+  SESSION_COMPLETED   @map("session_completed")
+  SESSION_POSTPONED   @map("session_postponed")
+  SESSION_CANCELED    @map("session_canceled")
+  SESSION_ARCHIVED    @map("session_archived")
+}
+
+enum TrainingEnrollmentStatus {
+  REGISTERED            @map("registered")
+  APPROVAL_PENDING      @map("approval_pending")
+  APPROVED              @map("approved")
+  PAYMENT_PENDING       @map("payment_pending")
+  ENROLLED              @map("enrolled")
+  EVALUATED             @map("evaluated")
+  INDIVIDUAL_COACHING   @map("individual_coaching")
+  CERTIFICATE_ISSUED    @map("certificate_issued")
+  SATISFACTION_RECORDED @map("satisfaction_recorded")
+  FOLLOW_UP             @map("follow_up")
+  CLOSED                @map("closed")
+  REJECTED              @map("rejected")
+  CANCELED              @map("canceled")
+}
+
+enum TrainingParticipantType {
+  CANDIDATE      @map("candidate")
+  USER           @map("user")
+  CLIENT_CONTACT @map("client_contact")
+  EXTERNAL       @map("external")
+}
+
+enum PaymentStatus {
+  NOT_REQUIRED @map("not_required")
+  PENDING      @map("pending")
+  PAID         @map("paid")
+  WAIVED       @map("waived")
+}
+
+enum CertificateStatus {
+  NOT_APPLICABLE @map("not_applicable")
+  PENDING        @map("pending")
+  ISSUED         @map("issued")
+}
+
+enum TrainingSessionParticipationStatus {
+  EXPECTED                 @map("expected")
+  ATTENDED                 @map("attended")
+  ABSENT                   @map("absent")
+  EXCUSED                  @map("excused")
+  SESSION_OUTCOME_RECORDED @map("session_outcome_recorded")
+  PARTICIPATION_ARCHIVED   @map("participation_archived")
+}
+
+enum ExternalParticipantStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  ARCHIVED @map("archived")
+}
+
+enum ConversationType {
+  PRIVATE @map("private")
+  GROUP   @map("group")
+}
+
+enum ConversationStatus {
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum ConversationMemberRole {
+  OWNER  @map("owner")
+  MEMBER @map("member")
+}
+
+enum MessageStatus {
+  ACTIVE   @map("active")
+  EDITED   @map("edited")
+  ARCHIVED @map("archived")
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  displayName     String
+  email           String
+  normalizedEmail String     @unique
+  status          UserStatus @default(ACTIVE)
+  userType        UserType   @default(INTERNAL)
+  locale          String     @default("en")
+  lastLoginAt     DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  roles                            UserRole[]
+  clientContact                    ClientContact?
+  commercialOwnedClients           Client[]                   @relation("ClientCommercialOwner")
+  missionRecruiters                MissionRecruiter[]
+  candidateEvaluations             CandidateEvaluation[]      @relation("EvaluationAuthor")
+  assignedTasks                    Task[]                     @relation("TaskAssignee")
+  createdTasks                     Task[]                     @relation("TaskCreator")
+  ownedDocuments                   Document[]                 @relation("DocumentOwner")
+  createdDocuments                 Document[]                 @relation("DocumentCreator")
+  createdDocumentVersions          DocumentVersion[]          @relation("DocumentVersionCreator")
+  uploadedCandidateDocuments       CandidateDocument[]        @relation("CandidateDocumentUploader")
+  createdCandidateDocumentVersions CandidateDocumentVersion[] @relation("CandidateDocumentVersionCreator")
+  notifications                    Notification[]             @relation("NotificationRecipient")
+  authoredNotifications            Notification[]             @relation("NotificationActor")
+  authoredMessages                 Message[]                  @relation("MessageAuthor")
+  conversationMemberships          ConversationMember[]
+  trainingEnrollments              TrainingEnrollment[]       @relation("UserTrainingEnrollment")
+  trainingProgramsOwned            TrainingProgram[]          @relation("TrainingProgramOwner")
+  trainingSessionsTrained          TrainingSession[]          @relation("TrainingSessionTrainer")
+  auditLogs                        AuditLog[]                 @relation("AuditActor")
+  targetedAuditLogs                AuditLog[]                 @relation("AuditTargetUser")
+
+  @@index([status])
+  @@index([userType])
+}
+
+model Role {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        RoleName   @unique
+  description String
+  status      RoleStatus @default(ACTIVE)
+  archivedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String              @id @default(uuid()) @db.Uuid
+  code        String              @unique
+  description String
+  scopeType   PermissionScopeType
+  status      PermissionStatus    @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  roles RolePermission[]
+
+  @@index([scopeType])
+  @@index([status])
+}
+
+model UserRole {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  roleId     String    @db.Uuid
+  assignedAt DateTime  @default(now())
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  id           String    @id @default(uuid()) @db.Uuid
+  roleId       String    @db.Uuid
+  permissionId String    @db.Uuid
+  grantedAt    DateTime  @default(now())
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Client {
+  id                    String       @id @default(uuid()) @db.Uuid
+  name                  String
+  normalizedName        String
+  status                ClientStatus @default(PROSPECT)
+  industry              String?
+  commercialOwnerUserId String?      @db.Uuid
+  commercialSummary     String?
+  archivedAt            DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  commercialOwner User?                @relation("ClientCommercialOwner", fields: [commercialOwnerUserId], references: [id], onDelete: SetNull)
+  contacts        ClientContact[]
+  missions        RecruitmentMission[]
+  documents       Document[]
+  tasks           Task[]
+
+  @@index([normalizedName])
+  @@index([status])
+  @@index([commercialOwnerUserId])
+}
+
+model ClientContact {
+  id              String              @id @default(uuid()) @db.Uuid
+  clientId        String              @db.Uuid
+  userId          String?             @unique @db.Uuid
+  displayName     String
+  email           String
+  normalizedEmail String
+  phone           String?
+  roleTitle       String?
+  status          ClientContactStatus @default(ACTIVE)
+  portalStatus    PortalAccessStatus  @default(DISABLED)
+  archivedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  trainingEnrollments TrainingEnrollment[] @relation("ClientContactTrainingEnrollment")
+  tasks               Task[]
+
+  @@unique([clientId, normalizedEmail])
+  @@index([clientId])
+  @@index([portalStatus])
+}
+
+model Candidate {
+  id                     String          @id @default(uuid()) @db.Uuid
+  displayName            String
+  email                  String?
+  normalizedEmail        String?
+  phone                  String?
+  linkedinUrl            String?
+  status                 CandidateStatus @default(ACTIVE)
+  source                 String?
+  consentStatus          ConsentStatus   @default(UNKNOWN)
+  salaryExpectationCents Int?
+  archivedAt             DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  documents           CandidateDocument[]
+  missionCandidates   MissionCandidate[]
+  documentsReferenced Document[]
+  trainingEnrollments TrainingEnrollment[] @relation("CandidateTrainingEnrollment")
+  tasks               Task[]
+
+  @@unique([normalizedEmail])
+  @@index([status])
+  @@index([linkedinUrl])
+}
+
+model CandidateDocument {
+  id               String                  @id @default(uuid()) @db.Uuid
+  candidateId      String                  @db.Uuid
+  documentType     CandidateDocumentType
+  title            String
+  currentVersionId String?                 @unique @db.Uuid
+  visibility       DocumentVisibility      @default(INTERNAL_ONLY)
+  uploadedByUserId String?                 @db.Uuid
+  status           CandidateDocumentStatus @default(ACTIVE)
+  archivedAt       DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  candidate      Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  uploadedBy     User?                      @relation("CandidateDocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  versions       CandidateDocumentVersion[] @relation("CandidateDocumentVersions")
+  currentVersion CandidateDocumentVersion?  @relation("CurrentCandidateDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+
+  @@index([candidateId])
+  @@index([visibility])
+  @@index([status])
+}
+
+model CandidateDocumentVersion {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  candidateDocumentId String                  @db.Uuid
+  versionNumber       Int
+  filename            String
+  storageKey          String                  @unique
+  mimeType            String
+  sizeBytes           BigInt
+  createdByUserId     String?                 @db.Uuid
+  source              DocumentVersionSource
+  status              CandidateDocumentStatus @default(ACTIVE)
+  archivedAt          DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  candidateDocument CandidateDocument  @relation("CandidateDocumentVersions", fields: [candidateDocumentId], references: [id], onDelete: Restrict)
+  currentFor        CandidateDocument? @relation("CurrentCandidateDocumentVersion")
+  createdBy         User?              @relation("CandidateDocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([candidateDocumentId, versionNumber])
+  @@index([candidateDocumentId])
+  @@index([createdByUserId])
+}
+
+model RecruitmentMission {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  clientId             String                  @db.Uuid
+  title                String
+  description          String?
+  requirements         String?
+  state                RecruitmentMissionState @default(DRAFT)
+  priority             TaskPriority            @default(NORMAL)
+  numberOfPositions    Int                     @default(1)
+  filledPlacementCount Int                     @default(0)
+  closureReason        MissionClosureReason?
+  closedAt             DateTime?
+  commercialSummary    String?
+  archivedAt           DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  client            Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruiters        MissionRecruiter[]
+  missionCandidates MissionCandidate[]
+  documents         Document[]
+  tasks             Task[]
+  notifications     Notification[]
+
+  @@index([clientId])
+  @@index([state])
+  @@index([closureReason])
+}
+
+model MissionRecruiter {
+  id         String               @id @default(uuid()) @db.Uuid
+  missionId  String               @db.Uuid
+  userId     String               @db.Uuid
+  role       MissionRecruiterRole @default(RECRUITER)
+  assignedAt DateTime             @default(now())
+  status     AssignmentStatus     @default(ACTIVE)
+  isLead     Boolean              @default(false)
+  endedAt    DateTime?
+  archivedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  mission RecruitmentMission @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tasks   Task[]
+
+  @@unique([missionId, userId, role])
+  @@index([missionId])
+  @@index([userId])
+  @@index([status])
+}
+
+model MissionCandidate {
+  id              String                @id @default(uuid()) @db.Uuid
+  missionId       String                @db.Uuid
+  candidateId     String                @db.Uuid
+  state           MissionCandidateState @default(NEW)
+  rank            Int?
+  source          String?
+  presentedAt     DateTime?
+  rejectionReason String?
+  closureReason   String?
+  archivedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  mission       RecruitmentMission    @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidate     Candidate             @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  interviews    Interview[]
+  evaluations   CandidateEvaluation[]
+  documents     Document[]
+  tasks         Task[]
+  notifications Notification[]
+
+  @@unique([missionId, candidateId])
+  @@index([candidateId])
+  @@index([missionId])
+  @@index([state])
+}
+
+model Interview {
+  id                 String          @id @default(uuid()) @db.Uuid
+  missionCandidateId String          @db.Uuid
+  type               InterviewType
+  scheduledAt        DateTime
+  location           String?
+  meetingUrl         String?
+  status             InterviewStatus @default(SCHEDULED)
+  outcome            String?
+  archivedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  missionCandidate MissionCandidate      @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  evaluations      CandidateEvaluation[]
+  documents        Document[]
+  tasks            Task[]
+  notifications    Notification[]
+
+  @@index([missionCandidateId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model CandidateEvaluation {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  missionCandidateId String                    @db.Uuid
+  interviewId        String?                   @db.Uuid
+  authorUserId       String?                   @db.Uuid
+  recommendation     EvaluationRecommendation?
+  score              Int?
+  feedback           String?
+  evaluationType     String
+  status             EvaluationStatus          @default(DRAFT)
+  archivedAt         DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  missionCandidate MissionCandidate @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  interview        Interview?       @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  author           User?            @relation("EvaluationAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([missionCandidateId])
+  @@index([interviewId])
+  @@index([authorUserId])
+  @@index([status])
+}
+
+model Task {
+  id                             String       @id @default(uuid()) @db.Uuid
+  title                          String
+  description                    String?
+  status                         TaskStatus   @default(OPEN)
+  dueAt                          DateTime?
+  priority                       TaskPriority @default(NORMAL)
+  assigneeUserId                 String?      @db.Uuid
+  createdByUserId                String?      @db.Uuid
+  candidateId                    String?      @db.Uuid
+  clientId                       String?      @db.Uuid
+  clientContactId                String?      @db.Uuid
+  recruitmentMissionId           String?      @db.Uuid
+  missionRecruiterId             String?      @db.Uuid
+  missionCandidateId             String?      @db.Uuid
+  interviewId                    String?      @db.Uuid
+  trainingProgramId              String?      @db.Uuid
+  trainingSessionId              String?      @db.Uuid
+  trainingEnrollmentId           String?      @db.Uuid
+  trainingSessionParticipationId String?      @db.Uuid
+  documentId                     String?      @db.Uuid
+  archivedAt                     DateTime?
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
+
+  assignee                     User?                         @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  createdBy                    User?                         @relation("TaskCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  candidate                    Candidate?                    @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  client                       Client?                       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientContact                ClientContact?                @relation(fields: [clientContactId], references: [id], onDelete: SetNull)
+  recruitmentMission           RecruitmentMission?           @relation(fields: [recruitmentMissionId], references: [id], onDelete: SetNull)
+  missionRecruiter             MissionRecruiter?             @relation(fields: [missionRecruiterId], references: [id], onDelete: SetNull)
+  missionCandidate             MissionCandidate?             @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
+  interview                    Interview?                    @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  trainingProgram              TrainingProgram?              @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
+  trainingSession              TrainingSession?              @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
+  trainingEnrollment           TrainingEnrollment?           @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
+  trainingSessionParticipation TrainingSessionParticipation? @relation(fields: [trainingSessionParticipationId], references: [id], onDelete: SetNull)
+  document                     Document?                     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  notifications                Notification[]
+
+  @@index([assigneeUserId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([candidateId])
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([missionCandidateId])
+  @@index([trainingEnrollmentId])
+  @@index([documentId])
+}
+
+model TrainingProgram {
+  id             String                @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  targetAudience String?
+  status         TrainingProgramStatus @default(PROGRAM_DRAFT)
+  ownerUserId    String?               @db.Uuid
+  archivedAt     DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  owner       User?                @relation("TrainingProgramOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  sessions    TrainingSession[]
+  enrollments TrainingEnrollment[]
+  tasks       Task[]
+
+  @@index([status])
+  @@index([ownerUserId])
+}
+
+model TrainingSession {
+  id                String                @id @default(uuid()) @db.Uuid
+  trainingProgramId String                @db.Uuid
+  trainerUserId     String?               @db.Uuid
+  scheduledAt       DateTime
+  status            TrainingSessionStatus @default(SESSION_PLANNED)
+  location          String?
+  meetingUrl        String?
+  outcome           String?
+  archivedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  program        TrainingProgram                @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
+  trainer        User?                          @relation("TrainingSessionTrainer", fields: [trainerUserId], references: [id], onDelete: SetNull)
+  participations TrainingSessionParticipation[]
+  documents      Document[]
+  tasks          Task[]
+  notifications  Notification[]
+
+  @@index([trainingProgramId])
+  @@index([trainerUserId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model TrainingEnrollment {
+  id                            String                   @id @default(uuid()) @db.Uuid
+  trainingProgramId             String                   @db.Uuid
+  participantType               TrainingParticipantType
+  candidateId                   String?                  @db.Uuid
+  userId                        String?                  @db.Uuid
+  clientContactId               String?                  @db.Uuid
+  externalTrainingParticipantId String?                  @db.Uuid
+  status                        TrainingEnrollmentStatus @default(REGISTERED)
+  paymentStatus                 PaymentStatus            @default(NOT_REQUIRED)
+  evaluationResult              String?
+  certificateStatus             CertificateStatus        @default(NOT_APPLICABLE)
+  satisfactionScore             Int?
+  coachingStatus                String?
+  followUpStatus                String?
+  archivedAt                    DateTime?
+  createdAt                     DateTime                 @default(now())
+  updatedAt                     DateTime                 @updatedAt
+
+  program                     TrainingProgram                @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
+  candidate                   Candidate?                     @relation("CandidateTrainingEnrollment", fields: [candidateId], references: [id], onDelete: SetNull)
+  user                        User?                          @relation("UserTrainingEnrollment", fields: [userId], references: [id], onDelete: SetNull)
+  clientContact               ClientContact?                 @relation("ClientContactTrainingEnrollment", fields: [clientContactId], references: [id], onDelete: SetNull)
+  externalTrainingParticipant ExternalTrainingParticipant?   @relation(fields: [externalTrainingParticipantId], references: [id], onDelete: SetNull)
+  participations              TrainingSessionParticipation[]
+  documents                   Document[]
+  tasks                       Task[]
+  notifications               Notification[]
+
+  @@index([trainingProgramId])
+  @@index([participantType])
+  @@index([candidateId])
+  @@index([userId])
+  @@index([clientContactId])
+  @@index([externalTrainingParticipantId])
+  @@index([status])
+}
+
+model TrainingSessionParticipation {
+  id                   String                             @id @default(uuid()) @db.Uuid
+  trainingSessionId    String                             @db.Uuid
+  trainingEnrollmentId String                             @db.Uuid
+  status               TrainingSessionParticipationStatus @default(EXPECTED)
+  sessionOutcome       String?
+  trainerNotes         String?
+  completionStatus     String?
+  archivedAt           DateTime?
+  createdAt            DateTime                           @default(now())
+  updatedAt            DateTime                           @updatedAt
+
+  session    TrainingSession    @relation(fields: [trainingSessionId], references: [id], onDelete: Restrict)
+  enrollment TrainingEnrollment @relation(fields: [trainingEnrollmentId], references: [id], onDelete: Restrict)
+  tasks      Task[]
+
+  @@unique([trainingSessionId, trainingEnrollmentId])
+  @@index([trainingEnrollmentId])
+  @@index([status])
+}
+
+model ExternalTrainingParticipant {
+  id              String                    @id @default(uuid()) @db.Uuid
+  displayName     String
+  email           String?
+  normalizedEmail String?
+  phone           String?
+  organization    String?
+  notes           String?
+  status          ExternalParticipantStatus @default(ACTIVE)
+  archivedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  enrollments TrainingEnrollment[]
+
+  @@unique([normalizedEmail])
+  @@index([status])
+}
+
+model Document {
+  id                   String             @id @default(uuid()) @db.Uuid
+  title                String
+  documentType         DocumentType
+  currentVersionId     String?            @unique @db.Uuid
+  visibility           DocumentVisibility @default(INTERNAL_ONLY)
+  generated            Boolean            @default(false)
+  outputFamily         OutputFamily?
+  ownerUserId          String?            @db.Uuid
+  createdByUserId      String?            @db.Uuid
+  candidateId          String?            @db.Uuid
+  clientId             String?            @db.Uuid
+  recruitmentMissionId String?            @db.Uuid
+  missionCandidateId   String?            @db.Uuid
+  interviewId          String?            @db.Uuid
+  trainingSessionId    String?            @db.Uuid
+  trainingEnrollmentId String?            @db.Uuid
+  messageId            String?            @db.Uuid
+  status               DocumentStatus     @default(DRAFT)
+  archivedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  owner              User?               @relation("DocumentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy          User?               @relation("DocumentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  candidate          Candidate?          @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  recruitmentMission RecruitmentMission? @relation(fields: [recruitmentMissionId], references: [id], onDelete: SetNull)
+  missionCandidate   MissionCandidate?   @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
+  interview          Interview?          @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  trainingSession    TrainingSession?    @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
+  trainingEnrollment TrainingEnrollment? @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
+  message            Message?            @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  versions           DocumentVersion[]   @relation("DocumentVersions")
+  currentVersion     DocumentVersion?    @relation("CurrentDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  tasks              Task[]
+  notifications      Notification[]
+
+  @@index([visibility])
+  @@index([status])
+  @@index([ownerUserId])
+  @@index([candidateId])
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([missionCandidateId])
+  @@index([messageId])
+}
+
+model DocumentVersion {
+  id              String                @id @default(uuid()) @db.Uuid
+  documentId      String                @db.Uuid
+  versionNumber   Int
+  filename        String
+  storageKey      String                @unique
+  mimeType        String
+  sizeBytes       BigInt
+  outputFamily    OutputFamily?
+  createdByUserId String?               @db.Uuid
+  source          DocumentVersionSource
+  status          DocumentStatus        @default(ACTIVE)
+  archivedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  document   Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
+  currentFor Document? @relation("CurrentDocumentVersion")
+  createdBy  User?     @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+  @@index([createdByUserId])
+}
+
+model Notification {
+  id                   String             @id @default(uuid()) @db.Uuid
+  recipientUserId      String             @db.Uuid
+  actorUserId          String?            @db.Uuid
+  type                 String
+  title                String
+  bodySummary          String?
+  status               NotificationStatus @default(UNREAD)
+  taskId               String?            @db.Uuid
+  documentId           String?            @db.Uuid
+  interviewId          String?            @db.Uuid
+  recruitmentMissionId String?            @db.Uuid
+  missionCandidateId   String?            @db.Uuid
+  trainingSessionId    String?            @db.Uuid
+  trainingEnrollmentId String?            @db.Uuid
+  archivedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  recipient          User                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  actor              User?               @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  document           Document?           @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  interview          Interview?          @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  recruitmentMission RecruitmentMission? @relation(fields: [recruitmentMissionId], references: [id], onDelete: SetNull)
+  missionCandidate   MissionCandidate?   @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
+  trainingSession    TrainingSession?    @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
+  trainingEnrollment TrainingEnrollment? @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([recipientUserId])
+  @@index([actorUserId])
+  @@index([status])
+  @@index([taskId])
+  @@index([documentId])
+}
+
+model Conversation {
+  id                String             @id @default(uuid()) @db.Uuid
+  type              ConversationType
+  title             String?
+  relatedEntityType String?
+  relatedEntityId   String?            @db.Uuid
+  status            ConversationStatus @default(ACTIVE)
+  archivedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([type])
+  @@index([status])
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+model ConversationMember {
+  id             String                 @id @default(uuid()) @db.Uuid
+  conversationId String                 @db.Uuid
+  userId         String                 @db.Uuid
+  role           ConversationMemberRole @default(MEMBER)
+  joinedAt       DateTime               @default(now())
+  muted          Boolean                @default(false)
+  active         Boolean                @default(true)
+  archivedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([active])
+}
+
+model Message {
+  id             String        @id @default(uuid()) @db.Uuid
+  conversationId String        @db.Uuid
+  authorUserId   String        @db.Uuid
+  body           String
+  status         MessageStatus @default(ACTIVE)
+  editedAt       DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  author       User         @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  documents    Document[]
+
+  @@index([conversationId])
+  @@index([authorUserId])
+  @@index([status])
+}
+
+model AuditLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  actorUserId     String?  @db.Uuid
+  targetUserId    String?  @db.Uuid
+  action          String
+  entityType      String
+  entityId        String?  @db.Uuid
+  requestId       String?
+  ipAddress       String?
+  userAgent       String?
+  metadataSummary String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  actor      User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  targetUser User? @relation("AuditTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
 }

@@ -67,6 +67,18 @@ jobs:
       - name: Validate Prisma schema
         run: pnpm prisma:validate
 
+      - name: Check Prisma architecture boundaries
+        run: pnpm check:architecture
+
+      - name: Remove generated Prisma client
+        run: rm -rf apps/api/prisma/generated/client
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Verify clean Prisma generation boundaries
+        run: pnpm check:architecture
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -81,3 +93,72 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  database-lifecycle:
+    name: Database migration, seed, and integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Copy example environment
+        run: cp .env.example .env
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Wait for PostgreSQL health
+        run: |
+          timeout 90 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" hire-me-postgres 2>/dev/null)" = "healthy" ]; do docker compose ps postgres; sleep 2; done'
+          docker compose ps postgres
+
+      - name: Check Prisma architecture boundaries
+        run: pnpm check:architecture
+
+      - name: Remove generated Prisma client
+        run: rm -rf apps/api/prisma/generated/client
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Verify clean Prisma generation boundaries
+        run: pnpm check:architecture
+
+      - name: Apply migrations
+        run: pnpm prisma:migrate:deploy
+
+      - name: Run development seed twice
+        run: |
+          pnpm prisma:seed
+          pnpm prisma:seed
+
+      - name: Run database integration tests
+        run: pnpm test:db
+
+      - name: Print Docker Compose diagnostics
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs postgres
+
+      - name: Stop Docker Compose services
+        if: always()
+        run: docker compose down -v
