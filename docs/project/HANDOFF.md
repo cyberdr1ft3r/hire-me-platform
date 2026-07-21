@@ -15,7 +15,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Review the updated PR #9 after the boundary fixes and CI rerun complete.
+Review the updated draft PR #9. The latest boundary-fix CI run passed.
 
 Check especially:
 
@@ -52,10 +52,10 @@ Completed locally by Codex during issue #3 work:
 - `git diff --check`
 - migration SQL generation from the Prisma schema
 
-Must be confirmed through the latest GitHub Actions run after the boundary-fix push:
+Confirmed through GitHub Actions run `29841648591` after the boundary-fix push:
 
 - `pnpm prisma:migrate:deploy` against real PostgreSQL
-- `pnpm prisma:seed`
+- `pnpm prisma:seed` twice
 - `pnpm test:db`
 - clean Prisma regeneration from an empty `apps/api/prisma/generated/client`
 - quality checks and architecture boundary checks
@@ -67,7 +67,7 @@ Blocked locally:
 GitHub Actions:
 
 - The workflow runs Docker Compose PostgreSQL health, migration deploy, seed twice, database integration tests, install, Prisma validation, clean Prisma generation, architecture boundary checks, format check, lint, typecheck, tests, and build.
-- Confirm the latest PR #9 check result after pushing the boundary-fix branch.
+- Latest PR #9 check result: passed in run `29841648591`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
