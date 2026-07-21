@@ -4,7 +4,7 @@ Last updated: 2026-07-21
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
-## Phase 0 â€” Discovery
+## Phase 0 — Discovery
 
 **State:** Complete
 
@@ -12,25 +12,25 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Clarification questionnaire.
 - Client workflows, modules, roles, migration expectations, dashboard indicators, language requirements, and integration priorities collected.
 
-## Phase 1 â€” Product and architecture foundation
+## Phase 1 — Product and architecture foundation
 
-**State:** In progress
+**State:** Complete
 
-- Issue #1: product scope, architecture, domain model, workflows, and permissions.
-- PR #4: documentation implementation and corrections.
-- Establish repository memory, goals, status, roadmap, decisions, risks, and agent handoff protocol.
+- Issue #1 completed through merged PR #4.
+- Product scope, architecture, domain model, workflows, and permissions approved.
+- Repository memory, goals, status, roadmap, decisions, risks, and agent handoff protocol established through issue #5 and merged PR #6.
 
-**Exit criteria:**
+**Exit criteria met:**
 
 - Confirmed requirements are represented without contradiction.
-- Domain entities and relationships support multiple recruiters, mission-specific candidate history, client access, training enrollment, messaging, documents, dashboards, and migration needs.
+- Domain entities and relationships support multiple recruiters, mission-specific candidate history, client access, multi-session training attendance, messaging, document versioning, dashboards, outputs, and migration needs.
 - Workflows match client-confirmed stages.
-- Permissions use least-privilege defaults.
-- PR #4 is reviewed and merged.
+- Permissions use confirmed operational scopes with explicit commercial-data controls.
+- PR #4 and PR #6 are merged.
 
-## Phase 2 â€” Repository and local development bootstrap
+## Phase 2 — Repository and local development bootstrap
 
-**State:** Blocked by Phase 1
+**State:** Ready to start
 
 - Issue #2.
 - pnpm and Turborepo monorepo.
@@ -41,15 +41,24 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Prisma wiring without the complete business schema.
 - CI quality gates.
 
-## Phase 3 â€” Persistence foundation
+**Exit criteria:**
 
-**State:** Blocked by Phases 1 and 2
+- A fresh clone can be started from the README.
+- PostgreSQL is healthy through Docker Compose.
+- The API exposes a tested structured health endpoint.
+- The web app reaches the API through environment-based configuration.
+- Lint, type-check, tests, build, and formatting checks pass locally and in CI.
+- No business modules or complete domain schema are implemented in this phase.
+
+## Phase 3 — Persistence foundation
+
+**State:** Blocked by Phase 2
 
 - Issue #3.
 - Foundational Prisma schema.
 - Migrations, development seed, indexes, constraints, archival approach, and relational tests.
 
-## Phase 4 â€” Identity, authorization, and audit foundation
+## Phase 4 — Identity, authorization, and audit foundation
 
 **State:** Planned; issue not yet created
 
@@ -59,7 +68,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Audit logging.
 - Protected-session and secret-handling rules.
 
-## Phase 5 â€” Core recruitment CRM
+## Phase 5 — Core recruitment CRM
 
 **State:** Planned; issues not yet created
 
@@ -70,7 +79,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Interviews and evaluations.
 - Search and filtering.
 
-## Phase 6 â€” Collaboration and operational support
+## Phase 6 — Collaboration and operational support
 
 **State:** Planned; issues not yet created
 
@@ -79,25 +88,25 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Client portal.
 - Protected document access and sharing.
 
-## Phase 7 â€” Training, commercial documents, and reporting
+## Phase 7 — Training, commercial documents, and reporting
 
 **State:** Planned; issues not yet created
 
-- Training programs, sessions, enrollment, attendance, assessment, certificates, and follow-up.
-- Document templates and generation for confirmed commercial and HR documents.
-- Dashboard indicators and exports.
+- Training programs, sessions, enrollment, per-session attendance, assessment, certificates, and follow-up.
+- Document templates, versions, and generation for confirmed commercial and HR documents.
+- Customizable dashboard indicators, reports, and exports.
 
-## Phase 8 â€” Integrations and migration
+## Phase 8 — Integrations and migration
 
 **State:** Planned; issues not yet created
 
 - Microsoft 365 authentication and approved email/contact capabilities.
 - Outlook and Google calendar adapters.
 - Automated email and WhatsApp Business reminders.
-- Excel import/export and PDF generation.
+- Excel-compatible import/export, PDF generation, and Word-compatible outputs.
 - Controlled migration tooling with duplicate detection, validation, and reporting.
 
-## Phase 9 â€” UAT and production readiness
+## Phase 9 — UAT and production readiness
 
 **State:** Planned; issues not yet created
 
