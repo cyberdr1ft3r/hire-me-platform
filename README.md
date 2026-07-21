@@ -2,34 +2,126 @@
 
 Internal recruitment, client relationship, training, task, document, and reporting platform for Hire Me.
 
-## Current status
+## Current Status
 
-The repository is in the architecture and project-foundation phase. Business features must not be implemented until the relevant architecture, domain model, workflow, and permission decisions are documented and reviewed.
+The repository now contains the TypeScript monorepo foundation for the Hire Me Platform. Business features are intentionally deferred to later scoped issues.
 
-## Planned technical direction
+## Requirements
 
-- TypeScript monorepo
-- React + Vite web application
-- NestJS API
-- PostgreSQL
-- Prisma ORM
-- Shared validation and TypeScript contracts
-- Docker-based local dependencies
-- Automated linting, type checking, tests, and CI
+- Node.js 24 LTS, from `.node-version`
+- pnpm `11.9.0`, from `packageManager`
+- Docker with Docker Compose
 
-## Core product areas
+Enable pnpm through Corepack when needed:
 
-- Users, roles, and permissions
-- Candidate and CV management
-- Client CRM
-- Recruitment missions and pipelines
-- Interviews and evaluations
-- Client portal
-- Tasks and notifications
-- Documents and templates
-- Training and coaching
-- Dashboard and reporting
+```sh
+corepack enable
+corepack prepare pnpm@11.9.0 --activate
+```
 
-## Working rule
+## Fresh Clone Setup
 
-Each implementation task should be completed on a dedicated branch and submitted through a pull request. Do not combine unrelated features in the same pull request.
+```sh
+git clone https://github.com/cyberdr1ft3r/hire-me-platform.git
+cd hire-me-platform
+cp .env.example .env
+pnpm install --frozen-lockfile
+docker compose up -d postgres
+pnpm prisma:generate
+pnpm dev
+```
+
+The development command starts:
+
+- `apps/api` at `http://127.0.0.1:3000`
+- `apps/web` at `http://127.0.0.1:5173`
+
+Open `http://127.0.0.1:5173` and the placeholder page should display the API health status.
+
+## Health Checks
+
+Check PostgreSQL:
+
+```sh
+docker compose ps
+```
+
+Check the API:
+
+```sh
+curl http://127.0.0.1:3000/health
+```
+
+Expected response shape:
+
+```json
+{
+  "status": "ok",
+  "service": "hire-me-api",
+  "timestamp": "2026-07-21T10:00:00.000Z",
+  "uptimeSeconds": 1
+}
+```
+
+## Quality Commands
+
+Run these from the repository root:
+
+```sh
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm prisma:validate
+```
+
+GitHub Actions runs the same quality checks on pull requests and pushes to `main`.
+
+## Repository Structure
+
+```text
+apps/
+  api/      NestJS API with GET /health and Prisma wiring
+  web/      React + Vite placeholder app
+packages/
+  config/   Shared TypeScript configuration
+  contracts/ Shared health contract and schema
+docs/       Product, architecture, workflow, permission, and project memory docs
+```
+
+## Local Services
+
+Start PostgreSQL:
+
+```sh
+docker compose up -d postgres
+```
+
+View logs:
+
+```sh
+docker compose logs postgres
+```
+
+Stop services:
+
+```sh
+docker compose down
+```
+
+Reset the local PostgreSQL volume:
+
+```sh
+docker compose down -v
+```
+
+## Environment
+
+`.env.example` contains safe development placeholders only. Copy it to `.env` for local development and do not commit `.env` files.
+
+The API validates required environment variables at startup. The web app reads `VITE_API_BASE_URL` to reach the API health endpoint.
+
+## Scope Guardrail
+
+This repository foundation does not implement authentication, users, candidates, clients, recruitment missions, interviews, training, messaging, dashboards, integrations, or the complete Prisma business schema. Those belong to later issues.

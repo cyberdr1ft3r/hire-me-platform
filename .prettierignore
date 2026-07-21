@@ -1,0 +1,11 @@
+node_modules/
+.turbo/
+dist/
+coverage/
+pnpm-lock.yaml
+
+.agents/
+docs/
+.github/ISSUE_TEMPLATE/
+AGENTS.md
+PROJECT_MEMORY.md

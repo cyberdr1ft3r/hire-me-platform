@@ -1,0 +1,29 @@
+{
+  "name": "@hire-me/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@hire-me/contracts": "workspace:*",
+    "@vitejs/plugin-react": "^4.7.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "vite": "^7.0.6"
+  },
+  "devDependencies": {
+    "@hire-me/config": "workspace:*",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

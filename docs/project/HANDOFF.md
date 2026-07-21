@@ -4,67 +4,56 @@ Last updated: 2026-07-21
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
-## Current situation
+## Current Situation
 
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
-- Issue #2 is the next executable task.
+- Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`.
 - Issue #3 must not start until issue #2 is reviewed and merged.
 
-## Next action
+## Next Action
 
-Implement GitHub issue #2: bootstrap the TypeScript monorepo and local development environment.
+Review the issue #2 draft PR after it is opened from `chore/bootstrap-typescript-monorepo`.
 
-Before changing anything, read:
+Check especially:
 
-1. `AGENTS.md`.
-2. `PROJECT_MEMORY.md`.
-3. `docs/project/STATUS.md`.
-4. `docs/project/DECISIONS.md`.
-5. This handoff.
-6. Issue #2 and all comments.
-7. The merged architecture and product documentation relevant to repository structure and security.
+- pnpm workspace and Turborepo root scripts;
+- `apps/web` React + Vite placeholder and API health display;
+- `apps/api` NestJS structured `GET /health` endpoint;
+- `packages/config` shared TypeScript configuration;
+- `packages/contracts` shared health contract;
+- Docker Compose PostgreSQL service and health check;
+- Prisma datasource wiring without business models;
+- safe `.env.example` placeholders and startup environment validation;
+- GitHub Actions parity with local quality commands;
+- README fresh-clone setup accuracy;
+- absence of authentication, business modules, business schema, real personal data, client data, or CV content.
 
-Load and follow these skills:
+## Verification Notes
 
-- `.agents/skills/project-memory/SKILL.md`
-- `.agents/skills/typescript-monorepo/SKILL.md`
-- `.agents/skills/devops-ci/SKILL.md`
-- `.agents/skills/application-security/SKILL.md`
-- `.agents/skills/quality-gates/SKILL.md`
-- `.agents/skills/prisma-postgresql/SKILL.md` only for safe Prisma/PostgreSQL wiring, not the business schema
+Completed locally by Codex:
 
-## Issue #2 scope guardrails
+- `pnpm install`
+- `pnpm prisma:validate`
+- `pnpm prisma:generate`
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm build`
+- API runtime check for `GET /health`
+- Web dev server strict-port check on `127.0.0.1:5173`
 
-Implement only the approved foundation:
+Blocked locally:
 
-- pnpm workspaces and Turborepo;
-- `apps/web` with React, TypeScript, and Vite;
-- `apps/api` with NestJS and a structured `GET /health` endpoint;
-- shared configuration and contracts packages;
-- PostgreSQL through Docker Compose with a health check;
-- Prisma configuration and connectivity without the complete domain schema;
-- strict TypeScript, ESLint, Prettier, environment validation, tests, and GitHub Actions CI;
-- exact local setup instructions in the README.
+- `docker compose up -d postgres` could not start PostgreSQL because Docker Desktop/daemon was unavailable in the local environment.
 
-Do not implement authentication, users, candidates, clients, missions, workflows, messaging, training, dashboards, integrations, or other business modules in issue #2.
+GitHub Actions:
 
-## Completion conditions
+- The workflow is configured to run install, Prisma validation, format check, lint, typecheck, tests, and build.
+- Confirm the actual PR check result after the draft PR is opened.
 
-Issue #2 may move toward merge only when:
-
-- a fresh clone can be started by following the README;
-- one documented command starts the local apps and required services;
-- PostgreSQL becomes healthy through Docker Compose;
-- the API health endpoint returns a structured success response;
-- the web app can reach and display the API health status using environment-based configuration;
-- environment variables are validated and no secrets are committed;
-- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm format:check` pass;
-- GitHub Actions runs equivalent checks;
-- the PR contains no business-domain implementation;
-- project status and handoff files are updated before completion.
-
-## Mandatory rehydration checklist for every new agent
+## Mandatory Rehydration Checklist For Every New Agent
 
 Before working:
 
