@@ -10,6 +10,38 @@ permissions:
   contents: read
 
 jobs:
+  postgres-health:
+    name: PostgreSQL Docker Compose health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy example environment
+        run: cp .env.example .env
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Wait for PostgreSQL health
+        run: |
+          timeout 90 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" hire-me-postgres 2>/dev/null)" = "healthy" ]; do docker compose ps postgres; sleep 2; done'
+          docker compose ps postgres
+
+      - name: Print Docker Compose diagnostics
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs postgres
+
+      - name: Stop Docker Compose services
+        if: always()
+        run: docker compose down -v
+
   quality:
     name: Quality checks
     runs-on: ubuntu-latest

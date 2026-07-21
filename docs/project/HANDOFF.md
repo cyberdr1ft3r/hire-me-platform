@@ -9,7 +9,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
 - Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`; PR #8 is open as a draft.
-- The latest PR #8 blocking review about root `.env` loading and mixed `localhost`/`127.0.0.1` origins has been addressed on the same branch.
+- The latest PR #8 blocking review about Docker Compose PostgreSQL health verification has been addressed with a dedicated GitHub Actions job on the same branch.
 - Issue #3 must not start until issue #2 is reviewed and merged.
 
 ## Next Action
@@ -24,6 +24,7 @@ Check especially:
 - `packages/config` shared TypeScript configuration;
 - `packages/contracts` shared health contract;
 - Docker Compose PostgreSQL service and health check;
+- GitHub Actions Docker Compose PostgreSQL health job;
 - Prisma datasource wiring without business models;
 - safe `.env.example` placeholders and startup environment validation;
 - root `.env` loading for API development/startup and Vite environment loading;
@@ -47,15 +48,16 @@ Completed locally by Codex:
 - API runtime check for `GET /health`
 - Web dev server strict-port check on `127.0.0.1:5173`
 - Root `.env` loading correction for API and web development paths
+- GitHub Actions Docker Compose PostgreSQL health job added
 
 Blocked locally:
 
-- `docker compose up -d postgres` could not start PostgreSQL because Docker Desktop/daemon was unavailable in the local environment.
+- `docker compose up -d postgres` could not start PostgreSQL in the Codex local environment because Docker Desktop/daemon was unavailable. CI now verifies the Docker Compose health path on Ubuntu.
 
 GitHub Actions:
 
-- The workflow is configured to run install, Prisma validation, format check, lint, typecheck, tests, and build.
-- Confirm the actual PR check result after the draft PR is opened.
+- The workflow is configured to run Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
+- Confirm the latest PR check result after each pushed correction.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

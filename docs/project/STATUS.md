@@ -7,14 +7,14 @@ Status owner: repository maintainer
 
 **Phase:** Repository and local development bootstrap
 **Health:** Implementation in progress
-**Current blocker:** Docker Desktop is not running in the local verification environment, so PostgreSQL container health could not be confirmed by Codex.
-**Next executable development task:** Review PR #8 after the environment-loading and CORS-origin correction.
+**Current blocker:** None in repository configuration; local Docker Desktop is not running in the Codex environment, so Docker health is verified through GitHub Actions.
+**Next executable development task:** Review PR #8 after the Docker Compose health CI correction.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
-| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review PR #8 for reproducible root `.env` loading, CI parity, and Docker health once Docker is available |
+| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review PR #8 for reproducible root `.env` loading, CI parity, and the Docker Compose PostgreSQL health job |
 | Issue #3 | Blocked | Implement the foundational Prisma schema and database lifecycle | Start only after issue #2 is reviewed and merged |
 
 ## Completed foundation work
@@ -38,7 +38,8 @@ Status owner: repository maintainer
 - Local web, API, CORS, and database examples consistently use `127.0.0.1`.
 - Web dev server responded on `127.0.0.1:5173` with `VITE_API_BASE_URL` configured for the local API.
 - React test coverage verifies that the web app renders the API health response from the configured client path.
-- Docker Compose PostgreSQL startup could not be confirmed because the Docker daemon was unavailable.
+- GitHub Actions includes a dedicated Docker Compose job that copies `.env.example` to `.env`, validates Compose configuration, starts PostgreSQL, waits for the container to become healthy, prints diagnostics on failure, and always runs `docker compose down -v`.
+- Local Docker Compose PostgreSQL startup could not be confirmed by Codex because the Docker daemon was unavailable.
 
 ## Current open technical questions
 
@@ -55,10 +56,10 @@ These are not blockers for the issue #2 implementation PR:
 
 ## Immediate next actions
 
-1. Review PR #8 after the latest blocking review correction.
-2. Run `docker compose up -d postgres` in an environment where Docker Desktop is running and confirm `docker compose ps` reports PostgreSQL healthy.
-3. Review GitHub Actions results for the PR and confirm CI runs install, Prisma validation, format check, lint, typecheck, tests, and build.
-4. Merge issue #2 only when fresh-clone setup, Docker health, API/web connectivity, local checks, and CI checks are satisfactory.
+1. Review PR #8 after the Docker Compose health CI correction.
+2. Review GitHub Actions results for the PR and confirm CI runs Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
+3. Merge issue #2 only when fresh-clone setup, Docker health, API/web connectivity, local checks, and CI checks are satisfactory.
+4. Optionally rerun `docker compose up -d postgres` locally when Docker Desktop is available.
 5. Begin issue #3 only after issue #2 is complete.
 
 ## Status Update Rules
