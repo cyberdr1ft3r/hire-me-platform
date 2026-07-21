@@ -5,52 +5,48 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Foundation and documentation  
-**Health:** In progress  
-**Current product blocker:** PR #4 must address the blocking review points before merge.  
-**Current repository-governance work:** PR #6 adds persistent project memory and agent handoffs.  
-**Next executable development task:** Issue #2 after PR #4 is approved and merged.
+**Phase:** Repository and local development bootstrap  
+**Health:** Ready to start  
+**Current blocker:** None for issue #2  
+**Next executable development task:** Issue #2 — bootstrap the TypeScript monorepo and local development environment.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
-| Issue #1 | In progress | Define product scope, architecture, domain model, workflows, and permissions | Complete review corrections through PR #4 |
-| PR #4 | Draft / changes pending | Foundation product and architecture documentation | Re-review corrected documentation, then merge when consistent |
-| Issue #5 | In progress | Establish GitHub project memory and agent handoff system | Review and merge PR #6 |
-| PR #6 | Draft | Add goals, memory, status, roadmap, decisions, risks, handoff, issue template, and mandatory memory skill | Review for accuracy, then merge independently of PR #4 |
-| Issue #2 | Ready but blocked | Bootstrap TypeScript monorepo and local development environment | Start only after issue #1 is merged |
-| Issue #3 | Blocked | Implement foundational Prisma schema and database lifecycle | Start only after issues #1 and #2 are merged |
+| Issue #2 | Ready | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Assign to Codex and open a draft implementation PR |
+| Issue #3 | Blocked | Implement the foundational Prisma schema and database lifecycle | Start only after issue #2 is reviewed and merged |
 
 ## Completed foundation work
 
 - Private GitHub repository created.
 - Initial README added.
-- Codex repository instructions added through `AGENTS.md`.
-- Project-local Codex skills added for architecture, monorepo, Prisma/PostgreSQL, security, DevOps/CI, and quality gates.
+- Codex repository instructions and project-local skills added.
 - Discovery and clarification questionnaires completed and analyzed.
-- Issues #1, #2, and #3 created with dependencies and acceptance criteria.
-- PR #4 opened for issue #1 and reviewed.
-- Blocking documentation corrections communicated to Codex.
-- Issue #5 and PR #6 created for persistent repository memory and handoffs.
+- Issue #5 completed through merged PR #6, establishing persistent repository memory, goals, status, roadmap, decisions, risks, and agent handoffs.
+- Issue #1 completed through merged PR #4, establishing the approved product scope, architecture, domain model, workflows, and permissions.
+- Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
-## Current blockers and open questions
+## Current open technical questions
 
-- PR #4 contains requirement mismatches that must be corrected before merge.
-- Authentication provider and session model remain technical decisions for a later issue.
-- Background-job technology remains undecided.
-- Production file-storage provider remains undecided.
-- Detailed per-module permission names require refinement during API design.
-- Client sample files and templates have not yet been added to the repository and must never include live confidential data without sanitization.
+These are not blockers for issue #2:
+
+- Authentication provider and session model.
+- Background-job technology.
+- Production file-storage provider.
+- Advanced-search implementation.
+- Real-time messaging and notification transport.
+- Detailed per-module permission names.
+- Dashboard formulas and revenue authorization rules.
+- Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Review and merge PR #6 so future agents inherit the persistent memory protocol.
-2. Wait for Codex to push corrections to PR #4.
-3. Review corrected PR #4 files against the blocking comment and client-confirmed requirements.
-4. Merge PR #4 only when terminology, workflows, relationships, permissions, dashboards, documents, integrations, migration scope, and cross-cutting requirements are consistent.
-5. Update this status and `HANDOFF.md` after each merge.
-6. Launch issue #2 with the required repository skills only after issue #1 is complete.
+1. Launch issue #2 with the required repository-memory, monorepo, DevOps/CI, security, and quality-gate skills.
+2. Keep issue #2 limited to scaffolding and local infrastructure; do not add business modules or the full Prisma domain schema.
+3. Review the resulting draft PR for reproducibility, safe environment handling, Docker health checks, API/web connectivity, tests, and CI parity.
+4. Merge issue #2 only when a fresh clone can follow the README and all quality commands pass.
+5. Begin issue #3 only after issue #2 is complete.
 
 ## Status update rules
 

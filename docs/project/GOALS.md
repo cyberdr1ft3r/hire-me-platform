@@ -32,7 +32,7 @@ Last updated: 2026-07-21
 
 ## Current milestone
 
-Approve and merge the corrected foundation documentation in PR #4, then begin issue #2 for repository and local-environment bootstrap.
+Complete and merge issue #2 so a fresh clone can run the React/Vite web app, NestJS API, PostgreSQL local service, Prisma wiring, shared packages, tests, and CI through documented commands. Do not begin the full business schema in issue #3 until this foundation is stable.
 
 ## Not yet quantified
 

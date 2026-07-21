@@ -1,4 +1,4 @@
-# Hire Me Platform â€” Project Memory
+# Hire Me Platform — Project Memory
 
 Last updated: 2026-07-21
 
@@ -10,14 +10,14 @@ Build a bilingual, responsive business platform for Hire Me that centralizes rec
 
 ## Current phase
 
-Foundation and documentation.
+Repository and local development bootstrap.
 
-- Active issue: #1 â€” product scope, architecture, domain model, workflows, and permissions.
-- Active pull request: #4 â€” draft documentation PR, currently being corrected after review.
-- Next issue after approval and merge: #2 â€” TypeScript monorepo and local development environment.
-- Issue #3 must wait for issues #1 and #2 to be merged.
+- Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
+- Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
+- Active issue: #2 — bootstrap the TypeScript monorepo and local development environment.
+- Issue #3 must wait until issue #2 is reviewed and merged.
 
-Do not begin issue #2 while PR #4 still has unresolved blocking review points.
+There is no remaining product-documentation blocker for issue #2.
 
 ## Confirmed product facts
 
@@ -26,12 +26,12 @@ Do not begin issue #2 while PR #4 still has unresolved blocking review points.
 - A recruitment mission can have multiple recruiters.
 - Client companies can have multiple contacts and a restricted client portal.
 - V1 communication requires private messages and discussion groups, in addition to comments, mentions, and notifications.
-- Training and coaching require programs, sessions, participants or enrollments, attendance, evaluation, certification, and follow-up.
-- Documents include CVs, job descriptions, interview reports, candidate summaries, quotations, purchase orders, contracts, invoices, HR documents, technical-test reports, and training material.
+- Training and coaching require programs, sessions, enrollments, per-session attendance, evaluation, certification, and follow-up.
+- Documents include CVs, job descriptions, interview reports, candidate summaries, quotations, purchase orders, contracts, invoices, HR documents, technical-test reports, and training material with explicit version history.
 - Principal dashboard indicators are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
-- Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, document storage, and internal notifications.
+- Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, document storage, and internal notifications.
 
 ## Technical direction
 
@@ -52,7 +52,7 @@ Do not begin issue #2 while PR #4 still has unresolved blocking review points.
 - Never commit secrets, production credentials, personal datasets, CV files, or questionnaire exports.
 - Protect candidate, HR, salary, client, document, and commercial information using least privilege.
 - Work through scoped GitHub issues and dedicated branches.
-- Use draft pull requests and do not merge automatically.
+- Use draft pull requests and do not merge automatically as part of an agent task.
 - Run applicable lint, type-check, test, build, migration, and security checks before completion.
 - Do not silently expand product scope.
 
