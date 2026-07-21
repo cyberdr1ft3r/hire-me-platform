@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Secured internal administration foundation
-**Health:** Issue #13 draft PR #14 is review-ready after CI passed.
-**Current blocker:** None known.
-**Next executable development task:** Maintainer review of draft PR #14.
+**Health:** PR #14 security-review fix is implemented and PR checks are the source for the latest CI result.
+**Current blocker:** Local Docker Desktop is unavailable, so database checks are confirmed by GitHub Actions.
+**Next executable development task:** Confirm PR #14 CI and maintainer review.
 
 ## Active work
 
@@ -17,7 +17,7 @@ Status owner: repository maintainer
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
-| Issue #13 | In review | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Maintainer review of draft PR #14 |
+| Issue #13 | In review | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Confirm PR #14 CI and maintainer review |
 
 ## Completed foundation work
 
@@ -66,6 +66,7 @@ Status owner: repository maintainer
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local Docker Compose PostgreSQL startup failed because Docker Desktop is not running, so `pnpm prisma:migrate:deploy`, `pnpm prisma:seed`, and `pnpm test:db` could not complete locally.
 - Draft PR #14 is open. GitHub Actions run `29861073885` passed PostgreSQL Docker Compose health, migration deploy, seed twice, database integration tests, and quality checks.
+- The latest blocking security review is addressed locally by making the central auth guard explicitly verify current active/not-archived account eligibility and by adding a PostgreSQL-backed regression test that reuses still-unexpired access tokens after suspension and archival.
 
 ## Current open technical questions
 
@@ -84,9 +85,10 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review draft PR #14.
-2. Accept or request changes on internal administration authorization, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
-3. Merge issue #13 only after maintainer approval.
+1. Confirm PR #14 CI.
+2. Review draft PR #14.
+3. Accept or request changes on internal administration authorization, immediate access-token authorization invalidation after suspension/archive, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
+4. Merge issue #13 only after maintainer approval.
 
 ## Status Update Rules
 

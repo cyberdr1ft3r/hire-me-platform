@@ -94,7 +94,7 @@ Issue #10 seeds the initial authentication and synthetic product permission name
 | `roles:view` | Read the approved role catalog and role-to-permission mappings. |
 | `permissions:view` | Read the approved permission catalog. |
 
-Administration remains deny-by-default. The application protects the last active `SUPER_ADMIN`, prevents unsafe self-demotion/self-suspension/self-archival, revokes sessions when users are suspended or archived, and treats `UserRole` changes as archival rather than physical deletion.
+Administration remains deny-by-default. The application protects the last active `SUPER_ADMIN`, prevents unsafe self-demotion/self-suspension/self-archival, revokes sessions when users are suspended or archived, centrally rejects still-unexpired access tokens for suspended or archived users, and treats `UserRole` changes as archival rather than physical deletion.
 
 ## Security and Audit Requirements
 

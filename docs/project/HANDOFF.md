@@ -15,11 +15,12 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Review draft PR #14.
+Confirm latest PR #14 CI after the blocking security-review fix, then review draft PR #14.
 
 Check especially:
 
 - Every administration route is guarded by explicit permission codes, not hard-coded role checks.
+- Every protected request verifies the current database user is still active and not archived, so suspension/archive immediately rejects still-unexpired access tokens.
 - API runtime code continues to use the one Nest-managed Prisma provider.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
 - Internal user responses never expose password hashes, refresh-token hashes, raw tokens, cookie values, secrets, or confidential payloads.
@@ -48,6 +49,7 @@ Completed locally during Issue #13 work:
 - `pnpm test`
 - `pnpm build`
 - `git diff --check`
+- Targeted security-review fix checks: `pnpm --filter @hire-me/api typecheck`, `pnpm --filter @hire-me/api lint`, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`
 
 Blocked locally because Docker Desktop is not running and PostgreSQL is unavailable at `127.0.0.1:5432`:
 

@@ -3,6 +3,7 @@ import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/commo
 import { AuthenticationFailedException } from './auth.errors.js';
 import type { RequestWithUser } from './auth.types.js';
 import { TokenService } from './token.service.js';
+import { UserStatus } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
 
 @Injectable()
@@ -29,16 +30,10 @@ export class AuthGuard implements CanActivate {
 
     try {
       const payload = this.tokens.verifyAccessToken(value.slice('Bearer '.length));
-      const user = await this.prisma.user.findFirst({
-        where: {
-          id: payload.sub,
-          status: 'ACTIVE',
-          archivedAt: null,
-        },
-      });
+      const user = await this.findCurrentlyEligibleUser(payload.sub);
 
       if (!user) {
-        throw new Error('Inactive user');
+        throw new Error('Ineligible user');
       }
 
       request.user = {
@@ -50,5 +45,15 @@ export class AuthGuard implements CanActivate {
     } catch {
       throw new AuthenticationFailedException();
     }
+  }
+
+  private async findCurrentlyEligibleUser(userId: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        status: UserStatus.ACTIVE,
+        archivedAt: null,
+      },
+    });
   }
 }

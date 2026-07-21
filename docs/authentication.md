@@ -59,6 +59,8 @@ Permissions are resolved from normalized relational records:
 
 `User` -> `UserRole` -> `Role` -> `RolePermission` -> `Permission`
 
+Every protected request centrally verifies the current database state for the access-token subject before authorization runs. Users whose current `User.status` is not `ACTIVE` or whose `archivedAt` is set are rejected with the same generic authentication failure used for invalid tokens. This makes suspension and archival take effect immediately for protected endpoints even though access tokens are stateless and short-lived.
+
 Only active users, active roles, active permissions, and non-archived role assignments are considered. Authorization guards deny by default when a route does not declare required permissions. Protected route handlers must declare explicit permission codes and still apply record-scope checks when business modules are implemented.
 
 ## Internal User Administration
@@ -81,7 +83,7 @@ Issue #13 introduces versioned administration endpoints under `/v1/admin`. All r
 | `GET` | `/v1/admin/permissions` | `permissions:view` | Read the approved permission catalog. |
 | `GET` | `/v1/admin/users/:userId/effective-permissions` | `users:view` | Preview a user's effective permissions from multiple roles. |
 
-The last active `SUPER_ADMIN` invariant is protected inside PostgreSQL transactions using a transaction-scoped advisory lock before role removal or status changes can reduce the active super-administrator count. Self-demotion, self-suspension, and self-archival are rejected to prevent accidental lockout. Suspending or archiving a user atomically revokes that user's active refresh sessions.
+The last active `SUPER_ADMIN` invariant is protected inside PostgreSQL transactions using a transaction-scoped advisory lock before role removal or status changes can reduce the active super-administrator count. Self-demotion, self-suspension, and self-archival are rejected to prevent accidental lockout. Suspending or archiving a user atomically revokes that user's active refresh sessions and immediately makes still-unexpired access tokens unusable for protected requests because the central auth guard checks current account eligibility.
 
 Administrator-set initial credentials must satisfy the existing password policy and are hashed with the same Argon2id parameters as login credentials. Password hashes, refresh-token hashes, raw tokens, cookies, IP hashes, user-agent hashes, and plaintext credentials are never returned by administration APIs.
 

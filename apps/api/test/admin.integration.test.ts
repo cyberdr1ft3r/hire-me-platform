@@ -414,6 +414,53 @@ describe('administration user access management', () => {
     expect(archivedLogin.status).toBe(401);
   });
 
+  it('rejects still-unexpired access tokens immediately after suspension or archival', async () => {
+    const adminToken = await loginAccessToken(
+      baseUrl,
+      await createUserEmail('eligibility-admin@admin.test', RoleName.ADMIN),
+    );
+    const suspendedId = await createUser('eligibility-suspended@admin.test', {
+      roleName: RoleName.ADMIN,
+    });
+    const archivedId = await createUser('eligibility-archived@admin.test', {
+      roleName: RoleName.ADMIN,
+    });
+    const suspendedToken = await loginAccessToken(baseUrl, 'eligibility-suspended@admin.test');
+    const archivedToken = await loginAccessToken(baseUrl, 'eligibility-archived@admin.test');
+
+    const beforeSuspension = await fetch(`${baseUrl}/v1/admin/users?search=eligibility`, {
+      headers: authHeaders(suspendedToken),
+    });
+    const beforeArchival = await fetch(`${baseUrl}/v1/admin/users?search=eligibility`, {
+      headers: authHeaders(archivedToken),
+    });
+
+    const suspension = await fetch(`${baseUrl}/v1/admin/users/${suspendedId}/status`, {
+      method: 'PATCH',
+      headers: authHeaders(adminToken),
+      body: JSON.stringify({ status: UserStatus.SUSPENDED }),
+    });
+    const archival = await fetch(`${baseUrl}/v1/admin/users/${archivedId}/status`, {
+      method: 'PATCH',
+      headers: authHeaders(adminToken),
+      body: JSON.stringify({ status: UserStatus.ARCHIVED }),
+    });
+
+    const afterSuspension = await fetch(`${baseUrl}/v1/admin/users?search=eligibility`, {
+      headers: authHeaders(suspendedToken),
+    });
+    const afterArchival = await fetch(`${baseUrl}/v1/admin/users?search=eligibility`, {
+      headers: authHeaders(archivedToken),
+    });
+
+    expect(beforeSuspension.status).toBe(200);
+    expect(beforeArchival.status).toBe(200);
+    expect(suspension.status).toBe(200);
+    expect(archival.status).toBe(200);
+    expect(afterSuspension.status).toBe(401);
+    expect(afterArchival.status).toBe(401);
+  });
+
   it('revokes selected and all active refresh sessions without exposing token hashes', async () => {
     const adminToken = await loginAccessToken(
       baseUrl,

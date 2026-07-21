@@ -108,6 +108,7 @@ Issue #10 implements the first local authentication foundation:
 - normalized permission-code resolution through `UserRole`, `RolePermission`, and `Permission`
 - deny-by-default authorization guards
 - safe authentication audit logs, including successful login events
+- central protected-request account eligibility checks, so suspended or archived users cannot keep authorizing requests with still-unexpired access tokens
 
 Issue #13 implements the first secured internal user administration module:
 
@@ -118,6 +119,7 @@ Issue #13 implements the first secured internal user administration module:
 - transaction-protected last active `SUPER_ADMIN` invariant
 - self-demotion, self-suspension, and self-archival prevention
 - atomic refresh-session revocation when users are suspended or archived
+- immediate protected-request rejection for suspended or archived users through the central auth guard
 - safe administration audit summaries without passwords, token hashes, cookies, secrets, or confidential payloads
 
 Microsoft 365 authentication, identity-provider linking, MFA, password reset, registration, invitations, arbitrary role creation, permission editing, and final business record-scope policy behavior remain later implementation work.
