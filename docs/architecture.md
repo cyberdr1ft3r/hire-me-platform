@@ -2,45 +2,62 @@
 
 ## Summary
 
-Hire Me Platform should start as a TypeScript modular monolith in a monorepo. The recommended stack is a React + Vite web application, a NestJS backend API, PostgreSQL, Prisma ORM, shared validation and TypeScript types, Docker Compose for local services, an object/file storage abstraction, role-based authorization, audit logging, and background jobs.
+Hire Me Platform should start as a TypeScript modular monolith in a monorepo. The recommended stack is a React + Vite web application, a NestJS backend API, PostgreSQL, Prisma ORM, shared validation and TypeScript types, Docker Compose for local services, an object/file storage abstraction, role-based authorization, audit logging, background jobs, integration adapters, and protected document storage.
 
-This structure is simple enough for a single-developer MVP while preserving boundaries for future expansion.
+This structure is simple enough for a single-developer MVP while preserving boundaries for future expansion and the confirmed V1 and roadmap requirements.
+
+## Confirmed Product Requirements Affecting Architecture
+
+- French and English interface support.
+- Responsive web support.
+- Advanced multi-criteria search.
+- Exportable reports.
+- Automatic reminders and notifications.
+- Real-time internal notifications.
+- Audit logs for sensitive and business-critical actions.
+- Backups and restore expectations.
+- Confidential-data protection for candidate, HR, salary, CV, client, commercial, message, document, export, and audit data.
+- Module-by-module validation and UAT.
+- Confirmed dashboard metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
+- Confirmed integration requirements for Microsoft 365 authentication, Outlook/Microsoft email and contacts, Outlook Calendar, Google Calendar, SMTP or Outlook email, WhatsApp Business reminders, LinkedIn-assisted candidate creation/profile links, Excel import/export, PDF generation, protected document storage, and real-time internal notifications.
 
 ## Architecture Principles
 
 - Prefer a modular monolith over microservices for the initial product.
-- Keep frontend, API, shared contracts, persistence, storage, background jobs, and integrations separated by clear interfaces.
-- Treat authentication, authorization, audit logging, file access, and confidential data protection as cross-cutting concerns.
-- Treat future external integrations as adapters behind interfaces.
+- Keep frontend, API, shared contracts, persistence, storage, background jobs, notifications, messaging, reporting, import, and integrations separated by clear interfaces.
+- Treat authentication, authorization, audit logging, file access, backups, imports, and confidential-data protection as cross-cutting concerns.
+- Treat integrations as adapters behind interfaces.
 - Avoid speculative application modules outside the confirmed scope.
 - Preserve candidate history across multiple recruitment missions.
+- Support multiple recruiters per mission through `MissionAssignment`.
+- Support participant-specific training lifecycle data through `TrainingEnrollment`.
 
 ## Proposed Stack
 
 ### TypeScript Monorepo
 
-A TypeScript monorepo should contain the web app, API, shared contracts, and shared tooling. This keeps the MVP easy to navigate and allows frontend and backend code to share validation schemas, workflow state names, and API contracts without publishing packages.
+A TypeScript monorepo should contain the web app, API, shared contracts, and shared tooling. This keeps the MVP easy to navigate and allows frontend and backend code to share validation schemas, workflow state names, permission names, and API contracts without publishing packages.
 
 Potential future layout:
 
 - `apps/web`: React + Vite frontend.
 - `apps/api`: NestJS backend API.
-- `packages/shared`: shared types, validation schemas, permission names, and workflow states.
+- `packages/shared`: shared types, validation schemas, permission names, workflow states, and integration contract types.
 - `packages/config`: shared TypeScript, linting, and test configuration.
 
 No monorepo scaffolding is added in this task.
 
 ### React + Vite Frontend
 
-React + Vite is appropriate for dashboards, forms, tables, client portal screens, and workflow controls. The frontend should use permissions to shape navigation and controls, but backend authorization remains the source of truth.
+React + Vite is appropriate for dashboards, forms, tables, responsive client portal screens, multilingual UI, search, reporting, workflow controls, and internal messaging. The frontend should use permissions to shape navigation and controls, but backend authorization remains the source of truth.
 
 ### NestJS Backend API
 
-NestJS provides clear module boundaries, dependency injection, guards, validation, interceptors, scheduling, testing support, and predictable API structure. The API should own authorization, workflow transitions, audit logging, file access checks, and integration boundaries.
+NestJS provides clear module boundaries, dependency injection, guards, validation, interceptors, scheduling, testing support, and predictable API structure. The API should own authorization, workflow transitions, audit logging, file access checks, data import validation, notification dispatch, and integration boundaries.
 
 ### PostgreSQL
 
-PostgreSQL should be the primary database because the domain is relational and history-sensitive. It supports transactions, constraints, reporting queries, candidate-to-mission history, client relationships, permissions, and audit logs.
+PostgreSQL should be the primary database because the domain is relational and history-sensitive. It supports transactions, constraints, reporting queries, candidate-to-mission history, mission assignments, training enrollments, client relationships, permissions, messages, document metadata, and audit logs.
 
 ### Prisma ORM
 
@@ -48,7 +65,7 @@ Prisma should be used for typed database access and migrations once implementati
 
 ### Shared Validation and Types
 
-Shared validation and types should live in a shared package so frontend and backend code agree on API payloads, workflow states, permission names, and domain identifiers. A validation library can be selected during implementation.
+Shared validation and types should live in a shared package so frontend and backend code agree on API payloads, workflow states, permission names, domain identifiers, import row validation, and integration adapter contracts. A validation library can be selected during implementation.
 
 ### Docker Compose for Local Services
 
@@ -56,7 +73,9 @@ Docker Compose should run local services such as PostgreSQL and any selected que
 
 ### Object/File Storage Abstraction
 
-Candidate CVs, HR documents, generated documents, and client-facing documents should be accessed through a storage service interface. Feature modules should not call a provider directly. Storage must support protected download paths, randomized storage keys, file metadata, ownership checks, and future malware scanning.
+Candidate CVs, HR documents, quotations, purchase orders, contracts, invoice documents, generated candidate summaries, interview reports, training documents, message attachments, and client-facing documents should be accessed through a storage service interface. Feature modules should not call a provider directly.
+
+Storage must support protected download paths, randomized storage keys, file metadata, version history, ownership checks, explicit sharing rules, access audit logs, and future malware scanning.
 
 ### Authentication and Authorization
 
@@ -69,51 +88,80 @@ Recommended authorization approach:
 - `Role` records grant explicit `Permission` records.
 - Backend guards enforce permissions and record scope.
 - Client users receive client-scoped permissions only.
-- Deny-by-default policy checks protect candidate, HR, salary, CV, client, document, export, and commercial data.
+- Guest users receive only individually shared read-only access.
+- Commercial-data permissions are explicit assignments, not broad role defaults.
+- Deny-by-default policy checks protect candidate, HR, salary, CV, client, message, document, export, and commercial data.
 
-Implementation should use short-lived sessions or tokens with safe refresh and revocation. Password hashing, identity provider support, and session storage details remain unresolved.
+Implementation should use short-lived sessions or tokens with safe refresh and revocation. Password hashing, Microsoft 365 authentication details, identity provider support, and session storage details remain unresolved technical choices.
 
 ### Audit Logging
 
 The backend should write `AuditLog` records for sensitive or business-critical actions, including:
 
+- authentication and security-sensitive failures when appropriate
 - user administration and permission changes
 - candidate, client, mission, and training archival or deletion
 - candidate export and report export
-- document upload, generated document creation, and document download
+- document upload, generated document creation, version change, sharing, and download
 - client portal sharing
 - commercial-data access
 - workflow state transitions
-- authentication and security-sensitive failures when appropriate
+- mission assignment changes
+- training enrollment approval, payment status change, attendance, evaluation, certificate, and follow-up changes
+- message attachment downloads and sensitive conversation membership changes
+- import validation, administrator approval, and import completion
 
-Audit logs should include actor, action, entity type, entity id, timestamp, request context, and safe before/after metadata where useful. Audit logs must not store secrets, raw CV contents, sensitive document contents, or full confidential payloads.
+Audit logs should include actor, action, entity type, entity id, timestamp, request context, and safe before/after metadata where useful. Audit logs must not store secrets, raw CV contents, sensitive document contents, message bodies, or full confidential payloads.
 
 ### Background Jobs
 
-Background jobs should handle work that should not block API responses, such as notifications, document generation, scheduled reminders, export preparation, and reporting snapshots.
+Background jobs should handle work that should not block API responses, such as notifications, document generation, scheduled reminders, export preparation, import processing, duplicate detection, integrity checks, PDF generation, email delivery, WhatsApp Business reminders, integration synchronization, and reporting snapshots.
 
-The initial queue technology is unresolved. A NestJS-compatible queue backed by Redis or PostgreSQL should be evaluated during implementation.
+The initial queue technology is an unresolved technical choice. A NestJS-compatible queue backed by Redis or PostgreSQL should be evaluated during implementation.
+
+### Search and Reporting
+
+Advanced multi-criteria search should be designed as a backend capability with permission-aware filters. Initial data volumes are moderate but large enough to require indexes for candidate, CV metadata, client, mission, interview, evaluation, document, and training queries.
+
+Confirmed dashboard metrics are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue. Exact formulas, time windows, and authorization rules, especially for revenue, remain unresolved technical choices.
+
+### Data Migration
+
+The architecture must support initial migration of approximately:
+
+- 3,000 to 5,000 candidates
+- 3,000 to 5,000 CV files
+- 200 to 500 clients and prospects
+- 200 recruitment missions
+- existing interviews, evaluations, commercial and HR documents, training data, users, and roles
+
+Migration tooling should include duplicate detection, error reporting, integrity checks, administrator validation, and import summaries. Implementation should run migration work through background jobs and record audit logs for import approvals and results.
+
+### Backups
+
+Backups are a confirmed cross-cutting requirement. Exact backup provider, restore process, retention policy, and restore testing cadence are unresolved technical choices. Backup plans must cover PostgreSQL data and protected file storage metadata and objects.
 
 ### Testing Strategy
 
 Testing should match risk and behavior:
 
-- Unit tests for workflow transitions, permission checks, validation schemas, and domain services.
-- Integration tests for API behavior, persistence, authorization scopes, storage adapters, and background jobs.
-- Frontend tests for permission-aware rendering, forms, workflow controls, and client portal behavior.
-- End-to-end tests for the main recruitment workflow, client portal access, document download controls, and training workflow.
+- Unit tests for workflow transitions, permission checks, validation schemas, import validation, and domain services.
+- Integration tests for API behavior, persistence, authorization scopes, storage adapters, background jobs, messaging membership, and integration adapters.
+- Frontend tests for permission-aware rendering, multilingual UI behavior, responsive forms, workflow controls, dashboards, search, and client portal behavior.
+- End-to-end tests for the main recruitment workflow, client portal access, document download controls, messaging permissions, training enrollment, and report export.
 - Migration and schema validation tests once Prisma is introduced.
+- Module-by-module validation and UAT before rollout.
 
 ## Container and Component Diagram
 
 ```mermaid
 flowchart TB
-    UserBrowser["Internal User Browser"]
+    InternalBrowser["Internal User Browser"]
     ClientBrowser["Client User Browser"]
     Web["React + Vite Web App"]
     API["NestJS Backend API"]
     Auth["Authentication"]
-    Authorization["Authorization Guards and Policies"]
+    Authorization["Authorization Policies"]
     Domain["Domain Modules"]
     Shared["Shared Types and Validation"]
     Prisma["Prisma ORM"]
@@ -122,10 +170,13 @@ flowchart TB
     Storage["Object/File Storage Abstraction"]
     Files[("Protected File Store")]
     Audit["AuditLog Writer"]
-    Notifications["Notification Delivery"]
-    Integrations["Future External Integration Adapters"]
+    Notifications["Notifications and Reminders"]
+    Messaging["Messaging Module"]
+    Reporting["Search and Reporting"]
+    Imports["Migration and Import Jobs"]
+    IntegrationAdapters["Confirmed Integration Adapters"]
 
-    UserBrowser --> Web
+    InternalBrowser --> Web
     ClientBrowser --> Web
     Web --> API
     Web --> Shared
@@ -143,24 +194,32 @@ flowchart TB
     Domain --> Jobs
     Jobs --> Notifications
     Jobs --> Storage
-    Domain -. future .-> Integrations
+    Domain --> Messaging
+    Domain --> Reporting
+    Jobs --> Imports
+    Domain --> IntegrationAdapters
+    IntegrationAdapters --> Jobs
 ```
 
 ## Assumptions
 
-- The first product surface is a web application.
+- The first product surface is a responsive web application.
 - Backend authorization is mandatory for every protected operation.
 - Local development services will be introduced with Docker Compose in a later task.
-- External integrations remain future adapters until a concrete integration issue is approved.
+- Confirmed integrations can be implemented after core modules without being removed from product scope.
+- Migration scale requires indexed queries, background processing, validation reports, and administrator approval.
 
-## Unresolved Decisions
+## Unresolved Technical Choices
 
-- Authentication provider, password policy, session storage, token lifetime, and revocation model.
+- Authentication provider, Microsoft 365 strategy, password policy, session storage, token lifetime, and revocation model.
 - Background job queue technology.
 - Production object storage provider.
-- Whether internal private messaging needs real-time delivery in the MVP.
-- First dashboard metrics and reporting depth.
+- Search implementation approach for advanced multi-criteria search.
+- Real-time notification and messaging transport.
+- Dashboard formulas, time windows, and authorization rules, especially for revenue.
 - Exact validation library for shared schemas.
+- Integration sync direction, conflict rules, rate limits, retry policy, and failure reporting.
+- Backup provider, retention policy, and restore testing cadence.
 
 ## Risks
 
@@ -168,12 +227,14 @@ flowchart TB
 - Missing record-scope checks can create insecure direct object reference exposure.
 - Document storage without protected download paths can expose CVs and HR files.
 - Audit logs can become sensitive data stores if they capture full payloads.
+- Integration jobs can leak confidential data if logging and retry metadata are not sanitized.
+- Migration imports can create duplicates or corrupt relationships without administrator validation and integrity checks.
 - Overbuilding infrastructure before product workflows are confirmed can slow the MVP.
 
 ## Non-Goals
 
 - No application scaffolding.
 - No Prisma schema or database migrations.
-- No Docker Compose or CI configuration.
+- No Docker Compose, CI, or infrastructure configuration.
 - No production deployment design.
-- No external integration implementation.
+- No external integration implementation in this task.
