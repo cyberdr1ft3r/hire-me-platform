@@ -127,18 +127,21 @@ Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific
 
 | Confirmed mission stage | Normalized state |
 | --- | --- |
-| mission creation | `draft` |
-| internal validation | `internal_validation` |
-| job-description approval | `job_description_approval` |
-| HR preselection and interviews | `hr_screening` |
-| technical tests | `technical_tests` |
-| candidate presentation | `candidate_presentation` |
-| client interviews | `client_interviews` |
-| final selection | `final_selection` |
-| offer sent | `offer_sent` |
-| candidate integration | `candidate_integration` |
-| probation monitoring | `probation_monitoring` |
-| closure | `closed_with_recruitment` or `closed_without_recruitment` |
+| Brouillon | `draft` |
+| Validation interne | `internal_validation` |
+| Active | `active` |
+| Fiche de poste validée | `job_description_approved` |
+| Sourcing des candidats | `candidate_sourcing` |
+| Présélection RH | `hr_preselection` |
+| Entretiens RH | `hr_interviews` |
+| Tests techniques | `technical_tests` |
+| Présentation des candidats | `candidate_presentation` |
+| Entretiens client | `client_interviews` |
+| Sélection finale | `final_selection` |
+| Offre envoyée | `offer_sent` |
+| Candidat intégré | `candidate_integrated` |
+| Suivi période d'essai | `probation_monitoring` |
+| Mission clôturée | `closed_with_recruitment` or `closed_without_recruitment` |
 
 ### Exceptional and Outcome States
 
@@ -147,14 +150,27 @@ Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific
 - `canceled`: canceled before completion.
 - `closed_without_recruitment`: closed with no successful placement.
 - `closed_with_recruitment`: closed after successful placement.
+- `deadline_expired_without_renewal`: deadline expired and the mission was not renewed.
 - `archived`: retained but inactive.
 
 ### Terminal States
 
 - `closed_with_recruitment`
 - `closed_without_recruitment`
+- `deadline_expired_without_renewal`
 - `canceled`
 - `archived`
+
+### Confirmed Closure Reasons
+
+`closureReason` is required or strongly recommended when a mission closes. Confirmed business reasons are:
+
+- `client_closed_or_canceled`: the client closed or canceled the mission.
+- `closed_without_recruitment`: the mission ended without recruitment.
+- `deadline_expired_without_renewal`: the deadline expired and was not renewed.
+- `positions_filled_and_candidates_integrated`: all planned positions are filled and candidates are integrated, optionally after probation validation.
+
+Successful closure with recruitment must consider `numberOfPositions` and filled-placement count. Exact enum names remain a persistence design detail, but structured closure reasons are confirmed.
 
 ### Valid Transitions
 
@@ -162,69 +178,91 @@ Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific
 stateDiagram-v2
     [*] --> draft
     draft --> internal_validation
-    internal_validation --> job_description_approval
+    internal_validation --> active
     internal_validation --> waiting_for_client_information
-    job_description_approval --> hr_screening
-    job_description_approval --> waiting_for_client_information
-    hr_screening --> technical_tests
-    hr_screening --> candidate_presentation
+    active --> job_description_approved
+    job_description_approved --> candidate_sourcing
+    job_description_approved --> waiting_for_client_information
+    candidate_sourcing --> hr_preselection
+    hr_preselection --> hr_interviews
+    hr_interviews --> technical_tests
     technical_tests --> candidate_presentation
     candidate_presentation --> client_interviews
     client_interviews --> final_selection
     final_selection --> offer_sent
-    offer_sent --> candidate_integration
+    offer_sent --> candidate_integrated
     offer_sent --> closed_without_recruitment
-    candidate_integration --> probation_monitoring
+    candidate_integrated --> probation_monitoring
     probation_monitoring --> closed_with_recruitment
     waiting_for_client_information --> internal_validation
-    waiting_for_client_information --> job_description_approval
+    waiting_for_client_information --> job_description_approved
     waiting_for_client_information --> candidate_presentation
     draft --> paused
     internal_validation --> paused
-    job_description_approval --> paused
-    hr_screening --> paused
+    active --> paused
+    job_description_approved --> paused
+    candidate_sourcing --> paused
+    hr_preselection --> paused
+    hr_interviews --> paused
     technical_tests --> paused
     candidate_presentation --> paused
     client_interviews --> paused
     final_selection --> paused
     offer_sent --> paused
     paused --> internal_validation
-    paused --> hr_screening
+    paused --> active
+    paused --> candidate_sourcing
+    paused --> hr_preselection
     paused --> candidate_presentation
     paused --> canceled
     draft --> canceled
     internal_validation --> canceled
-    job_description_approval --> canceled
-    hr_screening --> canceled
+    active --> canceled
+    job_description_approved --> canceled
+    candidate_sourcing --> canceled
+    hr_preselection --> canceled
+    hr_interviews --> canceled
     technical_tests --> canceled
     candidate_presentation --> canceled
     client_interviews --> canceled
     final_selection --> canceled
     offer_sent --> canceled
+    offer_sent --> deadline_expired_without_renewal
+    candidate_sourcing --> deadline_expired_without_renewal
+    candidate_presentation --> closed_without_recruitment
     closed_with_recruitment --> archived
     closed_without_recruitment --> archived
+    deadline_expired_without_renewal --> archived
     canceled --> archived
     closed_with_recruitment --> [*]
     closed_without_recruitment --> [*]
+    deadline_expired_without_renewal --> [*]
     canceled --> [*]
     archived --> [*]
 ```
 
 ## Training Workflow
 
-Training workflow uses `TrainingProgram`, `TrainingSession`, and `TrainingEnrollment`. `TrainingEnrollment` owns participant-specific registration, approval, optional payment, attendance, evaluation, certificate, satisfaction, coaching, and follow-up state.
+Training workflow uses `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation`.
 
-### Program and Session States
+`TrainingProgram` owns the overall program lifecycle and can contain multiple sessions. `TrainingSession` owns one scheduled delivery event. `TrainingEnrollment` owns program-level participant registration, approval, optional payment, evaluation, certificate, satisfaction, coaching, and follow-up state. `TrainingSessionParticipation` owns per-session attendance and session-level participant outcomes.
+
+### TrainingProgram States
 
 - `program_draft`: program is being created.
 - `program_active`: program is available for sessions and enrollment.
+- `program_closed`: program is closed for new enrollment or delivery.
+- `program_archived`: program is retained but inactive.
+
+### TrainingSession States
+
+- `session_planned`: session is being planned.
 - `session_scheduled`: session date, trainer, and location or link are set.
 - `session_in_progress`: session is active.
 - `session_completed`: session delivery is complete.
 - `session_postponed`: session is delayed and needs rescheduling.
 - `session_canceled`: session will not happen.
-- `program_closed`: program is closed for new activity.
-- `archived`: retained but inactive.
+- `session_archived`: session is retained but inactive.
 
 ### Enrollment States
 
@@ -232,9 +270,7 @@ Training workflow uses `TrainingProgram`, `TrainingSession`, and `TrainingEnroll
 - `approval_pending`: participant needs approval.
 - `approved`: participant is approved.
 - `payment_pending`: optional payment is pending.
-- `enrolled`: participant is enrolled in the session or program.
-- `attended`: attendance recorded as present.
-- `absent`: attendance recorded as absent.
+- `enrolled`: participant is enrolled in the program.
 - `evaluated`: evaluation outcome recorded.
 - `individual_coaching`: individual coaching is active or scheduled.
 - `certificate_issued`: certificate was issued.
@@ -244,30 +280,50 @@ Training workflow uses `TrainingProgram`, `TrainingSession`, and `TrainingEnroll
 - `rejected`: registration was rejected.
 - `canceled`: participant enrollment was canceled.
 
+### TrainingSessionParticipation States
+
+- `expected`: participant is expected for a session.
+- `attended`: participant attended the session.
+- `absent`: participant was absent.
+- `excused`: participant absence is excused.
+- `session_outcome_recorded`: session-level participant outcome is recorded.
+- `participation_archived`: participation record is retained but inactive.
+
 ### Terminal States
 
 - `closed`
 - `rejected`
 - `canceled`
-- `archived`
+- `program_archived`
+- `session_archived`
+- `participation_archived`
 
-### Valid Program and Session Transitions
+### Valid Program Transitions
 
 ```mermaid
 stateDiagram-v2
     [*] --> program_draft
     program_draft --> program_active
-    program_active --> session_scheduled
+    program_active --> program_closed
+    program_closed --> program_archived
+    program_archived --> [*]
+```
+
+### Valid Session Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> session_planned
+    session_planned --> session_scheduled
     session_scheduled --> session_in_progress
     session_scheduled --> session_postponed
     session_scheduled --> session_canceled
     session_postponed --> session_scheduled
     session_postponed --> session_canceled
     session_in_progress --> session_completed
-    session_completed --> program_closed
-    session_canceled --> program_closed
-    program_closed --> archived
-    archived --> [*]
+    session_completed --> session_archived
+    session_canceled --> session_archived
+    session_archived --> [*]
 ```
 
 ### Valid Enrollment Transitions
@@ -282,30 +338,38 @@ stateDiagram-v2
     approved --> enrolled
     payment_pending --> enrolled
     payment_pending --> canceled
-    enrolled --> attended
-    enrolled --> absent
-    attended --> evaluated
+    enrolled --> evaluated
     evaluated --> individual_coaching
     evaluated --> certificate_issued
     individual_coaching --> certificate_issued
     certificate_issued --> satisfaction_recorded
     satisfaction_recorded --> follow_up
     follow_up --> closed
-    absent --> follow_up
-    rejected --> archived
-    canceled --> archived
-    closed --> archived
     rejected --> [*]
     canceled --> [*]
     closed --> [*]
-    archived --> [*]
+```
+
+### Valid Session Participation Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> expected
+    expected --> attended
+    expected --> absent
+    expected --> excused
+    attended --> session_outcome_recorded
+    absent --> session_outcome_recorded
+    excused --> session_outcome_recorded
+    session_outcome_recorded --> participation_archived
+    participation_archived --> [*]
 ```
 
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.
 - Client users may provide feedback only where explicitly authorized; they should not directly control internal workflow state in the MVP.
-- State transitions involving client presentation, rejection, withdrawal, talent pool, document sharing, offer, integration, probation, archival, cancellation, enrollment approval, payment status, certificate, and commercial data should be audited.
+- State transitions involving client presentation, rejection, withdrawal, talent pool, document sharing, offer, integration, probation, mission closure reason, archival, cancellation, enrollment approval, payment status, session attendance, certificate, and commercial data should be audited.
 - Reopening terminal states is not supported in the MVP unless a later issue defines recovery rules.
 
 ## Assumptions
@@ -314,13 +378,13 @@ stateDiagram-v2
 - Archival keeps records available for audits and reporting while hiding them from active operational views.
 - Candidate-level availability can differ from `MissionCandidate` pipeline state.
 - Mission state summarizes the overall recruitment process; candidate-specific progress remains on `MissionCandidate`.
-- Training session delivery state and participant enrollment state are separate because participants can have different attendance, payment, evaluation, certificate, satisfaction, coaching, and follow-up outcomes.
+- Training program state, training session state, enrollment state, and session participation state are separate because a program contains multiple sessions and each participant can have different per-session attendance.
 
 ## Unresolved Technical Choices
 
 - Whether `MissionCandidate` can move backward to earlier active states and which roles can do that.
 - Whether client feedback can create tasks automatically.
-- Whether mission `closed_with_recruitment` and `closed_without_recruitment` require structured closure reasons.
+- Exact enum names for mission `closureReason`; structured closure reasons are confirmed.
 - Whether payment status in `TrainingEnrollment` is operational tracking only or later integrates with accounting.
 - Whether workflow state names become database enums or shared constants.
 

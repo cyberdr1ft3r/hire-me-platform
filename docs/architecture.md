@@ -11,15 +11,15 @@ This structure is simple enough for a single-developer MVP while preserving boun
 - French and English interface support.
 - Responsive web support.
 - Advanced multi-criteria search.
-- Exportable reports.
+- Customizable dashboards and exportable reports.
 - Automatic reminders and notifications.
 - Real-time internal notifications.
-- Audit logs for sensitive and business-critical actions.
+- Audit logs for sensitive and business-critical actions, including successful user connections and logins.
 - Backups and restore expectations.
 - Confidential-data protection for candidate, HR, salary, CV, client, commercial, message, document, export, and audit data.
 - Module-by-module validation and UAT.
 - Confirmed dashboard metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
-- Confirmed integration requirements for Microsoft 365 authentication, Outlook/Microsoft email and contacts, Outlook Calendar, Google Calendar, SMTP or Outlook email, WhatsApp Business reminders, LinkedIn-assisted candidate creation/profile links, Excel import/export, PDF generation, protected document storage, and real-time internal notifications.
+- Confirmed integration and output requirements for Microsoft 365 authentication, Outlook/Microsoft email and contacts, Outlook Calendar, Google Calendar, SMTP or Outlook email, WhatsApp Business reminders, LinkedIn-assisted candidate creation/profile links, Excel import/export, PDF generation, Word-compatible output, protected document storage, and real-time internal notifications.
 
 ## Architecture Principles
 
@@ -102,12 +102,13 @@ The backend should write `AuditLog` records for sensitive or business-critical a
 - user administration and permission changes
 - candidate, client, mission, and training archival or deletion
 - candidate export and report export
-- document upload, generated document creation, version change, sharing, and download
+- successful user connections and logins
+- document upload, generated document creation, explicit document version creation, sharing, and download
 - client portal sharing
 - commercial-data access
 - workflow state transitions
 - mission assignment changes
-- training enrollment approval, payment status change, attendance, evaluation, certificate, and follow-up changes
+- training enrollment approval, payment status change, session attendance, evaluation, certificate, and follow-up changes
 - message attachment downloads and sensitive conversation membership changes
 - import validation, administrator approval, and import completion
 
@@ -115,7 +116,7 @@ Audit logs should include actor, action, entity type, entity id, timestamp, requ
 
 ### Background Jobs
 
-Background jobs should handle work that should not block API responses, such as notifications, document generation, scheduled reminders, export preparation, import processing, duplicate detection, integrity checks, PDF generation, email delivery, WhatsApp Business reminders, integration synchronization, and reporting snapshots.
+Background jobs should handle work that should not block API responses, such as notifications, document generation, scheduled reminders, export preparation, import processing, duplicate detection, integrity checks, PDF generation, Word-compatible document generation, Excel-compatible report generation, email delivery, WhatsApp Business reminders, integration synchronization, and reporting snapshots.
 
 The initial queue technology is an unresolved technical choice. A NestJS-compatible queue backed by Redis or PostgreSQL should be evaluated during implementation.
 
@@ -123,7 +124,13 @@ The initial queue technology is an unresolved technical choice. A NestJS-compati
 
 Advanced multi-criteria search should be designed as a backend capability with permission-aware filters. Initial data volumes are moderate but large enough to require indexes for candidate, CV metadata, client, mission, interview, evaluation, document, and training queries.
 
-Confirmed dashboard metrics are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue. Exact formulas, time windows, and authorization rules, especially for revenue, remain unresolved technical choices.
+Confirmed dashboard metrics are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue. Dashboards and reporting must be customizable. Exact formulas, time windows, saved-view ownership, widget configuration, and authorization rules, especially for revenue, remain unresolved technical choices.
+
+### Document Versioning and Outputs
+
+Centralized documents should use a logical `Document` record with one or more `DocumentVersion` records. Candidate-specific CVs and attachments should use `CandidateDocument` with one or more `CandidateDocumentVersion` records. A new version represents a new stored file, generated output, or imported revision while preserving the logical document relationship.
+
+Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output. Generated outputs include quotations, purchase orders, contracts, invoice documents, HR document templates, candidate summaries, interview reports, training documents, dashboards, and reports. Uploaded or stored-only files include raw CVs, candidate attachments, signed documents, client-provided files, external HR files, and imported legacy documents.
 
 ### Data Migration
 
@@ -216,7 +223,7 @@ flowchart TB
 - Production object storage provider.
 - Search implementation approach for advanced multi-criteria search.
 - Real-time notification and messaging transport.
-- Dashboard formulas, time windows, and authorization rules, especially for revenue.
+- Dashboard formulas, time windows, customization model, saved-view ownership, widget configuration, and authorization rules, especially for revenue.
 - Exact validation library for shared schemas.
 - Integration sync direction, conflict rules, rate limits, retry policy, and failure reporting.
 - Backup provider, retention policy, and restore testing cadence.

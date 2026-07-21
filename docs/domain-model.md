@@ -51,13 +51,24 @@ This document defines conceptual entities and relationships for the first implem
 ### CandidateDocument
 
 - Purpose and owner: candidate-specific file such as a CV, portfolio, certification, consent document, or HR attachment; owned by recruitment operations.
-- Important attributes: id, candidate id, document type, filename, storage key, MIME type, size, version, visibility, uploaded by, status.
+- Important attributes: id, candidate id, document type, logical title, current version id, visibility, uploaded by, status.
 - Relationships: belongs to one candidate; may be shared through client portal rules; may be referenced by generated `Document` records.
-- Cardinality: one candidate can have many candidate documents.
+- Cardinality: one candidate can have many candidate documents; one candidate document can have many candidate document versions.
 - Lifecycle: active, superseded, archived.
-- Sensitive fields: CVs, certifications, identity information, HR documents, storage metadata.
-- Uniqueness rules: storage key must be unique.
-- Audit requirements: upload, download, version change, visibility change, and archival should be audited.
+- Sensitive fields: CVs, certifications, identity information, HR documents, version metadata.
+- Uniqueness rules: current version id should reference one version in the candidate document history.
+- Audit requirements: upload, download, version creation, visibility change, and archival should be audited.
+
+### CandidateDocumentVersion
+
+- Purpose and owner: version record for one candidate-specific file; owned by recruitment operations.
+- Important attributes: id, candidate document id, version number, filename, storage key, MIME type, size, created by, created date, source.
+- Relationships: belongs to one `CandidateDocument`.
+- Cardinality: one candidate document can have many versions.
+- Lifecycle: active, superseded, archived.
+- Sensitive fields: CV contents, storage keys, filename, metadata.
+- Uniqueness rules: storage key must be unique; version number should be unique within one candidate document.
+- Audit requirements: version creation, download, supersession, and archival should be audited.
 
 ### CandidateEvaluation
 
@@ -95,13 +106,15 @@ This document defines conceptual entities and relationships for the first implem
 ### RecruitmentMission
 
 - Purpose and owner: client recruitment need; owned by recruitment operations.
-- Important attributes: id, client id, title, description, requirements, mission state, priority, commercial summary.
+- Important attributes: id, client id, title, description, requirements, mission state, priority, numberOfPositions, filledPlacementCount, closureReason, closure date, commercial summary.
 - Relationships: belongs to one client; has many mission candidates; has many assigned recruiters or contributors through `MissionAssignment`; has interviews through mission candidates, tasks, documents, notifications, and messages.
 - Cardinality: one client can own many missions; one mission can have many mission assignments and mission candidates.
-- Lifecycle: follows the recruitment mission pipeline in `docs/workflows.md`, including internal validation, job-description approval, HR preselection, technical tests, client interviews, offer, integration, probation monitoring, and closure.
+- Lifecycle: follows the recruitment mission pipeline in `docs/workflows.md`, including draft, internal validation, active, job-description approval, candidate sourcing, HR preselection, HR interviews, technical tests, candidate presentation, client interviews, final selection, offer sent, candidate integration, probation monitoring, and closure.
 - Sensitive fields: role requirements, salary range, commercial terms, client notes.
 - Uniqueness rules: mission identifiers should be unique; title uniqueness is not required.
-- Audit requirements: creation, assignment changes, state transitions, commercial-data access, updates, archival, and export should be audited.
+- Audit requirements: creation, assignment changes, state transitions, structured closure reason changes, commercial-data access, updates, archival, and export should be audited.
+
+Confirmed `closureReason` values must cover client closed or canceled the mission, closed without recruitment, deadline expired without renewal, and all planned positions filled with candidates integrated, optionally after probation validation. Successful closure with recruitment must consider `numberOfPositions` and filled-placement count. Exact enum names can be finalized during persistence design.
 
 ### MissionAssignment
 
@@ -140,12 +153,33 @@ This document defines conceptual entities and relationships for the first implem
 
 - Purpose and owner: assigned follow-up action; owned by the assigning team or user.
 - Important attributes: id, title, description, status, due date, priority, assignee, related entity.
-- Relationships: assigned to a user; may relate to a candidate, recruitment mission, mission candidate, interview, training session, training enrollment, document, message, or client.
+- Relationships: assigned to a user; may relate to mapped task contexts listed below.
 - Cardinality: one user can have many tasks.
 - Lifecycle: open, in progress, waiting, blocked, completed, canceled, archived.
 - Sensitive fields: task notes may include confidential HR or commercial context.
 - Uniqueness rules: no global uniqueness beyond id.
 - Audit requirements: assignment, completion, sensitive updates, and archival should be audited when linked to confidential records.
+
+Confirmed task contexts should map before persistence design:
+
+| Confirmed task context | Entity or concept mapping |
+| --- | --- |
+| candidates | `Candidate` or `MissionCandidate` |
+| clients | `Client` or `ClientContact` |
+| missions | `RecruitmentMission` or `MissionAssignment` |
+| interviews | `Interview` |
+| training | `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, or `TrainingSessionParticipation` |
+| internal projects | deferred `InternalProject` concept |
+| users | `User` |
+| commercial opportunities or prospects | `Client` with prospect lifecycle; fuller opportunity entity deferred |
+| quotations | generated/stored `Document` of quotation type |
+| invoices | generated/stored `Document` of invoice type |
+| contracts | generated/stored `Document` of contract type |
+| candidate integration | `MissionCandidate` states `accepted`, `integrated`, `probation_monitoring`, `end_of_probation` |
+| probation | `MissionCandidate` and `RecruitmentMission` probation states |
+| events or meetings | `Interview`, `TrainingSession`, or deferred `Event` concept |
+| document approval | `Document`, `DocumentVersion`, `CandidateDocument`, or `CandidateDocumentVersion` |
+| tender or pre-sales work | `Client`, prospect lifecycle, quotation `Document`, or deferred `Tender` concept |
 
 ### TrainingProgram
 
@@ -153,7 +187,7 @@ This document defines conceptual entities and relationships for the first implem
 - Important attributes: id, name, description, target audience, status, owner.
 - Relationships: contains many training sessions; has many training enrollments.
 - Cardinality: one training program can contain many sessions and enroll many participants.
-- Lifecycle: draft, active, retired, archived.
+- Lifecycle: draft, active, closed, archived.
 - Sensitive fields: participant targeting may reveal HR or client context.
 - Uniqueness rules: program name uniqueness is unresolved.
 - Audit requirements: creation, publication, retirement, archival, and sensitive updates should be audited.
@@ -162,7 +196,7 @@ This document defines conceptual entities and relationships for the first implem
 
 - Purpose and owner: scheduled training or coaching event; owned by training operations.
 - Important attributes: id, training program id, scheduled time, status, trainer, location or meeting link, outcome.
-- Relationships: belongs to a training program; has participant status through `TrainingEnrollment`; can create tasks, documents, and notifications.
+- Relationships: belongs to a training program; has per-participant attendance through `TrainingSessionParticipation`; can create tasks, documents, and notifications.
 - Cardinality: one program can have many sessions.
 - Lifecycle: follows the training session workflow in `docs/workflows.md`.
 - Sensitive fields: coaching notes, outcomes, HR context.
@@ -171,14 +205,25 @@ This document defines conceptual entities and relationships for the first implem
 
 ### TrainingEnrollment
 
-- Purpose and owner: participant-specific registration and outcome record for training; owned by training operations.
-- Important attributes: id, training program id, optional training session id, participant type, approval status, payment status, attendance status, evaluation result, certificate status, satisfaction score, coaching status, follow-up status.
-- Relationships: belongs to a `TrainingProgram`; may belong to a `TrainingSession`; may link to a `Candidate`, `User`, `ClientContact`, or `ExternalTrainingParticipant`.
+- Purpose and owner: participant-specific program-level registration and outcome record for training; owned by training operations.
+- Important attributes: id, training program id, participant type, approval status, payment status, evaluation result, certificate status, satisfaction score, coaching status, follow-up status.
+- Relationships: belongs to a `TrainingProgram`; may link to a `Candidate`, `User`, `ClientContact`, or `ExternalTrainingParticipant`; has session attendance records through `TrainingSessionParticipation`.
 - Cardinality: one program can have many enrollments; one participant can have many enrollments.
-- Lifecycle: registered, approved, rejected, payment pending, scheduled, attended, absent, evaluated, certified, follow-up, closed, canceled.
-- Sensitive fields: payment status, attendance, evaluation, coaching notes, satisfaction, certificate outcome.
+- Lifecycle: registered, approved, rejected, payment pending, enrolled, evaluated, individual coaching, certified, satisfaction recorded, follow-up, closed, canceled.
+- Sensitive fields: payment status, evaluation, coaching notes, satisfaction, certificate outcome.
 - Uniqueness rules: active duplicate enrollment rules are unresolved and may depend on participant type.
-- Audit requirements: registration, approval, payment status, attendance, evaluation, certificate, satisfaction, coaching, follow-up, cancellation, and closure should be audited.
+- Audit requirements: registration, approval, payment status, evaluation, certificate, satisfaction, coaching, follow-up, cancellation, and closure should be audited.
+
+### TrainingSessionParticipation
+
+- Purpose and owner: per-session participant attendance and session-level outcome record; owned by training operations.
+- Important attributes: id, training session id, training enrollment id, attendance status, session outcome, trainer notes, completion status.
+- Relationships: belongs to one `TrainingSession` and one `TrainingEnrollment`.
+- Cardinality: one training session can have many session participations; one training enrollment can have many session participations across program sessions.
+- Lifecycle: expected, attended, absent, excused, session outcome recorded, archived.
+- Sensitive fields: attendance, trainer notes, session-level outcome.
+- Uniqueness rules: one participation record per enrollment per session.
+- Audit requirements: attendance, outcome, absence, trainer-note changes, and archival should be audited.
 
 ### ExternalTrainingParticipant
 
@@ -194,13 +239,24 @@ This document defines conceptual entities and relationships for the first implem
 ### Document
 
 - Purpose and owner: general stored, versioned, or generated document; owned by the module that creates it.
-- Important attributes: id, title, document type, storage key, MIME type, size, version, visibility, generated status, owner.
+- Important attributes: id, title, document type, current version id, visibility, generated status, output family, owner.
 - Relationships: may reference a candidate, client, recruitment mission, mission candidate, interview, training session, training enrollment, conversation, message, or creator user.
-- Cardinality: many documents can reference one business entity.
+- Cardinality: many documents can reference one business entity; one document can have many document versions.
 - Lifecycle: draft, active, superseded, archived.
 - Sensitive fields: quotations, purchase orders, contracts, invoices, HR documents, reports, client files, storage metadata.
-- Uniqueness rules: storage key must be unique.
-- Audit requirements: generation, upload, version change, download, sharing, visibility change, and archival should be audited.
+- Uniqueness rules: current version id should reference one version in the document history.
+- Audit requirements: generation, upload, version creation, download, sharing, visibility change, and archival should be audited.
+
+### DocumentVersion
+
+- Purpose and owner: version record for one logical `Document`; owned by the module that owns the document.
+- Important attributes: id, document id, version number, filename, storage key, MIME type, size, output family, created by, created date, source.
+- Relationships: belongs to one `Document`.
+- Cardinality: one document can have many versions.
+- Lifecycle: active, superseded, archived.
+- Sensitive fields: storage key, document contents, generated output metadata.
+- Uniqueness rules: storage key must be unique; version number should be unique within one document.
+- Audit requirements: version creation, download, supersession, sharing, and archival should be audited.
 
 ### Notification
 
@@ -255,7 +311,7 @@ This document defines conceptual entities and relationships for the first implem
 - Lifecycle: append-only; retention policy unresolved.
 - Sensitive fields: request context and metadata can be sensitive.
 - Uniqueness rules: no global uniqueness beyond id.
-- Audit requirements: audit logs are protected records and should not contain secrets, raw confidential document contents, or full message bodies.
+- Audit requirements: audit logs are protected records and should not contain secrets, raw confidential document contents, or full message bodies. Successful user connections and logins are confirmed audit events.
 
 ## Entity Relationship Diagram
 
@@ -274,6 +330,7 @@ erDiagram
     User ||--o{ MissionAssignment : assigned_to
 
     Candidate ||--o{ CandidateDocument : has
+    CandidateDocument ||--o{ CandidateDocumentVersion : versions
     Candidate ||--o{ MissionCandidate : considered_for
     RecruitmentMission ||--o{ MissionCandidate : includes
 
@@ -290,11 +347,12 @@ erDiagram
 
     TrainingProgram ||--o{ TrainingSession : contains
     TrainingProgram ||--o{ TrainingEnrollment : enrolls
-    TrainingSession ||--o{ TrainingEnrollment : schedules
     Candidate ||--o{ TrainingEnrollment : participates
     User ||--o{ TrainingEnrollment : participates
     ClientContact ||--o{ TrainingEnrollment : participates
     ExternalTrainingParticipant ||--o{ TrainingEnrollment : participates
+    TrainingSession ||--o{ TrainingSessionParticipation : records
+    TrainingEnrollment ||--o{ TrainingSessionParticipation : attends
 
     Candidate ||--o{ Document : references
     RecruitmentMission ||--o{ Document : references
@@ -302,6 +360,7 @@ erDiagram
     Client ||--o{ Document : references
     TrainingSession ||--o{ Document : references
     TrainingEnrollment ||--o{ Document : references
+    Document ||--o{ DocumentVersion : versions
     User ||--o{ Document : creates
 
     User ||--o{ Notification : receives
@@ -324,8 +383,10 @@ erDiagram
 - `MissionAssignment` replaces a single mission owner as the model for multiple recruiters and contributors.
 - `MissionCandidate` preserves candidate history across multiple recruitment missions.
 - `CandidateEvaluation` can be tied to an `Interview`, `MissionCandidate`, and evaluator `User`.
-- `TrainingEnrollment` owns participant-specific training registration, approval, payment, attendance, evaluation, certificate, satisfaction, coaching, and follow-up state.
-- `Document` represents centralized, versioned, and generated documents. `CandidateDocument` represents candidate-specific files such as CVs.
+- `TrainingEnrollment` owns participant-specific program registration, approval, payment, evaluation, certificate, satisfaction, coaching, and follow-up state.
+- `TrainingSessionParticipation` owns per-session attendance and session-level outcomes.
+- `Document` represents logical centralized and generated documents; `DocumentVersion` stores each version and file output.
+- `CandidateDocument` represents logical candidate-specific files such as CVs; `CandidateDocumentVersion` stores each candidate-file version.
 - `Conversation`, `ConversationMember`, and `Message` represent confirmed private messaging and discussion groups.
 - `AuditLog` should be append-only and protected from ordinary update or delete operations.
 
@@ -336,6 +397,7 @@ erDiagram
 - Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`.
 - Archival is preferred over deletion for records that carry recruitment, HR, client, commercial, message, document, training, or audit history.
 - Message attachments use protected `Document` records.
+- PDF, Word-compatible, and Excel-compatible outputs should be represented as `DocumentVersion` records when generated.
 
 ## Unresolved Technical Choices
 
@@ -343,6 +405,7 @@ erDiagram
 - Whether candidate consent, privacy preferences, and retention deadlines need dedicated MVP entities.
 - Whether document templates should be modeled separately from `Document`.
 - Whether `MissionAssignment` requires exactly one active lead recruiter per mission.
+- Exact enum names for structured `closureReason`; confirmed business closure reasons are not optional.
 - Whether training payment status needs integration with accounting later or remains documentary/operational in V1.
 - Whether salary expectations belong directly on `Candidate`, on `MissionCandidate`, or in restricted evaluation notes.
 - Whether messaging requires read receipts, moderation, retention controls, or real-time delivery in the first implementation sequence.
@@ -354,7 +417,8 @@ erDiagram
 - Weak uniqueness rules can create duplicate candidates, clients, client contacts, and training participants.
 - Document, notification, and message content can accidentally expose confidential data if summaries include too much detail.
 - Omitting `MissionAssignment` would make multiple-recruiter missions difficult to represent.
-- Omitting `TrainingEnrollment` would lose participant-specific payment, attendance, evaluation, certificate, satisfaction, coaching, and follow-up data.
+- Omitting `TrainingEnrollment` would lose participant-specific payment, evaluation, certificate, satisfaction, coaching, and follow-up data.
+- Omitting `TrainingSessionParticipation` would lose per-session attendance and session-level participant outcome data.
 
 ## Non-Goals
 

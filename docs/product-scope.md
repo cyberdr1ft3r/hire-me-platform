@@ -11,11 +11,11 @@ The first implementation phase should provide a single-developer MVP foundation 
 ### Target Users
 
 - Super administrator: owns the whole platform, including sensitive configuration, roles, permissions, and user administration.
-- Administrator: manages operational configuration, users, reference data, and support tasks under delegated permissions.
-- HR manager: manages candidate, CV, mission, interview, evaluation, training, task, and reporting workflows within assigned scope.
-- Manager: supervises assigned recruitment activity, teams, operational delivery, and approved reporting.
-- Team leader: coordinates assigned team work, recruitment follow-up, interviews, training activity, and tasks.
-- Employee: performs day-to-day recruitment, candidate updates, client follow-up, document handling, training activity, and task completion.
+- Administrator: manages all operational data and configuration except protected super-administrator controls.
+- HR manager: manages all normal operational data, including candidates, CVs, missions, interviews, evaluations, training, tasks, and reporting.
+- Manager: supervises team-scoped recruitment activity, operational delivery, and approved reporting.
+- Team leader: coordinates team-scoped work, recruitment follow-up, interviews, training activity, and tasks.
+- Employee: performs day-to-day recruitment, candidate updates, client follow-up, document handling, training activity, and task completion on assigned records.
 - Guest: receives temporary access only to individually shared read-only records.
 - Client user: accesses approved client portal information for their client account.
 
@@ -51,8 +51,8 @@ The first implementation phase should provide a single-developer MVP foundation 
 - Store and generate candidate, HR, commercial, client, interview, and training documents through a protected storage abstraction.
 - Manage training programs, training sessions, registrations, participant approval, attendance, evaluations, certificates, satisfaction assessments, individual coaching, closure, and post-training follow-up.
 - Support training participation for candidates, employees or users, client contacts, and external participants through `TrainingEnrollment`.
-- Provide dashboards with confirmed first metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
-- Provide advanced multi-criteria search and exportable reports.
+- Provide customizable dashboards with confirmed first metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
+- Provide advanced multi-criteria search, customizable reporting views, and exportable reports.
 - Support French and English interface requirements.
 - Support responsive web usage.
 - Record audit logs for sensitive or business-critical actions.
@@ -77,6 +77,10 @@ Centralized and versioned storage and generation are in scope for:
 
 Invoice document generation is in scope. A full accounting engine, payroll-calculation engine, subscription billing engine, and payment ledger are not in scope for the first implementation phase unless a later issue approves them.
 
+Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output where applicable.
+
+Generated document types include quotations, purchase orders, contracts, invoice documents, HR document templates, candidate summaries, interview reports, training documents, PDF exports, Word-compatible documents, and Excel-compatible reports. Uploaded or stored-only document types include candidate CV files, candidate attachments, external HR files, client-provided documents, signed documents, and imported legacy files; these may later receive generated summaries or converted export copies.
+
 ### Confirmed Integration Requirements
 
 The product scope includes integration requirements, but implementation can be sequenced after core domain modules and security boundaries are stable:
@@ -91,6 +95,7 @@ The product scope includes integration requirements, but implementation can be s
 - LinkedIn-assisted candidate creation and profile links
 - Excel import and export
 - PDF generation
+- Word-compatible document generation and export
 - protected document storage
 - real-time internal notifications
 
@@ -106,7 +111,7 @@ The recommended sequence is:
 4. Core users, roles, clients, candidates, CVs, recruitment missions, `MissionAssignment`, `MissionCandidate`, interviews, and evaluations.
 5. Tasks, notifications, dashboard metrics, search, reports, and exports.
 6. Document generation and versioned storage for commercial, HR, candidate, interview, and training documents.
-7. Training and coaching workflows with `TrainingEnrollment`.
+7. Training and coaching workflows with `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation`.
 8. Client portal and controlled sharing.
 9. Internal messaging and discussion groups.
 10. Data migration, import validation, duplicate detection, and administrator approval flows.
@@ -116,7 +121,7 @@ The recommended sequence is:
 
 1. An authorized internal user creates or updates a `Client` and its `ClientContact` records.
 2. An authorized user creates a `RecruitmentMission`.
-3. The mission moves through internal validation and job-description approval.
+3. The mission moves through internal validation, active state, job-description approval, candidate sourcing, HR preselection, HR interviews, technical tests, candidate presentation, client interviews, final selection, offer, candidate integration, probation monitoring, and closure.
 4. Multiple recruiters or contributors are assigned through `MissionAssignment`.
 5. Candidates are created or updated in candidate management.
 6. CVs and supporting candidate files are stored as protected `CandidateDocument` records.
@@ -126,8 +131,8 @@ The recommended sequence is:
 10. Interview feedback and scoring are captured as `CandidateEvaluation` records.
 11. Approved candidate, interview, and document information is shared with client users through the client portal.
 12. Tasks and notifications coordinate follow-up work.
-13. The mission reaches a terminal state such as closed with recruitment, closed without recruitment, canceled, or archived.
-14. Dashboards and reports summarize active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue according to permissions.
+13. The mission reaches a terminal state such as closed with recruitment, closed without recruitment, canceled, or archived. `closureReason`, `numberOfPositions`, and filled-placement count must support the closure decision.
+14. Customizable dashboards and reports summarize active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue according to permissions.
 
 ## Data Migration and Initial Scale
 
@@ -168,7 +173,9 @@ Candidate data, HR notes, salary expectations, CVs, client records, commercial t
 - Candidate pipeline state belongs to `MissionCandidate`, not directly to `Candidate`.
 - Recruitment mission staffing belongs to `MissionAssignment`, not a single owner field.
 - Generated and centralized documents use `Document`; candidate-specific uploaded files use `CandidateDocument`.
-- Training participant-specific status, payment, attendance, evaluation, certificate, satisfaction, and follow-up data belongs to `TrainingEnrollment`.
+- Logical document history uses `DocumentVersion`; candidate-specific CV or attachment history uses `CandidateDocumentVersion`.
+- Training participant-specific registration, approval, payment, certificate, satisfaction, coaching, and follow-up data belongs to `TrainingEnrollment`.
+- Per-session attendance and session-level participant outcome data belongs to `TrainingSessionParticipation`.
 - External integrations are confirmed requirements but can be implemented after core data, security, and workflow foundations.
 
 ## Unresolved Technical Choices
@@ -177,9 +184,11 @@ Candidate data, HR notes, salary expectations, CVs, client records, commercial t
 - Exact sync direction and conflict rules for Microsoft, Outlook, Google, WhatsApp Business, LinkedIn, Excel, PDF, and email integrations.
 - Whether internal messaging requires real-time delivery, read receipts, moderation, or attachment limits in the first release.
 - Exact formulas and authorization rules for dashboard metrics, especially revenue.
+- Exact dashboard customization model, saved view ownership, and widget configuration rules.
 - Candidate duplicate detection rules and administrator merge workflow.
 - Backup provider, retention policy, and restore testing cadence.
 - Whether candidate consent, privacy preferences, and data-retention deadlines need dedicated first-phase entities.
+- Exact enum values for `closureReason`; the existence of structured mission closure reasons is confirmed.
 
 ## Risks
 

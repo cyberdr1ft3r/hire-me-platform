@@ -21,6 +21,7 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 
 - `Full`: unrestricted within the platform boundary.
 - `Admin`: platform administration without super administrator override.
+- `All data`: all normal product records, excluding protected super-administrator controls and separately protected commercial data.
 - `Assigned`: records assigned to the user through ownership, `MissionAssignment`, task assignment, training responsibility, or explicit sharing.
 - `Team`: records assigned to the user's team.
 - `Explicit`: requires a specific permission assignment beyond the base role.
@@ -32,13 +33,13 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 
 | Capability | Super administrator | Administrator | HR manager | Manager | Team leader | Employee | Guest | Client user |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| View | Full | Admin or assigned | Assigned | Assigned | Team or assigned | Assigned | Shared read-only | Client |
-| Create | Full | Admin or assigned | Assigned | Assigned | Team or assigned | Assigned | None | None |
-| Update | Full | Admin or assigned | Assigned | Assigned | Team or assigned | Assigned | None | Client feedback only |
-| Archive | Full | Explicit | Explicit | Explicit | Explicit team scope | None | None | None |
+| View | Full | All data | All data | Team | Team | Assigned | Shared read-only | Client |
+| Create | Full | All data | All data | Team | Team | Assigned | None | None |
+| Update | Full | All data | All data | Team | Team | Assigned | None | Client feedback only |
+| Archive | Full | All data | All data | Team | Team with explicit permission | None | None | None |
 | Delete | Full | Explicit administrative delete | None | None | None | None | None | None |
-| Export | Full | Explicit | Explicit | Explicit | Explicit team scope | Explicit assigned scope | None | Explicit client shared exports |
-| Document download | Full | Explicit or assigned | Explicit or assigned | Explicit or assigned | Explicit team scope | Explicit assigned scope | None | Explicit shared documents |
+| Export | Full | Explicit | Explicit | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Explicit client shared exports |
+| Document download | Full | Explicit or all data | Explicit or all data | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Explicit shared documents |
 | User administration | Full | Admin except super administrator control | None | Explicit team user requests only | None | None | None | None |
 | Commercial-data access | Explicit full access | Explicit only | Explicit only | Explicit only | Explicit team summary only | None | None | Explicit client-owned summary only |
 
@@ -78,7 +79,7 @@ These names are documentation terms for the first pass. They should be refined w
 - Client user permissions must be scoped by client account and explicit portal sharing rules.
 - Guest access must be temporary, individually shared, read-only, and denied for confidential documents by default.
 - Employee access should not include commercial-data access by default.
-- HR manager and manager access to commercial data requires explicit assignment; it is not a broad default.
+- Administrator, HR manager, and manager access to commercial figures, pricing, salary, invoices, margins, and revenue requires explicit permission regardless of base operational visibility.
 - Delete should be rare; archival should be preferred for recruitment, HR, client, commercial, message, document, training, and audit history.
 - Protected operations should use server-side policy checks and scoped queries to prevent insecure direct object references.
 - Notifications and message previews should avoid exposing confidential payloads to unauthorized users.
@@ -90,7 +91,9 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 ## Assumptions
 
 - Super administrator can manage all roles and permissions.
-- Administrator can manage operational access but cannot remove super administrator control.
+- Administrator has all normal product data visibility but cannot remove protected super administrator control.
+- HR manager has all normal product data visibility for operational work.
+- Manager and team leader access is scoped to team data.
 - HR manager and manager do not receive broad commercial-data access by default.
 - Team leader access is scoped to team activity.
 - Employee access is scoped to assigned work.
