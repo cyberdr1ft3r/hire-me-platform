@@ -313,6 +313,23 @@ describe('administration user access management', () => {
     const secondSuperAdmin = await createUser('concurrency-super-two@admin.test', {
       roleName: RoleName.SUPER_ADMIN,
     });
+    const superAdminRole = await prisma.role.findUniqueOrThrow({
+      where: { name: RoleName.SUPER_ADMIN },
+    });
+    await prisma.userRole.updateMany({
+      where: {
+        roleId: superAdminRole.id,
+        archivedAt: null,
+        user: {
+          normalizedEmail: {
+            not: {
+              contains: 'concurrency-super-',
+            },
+          },
+        },
+      },
+      data: { archivedAt: new Date() },
+    });
 
     const [first, second] = await Promise.all([
       fetch(`${baseUrl}/v1/admin/users/${firstSuperAdmin}/roles/${RoleName.SUPER_ADMIN}`, {
