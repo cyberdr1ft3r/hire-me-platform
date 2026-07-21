@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "check:architecture": "node scripts/check-prisma-boundary.mjs",
     "dev": "turbo run dev --parallel",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",

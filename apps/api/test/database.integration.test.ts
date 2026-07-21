@@ -7,7 +7,7 @@ import {
   Prisma,
   PrismaClient,
   UserType,
-} from '@prisma/client';
+} from '../src/persistence/prisma/generated-client.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const prisma = new PrismaClient();

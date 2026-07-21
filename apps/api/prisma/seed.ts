@@ -1,4 +1,8 @@
-import { PrismaClient, PermissionScopeType, RoleName } from '@prisma/client';
+import {
+  PermissionScopeType,
+  PrismaClient,
+  RoleName,
+} from '../src/persistence/prisma/generated-client.js';
 
 const prisma = new PrismaClient();
 

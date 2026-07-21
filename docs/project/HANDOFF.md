@@ -9,16 +9,22 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
 - Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
-- Issue #3 is in progress on branch `feat/foundational-prisma-schema`.
+- Issue #3 is in review through draft PR #9 on branch `feat/foundational-prisma-schema`.
 - Issue #3 implements the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests.
+- The latest PR #9 blocking review required deterministic Prisma ownership in the pnpm monorepo: `apps/api` owns Prisma dependencies, schema, generated client output, seed, and database tests; `apps/web` and `packages/contracts` remain ORM-independent.
 
 ## Next Action
 
-Review the issue #3 draft PR after it is opened from `feat/foundational-prisma-schema`.
+Review the updated PR #9 after the boundary fixes and CI rerun complete.
 
 Check especially:
 
 - Prisma schema coverage for required issue #3 entities and approved relationships;
+- explicit Prisma generator output at `apps/api/prisma/generated/client`;
+- generated Prisma client imports routed through `apps/api/src/persistence/prisma/generated-client.ts`;
+- absence of Prisma dependencies and imports in `apps/web` and `packages/contracts`;
+- `pnpm check:architecture` coverage for Prisma boundary and uncommitted generated output;
+- CI proof that generated output is deleted and regenerated before typecheck, tests, build, and database checks;
 - candidate-to-mission history through `MissionCandidate`;
 - multiple recruiters per mission through `MissionRecruiter`;
 - multiple client contacts per client;
@@ -32,24 +38,27 @@ Check especially:
 
 ## Verification Notes
 
-Completed locally by Codex before opening the issue #3 PR:
+Completed locally by Codex during issue #3 work:
 
 - `pnpm install`
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
+- `pnpm check:architecture`
+- `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
 - migration SQL generation from the Prisma schema
 
-Pending before completion:
+Must be confirmed through the latest GitHub Actions run after the boundary-fix push:
 
 - `pnpm prisma:migrate:deploy` against real PostgreSQL
 - `pnpm prisma:seed`
 - `pnpm test:db`
-- `pnpm format:check`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
+- clean Prisma regeneration from an empty `apps/api/prisma/generated/client`
+- quality checks and architecture boundary checks
 
 Blocked locally:
 
@@ -57,8 +66,8 @@ Blocked locally:
 
 GitHub Actions:
 
-- The workflow is being extended to run Docker Compose PostgreSQL health, migration deploy, seed, database integration tests, install, Prisma validation, format check, lint, typecheck, tests, and build.
-- Confirm the latest PR check result after pushing the issue #3 branch.
+- The workflow runs Docker Compose PostgreSQL health, migration deploy, seed twice, database integration tests, install, Prisma validation, clean Prisma generation, architecture boundary checks, format check, lint, typecheck, tests, and build.
+- Confirm the latest PR #9 check result after pushing the boundary-fix branch.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

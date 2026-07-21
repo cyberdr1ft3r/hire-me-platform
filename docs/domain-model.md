@@ -400,10 +400,11 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - `CandidateDocumentVersion` and `DocumentVersion` store protected storage metadata and version numbers. Actual file storage, malware scanning, download authorization, and generated-file production remain later implementation work.
 - `AuditLog` includes actor and target-user references plus safe summary metadata. Application services must treat audit records as append-only and must not store raw CV contents, confidential document contents, message bodies, secrets, or full sensitive payloads in audit metadata.
 - Task and notification context is represented through explicit optional foreign keys to approved entities rather than free-form JSON.
+- Prisma is owned by `apps/api`. The generated Prisma client uses Prisma 6 `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`, which is ignored and regenerated rather than committed. API persistence code, the development seed, and database integration tests import through `apps/api/src/persistence/prisma/generated-client.ts` so the web app and contracts package remain ORM-independent.
 
 ## Assumptions
 
-- Entity names in this document should become implementation-facing names later.
+- Entity names in this document are implementation-facing unless a documented physical-name deviation exists.
 - The ER diagram is conceptual and not a physical schema.
 - Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`.
 - Archival is preferred over deletion for records that carry recruitment, HR, client, commercial, message, document, training, or audit history.
@@ -433,7 +434,5 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 
 ## Non-Goals
 
-- No Prisma schema.
-- No database migrations.
-- No seed data.
+- No controllers, services, API endpoints, authentication flows, pages, or business UI.
 - No implementation of messaging, integrations, document generation, imports, or file storage.

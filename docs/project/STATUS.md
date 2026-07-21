@@ -7,15 +7,15 @@ Status owner: repository maintainer
 
 **Phase:** Persistence foundation
 **Health:** Implementation in progress
-**Current blocker:** None known in repository configuration; database lifecycle verification is expected to run through GitHub Actions because local Docker Desktop is unavailable in the Codex environment.
-**Next executable development task:** Review the issue #3 draft PR after it is opened.
+**Current blocker:** PR #9 blocking review requested deterministic Prisma package boundaries and clean generated-client regeneration evidence.
+**Next executable development task:** Review the updated issue #3 draft PR after boundary fixes and CI rerun.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
-| Issue #3 | In progress | Implement the foundational Prisma schema and database lifecycle | Review the draft PR for schema coverage, migration safety, seed contents, and PostgreSQL integration-test evidence |
+| Issue #3 | In review | Implement the foundational Prisma schema and database lifecycle | Review PR #9 for schema coverage, API-owned Prisma boundary, migration safety, seed contents, and PostgreSQL integration-test evidence |
 
 ## Completed foundation work
 
@@ -46,7 +46,9 @@ Status owner: repository maintainer
 - Foundational Prisma schema implementation is in progress.
 - Initial migration is being prepared from the approved domain model.
 - Development seed is limited to the eight approved roles and safe synthetic permissions.
-- Database lifecycle CI is being extended to run migrations, seed, and PostgreSQL integration tests.
+- Prisma is owned by `apps/api` with one explicit generated output under `apps/api/prisma/generated/client`.
+- `pnpm check:architecture` verifies that web/contracts remain ORM-independent and that no generated Prisma client is committed.
+- Database lifecycle CI runs migrations, seed, and PostgreSQL integration tests after clean Prisma regeneration.
 
 ## Current open technical questions
 
@@ -63,10 +65,10 @@ These are not blockers for the issue #2 implementation PR:
 
 ## Immediate next actions
 
-1. Review the issue #3 draft PR after it is opened.
-2. Confirm GitHub Actions applies migrations to PostgreSQL, runs the development seed, and passes database integration tests.
-3. Confirm local quality checks, Prisma validation/generation, and build/test commands pass.
-4. Merge issue #3 only after schema coverage, deletion behavior, seed safety, and database lifecycle evidence are accepted.
+1. Review PR #9 after the blocking-review fixes are pushed.
+2. Confirm GitHub Actions applies migrations to PostgreSQL, runs the seed twice, passes database integration tests, and proves clean Prisma regeneration.
+3. Confirm local quality checks, Prisma validation/generation, architecture boundary checks, and build/test commands pass.
+4. Merge issue #3 only after schema coverage, Prisma boundary behavior, deletion behavior, seed safety, and database lifecycle evidence are accepted.
 
 ## Status Update Rules
 

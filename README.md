@@ -72,6 +72,7 @@ Run these from the repository root:
 
 ```sh
 pnpm prisma:validate
+pnpm check:architecture
 pnpm format:check
 pnpm lint
 pnpm typecheck
@@ -86,7 +87,7 @@ GitHub Actions runs the same quality checks on pull requests and pushes to `main
 
 ```text
 apps/
-  api/      NestJS API with GET /health and Prisma wiring
+  api/      NestJS API with GET /health and API-owned Prisma wiring
   web/      React + Vite placeholder app
 packages/
   config/   Shared TypeScript configuration
@@ -129,6 +130,14 @@ Validate and generate the Prisma client:
 ```sh
 pnpm prisma:validate
 pnpm prisma:generate
+```
+
+The generated Prisma client is written to `apps/api/prisma/generated/client` and is intentionally ignored by Git. API seed scripts, database tests, and future API persistence code must import Prisma through `apps/api/src/persistence/prisma/generated-client.ts`; `apps/web` and `packages/contracts` must remain ORM-independent.
+
+Check the Prisma ownership boundary:
+
+```sh
+pnpm check:architecture
 ```
 
 Apply committed migrations:

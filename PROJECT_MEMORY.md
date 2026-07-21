@@ -40,6 +40,7 @@ There is no remaining issue #2 blocker for issue #3.
 - React + Vite frontend.
 - NestJS backend API.
 - PostgreSQL with Prisma ORM.
+- Prisma is owned by `apps/api`; web and contracts packages stay ORM-independent and are checked by `pnpm check:architecture`.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

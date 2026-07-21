@@ -61,7 +61,11 @@ PostgreSQL should be the primary database because the domain is relational and h
 
 ### Prisma ORM
 
-Prisma should be used for typed database access and migrations once implementation begins. This task intentionally does not define a Prisma schema. The future schema should follow `docs/domain-model.md`, preserve history through explicit relations, and prefer archival for business records.
+Prisma is owned by `apps/api`. The API package owns the schema, migrations, Prisma dependencies, generated client output, seed, and database integration tests. `apps/web` and `packages/contracts` must not depend on Prisma, import `@prisma/client`, import the API generated client, or import API persistence modules.
+
+Issue #3 introduces the foundational Prisma schema under `apps/api/prisma/schema.prisma`. The Prisma 6 generator uses `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`; that output is generated during development and CI and is not committed. API persistence code, seed scripts, and database tests must import through `apps/api/src/persistence/prisma/generated-client.ts` instead of importing `@prisma/client` directly.
+
+Future Nest runtime code must expose one application-managed Prisma provider from the API persistence layer. Feature modules must not create ad-hoc `new PrismaClient()` instances. Seed and database integration tests may create their own clients because they run as separate processes.
 
 ### Shared Validation and Types
 
@@ -156,7 +160,7 @@ Testing should match risk and behavior:
 - Integration tests for API behavior, persistence, authorization scopes, storage adapters, background jobs, messaging membership, and integration adapters.
 - Frontend tests for permission-aware rendering, multilingual UI behavior, responsive forms, workflow controls, dashboards, search, and client portal behavior.
 - End-to-end tests for the main recruitment workflow, client portal access, document download controls, messaging permissions, training enrollment, and report export.
-- Migration and schema validation tests once Prisma is introduced.
+- Migration, schema validation, generated-client boundary, and relational integration tests for Prisma changes.
 - Module-by-module validation and UAT before rollout.
 
 ## Container and Component Diagram
@@ -240,8 +244,5 @@ flowchart TB
 
 ## Non-Goals
 
-- No application scaffolding.
-- No Prisma schema or database migrations.
-- No Docker Compose, CI, or infrastructure configuration.
+- No controllers, feature services, authentication flow, business UI, production file storage, or external integration implementation.
 - No production deployment design.
-- No external integration implementation in this task.

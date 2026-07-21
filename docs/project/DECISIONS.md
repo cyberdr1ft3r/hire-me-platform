@@ -16,6 +16,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-008 | 2026-07-21 | Accepted | Work is performed through scoped issues, dedicated branches, and draft pull requests; agents do not merge automatically. | Preserves review control and prevents silent scope expansion. |
 | D-009 | 2026-07-21 | Accepted | Dependent tasks do not start before prerequisite issues and pull requests are approved and merged. | Avoids implementing against unstable architecture and requirements. |
 | D-010 | 2026-07-21 | Accepted | Project memory files are living summaries, not append-only diaries; Git history provides chronology. | Keeps agent context compact and prevents stale contradictory memory. |
+| D-011 | 2026-07-21 | Accepted | Prisma is owned by `apps/api`, with one explicit generated client output imported through an API persistence boundary; `apps/web` and `packages/contracts` remain ORM-independent. | Required by blocking review on PR #9 for deterministic pnpm monorepo behavior and clean package boundaries. |
 
 ## Decision protocol
 
