@@ -5,16 +5,16 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Repository and local development bootstrap  
-**Health:** Ready to start  
-**Current blocker:** None for issue #2  
-**Next executable development task:** Issue #2 — bootstrap the TypeScript monorepo and local development environment.
+**Phase:** Repository and local development bootstrap
+**Health:** Implementation in progress
+**Current blocker:** None in repository configuration; local Docker Desktop is not running in the Codex environment, so Docker health is verified through GitHub Actions.
+**Next executable development task:** Review PR #8 after the Docker Compose health CI correction.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
-| Issue #2 | Ready | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Assign to Codex and open a draft implementation PR |
+| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review PR #8 for reproducible root `.env` loading, CI parity, and the Docker Compose PostgreSQL health job |
 | Issue #3 | Blocked | Implement the foundational Prisma schema and database lifecycle | Start only after issue #2 is reviewed and merged |
 
 ## Completed foundation work
@@ -27,9 +27,23 @@ Status owner: repository maintainer
 - Issue #1 completed through merged PR #4, establishing the approved product scope, architecture, domain model, workflows, and permissions.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
+## Issue #2 Verification State
+
+- Dependency installation completed with pnpm and a committed lockfile.
+- Prisma schema validation and client generation completed against safe placeholder environment values.
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` passed locally.
+- API runtime health check returned a structured `ok` response.
+- API dev/start scripts load the repository-root `.env` created from `.env.example`.
+- Web Vite configuration reads environment variables from the repository root.
+- Local web, API, CORS, and database examples consistently use `127.0.0.1`.
+- Web dev server responded on `127.0.0.1:5173` with `VITE_API_BASE_URL` configured for the local API.
+- React test coverage verifies that the web app renders the API health response from the configured client path.
+- GitHub Actions includes a dedicated Docker Compose job that copies `.env.example` to `.env`, validates Compose configuration, starts PostgreSQL, waits for the container to become healthy, prints diagnostics on failure, and always runs `docker compose down -v`.
+- Local Docker Compose PostgreSQL startup could not be confirmed by Codex because the Docker daemon was unavailable.
+
 ## Current open technical questions
 
-These are not blockers for issue #2:
+These are not blockers for the issue #2 implementation PR:
 
 - Authentication provider and session model.
 - Background-job technology.
@@ -42,13 +56,13 @@ These are not blockers for issue #2:
 
 ## Immediate next actions
 
-1. Launch issue #2 with the required repository-memory, monorepo, DevOps/CI, security, and quality-gate skills.
-2. Keep issue #2 limited to scaffolding and local infrastructure; do not add business modules or the full Prisma domain schema.
-3. Review the resulting draft PR for reproducibility, safe environment handling, Docker health checks, API/web connectivity, tests, and CI parity.
-4. Merge issue #2 only when a fresh clone can follow the README and all quality commands pass.
+1. Review PR #8 after the Docker Compose health CI correction.
+2. Review GitHub Actions results for the PR and confirm CI runs Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
+3. Merge issue #2 only when fresh-clone setup, Docker health, API/web connectivity, local checks, and CI checks are satisfactory.
+4. Optionally rerun `docker compose up -d postgres` locally when Docker Desktop is available.
 5. Begin issue #3 only after issue #2 is complete.
 
-## Status update rules
+## Status Update Rules
 
 Update this file whenever:
 
