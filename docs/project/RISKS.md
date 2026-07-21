@@ -16,6 +16,7 @@ Last updated: 2026-07-21
 | R-010 | Real client data is accidentally committed to GitHub. | Permanent data exposure through Git history. | Explicit repository rules, sanitized fixtures only, `.gitignore`, secret scanning, and review of imports and attachments. | Active |
 | R-011 | Physical database constraints diverge from the approved domain model as implementation begins. | Broken workflows, missing history, and difficult migrations. | Review Prisma schema against `docs/domain-model.md`, run relational integration tests, and document implementation deviations in the domain model. | Active |
 | R-012 | Prisma leaks across monorepo package boundaries or generated client state depends on pnpm `node_modules` layout. | Frontend/contracts become coupled to server persistence and builds become non-deterministic. | API-owned explicit generated output, ignored generated files, `pnpm check:architecture`, and CI clean-regeneration checks before typecheck, tests, and build. | Active |
+| R-013 | Authentication tokens, password material, or audit metadata are mishandled. | Account compromise, session theft, or confidential-data leakage. | Argon2id password hashes, short-lived access tokens, hashed rotating refresh sessions, HTTP-only refresh cookies, no browser storage for tokens, generic login failures, reuse detection, safe audit summaries, and authentication integration tests. | Active |
 
 ## Risk protocol
 

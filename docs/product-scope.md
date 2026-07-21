@@ -180,7 +180,7 @@ Candidate data, HR notes, salary expectations, CVs, client records, commercial t
 
 ## Unresolved Technical Choices
 
-- Exact authentication provider, password policy, session/token model, and revocation approach.
+- Microsoft 365 authentication provider strategy, account linking, MFA, password reset, production secret rotation, and emergency session invalidation playbooks. Issue #10 resolves the first local email/password model, Argon2id policy, access-token lifetime, refresh-token rotation, and reuse-detection foundation.
 - Exact sync direction and conflict rules for Microsoft, Outlook, Google, WhatsApp Business, LinkedIn, Excel, PDF, and email integrations.
 - Whether internal messaging requires real-time delivery, read receipts, moderation, or attachment limits in the first release.
 - Exact formulas and authorization rules for dashboard metrics, especially revenue.

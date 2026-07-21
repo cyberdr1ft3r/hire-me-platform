@@ -5,17 +5,18 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Persistence foundation
-**Health:** PR #9 review-ready after boundary fixes
-**Current blocker:** None known after the latest PR #9 CI run passed.
-**Next executable development task:** Maintainer review of the updated issue #3 draft PR.
+**Phase:** Authentication and authorization foundation
+**Health:** Issue #10 draft PR #11 is review-ready after CI passed.
+**Current blocker:** None known.
+**Next executable development task:** Maintainer review of draft PR #11.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
-| Issue #3 | In review | Implement the foundational Prisma schema and database lifecycle | Maintainer review of PR #9 for schema coverage, API-owned Prisma boundary, migration safety, seed contents, and PostgreSQL integration-test evidence |
+| Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
+| Issue #10 | In review | Implement local authentication, session security, RBAC resolution, and authentication audit logs | Maintainer review of draft PR #11 |
 
 ## Completed foundation work
 
@@ -25,6 +26,7 @@ Status owner: repository maintainer
 - Discovery and clarification questionnaires completed and analyzed.
 - Issue #5 completed through merged PR #6, establishing persistent repository memory, goals, status, roadmap, decisions, risks, and agent handoffs.
 - Issue #1 completed through merged PR #4, establishing the approved product scope, architecture, domain model, workflows, and permissions.
+- Issue #3 completed through merged PR #9, establishing the foundational Prisma schema, migration, role/permission seed, API-owned Prisma boundary, and database lifecycle checks.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -43,18 +45,26 @@ Status owner: repository maintainer
 
 ## Issue #3 Verification State
 
-- Foundational Prisma schema implementation is pushed to draft PR #9.
-- Initial migration is included in draft PR #9 from the approved domain model.
+- Foundational Prisma schema implementation is merged through PR #9.
+- Initial migration is included from the approved domain model.
 - Development seed is limited to the eight approved roles and safe synthetic permissions.
 - Prisma is owned by `apps/api` with one explicit generated output under `apps/api/prisma/generated/client`.
 - `pnpm check:architecture` verifies that web/contracts remain ORM-independent and that no generated Prisma client is committed.
-- Latest PR #9 CI run `29841648591` passed PostgreSQL health, quality checks, clean Prisma regeneration, migration deploy, seed twice, and database integration tests.
+- PR #9 CI run `29841648591` passed PostgreSQL health, quality checks, clean Prisma regeneration, migration deploy, seed twice, and database integration tests.
+
+## Issue #10 Verification State
+
+- Local email/password authentication, Argon2id password credentials, rotating hashed refresh sessions, reuse detection, secure refresh-cookie handling, in-memory web access-token handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are implemented on `feat/auth-rbac-foundation`.
+- The API uses one Nest-managed Prisma provider for runtime code. The development bootstrap script and database tests remain separate-process/test exceptions.
+- Unit tests cover password hashing and token validation. Web tests cover login/logout and confirm browser storage is not used for tokens. PostgreSQL integration tests cover login, refresh rotation, reuse detection, logout, permission enforcement, audit safety, and development bootstrap idempotency.
+- Draft PR #11 is open. GitHub Actions run `29847170395` passed PostgreSQL health, clean Prisma regeneration, migration deploy, seed twice, development admin bootstrap twice, database integration tests, and quality checks.
 
 ## Current open technical questions
 
-These are not blockers for the issue #2 implementation PR:
-
-- Authentication provider and session model.
+- Microsoft 365 authentication and account-linking strategy.
+- MFA, password reset, registration, and user-management workflow sequencing.
+- Production secret rotation and emergency session invalidation playbooks.
+- Distributed authentication rate limiting.
 - Background-job technology.
 - Production file-storage provider.
 - Advanced-search implementation.
@@ -65,9 +75,9 @@ These are not blockers for the issue #2 implementation PR:
 
 ## Immediate next actions
 
-1. Review the updated draft PR #9.
-2. Accept or request changes on schema coverage, Prisma boundary behavior, deletion behavior, seed safety, and database lifecycle evidence.
-3. Merge issue #3 only after maintainer approval.
+1. Review draft PR #11.
+2. Accept or request changes on authentication security, cookie handling, RBAC resolution, audit safety, database lifecycle evidence, and scope exclusions.
+3. Merge issue #10 only after maintainer approval.
 
 ## Status Update Rules
 

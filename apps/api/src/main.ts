@@ -11,6 +11,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableCors({
     origin: environment.API_CORS_ORIGIN,
+    credentials: true,
   });
 
   await app.listen(environment.API_PORT, environment.API_HOST);

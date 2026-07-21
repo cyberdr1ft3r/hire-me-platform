@@ -1,25 +1,26 @@
-# Hire Me Platform — Project Memory
+# Hire Me Platform - Project Memory
 
 Last updated: 2026-07-21
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
-## Product purpose
+## Product Purpose
 
 Build a bilingual, responsive business platform for Hire Me that centralizes recruitment operations, client relationships, missions, candidates and CVs, interviews and evaluations, client collaboration, training and coaching, tasks, documents, notifications, reporting, and selected integrations.
 
-## Current phase
+## Current Phase
 
-Persistence foundation.
+Authentication and authorization foundation.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
 - Issue #2 is complete; PR #8 merged the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI checks.
-- Active issue: #3 — implement the foundational Prisma schema and database lifecycle.
+- Issue #3 is complete; PR #9 merged the foundational Prisma schema, initial migration, role and permission seed, API-owned Prisma boundary, and database lifecycle checks.
+- Active issue: #10 - draft PR #11 implements the local authentication, session security, RBAC resolution, and authentication audit foundation and is awaiting maintainer review.
 
-There is no remaining issue #2 blocker for issue #3.
+There is no remaining issue #3 blocker for issue #10.
 
-## Confirmed product facts
+## Confirmed Product Facts
 
 - Main users include super administrators, administrators, HR managers, managers, team leaders, employees, guests, and client users.
 - Candidate progress is mission-specific and must preserve history when one candidate participates in multiple recruitment missions.
@@ -33,7 +34,7 @@ There is no remaining issue #2 blocker for issue #3.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, document storage, and internal notifications.
 
-## Technical direction
+## Technical Direction
 
 - TypeScript monorepo.
 - Modular monolith for the initial implementation.
@@ -41,6 +42,7 @@ There is no remaining issue #2 blocker for issue #3.
 - NestJS backend API.
 - PostgreSQL with Prisma ORM.
 - Prisma is owned by `apps/api`; web and contracts packages stay ORM-independent and are checked by `pnpm check:architecture`.
+- Local authentication uses normalized email login, Argon2id password credentials, short-lived access tokens, rotating hashed refresh sessions in HTTP-only cookies, refresh-token reuse detection, normalized permission-code resolution, deny-by-default guards, and safe authentication audit logs.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.
@@ -48,7 +50,7 @@ There is no remaining issue #2 blocker for issue #3.
 - Append-oriented audit logging for sensitive actions.
 - GitHub issues, pull requests, documentation, and decision records are the project source of truth.
 
-## Non-negotiable engineering rules
+## Non-Negotiable Engineering Rules
 
 - Never commit secrets, production credentials, personal datasets, CV files, or questionnaire exports.
 - Protect candidate, HR, salary, client, document, and commercial information using least privilege.
@@ -57,7 +59,7 @@ There is no remaining issue #2 blocker for issue #3.
 - Run applicable lint, type-check, test, build, migration, and security checks before completion.
 - Do not silently expand product scope.
 
-## Source-of-truth order
+## Source-Of-Truth Order
 
 When information conflicts, use this order:
 
@@ -69,7 +71,7 @@ When information conflicts, use this order:
 
 Record unresolved conflicts instead of guessing.
 
-## Memory update protocol
+## Memory Update Protocol
 
 At the end of every meaningful issue or pull request:
 

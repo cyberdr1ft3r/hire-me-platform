@@ -38,7 +38,7 @@ The development command starts:
 - `apps/api` at `http://127.0.0.1:3000`
 - `apps/web` at `http://127.0.0.1:5173`
 
-Open `http://127.0.0.1:5173` and the placeholder page should display the API health status.
+Open `http://127.0.0.1:5173` and the placeholder page should display the API health status and local authentication panel.
 Both development apps read the repository-root `.env` created from `.env.example`; no manual environment exports are required for the documented local path.
 
 ## Health Checks
@@ -166,6 +166,14 @@ pnpm prisma:seed
 
 The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
 
+Bootstrap a synthetic development administrator after seeding roles:
+
+```sh
+AUTH_BOOTSTRAP_ADMIN_EMAIL=admin@example.test AUTH_BOOTSTRAP_ADMIN_PASSWORD=LocalSyntheticPassphrase123! pnpm auth:bootstrap-admin
+```
+
+The bootstrap command is development-only and idempotent for the configured email. It refuses placeholder-style passwords and does not run at API startup.
+
 Open Prisma Studio:
 
 ```sh
@@ -182,8 +190,12 @@ pnpm test:db
 
 `.env.example` contains safe development placeholders only. Copy it to `.env` for local development and do not commit `.env` files. The local configuration consistently uses `127.0.0.1` for the web origin, API base URL, API host, and PostgreSQL connection.
 
-The API validates required environment variables at startup. The web app reads `VITE_API_BASE_URL` to reach the API health endpoint.
+The API validates required environment variables at startup. The web app reads `VITE_API_BASE_URL` to reach API health and authentication endpoints. Access tokens are held in web memory only; refresh tokens are stored in the API-managed `hire_me_refresh` HTTP-only cookie.
+
+## Authentication
+
+See `docs/authentication.md` for the Issue #10 authentication architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope.
 
 ## Scope Guardrail
 
-This repository foundation does not implement authentication flows, controllers, services, pages, business UI, dashboards, integrations, file storage, or business workflow behavior. The Prisma schema models foundational persistence only; application behavior belongs to later issues.
+This repository foundation implements only the Issue #10 local authentication and RBAC foundation beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, user-management CRUD, business UI, dashboards, integrations, file storage behavior, and business workflow behavior remain out of scope.

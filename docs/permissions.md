@@ -71,7 +71,7 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `training_enrollments:manage`
 - `mission_assignments:manage`
 
-These names are documentation terms for the first pass. They should be refined when module boundaries and API routes are designed.
+Issue #10 seeds these names as safe synthetic development permissions and resolves them through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Security and Audit Requirements
 
@@ -86,7 +86,7 @@ These names are documentation terms for the first pass. They should be refined w
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Exact policy implementation, seed data, approval workflows, and per-module route permissions should be defined during implementation tasks.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Exact record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
@@ -108,6 +108,7 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Whether client users can upload documents.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
+- Final per-module permission-code catalog and route-to-permission map.
 
 ## Risks
 
@@ -119,7 +120,6 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 
 ## Non-Goals
 
-- No final role seeding strategy.
-- No authentication implementation.
-- No policy engine implementation.
-- No database schema or migration.
+- No final per-module policy engine.
+- No record-scope query implementation.
+- No user-management workflow implementation.

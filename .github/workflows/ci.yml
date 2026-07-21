@@ -150,6 +150,11 @@ jobs:
           pnpm prisma:seed
           pnpm prisma:seed
 
+      - name: Run development admin bootstrap twice
+        run: |
+          AUTH_BOOTSTRAP_ADMIN_EMAIL=bootstrap-admin@example.test AUTH_BOOTSTRAP_ADMIN_PASSWORD=CiSyntheticAdminPassphrase123! pnpm auth:bootstrap-admin
+          AUTH_BOOTSTRAP_ADMIN_EMAIL=bootstrap-admin@example.test AUTH_BOOTSTRAP_ADMIN_PASSWORD=CiSyntheticAdminPassphrase123! pnpm auth:bootstrap-admin
+
       - name: Run database integration tests
         run: pnpm test:db
 

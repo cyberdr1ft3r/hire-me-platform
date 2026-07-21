@@ -8,5 +8,6 @@ export {
   Prisma,
   PrismaClient,
   RoleName,
+  UserStatus,
   UserType,
 } from '../../../prisma/generated/client/index.js';

@@ -6,6 +6,7 @@
   "main": "./dist/main.js",
   "scripts": {
     "build": "dotenv -e ../../.env.example -- prisma generate && tsc -p tsconfig.build.json",
+    "auth:bootstrap-admin": "dotenv -e ../../.env -- tsx src/auth/bootstrap-admin.ts",
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
     "lint": "eslint .",
     "prisma:generate": "dotenv -e ../../.env.example -- prisma generate",
@@ -29,6 +30,7 @@
     "@nestjs/core": "^11.1.5",
     "@nestjs/platform-express": "^11.1.5",
     "@prisma/client": "^6.13.0",
+    "argon2": "^0.45.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.0.10"

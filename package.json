@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "auth:bootstrap-admin": "pnpm --filter @hire-me/api auth:bootstrap-admin",
     "check:architecture": "node scripts/check-prisma-boundary.mjs",
     "dev": "turbo run dev --parallel",
     "format:check": "prettier --check .",
@@ -21,7 +22,7 @@
     "prisma:studio": "pnpm --filter @hire-me/api prisma:studio",
     "prisma:validate": "pnpm --filter @hire-me/api prisma:validate",
     "test": "turbo run test",
-    "test:db": "pnpm --filter @hire-me/api test:db",
+    "test:db": "pnpm --filter @hire-me/contracts build && pnpm --filter @hire-me/api test:db",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
