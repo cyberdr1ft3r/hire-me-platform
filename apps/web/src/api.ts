@@ -1,6 +1,6 @@
 import { HealthResponseSchema, type HealthResponse } from '@hire-me/contracts';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:3000';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
 
 export function getApiBaseUrl(): string {
   const configuredUrl: unknown = import.meta.env.VITE_API_BASE_URL;

@@ -6,7 +6,7 @@ describe('loadEnvironment', () => {
   it('returns validated configuration for safe development placeholders', () => {
     expect(
       loadEnvironment({
-        API_CORS_ORIGIN: 'http://localhost:5173',
+        API_CORS_ORIGIN: 'http://127.0.0.1:5173',
         API_HOST: '127.0.0.1',
         API_PORT: '3000',
         DATABASE_URL:

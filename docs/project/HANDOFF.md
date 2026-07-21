@@ -8,12 +8,13 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
-- Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`.
+- Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`; PR #8 is open as a draft.
+- The latest PR #8 blocking review about root `.env` loading and mixed `localhost`/`127.0.0.1` origins has been addressed on the same branch.
 - Issue #3 must not start until issue #2 is reviewed and merged.
 
 ## Next Action
 
-Review the issue #2 draft PR after it is opened from `chore/bootstrap-typescript-monorepo`.
+Review PR #8 from `chore/bootstrap-typescript-monorepo`.
 
 Check especially:
 
@@ -25,6 +26,8 @@ Check especially:
 - Docker Compose PostgreSQL service and health check;
 - Prisma datasource wiring without business models;
 - safe `.env.example` placeholders and startup environment validation;
+- root `.env` loading for API development/startup and Vite environment loading;
+- consistent `127.0.0.1` local web/API/CORS URLs;
 - GitHub Actions parity with local quality commands;
 - README fresh-clone setup accuracy;
 - absence of authentication, business modules, business schema, real personal data, client data, or CV content.
@@ -43,6 +46,7 @@ Completed locally by Codex:
 - `pnpm build`
 - API runtime check for `GET /health`
 - Web dev server strict-port check on `127.0.0.1:5173`
+- Root `.env` loading correction for API and web development paths
 
 Blocked locally:
 

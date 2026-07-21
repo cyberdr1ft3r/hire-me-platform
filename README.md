@@ -37,6 +37,7 @@ The development command starts:
 - `apps/web` at `http://127.0.0.1:5173`
 
 Open `http://127.0.0.1:5173` and the placeholder page should display the API health status.
+Both development apps read the repository-root `.env` created from `.env.example`; no manual environment exports are required for the documented local path.
 
 ## Health Checks
 
@@ -118,7 +119,7 @@ docker compose down -v
 
 ## Environment
 
-`.env.example` contains safe development placeholders only. Copy it to `.env` for local development and do not commit `.env` files.
+`.env.example` contains safe development placeholders only. Copy it to `.env` for local development and do not commit `.env` files. The local configuration consistently uses `127.0.0.1` for the web origin, API base URL, API host, and PostgreSQL connection.
 
 The API validates required environment variables at startup. The web app reads `VITE_API_BASE_URL` to reach the API health endpoint.
 

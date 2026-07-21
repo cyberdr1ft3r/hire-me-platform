@@ -8,13 +8,13 @@ Status owner: repository maintainer
 **Phase:** Repository and local development bootstrap
 **Health:** Implementation in progress
 **Current blocker:** Docker Desktop is not running in the local verification environment, so PostgreSQL container health could not be confirmed by Codex.
-**Next executable development task:** Review the issue #2 draft implementation PR after it is opened.
+**Next executable development task:** Review PR #8 after the environment-loading and CORS-origin correction.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
-| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review the draft implementation PR for reproducibility, CI parity, and Docker health once Docker is available |
+| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review PR #8 for reproducible root `.env` loading, CI parity, and Docker health once Docker is available |
 | Issue #3 | Blocked | Implement the foundational Prisma schema and database lifecycle | Start only after issue #2 is reviewed and merged |
 
 ## Completed foundation work
@@ -33,6 +33,9 @@ Status owner: repository maintainer
 - Prisma schema validation and client generation completed against safe placeholder environment values.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` passed locally.
 - API runtime health check returned a structured `ok` response.
+- API dev/start scripts load the repository-root `.env` created from `.env.example`.
+- Web Vite configuration reads environment variables from the repository root.
+- Local web, API, CORS, and database examples consistently use `127.0.0.1`.
 - Web dev server responded on `127.0.0.1:5173` with `VITE_API_BASE_URL` configured for the local API.
 - React test coverage verifies that the web app renders the API health response from the configured client path.
 - Docker Compose PostgreSQL startup could not be confirmed because the Docker daemon was unavailable.
@@ -52,7 +55,7 @@ These are not blockers for the issue #2 implementation PR:
 
 ## Immediate next actions
 
-1. Review the issue #2 draft PR after it is opened.
+1. Review PR #8 after the latest blocking review correction.
 2. Run `docker compose up -d postgres` in an environment where Docker Desktop is running and confirm `docker compose ps` reports PostgreSQL healthy.
 3. Review GitHub Actions results for the PR and confirm CI runs install, Prisma validation, format check, lint, typecheck, tests, and build.
 4. Merge issue #2 only when fresh-clone setup, Docker health, API/web connectivity, local checks, and CI checks are satisfactory.
