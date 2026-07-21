@@ -19,6 +19,8 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-011 | 2026-07-21 | Accepted | Prisma is owned by `apps/api`, with one explicit generated client output imported through an API persistence boundary; `apps/web` and `packages/contracts` remain ORM-independent. | Required by blocking review on PR #9 for deterministic pnpm monorepo behavior and clean package boundaries. |
 | D-012 | 2026-07-21 | Accepted | Local authentication uses Argon2id password credentials, short-lived access tokens, rotating hashed refresh sessions in HTTP-only cookies, reuse detection, normalized permission-code resolution, deny-by-default guards, and safe audit logs. | Required by issue #10 and the approved security architecture. |
 | D-013 | 2026-07-21 | Accepted | Internal user administration is authorized by permission codes, protects the last active `SUPER_ADMIN` transactionally, blocks unsafe self-lockout actions, and revokes active refresh sessions when a user is suspended or archived. | Required by issue #13 and the approved authentication/authorization architecture. |
+| D-014 | 2026-07-21 | Accepted | Client CRM records use archival lifecycles, explicit client/contact permission codes, per-client normalized contact email uniqueness, nested contact ownership checks, and separate `commercial_data:access` gating for commercial client fields. | Required by issue #15 and the approved client/contact domain model. |
+| D-015 | 2026-07-21 | Accepted | Client archival and dependent client/contact writes serialize on a transaction-scoped PostgreSQL row lock for the parent `Client`; writes that observe the archived parent fail with `CLIENT_ARCHIVED`. | Required by blocking lifecycle and concurrency review on PR #16. |
 
 ## Decision protocol
 

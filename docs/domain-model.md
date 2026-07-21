@@ -84,13 +84,13 @@ This document defines conceptual entities and relationships for the first implem
 ### Client
 
 - Purpose and owner: organization receiving recruitment or training services; owned by commercial and recruitment operations.
-- Important attributes: id, name, status, industry, commercial owner, billing or contract summary where approved.
+- Important attributes: id, name, normalized name, status, industry, website, main phone, country, city, commercial owner, and commercial summary where approved.
 - Relationships: has client contacts, recruitment missions, documents, and client portal users through contacts; may sponsor training enrollments.
 - Cardinality: one client can have many contacts, missions, documents, and client participant enrollments.
 - Lifecycle: prospect, active, inactive, archived.
-- Sensitive fields: commercial terms, contracts, invoices, notes, private contacts.
-- Uniqueness rules: client name uniqueness may be scoped by business rules and remains unresolved.
-- Audit requirements: commercial-data access, updates, archival, export, and document access should be audited.
+- Sensitive fields: commercial terms, contracts, invoices, notes, contact details, and private contacts.
+- Uniqueness rules: client name uniqueness remains unresolved; the Issue #15 implementation allows duplicate client names and does not merge records automatically.
+- Audit requirements: commercial-data access, updates, status changes, archival, export, and document access should be audited.
 
 ### ClientContact
 
@@ -100,8 +100,8 @@ This document defines conceptual entities and relationships for the first implem
 - Cardinality: one client can have many contacts.
 - Lifecycle: active, inactive, archived.
 - Sensitive fields: contact details and communication notes.
-- Uniqueness rules: normalized email should be unique within a client.
-- Audit requirements: portal activation, update, archival, access changes, and training enrollment changes should be audited.
+- Uniqueness rules: normalized email is unique within one client; the same normalized email may exist under another client.
+- Audit requirements: creation, update, status change, archival, portal activation, access changes, and training enrollment changes should be audited.
 
 ### RecruitmentMission
 
@@ -402,6 +402,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Task and notification context is represented through explicit optional foreign keys to approved entities rather than free-form JSON.
 - Prisma is owned by `apps/api`. The generated Prisma client uses Prisma 6 `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`, which is ignored and regenerated rather than committed. API persistence code, the development seed, and database integration tests import through `apps/api/src/persistence/prisma/generated-client.ts` so the web app and contracts package remain ORM-independent.
 - Issue #10 extends the physical schema with `PasswordCredential` and `RefreshSession`. `PasswordCredential` stores one Argon2id password hash per `User`. `RefreshSession` stores only hashed opaque refresh tokens, session-family metadata, expiry, revocation, reuse-detection, lineage, and hashed request metadata.
+- Issue #15 extends the physical client schema with optional website, main phone, country, and city fields. It implements client and client-contact APIs with shared Zod DTOs, no physical deletion, transactional client archive that archives active contacts, per-client contact normalized-email uniqueness, and safe audit summaries. Client archival and dependent client/contact writes share a transaction-scoped PostgreSQL row lock on the parent `Client`, so an archive racing contact creation, client updates, client status changes, contact updates, contact status changes, or contact archival serializes safely; writes that run after archival fail with `409 CLIENT_ARCHIVED`. Commercial client fields are present in the database but returned only to callers with `commercial_data:access`; callers without that permission receive `commercial: null`.
 
 ## Assumptions
 
@@ -409,12 +410,15 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - The ER diagram is conceptual and not a physical schema.
 - Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`.
 - Archival is preferred over deletion for records that carry recruitment, HR, client, commercial, message, document, training, or audit history.
+- Archived clients are terminal for Issue #15 and cannot receive ordinary updates or new contacts. Archived contacts are also terminal until a future explicitly approved reactivation workflow exists.
 - Message attachments use protected `Document` records.
 - PDF, Word-compatible, and Excel-compatible outputs should be represented as `DocumentVersion` records when generated.
 
 ## Unresolved Technical Choices
 
 - Whether client portal access supports one `User` across multiple `Client` records.
+- Whether client organization names should become globally unique, tenant-scoped unique, or remain duplicate-tolerant.
+- Whether archived client contacts can later be reactivated through a controlled workflow.
 - Whether candidate consent, privacy preferences, and retention deadlines need dedicated MVP entities.
 - Whether document templates should be modeled separately from `Document`.
 - Whether `MissionAssignment` requires exactly one active lead recruiter per mission.

@@ -20,6 +20,8 @@ const prisma = new PrismaClient();
 const passwords = new PasswordService();
 const testPassword = 'Synthetic-passphrase-123!';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+const pnpmCommand = process.env.npm_execpath ? process.execPath : 'pnpm';
+const pnpmBaseArgs = process.env.npm_execpath ? [process.env.npm_execpath] : [];
 
 async function cleanAuthTestRecords(): Promise<void> {
   await prisma.refreshSession.deleteMany();
@@ -357,16 +359,24 @@ describe('authentication and RBAC foundation', () => {
       NODE_ENV: 'test',
     };
 
-    execFileSync('pnpm', ['--filter', '@hire-me/api', 'auth:bootstrap-admin'], {
-      cwd: repoRoot,
-      env,
-      stdio: 'pipe',
-    });
-    execFileSync('pnpm', ['--filter', '@hire-me/api', 'auth:bootstrap-admin'], {
-      cwd: repoRoot,
-      env,
-      stdio: 'pipe',
-    });
+    execFileSync(
+      pnpmCommand,
+      [...pnpmBaseArgs, '--filter', '@hire-me/api', 'auth:bootstrap-admin'],
+      {
+        cwd: repoRoot,
+        env,
+        stdio: 'pipe',
+      },
+    );
+    execFileSync(
+      pnpmCommand,
+      [...pnpmBaseArgs, '--filter', '@hire-me/api', 'auth:bootstrap-admin'],
+      {
+        cwd: repoRoot,
+        env,
+        stdio: 'pipe',
+      },
+    );
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { normalizedEmail: 'bootstrap@auth.test' },
@@ -375,5 +385,5 @@ describe('authentication and RBAC foundation', () => {
 
     expect(user.passwordCredential?.passwordHash).toContain('$argon2id$');
     expect(user.roles).toHaveLength(1);
-  });
+  }, 20_000);
 });

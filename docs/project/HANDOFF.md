@@ -11,25 +11,26 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
 - Issue #3 is complete through merged PR #9; the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests are active on `main`.
 - Issue #10 is complete through merged PR #11; local authentication, secure refresh-session handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are active on `main`.
-- Issue #13 is in review through draft PR #14 on branch `feat/user-access-management`.
+- Issue #13 is complete through merged PR #14; secured internal user administration and central active-user authorization checks are active on `main`.
+- Issue #15 is in progress on branch `feat/client-contact-crm`.
 
 ## Next Action
 
-Confirm latest PR #14 CI after the blocking security-review fix, then review draft PR #14.
+Confirm PR #16 CI and review the client organization and client-contact CRM implementation.
 
 Check especially:
 
-- Every administration route is guarded by explicit permission codes, not hard-coded role checks.
-- Every protected request verifies the current database user is still active and not archived, so suspension/archive immediately rejects still-unexpired access tokens.
+- Every client and client-contact route is guarded by explicit permission codes, not hard-coded role checks.
+- Nested contact routes verify that the contact belongs to the client id in the URL.
 - API runtime code continues to use the one Nest-managed Prisma provider.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
-- Internal user responses never expose password hashes, refresh-token hashes, raw tokens, cookie values, secrets, or confidential payloads.
-- Role assignment cannot grant permissions outside the actor's effective permission set.
-- Last active `SUPER_ADMIN` demotion, suspension, and archival are protected atomically in PostgreSQL.
-- Self-demotion, self-suspension, and self-archival are rejected.
-- Suspending or archiving a user revokes active refresh sessions in the same transaction.
-- Administration audit logs are safe summaries only.
-- Excluded scopes remain excluded: registration, password reset, invitations, MFA, SSO, arbitrary role creation, permission editing, client/candidate/mission/training/document/messaging/dashboard modules, and business workflow behavior.
+- Client and contact responses never expose Prisma internals or unapproved confidential payloads.
+- Commercial client fields require `commercial_data:access` even when ordinary client permissions are present.
+- Manager, team-leader, employee, guest, and client-user roles do not receive broad client CRM permissions until row scopes are implemented.
+- Client and contact archive operations preserve records and do not physically delete.
+- Client archival and every dependent client/contact write use one parent-client PostgreSQL row lock inside the mutation transaction; no separate writability read may be followed by an unrelated write.
+- CRM audit logs are safe summaries only.
+- Excluded scopes remain excluded: candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, and physical deletion.
 
 ## Verification Notes
 
@@ -66,6 +67,33 @@ Confirmed through GitHub Actions run `29861073885`:
 - Development seed twice.
 - Database integration tests.
 - Quality checks.
+
+Completed locally during Issue #15 work:
+
+- `pnpm prisma:validate`
+- `pnpm prisma:generate`
+- `pnpm check:architecture`
+- Mermaid CLI rendered all 8 diagrams from `docs/architecture.md`, `docs/domain-model.md`, and `docs/workflows.md`
+- Fresh migration deploy against Docker PostgreSQL on `127.0.0.1:55432`
+- `pnpm prisma:migrate:reset`
+- `pnpm prisma:seed`
+- second `pnpm prisma:seed`
+- `pnpm test:db`
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+
+Local PostgreSQL used `POSTGRES_PORT=55432` because another running project already occupied `127.0.0.1:5432`.
+
+Completed locally during the PR #16 lifecycle/concurrency review fix:
+
+- Service code now routes client archival, contact creation, client updates, client status changes, contact updates, contact status changes, and contact archival through one transaction-scoped row lock on the parent `Client`.
+- PostgreSQL race tests were added for client archival against contact creation and ordinary contact update.
+- Checks passed after the fix: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:architecture`, and `git diff --check`.
+- Local PostgreSQL validation used Docker Compose on `127.0.0.1:55432`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

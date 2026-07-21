@@ -124,6 +124,18 @@ Issue #13 implements the first secured internal user administration module:
 
 Microsoft 365 authentication, identity-provider linking, MFA, password reset, registration, invitations, arbitrary role creation, permission editing, and final business record-scope policy behavior remain later implementation work.
 
+Issue #15 implements the first client CRM business module:
+
+- versioned `/v1/clients` endpoints for client listing, creation, detail, updates, lifecycle status changes, archival, nested contact listing, contact creation, contact detail, contact updates, contact status changes, and contact archival
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService`
+- explicit client and client-contact permission codes with deny-by-default behavior for unresolved row scopes
+- commercial client fields returned only when `commercial_data:access` is effective
+- transaction-scoped parent-client row locking for client archival and every dependent client/contact write so concurrent archival cannot be bypassed by a later ordinary mutation
+- PostgreSQL-backed tests for per-client contact email uniqueness, IDOR protection, lifecycle and archival rules, concurrent archival races, authorization, and safe audit metadata
+
+Candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, and broader business workflow behavior remain later implementation work.
+
 ### Audit Logging
 
 The backend should write `AuditLog` records for sensitive or business-critical actions, including:

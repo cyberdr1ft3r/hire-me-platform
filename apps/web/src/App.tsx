@@ -7,14 +7,23 @@ import type {
   AdminUserDetail,
   AdminUserSummary,
   AuthenticatedUser,
+  ClientContactSummary,
+  ClientSummary,
 } from '@hire-me/contracts';
 
 import {
+  archiveClient,
+  archiveClientContact,
   assignAdminRole,
+  createClient,
+  createClientContact,
   createAdminUser,
   fetchHealthStatus,
   fetchMeWithRefresh,
+  getClient,
   getAdminUser,
+  listClientContacts,
+  listClients,
   listAdminPermissions,
   listAdminRoles,
   listAdminUsers,
@@ -25,6 +34,10 @@ import {
   revokeAllAdminSessions,
   updateAdminUser,
   updateAdminUserStatus,
+  updateClient,
+  updateClientContact,
+  updateClientContactStatus,
+  updateClientStatus,
   refresh,
 } from './api.js';
 
@@ -33,9 +46,10 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin';
+type Route = 'home' | 'admin' | 'clients';
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
+const CLIENTS_ROUTE_PERMISSION = 'clients:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -43,7 +57,11 @@ export function App() {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>(() =>
-    window.location.pathname === '/admin' ? 'admin' : 'home',
+    window.location.pathname === '/admin'
+      ? 'admin'
+      : window.location.pathname === '/clients'
+        ? 'clients'
+        : 'home',
   );
 
   useEffect(() => {
@@ -139,10 +157,15 @@ export function App() {
 
   function navigate(nextRoute: Route): void {
     setRoute(nextRoute);
-    window.history.pushState({}, '', nextRoute === 'admin' ? '/admin' : '/');
+    window.history.pushState(
+      {},
+      '',
+      nextRoute === 'admin' ? '/admin' : nextRoute === 'clients' ? '/clients' : '/',
+    );
   }
 
   const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
+  const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -188,6 +211,14 @@ export function App() {
             <button
               type="button"
               onClick={() => {
+                navigate('clients');
+              }}
+            >
+              Clients
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 void handleLogout();
               }}
             >
@@ -223,6 +254,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Administration">
             <h2>Administration</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'clients' && user && accessToken ? (
+        canOpenClients ? (
+          <ClientsPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Clients">
+            <h2>Clients</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -519,7 +560,517 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
   );
 }
 
+function ClientsPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [contacts, setContacts] = useState<ClientContactSummary[]>([]);
+  const [selectedClient, setSelectedClient] = useState<ClientSummary | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ClientContactSummary | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const canSeeCommercial = permissions.includes('commercial_data:access');
+  const canCreateClients = permissions.includes('clients:create');
+  const canUpdateClients = permissions.includes('clients:update');
+  const canManageClientStatus = permissions.includes('clients:status:manage');
+  const canArchiveClients = permissions.includes('clients:archive');
+  const canViewContacts = permissions.includes('client_contacts:view');
+  const canCreateContacts = permissions.includes('client_contacts:create');
+  const canUpdateContacts = permissions.includes('client_contacts:update');
+  const canManageContactStatus = permissions.includes('client_contacts:status:manage');
+  const canArchiveContacts = permissions.includes('client_contacts:archive');
+
+  useEffect(() => {
+    void loadClients();
+  }, []);
+
+  async function loadClients(nextSearch = search, nextStatus = statusFilter): Promise<void> {
+    const response = await listClients({
+      accessToken,
+      search: nextSearch,
+      status: nextStatus || undefined,
+      pageSize: 20,
+    });
+    setClients(response.clients);
+  }
+
+  async function loadContacts(clientId: string): Promise<void> {
+    if (!canViewContacts) {
+      setContacts([]);
+      return;
+    }
+
+    const response = await listClientContacts({ accessToken, clientId, pageSize: 20 });
+    setContacts(response.contacts);
+  }
+
+  async function handleClientSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadClients(search, statusFilter);
+  }
+
+  async function handleCreateClient(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const created = await createClient(accessToken, {
+        name: formValue(formData, 'name'),
+        industry: optionalFormValue(formData, 'industry'),
+        website: optionalFormValue(formData, 'website'),
+        mainPhone: optionalFormValue(formData, 'mainPhone'),
+        country: optionalFormValue(formData, 'country'),
+        city: optionalFormValue(formData, 'city'),
+        ...(canSeeCommercial
+          ? { commercialSummary: optionalFormValue(formData, 'commercialSummary') }
+          : {}),
+      });
+      form.reset();
+      setSelectedClient(created.client);
+      setContacts([]);
+      setMessage('Client created.');
+      await loadClients();
+      if (canViewContacts) {
+        await loadContacts(created.client.id);
+      }
+    } catch {
+      setError('Client could not be created.');
+    }
+  }
+
+  async function selectClient(clientId: string): Promise<void> {
+    setError(null);
+    const [client] = await Promise.all([
+      getClient(accessToken, clientId),
+      canViewContacts ? loadContacts(clientId) : Promise.resolve(),
+    ]);
+    setSelectedClient(client.client);
+    setSelectedContact(null);
+    setMessage(null);
+  }
+
+  async function handleUpdateClient(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedClient) {
+      return;
+    }
+    setError(null);
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      const updated = await updateClient(accessToken, selectedClient.id, {
+        name: formValue(formData, 'name', selectedClient.name),
+        industry: nullableFormValue(formData, 'industry'),
+        website: nullableFormValue(formData, 'website'),
+        mainPhone: nullableFormValue(formData, 'mainPhone'),
+        country: nullableFormValue(formData, 'country'),
+        city: nullableFormValue(formData, 'city'),
+        ...(canSeeCommercial
+          ? { commercialSummary: nullableFormValue(formData, 'commercialSummary') }
+          : {}),
+      });
+      setSelectedClient(updated.client);
+      setMessage('Client updated.');
+      await loadClients();
+    } catch {
+      setError('Client could not be updated.');
+    }
+  }
+
+  async function changeClientStatus(status: 'PROSPECT' | 'ACTIVE' | 'INACTIVE'): Promise<void> {
+    if (!selectedClient || !window.confirm(`Change this client status to ${status}?`)) {
+      return;
+    }
+    const updated = await updateClientStatus(accessToken, selectedClient.id, { status });
+    setSelectedClient(updated.client);
+    setMessage(`Client status changed to ${status}.`);
+    await loadClients();
+  }
+
+  async function archiveSelectedClient(): Promise<void> {
+    if (!selectedClient || !window.confirm('Archive this client and its contacts?')) {
+      return;
+    }
+    const archived = await archiveClient(accessToken, selectedClient.id);
+    setSelectedClient(archived.client);
+    setMessage('Client archived.');
+    await loadClients();
+    if (canViewContacts) {
+      await loadContacts(archived.client.id);
+    }
+  }
+
+  async function handleCreateContact(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedClient || !canCreateContacts) {
+      return;
+    }
+    setError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const created = await createClientContact(accessToken, selectedClient.id, {
+        displayName: formValue(formData, 'displayName'),
+        email: formValue(formData, 'email'),
+        phone: optionalFormValue(formData, 'phone'),
+        roleTitle: optionalFormValue(formData, 'roleTitle'),
+      });
+      form.reset();
+      setSelectedContact(created.contact);
+      setMessage('Client contact created.');
+      if (canViewContacts) {
+        await loadContacts(selectedClient.id);
+      }
+    } catch {
+      setError('Client contact could not be created.');
+    }
+  }
+
+  async function handleUpdateContact(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedClient || !selectedContact || !canUpdateContacts) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateClientContact(accessToken, selectedClient.id, selectedContact.id, {
+      displayName: formValue(formData, 'displayName', selectedContact.displayName),
+      email: formValue(formData, 'email', selectedContact.email),
+      phone: nullableFormValue(formData, 'phone'),
+      roleTitle: nullableFormValue(formData, 'roleTitle'),
+    });
+    setSelectedContact(updated.contact);
+    setMessage('Client contact updated.');
+    if (canViewContacts) {
+      await loadContacts(selectedClient.id);
+    }
+  }
+
+  async function changeContactStatus(status: 'ACTIVE' | 'INACTIVE'): Promise<void> {
+    if (
+      !selectedClient ||
+      !selectedContact ||
+      !canManageContactStatus ||
+      !window.confirm(`Change this contact status to ${status}?`)
+    ) {
+      return;
+    }
+    const updated = await updateClientContactStatus(
+      accessToken,
+      selectedClient.id,
+      selectedContact.id,
+      { status },
+    );
+    setSelectedContact(updated.contact);
+    setMessage(`Contact status changed to ${status}.`);
+    if (canViewContacts) {
+      await loadContacts(selectedClient.id);
+    }
+  }
+
+  async function archiveSelectedContact(): Promise<void> {
+    if (
+      !selectedClient ||
+      !selectedContact ||
+      !canArchiveContacts ||
+      !window.confirm('Archive this client contact?')
+    ) {
+      return;
+    }
+    const archived = await archiveClientContact(accessToken, selectedClient.id, selectedContact.id);
+    setSelectedContact(archived.contact);
+    setMessage('Client contact archived.');
+    if (canViewContacts) {
+      await loadContacts(selectedClient.id);
+    }
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Clients">
+      <div className="admin-grid">
+        <section aria-label="Client list">
+          <h2>Clients</h2>
+          <form className="inline-form" onSubmit={(event) => void handleClientSearch(event)}>
+            <label>
+              Search
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                name="search"
+              />
+            </label>
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                name="status"
+              >
+                <option value="">Any</option>
+                <option value="PROSPECT">Prospect</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </label>
+            <button type="submit">Search clients</button>
+          </form>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Industry</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map((client) => (
+                <tr key={client.id}>
+                  <td>
+                    <button type="button" onClick={() => void selectClient(client.id)}>
+                      {client.name}
+                    </button>
+                  </td>
+                  <td>{client.status}</td>
+                  <td>{client.industry ?? 'None'}</td>
+                  <td>{[client.city, client.country].filter(Boolean).join(', ') || 'None'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <form
+            className="stacked-form"
+            aria-label="Create client"
+            onSubmit={(event) => void handleCreateClient(event)}
+          >
+            <h3>Create client</h3>
+            <input name="name" placeholder="Client name" required />
+            <input name="industry" placeholder="Industry" />
+            <input name="website" placeholder="Website" />
+            <input name="mainPhone" placeholder="Main phone" />
+            <input name="country" placeholder="Country" />
+            <input name="city" placeholder="City" />
+            {canSeeCommercial ? (
+              <textarea name="commercialSummary" placeholder="Commercial summary" />
+            ) : null}
+            <button type="submit" disabled={!canCreateClients}>
+              Create client
+            </button>
+          </form>
+        </section>
+
+        <section aria-label="Client detail">
+          {selectedClient ? (
+            <>
+              <h2>{selectedClient.name}</h2>
+              <p>Status: {selectedClient.status}</p>
+              <form className="stacked-form" onSubmit={(event) => void handleUpdateClient(event)}>
+                <input name="name" aria-label="Client name" defaultValue={selectedClient.name} />
+                <input
+                  name="industry"
+                  aria-label="Industry"
+                  defaultValue={selectedClient.industry ?? ''}
+                />
+                <input
+                  name="website"
+                  aria-label="Website"
+                  defaultValue={selectedClient.website ?? ''}
+                />
+                <input
+                  name="mainPhone"
+                  aria-label="Main phone"
+                  defaultValue={selectedClient.mainPhone ?? ''}
+                />
+                <input
+                  name="country"
+                  aria-label="Country"
+                  defaultValue={selectedClient.country ?? ''}
+                />
+                <input name="city" aria-label="City" defaultValue={selectedClient.city ?? ''} />
+                {canSeeCommercial ? (
+                  <textarea
+                    name="commercialSummary"
+                    aria-label="Commercial summary"
+                    defaultValue={selectedClient.commercial?.commercialSummary ?? ''}
+                  />
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={!canUpdateClients || selectedClient.status === 'ARCHIVED'}
+                >
+                  Update client
+                </button>
+              </form>
+
+              <div className="action-row">
+                <button
+                  type="button"
+                  disabled={!canManageClientStatus}
+                  onClick={() => void changeClientStatus('PROSPECT')}
+                >
+                  Prospect
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManageClientStatus}
+                  onClick={() => void changeClientStatus('ACTIVE')}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManageClientStatus}
+                  onClick={() => void changeClientStatus('INACTIVE')}
+                >
+                  Inactive
+                </button>
+                <button
+                  type="button"
+                  disabled={!canArchiveClients}
+                  onClick={() => void archiveSelectedClient()}
+                >
+                  Archive client
+                </button>
+              </div>
+
+              {canViewContacts ? (
+                <>
+                  <h3>Contacts</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Role</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map((contact) => (
+                        <tr key={contact.id}>
+                          <td>
+                            <button type="button" onClick={() => setSelectedContact(contact)}>
+                              {contact.displayName}
+                            </button>
+                          </td>
+                          <td>{contact.status}</td>
+                          <td>{contact.roleTitle ?? 'None'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              ) : null}
+
+              {canCreateContacts ? (
+                <form
+                  className="stacked-form"
+                  aria-label="Create client contact"
+                  onSubmit={(event) => void handleCreateContact(event)}
+                >
+                  <h3>Create contact</h3>
+                  <input name="displayName" placeholder="Contact name" required />
+                  <input name="email" type="email" placeholder="Contact email" required />
+                  <input name="phone" placeholder="Phone" />
+                  <input name="roleTitle" placeholder="Role title" />
+                  <button type="submit" disabled={selectedClient.status === 'ARCHIVED'}>
+                    Create contact
+                  </button>
+                </form>
+              ) : null}
+
+              {selectedContact ? (
+                <form
+                  className="stacked-form"
+                  aria-label="Selected client contact"
+                  onSubmit={(event) => void handleUpdateContact(event)}
+                >
+                  <h3>{selectedContact.displayName}</h3>
+                  <input
+                    name="displayName"
+                    aria-label="Contact name"
+                    defaultValue={selectedContact.displayName}
+                  />
+                  <input
+                    name="email"
+                    type="email"
+                    aria-label="Contact email"
+                    defaultValue={selectedContact.email}
+                  />
+                  <input
+                    name="phone"
+                    aria-label="Contact phone"
+                    defaultValue={selectedContact.phone ?? ''}
+                  />
+                  <input
+                    name="roleTitle"
+                    aria-label="Contact role title"
+                    defaultValue={selectedContact.roleTitle ?? ''}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!canUpdateContacts || selectedContact.status === 'ARCHIVED'}
+                  >
+                    Update contact
+                  </button>
+                  <div className="action-row">
+                    <button
+                      type="button"
+                      disabled={!canManageContactStatus}
+                      onClick={() => void changeContactStatus('ACTIVE')}
+                    >
+                      Active
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canManageContactStatus}
+                      onClick={() => void changeContactStatus('INACTIVE')}
+                    >
+                      Inactive
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canArchiveContacts}
+                      onClick={() => void archiveSelectedContact()}
+                    >
+                      Archive contact
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+            </>
+          ) : (
+            <p>Select a client to inspect its profile, lifecycle, and contacts.</p>
+          )}
+          {message ? <p role="status">{message}</p> : null}
+          {error ? <p role="alert">{error}</p> : null}
+        </section>
+      </div>
+    </section>
+  );
+}
+
 function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : fallback;
+}
+
+function optionalFormValue(formData: FormData, name: string): string | undefined {
+  const value = formValue(formData, name).trim();
+  return value.length > 0 ? value : undefined;
+}
+
+function nullableFormValue(formData: FormData, name: string): string | null {
+  const value = formValue(formData, name).trim();
+  return value.length > 0 ? value : null;
 }
