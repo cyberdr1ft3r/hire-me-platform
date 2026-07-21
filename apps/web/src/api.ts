@@ -12,6 +12,12 @@ import {
   ClientContactListResponseSchema,
   ClientDetailResponseSchema,
   ClientListResponseSchema,
+  CandidateDetailResponseSchema,
+  CandidateEducationDetailResponseSchema,
+  CandidateLanguageDetailResponseSchema,
+  CandidateListResponseSchema,
+  CandidateSkillDetailResponseSchema,
+  CandidateWorkExperienceDetailResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -35,6 +41,19 @@ import {
   type ClientListResponse,
   type ClientStatusUpdateRequest,
   type ClientUpdateRequest,
+  type CandidateCreateRequest,
+  type CandidateDetailResponse,
+  type CandidateEducationCreateRequest,
+  type CandidateEducationDetailResponse,
+  type CandidateLanguageCreateRequest,
+  type CandidateLanguageDetailResponse,
+  type CandidateListResponse,
+  type CandidateSkillCreateRequest,
+  type CandidateSkillDetailResponse,
+  type CandidateStatusUpdateRequest,
+  type CandidateUpdateRequest,
+  type CandidateWorkExperienceCreateRequest,
+  type CandidateWorkExperienceDetailResponse,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -566,4 +585,192 @@ export async function archiveClientContact(
     apiBaseUrl,
   );
   return ClientContactDetailResponseSchema.parse(await response.json());
+}
+
+type CandidateListOptions = {
+  accessToken: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  source?: string;
+  apiBaseUrl?: string;
+};
+
+async function candidateRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/candidates${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Candidate request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listCandidates(
+  options: CandidateListOptions,
+): Promise<CandidateListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.status) {
+    parameters.set('status', options.status);
+  }
+  if (options.source) {
+    parameters.set('source', options.source);
+  }
+
+  const response = await candidateRequest(
+    options.accessToken,
+    `?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return CandidateListResponseSchema.parse(await response.json());
+}
+
+export async function getCandidate(
+  accessToken: string,
+  candidateId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateDetailResponse> {
+  const response = await candidateRequest(accessToken, `/${candidateId}`, {}, apiBaseUrl);
+  return CandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function createCandidate(
+  accessToken: string,
+  input: CandidateCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCandidate(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCandidateStatus(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/status`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCandidate(
+  accessToken: string,
+  candidateId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return CandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function createCandidateSkill(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateSkillCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateSkillDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/skills`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateSkillDetailResponseSchema.parse(await response.json());
+}
+
+export async function createCandidateLanguage(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateLanguageCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateLanguageDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/languages`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateLanguageDetailResponseSchema.parse(await response.json());
+}
+
+export async function createCandidateWorkExperience(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateWorkExperienceCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateWorkExperienceDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/work-experiences`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateWorkExperienceDetailResponseSchema.parse(await response.json());
+}
+
+export async function createCandidateEducation(
+  accessToken: string,
+  candidateId: string,
+  input: CandidateEducationCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateEducationDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/education`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateEducationDetailResponseSchema.parse(await response.json());
 }

@@ -1,4 +1,6 @@
 export {
+  CandidateStatus,
+  ConsentStatus,
   CandidateDocumentType,
   ClientContactStatus,
   ClientStatus,
