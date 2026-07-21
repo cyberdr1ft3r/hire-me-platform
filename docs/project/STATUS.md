@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Authentication and authorization foundation
-**Health:** Issue #10 draft PR #11 is review-ready after CI passed.
-**Current blocker:** None known.
-**Next executable development task:** Maintainer review of draft PR #11.
+**Phase:** Secured internal administration foundation
+**Health:** PR #14 security-review fix is implemented and PR checks are the source for the latest CI result.
+**Current blocker:** Local Docker Desktop is unavailable, so database checks are confirmed by GitHub Actions.
+**Next executable development task:** Confirm PR #14 CI and maintainer review.
 
 ## Active work
 
@@ -16,7 +16,8 @@ Status owner: repository maintainer
 | --- | --- | --- | --- |
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
-| Issue #10 | In review | Implement local authentication, session security, RBAC resolution, and authentication audit logs | Maintainer review of draft PR #11 |
+| Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
+| Issue #13 | In review | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Confirm PR #14 CI and maintainer review |
 
 ## Completed foundation work
 
@@ -27,6 +28,7 @@ Status owner: repository maintainer
 - Issue #5 completed through merged PR #6, establishing persistent repository memory, goals, status, roadmap, decisions, risks, and agent handoffs.
 - Issue #1 completed through merged PR #4, establishing the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #3 completed through merged PR #9, establishing the foundational Prisma schema, migration, role/permission seed, API-owned Prisma boundary, and database lifecycle checks.
+- Issue #10 completed through merged PR #11, establishing local authentication, Argon2id password credentials, rotating refresh sessions, reuse detection, secure cookies, normalized permission resolution, deny-by-default guards, and safe authentication audit logs.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -54,15 +56,23 @@ Status owner: repository maintainer
 
 ## Issue #10 Verification State
 
-- Local email/password authentication, Argon2id password credentials, rotating hashed refresh sessions, reuse detection, secure refresh-cookie handling, in-memory web access-token handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are implemented on `feat/auth-rbac-foundation`.
+- Local email/password authentication, Argon2id password credentials, rotating hashed refresh sessions, reuse detection, secure refresh-cookie handling, in-memory web access-token handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are merged.
 - The API uses one Nest-managed Prisma provider for runtime code. The development bootstrap script and database tests remain separate-process/test exceptions.
 - Unit tests cover password hashing and token validation. Web tests cover login/logout and confirm browser storage is not used for tokens. PostgreSQL integration tests cover login, refresh rotation, reuse detection, logout, permission enforcement, audit safety, and development bootstrap idempotency.
-- Draft PR #11 is open. GitHub Actions run `29847170395` passed PostgreSQL health, clean Prisma regeneration, migration deploy, seed twice, development admin bootstrap twice, database integration tests, and quality checks.
+
+## Issue #13 Verification State
+
+- Internal user administration is implemented as permission-code guarded `/v1/admin` endpoints with shared Zod contracts and a minimal protected web administration screen.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- Local Docker Compose PostgreSQL startup failed because Docker Desktop is not running, so `pnpm prisma:migrate:deploy`, `pnpm prisma:seed`, and `pnpm test:db` could not complete locally.
+- Draft PR #14 is open. GitHub Actions run `29861073885` passed PostgreSQL Docker Compose health, migration deploy, seed twice, database integration tests, and quality checks.
+- The latest blocking security review is addressed locally by making the central auth guard explicitly verify current active/not-archived account eligibility and by adding a PostgreSQL-backed regression test that reuses still-unexpired access tokens after suspension and archival.
 
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
-- MFA, password reset, registration, and user-management workflow sequencing.
+- MFA, password reset, registration, invitation, and forced first-login password-change sequencing.
+- Arbitrary role creation and permission-editing workflow design.
 - Production secret rotation and emergency session invalidation playbooks.
 - Distributed authentication rate limiting.
 - Background-job technology.
@@ -75,9 +85,10 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review draft PR #11.
-2. Accept or request changes on authentication security, cookie handling, RBAC resolution, audit safety, database lifecycle evidence, and scope exclusions.
-3. Merge issue #10 only after maintainer approval.
+1. Confirm PR #14 CI.
+2. Review draft PR #14.
+3. Accept or request changes on internal administration authorization, immediate access-token authorization invalidation after suspension/archive, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
+4. Merge issue #13 only after maintainer approval.
 
 ## Status Update Rules
 

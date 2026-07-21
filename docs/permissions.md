@@ -65,13 +65,36 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `records:export`
 - `documents:download`
 - `users:admin`
+- `users:view`
+- `users:create`
+- `users:update`
+- `users:roles:manage`
+- `users:status:manage`
+- `users:sessions:revoke`
+- `roles:view`
+- `permissions:view`
 - `commercial_data:access`
 - `messages:view`
 - `messages:create`
 - `training_enrollments:manage`
 - `mission_assignments:manage`
 
-Issue #10 seeds these names as safe synthetic development permissions and resolves them through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+
+## Implemented Administration Permissions
+
+| Permission | Implemented use |
+| --- | --- |
+| `users:view` | List/search internal users, view safe user detail, view active-session summaries, and preview effective permissions. |
+| `users:create` | Create internal users with administrator-set initial credentials. |
+| `users:update` | Update approved non-sensitive profile fields. |
+| `users:roles:manage` | Assign and remove approved roles. Assignment is limited to roles whose permissions are within the actor's effective permissions. |
+| `users:status:manage` | Suspend, reactivate from suspension, and archive users. |
+| `users:sessions:revoke` | Revoke one selected refresh session or all sessions for a selected user. |
+| `roles:view` | Read the approved role catalog and role-to-permission mappings. |
+| `permissions:view` | Read the approved permission catalog. |
+
+Administration remains deny-by-default. The application protects the last active `SUPER_ADMIN`, prevents unsafe self-demotion/self-suspension/self-archival, revokes sessions when users are suspended or archived, centrally rejects still-unexpired access tokens for suspended or archived users, and treats `UserRole` changes as archival rather than physical deletion.
 
 ## Security and Audit Requirements
 
@@ -86,7 +109,7 @@ Issue #10 seeds these names as safe synthetic development permissions and resolv
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Exact record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Exact business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
@@ -108,7 +131,7 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Whether client users can upload documents.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
-- Final per-module permission-code catalog and route-to-permission map.
+- Final business-module permission-code catalog and route-to-permission map.
 
 ## Risks
 
@@ -122,4 +145,4 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 
 - No final per-module policy engine.
 - No record-scope query implementation.
-- No user-management workflow implementation.
+- No arbitrary role-builder or permission-editing workflow.

@@ -38,7 +38,7 @@ The development command starts:
 - `apps/api` at `http://127.0.0.1:3000`
 - `apps/web` at `http://127.0.0.1:5173`
 
-Open `http://127.0.0.1:5173` and the placeholder page should display the API health status and local authentication panel.
+Open `http://127.0.0.1:5173` and the placeholder page should display the API health status, local authentication panel, and a protected administration screen for users with `users:view`.
 Both development apps read the repository-root `.env` created from `.env.example`; no manual environment exports are required for the documented local path.
 
 ## Health Checks
@@ -87,11 +87,11 @@ GitHub Actions runs the same quality checks on pull requests and pushes to `main
 
 ```text
 apps/
-  api/      NestJS API with GET /health and API-owned Prisma wiring
-  web/      React + Vite placeholder app
+  api/      NestJS API with health, authentication, administration, and API-owned Prisma wiring
+  web/      React + Vite app with health, authentication, and minimal administration screens
 packages/
   config/   Shared TypeScript configuration
-  contracts/ Shared health contract and schema
+  contracts/ Shared health, authentication, and administration contracts
 docs/       Product, architecture, workflow, permission, and project memory docs
 ```
 
@@ -164,7 +164,7 @@ Run the development seed without resetting:
 pnpm prisma:seed
 ```
 
-The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
+The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions, including the Issue #13 administration permission catalog, only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
 
 Bootstrap a synthetic development administrator after seeding roles:
 
@@ -194,8 +194,8 @@ The API validates required environment variables at startup. The web app reads `
 
 ## Authentication
 
-See `docs/authentication.md` for the Issue #10 authentication architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope.
+See `docs/authentication.md` for the Issue #10 authentication architecture and Issue #13 internal administration architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope.
 
 ## Scope Guardrail
 
-This repository foundation implements only the Issue #10 local authentication and RBAC foundation beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, user-management CRUD, business UI, dashboards, integrations, file storage behavior, and business workflow behavior remain out of scope.
+This repository foundation implements only the Issue #10 local authentication/RBAC foundation and the Issue #13 secured internal user administration module beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, invitations, arbitrary role creation, permission editing, client/candidate/mission/training/document/messaging/dashboard modules, integrations, file storage behavior, and business workflow behavior remain out of scope.

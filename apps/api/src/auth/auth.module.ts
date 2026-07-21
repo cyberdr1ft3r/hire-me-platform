@@ -25,6 +25,13 @@ import { PrismaModule } from '../persistence/prisma/prisma.module.js';
     RateLimitService,
     TokenService,
   ],
-  exports: [AuthGuard, AuthService, PermissionGuard, PermissionsService],
+  exports: [
+    AuthGuard,
+    AuthService,
+    PasswordService,
+    PermissionGuard,
+    PermissionsService,
+    TokenService,
+  ],
 })
 export class AuthModule {}
