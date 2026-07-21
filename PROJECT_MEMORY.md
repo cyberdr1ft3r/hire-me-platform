@@ -1,4 +1,4 @@
-# Hire Me Platform — Project Memory
+# Hire Me Platform â€” Project Memory
 
 Last updated: 2026-07-21
 
@@ -12,9 +12,9 @@ Build a bilingual, responsive business platform for Hire Me that centralizes rec
 
 Foundation and documentation.
 
-- Active issue: #1 — product scope, architecture, domain model, workflows, and permissions.
-- Active pull request: #4 — draft documentation PR, currently being corrected after review.
-- Next issue after approval and merge: #2 — TypeScript monorepo and local development environment.
+- Active issue: #1 â€” product scope, architecture, domain model, workflows, and permissions.
+- Active pull request: #4 â€” draft documentation PR, currently being corrected after review.
+- Next issue after approval and merge: #2 â€” TypeScript monorepo and local development environment.
 - Issue #3 must wait for issues #1 and #2 to be merged.
 
 Do not begin issue #2 while PR #4 still has unresolved blocking review points.

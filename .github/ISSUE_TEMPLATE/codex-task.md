@@ -1,6 +1,6 @@
 ---
 name: Codex task
-author: ''
+title: ''
 about: Scoped implementation or documentation task for Codex
 labels: ''
 assignees: ''

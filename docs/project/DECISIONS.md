@@ -8,7 +8,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | --- | --- | --- | --- | --- |
 | D-001 | 2026-07-21 | Accepted | GitHub is the project source of truth for issues, pull requests, documentation, goals, status, decisions, risks, and agent handoffs. | Enables persistent human- and agent-readable context across sessions. |
 | D-002 | 2026-07-21 | Accepted | Use a TypeScript monorepo with a modular-monolith backend for the initial implementation. | Keeps the MVP manageable for a single developer while preserving module boundaries; issues #1 and #2. |
-| D-003 | 2026-07-21 | Accepted | Use React + Vite for the web app, NestJS for the API, PostgreSQL for persistence, and Prisma for ORM and migrations. | Required technical direction in issues #1–#3. |
+| D-003 | 2026-07-21 | Accepted | Use React + Vite for the web app, NestJS for the API, PostgreSQL for persistence, and Prisma for ORM and migrations. | Required technical direction in issues #1â€“#3. |
 | D-004 | 2026-07-21 | Accepted | Candidate pipeline state belongs to the candidate-to-mission relationship, not the global candidate record. | A candidate can participate in multiple missions and requires independent history. |
 | D-005 | 2026-07-21 | Accepted | Recruitment missions support multiple assigned recruiters. | Confirmed client requirement. |
 | D-006 | 2026-07-21 | Accepted | Confidential files are accessed through a protected storage abstraction; repository and public paths must not contain real CVs or HR documents. | Candidate, HR, client, and commercial data require least-privilege access and auditability. |

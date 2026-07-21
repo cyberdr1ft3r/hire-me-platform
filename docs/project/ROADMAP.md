@@ -4,7 +4,7 @@ Last updated: 2026-07-21
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
-## Phase 0 — Discovery
+## Phase 0 â€” Discovery
 
 **State:** Complete
 
@@ -12,7 +12,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Clarification questionnaire.
 - Client workflows, modules, roles, migration expectations, dashboard indicators, language requirements, and integration priorities collected.
 
-## Phase 1 — Product and architecture foundation
+## Phase 1 â€” Product and architecture foundation
 
 **State:** In progress
 
@@ -28,7 +28,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Permissions use least-privilege defaults.
 - PR #4 is reviewed and merged.
 
-## Phase 2 — Repository and local development bootstrap
+## Phase 2 â€” Repository and local development bootstrap
 
 **State:** Blocked by Phase 1
 
@@ -41,7 +41,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Prisma wiring without the complete business schema.
 - CI quality gates.
 
-## Phase 3 — Persistence foundation
+## Phase 3 â€” Persistence foundation
 
 **State:** Blocked by Phases 1 and 2
 
@@ -49,7 +49,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Foundational Prisma schema.
 - Migrations, development seed, indexes, constraints, archival approach, and relational tests.
 
-## Phase 4 — Identity, authorization, and audit foundation
+## Phase 4 â€” Identity, authorization, and audit foundation
 
 **State:** Planned; issue not yet created
 
@@ -59,7 +59,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Audit logging.
 - Protected-session and secret-handling rules.
 
-## Phase 5 — Core recruitment CRM
+## Phase 5 â€” Core recruitment CRM
 
 **State:** Planned; issues not yet created
 
@@ -70,7 +70,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Interviews and evaluations.
 - Search and filtering.
 
-## Phase 6 — Collaboration and operational support
+## Phase 6 â€” Collaboration and operational support
 
 **State:** Planned; issues not yet created
 
@@ -79,7 +79,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Client portal.
 - Protected document access and sharing.
 
-## Phase 7 — Training, commercial documents, and reporting
+## Phase 7 â€” Training, commercial documents, and reporting
 
 **State:** Planned; issues not yet created
 
@@ -87,7 +87,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Document templates and generation for confirmed commercial and HR documents.
 - Dashboard indicators and exports.
 
-## Phase 8 — Integrations and migration
+## Phase 8 â€” Integrations and migration
 
 **State:** Planned; issues not yet created
 
@@ -97,7 +97,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Excel import/export and PDF generation.
 - Controlled migration tooling with duplicate detection, validation, and reporting.
 
-## Phase 9 — UAT and production readiness
+## Phase 9 â€” UAT and production readiness
 
 **State:** Planned; issues not yet created
 
