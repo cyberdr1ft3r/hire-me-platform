@@ -401,6 +401,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - `AuditLog` includes actor and target-user references plus safe summary metadata. Application services must treat audit records as append-only and must not store raw CV contents, confidential document contents, message bodies, secrets, or full sensitive payloads in audit metadata.
 - Task and notification context is represented through explicit optional foreign keys to approved entities rather than free-form JSON.
 - Prisma is owned by `apps/api`. The generated Prisma client uses Prisma 6 `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`, which is ignored and regenerated rather than committed. API persistence code, the development seed, and database integration tests import through `apps/api/src/persistence/prisma/generated-client.ts` so the web app and contracts package remain ORM-independent.
+- Issue #10 extends the physical schema with `PasswordCredential` and `RefreshSession`. `PasswordCredential` stores one Argon2id password hash per `User`. `RefreshSession` stores only hashed opaque refresh tokens, session-family metadata, expiry, revocation, reuse-detection, lineage, and hashed request metadata.
 
 ## Assumptions
 
@@ -434,5 +435,5 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 
 ## Non-Goals
 
-- No controllers, services, API endpoints, authentication flows, pages, or business UI.
-- No implementation of messaging, integrations, document generation, imports, or file storage.
+- No business controllers, business services, pages, or business UI.
+- No registration, password reset, MFA, SSO, user-management CRUD, messaging, integrations, document generation, imports, or file storage.

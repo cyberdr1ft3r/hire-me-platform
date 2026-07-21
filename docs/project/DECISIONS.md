@@ -17,6 +17,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-009 | 2026-07-21 | Accepted | Dependent tasks do not start before prerequisite issues and pull requests are approved and merged. | Avoids implementing against unstable architecture and requirements. |
 | D-010 | 2026-07-21 | Accepted | Project memory files are living summaries, not append-only diaries; Git history provides chronology. | Keeps agent context compact and prevents stale contradictory memory. |
 | D-011 | 2026-07-21 | Accepted | Prisma is owned by `apps/api`, with one explicit generated client output imported through an API persistence boundary; `apps/web` and `packages/contracts` remain ORM-independent. | Required by blocking review on PR #9 for deterministic pnpm monorepo behavior and clean package boundaries. |
+| D-012 | 2026-07-21 | Accepted | Local authentication uses Argon2id password credentials, short-lived access tokens, rotating hashed refresh sessions in HTTP-only cookies, reuse detection, normalized permission-code resolution, deny-by-default guards, and safe audit logs. | Required by issue #10 and the approved security architecture. |
 
 ## Decision protocol
 

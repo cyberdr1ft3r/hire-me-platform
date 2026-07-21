@@ -96,7 +96,20 @@ Recommended authorization approach:
 - Commercial-data permissions are explicit assignments, not broad role defaults.
 - Deny-by-default policy checks protect candidate, HR, salary, CV, client, message, document, export, and commercial data.
 
-Implementation should use short-lived sessions or tokens with safe refresh and revocation. Password hashing, Microsoft 365 authentication details, identity provider support, and session storage details remain unresolved technical choices.
+Issue #10 implements the first local authentication foundation:
+
+- email/password login against normalized user email addresses
+- Argon2id password hashes stored in `PasswordCredential`
+- short-lived bearer access tokens
+- opaque rotating refresh tokens stored only as hashes in `RefreshSession`
+- refresh-token reuse detection with session-family revocation
+- HTTP-only refresh cookies; no browser `localStorage` or `sessionStorage` token persistence
+- one Nest-managed Prisma provider for runtime persistence
+- normalized permission-code resolution through `UserRole`, `RolePermission`, and `Permission`
+- deny-by-default authorization guards
+- safe authentication audit logs, including successful login events
+
+Microsoft 365 authentication, identity-provider linking, MFA, password reset, registration, user-management CRUD, and final record-scope policy behavior remain later implementation work.
 
 ### Audit Logging
 
@@ -222,7 +235,7 @@ flowchart TB
 
 ## Unresolved Technical Choices
 
-- Authentication provider, Microsoft 365 strategy, password policy, session storage, token lifetime, and revocation model.
+- Microsoft 365 strategy, identity-provider account linking, MFA, password reset, production secret rotation, distributed rate limiting, and emergency session invalidation playbooks.
 - Background job queue technology.
 - Production object storage provider.
 - Search implementation approach for advanced multi-criteria search.
@@ -244,5 +257,5 @@ flowchart TB
 
 ## Non-Goals
 
-- No controllers, feature services, authentication flow, business UI, production file storage, or external integration implementation.
+- No registration, password reset, MFA, SSO, user-management CRUD, business modules, business UI, production file storage, or external integration implementation.
 - No production deployment design.

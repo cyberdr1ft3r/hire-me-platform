@@ -388,9 +388,49 @@ model User {
   trainingSessionsTrained          TrainingSession[]          @relation("TrainingSessionTrainer")
   auditLogs                        AuditLog[]                 @relation("AuditActor")
   targetedAuditLogs                AuditLog[]                 @relation("AuditTargetUser")
+  passwordCredential               PasswordCredential?
+  refreshSessions                  RefreshSession[]
 
   @@index([status])
   @@index([userType])
+}
+
+model PasswordCredential {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @db.Uuid
+  passwordHash      String
+  algorithm         String   @default("argon2id")
+  parametersVersion String   @default("argon2id-v1")
+  passwordUpdatedAt DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([parametersVersion])
+}
+
+model RefreshSession {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @db.Uuid
+  tokenHash            String    @unique
+  sessionFamilyId      String    @db.Uuid
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  expiresAt            DateTime
+  lastUsedAt           DateTime?
+  revokedAt            DateTime?
+  reuseDetectedAt      DateTime?
+  rotatedFromSessionId String?   @db.Uuid
+  userAgentHash        String?
+  ipAddressHash        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([sessionFamilyId])
+  @@index([rotatedFromSessionId])
+  @@index([expiresAt])
 }
 
 model Role {

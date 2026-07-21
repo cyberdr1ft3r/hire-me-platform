@@ -9,38 +9,32 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
 - Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
-- Issue #3 is in review through draft PR #9 on branch `feat/foundational-prisma-schema`.
-- Issue #3 implements the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests.
-- The latest PR #9 blocking review required deterministic Prisma ownership in the pnpm monorepo: `apps/api` owns Prisma dependencies, schema, generated client output, seed, and database tests; `apps/web` and `packages/contracts` remain ORM-independent.
+- Issue #3 is complete through merged PR #9; the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests are active on `main`.
+- Issue #10 is in review through draft PR #11 on branch `feat/auth-rbac-foundation`.
+- Issue #10 implements local email/password authentication, Argon2id password credentials, rotating hashed refresh sessions, refresh-token reuse detection, secure refresh-cookie handling, in-memory web access-token handling, normalized permission-code resolution, deny-by-default guards, and safe authentication audit logs.
 
 ## Next Action
 
-Review the updated draft PR #9. The latest boundary-fix CI run passed.
+Review draft PR #11.
 
 Check especially:
 
-- Prisma schema coverage for required issue #3 entities and approved relationships;
-- explicit Prisma generator output at `apps/api/prisma/generated/client`;
-- generated Prisma client imports routed through `apps/api/src/persistence/prisma/generated-client.ts`;
-- absence of Prisma dependencies and imports in `apps/web` and `packages/contracts`;
-- `pnpm check:architecture` coverage for Prisma boundary and uncommitted generated output;
-- CI proof that generated output is deleted and regenerated before typecheck, tests, build, and database checks;
-- candidate-to-mission history through `MissionCandidate`;
-- multiple recruiters per mission through `MissionRecruiter`;
-- multiple client contacts per client;
-- normalized roles and permissions through join models;
-- document ownership, visibility, and version metadata;
-- explicit archival strategy and deliberate foreign-key behavior;
-- development seed containing only approved roles and safe synthetic permissions;
-- migration, reset, seed, Prisma Studio, and database-test commands;
-- PostgreSQL integration-test evidence in CI;
-- absence of controllers, services, auth flows, pages, real personal data, client data, CV content, or confidential records.
+- Argon2id parameters and absence of plaintext password storage.
+- Generic login-failure behavior.
+- Short-lived access tokens and no token persistence in `localStorage` or `sessionStorage`.
+- Refresh-token hash storage, rotation, reuse detection, and family revocation.
+- Refresh cookie `HttpOnly`, scoped path, `SameSite=Strict`, and production `Secure` behavior.
+- One Nest-managed Prisma provider for runtime code.
+- Normalized permission resolution through role and permission joins.
+- Deny-by-default authorization guard behavior.
+- Safe authentication audit logs without secrets, tokens, cookies, or confidential payloads.
+- Web and contracts remaining Prisma-independent.
+- Absence of registration, password reset, MFA, SSO, user-management CRUD, and business modules.
 
 ## Verification Notes
 
-Completed locally by Codex during issue #3 work:
+Completed locally by Codex during issue #10 work:
 
-- `pnpm install`
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
 - `pnpm check:architecture`
@@ -50,24 +44,23 @@ Completed locally by Codex during issue #3 work:
 - `pnpm test`
 - `pnpm build`
 - `git diff --check`
-- migration SQL generation from the Prisma schema
 
-Confirmed through GitHub Actions run `29841648591` after the boundary-fix push:
+Pending before completion:
 
-- `pnpm prisma:migrate:deploy` against real PostgreSQL
-- `pnpm prisma:seed` twice
-- `pnpm test:db`
-- clean Prisma regeneration from an empty `apps/api/prisma/generated/client`
-- quality checks and architecture boundary checks
+- None known.
 
-Blocked locally:
+Blocked locally if Docker Desktop/daemon is unavailable:
 
-- `docker compose up -d postgres` cannot start PostgreSQL in the Codex local environment because Docker Desktop/daemon is unavailable. Real PostgreSQL migration, seed, and integration-test verification should be confirmed through GitHub Actions.
+- Docker Compose PostgreSQL startup, migration deploy, seed, bootstrap, and database integration-test verification should be confirmed through GitHub Actions if local Docker is unavailable.
 
-GitHub Actions:
+Confirmed through GitHub Actions run `29847170395`:
 
-- The workflow runs Docker Compose PostgreSQL health, migration deploy, seed twice, database integration tests, install, Prisma validation, clean Prisma generation, architecture boundary checks, format check, lint, typecheck, tests, and build.
-- Latest PR #9 check result: passed in run `29841648591`.
+- PostgreSQL Docker Compose health.
+- Migration deploy against real PostgreSQL.
+- Development seed twice.
+- Development admin bootstrap twice with synthetic values.
+- Database integration tests.
+- Install, Prisma validation, clean Prisma generation, architecture boundary checks, format check, lint, typecheck, tests, and build.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

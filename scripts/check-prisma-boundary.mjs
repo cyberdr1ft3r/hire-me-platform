@@ -142,6 +142,19 @@ for (const root of ['apps/api/src', 'apps/api/test', 'apps/api/prisma']) {
       !content.includes('@prisma/client') && !content.includes('prisma/generated/client'),
       `${relativeFile} must import Prisma through apps/api/src/persistence/prisma/generated-client.ts.`,
     );
+
+    if (
+      relativeFile.startsWith('apps/api/src/') &&
+      ![
+        'apps/api/src/persistence/prisma/prisma.service.ts',
+        'apps/api/src/auth/bootstrap-admin.ts',
+      ].includes(relativeFile)
+    ) {
+      assert(
+        !content.includes('new PrismaClient('),
+        `${relativeFile} must use the Nest-managed PrismaService instead of instantiating PrismaClient.`,
+      );
+    }
   }
 }
 
