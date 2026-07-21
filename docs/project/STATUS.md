@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Secured internal administration foundation
-**Health:** PR #14 security-review fix is implemented and PR checks are the source for the latest CI result.
-**Current blocker:** Local Docker Desktop is unavailable, so database checks are confirmed by GitHub Actions.
-**Next executable development task:** Confirm PR #14 CI and maintainer review.
+**Phase:** First CRM business module foundation
+**Health:** Issue #15 implementation passed local quality and PostgreSQL validation; draft PR CI is pending.
+**Current blocker:** None locally.
+**Next executable development task:** Review the Issue #15 draft PR once CI completes.
 
 ## Active work
 
@@ -17,7 +17,8 @@ Status owner: repository maintainer
 | Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
-| Issue #13 | In review | Implement secured internal user administration, role assignment, status management, permission visibility, and session revocation | Confirm PR #14 CI and maintainer review |
+| Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
+| Issue #15 | In progress | Implement client organization and client-contact CRM | Open draft PR and confirm CI |
 
 ## Completed foundation work
 
@@ -29,6 +30,7 @@ Status owner: repository maintainer
 - Issue #1 completed through merged PR #4, establishing the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #3 completed through merged PR #9, establishing the foundational Prisma schema, migration, role/permission seed, API-owned Prisma boundary, and database lifecycle checks.
 - Issue #10 completed through merged PR #11, establishing local authentication, Argon2id password credentials, rotating refresh sessions, reuse detection, secure cookies, normalized permission resolution, deny-by-default guards, and safe authentication audit logs.
+- Issue #13 completed through merged PR #14, establishing secured internal user administration, permission-code authorization, safe DTOs, active-user authorization checks, session revocation, and safe administration audit logs.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -65,8 +67,19 @@ Status owner: repository maintainer
 - Internal user administration is implemented as permission-code guarded `/v1/admin` endpoints with shared Zod contracts and a minimal protected web administration screen.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local Docker Compose PostgreSQL startup failed because Docker Desktop is not running, so `pnpm prisma:migrate:deploy`, `pnpm prisma:seed`, and `pnpm test:db` could not complete locally.
-- Draft PR #14 is open. GitHub Actions run `29861073885` passed PostgreSQL Docker Compose health, migration deploy, seed twice, database integration tests, and quality checks.
-- The latest blocking security review is addressed locally by making the central auth guard explicitly verify current active/not-archived account eligibility and by adding a PostgreSQL-backed regression test that reuses still-unexpired access tokens after suspension and archival.
+- PR #14 is merged. GitHub Actions run `29861073885` passed PostgreSQL Docker Compose health, migration deploy, seed twice, database integration tests, and quality checks.
+- The blocking security review was addressed by making the central auth guard explicitly verify current active/not-archived account eligibility and by adding a PostgreSQL-backed regression test that reuses still-unexpired access tokens after suspension and archival.
+
+## Issue #15 Verification State
+
+- Client organization and client contact CRM is implemented on branch `feat/client-contact-crm`.
+- The API exposes permission-code guarded `/v1/clients` endpoints with shared Zod contracts, safe DTOs, contact ownership checks for nested routes, archival lifecycles, and safe audit summaries.
+- Client contacts keep normalized email uniqueness within one client; the same normalized email may exist under different clients.
+- Client archive is transactional and archives active contacts under the same client without physical deletion.
+- Normal client/contact permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; unresolved team or assigned scopes do not receive broad client access by default.
+- Commercial client fields require `commercial_data:access`; ordinary client access receives `commercial: null`.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, fresh migration deploy, migration reset, seed twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
 
 ## Current open technical questions
 
@@ -79,16 +92,15 @@ Status owner: repository maintainer
 - Production file-storage provider.
 - Advanced-search implementation.
 - Real-time messaging and notification transport.
-- Detailed per-module permission names.
+- Detailed per-module permission names beyond the implemented administration and client CRM catalog.
 - Dashboard formulas and revenue authorization rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Confirm PR #14 CI.
-2. Review draft PR #14.
-3. Accept or request changes on internal administration authorization, immediate access-token authorization invalidation after suspension/archive, last active `SUPER_ADMIN` invariant protection, session revocation, safe audit logs, web/admin contract isolation, and scope exclusions.
-4. Merge issue #13 only after maintainer approval.
+1. Confirm Issue #15 draft PR CI.
+2. Review client organization and contact authorization, lifecycle transitions, archival behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
+3. Merge Issue #15 only after maintainer approval.
 
 ## Status Update Rules
 

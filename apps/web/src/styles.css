@@ -145,12 +145,18 @@ p {
 }
 
 input,
-select {
+select,
+textarea {
   border: 1px solid #c8d2dc;
   border-radius: 6px;
   font: inherit;
   min-height: 40px;
   padding: 8px 10px;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 button {

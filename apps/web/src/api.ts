@@ -8,6 +8,10 @@ import {
   AdminSessionListResponseSchema,
   AdminUserDetailResponseSchema,
   AdminUserListResponseSchema,
+  ClientContactDetailResponseSchema,
+  ClientContactListResponseSchema,
+  ClientDetailResponseSchema,
+  ClientListResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -21,6 +25,16 @@ import {
   type AdminUpdateUserStatusRequest,
   type AdminUserDetailResponse,
   type AdminUserListResponse,
+  type ClientContactCreateRequest,
+  type ClientContactDetailResponse,
+  type ClientContactListResponse,
+  type ClientContactStatusUpdateRequest,
+  type ClientContactUpdateRequest,
+  type ClientCreateRequest,
+  type ClientDetailResponse,
+  type ClientListResponse,
+  type ClientStatusUpdateRequest,
+  type ClientUpdateRequest,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -335,4 +349,221 @@ export async function getAdminEffectivePermissions(
     apiBaseUrl,
   );
   return AdminEffectivePermissionsResponseSchema.parse(await response.json());
+}
+
+type ClientListOptions = {
+  accessToken: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  apiBaseUrl?: string;
+};
+
+type ContactListOptions = {
+  accessToken: string;
+  clientId: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  apiBaseUrl?: string;
+};
+
+async function clientRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/clients${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Client CRM request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listClients(options: ClientListOptions): Promise<ClientListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.status) {
+    parameters.set('status', options.status);
+  }
+
+  const response = await clientRequest(
+    options.accessToken,
+    `?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return ClientListResponseSchema.parse(await response.json());
+}
+
+export async function getClient(
+  accessToken: string,
+  clientId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientDetailResponse> {
+  const response = await clientRequest(accessToken, `/${clientId}`, {}, apiBaseUrl);
+  return ClientDetailResponseSchema.parse(await response.json());
+}
+
+export async function createClient(
+  accessToken: string,
+  input: ClientCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateClient(
+  accessToken: string,
+  clientId: string,
+  input: ClientUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateClientStatus(
+  accessToken: string,
+  clientId: string,
+  input: ClientStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/status`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveClient(
+  accessToken: string,
+  clientId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return ClientDetailResponseSchema.parse(await response.json());
+}
+
+export async function listClientContacts(
+  options: ContactListOptions,
+): Promise<ClientContactListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.status) {
+    parameters.set('status', options.status);
+  }
+
+  const response = await clientRequest(
+    options.accessToken,
+    `/${options.clientId}/contacts?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return ClientContactListResponseSchema.parse(await response.json());
+}
+
+export async function createClientContact(
+  accessToken: string,
+  clientId: string,
+  input: ClientContactCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientContactDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/contacts`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientContactDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateClientContact(
+  accessToken: string,
+  clientId: string,
+  contactId: string,
+  input: ClientContactUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientContactDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/contacts/${contactId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientContactDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateClientContactStatus(
+  accessToken: string,
+  clientId: string,
+  contactId: string,
+  input: ClientContactStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientContactDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/contacts/${contactId}/status`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ClientContactDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveClientContact(
+  accessToken: string,
+  clientId: string,
+  contactId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientContactDetailResponse> {
+  const response = await clientRequest(
+    accessToken,
+    `/${clientId}/contacts/${contactId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return ClientContactDetailResponseSchema.parse(await response.json());
 }

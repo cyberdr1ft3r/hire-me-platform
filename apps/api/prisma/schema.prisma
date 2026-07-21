@@ -499,6 +499,10 @@ model Client {
   normalizedName        String
   status                ClientStatus @default(PROSPECT)
   industry              String?
+  website               String?
+  mainPhone             String?
+  country               String?
+  city                  String?
   commercialOwnerUserId String?      @db.Uuid
   commercialSummary     String?
   archivedAt            DateTime?
@@ -513,6 +517,9 @@ model Client {
 
   @@index([normalizedName])
   @@index([status])
+  @@index([industry])
+  @@index([country])
+  @@index([city])
   @@index([commercialOwnerUserId])
 }
 

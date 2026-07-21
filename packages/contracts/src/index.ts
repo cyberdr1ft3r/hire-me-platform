@@ -56,5 +56,42 @@ export type {
   AdminUserStatus,
   AdminUserSummary,
 } from './admin.js';
+export {
+  ClientContactCreateRequestSchema,
+  ClientContactDetailResponseSchema,
+  ClientContactListQuerySchema,
+  ClientContactListResponseSchema,
+  ClientContactStatusSchema,
+  ClientContactStatusUpdateRequestSchema,
+  ClientContactSummarySchema,
+  ClientContactUpdateRequestSchema,
+  ClientCreateRequestSchema,
+  ClientDetailResponseSchema,
+  ClientListQuerySchema,
+  ClientListResponseSchema,
+  ClientStatusSchema,
+  ClientStatusUpdateRequestSchema,
+  ClientSummarySchema,
+  ClientUpdateRequestSchema,
+  PortalAccessStatusSchema,
+} from './clients.js';
+export type {
+  ClientContactCreateRequest,
+  ClientContactDetailResponse,
+  ClientContactListQuery,
+  ClientContactListResponse,
+  ClientContactStatus,
+  ClientContactStatusUpdateRequest,
+  ClientContactSummary,
+  ClientContactUpdateRequest,
+  ClientCreateRequest,
+  ClientDetailResponse,
+  ClientListQuery,
+  ClientListResponse,
+  ClientStatus,
+  ClientStatusUpdateRequest,
+  ClientSummary,
+  ClientUpdateRequest,
+} from './clients.js';
 export { HealthResponseSchema } from './health.js';
 export type { HealthResponse } from './health.js';

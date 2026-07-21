@@ -74,12 +74,22 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `roles:view`
 - `permissions:view`
 - `commercial_data:access`
+- `clients:view`
+- `clients:create`
+- `clients:update`
+- `clients:status:manage`
+- `clients:archive`
+- `client_contacts:view`
+- `client_contacts:create`
+- `client_contacts:update`
+- `client_contacts:status:manage`
+- `client_contacts:archive`
 - `messages:view`
 - `messages:create`
 - `training_enrollments:manage`
 - `mission_assignments:manage`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Administration Permissions
 
@@ -96,6 +106,27 @@ Issue #10 seeds the initial authentication and synthetic product permission name
 
 Administration remains deny-by-default. The application protects the last active `SUPER_ADMIN`, prevents unsafe self-demotion/self-suspension/self-archival, revokes sessions when users are suspended or archived, centrally rejects still-unexpired access tokens for suspended or archived users, and treats `UserRole` changes as archival rather than physical deletion.
 
+## Implemented Client CRM Permissions
+
+Issue #15 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `clients:view` | List/search client organizations and read safe client detail. |
+| `clients:create` | Create client organization records. |
+| `clients:update` | Update approved client fields. Commercial fields also require `commercial_data:access`. |
+| `clients:status:manage` | Move clients through non-archival lifecycle transitions. |
+| `clients:archive` | Archive clients without physical deletion. |
+| `client_contacts:view` | List/search and read contacts under a client. |
+| `client_contacts:create` | Create contacts under writable clients. |
+| `client_contacts:update` | Update approved client-contact fields. |
+| `client_contacts:status:manage` | Move contacts between active and inactive. |
+| `client_contacts:archive` | Archive contacts without physical deletion. |
+
+Development seed mapping gives all normal client CRM permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives `commercial_data:access` by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no client CRM permissions until team, assigned-record, or client-portal row scopes are implemented.
+
+Commercial client fields require `commercial_data:access` in addition to ordinary client permissions. Frontend hiding is only a usability layer; the API enforces this rule.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
@@ -109,7 +140,7 @@ Administration remains deny-by-default. The application protects the last active
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Exact business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
@@ -131,7 +162,7 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Whether client users can upload documents.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
-- Final business-module permission-code catalog and route-to-permission map.
+- Final business-module permission-code catalog and route-to-permission map beyond administration and client CRM.
 
 ## Risks
 

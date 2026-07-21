@@ -164,7 +164,7 @@ Run the development seed without resetting:
 pnpm prisma:seed
 ```
 
-The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions, including the Issue #13 administration permission catalog, only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
+The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions, including the Issue #13 administration permission catalog and Issue #15 client CRM permission catalog, only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
 
 Bootstrap a synthetic development administrator after seeding roles:
 
@@ -194,8 +194,8 @@ The API validates required environment variables at startup. The web app reads `
 
 ## Authentication
 
-See `docs/authentication.md` for the Issue #10 authentication architecture and Issue #13 internal administration architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope.
+See `docs/authentication.md` for the Issue #10 authentication architecture and Issue #13 internal administration architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope. See `docs/domain-model.md`, `docs/permissions.md`, and `docs/architecture.md` for the Issue #15 client organization and client-contact CRM lifecycle, permission, audit, and scope rules.
 
 ## Scope Guardrail
 
-This repository foundation implements only the Issue #10 local authentication/RBAC foundation and the Issue #13 secured internal user administration module beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, invitations, arbitrary role creation, permission editing, client/candidate/mission/training/document/messaging/dashboard modules, integrations, file storage behavior, and business workflow behavior remain out of scope.
+This repository foundation implements only the Issue #10 local authentication/RBAC foundation, the Issue #13 secured internal user administration module, and the Issue #15 client organization/client-contact CRM module beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, invitations, arbitrary role creation, permission editing, candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, file storage behavior, and broader business workflow behavior remain out of scope.
