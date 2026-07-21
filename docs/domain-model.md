@@ -436,4 +436,4 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 ## Non-Goals
 
 - No business controllers, business services, pages, or business UI.
-- No registration, password reset, MFA, SSO, user-management CRUD, messaging, integrations, document generation, imports, or file storage.
+- No registration, password reset, MFA, SSO, arbitrary role builder, permission-editing UI, messaging, integrations, document generation, imports, or file storage.

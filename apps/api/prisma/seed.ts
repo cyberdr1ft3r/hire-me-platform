@@ -79,7 +79,47 @@ const permissions = [
   },
   {
     code: 'users:admin',
-    description: 'Administer users, roles, and access requests.',
+    description: 'Legacy umbrella permission retained for compatibility with prior seeds.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:view',
+    description: 'View safe internal user profiles, roles, permissions, and session summaries.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:create',
+    description: 'Create internal users with administrator-set initial credentials.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:update',
+    description: 'Update approved non-sensitive internal user profile fields.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:roles:manage',
+    description: 'Assign and remove approved roles for internal users.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:status:manage',
+    description: 'Suspend, reactivate, and archive internal users.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'users:sessions:revoke',
+    description: 'Revoke selected or all refresh sessions for internal users.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'roles:view',
+    description: 'View the approved role catalog and role permission mappings.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'permissions:view',
+    description: 'View the approved permission catalog.',
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
@@ -149,6 +189,14 @@ async function main(): Promise<void> {
       'records:export',
       'documents:download',
       'users:admin',
+      'users:view',
+      'users:create',
+      'users:update',
+      'users:roles:manage',
+      'users:status:manage',
+      'users:sessions:revoke',
+      'roles:view',
+      'permissions:view',
       'messages:view',
       'messages:create',
       'training_enrollments:manage',

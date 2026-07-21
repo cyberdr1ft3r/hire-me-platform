@@ -1,6 +1,6 @@
 # Authentication
 
-Issue #10 implements the first local authentication and RBAC foundation. It is intentionally limited to email/password login, refresh-session rotation, session logout, permission-code resolution, and safe authentication audit logs.
+Issue #10 implements the first local authentication and RBAC foundation. Issue #13 adds the first secured internal user administration surface on top of that foundation. The combined scope remains limited to email/password login, refresh-session rotation, session logout and administrative session revocation, permission-code resolution, safe authentication and administration audit logs, and internal user status/role management.
 
 ## Implemented Endpoints
 
@@ -61,9 +61,33 @@ Permissions are resolved from normalized relational records:
 
 Only active users, active roles, active permissions, and non-archived role assignments are considered. Authorization guards deny by default when a route does not declare required permissions. Protected route handlers must declare explicit permission codes and still apply record-scope checks when business modules are implemented.
 
+## Internal User Administration
+
+Issue #13 introduces versioned administration endpoints under `/v1/admin`. All routes require an authenticated active internal user and explicit permission codes; no route authorizes by hard-coded role name. Response contracts are shared through `packages/contracts` and never expose Prisma records directly.
+
+| Method | Path | Required permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/v1/admin/users` | `users:view` | List/search internal users with pagination and status filtering. |
+| `POST` | `/v1/admin/users` | `users:create` | Create an internal user with an administrator-set initial credential. |
+| `GET` | `/v1/admin/users/:userId` | `users:view` | Return safe user detail, roles, effective permissions, status, last login, and active-session summary. |
+| `PATCH` | `/v1/admin/users/:userId` | `users:update` | Update approved non-sensitive profile fields only. |
+| `POST` | `/v1/admin/users/:userId/roles` | `users:roles:manage` | Assign an approved role when the actor already has the role's permissions. |
+| `DELETE` | `/v1/admin/users/:userId/roles/:roleName` | `users:roles:manage` | Archive a user-role assignment. |
+| `PATCH` | `/v1/admin/users/:userId/status` | `users:status:manage` | Suspend, reactivate from suspension, or archive an internal user. |
+| `GET` | `/v1/admin/users/:userId/sessions` | `users:view` | List safe active refresh-session summaries. |
+| `DELETE` | `/v1/admin/users/:userId/sessions/:sessionId` | `users:sessions:revoke` | Revoke one selected refresh session. |
+| `DELETE` | `/v1/admin/users/:userId/sessions` | `users:sessions:revoke` | Revoke all refresh sessions for a selected user. |
+| `GET` | `/v1/admin/roles` | `roles:view` | Read the approved role catalog and mapped permissions. |
+| `GET` | `/v1/admin/permissions` | `permissions:view` | Read the approved permission catalog. |
+| `GET` | `/v1/admin/users/:userId/effective-permissions` | `users:view` | Preview a user's effective permissions from multiple roles. |
+
+The last active `SUPER_ADMIN` invariant is protected inside PostgreSQL transactions using a transaction-scoped advisory lock before role removal or status changes can reduce the active super-administrator count. Self-demotion, self-suspension, and self-archival are rejected to prevent accidental lockout. Suspending or archiving a user atomically revokes that user's active refresh sessions.
+
+Administrator-set initial credentials must satisfy the existing password policy and are hashed with the same Argon2id parameters as login credentials. Password hashes, refresh-token hashes, raw tokens, cookies, IP hashes, user-agent hashes, and plaintext credentials are never returned by administration APIs.
+
 ## Audit Logging
 
-Authentication audit logs are safe summaries only. They record events such as successful login, failed login, refresh rotation, refresh-token reuse detection, current-session logout, all-session logout, and development bootstrap. Audit logs must not include plaintext passwords, raw refresh tokens, access tokens, cookie values, CV content, client data, message bodies, or full confidential payloads.
+Authentication and administration audit logs are safe summaries only. They record events such as successful login, failed login, refresh rotation, refresh-token reuse detection, current-session logout, all-session logout, development bootstrap, internal user creation/update, role assignment/removal, status changes, and administrative session revocation. Audit logs must not include plaintext passwords, raw refresh tokens, access tokens, cookie values, password hashes, refresh-token hashes, CV content, client data, message bodies, or full confidential payloads.
 
 ## Operational Notes
 
@@ -86,8 +110,9 @@ The bootstrap command is development-only and idempotent for the configured emai
 
 - Production secret management, secret rotation, and emergency refresh-session invalidation playbooks.
 - Distributed rate limiting for multi-instance production deployments.
-- Final per-module permission-code catalog and record-scope policy implementation.
+- Final business-module permission-code catalog and record-scope policy implementation.
 - Microsoft 365 authentication integration and account-linking behavior.
+- Invitation, password reset, and forced first-login password-change workflows.
 
 ## Non-Goals
 
@@ -95,5 +120,6 @@ The bootstrap command is development-only and idempotent for the configured emai
 - No password reset.
 - No MFA.
 - No SSO or Microsoft 365 authentication implementation.
-- No user-management CRUD.
+- No arbitrary role creation, role-builder UI, or permission editing UI.
+- No invitations, email delivery, password reset, or forced first-login password-change implementation.
 - No business modules, dashboards, messaging, training, recruitment, candidate, client, document-download, or integration workflows.

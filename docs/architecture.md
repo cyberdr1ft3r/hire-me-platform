@@ -109,7 +109,18 @@ Issue #10 implements the first local authentication foundation:
 - deny-by-default authorization guards
 - safe authentication audit logs, including successful login events
 
-Microsoft 365 authentication, identity-provider linking, MFA, password reset, registration, user-management CRUD, and final record-scope policy behavior remain later implementation work.
+Issue #13 implements the first secured internal user administration module:
+
+- versioned `/v1/admin` endpoints for internal user listing, safe detail, creation, profile updates, role assignment/removal, status changes, session summaries, session revocation, role catalog reads, permission catalog reads, and effective-permission previews
+- shared Zod contracts that keep web and contracts Prisma-independent
+- permission-code authorization rather than hard-coded role checks
+- role assignment limited to roles whose permissions are within the actor's effective permissions
+- transaction-protected last active `SUPER_ADMIN` invariant
+- self-demotion, self-suspension, and self-archival prevention
+- atomic refresh-session revocation when users are suspended or archived
+- safe administration audit summaries without passwords, token hashes, cookies, secrets, or confidential payloads
+
+Microsoft 365 authentication, identity-provider linking, MFA, password reset, registration, invitations, arbitrary role creation, permission editing, and final business record-scope policy behavior remain later implementation work.
 
 ### Audit Logging
 
@@ -257,5 +268,5 @@ flowchart TB
 
 ## Non-Goals
 
-- No registration, password reset, MFA, SSO, user-management CRUD, business modules, business UI, production file storage, or external integration implementation.
+- No registration, password reset, MFA, SSO, invitations, arbitrary role builder, permission-editing UI, business modules, business UI beyond the minimal internal administration screen, production file storage, or external integration implementation.
 - No production deployment design.

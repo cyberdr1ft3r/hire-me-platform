@@ -4,10 +4,12 @@ export {
   DocumentVersionSource,
   DocumentVisibility,
   MissionRecruiterRole,
+  PermissionStatus,
   PermissionScopeType,
   Prisma,
   PrismaClient,
   RoleName,
+  RoleStatus,
   UserStatus,
   UserType,
 } from '../../../prisma/generated/client/index.js';
