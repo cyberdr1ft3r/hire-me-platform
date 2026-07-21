@@ -221,6 +221,52 @@ describe('authentication and RBAC foundation', () => {
     expect(remainingActive).toBe(0);
   });
 
+  it('atomically allows only one concurrent refresh request for the same token', async () => {
+    const userId = await createUser('concurrent-refresh@auth.test');
+    const firstLogin = await login(baseUrl, 'concurrent-refresh@auth.test');
+    const firstCookie = refreshCookie(firstLogin);
+    const originalSession = await prisma.refreshSession.findFirstOrThrow({
+      where: { userId, revokedAt: null },
+    });
+
+    const [firstRefresh, secondRefresh] = await Promise.all([
+      fetch(`${baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { Cookie: firstCookie },
+      }),
+      fetch(`${baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { Cookie: firstCookie },
+      }),
+    ]);
+
+    const responses = [firstRefresh, secondRefresh];
+    const statuses = responses.map((response) => response.status).sort();
+    const failedResponse = responses.find((response) => response.status === 401);
+
+    expect(statuses).toEqual([201, 401]);
+    expect(failedResponse).toBeDefined();
+    AuthErrorResponseSchema.parse(await failedResponse!.json());
+
+    const successors = await prisma.refreshSession.findMany({
+      where: { rotatedFromSessionId: originalSession.id },
+    });
+    const activeFamilySessions = await prisma.refreshSession.count({
+      where: { userId, sessionFamilyId: originalSession.sessionFamilyId, revokedAt: null },
+    });
+    const reuseMarkedSessions = await prisma.refreshSession.count({
+      where: {
+        userId,
+        sessionFamilyId: originalSession.sessionFamilyId,
+        reuseDetectedAt: { not: null },
+      },
+    });
+
+    expect(successors).toHaveLength(1);
+    expect(activeFamilySessions).toBe(0);
+    expect(reuseMarkedSessions).toBeGreaterThan(0);
+  });
+
   it('revokes current and all sessions on logout', async () => {
     await createUser('logout@auth.test');
     const firstLogin = await login(baseUrl, 'logout@auth.test');

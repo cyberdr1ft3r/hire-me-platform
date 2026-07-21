@@ -90,36 +90,36 @@ export class AuthService {
       throw new AuthenticationFailedException();
     }
 
-    const now = new Date();
-    if (existing.revokedAt || existing.expiresAt <= now) {
-      await this.prisma.refreshSession.updateMany({
-        where: { sessionFamilyId: existing.sessionFamilyId, revokedAt: null },
-        data: { revokedAt: now, reuseDetectedAt: now },
-      });
-      await this.audit.record('auth.refresh.reuse_detected', context, {
-        actorUserId: existing.userId,
-        targetUserId: existing.userId,
-        metadataSummary: 'Refresh token reuse revoked the session family.',
-      });
-      throw new AuthenticationFailedException();
-    }
-
     if (existing.user.status !== 'ACTIVE' || existing.user.archivedAt) {
       await this.revokeSessionFamily(existing.userId, existing.sessionFamilyId, context);
       throw new AuthenticationFailedException();
     }
 
+    const now = new Date();
     const nextRefreshToken = this.tokens.createRefreshToken();
     const nextRefreshTokenHash = this.tokens.hashRefreshToken(nextRefreshToken);
     const nextRefreshTokenExpiresAt = this.tokens.getRefreshExpiresAt();
     const access = this.tokens.createAccessToken(existing.userId);
 
-    await this.prisma.$transaction([
-      this.prisma.refreshSession.update({
-        where: { id: existing.id },
+    const consumed = await this.prisma.$transaction(async (transaction) => {
+      const consumeResult = await transaction.refreshSession.updateMany({
+        where: {
+          id: existing.id,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
         data: { revokedAt: now, lastUsedAt: now },
-      }),
-      this.prisma.refreshSession.create({
+      });
+
+      if (consumeResult.count !== 1) {
+        await transaction.refreshSession.updateMany({
+          where: { sessionFamilyId: existing.sessionFamilyId },
+          data: { revokedAt: now, reuseDetectedAt: now },
+        });
+        return false;
+      }
+
+      await transaction.refreshSession.create({
         data: {
           userId: existing.userId,
           tokenHash: nextRefreshTokenHash,
@@ -129,8 +129,18 @@ export class AuthService {
           userAgentHash: this.hashMetadata(context.userAgent),
           ipAddressHash: this.hashMetadata(context.ipAddress),
         },
-      }),
-    ]);
+      });
+      return true;
+    });
+
+    if (!consumed) {
+      await this.audit.record('auth.refresh.reuse_detected', context, {
+        actorUserId: existing.userId,
+        targetUserId: existing.userId,
+        metadataSummary: 'Refresh token reuse revoked the session family.',
+      });
+      throw new AuthenticationFailedException();
+    }
 
     const permissions = await this.permissions.getEffectivePermissionCodes(existing.userId);
     await this.audit.record('auth.refresh.rotated', context, {

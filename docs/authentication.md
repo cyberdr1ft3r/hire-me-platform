@@ -39,6 +39,8 @@ Refresh is rotating:
 2. The API creates a replacement session in the same family.
 3. A reused, revoked, expired, or otherwise invalid refresh token revokes the session family where identifiable and writes a safe audit record.
 
+Refresh-token consumption is atomic on PostgreSQL. The API uses a transaction-scoped compare-and-set update with predicates on the presented session id, `revokedAt IS NULL`, and `expiresAt` still in the future. A successor session is created only when that consume update affects exactly one row. If a concurrent request loses the race and affects zero rows, the API treats the token as reused, revokes the identifiable session family, writes the safe reuse audit event, and returns the generic authentication failure.
+
 ## Cookie Policy
 
 The refresh token is stored only in an HTTP-only cookie named `hire_me_refresh` with:
