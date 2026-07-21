@@ -13,8 +13,14 @@
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
     "prisma:generate": "pnpm --filter @hire-me/api prisma:generate",
+    "prisma:migrate:deploy": "pnpm --filter @hire-me/api prisma:migrate:deploy",
+    "prisma:migrate:dev": "pnpm --filter @hire-me/api prisma:migrate:dev",
+    "prisma:migrate:reset": "pnpm --filter @hire-me/api prisma:migrate:reset",
+    "prisma:seed": "pnpm --filter @hire-me/api prisma:seed",
+    "prisma:studio": "pnpm --filter @hire-me/api prisma:studio",
     "prisma:validate": "pnpm --filter @hire-me/api prisma:validate",
     "test": "turbo run test",
+    "test:db": "pnpm --filter @hire-me/api test:db",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

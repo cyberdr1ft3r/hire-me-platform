@@ -27,6 +27,8 @@ cd hire-me-platform
 cp .env.example .env
 pnpm install --frozen-lockfile
 docker compose up -d postgres
+pnpm prisma:migrate:deploy
+pnpm prisma:seed
 pnpm prisma:generate
 pnpm dev
 ```
@@ -69,15 +71,16 @@ Expected response shape:
 Run these from the repository root:
 
 ```sh
+pnpm prisma:validate
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:db
 pnpm build
-pnpm prisma:validate
 ```
 
-GitHub Actions runs the same quality checks on pull requests and pushes to `main`.
+GitHub Actions runs the same quality checks on pull requests and pushes to `main`, plus Docker Compose PostgreSQL health, migration, seed, and database integration checks.
 
 ## Repository Structure
 
@@ -117,6 +120,55 @@ Reset the local PostgreSQL volume:
 docker compose down -v
 ```
 
+## Database Lifecycle
+
+Run these commands from the repository root after copying `.env.example` to `.env` and starting PostgreSQL.
+
+Validate and generate the Prisma client:
+
+```sh
+pnpm prisma:validate
+pnpm prisma:generate
+```
+
+Apply committed migrations:
+
+```sh
+pnpm prisma:migrate:deploy
+```
+
+Create or update a development migration:
+
+```sh
+pnpm prisma:migrate:dev
+```
+
+Reset the local development database and rerun the seed:
+
+```sh
+pnpm prisma:migrate:reset
+```
+
+Run the development seed without resetting:
+
+```sh
+pnpm prisma:seed
+```
+
+The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
+
+Open Prisma Studio:
+
+```sh
+pnpm prisma:studio
+```
+
+Run database integration tests against the configured PostgreSQL database:
+
+```sh
+pnpm test:db
+```
+
 ## Environment
 
 `.env.example` contains safe development placeholders only. Copy it to `.env` for local development and do not commit `.env` files. The local configuration consistently uses `127.0.0.1` for the web origin, API base URL, API host, and PostgreSQL connection.
@@ -125,4 +177,4 @@ The API validates required environment variables at startup. The web app reads `
 
 ## Scope Guardrail
 
-This repository foundation does not implement authentication, users, candidates, clients, recruitment missions, interviews, training, messaging, dashboards, integrations, or the complete Prisma business schema. Those belong to later issues.
+This repository foundation does not implement authentication flows, controllers, services, pages, business UI, dashboards, integrations, file storage, or business workflow behavior. The Prisma schema models foundational persistence only; application behavior belongs to later issues.

@@ -10,14 +10,14 @@ Build a bilingual, responsive business platform for Hire Me that centralizes rec
 
 ## Current phase
 
-Repository and local development bootstrap.
+Persistence foundation.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
-- Active issue: #2 — bootstrap the TypeScript monorepo and local development environment.
-- Issue #3 must wait until issue #2 is reviewed and merged.
+- Issue #2 is complete; PR #8 merged the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI checks.
+- Active issue: #3 — implement the foundational Prisma schema and database lifecycle.
 
-There is no remaining product-documentation blocker for issue #2.
+There is no remaining issue #2 blocker for issue #3.
 
 ## Confirmed product facts
 

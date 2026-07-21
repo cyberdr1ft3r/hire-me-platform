@@ -5,17 +5,17 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Repository and local development bootstrap
+**Phase:** Persistence foundation
 **Health:** Implementation in progress
-**Current blocker:** None in repository configuration; local Docker Desktop is not running in the Codex environment, so Docker health is verified through GitHub Actions.
-**Next executable development task:** Review PR #8 after the Docker Compose health CI correction.
+**Current blocker:** None known in repository configuration; database lifecycle verification is expected to run through GitHub Actions because local Docker Desktop is unavailable in the Codex environment.
+**Next executable development task:** Review the issue #3 draft PR after it is opened.
 
 ## Active work
 
 | Item | State | Purpose | Next action |
 | --- | --- | --- | --- |
-| Issue #2 | In progress | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | Review PR #8 for reproducible root `.env` loading, CI parity, and the Docker Compose PostgreSQL health job |
-| Issue #3 | Blocked | Implement the foundational Prisma schema and database lifecycle | Start only after issue #2 is reviewed and merged |
+| Issue #2 | Complete | Bootstrap the monorepo, web app, API, PostgreSQL, Prisma wiring, local environment, and CI | No action |
+| Issue #3 | In progress | Implement the foundational Prisma schema and database lifecycle | Review the draft PR for schema coverage, migration safety, seed contents, and PostgreSQL integration-test evidence |
 
 ## Completed foundation work
 
@@ -41,6 +41,13 @@ Status owner: repository maintainer
 - GitHub Actions includes a dedicated Docker Compose job that copies `.env.example` to `.env`, validates Compose configuration, starts PostgreSQL, waits for the container to become healthy, prints diagnostics on failure, and always runs `docker compose down -v`.
 - Local Docker Compose PostgreSQL startup could not be confirmed by Codex because the Docker daemon was unavailable.
 
+## Issue #3 Verification State
+
+- Foundational Prisma schema implementation is in progress.
+- Initial migration is being prepared from the approved domain model.
+- Development seed is limited to the eight approved roles and safe synthetic permissions.
+- Database lifecycle CI is being extended to run migrations, seed, and PostgreSQL integration tests.
+
 ## Current open technical questions
 
 These are not blockers for the issue #2 implementation PR:
@@ -56,11 +63,10 @@ These are not blockers for the issue #2 implementation PR:
 
 ## Immediate next actions
 
-1. Review PR #8 after the Docker Compose health CI correction.
-2. Review GitHub Actions results for the PR and confirm CI runs Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
-3. Merge issue #2 only when fresh-clone setup, Docker health, API/web connectivity, local checks, and CI checks are satisfactory.
-4. Optionally rerun `docker compose up -d postgres` locally when Docker Desktop is available.
-5. Begin issue #3 only after issue #2 is complete.
+1. Review the issue #3 draft PR after it is opened.
+2. Confirm GitHub Actions applies migrations to PostgreSQL, runs the development seed, and passes database integration tests.
+3. Confirm local quality checks, Prisma validation/generation, and build/test commands pass.
+4. Merge issue #3 only after schema coverage, deletion behavior, seed safety, and database lifecycle evidence are accepted.
 
 ## Status Update Rules
 

@@ -9,10 +9,19 @@
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
     "lint": "eslint .",
     "prisma:generate": "dotenv -e ../../.env.example -- prisma generate",
+    "prisma:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "prisma:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "prisma:migrate:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
+    "prisma:seed": "dotenv -e ../../.env -- prisma db seed",
+    "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:validate": "dotenv -e ../../.env.example -- prisma validate",
     "start": "dotenv -e ../../.env -- node dist/main.js",
     "test": "vitest run",
+    "test:db": "dotenv -e ../../.env -- vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@hire-me/contracts": "workspace:*",

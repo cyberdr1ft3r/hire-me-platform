@@ -390,6 +390,17 @@ erDiagram
 - `Conversation`, `ConversationMember`, and `Message` represent confirmed private messaging and discussion groups.
 - `AuditLog` should be append-only and protected from ordinary update or delete operations.
 
+## Prisma Implementation Notes
+
+Issue #3 implements the foundational Prisma schema as the first physical persistence model. It keeps the conceptual relationships above, with these explicit implementation choices:
+
+- The physical schema uses `MissionRecruiter` for the first recruiter-assignment join required by issue #3. It fulfills the approved `MissionAssignment` requirement for multiple recruiters on one `RecruitmentMission`; broader non-recruiter contributor assignment can be extended in a later scoped issue if needed.
+- Business records use status enums and nullable `archivedAt` timestamps for archival. Physical deletes are restricted for history-preserving relationships such as clients with missions, mission candidates, interviews, documents, training records, conversations, and messages.
+- Normalized email fields are stored separately as `normalizedEmail` and are indexed or unique where the approved model calls for case-insensitive uniqueness.
+- `CandidateDocumentVersion` and `DocumentVersion` store protected storage metadata and version numbers. Actual file storage, malware scanning, download authorization, and generated-file production remain later implementation work.
+- `AuditLog` includes actor and target-user references plus safe summary metadata. Application services must treat audit records as append-only and must not store raw CV contents, confidential document contents, message bodies, secrets, or full sensitive payloads in audit metadata.
+- Task and notification context is represented through explicit optional foreign keys to approved entities rather than free-form JSON.
+
 ## Assumptions
 
 - Entity names in this document should become implementation-facing names later.

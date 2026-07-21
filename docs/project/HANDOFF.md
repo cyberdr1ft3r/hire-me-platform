@@ -8,56 +8,57 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 - Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
 - Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
-- Issue #2 implementation has been prepared on branch `chore/bootstrap-typescript-monorepo`; PR #8 is open as a draft.
-- The latest PR #8 blocking review about Docker Compose PostgreSQL health verification has been addressed with a dedicated GitHub Actions job on the same branch.
-- Issue #3 must not start until issue #2 is reviewed and merged.
+- Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
+- Issue #3 is in progress on branch `feat/foundational-prisma-schema`.
+- Issue #3 implements the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests.
 
 ## Next Action
 
-Review PR #8 from `chore/bootstrap-typescript-monorepo`.
+Review the issue #3 draft PR after it is opened from `feat/foundational-prisma-schema`.
 
 Check especially:
 
-- pnpm workspace and Turborepo root scripts;
-- `apps/web` React + Vite placeholder and API health display;
-- `apps/api` NestJS structured `GET /health` endpoint;
-- `packages/config` shared TypeScript configuration;
-- `packages/contracts` shared health contract;
-- Docker Compose PostgreSQL service and health check;
-- GitHub Actions Docker Compose PostgreSQL health job;
-- Prisma datasource wiring without business models;
-- safe `.env.example` placeholders and startup environment validation;
-- root `.env` loading for API development/startup and Vite environment loading;
-- consistent `127.0.0.1` local web/API/CORS URLs;
-- GitHub Actions parity with local quality commands;
-- README fresh-clone setup accuracy;
-- absence of authentication, business modules, business schema, real personal data, client data, or CV content.
+- Prisma schema coverage for required issue #3 entities and approved relationships;
+- candidate-to-mission history through `MissionCandidate`;
+- multiple recruiters per mission through `MissionRecruiter`;
+- multiple client contacts per client;
+- normalized roles and permissions through join models;
+- document ownership, visibility, and version metadata;
+- explicit archival strategy and deliberate foreign-key behavior;
+- development seed containing only approved roles and safe synthetic permissions;
+- migration, reset, seed, Prisma Studio, and database-test commands;
+- PostgreSQL integration-test evidence in CI;
+- absence of controllers, services, auth flows, pages, real personal data, client data, CV content, or confidential records.
 
 ## Verification Notes
 
-Completed locally by Codex:
+Completed locally by Codex before opening the issue #3 PR:
 
 - `pnpm install`
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
-- `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
+- migration SQL generation from the Prisma schema
+
+Pending before completion:
+
+- `pnpm prisma:migrate:deploy` against real PostgreSQL
+- `pnpm prisma:seed`
+- `pnpm test:db`
+- `pnpm format:check`
 - `pnpm test`
 - `pnpm build`
-- API runtime check for `GET /health`
-- Web dev server strict-port check on `127.0.0.1:5173`
-- Root `.env` loading correction for API and web development paths
-- GitHub Actions Docker Compose PostgreSQL health job added
+- `git diff --check`
 
 Blocked locally:
 
-- `docker compose up -d postgres` could not start PostgreSQL in the Codex local environment because Docker Desktop/daemon was unavailable. CI now verifies the Docker Compose health path on Ubuntu.
+- `docker compose up -d postgres` cannot start PostgreSQL in the Codex local environment because Docker Desktop/daemon is unavailable. Real PostgreSQL migration, seed, and integration-test verification should be confirmed through GitHub Actions.
 
 GitHub Actions:
 
-- The workflow is configured to run Docker Compose PostgreSQL health, install, Prisma validation, format check, lint, typecheck, tests, and build.
-- Confirm the latest PR check result after each pushed correction.
+- The workflow is being extended to run Docker Compose PostgreSQL health, migration deploy, seed, database integration tests, install, Prisma validation, format check, lint, typecheck, tests, and build.
+- Confirm the latest PR check result after pushing the issue #3 branch.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
