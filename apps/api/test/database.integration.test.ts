@@ -33,6 +33,7 @@ async function cleanDatabase(): Promise<void> {
   await prisma.trainingSession.deleteMany();
   await prisma.trainingProgram.deleteMany();
   await prisma.externalTrainingParticipant.deleteMany();
+  await prisma.missionCandidateEvent.deleteMany();
   await prisma.missionCandidate.deleteMany();
   await prisma.missionRecruiter.deleteMany();
   await prisma.clientContact.deleteMany();
@@ -94,6 +95,10 @@ describe('foundational Prisma schema', () => {
         normalizedEmail: 'candidate.issue3@example.test',
       },
     });
+    const responsibleRecruiter = await createUser(
+      'mission-candidate-owner.issue3@example.test',
+      'Synthetic Responsible Recruiter',
+    );
     const firstMission = await prisma.recruitmentMission.create({
       data: {
         clientId: client.id,
@@ -112,10 +117,12 @@ describe('foundational Prisma schema', () => {
         {
           candidateId: candidate.id,
           missionId: firstMission.id,
+          responsibleRecruiterUserId: responsibleRecruiter.id,
         },
         {
           candidateId: candidate.id,
           missionId: secondMission.id,
+          responsibleRecruiterUserId: responsibleRecruiter.id,
         },
       ],
     });

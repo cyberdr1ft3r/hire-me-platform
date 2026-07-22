@@ -20,6 +20,8 @@ import {
   CandidateWorkExperienceDetailResponseSchema,
   MissionAssignmentDetailResponseSchema,
   MissionAssignmentListResponseSchema,
+  MissionCandidateDetailResponseSchema,
+  MissionCandidateListResponseSchema,
   MissionDetailResponseSchema,
   MissionListResponseSchema,
   type AuthResponse,
@@ -62,6 +64,13 @@ import {
   type MissionAssignmentDetailResponse,
   type MissionAssignmentListResponse,
   type MissionAssignmentUpdateRequest,
+  type MissionCandidateCreateRequest,
+  type MissionCandidateDetailResponse,
+  type MissionCandidateIntegrationConfirmationRequest,
+  type MissionCandidateListResponse,
+  type MissionCandidatePresentationRequest,
+  type MissionCandidateTransferRequest,
+  type MissionCandidateTransitionRequest,
   type MissionClosureRequest,
   type MissionCreateRequest,
   type MissionDetailResponse,
@@ -1007,4 +1016,92 @@ export async function archiveMissionAssignment(
     apiBaseUrl,
   );
   return MissionAssignmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function listMissionCandidates(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateListResponse> {
+  const response = await missionRequest(accessToken, `/${missionId}/candidates`, {}, apiBaseUrl);
+  return MissionCandidateListResponseSchema.parse(await response.json());
+}
+
+export async function createMissionCandidate(
+  accessToken: string,
+  missionId: string,
+  input: MissionCandidateCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionCandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function transitionMissionCandidate(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: MissionCandidateTransitionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/transition`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionCandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function transferMissionCandidate(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: MissionCandidateTransferRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/transfer`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionCandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function presentMissionCandidate(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: MissionCandidatePresentationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/present`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionCandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function confirmMissionCandidateIntegration(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: MissionCandidateIntegrationConfirmationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionCandidateDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/confirm-integration`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionCandidateDetailResponseSchema.parse(await response.json());
 }

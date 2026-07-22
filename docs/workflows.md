@@ -15,7 +15,7 @@ Candidate pipeline state is tracked on `MissionCandidate`, not on `Candidate`. T
 | Confirmed stage | Normalized state |
 | --- | --- |
 | `NEW` | `new` |
-| `CV_REVIEW` | `cv_review` |
+| `CV_TO_REVIEW` | `cv_to_review` |
 | `HR_PRESELECTION` | `hr_preselection` |
 | `HR_INTERVIEW_SCHEDULED` | `hr_interview_scheduled` |
 | `HR_INTERVIEW_COMPLETED` | `hr_interview_completed` |
@@ -27,96 +27,99 @@ Candidate pipeline state is tracked on `MissionCandidate`, not on `Candidate`. T
 | `CLIENT_OFFER` | `client_offer` |
 | `ACCEPTED` | `accepted` |
 | `INTEGRATED` | `integrated` |
-| `PROBATION_MONITORING` | `probation_monitoring` |
-| `END_OF_PROBATION` | `end_of_probation` |
-| `CLOSED` | `closed` |
+| `PROBATION_COMPLETED` | `probation_completed` |
+| `PROCESS_COMPLETED` | `process_completed` |
 
 ### Exceptional and Outcome States
 
 - `waiting`: waiting for information, availability, internal action, or client response.
-- `on_hold`: intentionally paused.
 - `postponed`: scheduled activity delayed.
-- `candidate_declined`: candidate declined or refused to continue.
+- `candidate_rejected`: Hire Me rejected the candidate for this mission, or the candidate declined before offer acceptance.
 - `client_rejected`: client rejected the candidate.
 - `withdrawn`: candidate withdrew from the mission.
 - `talent_pool`: candidate is not active for this mission but should be retained for future opportunities.
-- `archived`: retained but inactive.
 
 ### Terminal States
 
-- `closed`
-- `candidate_declined`
+- `candidate_rejected`
 - `client_rejected`
 - `withdrawn`
 - `talent_pool`
-- `archived`
+- `process_completed`
 
-`accepted`, `integrated`, `probation_monitoring`, and `end_of_probation` are not terminal by themselves because the confirmed process continues through integration, probation, and closure.
+`accepted`, `integrated`, and `probation_completed` are not terminal by themselves because the confirmed process continues through integration, probation completion, and final process completion. Accepted candidates do not count as placements. Placement count changes only after manual integration confirmation by an authorized user, and recruitment mission closure is never automatic.
+
+### Optional Skips
+
+Only these standard-pipeline skips are approved:
+
+| From | To | Requirement |
+| --- | --- | --- |
+| `HR_INTERVIEW_COMPLETED` | `INTERNAL_VALIDATION` | Explicit skip flag, required reason, and audit event. |
+| `CLIENT_INTERVIEW_1` | `CLIENT_OFFER` | Explicit skip flag, required reason, and audit event. |
+
+All other transitions must follow the standard pipeline or approved exceptional/outcome paths.
 
 ### Valid Transitions
 
 ```mermaid
 stateDiagram-v2
-    [*] --> new
-    new --> cv_review
-    cv_review --> hr_preselection
-    cv_review --> talent_pool
-    cv_review --> candidate_declined
-    hr_preselection --> hr_interview_scheduled
-    hr_preselection --> talent_pool
-    hr_preselection --> candidate_declined
-    hr_interview_scheduled --> hr_interview_completed
-    hr_interview_scheduled --> postponed
-    hr_interview_completed --> technical_test
-    hr_interview_completed --> internal_validation
-    technical_test --> internal_validation
-    internal_validation --> presented_to_client
-    internal_validation --> talent_pool
-    presented_to_client --> client_interview_1
-    presented_to_client --> client_rejected
-    client_interview_1 --> client_interview_2
-    client_interview_1 --> client_offer
-    client_interview_1 --> client_rejected
-    client_interview_2 --> client_offer
-    client_interview_2 --> client_rejected
-    client_offer --> accepted
-    client_offer --> candidate_declined
-    accepted --> integrated
-    integrated --> probation_monitoring
-    probation_monitoring --> end_of_probation
-    end_of_probation --> closed
-    new --> waiting
-    cv_review --> waiting
-    hr_preselection --> waiting
-    internal_validation --> waiting
-    presented_to_client --> waiting
-    waiting --> cv_review
-    waiting --> hr_preselection
-    waiting --> presented_to_client
-    waiting --> on_hold
-    on_hold --> cv_review
-    on_hold --> hr_preselection
-    on_hold --> presented_to_client
-    on_hold --> withdrawn
-    postponed --> hr_interview_scheduled
-    postponed --> client_interview_1
-    postponed --> client_interview_2
-    new --> withdrawn
-    cv_review --> withdrawn
-    hr_preselection --> withdrawn
-    presented_to_client --> withdrawn
-    client_offer --> withdrawn
-    closed --> archived
-    candidate_declined --> archived
-    client_rejected --> archived
-    withdrawn --> archived
-    talent_pool --> archived
-    closed --> [*]
-    candidate_declined --> [*]
-    client_rejected --> [*]
-    withdrawn --> [*]
-    talent_pool --> [*]
-    archived --> [*]
+    [*] --> NEW
+    NEW --> CV_TO_REVIEW
+    NEW --> WITHDRAWN
+    CV_TO_REVIEW --> HR_PRESELECTION
+    CV_TO_REVIEW --> WAITING
+    CV_TO_REVIEW --> CANDIDATE_REJECTED
+    CV_TO_REVIEW --> WITHDRAWN
+    CV_TO_REVIEW --> TALENT_POOL
+    HR_PRESELECTION --> HR_INTERVIEW_SCHEDULED
+    HR_PRESELECTION --> WAITING
+    HR_PRESELECTION --> CANDIDATE_REJECTED
+    HR_PRESELECTION --> WITHDRAWN
+    HR_PRESELECTION --> TALENT_POOL
+    HR_INTERVIEW_SCHEDULED --> HR_INTERVIEW_COMPLETED
+    HR_INTERVIEW_SCHEDULED --> POSTPONED
+    HR_INTERVIEW_SCHEDULED --> WITHDRAWN
+    HR_INTERVIEW_COMPLETED --> TECHNICAL_TEST
+    HR_INTERVIEW_COMPLETED --> INTERNAL_VALIDATION: optional skip
+    TECHNICAL_TEST --> INTERNAL_VALIDATION
+    INTERNAL_VALIDATION --> PRESENTED_TO_CLIENT
+    INTERNAL_VALIDATION --> WAITING
+    INTERNAL_VALIDATION --> CANDIDATE_REJECTED
+    INTERNAL_VALIDATION --> WITHDRAWN
+    INTERNAL_VALIDATION --> TALENT_POOL
+    PRESENTED_TO_CLIENT --> CLIENT_INTERVIEW_1
+    PRESENTED_TO_CLIENT --> WAITING
+    PRESENTED_TO_CLIENT --> CLIENT_REJECTED
+    PRESENTED_TO_CLIENT --> WITHDRAWN
+    CLIENT_INTERVIEW_1 --> CLIENT_INTERVIEW_2
+    CLIENT_INTERVIEW_1 --> CLIENT_OFFER: optional skip
+    CLIENT_INTERVIEW_1 --> POSTPONED
+    CLIENT_INTERVIEW_1 --> CLIENT_REJECTED
+    CLIENT_INTERVIEW_1 --> WITHDRAWN
+    CLIENT_INTERVIEW_2 --> CLIENT_OFFER
+    CLIENT_INTERVIEW_2 --> POSTPONED
+    CLIENT_INTERVIEW_2 --> CLIENT_REJECTED
+    CLIENT_INTERVIEW_2 --> WITHDRAWN
+    CLIENT_OFFER --> ACCEPTED
+    CLIENT_OFFER --> CANDIDATE_REJECTED
+    CLIENT_OFFER --> WITHDRAWN
+    ACCEPTED --> INTEGRATED
+    INTEGRATED --> PROBATION_COMPLETED
+    PROBATION_COMPLETED --> PROCESS_COMPLETED
+    WAITING --> CV_TO_REVIEW
+    WAITING --> HR_PRESELECTION
+    WAITING --> PRESENTED_TO_CLIENT
+    WAITING --> WITHDRAWN
+    POSTPONED --> HR_INTERVIEW_SCHEDULED
+    POSTPONED --> CLIENT_INTERVIEW_1
+    POSTPONED --> CLIENT_INTERVIEW_2
+    POSTPONED --> WITHDRAWN
+    CANDIDATE_REJECTED --> [*]
+    CLIENT_REJECTED --> [*]
+    WITHDRAWN --> [*]
+    TALENT_POOL --> [*]
+    PROCESS_COMPLETED --> [*]
 ```
 
 ## Recruitment Mission Pipeline

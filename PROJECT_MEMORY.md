@@ -21,7 +21,7 @@ ATS recruitment workflow foundation.
 - Issue #15 is complete; PR #16 merged the client organization and client-contact CRM module.
 - Issue #17 is complete; PR #18 merged the reusable candidate master records and structured candidate profile foundation.
 - Issue #19 is complete; PR #20 merged recruitment missions and multiple recruiter/contributor assignments.
-- Next executable goal: candidate-to-mission recruitment processes and the client-approved ATS pipeline, using decisions D-023 through D-032.
+- Current executable goal: Issue #21 candidate-to-mission recruitment processes and the client-approved ATS pipeline on branch `feat/mission-candidate-pipeline`, using decisions D-004 and D-023 through D-033.
 
 ## Confirmed Product Facts
 
@@ -59,7 +59,7 @@ ATS recruitment workflow foundation.
 - Client organization and client-contact CRM uses permission-code guarded `/v1/clients` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-client row locks for archival and dependent writes, nested contact ownership checks, per-client normalized contact email uniqueness, explicit commercial-data gating, and safe CRM audit logs.
 - Candidate master/profile CRM uses permission-code guarded `/v1/candidates` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-candidate row locks for archival and dependent writes, nested profile ownership checks, global normalized candidate email duplicate rejection, structured skills/languages/work-experience/education records, explicit compensation and consent permissions, and safe candidate audit logs.
 - Recruitment mission CRM uses permission-code guarded `/v1/missions` endpoints, shared Prisma-independent contracts, documented lifecycle transitions, structured closure reasons, archival lifecycles, transaction-scoped parent-mission row locks for lifecycle and assignment writes, assignee eligibility re-checks for assignment activation and lead selection, effective salary-range validation for partial updates, nested assignment ownership checks, active duplicate assignment protection, single active lead-recruiter protection, explicit mission commercial-data permissions, and safe mission audit logs.
-- Candidate-to-mission implementation must preserve the permanent mission/candidate uniqueness rule, responsible-recruiter ownership, client-approved pipeline, presentation visibility boundary, structured feedback compatibility, manual placement confirmation, and client-controlled closure eligibility.
+- Mission-candidate process implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints, permanent mission/candidate uniqueness, responsible-recruiter ownership, the client-approved standard pipeline, optional skip audit history, explicit presentation visibility boundary, protected live candidate-field redaction, manual idempotent placement confirmation, and client-controlled closure eligibility.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

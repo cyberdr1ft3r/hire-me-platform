@@ -77,7 +77,7 @@ Docker Compose should run local services such as PostgreSQL and any selected que
 
 ### Object/File Storage Abstraction
 
-Candidate CVs, HR documents, quotations, purchase orders, contracts, invoice documents, generated candidate summaries, interview reports, training documents, message attachments, and client-facing documents should be accessed through a storage service interface. Feature modules should not call a provider directly.
+Uploaded CVs, HR documents, quotations, purchase orders, contracts, invoice documents, generated PDF/Word/Excel files, training documents, message attachments, and client-facing files should be accessed through a storage service interface. Feature modules should not call a provider directly. Business records such as candidate summaries, evaluations, presentations, job-description content, pipeline events, placement confirmations, client feedback, and mission closure are not documents solely because they may later be exported.
 
 Storage must support protected download paths, randomized storage keys, file metadata, version history, ownership checks, explicit sharing rules, access audit logs, and future malware scanning.
 
@@ -155,7 +155,21 @@ Issue #19 implements the first recruitment mission and assignment module:
 - transaction-scoped parent-mission row locking for lifecycle changes, closure, archival, ordinary mission writes, assignment writes, lead replacement, assignment activation eligibility, and effective salary-range validation so concurrent archival, terminal closure, assignee status changes, or partial salary updates cannot bypass invariants
 - PostgreSQL-backed tests for lifecycle/closure invariants, protected commercial fields, assignment eligibility, assignment uniqueness, lead uniqueness, IDOR protection, authorization, salary-range validation, and archival races
 
-Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, candidate-to-mission pipelines, interviews, and broader business workflow behavior remain later implementation work.
+Issue #21 implements the mission-candidate process module:
+
+- versioned nested `/v1/missions/:missionId/candidates` endpoints for process listing, creation, detail, pipeline transition, responsible-recruiter transfer, explicit client presentation, and manual integration confirmation
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService`
+- one reusable candidate linked to one recruitment mission through a permanently unique `(missionId, candidateId)` process
+- one standard client-approved pipeline with only two approved optional skips, each requiring an explicit skip flag, reason, and audit event
+- exactly one responsible recruiter at a time; responsible recruiters must be active, internal, non-archived, and actively assigned to the mission
+- transaction-scoped PostgreSQL lock ordering of parent `RecruitmentMission`, existing `MissionCandidate` when present, then parent `Candidate` for lifecycle, ownership, presentation, integration, archival-race, and duplicate-prevention writes
+- explicit presentation boundary: linking is internal-only, and client visibility starts only from the presentation action
+- manual idempotent integration confirmation increments placement count once and never closes the mission automatically
+- live candidate compensation and consent fields are redacted unless the caller has the dedicated candidate permissions; internal process notes require mission-candidate note permission
+- PostgreSQL-backed tests for permanent uniqueness, concurrent duplicate creation, pipeline transitions and optional skips, responsible-recruiter transfer, presentation visibility, manual placement confirmation, IDOR, protected-field redaction, candidate archival races, and mission archival races
+
+Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, interviews, evaluations, offers, structured client feedback, and broader business workflow behavior remain later implementation work.
 
 ### Audit Logging
 

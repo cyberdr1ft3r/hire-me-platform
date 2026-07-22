@@ -9,4 +9,13 @@ export const MISSION_PERMISSIONS = {
   MISSION_ASSIGNMENTS_MANAGE: 'mission_assignments:manage',
   MISSION_COMMERCIAL_DATA_VIEW: 'mission_commercial_data:view',
   MISSION_COMMERCIAL_DATA_UPDATE: 'mission_commercial_data:update',
+  MISSION_CANDIDATES_VIEW: 'mission_candidates:view',
+  MISSION_CANDIDATES_CREATE: 'mission_candidates:create',
+  MISSION_CANDIDATES_TRANSITION: 'mission_candidates:transition',
+  MISSION_CANDIDATES_TRANSFER: 'mission_candidates:transfer',
+  MISSION_CANDIDATES_PRESENT: 'mission_candidates:present',
+  MISSION_CANDIDATE_NOTES_VIEW: 'mission_candidate_notes:view',
+  MISSION_CANDIDATE_NOTES_MANAGE: 'mission_candidate_notes:manage',
+  MISSION_CANDIDATES_OUTCOME_MANAGE: 'mission_candidates:outcome:manage',
+  MISSION_CANDIDATES_INTEGRATION_CONFIRM: 'mission_candidates:integration:confirm',
 } as const;

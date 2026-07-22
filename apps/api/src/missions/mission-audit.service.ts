@@ -12,7 +12,7 @@ export class MissionAuditService {
     context: RequestContext,
     options: {
       actorUserId: string;
-      entityType: 'RecruitmentMission' | 'MissionRecruiter';
+      entityType: 'RecruitmentMission' | 'MissionRecruiter' | 'MissionCandidate';
       entityId?: string;
       metadataSummary: string;
     },
