@@ -84,12 +84,23 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `client_contacts:update`
 - `client_contacts:status:manage`
 - `client_contacts:archive`
+- `candidates:view`
+- `candidates:create`
+- `candidates:update`
+- `candidates:status:manage`
+- `candidates:archive`
+- `candidate_profile:view`
+- `candidate_profile:manage`
+- `candidate_compensation:view`
+- `candidate_compensation:update`
+- `candidate_consent:view`
+- `candidate_consent:manage`
 - `messages:view`
 - `messages:create`
 - `training_enrollments:manage`
 - `mission_assignments:manage`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Administration Permissions
 
@@ -129,6 +140,30 @@ Commercial client fields require `commercial_data:access` in addition to ordinar
 
 Client archival and every dependent client/contact write use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `Client`. This prevents concurrent contact creation or ordinary client/contact mutation from committing after client archival. When archival wins the race, the dependent write receives the stable conflict code `CLIENT_ARCHIVED`.
 
+## Implemented Candidate Permissions
+
+Issue #17 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `candidates:view` | List/search candidate master records and read safe candidate detail. |
+| `candidates:create` | Create candidate master records without automatic merging. |
+| `candidates:update` | Update approved reusable candidate master fields. Compensation and consent fields require their dedicated permissions. |
+| `candidates:status:manage` | Move candidates through non-archival lifecycle transitions. |
+| `candidates:archive` | Archive candidates and active structured profile records without physical deletion. |
+| `candidate_profile:view` | Read structured candidate skills, languages, work experience, and education. |
+| `candidate_profile:manage` | Create, update, and archive structured candidate skills, languages, work experience, and education. |
+| `candidate_compensation:view` | Read salary expectation fields. |
+| `candidate_compensation:update` | Create or update salary expectation fields. |
+| `candidate_consent:view` | Read candidate consent status and recorded timestamp. |
+| `candidate_consent:manage` | Create or update candidate consent fields. |
+
+Development seed mapping gives normal candidate/profile permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad candidate permissions until mission assignment, team, assigned-record, guest sharing, and client-portal row scopes are implemented.
+
+Candidate detail and mutation responses are shaped by the caller's effective permissions independently. A caller with `candidates:create`, `candidates:update`, `candidates:status:manage`, or `candidates:archive` but without `candidate_profile:view` receives empty structured profile arrays for skills, languages, work experience, and education. Candidate listing responses do not include structured profile arrays, and profile-backed candidate search is available only when `candidate_profile:view` is effective. Candidate compensation and consent fields require their dedicated permissions even when ordinary candidate permissions are present. Frontend hiding is only a usability layer; the API enforces this rule.
+
+Candidate archival and every dependent candidate/profile write use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `Candidate`. This prevents concurrent profile child creation or ordinary candidate/profile mutation from committing after candidate archival. When archival wins the race, the dependent write receives the stable conflict code `CANDIDATE_ARCHIVED`.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
@@ -142,7 +177,7 @@ Client archival and every dependent client/contact write use one PostgreSQL conc
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
@@ -164,7 +199,8 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Whether client users can upload documents.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
-- Final business-module permission-code catalog and route-to-permission map beyond administration and client CRM.
+- Final business-module permission-code catalog and route-to-permission map beyond administration, client CRM, and candidate profile CRM.
+- Whether candidate compensation and consent permissions should be further split by salary expectation, offer compensation, consent history, privacy preference, and retention action.
 
 ## Risks
 

@@ -134,7 +134,18 @@ Issue #15 implements the first client CRM business module:
 - transaction-scoped parent-client row locking for client archival and every dependent client/contact write so concurrent archival cannot be bypassed by a later ordinary mutation
 - PostgreSQL-backed tests for per-client contact email uniqueness, IDOR protection, lifecycle and archival rules, concurrent archival races, authorization, and safe audit metadata
 
-Candidates, missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, and broader business workflow behavior remain later implementation work.
+Issue #17 implements the first candidate master/profile business module:
+
+- versioned `/v1/candidates` endpoints for candidate listing, creation, detail, updates, lifecycle status changes, archival, and structured nested skills, languages, work experience, and education list/create/update/archive operations
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService`
+- explicit candidate, candidate-profile, candidate-compensation, and candidate-consent permission codes with deny-by-default behavior for unresolved row scopes
+- candidate detail and mutation responses shaped by the caller's effective permissions, so mutation permissions do not imply structured profile visibility
+- compensation and consent fields returned or accepted only when their dedicated permissions are effective
+- transaction-scoped parent-candidate row locking for candidate archival and every dependent candidate/profile write so concurrent archival cannot be bypassed by a later ordinary mutation
+- PostgreSQL-backed tests for normalized-email duplicate rejection, IDOR protection, lifecycle and archival rules, concurrent archival races, authorization, profile response redaction, sensitive field gating, and safe audit metadata
+
+Missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, and broader business workflow behavior remain later implementation work.
 
 ### Audit Logging
 
@@ -274,6 +285,7 @@ flowchart TB
 
 - A shared package can accidentally expose server-only types or secrets to the frontend if boundaries are weak.
 - Missing record-scope checks can create insecure direct object reference exposure.
+- Candidate duplicate handling remains intentionally conservative until review and merge workflows are designed.
 - Document storage without protected download paths can expose CVs and HR files.
 - Audit logs can become sensitive data stores if they capture full payloads.
 - Integration jobs can leak confidential data if logging and retry metadata are not sanitized.

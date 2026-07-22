@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** First CRM business module foundation
-**Health:** PR #16 lifecycle/concurrency fix passed local quality and PostgreSQL validation; draft PR CI is pending.
+**Phase:** Core recruitment CRM foundation
+**Health:** PR #18 blocking permission-boundary fix passed local quality and PostgreSQL validation.
 **Current blocker:** None locally.
-**Next executable development task:** Review PR #16 after CI completes.
+**Next executable development task:** Review draft PR #18.
 
 ## Active work
 
@@ -18,7 +18,8 @@ Status owner: repository maintainer
 | Issue #3 | Complete | Implement the foundational Prisma schema and database lifecycle | No action |
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
 | Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
-| Issue #15 | In progress | Implement client organization and client-contact CRM | Confirm PR #16 CI and review |
+| Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
+| Issue #17 | In progress | Implement reusable candidate master records and structured candidate profiles | Review draft PR #18 |
 
 ## Completed foundation work
 
@@ -31,6 +32,7 @@ Status owner: repository maintainer
 - Issue #3 completed through merged PR #9, establishing the foundational Prisma schema, migration, role/permission seed, API-owned Prisma boundary, and database lifecycle checks.
 - Issue #10 completed through merged PR #11, establishing local authentication, Argon2id password credentials, rotating refresh sessions, reuse detection, secure cookies, normalized permission resolution, deny-by-default guards, and safe authentication audit logs.
 - Issue #13 completed through merged PR #14, establishing secured internal user administration, permission-code authorization, safe DTOs, active-user authorization checks, session revocation, and safe administration audit logs.
+- Issue #15 completed through merged PR #16, establishing client organization and client-contact CRM, commercial-data gating, archival lifecycle rules, parent-client concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -72,7 +74,7 @@ Status owner: repository maintainer
 
 ## Issue #15 Verification State
 
-- Client organization and client contact CRM is implemented on branch `feat/client-contact-crm`.
+- Client organization and client contact CRM is merged through PR #16.
 - The API exposes permission-code guarded `/v1/clients` endpoints with shared Zod contracts, safe DTOs, contact ownership checks for nested routes, archival lifecycles, and safe audit summaries.
 - Client contacts keep normalized email uniqueness within one client; the same normalized email may exist under different clients.
 - Client archive is transactional and archives active contacts under the same client without physical deletion.
@@ -81,6 +83,20 @@ Status owner: repository maintainer
 - Commercial client fields require `commercial_data:access`; ordinary client access receives `commercial: null`.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, fresh migration deploy, migration reset, seed twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
+
+## Issue #17 Verification State
+
+- Candidate master/profile implementation is in progress on branch `feat/candidate-profiles`.
+- The API exposes permission-code guarded `/v1/candidates` endpoints with shared Zod contracts, safe DTOs, structured skills/languages/work-experience/education nested routes, candidate-child ownership checks, archival lifecycles, and safe audit summaries.
+- Candidate normalized email uses the existing global unique constraint and rejects duplicates without automatic merging.
+- Candidate archival and dependent candidate/profile writes share one transaction-scoped PostgreSQL row lock on the parent `Candidate`.
+- Candidate compensation fields require `candidate_compensation:*` permissions; candidate consent fields require `candidate_consent:*` permissions.
+- Normal candidate/profile permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; only `SUPER_ADMIN` receives candidate compensation and consent permissions by default.
+- PR #18 blocking security review was addressed by making candidate detail and mutation responses respect `candidate_profile:view` independently from candidate mutation permissions. Callers without `candidate_profile:view` receive empty structured profile arrays even when create/update/status/archive mutations are allowed.
+- Local checks after the blocking fix passed: `pnpm prisma:validate`, `pnpm prisma:generate`, fresh migration deploy, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm test:db` now includes a PostgreSQL-backed regression test for a synthetic mutation-capable role without `candidate_profile:view`; 42 database integration tests passed locally.
+- Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
+- Draft PR #18 is open, linked with `Closes #17`, and GitHub Actions run `29875687083` passed PostgreSQL Docker Compose health, migration/seed/database integration tests, and quality checks.
 
 ## Current open technical questions
 
@@ -93,15 +109,14 @@ Status owner: repository maintainer
 - Production file-storage provider.
 - Advanced-search implementation.
 - Real-time messaging and notification transport.
-- Detailed per-module permission names beyond the implemented administration and client CRM catalog.
+- Detailed per-module permission names beyond the implemented administration, client CRM, and candidate profile catalog.
 - Dashboard formulas and revenue authorization rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Confirm Issue #15 draft PR CI.
-2. Review client organization and contact authorization, lifecycle transitions, archival behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
-3. Merge Issue #15 only after maintainer approval.
+1. Review candidate authorization, lifecycle transitions, archival behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
+2. Merge Issue #17 only after maintainer approval.
 
 ## Status Update Rules
 

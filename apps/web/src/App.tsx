@@ -7,21 +7,31 @@ import type {
   AdminUserDetail,
   AdminUserSummary,
   AuthenticatedUser,
+  CandidateDetail,
+  CandidateSummary,
   ClientContactSummary,
   ClientSummary,
 } from '@hire-me/contracts';
 
 import {
+  archiveCandidate,
   archiveClient,
   archiveClientContact,
   assignAdminRole,
+  createCandidate,
+  createCandidateEducation,
+  createCandidateLanguage,
+  createCandidateSkill,
+  createCandidateWorkExperience,
   createClient,
   createClientContact,
   createAdminUser,
   fetchHealthStatus,
   fetchMeWithRefresh,
   getClient,
+  getCandidate,
   getAdminUser,
+  listCandidates,
   listClientContacts,
   listClients,
   listAdminPermissions,
@@ -34,6 +44,8 @@ import {
   revokeAllAdminSessions,
   updateAdminUser,
   updateAdminUserStatus,
+  updateCandidate,
+  updateCandidateStatus,
   updateClient,
   updateClientContact,
   updateClientContactStatus,
@@ -46,10 +58,11 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients';
+type Route = 'home' | 'admin' | 'clients' | 'candidates';
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
 const CLIENTS_ROUTE_PERMISSION = 'clients:view';
+const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -61,7 +74,9 @@ export function App() {
       ? 'admin'
       : window.location.pathname === '/clients'
         ? 'clients'
-        : 'home',
+        : window.location.pathname === '/candidates'
+          ? 'candidates'
+          : 'home',
   );
 
   useEffect(() => {
@@ -160,12 +175,19 @@ export function App() {
     window.history.pushState(
       {},
       '',
-      nextRoute === 'admin' ? '/admin' : nextRoute === 'clients' ? '/clients' : '/',
+      nextRoute === 'admin'
+        ? '/admin'
+        : nextRoute === 'clients'
+          ? '/clients'
+          : nextRoute === 'candidates'
+            ? '/candidates'
+            : '/',
     );
   }
 
   const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
   const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
+  const canOpenCandidates = Boolean(user?.permissions.includes(CANDIDATES_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -219,6 +241,14 @@ export function App() {
             <button
               type="button"
               onClick={() => {
+                navigate('candidates');
+              }}
+            >
+              Candidates
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 void handleLogout();
               }}
             >
@@ -264,6 +294,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Clients">
             <h2>Clients</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'candidates' && user && accessToken ? (
+        canOpenCandidates ? (
+          <CandidatesPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Candidates">
+            <h2>Candidates</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -1051,6 +1091,432 @@ function ClientsPanel({
             </>
           ) : (
             <p>Select a client to inspect its profile, lifecycle, and contacts.</p>
+          )}
+          {message ? <p role="status">{message}</p> : null}
+          {error ? <p role="alert">{error}</p> : null}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function CandidatesPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [candidates, setCandidates] = useState<CandidateSummary[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const canCreate = permissions.includes('candidates:create');
+  const canUpdate = permissions.includes('candidates:update');
+  const canManageStatus = permissions.includes('candidates:status:manage');
+  const canArchive = permissions.includes('candidates:archive');
+  const canManageProfile = permissions.includes('candidate_profile:manage');
+  const canSeeCompensation = permissions.includes('candidate_compensation:view');
+  const canSeeConsent = permissions.includes('candidate_consent:view');
+
+  useEffect(() => {
+    void loadCandidates();
+  }, []);
+
+  async function loadCandidates(nextSearch = search, nextStatus = statusFilter): Promise<void> {
+    const response = await listCandidates({
+      accessToken,
+      search: nextSearch,
+      status: nextStatus || undefined,
+      pageSize: 20,
+    });
+    setCandidates(response.candidates);
+  }
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadCandidates(search, statusFilter);
+  }
+
+  async function selectCandidate(candidateId: string): Promise<void> {
+    const response = await getCandidate(accessToken, candidateId);
+    setSelectedCandidate(response.candidate);
+    setMessage(null);
+    setError(null);
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const created = await createCandidate(accessToken, {
+        displayName: formValue(formData, 'displayName'),
+        email: optionalFormValue(formData, 'email'),
+        phone: optionalFormValue(formData, 'phone'),
+        city: optionalFormValue(formData, 'city'),
+        country: optionalFormValue(formData, 'country'),
+        currentJobTitle: optionalFormValue(formData, 'currentJobTitle'),
+        source: optionalFormValue(formData, 'source'),
+      });
+      form.reset();
+      setSelectedCandidate(created.candidate);
+      setMessage('Candidate created.');
+      await loadCandidates();
+    } catch {
+      setError('Candidate could not be created.');
+    }
+  }
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedCandidate) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateCandidate(accessToken, selectedCandidate.id, {
+      displayName: formValue(formData, 'displayName', selectedCandidate.displayName),
+      email: nullableFormValue(formData, 'email'),
+      phone: nullableFormValue(formData, 'phone'),
+      city: nullableFormValue(formData, 'city'),
+      country: nullableFormValue(formData, 'country'),
+      currentJobTitle: nullableFormValue(formData, 'currentJobTitle'),
+      professionalSummary: nullableFormValue(formData, 'professionalSummary'),
+      source: nullableFormValue(formData, 'source'),
+    });
+    setSelectedCandidate(updated.candidate);
+    setMessage('Candidate updated.');
+    await loadCandidates();
+  }
+
+  async function changeStatus(status: 'ACTIVE' | 'INACTIVE' | 'TALENT_POOL'): Promise<void> {
+    if (!selectedCandidate || !window.confirm(`Change this candidate status to ${status}?`)) {
+      return;
+    }
+    const updated = await updateCandidateStatus(accessToken, selectedCandidate.id, { status });
+    setSelectedCandidate(updated.candidate);
+    setMessage(`Candidate status changed to ${status}.`);
+    await loadCandidates();
+  }
+
+  async function archiveSelected(): Promise<void> {
+    if (!selectedCandidate || !window.confirm('Archive this candidate profile?')) {
+      return;
+    }
+    const archived = await archiveCandidate(accessToken, selectedCandidate.id);
+    setSelectedCandidate(archived.candidate);
+    setMessage('Candidate archived.');
+    await loadCandidates();
+  }
+
+  async function handleAddSkill(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedCandidate) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createCandidateSkill(accessToken, selectedCandidate.id, {
+      name: formValue(formData, 'name'),
+      level: optionalFormValue(formData, 'level'),
+    });
+    form.reset();
+    await selectCandidate(selectedCandidate.id);
+    setMessage('Skill added.');
+  }
+
+  async function handleAddLanguage(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedCandidate) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createCandidateLanguage(accessToken, selectedCandidate.id, {
+      language: formValue(formData, 'language'),
+      proficiency: formValue(formData, 'proficiency'),
+    });
+    form.reset();
+    await selectCandidate(selectedCandidate.id);
+    setMessage('Language added.');
+  }
+
+  async function handleAddExperience(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedCandidate) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createCandidateWorkExperience(accessToken, selectedCandidate.id, {
+      employer: formValue(formData, 'employer'),
+      title: formValue(formData, 'title'),
+      startDate: optionalFormValue(formData, 'startDate'),
+      endDate: optionalFormValue(formData, 'endDate'),
+      isCurrent: formData.get('isCurrent') === 'on',
+    });
+    form.reset();
+    await selectCandidate(selectedCandidate.id);
+    setMessage('Experience added.');
+  }
+
+  async function handleAddEducation(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedCandidate) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createCandidateEducation(accessToken, selectedCandidate.id, {
+      institution: formValue(formData, 'institution'),
+      qualification: formValue(formData, 'qualification'),
+      field: optionalFormValue(formData, 'field'),
+    });
+    form.reset();
+    await selectCandidate(selectedCandidate.id);
+    setMessage('Education added.');
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Candidates">
+      <div className="admin-grid">
+        <section aria-label="Candidate list">
+          <h2>Candidates</h2>
+          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
+            <label>
+              Search
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                name="search"
+              />
+            </label>
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                name="status"
+              >
+                <option value="">Any</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="TALENT_POOL">Talent pool</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </label>
+            <button type="submit">Search candidates</button>
+          </form>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Title</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((candidate) => (
+                <tr key={candidate.id}>
+                  <td>
+                    <button type="button" onClick={() => void selectCandidate(candidate.id)}>
+                      {candidate.displayName}
+                    </button>
+                  </td>
+                  <td>{candidate.status}</td>
+                  <td>{candidate.currentJobTitle ?? 'None'}</td>
+                  <td>
+                    {[candidate.city, candidate.country].filter(Boolean).join(', ') || 'None'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <form
+            className="stacked-form"
+            aria-label="Create candidate"
+            onSubmit={(event) => void handleCreate(event)}
+          >
+            <h3>Create candidate</h3>
+            <input name="displayName" placeholder="Candidate name" required />
+            <input name="email" type="email" placeholder="Candidate email" />
+            <input name="phone" placeholder="Phone" />
+            <input name="currentJobTitle" placeholder="Current job title" />
+            <input name="city" placeholder="City" />
+            <input name="country" placeholder="Country" />
+            <input name="source" placeholder="Source" />
+            <button type="submit" disabled={!canCreate}>
+              Create candidate
+            </button>
+          </form>
+        </section>
+
+        <section aria-label="Candidate detail">
+          {selectedCandidate ? (
+            <>
+              <h2>{selectedCandidate.displayName}</h2>
+              <p>Status: {selectedCandidate.status}</p>
+              <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
+                <input
+                  name="displayName"
+                  aria-label="Candidate name"
+                  defaultValue={selectedCandidate.displayName}
+                />
+                <input
+                  name="email"
+                  type="email"
+                  aria-label="Candidate email"
+                  defaultValue={selectedCandidate.email ?? ''}
+                />
+                <input
+                  name="phone"
+                  aria-label="Candidate phone"
+                  defaultValue={selectedCandidate.phone ?? ''}
+                />
+                <input
+                  name="currentJobTitle"
+                  aria-label="Current job title"
+                  defaultValue={selectedCandidate.currentJobTitle ?? ''}
+                />
+                <input name="city" aria-label="City" defaultValue={selectedCandidate.city ?? ''} />
+                <input
+                  name="country"
+                  aria-label="Country"
+                  defaultValue={selectedCandidate.country ?? ''}
+                />
+                <input
+                  name="source"
+                  aria-label="Source"
+                  defaultValue={selectedCandidate.source ?? ''}
+                />
+                <textarea
+                  name="professionalSummary"
+                  aria-label="Professional summary"
+                  defaultValue={selectedCandidate.professionalSummary ?? ''}
+                />
+                <button
+                  type="submit"
+                  disabled={!canUpdate || selectedCandidate.status === 'ARCHIVED'}
+                >
+                  Update candidate
+                </button>
+              </form>
+
+              <div className="action-row">
+                <button
+                  type="button"
+                  disabled={!canManageStatus}
+                  onClick={() => void changeStatus('ACTIVE')}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManageStatus}
+                  onClick={() => void changeStatus('INACTIVE')}
+                >
+                  Inactive
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManageStatus}
+                  onClick={() => void changeStatus('TALENT_POOL')}
+                >
+                  Talent pool
+                </button>
+                <button type="button" disabled={!canArchive} onClick={() => void archiveSelected()}>
+                  Archive candidate
+                </button>
+              </div>
+
+              {canSeeCompensation ? (
+                <p>
+                  Compensation:{' '}
+                  {selectedCandidate.compensation?.salaryExpectationCents
+                    ? `${selectedCandidate.compensation.salaryExpectationCents} ${selectedCandidate.compensation.salaryExpectationCurrency ?? ''}`
+                    : 'None'}
+                </p>
+              ) : null}
+              {canSeeConsent ? (
+                <p>Consent: {selectedCandidate.consent?.consentStatus ?? 'Hidden'}</p>
+              ) : null}
+
+              <h3>Skills</h3>
+              <p>{selectedCandidate.skills.map((skill) => skill.name).join(', ') || 'None'}</p>
+              {canManageProfile ? (
+                <form className="inline-form" onSubmit={(event) => void handleAddSkill(event)}>
+                  <input name="name" placeholder="Skill" required />
+                  <input name="level" placeholder="Level" />
+                  <button type="submit" disabled={selectedCandidate.status === 'ARCHIVED'}>
+                    Add skill
+                  </button>
+                </form>
+              ) : null}
+
+              <h3>Languages</h3>
+              <p>
+                {selectedCandidate.languages
+                  .map((language) => `${language.language} ${language.proficiency}`)
+                  .join(', ') || 'None'}
+              </p>
+              {canManageProfile ? (
+                <form className="inline-form" onSubmit={(event) => void handleAddLanguage(event)}>
+                  <input name="language" placeholder="Language" required />
+                  <input name="proficiency" placeholder="Proficiency" required />
+                  <button type="submit" disabled={selectedCandidate.status === 'ARCHIVED'}>
+                    Add language
+                  </button>
+                </form>
+              ) : null}
+
+              <h3>Experience</h3>
+              <p>
+                {selectedCandidate.workExperiences
+                  .map((experience) => `${experience.title} at ${experience.employer}`)
+                  .join(', ') || 'None'}
+              </p>
+              {canManageProfile ? (
+                <form className="inline-form" onSubmit={(event) => void handleAddExperience(event)}>
+                  <input name="employer" placeholder="Employer" required />
+                  <input name="title" placeholder="Title" required />
+                  <input name="startDate" placeholder="Start date" />
+                  <input name="endDate" placeholder="End date" />
+                  <label>
+                    Current
+                    <input name="isCurrent" type="checkbox" />
+                  </label>
+                  <button type="submit" disabled={selectedCandidate.status === 'ARCHIVED'}>
+                    Add experience
+                  </button>
+                </form>
+              ) : null}
+
+              <h3>Education</h3>
+              <p>
+                {selectedCandidate.education
+                  .map((education) => education.qualification)
+                  .join(', ') || 'None'}
+              </p>
+              {canManageProfile ? (
+                <form className="inline-form" onSubmit={(event) => void handleAddEducation(event)}>
+                  <input name="institution" placeholder="Institution" required />
+                  <input name="qualification" placeholder="Qualification" required />
+                  <input name="field" placeholder="Field" />
+                  <button type="submit" disabled={selectedCandidate.status === 'ARCHIVED'}>
+                    Add education
+                  </button>
+                </form>
+              ) : null}
+            </>
+          ) : (
+            <p>Select a candidate to inspect profile, lifecycle, and structured data.</p>
           )}
           {message ? <p role="status">{message}</p> : null}
           {error ? <p role="alert">{error}</p> : null}

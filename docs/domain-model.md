@@ -40,13 +40,57 @@ This document defines conceptual entities and relationships for the first implem
 ### Candidate
 
 - Purpose and owner: person considered for recruitment, training, or coaching; owned by recruitment operations.
-- Important attributes: id, name, contact details, status, source, consent status, salary expectations where approved, LinkedIn profile link where provided.
-- Relationships: has candidate documents; participates in mission pipelines through `MissionCandidate`; may participate in training through `TrainingEnrollment`; may be referenced by documents and tasks.
+- Important attributes: id, display name, optional first name, optional last name, contact details, status, source, consent status, salary expectations where approved, LinkedIn profile link where provided, availability notice, current job title, professional summary, city, and country.
+- Relationships: has structured profile records through `CandidateSkill`, `CandidateLanguage`, `CandidateWorkExperience`, and `CandidateEducation`; has candidate documents; participates in mission pipelines through `MissionCandidate`; may participate in training through `TrainingEnrollment`; may be referenced by documents and tasks.
 - Cardinality: one candidate can be linked to many recruitment missions and training enrollments.
 - Lifecycle: active, inactive, talent pool, archived.
 - Sensitive fields: contact details, CV information, HR notes, salary expectations, evaluations, documents.
-- Uniqueness rules: duplicate detection may use normalized email, phone, LinkedIn profile, and CV metadata; final matching rules are unresolved.
+- Uniqueness rules: duplicate detection may use normalized email, phone, LinkedIn profile, and CV metadata; final matching rules are unresolved. The Issue #17 implementation preserves the existing global `Candidate.normalizedEmail` uniqueness constraint and rejects duplicates rather than automatically merging candidate records.
 - Audit requirements: creation, sensitive updates, export, archival, talent pool movement, and document access should be audited.
+
+### CandidateSkill
+
+- Purpose and owner: structured skill attached to one candidate; owned by recruitment operations.
+- Important attributes: id, candidate id, name, level, years, last used, archived timestamp.
+- Relationships: belongs to one `Candidate`.
+- Cardinality: one candidate can have many skills.
+- Lifecycle: active, archived.
+- Sensitive fields: skill profile data can reveal candidate employability and HR context.
+- Uniqueness rules: unresolved; duplicate skill names are allowed for now because normalization and taxonomy are later choices.
+- Audit requirements: creation, update, archival, and access through candidate profile reads should be audited where sensitive.
+
+### CandidateLanguage
+
+- Purpose and owner: structured language proficiency attached to one candidate; owned by recruitment operations.
+- Important attributes: id, candidate id, language, proficiency, archived timestamp.
+- Relationships: belongs to one `Candidate`.
+- Cardinality: one candidate can have many languages.
+- Lifecycle: active, archived.
+- Sensitive fields: language profile data can reveal candidate background and hiring context.
+- Uniqueness rules: unresolved; no language taxonomy is implemented yet.
+- Audit requirements: creation, update, archival, and access through candidate profile reads should be audited where sensitive.
+
+### CandidateWorkExperience
+
+- Purpose and owner: structured work-history entry attached to one candidate; owned by recruitment operations.
+- Important attributes: id, candidate id, employer, title, start date, end date, current-role flag, description, archived timestamp.
+- Relationships: belongs to one `Candidate`.
+- Cardinality: one candidate can have many work experiences.
+- Lifecycle: active, archived.
+- Sensitive fields: employer history, role history, and descriptions.
+- Uniqueness rules: unresolved; duplicate experience detection is deferred.
+- Audit requirements: creation, update, archival, and access through candidate profile reads should be audited where sensitive.
+
+### CandidateEducation
+
+- Purpose and owner: structured education-history entry attached to one candidate; owned by recruitment operations.
+- Important attributes: id, candidate id, institution, qualification, field, start date, end date, description, archived timestamp.
+- Relationships: belongs to one `Candidate`.
+- Cardinality: one candidate can have many education entries.
+- Lifecycle: active, archived.
+- Sensitive fields: education history and candidate background.
+- Uniqueness rules: unresolved; duplicate education detection is deferred.
+- Audit requirements: creation, update, archival, and access through candidate profile reads should be audited where sensitive.
 
 ### CandidateDocument
 
@@ -330,6 +374,10 @@ erDiagram
     User ||--o{ MissionAssignment : assigned_to
 
     Candidate ||--o{ CandidateDocument : has
+    Candidate ||--o{ CandidateSkill : has
+    Candidate ||--o{ CandidateLanguage : has
+    Candidate ||--o{ CandidateWorkExperience : has
+    Candidate ||--o{ CandidateEducation : has
     CandidateDocument ||--o{ CandidateDocumentVersion : versions
     Candidate ||--o{ MissionCandidate : considered_for
     RecruitmentMission ||--o{ MissionCandidate : includes
@@ -382,6 +430,7 @@ erDiagram
 - A `ClientContact` maps to a `User` only when client portal access is enabled.
 - `MissionAssignment` replaces a single mission owner as the model for multiple recruiters and contributors.
 - `MissionCandidate` preserves candidate history across multiple recruitment missions.
+- `CandidateSkill`, `CandidateLanguage`, `CandidateWorkExperience`, and `CandidateEducation` preserve reusable candidate master profile data outside mission-specific pipeline state.
 - `CandidateEvaluation` can be tied to an `Interview`, `MissionCandidate`, and evaluator `User`.
 - `TrainingEnrollment` owns participant-specific program registration, approval, payment, evaluation, certificate, satisfaction, coaching, and follow-up state.
 - `TrainingSessionParticipation` owns per-session attendance and session-level outcomes.
@@ -403,6 +452,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Prisma is owned by `apps/api`. The generated Prisma client uses Prisma 6 `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`, which is ignored and regenerated rather than committed. API persistence code, the development seed, and database integration tests import through `apps/api/src/persistence/prisma/generated-client.ts` so the web app and contracts package remain ORM-independent.
 - Issue #10 extends the physical schema with `PasswordCredential` and `RefreshSession`. `PasswordCredential` stores one Argon2id password hash per `User`. `RefreshSession` stores only hashed opaque refresh tokens, session-family metadata, expiry, revocation, reuse-detection, lineage, and hashed request metadata.
 - Issue #15 extends the physical client schema with optional website, main phone, country, and city fields. It implements client and client-contact APIs with shared Zod DTOs, no physical deletion, transactional client archive that archives active contacts, per-client contact normalized-email uniqueness, and safe audit summaries. Client archival and dependent client/contact writes share a transaction-scoped PostgreSQL row lock on the parent `Client`, so an archive racing contact creation, client updates, client status changes, contact updates, contact status changes, or contact archival serializes safely; writes that run after archival fail with `409 CLIENT_ARCHIVED`. Commercial client fields are present in the database but returned only to callers with `commercial_data:access`; callers without that permission receive `commercial: null`.
+- Issue #17 extends the physical candidate schema with reusable candidate master profile fields and structured child records for skills, languages, work experience, and education. Candidate and child records use archival, not physical deletion. Candidate archival and dependent candidate/profile writes share a transaction-scoped PostgreSQL row lock on the parent `Candidate`, so archival racing child creation or ordinary profile updates serializes safely; writes that observe the archived parent fail with `409 CANDIDATE_ARCHIVED`. Compensation fields require `candidate_compensation:update` to write and `candidate_compensation:view` to read; consent fields require `candidate_consent:manage` to write and `candidate_consent:view` to read. The implementation keeps the foundational global `Candidate.normalizedEmail` uniqueness constraint as a stricter duplicate-prevention rule than the conceptual non-archived-only option.
 
 ## Assumptions
 
@@ -411,6 +461,8 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`.
 - Archival is preferred over deletion for records that carry recruitment, HR, client, commercial, message, document, training, or audit history.
 - Archived clients are terminal for Issue #15 and cannot receive ordinary updates or new contacts. Archived contacts are also terminal until a future explicitly approved reactivation workflow exists.
+- Archived candidates are terminal for Issue #17 and cannot receive ordinary updates or new profile child records. Archived candidate profile children are terminal until a future explicitly approved reactivation workflow exists.
+- Candidate compensation and consent are stored on `Candidate` for Issue #17 and protected by dedicated permissions; a later migration can split them into dedicated entities if retention or history requirements demand it.
 - Message attachments use protected `Document` records.
 - PDF, Word-compatible, and Excel-compatible outputs should be represented as `DocumentVersion` records when generated.
 
@@ -419,7 +471,9 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Whether client portal access supports one `User` across multiple `Client` records.
 - Whether client organization names should become globally unique, tenant-scoped unique, or remain duplicate-tolerant.
 - Whether archived client contacts can later be reactivated through a controlled workflow.
-- Whether candidate consent, privacy preferences, and retention deadlines need dedicated MVP entities.
+- Whether candidate consent, privacy preferences, compensation history, and retention deadlines need dedicated MVP entities beyond the Issue #17 protected candidate fields.
+- Whether candidate normalized-email uniqueness should remain global or become non-archived-only after a deliberate duplicate-management workflow exists.
+- Whether candidate skills and languages need controlled taxonomies rather than free-text values.
 - Whether document templates should be modeled separately from `Document`.
 - Whether `MissionAssignment` requires exactly one active lead recruiter per mission.
 - Exact enum names for structured `closureReason`; confirmed business closure reasons are not optional.
@@ -432,6 +486,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Missing archival rules can damage recruitment history and auditability.
 - Storing confidential notes in broad entities can make access control harder.
 - Weak uniqueness rules can create duplicate candidates, clients, client contacts, and training participants.
+- A global candidate email uniqueness constraint can block legitimate duplicate or reactivated-person workflows until duplicate-review rules are designed.
 - Document, notification, and message content can accidentally expose confidential data if summaries include too much detail.
 - Omitting `MissionAssignment` would make multiple-recruiter missions difficult to represent.
 - Omitting `TrainingEnrollment` would lose participant-specific payment, evaluation, certificate, satisfaction, coaching, and follow-up data.

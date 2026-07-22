@@ -457,4 +457,137 @@ describe('App', () => {
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
     );
   });
+
+  it('loads candidate profile data and creates a candidate through shared contracts', async () => {
+    const userId = '57baf24e-8837-4378-aa0d-e98f0473f667';
+    const candidateId = '8a68ec11-453b-4f33-b65e-c09642ebc69b';
+    const candidateSummary = {
+      id: candidateId,
+      displayName: 'Synthetic Candidate',
+      firstName: null,
+      lastName: null,
+      email: 'candidate@example.test',
+      normalizedEmail: 'candidate@example.test',
+      phone: null,
+      city: 'Paris',
+      country: 'France',
+      currentJobTitle: 'Recruiter',
+      professionalSummary: null,
+      linkedinUrl: null,
+      status: 'ACTIVE',
+      source: 'Synthetic',
+      sourceDetail: null,
+      availabilityNotice: null,
+      compensation: null,
+      consent: null,
+      archivedAt: null,
+      createdAt: '2026-07-21T10:00:00.000Z',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+    };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: 'ok',
+              service: 'hire-me-api',
+              timestamp: '2026-07-21T10:00:00.000Z',
+              uptimeSeconds: 1,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              accessToken: 'synthetic-access-token',
+              accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+              user: {
+                id: userId,
+                displayName: 'Candidate Operator',
+                email: 'candidate-operator@example.test',
+                permissions: ['candidates:view', 'candidates:create'],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.includes('/v1/candidates?')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              candidates: [candidateSummary],
+              pagination: { page: 1, pageSize: 20, total: 1 },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.endsWith('/v1/candidates') && init?.method === 'POST') {
+        expect((init.headers as Headers).get('Authorization')).toBe(
+          'Bearer synthetic-access-token',
+        );
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              candidate: {
+                ...candidateSummary,
+                id: 'a22c0929-9ac3-4d0e-ad26-760814c6465d',
+                displayName: 'Created Candidate',
+                email: 'created.candidate@example.test',
+                normalizedEmail: 'created.candidate@example.test',
+                skills: [],
+                languages: [],
+                workExperiences: [],
+                education: [],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'candidate-operator@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /candidates/i }));
+
+    expect(await screen.findByRole('heading', { name: /candidates/i })).toBeVisible();
+    expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
+
+    fireEvent.change(screen.getByPlaceholderText(/candidate name/i), {
+      target: { value: 'Created Candidate' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/candidate email/i), {
+      target: { value: 'created.candidate@example.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create candidate/i }));
+
+    expect(await screen.findByText('Candidate created.')).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/v1/candidates',
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+  });
 });
