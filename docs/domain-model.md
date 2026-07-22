@@ -150,7 +150,7 @@ This document defines conceptual entities and relationships for the first implem
 ### RecruitmentMission
 
 - Purpose and owner: client recruitment need; owned by recruitment operations.
-- Important attributes: id, client id, title, description, requirements, mission state, priority, numberOfPositions, filledPlacementCount, closureReason, closure date, commercial summary.
+- Important attributes: id, client id, title, description, requirements, mission state, priority, numberOfPositions, filledPlacementCount, location, work arrangement, engagement type, target start date, application deadline, protected salary range, closureReason, closure date, commercial summary.
 - Relationships: belongs to one client; has many mission candidates; has many assigned recruiters or contributors through `MissionAssignment`; has interviews through mission candidates, tasks, documents, notifications, and messages.
 - Cardinality: one client can own many missions; one mission can have many mission assignments and mission candidates.
 - Lifecycle: follows the recruitment mission pipeline in `docs/workflows.md`, including draft, internal validation, active, job-description approval, candidate sourcing, HR preselection, HR interviews, technical tests, candidate presentation, client interviews, final selection, offer sent, candidate integration, probation monitoring, and closure.
@@ -169,6 +169,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Lifecycle: active, inactive, archived.
 - Sensitive fields: assignment role and workload may reveal client or HR context.
 - Uniqueness rules: a user should not have duplicate active assignments with the same role on the same mission.
+- Eligibility rules: assignment activation and lead-recruiter selection require the assigned `User` to still be active, non-archived, and internal at the time of the mission-locked write.
 - Audit requirements: assignment creation, role change, lead recruiter change, deactivation, and archival should be audited.
 
 ### MissionCandidate
@@ -443,7 +444,7 @@ erDiagram
 
 Issue #3 implements the foundational Prisma schema as the first physical persistence model. It keeps the conceptual relationships above, with these explicit implementation choices:
 
-- The physical schema uses `MissionRecruiter` for the first recruiter-assignment join required by issue #3. It fulfills the approved `MissionAssignment` requirement for multiple recruiters on one `RecruitmentMission`; broader non-recruiter contributor assignment can be extended in a later scoped issue if needed.
+- The physical schema uses `MissionRecruiter` for the mission-assignment join. Issue #19 exposes this through shared mission assignment contracts and `/v1/missions/:missionId/assignments` endpoints, preserving the conceptual `MissionAssignment` relationship for multiple recruiters and contributors on one `RecruitmentMission`.
 - Business records use status enums and nullable `archivedAt` timestamps for archival. Physical deletes are restricted for history-preserving relationships such as clients with missions, mission candidates, interviews, documents, training records, conversations, and messages.
 - Normalized email fields are stored separately as `normalizedEmail` and are indexed or unique where the approved model calls for case-insensitive uniqueness.
 - `CandidateDocumentVersion` and `DocumentVersion` store protected storage metadata and version numbers. Actual file storage, malware scanning, download authorization, and generated-file production remain later implementation work.
@@ -453,6 +454,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Issue #10 extends the physical schema with `PasswordCredential` and `RefreshSession`. `PasswordCredential` stores one Argon2id password hash per `User`. `RefreshSession` stores only hashed opaque refresh tokens, session-family metadata, expiry, revocation, reuse-detection, lineage, and hashed request metadata.
 - Issue #15 extends the physical client schema with optional website, main phone, country, and city fields. It implements client and client-contact APIs with shared Zod DTOs, no physical deletion, transactional client archive that archives active contacts, per-client contact normalized-email uniqueness, and safe audit summaries. Client archival and dependent client/contact writes share a transaction-scoped PostgreSQL row lock on the parent `Client`, so an archive racing contact creation, client updates, client status changes, contact updates, contact status changes, or contact archival serializes safely; writes that run after archival fail with `409 CLIENT_ARCHIVED`. Commercial client fields are present in the database but returned only to callers with `commercial_data:access`; callers without that permission receive `commercial: null`.
 - Issue #17 extends the physical candidate schema with reusable candidate master profile fields and structured child records for skills, languages, work experience, and education. Candidate and child records use archival, not physical deletion. Candidate archival and dependent candidate/profile writes share a transaction-scoped PostgreSQL row lock on the parent `Candidate`, so archival racing child creation or ordinary profile updates serializes safely; writes that observe the archived parent fail with `409 CANDIDATE_ARCHIVED`. Compensation fields require `candidate_compensation:update` to write and `candidate_compensation:view` to read; consent fields require `candidate_consent:manage` to write and `candidate_consent:view` to read. The implementation keeps the foundational global `Candidate.normalizedEmail` uniqueness constraint as a stricter duplicate-prevention rule than the conceptual non-archived-only option.
+- Issue #19 extends the physical recruitment mission schema with approved operational fields, protected salary fields, structured closure reasons, and assignment lifecycle APIs. Mission creation locks and verifies the parent `Client` is writable. Mission updates, lifecycle changes, closure, archival, assignment writes, assignment archival, assignment activation eligibility, lead-recruiter replacement, and effective salary-range validation share a transaction-scoped PostgreSQL row lock on the parent `RecruitmentMission`; writes that observe an archived or terminal mission fail with `409 MISSION_TERMINAL`. Active duplicate assignments are prevented by a partial PostgreSQL unique index on mission, user, and role where the assignment is active and not archived. At most one active lead recruiter is enforced by a partial PostgreSQL unique index on the mission where `isLead` is true, active, and not archived. The existing physical role enum includes `LEAD_RECRUITER`, `RECRUITER`, `SOURCER`, and `CONTRIBUTOR`; Issue #19 treats `LEAD_RECRUITER` and `isLead: true` as a paired invariant.
 
 ## Assumptions
 
@@ -475,8 +477,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Whether candidate normalized-email uniqueness should remain global or become non-archived-only after a deliberate duplicate-management workflow exists.
 - Whether candidate skills and languages need controlled taxonomies rather than free-text values.
 - Whether document templates should be modeled separately from `Document`.
-- Whether `MissionAssignment` requires exactly one active lead recruiter per mission.
-- Exact enum names for structured `closureReason`; confirmed business closure reasons are not optional.
+- Whether future business rules require exactly one active lead recruiter before a mission can leave draft or validation. Issue #19 enforces zero or one active lead recruiter, not mandatory lead assignment.
 - Whether training payment status needs integration with accounting later or remains documentary/operational in V1.
 - Whether salary expectations belong directly on `Candidate`, on `MissionCandidate`, or in restricted evaluation notes.
 - Whether messaging requires read receipts, moderation, retention controls, or real-time delivery in the first implementation sequence.

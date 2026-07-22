@@ -170,7 +170,7 @@ Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific
 - `deadline_expired_without_renewal`: the deadline expired and was not renewed.
 - `positions_filled_and_candidates_integrated`: all planned positions are filled and candidates are integrated, optionally after probation validation.
 
-Successful closure with recruitment must consider `numberOfPositions` and filled-placement count. Exact enum names remain a persistence design detail, but structured closure reasons are confirmed.
+Successful closure with recruitment must consider `numberOfPositions` and filled-placement count. Issue #19 implements the structured closure reasons as `CLIENT_CLOSED_OR_CANCELED`, `CLOSED_WITHOUT_RECRUITMENT`, `DEADLINE_EXPIRED_WITHOUT_RENEWAL`, and `POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED` in shared contracts and Prisma while preserving the lowercase business values in database mappings.
 
 ### Valid Transitions
 
@@ -240,6 +240,8 @@ stateDiagram-v2
     canceled --> [*]
     archived --> [*]
 ```
+
+Issue #19 enforces the transition graph above through the API. Non-terminal moves use `PATCH /v1/missions/:missionId/status`; terminal operational closure uses `POST /v1/missions/:missionId/close` with a structured closure reason; archival uses `POST /v1/missions/:missionId/archive` after closure or cancellation. Mission closure, archival, status changes, ordinary updates, assignment writes, assignment activation eligibility, lead-recruiter replacement, and effective salary-range validation use the same parent-mission PostgreSQL row lock so concurrent archival, closure, user lifecycle changes, or partial commercial updates cannot bypass invariants.
 
 ## Training Workflow
 

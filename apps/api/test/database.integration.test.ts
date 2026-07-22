@@ -22,6 +22,10 @@ async function cleanDatabase(): Promise<void> {
   await prisma.candidateDocument.updateMany({ data: { currentVersionId: null } });
   await prisma.candidateDocumentVersion.deleteMany();
   await prisma.candidateDocument.deleteMany();
+  await prisma.candidateSkill.deleteMany();
+  await prisma.candidateLanguage.deleteMany();
+  await prisma.candidateWorkExperience.deleteMany();
+  await prisma.candidateEducation.deleteMany();
   await prisma.candidateEvaluation.deleteMany();
   await prisma.interview.deleteMany();
   await prisma.trainingSessionParticipation.deleteMany();
@@ -34,6 +38,7 @@ async function cleanDatabase(): Promise<void> {
   await prisma.clientContact.deleteMany();
   await prisma.recruitmentMission.deleteMany();
   await prisma.client.deleteMany();
+  await prisma.candidate.deleteMany();
   await prisma.conversationMember.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();

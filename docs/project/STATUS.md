@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Core recruitment CRM foundation
-**Health:** PR #18 blocking permission-boundary fix passed local quality and PostgreSQL validation.
+**Health:** Issue #19 recruitment mission/assignment implementation passed local database lifecycle, PostgreSQL integration, architecture, formatting, lint, typecheck, unit test, build, Mermaid render, and whitespace validation after PR #20 blocking-review fixes.
 **Current blocker:** None locally.
-**Next executable development task:** Review draft PR #18.
+**Next executable development task:** Review the Issue #19 draft PR.
 
 ## Active work
 
@@ -19,7 +19,8 @@ Status owner: repository maintainer
 | Issue #10 | Complete | Implement local authentication, session security, RBAC resolution, and authentication audit logs | No action |
 | Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
 | Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
-| Issue #17 | In progress | Implement reusable candidate master records and structured candidate profiles | Review draft PR #18 |
+| Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
+| Issue #19 | In progress | Implement recruitment missions and multiple recruiter/contributor assignments | Review draft PR |
 
 ## Completed foundation work
 
@@ -33,6 +34,7 @@ Status owner: repository maintainer
 - Issue #10 completed through merged PR #11, establishing local authentication, Argon2id password credentials, rotating refresh sessions, reuse detection, secure cookies, normalized permission resolution, deny-by-default guards, and safe authentication audit logs.
 - Issue #13 completed through merged PR #14, establishing secured internal user administration, permission-code authorization, safe DTOs, active-user authorization checks, session revocation, and safe administration audit logs.
 - Issue #15 completed through merged PR #16, establishing client organization and client-contact CRM, commercial-data gating, archival lifecycle rules, parent-client concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
+- Issue #17 completed through merged PR #18, establishing reusable candidate master/profile CRM, candidate compensation and consent gating, parent-candidate concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -86,7 +88,7 @@ Status owner: repository maintainer
 
 ## Issue #17 Verification State
 
-- Candidate master/profile implementation is in progress on branch `feat/candidate-profiles`.
+- Candidate master/profile implementation is merged through PR #18.
 - The API exposes permission-code guarded `/v1/candidates` endpoints with shared Zod contracts, safe DTOs, structured skills/languages/work-experience/education nested routes, candidate-child ownership checks, archival lifecycles, and safe audit summaries.
 - Candidate normalized email uses the existing global unique constraint and rejects duplicates without automatic merging.
 - Candidate archival and dependent candidate/profile writes share one transaction-scoped PostgreSQL row lock on the parent `Candidate`.
@@ -96,7 +98,21 @@ Status owner: repository maintainer
 - Local checks after the blocking fix passed: `pnpm prisma:validate`, `pnpm prisma:generate`, fresh migration deploy, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - `pnpm test:db` now includes a PostgreSQL-backed regression test for a synthetic mutation-capable role without `candidate_profile:view`; 42 database integration tests passed locally.
 - Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
-- Draft PR #18 is open, linked with `Closes #17`, and GitHub Actions run `29875687083` passed PostgreSQL Docker Compose health, migration/seed/database integration tests, and quality checks.
+- PR #18 is merged, and GitHub Actions run `29875687083` passed PostgreSQL Docker Compose health, migration/seed/database integration tests, and quality checks before merge.
+
+## Issue #19 Verification State
+
+- Recruitment mission and assignment implementation is in progress on branch `feat/recruitment-missions`.
+- The API exposes permission-code guarded `/v1/missions` endpoints with shared Zod contracts, safe DTOs, documented lifecycle transitions, structured closure reasons, mission archival, nested assignment ownership checks, and safe audit summaries.
+- Mission creation verifies the parent client is valid and writable.
+- Mission updates, status changes, closure, archival, assignment writes, assignment archival, and lead-recruiter replacement share one transaction-scoped PostgreSQL row lock on the parent `RecruitmentMission`.
+- Assignment activation and lead-recruiter selection re-check that the assigned user is still active, non-archived, and internal inside the parent-mission locked transaction.
+- Mission salary updates validate the effective next range inside the parent-mission locked transaction by combining supplied values with persisted values.
+- Active duplicate assignments are rejected, and the database enforces at most one active lead recruiter per mission.
+- Mission salary and commercial fields require dedicated `mission_commercial_data:*` permissions; ordinary mission access receives `commercial: null`.
+- Normal mission and assignment permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; only `SUPER_ADMIN` receives mission commercial permissions by default.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm test:db` now includes PostgreSQL-backed regression coverage for reactivating an inactive assignment after assignee suspension, selecting an existing assignment as lead after assignee suspension or archival, and stable `MISSION_SALARY_RANGE_INVALID` responses for partial salary minimum/maximum updates against persisted counterpart values.
 
 ## Current open technical questions
 
@@ -115,8 +131,8 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review candidate authorization, lifecycle transitions, archival behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
-2. Merge Issue #17 only after maintainer approval.
+1. Review recruitment mission lifecycle transitions, closure invariants, assignment invariants, concurrency behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
+2. Merge Issue #19 only after maintainer approval.
 
 ## Status Update Rules
 

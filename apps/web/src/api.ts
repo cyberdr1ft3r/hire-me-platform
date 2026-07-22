@@ -18,6 +18,10 @@ import {
   CandidateListResponseSchema,
   CandidateSkillDetailResponseSchema,
   CandidateWorkExperienceDetailResponseSchema,
+  MissionAssignmentDetailResponseSchema,
+  MissionAssignmentListResponseSchema,
+  MissionDetailResponseSchema,
+  MissionListResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -54,6 +58,17 @@ import {
   type CandidateUpdateRequest,
   type CandidateWorkExperienceCreateRequest,
   type CandidateWorkExperienceDetailResponse,
+  type MissionAssignmentCreateRequest,
+  type MissionAssignmentDetailResponse,
+  type MissionAssignmentListResponse,
+  type MissionAssignmentUpdateRequest,
+  type MissionClosureRequest,
+  type MissionCreateRequest,
+  type MissionDetailResponse,
+  type MissionLeadRecruiterRequest,
+  type MissionListResponse,
+  type MissionStatusUpdateRequest,
+  type MissionUpdateRequest,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -773,4 +788,223 @@ export async function createCandidateEducation(
     apiBaseUrl,
   );
   return CandidateEducationDetailResponseSchema.parse(await response.json());
+}
+
+type MissionListOptions = {
+  accessToken: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  clientId?: string;
+  state?: string;
+  priority?: string;
+  assigneeUserId?: string;
+  apiBaseUrl?: string;
+};
+
+async function missionRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/missions${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Mission request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listMissions(options: MissionListOptions): Promise<MissionListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.clientId) {
+    parameters.set('clientId', options.clientId);
+  }
+  if (options.state) {
+    parameters.set('state', options.state);
+  }
+  if (options.priority) {
+    parameters.set('priority', options.priority);
+  }
+  if (options.assigneeUserId) {
+    parameters.set('assigneeUserId', options.assigneeUserId);
+  }
+
+  const response = await missionRequest(
+    options.accessToken,
+    `?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return MissionListResponseSchema.parse(await response.json());
+}
+
+export async function getMission(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(accessToken, `/${missionId}`, {}, apiBaseUrl);
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function createMission(
+  accessToken: string,
+  input: MissionCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateMission(
+  accessToken: string,
+  missionId: string,
+  input: MissionUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateMissionStatus(
+  accessToken: string,
+  missionId: string,
+  input: MissionStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/status`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function closeMission(
+  accessToken: string,
+  missionId: string,
+  input: MissionClosureRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/close`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveMission(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return MissionDetailResponseSchema.parse(await response.json());
+}
+
+export async function listMissionAssignments(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentListResponse> {
+  const response = await missionRequest(accessToken, `/${missionId}/assignments`, {}, apiBaseUrl);
+  return MissionAssignmentListResponseSchema.parse(await response.json());
+}
+
+export async function createMissionAssignment(
+  accessToken: string,
+  missionId: string,
+  input: MissionAssignmentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignments`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionAssignmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateMissionAssignment(
+  accessToken: string,
+  missionId: string,
+  assignmentId: string,
+  input: MissionAssignmentUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignments/${assignmentId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionAssignmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function setMissionLeadRecruiter(
+  accessToken: string,
+  missionId: string,
+  input: MissionLeadRecruiterRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignments/lead`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return MissionAssignmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveMissionAssignment(
+  accessToken: string,
+  missionId: string,
+  assignmentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignments/${assignmentId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return MissionAssignmentDetailResponseSchema.parse(await response.json());
 }

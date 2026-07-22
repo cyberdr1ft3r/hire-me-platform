@@ -4,7 +4,7 @@ Internal recruitment, client relationship, training, task, document, and reporti
 
 ## Current Status
 
-The repository now contains the TypeScript monorepo foundation, local authentication, internal user administration, client CRM, and candidate master/profile foundation for the Hire Me Platform. Remaining business features are intentionally deferred to later scoped issues.
+The repository now contains the TypeScript monorepo foundation, local authentication, internal user administration, client CRM, candidate master/profile CRM, and recruitment mission/assignment foundation for the Hire Me Platform. Remaining business features are intentionally deferred to later scoped issues.
 
 ## Requirements
 
@@ -38,7 +38,7 @@ The development command starts:
 - `apps/api` at `http://127.0.0.1:3000`
 - `apps/web` at `http://127.0.0.1:5173`
 
-Open `http://127.0.0.1:5173` and the placeholder page should display the API health status, local authentication panel, and protected screens for users with administration, client CRM, or candidate CRM permissions.
+Open `http://127.0.0.1:5173` and the placeholder page should display the API health status, local authentication panel, and protected screens for users with administration, client CRM, candidate CRM, or mission permissions.
 Both development apps read the repository-root `.env` created from `.env.example`; no manual environment exports are required for the documented local path.
 
 ## Health Checks
@@ -87,11 +87,11 @@ GitHub Actions runs the same quality checks on pull requests and pushes to `main
 
 ```text
 apps/
-  api/      NestJS API with health, authentication, administration, client CRM, candidate CRM, and API-owned Prisma wiring
-  web/      React + Vite app with health, authentication, administration, client CRM, and candidate CRM screens
+  api/      NestJS API with health, authentication, administration, client CRM, candidate CRM, missions, and API-owned Prisma wiring
+  web/      React + Vite app with health, authentication, administration, client CRM, candidate CRM, and mission screens
 packages/
   config/   Shared TypeScript configuration
-  contracts/ Shared health, authentication, administration, client CRM, and candidate CRM contracts
+  contracts/ Shared health, authentication, administration, client CRM, candidate CRM, and mission contracts
 docs/       Product, architecture, workflow, permission, and project memory docs
 ```
 
@@ -164,7 +164,7 @@ Run the development seed without resetting:
 pnpm prisma:seed
 ```
 
-The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions, including the Issue #13 administration permission catalog, Issue #15 client CRM permission catalog, and Issue #17 candidate CRM permission catalog, only; it does not create users, passwords, real emails, candidates, clients, CVs, or confidential data.
+The development seed is idempotent. It creates the eight approved roles and safe synthetic permissions, including the Issue #13 administration permission catalog, Issue #15 client CRM permission catalog, Issue #17 candidate CRM permission catalog, and Issue #19 mission permission catalog, only; it does not create users, passwords, real emails, candidates, clients, missions, CVs, or confidential data.
 
 Bootstrap a synthetic development administrator after seeding roles:
 
@@ -194,8 +194,8 @@ The API validates required environment variables at startup. The web app reads `
 
 ## Authentication
 
-See `docs/authentication.md` for the Issue #10 authentication architecture and Issue #13 internal administration architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope. See `docs/domain-model.md`, `docs/permissions.md`, and `docs/architecture.md` for the Issue #15 client organization/client-contact CRM and Issue #17 candidate master/profile CRM lifecycle, permission, audit, and scope rules.
+See `docs/authentication.md` for the Issue #10 authentication architecture and Issue #13 internal administration architecture, endpoints, Argon2id password hashing parameters, refresh-token rotation and reuse detection, cookie policy, RBAC permission resolution, audit logging, assumptions, unresolved decisions, and excluded scope. See `docs/domain-model.md`, `docs/workflows.md`, `docs/permissions.md`, and `docs/architecture.md` for the Issue #15 client organization/client-contact CRM, Issue #17 candidate master/profile CRM, and Issue #19 recruitment mission/assignment lifecycle, permission, audit, and scope rules.
 
 ## Scope Guardrail
 
-This repository foundation implements only the Issue #10 local authentication/RBAC foundation, the Issue #13 secured internal user administration module, the Issue #15 client organization/client-contact CRM module, and the Issue #17 candidate master/profile CRM module beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, invitations, arbitrary role creation, permission editing, CV uploads, documents, missions, pipelines, interviews, training, client portal activation, messaging, dashboards, exports, AI matching, integrations, uploads, physical deletion, file storage behavior, and broader business workflow behavior remain out of scope.
+This repository foundation implements only the Issue #10 local authentication/RBAC foundation, the Issue #13 secured internal user administration module, the Issue #15 client organization/client-contact CRM module, the Issue #17 candidate master/profile CRM module, and the Issue #19 recruitment mission/assignment module beyond the existing health and persistence foundation. Registration, password reset, MFA, SSO, invitations, arbitrary role creation, permission editing, CV uploads, documents, candidate-to-mission pipelines, interviews, training, client portal activation, messaging, dashboards, exports, AI matching, integrations, uploads, physical deletion, file storage behavior, and broader business workflow behavior remain out of scope.

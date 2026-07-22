@@ -722,6 +722,14 @@ model RecruitmentMission {
   priority             TaskPriority            @default(NORMAL)
   numberOfPositions    Int                     @default(1)
   filledPlacementCount Int                     @default(0)
+  location             String?
+  workArrangement      String?
+  engagementType       String?
+  targetStartDate      DateTime?
+  applicationDeadline  DateTime?
+  salaryMinCents       Int?
+  salaryMaxCents       Int?
+  salaryCurrency       String?
   closureReason        MissionClosureReason?
   closedAt             DateTime?
   commercialSummary    String?
@@ -738,6 +746,8 @@ model RecruitmentMission {
 
   @@index([clientId])
   @@index([state])
+  @@index([priority])
+  @@index([applicationDeadline])
   @@index([closureReason])
 }
 
@@ -758,7 +768,6 @@ model MissionRecruiter {
   user    User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   tasks   Task[]
 
-  @@unique([missionId, userId, role])
   @@index([missionId])
   @@index([userId])
   @@index([status])

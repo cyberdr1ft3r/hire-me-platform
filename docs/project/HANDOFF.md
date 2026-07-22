@@ -6,109 +6,44 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #5 is complete through merged PR #6; the persistent project-memory system is active on `main`.
-- Issue #1 is complete through merged PR #4; the approved product and architecture documents are active on `main`.
-- Issue #2 is complete through merged PR #8; the TypeScript monorepo, local PostgreSQL service, Prisma wiring, and CI foundation are active on `main`.
-- Issue #3 is complete through merged PR #9; the foundational Prisma schema, initial migration, development seed, database lifecycle commands, and PostgreSQL integration tests are active on `main`.
-- Issue #10 is complete through merged PR #11; local authentication, secure refresh-session handling, normalized permission resolution, deny-by-default guards, and safe authentication audit logs are active on `main`.
-- Issue #13 is complete through merged PR #14; secured internal user administration and central active-user authorization checks are active on `main`.
-- Issue #15 is complete through merged PR #16; client organization and client-contact CRM are active on `main`.
-- Issue #17 is in progress on branch `feat/candidate-profiles` with draft PR #18 open.
-- Latest PR #18 blocking review identified a candidate response permission leak: mutation responses must not expose structured profile arrays when the caller lacks `candidate_profile:view`. The fix has been implemented locally and is ready for PR/CI review after push.
+- Issues #1, #2, #3, #5, #10, #13, #15, and #17 are complete and merged on `main`.
+- Issue #19 is implemented on branch `feat/recruitment-missions` with PR #20 blocking-review corrections and is ready for draft PR review.
+- The implementation is documentation, schema, API, contracts, web, seed, and test work for recruitment missions and mission assignments only.
+- Excluded Issue #19 scope remains excluded: candidate-to-mission linkage, ATS pipeline transitions, interviews, evaluations, offers, documents, tasks, notifications, dashboards, training, client portal, AI matching, integrations, uploads, and physical deletion.
 
 ## Next Action
 
-Review the Issue #17 candidate master/profile draft PR #18.
+Review the Issue #19 draft PR.
 
 Check especially:
 
-- Every candidate and candidate-profile route is guarded by explicit permission codes, not hard-coded role checks.
-- Nested profile routes verify that the child record belongs to the candidate id in the URL.
-- API runtime code continues to use the one Nest-managed Prisma provider.
+- Missions belong to valid writable clients.
+- The mission state machine preserves every confirmed stage in `docs/workflows.md`.
+- Terminal closure requires structured closure reasons.
+- `CLOSED_WITH_RECRUITMENT` requires all planned positions to be filled.
+- Archival is separate from operational closure and uses no physical deletion.
+- Mission updates, status changes, closure, archival, assignment writes, assignment archival, assignment activation eligibility, lead replacement, and effective salary-range validation share the parent `RecruitmentMission` PostgreSQL row lock.
+- Active duplicate assignments and multiple active lead recruiters are rejected by database-backed constraints.
+- Nested assignment routes verify the assignment belongs to the mission in the URL.
+- Only active, non-archived internal users can be assigned, reactivated, or selected as lead recruiter; assignment activation and lead selection re-check the assigned user inside the parent-mission locked transaction.
+- Mission salary and commercial fields require dedicated `mission_commercial_data:*` permissions.
+- Partial mission salary updates validate the effective next minimum and maximum together inside the parent-mission locked transaction.
+- `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER` receive normal mission permissions by default; only `SUPER_ADMIN` receives mission commercial permissions by default.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
-- Candidate responses never expose Prisma internals or unapproved confidential payloads.
-- Candidate detail and mutation responses redact structured profile arrays to empty arrays unless `candidate_profile:view` is effective, even when mutation permissions are effective.
-- Candidate compensation and consent fields require dedicated permissions even when ordinary candidate permissions are present.
-- Manager, team-leader, employee, guest, and client-user roles do not receive broad candidate permissions until row scopes are implemented.
-- Candidate and candidate-profile archive operations preserve records and do not physically delete.
-- Candidate archival and every dependent candidate/profile write use one parent-candidate PostgreSQL row lock inside the mutation transaction.
-- Candidate audit logs are safe summaries only.
-- Excluded scopes remain excluded: CV uploads, documents, missions, pipelines, interviews, training, messaging, dashboards, exports, AI matching, integrations, uploads, and physical deletion.
 
 ## Verification Notes
 
-Completed locally during Issue #13 work:
+Completed locally during Issue #19 work:
 
-- `pnpm --filter @hire-me/contracts build`
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
 - `pnpm check:architecture`
-- Mermaid CLI rendered all 8 diagrams from `docs/architecture.md`, `docs/domain-model.md`, and `docs/workflows.md`
-- `pnpm --filter @hire-me/api typecheck`
-- `pnpm --filter @hire-me/web typecheck`
-- `pnpm --filter @hire-me/web test`
-- `pnpm format:check`
-- `pnpm lint`
-- `pnpm typecheck`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- Targeted security-review fix checks: `pnpm --filter @hire-me/api typecheck`, `pnpm --filter @hire-me/api lint`, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`
-
-Blocked locally because Docker Desktop is not running and PostgreSQL is unavailable at `127.0.0.1:5432`:
-
-- `docker compose up -d postgres`
 - `pnpm prisma:migrate:deploy`
-- `pnpm test:db`
-- `pnpm prisma:seed`
-- second `pnpm prisma:seed`
-
-Confirmed through GitHub Actions run `29861073885`:
-
-- PostgreSQL Docker Compose health.
-- Migration deploy.
-- Development seed twice.
-- Database integration tests.
-- Quality checks.
-
-Completed locally during Issue #15 work:
-
-- `pnpm prisma:validate`
-- `pnpm prisma:generate`
-- `pnpm check:architecture`
-- Mermaid CLI rendered all 8 diagrams from `docs/architecture.md`, `docs/domain-model.md`, and `docs/workflows.md`
-- Fresh migration deploy against Docker PostgreSQL on `127.0.0.1:55432`
-- `pnpm prisma:migrate:reset`
-- `pnpm prisma:seed`
-- second `pnpm prisma:seed`
-- `pnpm test:db`
-- `pnpm format:check`
-- `pnpm lint`
-- `pnpm typecheck`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-
-Local PostgreSQL used `POSTGRES_PORT=55432` because another running project already occupied `127.0.0.1:5432`.
-
-Completed locally during the PR #16 lifecycle/concurrency review fix:
-
-- Service code now routes client archival, contact creation, client updates, client status changes, contact updates, contact status changes, and contact archival through one transaction-scoped row lock on the parent `Client`.
-- PostgreSQL race tests were added for client archival against contact creation and ordinary contact update.
-- Checks passed after the fix: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:architecture`, and `git diff --check`.
-- Local PostgreSQL validation used Docker Compose on `127.0.0.1:55432`.
-
-Completed locally during Issue #17 work:
-
-- `pnpm prisma:validate`
-- `pnpm prisma:generate`
-- fresh migration deploy against Docker PostgreSQL on `127.0.0.1:55432`
 - `pnpm prisma:migrate:reset --force`
 - `pnpm prisma:seed`
-- second `pnpm prisma:seed`
+- second and third `pnpm prisma:seed`
 - `pnpm test:db`
-- `pnpm check:architecture`
-- Mermaid CLI rendered all 8 diagrams from `docs/architecture.md`, `docs/domain-model.md`, and `docs/workflows.md`
+- Mermaid CLI rendering for all 8 documentation diagrams
 - `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
@@ -116,25 +51,7 @@ Completed locally during Issue #17 work:
 - `pnpm build`
 - `git diff --check`
 
-`pnpm test:db`, `pnpm test`, `pnpm build`, and Mermaid rendering were rerun outside the filesystem sandbox when esbuild or Puppeteer needed access to local config/browser paths. PostgreSQL used Docker Compose with `POSTGRES_PORT=55432`.
-
-Confirmed through GitHub Actions run `29875687083` on draft PR #18:
-
-- PostgreSQL Docker Compose health.
-- Migration deploy.
-- Development seed.
-- Database integration tests.
-- Quality checks.
-
-Completed locally during the PR #18 blocking permission-boundary fix:
-
-- Candidate response shaping now uses one centralized effective-permission access object for profile, compensation, and consent visibility.
-- Candidate create, detail, update, status-change, and archive responses redact skills, languages, work experience, and education to empty arrays when `candidate_profile:view` is absent.
-- Candidate listing responses remain free of structured profile arrays, and skill-name search is available only when `candidate_profile:view` is effective.
-- PostgreSQL regression coverage uses a mutation-capable synthetic role without `candidate_profile:view` and verifies create, detail, update, status, and archive responses do not expose structured profile data.
-- Checks passed after the fix: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
-
-`pnpm test:db`, `pnpm test`, and `pnpm build` were rerun outside the filesystem sandbox when esbuild needed access to local config paths. PostgreSQL used Docker Compose with `POSTGRES_PORT=55432`.
+`pnpm test:db`, `pnpm test`, and `pnpm build` were rerun outside the filesystem sandbox when esbuild/Vite needed access to local config paths. Safe synthetic auth environment values were used for the local test process only because the local `.env` did not contain auth secrets. PostgreSQL used Docker Compose on `127.0.0.1:5432`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
