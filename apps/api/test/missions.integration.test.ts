@@ -332,6 +332,22 @@ describe('Recruitment missions API', () => {
     expect(MissionDetailResponseSchema.parse(await visible.json()).mission.commercial).toEqual(
       expect.objectContaining({ salaryMinCents: 100000, salaryMaxCents: 120000 }),
     );
+
+    const invalidMinOnly = await fetch(`${baseUrl}/v1/missions/${missionId}`, {
+      method: 'PATCH',
+      headers: authHeaders(adminToken),
+      body: JSON.stringify({ salaryMinCents: 130000 }),
+    });
+    const invalidMaxOnly = await fetch(`${baseUrl}/v1/missions/${missionId}`, {
+      method: 'PATCH',
+      headers: authHeaders(adminToken),
+      body: JSON.stringify({ salaryMaxCents: 90000 }),
+    });
+
+    expect(invalidMinOnly.status).toBe(409);
+    expect(await readErrorCode(invalidMinOnly)).toBe('MISSION_SALARY_RANGE_INVALID');
+    expect(invalidMaxOnly.status).toBe(409);
+    expect(await readErrorCode(invalidMaxOnly)).toBe('MISSION_SALARY_RANGE_INVALID');
   });
 
   it('enforces documented lifecycle transitions and structured closure invariants', async () => {
@@ -452,6 +468,119 @@ describe('Recruitment missions API', () => {
       }),
     ).toBe(1);
     expect(idor.status).toBe(404);
+  });
+
+  it('re-checks assignee eligibility when reactivating assignments or changing the lead recruiter', async () => {
+    const clientId = await createClientRecord('Issue19 Assignment Eligibility Client');
+    const token = await loginAccessToken(baseUrl, 'mission-hr@missions.test');
+    const missionId = await createMissionRecord(
+      baseUrl,
+      token,
+      clientId,
+      'Issue19 Assignment Eligibility Mission',
+    );
+    const reactivationUserId = await createUser(
+      'reactivation-user@missions.test',
+      RoleName.HR_MANAGER,
+    );
+    const suspendedLeadUserId = await createUser(
+      'suspended-lead@missions.test',
+      RoleName.HR_MANAGER,
+    );
+    const archivedLeadUserId = await createUser('archived-lead@missions.test', RoleName.HR_MANAGER);
+    const clearerUserId = await createUser('lead-clearer@missions.test', RoleName.HR_MANAGER);
+
+    const inactiveAssignmentResponse = await fetch(
+      `${baseUrl}/v1/missions/${missionId}/assignments`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ userId: reactivationUserId, role: 'RECRUITER', isLead: false }),
+      },
+    );
+    const inactiveAssignmentId = MissionAssignmentDetailResponseSchema.parse(
+      await inactiveAssignmentResponse.json(),
+    ).assignment.id;
+    await fetch(`${baseUrl}/v1/missions/${missionId}/assignments/${inactiveAssignmentId}`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({ status: AssignmentStatus.INACTIVE }),
+    });
+    await prisma.user.update({
+      where: { id: reactivationUserId },
+      data: { status: UserStatus.SUSPENDED },
+    });
+    const blockedReactivation = await fetch(
+      `${baseUrl}/v1/missions/${missionId}/assignments/${inactiveAssignmentId}`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(token),
+        body: JSON.stringify({ status: AssignmentStatus.ACTIVE }),
+      },
+    );
+
+    const suspendedLeadResponse = await fetch(`${baseUrl}/v1/missions/${missionId}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ userId: suspendedLeadUserId, role: 'LEAD_RECRUITER', isLead: true }),
+    });
+    const suspendedLeadAssignmentId = MissionAssignmentDetailResponseSchema.parse(
+      await suspendedLeadResponse.json(),
+    ).assignment.id;
+    const clearerLeadResponse = await fetch(`${baseUrl}/v1/missions/${missionId}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ userId: clearerUserId, role: 'LEAD_RECRUITER', isLead: true }),
+    });
+    const clearerLeadAssignmentId = MissionAssignmentDetailResponseSchema.parse(
+      await clearerLeadResponse.json(),
+    ).assignment.id;
+    expect(clearerLeadResponse.status).toBe(201);
+    await prisma.user.update({
+      where: { id: suspendedLeadUserId },
+      data: { status: UserStatus.SUSPENDED },
+    });
+    const blockedSuspendedLead = await fetch(
+      `${baseUrl}/v1/missions/${missionId}/assignments/lead`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ assignmentId: suspendedLeadAssignmentId }),
+      },
+    );
+
+    const archivedLeadResponse = await fetch(`${baseUrl}/v1/missions/${missionId}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ userId: archivedLeadUserId, role: 'LEAD_RECRUITER', isLead: true }),
+    });
+    const archivedLeadAssignmentId = MissionAssignmentDetailResponseSchema.parse(
+      await archivedLeadResponse.json(),
+    ).assignment.id;
+    await fetch(`${baseUrl}/v1/missions/${missionId}/assignments/lead`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ assignmentId: clearerLeadAssignmentId }),
+    });
+    await prisma.user.update({
+      where: { id: archivedLeadUserId },
+      data: { status: UserStatus.ARCHIVED, archivedAt: new Date() },
+    });
+    const blockedArchivedLead = await fetch(
+      `${baseUrl}/v1/missions/${missionId}/assignments/lead`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ assignmentId: archivedLeadAssignmentId }),
+      },
+    );
+
+    expect(blockedReactivation.status).toBe(409);
+    expect(await readErrorCode(blockedReactivation)).toBe('MISSION_ASSIGNEE_NOT_ACTIVE');
+    expect(blockedSuspendedLead.status).toBe(409);
+    expect(await readErrorCode(blockedSuspendedLead)).toBe('MISSION_ASSIGNEE_NOT_ACTIVE');
+    expect(blockedArchivedLead.status).toBe(409);
+    expect(await readErrorCode(blockedArchivedLead)).toBe('MISSION_ASSIGNEE_NOT_ACTIVE');
   });
 
   it('serializes mission archival against concurrent assignment creation and ordinary updates', async () => {

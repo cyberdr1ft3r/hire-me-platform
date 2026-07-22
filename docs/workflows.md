@@ -241,7 +241,7 @@ stateDiagram-v2
     archived --> [*]
 ```
 
-Issue #19 enforces the transition graph above through the API. Non-terminal moves use `PATCH /v1/missions/:missionId/status`; terminal operational closure uses `POST /v1/missions/:missionId/close` with a structured closure reason; archival uses `POST /v1/missions/:missionId/archive` after closure or cancellation. Mission closure, archival, status changes, ordinary updates, assignment writes, and lead-recruiter replacement use the same parent-mission PostgreSQL row lock so concurrent archival or closure cannot be bypassed by later assignment creation or ordinary mutation.
+Issue #19 enforces the transition graph above through the API. Non-terminal moves use `PATCH /v1/missions/:missionId/status`; terminal operational closure uses `POST /v1/missions/:missionId/close` with a structured closure reason; archival uses `POST /v1/missions/:missionId/archive` after closure or cancellation. Mission closure, archival, status changes, ordinary updates, assignment writes, assignment activation eligibility, lead-recruiter replacement, and effective salary-range validation use the same parent-mission PostgreSQL row lock so concurrent archival, closure, user lifecycle changes, or partial commercial updates cannot bypass invariants.
 
 ## Training Workflow
 

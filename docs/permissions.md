@@ -192,9 +192,9 @@ Issue #19 implements these route permissions:
 
 Development seed mapping gives normal mission and assignment permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives mission commercial view/update permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission permissions until assignment, team, guest, or client-portal row scopes are implemented.
 
-Mission salary and commercial fields require dedicated mission commercial permissions. Ordinary mission responses receive `commercial: null`. Frontend hiding is only a usability layer; the API enforces this rule.
+Mission salary and commercial fields require dedicated mission commercial permissions. Ordinary mission responses receive `commercial: null`. Frontend hiding is only a usability layer; the API enforces this rule. Salary updates validate the effective next range inside the parent-mission transaction by combining supplied values with persisted values.
 
-Mission archival, closure, status changes, ordinary mission updates, assignment creation, assignment updates, assignment archival, and lead-recruiter replacement use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `RecruitmentMission`. This prevents concurrent assignment creation or ordinary mutation from committing after mission archival or terminal closure. When the losing operation observes the terminal parent, it receives the stable conflict code `MISSION_TERMINAL`.
+Mission archival, closure, status changes, ordinary mission updates, assignment creation, assignment updates, assignment archival, and lead-recruiter replacement use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `RecruitmentMission`. This prevents concurrent assignment creation or ordinary mutation from committing after mission archival or terminal closure. Assignment activation and lead-recruiter selection re-check that the assigned user is still active, non-archived, and internal inside the same transaction. When the losing operation observes the terminal parent, it receives the stable conflict code `MISSION_TERMINAL`.
 
 ## Security and Audit Requirements
 

@@ -27,6 +27,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-019 | 2026-07-22 | Accepted | Candidate response shaping is permission-aware for every detail and mutation response; mutation permissions do not imply `candidate_profile:view`, and structured profile arrays are redacted to empty arrays when profile view is absent. | Required by the blocking security review on PR #18. |
 | D-020 | 2026-07-22 | Accepted | Recruitment mission lifecycle, closure, archival, assignment writes, assignment archival, and lead-recruiter replacement serialize on a transaction-scoped PostgreSQL row lock for the parent `RecruitmentMission`; writes that observe the archived or terminal parent fail with `MISSION_TERMINAL`. | Required by issue #19 lifecycle and concurrency requirements. |
 | D-021 | 2026-07-22 | Accepted | Mission salary and commercial fields are guarded by dedicated `mission_commercial_data:view` and `mission_commercial_data:update` permissions separate from ordinary mission and assignment permissions. | Required by issue #19 and the approved confidential-data model. |
+| D-022 | 2026-07-22 | Accepted | Mission assignment activation, lead-recruiter selection, and partial salary updates must re-evaluate their effective invariants inside the transaction-scoped parent `RecruitmentMission` lock. | Required by the blocking review on PR #20 to prevent stale assignee eligibility and salary-range checks. |
 
 ## Decision protocol
 

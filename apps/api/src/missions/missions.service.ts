@@ -337,14 +337,16 @@ export class MissionsService {
   ): Promise<MissionDetailResponse> {
     const access = await this.resolveMissionAccess(actorUserId);
     this.assertCommercialInputAllowed(input, access);
-    if (input.salaryMinCents !== undefined || input.salaryMaxCents !== undefined) {
-      this.assertSalaryRange(input.salaryMinCents, input.salaryMaxCents);
-    }
 
     const mission = await this.withWritableMissionLock(missionId, (transaction, existing) => {
       const nextNumberOfPositions = input.numberOfPositions ?? existing.numberOfPositions;
       const nextFilledPlacementCount = input.filledPlacementCount ?? existing.filledPlacementCount;
+      const nextSalaryMinCents =
+        input.salaryMinCents !== undefined ? input.salaryMinCents : existing.salaryMinCents;
+      const nextSalaryMaxCents =
+        input.salaryMaxCents !== undefined ? input.salaryMaxCents : existing.salaryMaxCents;
       this.assertPlacementCounts(nextNumberOfPositions, nextFilledPlacementCount);
+      this.assertSalaryRange(nextSalaryMinCents, nextSalaryMaxCents);
 
       return transaction.recruitmentMission.update({
         where: { id: missionId },
@@ -597,7 +599,13 @@ export class MissionsService {
         }
         const nextRole = input.role ?? existing.role;
         const nextIsLead = input.isLead ?? existing.isLead;
+        const activatesAssignment =
+          input.status === AssignmentStatus.ACTIVE && existing.status !== AssignmentStatus.ACTIVE;
+        const makesLeadRecruiter = input.isLead === true;
         this.assertLeadConsistency(nextRole, nextIsLead);
+        if (activatesAssignment || makesLeadRecruiter) {
+          await this.assertAssignableUser(existing.userId, transaction);
+        }
         if (nextIsLead) {
           await this.clearActiveLead(missionId, transaction, assignmentId);
         }
@@ -654,6 +662,7 @@ export class MissionsService {
       if (existing.role !== MissionRecruiterRole.LEAD_RECRUITER) {
         throw conflict('MISSION_LEAD_ROLE_REQUIRED', 'Lead recruiter assignment role is required.');
       }
+      await this.assertAssignableUser(existing.userId, transaction);
       await this.clearActiveLead(missionId, transaction, input.assignmentId);
       return transaction.missionRecruiter.update({
         where: { id: input.assignmentId },

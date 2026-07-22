@@ -152,8 +152,8 @@ Issue #19 implements the first recruitment mission and assignment module:
 - API-owned Prisma access through the Nest `PrismaService`
 - explicit mission, mission-assignment, and mission-commercial-data permission codes with deny-by-default behavior for unresolved row scopes
 - mission salary and commercial fields returned or accepted only when dedicated mission commercial permissions are effective
-- transaction-scoped parent-mission row locking for lifecycle changes, closure, archival, ordinary mission writes, assignment writes, and lead replacement so concurrent archival or terminal closure cannot be bypassed
-- PostgreSQL-backed tests for lifecycle/closure invariants, protected commercial fields, assignment uniqueness, lead uniqueness, IDOR protection, authorization, and archival races
+- transaction-scoped parent-mission row locking for lifecycle changes, closure, archival, ordinary mission writes, assignment writes, lead replacement, assignment activation eligibility, and effective salary-range validation so concurrent archival, terminal closure, assignee status changes, or partial salary updates cannot bypass invariants
+- PostgreSQL-backed tests for lifecycle/closure invariants, protected commercial fields, assignment eligibility, assignment uniqueness, lead uniqueness, IDOR protection, authorization, salary-range validation, and archival races
 
 Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, candidate-to-mission pipelines, interviews, and broader business workflow behavior remain later implementation work.
 

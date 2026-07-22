@@ -6,7 +6,7 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Core recruitment CRM foundation
-**Health:** Issue #19 recruitment mission/assignment implementation passed focused local typecheck, lint, and PostgreSQL validation.
+**Health:** Issue #19 recruitment mission/assignment implementation passed local database lifecycle, PostgreSQL integration, architecture, formatting, lint, typecheck, unit test, build, Mermaid render, and whitespace validation after PR #20 blocking-review fixes.
 **Current blocker:** None locally.
 **Next executable development task:** Review the Issue #19 draft PR.
 
@@ -106,10 +106,13 @@ Status owner: repository maintainer
 - The API exposes permission-code guarded `/v1/missions` endpoints with shared Zod contracts, safe DTOs, documented lifecycle transitions, structured closure reasons, mission archival, nested assignment ownership checks, and safe audit summaries.
 - Mission creation verifies the parent client is valid and writable.
 - Mission updates, status changes, closure, archival, assignment writes, assignment archival, and lead-recruiter replacement share one transaction-scoped PostgreSQL row lock on the parent `RecruitmentMission`.
+- Assignment activation and lead-recruiter selection re-check that the assigned user is still active, non-archived, and internal inside the parent-mission locked transaction.
+- Mission salary updates validate the effective next range inside the parent-mission locked transaction by combining supplied values with persisted values.
 - Active duplicate assignments are rejected, and the database enforces at most one active lead recruiter per mission.
 - Mission salary and commercial fields require dedicated `mission_commercial_data:*` permissions; ordinary mission access receives `commercial: null`.
 - Normal mission and assignment permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; only `SUPER_ADMIN` receives mission commercial permissions by default.
-- Local focused checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:reset`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm lint`, and `pnpm typecheck`.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm test:db` now includes PostgreSQL-backed regression coverage for reactivating an inactive assignment after assignee suspension, selecting an existing assignment as lead after assignee suspension or archival, and stable `MISSION_SALARY_RANGE_INVALID` responses for partial salary minimum/maximum updates against persisted counterpart values.
 
 ## Current open technical questions
 
