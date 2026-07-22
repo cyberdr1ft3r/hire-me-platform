@@ -39,6 +39,13 @@ const sensitiveCandidatePermissions = [
   'candidate_consent:view',
   'candidate_consent:manage',
 ] as const;
+const mutationOnlyCandidatePermissions = [
+  'candidates:view',
+  'candidates:create',
+  'candidates:update',
+  'candidates:status:manage',
+  'candidates:archive',
+] as const;
 
 async function cleanCandidateTestRecords(): Promise<void> {
   await prisma.refreshSession.deleteMany({
@@ -130,12 +137,36 @@ async function ensureRoleWithPermissions(
   }
 }
 
+async function ensureRoleWithOnlyCandidatePermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  await ensureRoleWithPermissions(roleName, permissionCodes);
+  await prisma.rolePermission.updateMany({
+    where: {
+      role: { name: roleName },
+      permission: {
+        code: {
+          in: [
+            ...normalCandidatePermissions,
+            ...sensitiveCandidatePermissions,
+            ...mutationOnlyCandidatePermissions,
+          ],
+        },
+      },
+      NOT: { permission: { code: { in: [...permissionCodes] } } },
+    },
+    data: { archivedAt: new Date() },
+  });
+}
+
 async function prepareCandidateCatalog(): Promise<void> {
   await ensureRoleWithPermissions(RoleName.SUPER_ADMIN, [
     ...normalCandidatePermissions,
     ...sensitiveCandidatePermissions,
   ]);
   await ensureRoleWithPermissions(RoleName.HR_MANAGER, normalCandidatePermissions);
+  await ensureRoleWithOnlyCandidatePermissions(RoleName.GUEST, mutationOnlyCandidatePermissions);
   await prisma.rolePermission.updateMany({
     where: {
       role: { name: RoleName.HR_MANAGER },
@@ -471,6 +502,87 @@ describe('candidate master profiles', () => {
     expect(
       body.candidate.skills.some((candidateSkill) => candidateSkill.name === 'TypeScript'),
     ).toBe(true);
+  });
+
+  it('redacts structured profile data from candidate mutation responses without profile view', async () => {
+    await createUser('profile-redaction-owner@candidates.test', RoleName.HR_MANAGER);
+    await createUser('profile-redaction-mutator@candidates.test', RoleName.GUEST);
+    const ownerToken = await loginAccessToken(baseUrl, 'profile-redaction-owner@candidates.test');
+    const mutatorToken = await loginAccessToken(
+      baseUrl,
+      'profile-redaction-mutator@candidates.test',
+    );
+    const candidateId = await createCandidateRecord(
+      baseUrl,
+      ownerToken,
+      'profile-redaction.subject@candidates.test',
+    );
+
+    await fetch(`${baseUrl}/v1/candidates/${candidateId}/skills`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ name: 'Confidential Skill', level: 'Advanced' }),
+    });
+    await fetch(`${baseUrl}/v1/candidates/${candidateId}/languages`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ language: 'Confidential Language', proficiency: 'Native' }),
+    });
+    await fetch(`${baseUrl}/v1/candidates/${candidateId}/work-experiences`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ employer: 'Confidential Employer', title: 'Confidential Role' }),
+    });
+    await fetch(`${baseUrl}/v1/candidates/${candidateId}/education`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        institution: 'Confidential University',
+        qualification: 'Confidential Degree',
+      }),
+    });
+
+    const create = await fetch(`${baseUrl}/v1/candidates`, {
+      method: 'POST',
+      headers: authHeaders(mutatorToken),
+      body: JSON.stringify({
+        displayName: 'Mutation Only Created Candidate',
+        email: 'profile-redaction.created@candidates.test',
+      }),
+    });
+    const detail = await fetch(`${baseUrl}/v1/candidates/${candidateId}`, {
+      headers: authHeaders(mutatorToken),
+    });
+    const update = await fetch(`${baseUrl}/v1/candidates/${candidateId}`, {
+      method: 'PATCH',
+      headers: authHeaders(mutatorToken),
+      body: JSON.stringify({ displayName: 'Mutation Only Updated Candidate' }),
+    });
+    const status = await fetch(`${baseUrl}/v1/candidates/${candidateId}/status`, {
+      method: 'PATCH',
+      headers: authHeaders(mutatorToken),
+      body: JSON.stringify({ status: CandidateStatus.TALENT_POOL }),
+    });
+    const archive = await fetch(`${baseUrl}/v1/candidates/${candidateId}/archive`, {
+      method: 'POST',
+      headers: authHeaders(mutatorToken),
+    });
+
+    const responses = await Promise.all(
+      [create, detail, update, status, archive].map(async (response) => {
+        expect([200, 201]).toContain(response.status);
+        return CandidateDetailResponseSchema.parse(await response.json()).candidate;
+      }),
+    );
+
+    for (const candidate of responses) {
+      expect(candidate.skills).toEqual([]);
+      expect(candidate.languages).toEqual([]);
+      expect(candidate.workExperiences).toEqual([]);
+      expect(candidate.education).toEqual([]);
+      expect(candidate.compensation).toBeNull();
+      expect(candidate.consent).toBeNull();
+    }
   });
 
   it('serializes candidate archival against concurrent skill creation', async () => {

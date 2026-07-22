@@ -49,6 +49,13 @@ type CandidateWorkExperienceRecord = Prisma.CandidateWorkExperienceGetPayload<
   Record<string, never>
 >;
 type CandidateEducationRecord = Prisma.CandidateEducationGetPayload<Record<string, never>>;
+type CandidateResponseAccess = {
+  profileView: boolean;
+  compensationView: boolean;
+  compensationUpdate: boolean;
+  consentView: boolean;
+  consentManage: boolean;
+};
 
 @Injectable()
 export class CandidatesService {
@@ -63,27 +70,34 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateListResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
+    const access = await this.resolveCandidateAccess(actorUserId);
+    const searchFilters: Prisma.CandidateWhereInput[] = query.search
+      ? [
+          { displayName: { contains: query.search, mode: 'insensitive' } },
+          { firstName: { contains: query.search, mode: 'insensitive' } },
+          { lastName: { contains: query.search, mode: 'insensitive' } },
+          { email: { contains: query.search, mode: 'insensitive' } },
+          { normalizedEmail: { contains: normalizeEmail(query.search) } },
+          { currentJobTitle: { contains: query.search, mode: 'insensitive' } },
+          { city: { contains: query.search, mode: 'insensitive' } },
+          { country: { contains: query.search, mode: 'insensitive' } },
+          ...(access.profileView
+            ? [
+                {
+                  skills: {
+                    some: { name: { contains: query.search, mode: 'insensitive' } },
+                  },
+                } satisfies Prisma.CandidateWhereInput,
+              ]
+            : []),
+        ]
+      : [];
     const where: Prisma.CandidateWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.source ? { source: { equals: query.source, mode: 'insensitive' } } : {}),
       ...(query.city ? { city: { equals: query.city, mode: 'insensitive' } } : {}),
       ...(query.country ? { country: { equals: query.country, mode: 'insensitive' } } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { displayName: { contains: query.search, mode: 'insensitive' } },
-              { firstName: { contains: query.search, mode: 'insensitive' } },
-              { lastName: { contains: query.search, mode: 'insensitive' } },
-              { email: { contains: query.search, mode: 'insensitive' } },
-              { normalizedEmail: { contains: normalizeEmail(query.search) } },
-              { currentJobTitle: { contains: query.search, mode: 'insensitive' } },
-              { city: { contains: query.search, mode: 'insensitive' } },
-              { country: { contains: query.search, mode: 'insensitive' } },
-              { skills: { some: { name: { contains: query.search, mode: 'insensitive' } } } },
-            ],
-          }
-        : {}),
+      ...(searchFilters.length > 0 ? { OR: searchFilters } : {}),
     };
 
     const [total, candidates] = await this.prisma.$transaction([
@@ -113,16 +127,12 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateDetailResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
-    const includeProfile = await this.hasPermission(
-      actorUserId,
-      CANDIDATE_PERMISSIONS.CANDIDATE_PROFILE_VIEW,
-    );
+    const access = await this.resolveCandidateAccess(actorUserId);
     const candidate = await this.findCandidateWithProfile(candidateId);
 
     await this.auditSensitiveReads(1, access, actorUserId, context, candidate.id);
 
-    return { candidate: this.toCandidateDetail(candidate, access, includeProfile) };
+    return { candidate: this.toCandidateDetail(candidate, access) };
   }
 
   async createCandidate(
@@ -130,7 +140,7 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateDetailResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
+    const access = await this.resolveCandidateAccess(actorUserId);
     this.assertSensitiveInputAllowed(input, access);
 
     try {
@@ -169,7 +179,7 @@ export class CandidatesService {
         metadataSummary: 'Candidate master record created.',
       });
 
-      return { candidate: this.toCandidateDetail(candidate, access, true) };
+      return { candidate: this.toCandidateDetail(candidate, access) };
     } catch (error: unknown) {
       this.rethrowDuplicateEmail(error);
       throw error;
@@ -182,7 +192,7 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateDetailResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
+    const access = await this.resolveCandidateAccess(actorUserId);
     this.assertSensitiveInputAllowed(input, access);
 
     try {
@@ -246,7 +256,7 @@ export class CandidatesService {
         metadataSummary: 'Approved candidate profile fields updated.',
       });
 
-      return { candidate: this.toCandidateDetail(candidate, access, true) };
+      return { candidate: this.toCandidateDetail(candidate, access) };
     } catch (error: unknown) {
       this.rethrowDuplicateEmail(error);
       throw error;
@@ -259,7 +269,7 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateDetailResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
+    const access = await this.resolveCandidateAccess(actorUserId);
     if (input.status === CandidateStatus.ARCHIVED) {
       throw conflict('CANDIDATE_ARCHIVE_ENDPOINT_REQUIRED', 'Use the archive endpoint.');
     }
@@ -279,7 +289,7 @@ export class CandidatesService {
       metadataSummary: `Candidate status changed to ${input.status}.`,
     });
 
-    return { candidate: this.toCandidateDetail(candidate, access, true) };
+    return { candidate: this.toCandidateDetail(candidate, access) };
   }
 
   async archiveCandidate(
@@ -287,7 +297,7 @@ export class CandidatesService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<CandidateDetailResponse> {
-    const access = await this.resolveSensitiveAccess(actorUserId);
+    const access = await this.resolveCandidateAccess(actorUserId);
     const now = new Date();
     const candidate = await this.withWritableCandidateLock(candidateId, async (transaction) => {
       const archived = await transaction.candidate.update({
@@ -324,7 +334,7 @@ export class CandidatesService {
       metadataSummary: 'Candidate master record archived with structured profile records archived.',
     });
 
-    return { candidate: this.toCandidateDetail(candidate, access, true) };
+    return { candidate: this.toCandidateDetail(candidate, access) };
   }
 
   async createSkill(
@@ -701,9 +711,10 @@ export class CandidatesService {
     return { education: this.toEducation(education) };
   }
 
-  private async resolveSensitiveAccess(actorUserId: string) {
+  private async resolveCandidateAccess(actorUserId: string): Promise<CandidateResponseAccess> {
     const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
     return {
+      profileView: permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATE_PROFILE_VIEW),
       compensationView: permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATE_COMPENSATION_VIEW),
       compensationUpdate: permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATE_COMPENSATION_UPDATE),
       consentView: permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATE_CONSENT_VIEW),
@@ -711,13 +722,9 @@ export class CandidatesService {
     };
   }
 
-  private async hasPermission(actorUserId: string, permission: string): Promise<boolean> {
-    return (await this.permissions.getEffectivePermissionCodes(actorUserId)).includes(permission);
-  }
-
   private assertSensitiveInputAllowed(
     input: CandidateCreateRequest | CandidateUpdateRequest,
-    access: Awaited<ReturnType<CandidatesService['resolveSensitiveAccess']>>,
+    access: CandidateResponseAccess,
   ): void {
     const hasCompensationInput =
       'salaryExpectationCents' in input || 'salaryExpectationCurrency' in input;
@@ -739,7 +746,7 @@ export class CandidatesService {
 
   private async auditSensitiveReads(
     recordCount: number,
-    access: Awaited<ReturnType<CandidatesService['resolveSensitiveAccess']>>,
+    access: CandidateResponseAccess,
     actorUserId: string,
     context: RequestContext,
     candidateId?: string,
@@ -888,30 +895,23 @@ export class CandidatesService {
     }
   }
 
-  private toCandidateDetail(
-    candidate: CandidateWithProfile,
-    access: Awaited<ReturnType<CandidatesService['resolveSensitiveAccess']>>,
-    includeProfile: boolean,
-  ) {
+  private toCandidateDetail(candidate: CandidateWithProfile, access: CandidateResponseAccess) {
     return {
       ...this.toCandidateSummary(candidate, access),
-      skills: includeProfile ? candidate.skills.map((skill) => this.toSkill(skill)) : [],
-      languages: includeProfile
+      skills: access.profileView ? candidate.skills.map((skill) => this.toSkill(skill)) : [],
+      languages: access.profileView
         ? candidate.languages.map((language) => this.toLanguage(language))
         : [],
-      workExperiences: includeProfile
+      workExperiences: access.profileView
         ? candidate.workExperiences.map((experience) => this.toWorkExperience(experience))
         : [],
-      education: includeProfile
+      education: access.profileView
         ? candidate.education.map((education) => this.toEducation(education))
         : [],
     };
   }
 
-  private toCandidateSummary(
-    candidate: CandidateRecord,
-    access: Awaited<ReturnType<CandidatesService['resolveSensitiveAccess']>>,
-  ) {
+  private toCandidateSummary(candidate: CandidateRecord, access: CandidateResponseAccess) {
     return {
       id: candidate.id,
       displayName: candidate.displayName,

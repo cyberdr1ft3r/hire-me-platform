@@ -24,6 +24,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-016 | 2026-07-21 | Accepted | Candidate master/profile records use one reusable `Candidate` with structured skills, languages, work experience, and education child records; duplicates by normalized email are rejected without automatic merging. | Required by issue #17 and the approved candidate domain model. |
 | D-017 | 2026-07-21 | Accepted | Candidate compensation and consent fields are guarded by dedicated permissions separate from ordinary candidate/profile permissions. | Required by issue #17 and the approved confidential-data model. |
 | D-018 | 2026-07-21 | Accepted | Candidate archival and dependent candidate/profile writes serialize on a transaction-scoped PostgreSQL row lock for the parent `Candidate`; writes that observe the archived parent fail with `CANDIDATE_ARCHIVED`. | Required by issue #17 lifecycle and concurrency requirements. |
+| D-019 | 2026-07-22 | Accepted | Candidate response shaping is permission-aware for every detail and mutation response; mutation permissions do not imply `candidate_profile:view`, and structured profile arrays are redacted to empty arrays when profile view is absent. | Required by the blocking security review on PR #18. |
 
 ## Decision protocol
 

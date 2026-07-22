@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
@@ -14,6 +14,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #13 is complete through merged PR #14; secured internal user administration and central active-user authorization checks are active on `main`.
 - Issue #15 is complete through merged PR #16; client organization and client-contact CRM are active on `main`.
 - Issue #17 is in progress on branch `feat/candidate-profiles` with draft PR #18 open.
+- Latest PR #18 blocking review identified a candidate response permission leak: mutation responses must not expose structured profile arrays when the caller lacks `candidate_profile:view`. The fix has been implemented locally and is ready for PR/CI review after push.
 
 ## Next Action
 
@@ -26,6 +27,7 @@ Check especially:
 - API runtime code continues to use the one Nest-managed Prisma provider.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
 - Candidate responses never expose Prisma internals or unapproved confidential payloads.
+- Candidate detail and mutation responses redact structured profile arrays to empty arrays unless `candidate_profile:view` is effective, even when mutation permissions are effective.
 - Candidate compensation and consent fields require dedicated permissions even when ordinary candidate permissions are present.
 - Manager, team-leader, employee, guest, and client-user roles do not receive broad candidate permissions until row scopes are implemented.
 - Candidate and candidate-profile archive operations preserve records and do not physically delete.
@@ -123,6 +125,16 @@ Confirmed through GitHub Actions run `29875687083` on draft PR #18:
 - Development seed.
 - Database integration tests.
 - Quality checks.
+
+Completed locally during the PR #18 blocking permission-boundary fix:
+
+- Candidate response shaping now uses one centralized effective-permission access object for profile, compensation, and consent visibility.
+- Candidate create, detail, update, status-change, and archive responses redact skills, languages, work experience, and education to empty arrays when `candidate_profile:view` is absent.
+- Candidate listing responses remain free of structured profile arrays, and skill-name search is available only when `candidate_profile:view` is effective.
+- PostgreSQL regression coverage uses a mutation-capable synthetic role without `candidate_profile:view` and verifies create, detail, update, status, and archive responses do not expose structured profile data.
+- Checks passed after the fix: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice, `pnpm test:db`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+
+`pnpm test:db`, `pnpm test`, and `pnpm build` were rerun outside the filesystem sandbox when esbuild needed access to local config paths. PostgreSQL used Docker Compose with `POSTGRES_PORT=55432`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
