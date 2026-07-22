@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -19,7 +19,8 @@ Core recruitment CRM foundation.
 - Issue #10 is complete; PR #11 merged the local authentication, session security, RBAC resolution, and authentication audit foundation.
 - Issue #13 is complete; PR #14 merged secured internal user administration, role assignment, account status management, permission catalog reads, central active-user authorization checks, and administrative session revocation.
 - Issue #15 is complete; PR #16 merged the client organization and client-contact CRM module.
-- Active issue: #17 - draft PR pending for reusable candidate master records and structured candidate profiles.
+- Issue #17 is complete; PR #18 merged the reusable candidate master records and structured candidate profile foundation.
+- Active issue: #19 - draft PR pending for recruitment missions and multiple recruiter/contributor assignments.
 
 ## Confirmed Product Facts
 
@@ -47,6 +48,7 @@ Core recruitment CRM foundation.
 - Internal user administration uses permission-code guarded `/v1/admin` endpoints, shared Prisma-independent contracts, safe response DTOs, transaction-protected last active `SUPER_ADMIN` checks, self-lockout prevention, session revocation on suspension/archive, and safe administration audit logs.
 - Client organization and client-contact CRM uses permission-code guarded `/v1/clients` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-client row locks for archival and dependent writes, nested contact ownership checks, per-client normalized contact email uniqueness, explicit commercial-data gating, and safe CRM audit logs.
 - Candidate master/profile CRM uses permission-code guarded `/v1/candidates` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-candidate row locks for archival and dependent writes, nested profile ownership checks, global normalized candidate email duplicate rejection, structured skills/languages/work-experience/education records, explicit compensation and consent permissions, and safe candidate audit logs.
+- Recruitment mission CRM uses permission-code guarded `/v1/missions` endpoints, shared Prisma-independent contracts, documented lifecycle transitions, structured closure reasons, archival lifecycles, transaction-scoped parent-mission row locks for lifecycle and assignment writes, nested assignment ownership checks, active duplicate assignment protection, single active lead-recruiter protection, explicit mission commercial-data permissions, and safe mission audit logs.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

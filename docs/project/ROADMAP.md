@@ -52,7 +52,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 ## Phase 3 — Persistence foundation
 
-**State:** In progress
+**State:** Complete
 
 - Issue #3.
 - Foundational Prisma schema.
@@ -60,7 +60,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 ## Phase 4 — Identity, authorization, and audit foundation
 
-**State:** Planned; issue not yet created
+**State:** Complete
 
 - Authentication implementation.
 - Roles, permissions, and record scopes.
@@ -70,7 +70,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 ## Phase 5 — Core recruitment CRM
 
-**State:** Planned; issues not yet created
+**State:** In progress
 
 - Clients and contacts.
 - Candidates and CV metadata.
@@ -78,6 +78,8 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - MissionCandidate pipeline.
 - Interviews and evaluations.
 - Search and filtering.
+
+Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 implements recruitment missions and multiple recruiter/contributor assignments. MissionCandidate pipeline, interviews, evaluations, CV/document handling, and broader search remain future scoped work.
 
 ## Phase 6 — Collaboration and operational support
 

@@ -145,7 +145,17 @@ Issue #17 implements the first candidate master/profile business module:
 - transaction-scoped parent-candidate row locking for candidate archival and every dependent candidate/profile write so concurrent archival cannot be bypassed by a later ordinary mutation
 - PostgreSQL-backed tests for normalized-email duplicate rejection, IDOR protection, lifecycle and archival rules, concurrent archival races, authorization, profile response redaction, sensitive field gating, and safe audit metadata
 
-Missions, training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, and broader business workflow behavior remain later implementation work.
+Issue #19 implements the first recruitment mission and assignment module:
+
+- versioned `/v1/missions` endpoints for mission listing, creation, detail, updates, lifecycle status changes, structured closure, archival, nested assignment listing, assignment creation, assignment updates, assignment archival, and atomic lead-recruiter replacement
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService`
+- explicit mission, mission-assignment, and mission-commercial-data permission codes with deny-by-default behavior for unresolved row scopes
+- mission salary and commercial fields returned or accepted only when dedicated mission commercial permissions are effective
+- transaction-scoped parent-mission row locking for lifecycle changes, closure, archival, ordinary mission writes, assignment writes, and lead replacement so concurrent archival or terminal closure cannot be bypassed
+- PostgreSQL-backed tests for lifecycle/closure invariants, protected commercial fields, assignment uniqueness, lead uniqueness, IDOR protection, authorization, and archival races
+
+Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, candidate-to-mission pipelines, interviews, and broader business workflow behavior remain later implementation work.
 
 ### Audit Logging
 

@@ -119,7 +119,16 @@ async function prepareAdminCatalog(): Promise<void> {
     'messages:view',
     'messages:create',
     'training_enrollments:manage',
-    'mission_recruiters:manage',
+    'missions:view',
+    'missions:create',
+    'missions:update',
+    'missions:status:manage',
+    'missions:archive',
+    'missions:closure:manage',
+    'mission_assignments:view',
+    'mission_assignments:manage',
+    'mission_commercial_data:view',
+    'mission_commercial_data:update',
   ];
 
   await ensureRoleWithPermissions(RoleName.SUPER_ADMIN, allPermissionCodes);

@@ -6,5 +6,7 @@ export default defineConfig({
     fileParallelism: false,
     globals: true,
     include: ['test/**/*.integration.test.ts'],
+    maxWorkers: 1,
+    minWorkers: 1,
   },
 });

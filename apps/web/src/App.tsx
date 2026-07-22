@@ -11,12 +11,17 @@ import type {
   CandidateSummary,
   ClientContactSummary,
   ClientSummary,
+  MissionAssignmentSummary,
+  MissionLifecycleState,
+  MissionSummary,
 } from '@hire-me/contracts';
 
 import {
   archiveCandidate,
   archiveClient,
   archiveClientContact,
+  archiveMission,
+  archiveMissionAssignment,
   assignAdminRole,
   createCandidate,
   createCandidateEducation,
@@ -25,15 +30,20 @@ import {
   createCandidateWorkExperience,
   createClient,
   createClientContact,
+  createMission,
+  createMissionAssignment,
   createAdminUser,
   fetchHealthStatus,
   fetchMeWithRefresh,
   getClient,
   getCandidate,
+  getMission,
   getAdminUser,
   listCandidates,
   listClientContacts,
   listClients,
+  listMissionAssignments,
+  listMissions,
   listAdminPermissions,
   listAdminRoles,
   listAdminUsers,
@@ -50,6 +60,11 @@ import {
   updateClientContact,
   updateClientContactStatus,
   updateClientStatus,
+  updateMission,
+  updateMissionAssignment,
+  updateMissionStatus,
+  closeMission,
+  setMissionLeadRecruiter,
   refresh,
 } from './api.js';
 
@@ -58,11 +73,12 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients' | 'candidates';
+type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions';
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
 const CLIENTS_ROUTE_PERMISSION = 'clients:view';
 const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
+const MISSIONS_ROUTE_PERMISSION = 'missions:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -76,7 +92,9 @@ export function App() {
         ? 'clients'
         : window.location.pathname === '/candidates'
           ? 'candidates'
-          : 'home',
+          : window.location.pathname === '/missions'
+            ? 'missions'
+            : 'home',
   );
 
   useEffect(() => {
@@ -181,13 +199,16 @@ export function App() {
           ? '/clients'
           : nextRoute === 'candidates'
             ? '/candidates'
-            : '/',
+            : nextRoute === 'missions'
+              ? '/missions'
+              : '/',
     );
   }
 
   const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
   const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
   const canOpenCandidates = Boolean(user?.permissions.includes(CANDIDATES_ROUTE_PERMISSION));
+  const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -249,6 +270,14 @@ export function App() {
             <button
               type="button"
               onClick={() => {
+                navigate('missions');
+              }}
+            >
+              Missions
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 void handleLogout();
               }}
             >
@@ -304,6 +333,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Candidates">
             <h2>Candidates</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'missions' && user && accessToken ? (
+        canOpenMissions ? (
+          <MissionsPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Missions">
+            <h2>Missions</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -1524,6 +1563,471 @@ function CandidatesPanel({
       </div>
     </section>
   );
+}
+
+function MissionsPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [missions, setMissions] = useState<MissionSummary[]>([]);
+  const [assignments, setAssignments] = useState<MissionAssignmentSummary[]>([]);
+  const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
+  const [search, setSearch] = useState('');
+  const [stateFilter, setStateFilter] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const canCreate = permissions.includes('missions:create');
+  const canUpdate = permissions.includes('missions:update');
+  const canManageStatus = permissions.includes('missions:status:manage');
+  const canClose = permissions.includes('missions:closure:manage');
+  const canArchive = permissions.includes('missions:archive');
+  const canViewAssignments = permissions.includes('mission_assignments:view');
+  const canManageAssignments = permissions.includes('mission_assignments:manage');
+
+  useEffect(() => {
+    void loadMissions();
+  }, []);
+
+  async function loadMissions(nextSearch = search, nextState = stateFilter): Promise<void> {
+    const response = await listMissions({
+      accessToken,
+      search: nextSearch || undefined,
+      state: nextState || undefined,
+      pageSize: 20,
+    });
+    setMissions(response.missions);
+  }
+
+  async function selectMission(missionId: string): Promise<void> {
+    const response = await getMission(accessToken, missionId);
+    setSelectedMission(response.mission);
+    setMessage(null);
+    if (canViewAssignments) {
+      const assignmentResponse = await listMissionAssignments(accessToken, missionId);
+      setAssignments(assignmentResponse.assignments);
+    }
+  }
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadMissions(search, stateFilter);
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const created = await createMission(accessToken, {
+      clientId: formValue(formData, 'clientId'),
+      title: formValue(formData, 'title'),
+      description: optionalFormValue(formData, 'description'),
+      requirements: optionalFormValue(formData, 'requirements'),
+      priority: formValue(formData, 'priority', 'NORMAL') as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
+      numberOfPositions: Number(formValue(formData, 'numberOfPositions', '1')),
+      location: optionalFormValue(formData, 'location'),
+      workArrangement: optionalFormValue(formData, 'workArrangement'),
+      engagementType: optionalFormValue(formData, 'engagementType'),
+    });
+    form.reset();
+    setSelectedMission(created.mission);
+    setMessage('Mission created.');
+    await loadMissions();
+  }
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateMission(accessToken, selectedMission.id, {
+      title: formValue(formData, 'title', selectedMission.title),
+      priority: formValue(formData, 'priority', selectedMission.priority) as
+        'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
+      numberOfPositions: Number(
+        formValue(formData, 'numberOfPositions', String(selectedMission.numberOfPositions)),
+      ),
+      location: nullableFormValue(formData, 'location'),
+      workArrangement: nullableFormValue(formData, 'workArrangement'),
+      engagementType: nullableFormValue(formData, 'engagementType'),
+    });
+    setSelectedMission(updated.mission);
+    setMessage('Mission updated.');
+    await loadMissions();
+  }
+
+  async function changeState(state: MissionLifecycleState): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    const updated = await updateMissionStatus(accessToken, selectedMission.id, { state });
+    setSelectedMission(updated.mission);
+    setMessage(`Mission moved to ${state}.`);
+    await loadMissions();
+  }
+
+  async function closeSelectedMission(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await closeMission(accessToken, selectedMission.id, {
+      state: formValue(formData, 'state') as
+        | 'CLOSED_WITH_RECRUITMENT'
+        | 'CLOSED_WITHOUT_RECRUITMENT'
+        | 'CANCELED'
+        | 'DEADLINE_EXPIRED_WITHOUT_RENEWAL',
+      closureReason: formValue(formData, 'closureReason') as
+        | 'CLIENT_CLOSED_OR_CANCELED'
+        | 'CLOSED_WITHOUT_RECRUITMENT'
+        | 'DEADLINE_EXPIRED_WITHOUT_RENEWAL'
+        | 'POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED',
+      filledPlacementCount: Number(
+        formValue(formData, 'filledPlacementCount', String(selectedMission.filledPlacementCount)),
+      ),
+    });
+    setSelectedMission(updated.mission);
+    setMessage('Mission closed.');
+    await loadMissions();
+  }
+
+  async function archiveSelectedMission(): Promise<void> {
+    if (!selectedMission || !window.confirm('Archive this recruitment mission?')) {
+      return;
+    }
+    const archived = await archiveMission(accessToken, selectedMission.id);
+    setSelectedMission(archived.mission);
+    setAssignments([]);
+    setMessage('Mission archived.');
+    await loadMissions();
+  }
+
+  async function handleCreateAssignment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const isLead = formData.get('isLead') === 'on';
+    await createMissionAssignment(accessToken, selectedMission.id, {
+      userId: formValue(formData, 'userId'),
+      role: isLead
+        ? 'LEAD_RECRUITER'
+        : (formValue(formData, 'role', 'RECRUITER') as 'RECRUITER' | 'SOURCER' | 'CONTRIBUTOR'),
+      isLead,
+    });
+    form.reset();
+    await selectMission(selectedMission.id);
+    setMessage('Assignment created.');
+  }
+
+  async function makeLead(assignmentId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await setMissionLeadRecruiter(accessToken, selectedMission.id, { assignmentId });
+    await selectMission(selectedMission.id);
+    setMessage('Lead recruiter changed.');
+  }
+
+  async function deactivateAssignment(assignmentId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await updateMissionAssignment(accessToken, selectedMission.id, assignmentId, {
+      status: 'INACTIVE',
+    });
+    await selectMission(selectedMission.id);
+    setMessage('Assignment deactivated.');
+  }
+
+  async function archiveSelectedAssignment(assignmentId: string): Promise<void> {
+    if (!selectedMission || !window.confirm('Archive this mission assignment?')) {
+      return;
+    }
+    await archiveMissionAssignment(accessToken, selectedMission.id, assignmentId);
+    await selectMission(selectedMission.id);
+    setMessage('Assignment archived.');
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Missions">
+      <div className="admin-grid">
+        <section aria-label="Recruitment mission list">
+          <h2>Missions</h2>
+          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
+            <label>
+              Search
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                name="search"
+              />
+            </label>
+            <label>
+              State
+              <select
+                value={stateFilter}
+                onChange={(event) => setStateFilter(event.currentTarget.value)}
+                name="state"
+              >
+                <option value="">Any</option>
+                {missionStates.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Search missions</button>
+          </form>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Mission</th>
+                <th>Client</th>
+                <th>State</th>
+                <th>Positions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {missions.map((mission) => (
+                <tr key={mission.id}>
+                  <td>
+                    <button type="button" onClick={() => void selectMission(mission.id)}>
+                      {mission.title}
+                    </button>
+                  </td>
+                  <td>{mission.clientName}</td>
+                  <td>{mission.state}</td>
+                  <td>
+                    {mission.filledPlacementCount}/{mission.numberOfPositions}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {canCreate ? (
+            <form
+              className="stacked-form"
+              aria-label="Create recruitment mission"
+              onSubmit={(event) => void handleCreate(event)}
+            >
+              <h3>Create mission</h3>
+              <input name="clientId" placeholder="Client id" required />
+              <input name="title" placeholder="Title" required />
+              <textarea name="description" placeholder="Description" />
+              <textarea name="requirements" placeholder="Requirements" />
+              <select name="priority" defaultValue="NORMAL">
+                <option value="LOW">Low</option>
+                <option value="NORMAL">Normal</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+              </select>
+              <input name="numberOfPositions" type="number" min="1" defaultValue="1" />
+              <input name="location" placeholder="Location" />
+              <input name="workArrangement" placeholder="Work arrangement" />
+              <input name="engagementType" placeholder="Engagement type" />
+              <button type="submit">Create mission</button>
+            </form>
+          ) : null}
+        </section>
+
+        <section aria-label="Selected mission detail">
+          {selectedMission ? (
+            <>
+              <h2>{selectedMission.title}</h2>
+              <p>{selectedMission.clientName}</p>
+              <p>
+                {selectedMission.state} - {selectedMission.priority} -{' '}
+                {selectedMission.filledPlacementCount}/{selectedMission.numberOfPositions}
+              </p>
+              {selectedMission.commercial ? <p>Commercial fields visible.</p> : null}
+              {canUpdate ? (
+                <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
+                  <input name="title" defaultValue={selectedMission.title} />
+                  <select name="priority" defaultValue={selectedMission.priority}>
+                    <option value="LOW">Low</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                  <input
+                    name="numberOfPositions"
+                    type="number"
+                    min="1"
+                    defaultValue={selectedMission.numberOfPositions}
+                  />
+                  <input name="location" defaultValue={selectedMission.location ?? ''} />
+                  <input
+                    name="workArrangement"
+                    defaultValue={selectedMission.workArrangement ?? ''}
+                  />
+                  <input
+                    name="engagementType"
+                    defaultValue={selectedMission.engagementType ?? ''}
+                  />
+                  <button type="submit">Update mission</button>
+                </form>
+              ) : null}
+
+              {canManageStatus ? (
+                <div className="action-row" aria-label="Mission lifecycle actions">
+                  {nextMissionStates(selectedMission.state).map((state) => (
+                    <button key={state} type="button" onClick={() => void changeState(state)}>
+                      {state}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {canClose ? (
+                <form
+                  className="stacked-form"
+                  onSubmit={(event) => void closeSelectedMission(event)}
+                >
+                  <h3>Close mission</h3>
+                  <select name="state" defaultValue="CLOSED_WITHOUT_RECRUITMENT">
+                    <option value="CLOSED_WITH_RECRUITMENT">Closed with recruitment</option>
+                    <option value="CLOSED_WITHOUT_RECRUITMENT">Closed without recruitment</option>
+                    <option value="CANCELED">Canceled</option>
+                    <option value="DEADLINE_EXPIRED_WITHOUT_RENEWAL">Deadline expired</option>
+                  </select>
+                  <select name="closureReason" defaultValue="CLOSED_WITHOUT_RECRUITMENT">
+                    <option value="POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED">
+                      Positions filled
+                    </option>
+                    <option value="CLOSED_WITHOUT_RECRUITMENT">No recruitment</option>
+                    <option value="CLIENT_CLOSED_OR_CANCELED">Client canceled</option>
+                    <option value="DEADLINE_EXPIRED_WITHOUT_RENEWAL">Deadline expired</option>
+                  </select>
+                  <input
+                    name="filledPlacementCount"
+                    type="number"
+                    min="0"
+                    defaultValue={selectedMission.filledPlacementCount}
+                  />
+                  <button type="submit">Close mission</button>
+                </form>
+              ) : null}
+
+              {canArchive ? (
+                <button type="button" onClick={() => void archiveSelectedMission()}>
+                  Archive mission
+                </button>
+              ) : null}
+
+              {canViewAssignments ? (
+                <>
+                  <h3>Assignments</h3>
+                  <ul>
+                    {assignments.map((assignment) => (
+                      <li key={assignment.id}>
+                        {assignment.userDisplayName} - {assignment.role} - {assignment.status}
+                        {assignment.isLead ? ' - lead' : ''}
+                        {canManageAssignments ? (
+                          <>
+                            <button type="button" onClick={() => void makeLead(assignment.id)}>
+                              Make lead
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deactivateAssignment(assignment.id)}
+                            >
+                              Deactivate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void archiveSelectedAssignment(assignment.id)}
+                            >
+                              Archive
+                            </button>
+                          </>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+
+              {canManageAssignments ? (
+                <form
+                  className="stacked-form"
+                  aria-label="Create mission assignment"
+                  onSubmit={(event) => void handleCreateAssignment(event)}
+                >
+                  <input name="userId" placeholder="Internal user id" required />
+                  <select name="role" defaultValue="RECRUITER">
+                    <option value="RECRUITER">Recruiter</option>
+                    <option value="SOURCER">Sourcer</option>
+                    <option value="CONTRIBUTOR">Contributor</option>
+                  </select>
+                  <label>
+                    Lead recruiter
+                    <input name="isLead" type="checkbox" />
+                  </label>
+                  <button type="submit">Assign user</button>
+                </form>
+              ) : null}
+              {message ? <p role="status">{message}</p> : null}
+            </>
+          ) : (
+            <p>Select a mission.</p>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+const missionStates: MissionLifecycleState[] = [
+  'DRAFT',
+  'INTERNAL_VALIDATION',
+  'ACTIVE',
+  'JOB_DESCRIPTION_APPROVED',
+  'CANDIDATE_SOURCING',
+  'HR_PRESELECTION',
+  'HR_INTERVIEWS',
+  'TECHNICAL_TESTS',
+  'CANDIDATE_PRESENTATION',
+  'CLIENT_INTERVIEWS',
+  'FINAL_SELECTION',
+  'OFFER_SENT',
+  'CANDIDATE_INTEGRATED',
+  'PROBATION_MONITORING',
+  'WAITING_FOR_CLIENT_INFORMATION',
+  'PAUSED',
+];
+
+function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[] {
+  const transitions: Partial<Record<MissionLifecycleState, MissionLifecycleState[]>> = {
+    DRAFT: ['INTERNAL_VALIDATION', 'PAUSED'],
+    INTERNAL_VALIDATION: ['ACTIVE', 'WAITING_FOR_CLIENT_INFORMATION', 'PAUSED'],
+    ACTIVE: ['JOB_DESCRIPTION_APPROVED', 'PAUSED'],
+    JOB_DESCRIPTION_APPROVED: ['CANDIDATE_SOURCING', 'WAITING_FOR_CLIENT_INFORMATION', 'PAUSED'],
+    CANDIDATE_SOURCING: ['HR_PRESELECTION', 'PAUSED'],
+    HR_PRESELECTION: ['HR_INTERVIEWS', 'PAUSED'],
+    HR_INTERVIEWS: ['TECHNICAL_TESTS', 'PAUSED'],
+    TECHNICAL_TESTS: ['CANDIDATE_PRESENTATION', 'PAUSED'],
+    CANDIDATE_PRESENTATION: ['CLIENT_INTERVIEWS', 'WAITING_FOR_CLIENT_INFORMATION', 'PAUSED'],
+    CLIENT_INTERVIEWS: ['FINAL_SELECTION', 'PAUSED'],
+    FINAL_SELECTION: ['OFFER_SENT', 'PAUSED'],
+    OFFER_SENT: ['CANDIDATE_INTEGRATED', 'PAUSED'],
+    CANDIDATE_INTEGRATED: ['PROBATION_MONITORING'],
+    WAITING_FOR_CLIENT_INFORMATION: [
+      'INTERNAL_VALIDATION',
+      'JOB_DESCRIPTION_APPROVED',
+      'CANDIDATE_PRESENTATION',
+    ],
+    PAUSED: ['INTERNAL_VALIDATION', 'ACTIVE', 'CANDIDATE_SOURCING', 'HR_PRESELECTION'],
+  };
+  return transitions[state] ?? [];
 }
 
 function formValue(formData: FormData, name: string, fallback = ''): string {

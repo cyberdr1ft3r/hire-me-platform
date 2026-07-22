@@ -95,12 +95,21 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `candidate_compensation:update`
 - `candidate_consent:view`
 - `candidate_consent:manage`
+- `missions:view`
+- `missions:create`
+- `missions:update`
+- `missions:status:manage`
+- `missions:archive`
+- `missions:closure:manage`
+- `mission_assignments:view`
 - `messages:view`
 - `messages:create`
 - `training_enrollments:manage`
 - `mission_assignments:manage`
+- `mission_commercial_data:view`
+- `mission_commercial_data:update`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Administration Permissions
 
@@ -164,6 +173,29 @@ Candidate detail and mutation responses are shaped by the caller's effective per
 
 Candidate archival and every dependent candidate/profile write use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `Candidate`. This prevents concurrent profile child creation or ordinary candidate/profile mutation from committing after candidate archival. When archival wins the race, the dependent write receives the stable conflict code `CANDIDATE_ARCHIVED`.
 
+## Implemented Recruitment Mission Permissions
+
+Issue #19 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `missions:view` | List/search recruitment missions and read safe mission detail. |
+| `missions:create` | Create recruitment missions under valid writable clients. |
+| `missions:update` | Update approved mission fields. Salary and commercial fields also require `mission_commercial_data:update`. |
+| `missions:status:manage` | Move missions through documented non-terminal lifecycle transitions. |
+| `missions:closure:manage` | Close missions through a structured closure endpoint and approved closure reasons. |
+| `missions:archive` | Archive closed or canceled missions without physical deletion. |
+| `mission_assignments:view` | List recruiter and contributor assignments under a mission. |
+| `mission_assignments:manage` | Create, update, deactivate, archive, and atomically change mission lead recruiter assignments. |
+| `mission_commercial_data:view` | Read protected mission salary and commercial summary fields. |
+| `mission_commercial_data:update` | Create or update protected mission salary and commercial summary fields. |
+
+Development seed mapping gives normal mission and assignment permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives mission commercial view/update permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission permissions until assignment, team, guest, or client-portal row scopes are implemented.
+
+Mission salary and commercial fields require dedicated mission commercial permissions. Ordinary mission responses receive `commercial: null`. Frontend hiding is only a usability layer; the API enforces this rule.
+
+Mission archival, closure, status changes, ordinary mission updates, assignment creation, assignment updates, assignment archival, and lead-recruiter replacement use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `RecruitmentMission`. This prevents concurrent assignment creation or ordinary mutation from committing after mission archival or terminal closure. When the losing operation observes the terminal parent, it receives the stable conflict code `MISSION_TERMINAL`.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
@@ -177,7 +209,7 @@ Candidate archival and every dependent candidate/profile write use one PostgreSQ
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
