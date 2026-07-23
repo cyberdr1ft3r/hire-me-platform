@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** ATS recruitment workflow foundation
-**Health:** Issue #23 implementation is complete locally; the interview/evaluation schema, API, contract, web, documentation, database tests, and quality gates have passed.
+**Health:** Issue #23 implementation is complete in draft PR #24; the interview/evaluation schema, API, contract, web, documentation, database tests, and quality gates have passed locally.
 **Current blocker:** None locally.
-**Next executable development task:** Push the Issue #23 branch and open the draft PR.
+**Next executable development task:** Review draft PR #24 and CI.
 
 ## Active work
 
@@ -22,7 +22,7 @@ Status owner: repository maintainer
 | Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
-| Issue #23 | In progress | Implement interviews and structured candidate evaluations under mission-candidate processes | Push branch and open draft PR |
+| Issue #23 | Draft PR open | Implement interviews and structured candidate evaluations under mission-candidate processes | Review PR #24 and CI |
 
 ## Completed foundation work
 
@@ -134,7 +134,7 @@ Status owner: repository maintainer
 
 ## Issue #23 Verification State
 
-- Interview and structured-evaluation implementation is complete locally on branch `feat/interviews-evaluations`.
+- Interview and structured-evaluation implementation is complete in draft PR #24 on branch `feat/interviews-evaluations`.
 - The API exposes permission-code guarded nested interview and evaluation endpoints under mission-candidate processes.
 - The implementation refines the existing provisional `Interview` and `CandidateEvaluation` models and adds explicit `InterviewParticipant` and `InterviewEvent` records.
 - Client interviews require explicit mission-candidate presentation, and client interview 2 requires an appropriately progressed first client interview.
@@ -161,7 +161,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review the Issue #23 draft PR after it is opened and CI reports.
+1. Review draft PR #24 and CI.
 
 ## Status Update Rules
 

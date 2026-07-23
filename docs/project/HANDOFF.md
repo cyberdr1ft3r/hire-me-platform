@@ -7,13 +7,13 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, and #21 are complete and merged on `main`.
-- Issue #23 is implemented locally on branch `feat/interviews-evaluations`.
+- Issue #23 is implemented in draft PR #24 on branch `feat/interviews-evaluations`.
 - The implementation covers interviews and structured evaluations only: Prisma schema/migration, API service/controller, shared contracts, minimal protected web controls, seed permissions, PostgreSQL-backed tests, and documentation.
 - Excluded Issue #23 scope remains excluded: calendar integrations, reminders, documents, PDF/Word exports, technical-test execution, client portal, offers, dashboards, imports, AI, custom evaluation builders, and physical deletion.
 
 ## Next Action
 
-Push `feat/interviews-evaluations`, open a draft PR with `Closes #23`, and review CI.
+Review draft PR #24 and CI.
 
 Check especially:
 
