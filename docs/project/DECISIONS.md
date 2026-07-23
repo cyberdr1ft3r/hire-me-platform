@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 Use this log for accepted project-level decisions. Detailed architectural decisions may later be promoted into individual ADR files. Do not record unresolved ideas as accepted decisions.
 
@@ -40,6 +40,10 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-032 | 2026-07-22 | Accepted | Candidate summaries, interview/evaluation records, client feedback, candidate presentation, job-description content, placement confirmation, and mission closure data are structured business records or actions. PDF/Word/Excel versions are generated outputs; uploaded source files remain attachments. Portfolio is normally a professional link, unless an actual portfolio file is uploaded. | Applies D-031 to the clarified Hire Me domain examples. |
 | D-033 | 2026-07-22 | Accepted | Mission-candidate process writes use a consistent PostgreSQL lock order: parent `RecruitmentMission`, existing `MissionCandidate` when present, then parent `Candidate`. Creation locks the mission and candidate before insert. | Required by issue #21 to prevent mission closure/archive races, candidate archival races, and duplicate process creation under concurrency. |
 | D-034 | 2026-07-23 | Accepted | Interview and evaluation writes extend the mission-candidate lock order by locking parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then the `Interview` row when the write targets an interview. Interview actions do not move candidate pipeline state implicitly, and evaluation content is redacted independently by internal-evaluation or client-feedback visibility permissions. | Required by issue #23 for lifecycle concurrency, explicit pipeline control, and confidential evaluation protection. |
+| D-035 | 2026-07-23 | Accepted | The main application is an authenticated internal Hire Me platform. Candidates do not have accounts or dashboards in the MVP direction and apply through unauthenticated opportunity links. | Required by issue #25 product realignment. |
+| D-036 | 2026-07-23 | Accepted | Opportunity lifecycle, application-link availability, and public website/home-page listing are independent controls supporting listed opportunities, unlisted link-only opportunities, and internal-sourcing-only missions. | Required by issue #25 public opportunity clarification. |
+| D-037 | 2026-07-23 | Accepted | Client portal is optional future scope, not part of the MVP; `clientVisible` means approved for external sharing and does not imply portal visibility. | Required by issue #25 client-access clarification. |
+| D-038 | 2026-07-23 | Accepted | Training participants are business records and do not require accounts by default, while trainers and internal training operators require internal accounts; commercial operational accounting is in scope but full legal accounting remains unresolved. | Required by issue #25 training identity and commercial-accounting clarification. |
 
 ## Decision protocol
 

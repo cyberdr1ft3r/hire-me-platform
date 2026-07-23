@@ -6,6 +6,8 @@ Permissions should be explicit capabilities granted through `Role` records and n
 
 Candidate, HR, salary, CV, client, commercial, message, document, export, and audit data is confidential. Permissions must account for both action and record scope.
 
+The main application is authenticated and internal. Candidate applicants do not have accounts, roles, dashboards, or permissions in the MVP; public application links accept only explicitly approved fields and files. Future client portal users are optional future scope.
+
 ## Roles
 
 - Super administrator
@@ -15,7 +17,7 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - Team leader
 - Employee
 - Guest
-- Client user
+- Future client user
 
 ## Matrix Legend
 
@@ -26,22 +28,22 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `Team`: records assigned to the user's team.
 - `Explicit`: requires a specific permission assignment beyond the base role.
 - `Shared read-only`: individually shared records only.
-- `Client`: records explicitly shared with the user's client account.
+- `Future client`: records explicitly shared with the user's client account if a client portal is later approved.
 - `None`: no access by default.
 
 ## First Permissions Matrix
 
-| Capability | Super administrator | Administrator | HR manager | Manager | Team leader | Employee | Guest | Client user |
+| Capability | Super administrator | Administrator | HR manager | Manager | Team leader | Employee | Guest | Future client user |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| View | Full | All data | All data | Team | Team | Assigned | Shared read-only | Client |
+| View | Full | All data | All data | Team | Team | Assigned | Shared read-only | Future client |
 | Create | Full | All data | All data | Team | Team | Assigned | None | None |
-| Update | Full | All data | All data | Team | Team | Assigned | None | Client feedback only |
+| Update | Full | All data | All data | Team | Team | Assigned | None | Future client feedback only |
 | Archive | Full | All data | All data | Team | Team with explicit permission | None | None | None |
 | Delete | Full | Explicit administrative delete | None | None | None | None | None | None |
-| Export | Full | Explicit | Explicit | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Explicit client shared exports |
-| Document download | Full | Explicit or all data | Explicit or all data | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Explicit shared documents |
+| Export | Full | Explicit | Explicit | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Future explicit client shared exports |
+| Document download | Full | Explicit or all data | Explicit or all data | Explicit team scope | Explicit team scope | Explicit assigned scope | None | Future explicit shared documents |
 | User administration | Full | Admin except super administrator control | None | Explicit team user requests only | None | None | None | None |
-| Commercial-data access | Explicit full access | Explicit only | Explicit only | Explicit only | Explicit team summary only | None | None | Explicit client-owned summary only |
+| Commercial-data access | Explicit full access | Explicit only | Explicit only | Explicit only | Explicit team summary only | None | None | Future explicit client-owned summary only |
 
 ## Capability Definitions
 
@@ -54,6 +56,7 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - Document download: download `CandidateDocument` or `Document` files.
 - User administration: create users, assign roles, suspend users, and manage access.
 - Commercial-data access: view pricing, salary ranges, revenue, margins, contract values, client commercial terms, quotations, purchase orders, invoices, and commercial reports.
+- Public application submission: unauthenticated operation limited to approved public opportunity fields and upload requirements; it is not a role permission.
 
 ## Suggested Permission Names
 
@@ -74,6 +77,11 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `roles:view`
 - `permissions:view`
 - `commercial_data:access`
+- `public_opportunities:view`
+- `public_opportunities:manage`
+- `public_opportunities:publish`
+- `public_applications:view`
+- `public_applications:review`
 - `clients:view`
 - `clients:create`
 - `clients:update`
@@ -121,6 +129,20 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `evaluations:update`
 - `evaluations:finalize`
 - `client_feedback:view`
+- `quotations:view`
+- `quotations:manage`
+- `contracts:view`
+- `contracts:manage`
+- `purchase_orders:view`
+- `purchase_orders:manage`
+- `invoices:view`
+- `invoices:manage`
+- `payments:view`
+- `payments:manage`
+- `expenses:view`
+- `expenses:manage`
+- `client_balances:view`
+- `profitability:view`
 
 Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
@@ -156,7 +178,7 @@ Issue #15 implements these route permissions:
 | `client_contacts:status:manage` | Move contacts between active and inactive. |
 | `client_contacts:archive` | Archive contacts without physical deletion. |
 
-Development seed mapping gives all normal client CRM permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives `commercial_data:access` by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no client CRM permissions until team, assigned-record, or client-portal row scopes are implemented.
+Development seed mapping gives all normal client CRM permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives `commercial_data:access` by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no client CRM permissions until team, assigned-record, or optional future client-portal row scopes are implemented.
 
 Commercial client fields require `commercial_data:access` in addition to ordinary client permissions. Frontend hiding is only a usability layer; the API enforces this rule.
 
@@ -203,7 +225,7 @@ Issue #19 implements these route permissions:
 | `mission_commercial_data:view` | Read protected mission salary and commercial summary fields. |
 | `mission_commercial_data:update` | Create or update protected mission salary and commercial summary fields. |
 
-Development seed mapping gives normal mission and assignment permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives mission commercial view/update permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission permissions until assignment, team, guest, or client-portal row scopes are implemented.
+Development seed mapping gives normal mission and assignment permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives mission commercial view/update permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission permissions until assignment, team, guest, or optional future client-portal row scopes are implemented.
 
 Mission salary and commercial fields require dedicated mission commercial permissions. Ordinary mission responses receive `commercial: null`. Frontend hiding is only a usability layer; the API enforces this rule. Salary updates validate the effective next range inside the parent-mission transaction by combining supplied values with persisted values.
 
@@ -225,11 +247,13 @@ Issue #21 implements these route permissions:
 | `mission_candidate_notes:view` | Read internal process notes. |
 | `mission_candidate_notes:manage` | Create or update internal process notes. |
 
-Development seed mapping gives normal mission-candidate process permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent read permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission-candidate process permissions until assignment, team, guest, or client-portal row scopes are implemented.
+Development seed mapping gives normal mission-candidate process permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent read permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission-candidate process permissions until assignment, team, guest, or optional future client-portal row scopes are implemented.
 
 Mission-candidate access remains deny-by-default. A caller must have the route permission and either an active mission assignment or an explicit authorized override. The responsible recruiter, active lead recruiter, or authorized override user may manage the process depending on the operation. Responsible recruiters must be active, internal, non-archived users with an active mission assignment as lead recruiter, recruiter, or sourcer.
 
 Mission-candidate responses are shaped by the caller's effective permissions. Internal notes require `mission_candidate_notes:view`; live candidate compensation requires `candidate_compensation:view`; live candidate consent requires `candidate_consent:view`. Linking a candidate to a mission does not make the candidate client-visible. Client visibility starts only through the explicit presentation action, never through a generic transition to `PRESENTED_TO_CLIENT`, and future client-facing APIs must continue to exclude internal notes, confidential scores, other missions, and internal history.
+
+`clientVisible` and client-facing wording mean approved for external sharing. They do not imply a current client portal.
 
 Integration confirmation is a first-confirmation write and a retry-safe read thereafter. Repeating confirmation for an already-confirmed process must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
 
@@ -262,7 +286,8 @@ Interview and evaluation access remains deny-by-default. A caller must have the 
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
-- Client user permissions must be scoped by client account and explicit portal sharing rules.
+- Public opportunity and application endpoints must allow only explicitly approved fields and must never expose confidential client, salary, commercial, recruiter, pipeline, internal note, or audit data.
+- Future client user permissions must be scoped by client account and explicit sharing rules if a client portal is later approved.
 - Guest access must be temporary, individually shared, read-only, and denied for confidential documents by default.
 - Employee access should not include commercial-data access by default.
 - Administrator, HR manager, and manager access to commercial figures, pricing, salary, invoices, margins, and revenue requires explicit permission regardless of base operational visibility.
@@ -272,7 +297,7 @@ Interview and evaluation access remains deny-by-default. A caller must have the 
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Exact remaining business record-scope queries, approval workflows, client-facing row scopes, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs internal roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, public application safeguards, and optional future client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Exact remaining business record-scope queries, approval workflows, public application protections, optional future client-facing row scopes, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
@@ -284,14 +309,18 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Team leader access is scoped to team activity.
 - Employee access is scoped to assigned work.
 - Guest access is limited to individually shared read-only records.
-- Client user access is limited to client portal records and explicit sharing.
+- Future client user access is limited to explicitly shared records if a client portal is later approved.
+- Public candidate applicants do not receive authenticated access.
 
 ## Unresolved Technical Choices
 
 - Whether employee exports require manager approval or a technical approval workflow.
 - Whether commercial-data access should be split into pricing, salary, revenue, margin, contract, quotation, purchase order, and invoice permissions.
 - Whether guest access should expire automatically and how expiration is enforced.
-- Whether client users can upload documents.
+- Whether future client users can upload documents.
+- Whether a future client portal exists in the MVP at all; Issue #25 classifies it as optional future scope.
+- Public opportunity permission split for managing lifecycle, application-link availability, listing, approved public fields, and application review.
+- Commercial-accounting permission split for quotation, contract, purchase order, invoice, payment, expense, tax, balance, revenue, and profitability actions.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
 - Final business-module permission-code catalog and route-to-permission map beyond administration, client CRM, and candidate profile CRM.
@@ -301,7 +330,8 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 
 - Broad operational roles can expose confidential candidate and commercial data.
 - Export and document download permissions can create uncontrolled copies of CVs and HR files.
-- Client user scoping mistakes can expose one client's data to another client.
+- Public opportunity field mistakes can expose confidential client, salary, commercial, recruiter, pipeline, or internal data.
+- Future client user scoping mistakes can expose one client's data to another client.
 - Guest read access can become overbroad if it is not individually shared and time-limited.
 - Frontend-only permission checks would be insufficient.
 
