@@ -6,7 +6,7 @@ This file is the fastest context-rehydration entry point for humans and coding a
 
 ## Product Purpose
 
-Build a bilingual, responsive business platform for Hire Me that centralizes recruitment operations, client relationships, missions, candidates and CVs, interviews and evaluations, client collaboration, training and coaching, tasks, documents, notifications, reporting, and selected integrations.
+Build a bilingual, responsive internal business platform for Hire Me that centralizes recruitment operations, client relationships, missions, public opportunities and applications, candidates and CVs, interviews and evaluations, training and coaching, task management, commercial operations, documents, notifications, reporting, and selected integrations.
 
 ## Current Phase
 
@@ -21,30 +21,36 @@ ATS recruitment workflow foundation.
 - Issue #15 is complete; PR #16 merged the client organization and client-contact CRM module.
 - Issue #17 is complete; PR #18 merged the reusable candidate master records and structured candidate profile foundation.
 - Issue #19 is complete; PR #20 merged recruitment missions and multiple recruiter/contributor assignments.
-- Current executable goal: Issue #23 interviews and structured evaluations on branch `feat/interviews-evaluations`, using decisions D-004 and D-023 through D-034.
+- Current executable goal: Issue #25 documentation and architecture realignment on branch `docs/issue-25-product-realignment`, using decisions D-004 and D-023 through D-038.
 
 ## Confirmed Product Facts
 
-- Main users include super administrators, administrators, HR managers, managers, team leaders, employees, guests, and client users.
+- The main application is an authenticated internal Hire Me platform for super administrators, administrators, HR managers, managers, team leaders, employees, guests, trainers, accounting/commercial users, and other authorized staff.
+- Candidates do not have platform accounts or dashboards in the MVP direction. They apply through unauthenticated opportunity/application links.
+- Opportunity lifecycle, application-link availability, and website/home-page listing are independent controls supporting listed opportunities, unlisted link-only opportunities, and internal-sourcing-only missions.
 - Candidate progress is mission-specific and must preserve history when one candidate participates in multiple recruitment missions.
 - A candidate has only one recruitment process ever for the same mission/opportunity; closed or rejected processes are not recreated for that mission.
 - Candidate profile and compensation values remain live source-of-truth data rather than frozen mission snapshots by default; access and changes remain permission-controlled and auditable.
 - Candidate recruitment uses one standard client-approved pipeline, with only explicitly optional stages skippable through audited authorized transitions.
 - A recruitment mission can have multiple recruiters. Each mission-candidate process has one responsible recruiter at a time, while one recruiter may manage many candidate processes. Authorized reassignment is audited.
-- Client companies can have multiple contacts and a restricted client portal.
-- Clients see only candidates explicitly presented for their mission and only deliberately approved profile data, notes, summaries, and files. Internal notes, confidential scoring, other missions, and Hire Me-wide history remain hidden.
+- Client companies can have multiple contacts. A client portal is optional future scope, not part of the MVP; `clientVisible` means approved for external sharing, not proof that a portal exists.
+- Information approved for external client sharing is limited to candidates explicitly presented for the client's mission and only deliberately approved profile data, notes, summaries, and files. Internal notes, confidential scoring, unrelated missions, Hire Me-wide internal history, protected salary or compensation data unless specifically approved, and recruiter-only operational information remain hidden.
 - Client feedback is structured but flexible, with a decision, optional scores, recommendation, comment, client-contact attribution, timestamps, final-decision state, and edit history.
 - Placement counting occurs only after manual integration confirmation by an authorized user; counting is idempotent and later corrections require an audited action.
 - Reaching the client-approved accepted-candidate target makes a mission eligible for closure but never closes it automatically. Original and final approved position targets are preserved, and the client or authorized Hire Me user controls closure, continuation, pause, or scope revision.
 - V1 communication requires private messages and discussion groups, in addition to comments, mentions, and notifications.
 - Training and coaching require programs, sessions, enrollments, per-session attendance, evaluation, certification, and follow-up.
-- Business objects and structured records are the source of truth. Candidate summaries, interview/evaluation records, client feedback, candidate presentation, job-description content, placement confirmation, and mission closure are not documents by default.
-- A document exists only when there is an actual uploaded or generated file requiring storage, download, versioning, approval, signature, or archival. Uploaded CVs, contracts, quotations, purchase orders, invoices, diplomas, certificates, and client-supplied files are examples. Generated PDF/Word/Excel representations are outputs derived from business data.
+- Business objects and structured records are the source of truth. Public opportunities, candidate applications, commercial records, candidate summaries, interview/evaluation records, client feedback, candidate presentation, job-description content, placement confirmation, and mission closure are not documents by default.
+- A document exists only when there is an actual uploaded or generated file requiring storage, download, versioning, approval, signature, or archival. Uploaded CVs, certifications, diplomas, certificates, signed contracts, generated quotation/purchase order/invoice files, and client-supplied files are examples. Generated PDF/Word/Excel representations are outputs derived from business data.
+- Public CV submission must preserve file-version and opportunity-submission history rather than silently overwrite older files.
+- Trainers and internal training operators require internal accounts. Training participants are records and do not require accounts by default.
+- Commercial and operational accounting is in scope for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, client balances, and mission/training revenue and profitability. Full legal accounting, general ledger, tax declarations, and bank reconciliation remain unresolved.
 - Portfolio is normally represented as a professional link such as GitHub, Behance, or a personal website; it becomes a document only when an actual file is uploaded.
 - Principal dashboard indicators are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
+- The next implementation issue after Issue #25 should be Public opportunity and candidate application foundation. Offers/placements and task management should be sequenced separately after that; accounting, training, and any future client portal each need their own later issues.
 
 ## Technical Direction
 
@@ -59,8 +65,9 @@ ATS recruitment workflow foundation.
 - Client organization and client-contact CRM uses permission-code guarded `/v1/clients` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-client row locks for archival and dependent writes, nested contact ownership checks, per-client normalized contact email uniqueness, explicit commercial-data gating, and safe CRM audit logs.
 - Candidate master/profile CRM uses permission-code guarded `/v1/candidates` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-candidate row locks for archival and dependent writes, nested profile ownership checks, global normalized candidate email duplicate rejection, structured skills/languages/work-experience/education records, explicit compensation and consent permissions, and safe candidate audit logs.
 - Recruitment mission CRM uses permission-code guarded `/v1/missions` endpoints, shared Prisma-independent contracts, documented lifecycle transitions, structured closure reasons, archival lifecycles, transaction-scoped parent-mission row locks for lifecycle and assignment writes, assignee eligibility re-checks for assignment activation and lead selection, effective salary-range validation for partial updates, nested assignment ownership checks, active duplicate assignment protection, single active lead-recruiter protection, explicit mission commercial-data permissions, and safe mission audit logs.
-- Mission-candidate process implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints, permanent mission/candidate uniqueness, responsible-recruiter ownership, the client-approved standard pipeline, optional skip audit history, explicit presentation visibility boundary, protected live candidate-field redaction, manual idempotent placement confirmation, and client-controlled closure eligibility.
+- Mission-candidate process implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints, permanent mission/candidate uniqueness, responsible-recruiter ownership, the client-approved standard pipeline, optional skip audit history, a staff-controlled external-sharing boundary, protected live candidate-field redaction, manual idempotent placement confirmation, and client-controlled closure eligibility.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
+- Public opportunity and candidate application foundation is the next planned module. It must preserve the API-owned Prisma boundary, use explicit public DTOs, expose only approved public fields, accept unauthenticated submissions safely, preserve file-version history, and enforce one candidate process per mission/candidate pair.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.
@@ -77,6 +84,7 @@ ATS recruitment workflow foundation.
 - Run applicable lint, type-check, test, build, migration, and security checks before completion.
 - Do not silently expand product scope.
 - Do not model a business record as a document solely because it can be exported to PDF, Word, or Excel.
+- Do not implement candidate accounts or dashboards unless a later approved issue reverses the Issue #25 direction.
 
 ## Source-Of-Truth Order
 

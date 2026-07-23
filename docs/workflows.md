@@ -6,6 +6,36 @@ Workflow state changes must be authorized on the backend, auditable when sensiti
 
 The stages below are confirmed product requirements. Implementation may be delivered module by module, but documents and code should not remove or silently aggregate the confirmed stages. Where normalized state names differ from questionnaire labels, the mapping is explicit.
 
+## Public Opportunity and Application Workflow
+
+Public opportunity state is separate from `RecruitmentMission` state. An authorized internal user controls three independent concepts:
+
+- Opportunity lifecycle: `draft`, `open`, `paused`, `closed`, `archived`.
+- Application-link availability: enabled or disabled.
+- Website or home-page listing: listed or unlisted.
+
+Supported publication modes are:
+
+| Mode | Lifecycle | Application link | Public listing |
+| --- | --- | --- | --- |
+| Listed opportunity | `open` | enabled | listed |
+| Unlisted link-only opportunity | `open` | enabled | unlisted |
+| Internal-sourcing-only mission | any valid mission state | disabled | unlisted |
+
+Public applications are unauthenticated candidate submissions. A submission collects only approved public fields and files, then creates or safely matches one reusable `Candidate` and creates exactly one `MissionCandidate` process for the opportunity's recruitment mission. A candidate cannot apply twice to the same mission but may apply to a different mission. New CVs, certifications, diplomas, and approved uploads create traceable candidate-file versions tied to the opportunity submission rather than overwriting older files.
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> open
+    open --> paused
+    paused --> open
+    open --> closed
+    paused --> closed
+    closed --> archived
+    archived --> [*]
+```
+
 ## Candidate Pipeline
 
 Candidate pipeline state is tracked on `MissionCandidate`, not on `Candidate`. This preserves candidate history across multiple recruitment missions.
@@ -138,7 +168,7 @@ Interview state is tracked on `Interview`, which belongs to one `MissionCandidat
 - `CLIENT_INTERVIEW_1`: first client interview.
 - `CLIENT_INTERVIEW_2`: optional second client interview.
 
-Client interview scheduling requires `MissionCandidate.clientVisible = true` through explicit presentation. `CLIENT_INTERVIEW_2` requires an existing `CLIENT_INTERVIEW_1` that is completed or postponed. This preserves the confirmed client-visible boundary and avoids silent pipeline movement.
+Client interview scheduling requires `MissionCandidate.clientVisible = true` through explicit presentation. In current documentation, `clientVisible` means approved for external sharing; it does not imply that a client portal exists in the MVP. `CLIENT_INTERVIEW_2` requires an existing `CLIENT_INTERVIEW_1` that is completed or postponed. This preserves the confirmed external-sharing boundary and avoids silent pipeline movement.
 
 ### Interview States
 
@@ -435,7 +465,8 @@ stateDiagram-v2
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.
-- Client users may provide feedback only where explicitly authorized; they should not directly control internal workflow state in the MVP.
+- Candidate applicants do not transition internal workflow states through public application links.
+- Client users are optional future actors; in the MVP, Hire Me staff records client feedback and decisions internally.
 - State transitions involving client presentation, rejection, withdrawal, talent pool, document sharing, offer, integration, probation, mission closure reason, archival, cancellation, enrollment approval, payment status, session attendance, certificate, and commercial data should be audited.
 - Reopening terminal states is not supported in the MVP unless a later issue defines recovery rules.
 
@@ -452,12 +483,15 @@ stateDiagram-v2
 - Whether `MissionCandidate` can move backward to earlier active states and which roles can do that.
 - Whether client feedback can create tasks automatically.
 - Exact enum names for mission `closureReason`; structured closure reasons are confirmed.
-- Whether payment status in `TrainingEnrollment` is operational tracking only or later integrates with accounting.
+- Public opportunity URL/token strategy, applicant duplicate matching, anti-abuse controls, upload limits, and consent-retention behavior.
+- How `TrainingEnrollment` payment status integrates with the later commercial-accounting module.
+- Commercial accounting workflows for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, balances, and profitability.
 - Whether workflow state names become database enums or shared constants.
 
 ## Risks
 
-- Allowing client users to drive internal states can compromise process control.
+- Allowing future client users to drive internal states can compromise process control.
+- Exposing unapproved public opportunity fields can leak confidential client, salary, commercial, recruiter, or pipeline data.
 - Missing transition audit logs can weaken accountability for candidate, client, training, and commercial decisions.
 - Reopening terminal states without clear rules can corrupt reporting.
 - Aggregating confirmed stages would hide business process detail required for later tasks.

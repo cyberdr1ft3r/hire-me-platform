@@ -6,45 +6,41 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, and #21 are complete and merged on `main`.
-- Issue #23 is implemented in draft PR #24 on branch `feat/interviews-evaluations`.
-- The implementation covers interviews and structured evaluations only: Prisma schema/migration, API service/controller, shared contracts, minimal protected web controls, seed permissions, PostgreSQL-backed tests, and documentation.
-- Excluded Issue #23 scope remains excluded: calendar integrations, reminders, documents, PDF/Word exports, technical-test execution, client portal, offers, dashboards, imports, AI, custom evaluation builders, and physical deletion.
+- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, and #23 are complete and merged on `main`.
+- Issue #25 is implemented locally on branch `docs/issue-25-product-realignment`.
+- This is documentation and architecture realignment only. Do not add schemas, migrations, APIs, UI, dependencies, or production behavior.
+- The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
+- PR #26 blocking comment correction reconciles D-027 with D-037: D-027 now governs staff-controlled external client sharing and no longer assumes a client portal.
 
 ## Next Action
 
-Review draft PR #24 and confirm GitHub Actions scheduling for the latest branch head.
+Push `docs/issue-25-product-realignment` and open a draft PR with `Closes #25`.
 
 Check especially:
 
-- Every interview belongs to exactly one `MissionCandidate`.
-- Interview actions do not automatically move `MissionCandidate.state`.
-- Client interviews require explicit candidate presentation.
-- Client interview 2 requires a completed or postponed client interview 1.
-- Internal users and client contacts are validated as active, non-archived participants, and client contacts must belong to the mission client.
-- Duplicate active interview participants are rejected.
-- Rescheduling and postponement preserve required reason history.
-- Completion, cancellation, and evaluation finalization are idempotent.
-- Repeated and concurrent cancellation attempts preserve the original `canceledAt`, cancellation event, reason history, and audit history.
-- Evaluation drafts are author-owned, and finalized evaluations reject ordinary mutation.
-- Internal evaluation content and client feedback are redacted unless the caller has the matching visibility permission.
-- Candidate salary values do not appear in evaluation responses or audit metadata.
-- Interview and evaluation writes follow lock order: `RecruitmentMission`, `MissionCandidate`, `Candidate`, then `Interview`.
-- `apps/web` and `packages/contracts` remain Prisma-independent.
+- Candidates do not have accounts or dashboards in the MVP direction.
+- Candidate applications happen through unauthenticated opportunity links.
+- Opportunity lifecycle, application-link availability, and public listing are documented as independent controls.
+- Listed, unlisted link-only, and internal-sourcing-only modes are documented consistently.
+- Public applications preserve candidate/file submission history and enforce one process per mission/candidate.
+- Public fields are explicitly approved; confidential client, salary, commercial, recruiter, pipeline, internal, and audit data remains hidden.
+- Client portal is optional future scope, not MVP and not permanently prohibited.
+- `clientVisible` means approved for external sharing, not current portal visibility.
+- Trainers and internal training operators require internal accounts.
+- Training participants are business records and do not require accounts by default.
+- Task management remains planned but not implemented.
+- Commercial and operational accounting is in scope, while full legal accounting, general ledger, tax declarations, and bank reconciliation remain unresolved.
+- Business records remain structured source-of-truth data; files/documents are uploaded, signed, archived, or generated representations.
+- Roadmap next implementation issue is Public opportunity and candidate application foundation.
 
 ## Verification Notes
 
-Completed locally:
+Completed locally for Issue #25:
 
+- Mermaid CLI rendered all 11 documentation diagrams.
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
 - `pnpm check:architecture`
-- `pnpm prisma:migrate:deploy`
-- `pnpm prisma:migrate:reset --force`
-- `pnpm prisma:seed`
-- second `pnpm prisma:seed`
-- `pnpm test:db` with 61 PostgreSQL integration tests passing
-- Mermaid CLI rendering for all 10 documentation diagrams
 - `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
@@ -52,11 +48,9 @@ Completed locally:
 - `pnpm build`
 - `git diff --check`
 
-Notes:
+`pnpm build` passed with Vite's existing large-chunk advisory warning.
 
-- The first local `pnpm test:db` attempt failed because the shell did not have authentication secrets configured. It passed with safe synthetic `AUTH_ACCESS_TOKEN_SECRET` and `AUTH_REFRESH_TOKEN_PEPPER` values set only for the command.
-- `pnpm build` passed with Vite's large-chunk advisory warning.
-- After the cancellation-idempotency fix, PR #24 reached latest branch head `000e1c2`, but GitHub Actions did not report checks for that head after multiple pushes and a close/reopen retry. The older PR checks are green but belong to the pre-fix head.
+After the PR #26 blocking-comment correction, the focused validation also passed: Mermaid CLI rendered all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

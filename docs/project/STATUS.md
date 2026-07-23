@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** ATS recruitment workflow foundation
-**Health:** Issue #23 implementation is complete in draft PR #24; the interview/evaluation schema, API, contract, web, documentation, database tests, and quality gates have passed locally.
-**Current blocker:** GitHub Actions has not reported checks for the latest PR #24 branch head even after corrective pushes and a close/reopen retry; local validation is complete.
-**Next executable development task:** Review draft PR #24 and confirm GitHub Actions scheduling for the latest branch head.
+**Phase:** Product and roadmap realignment before next ATS module
+**Health:** Issue #25 documentation realignment is implemented locally and validation has passed. Main now includes the merged Issue #23 interview/evaluation foundation.
+**Current blocker:** None locally.
+**Next executable development task:** Open the Issue #25 draft PR. After approval, the next implementation issue should be Public opportunity and candidate application foundation.
 
 ## Active work
 
@@ -22,7 +22,8 @@ Status owner: repository maintainer
 | Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
-| Issue #23 | Draft PR open | Implement interviews and structured candidate evaluations under mission-candidate processes | Review PR #24 and CI |
+| Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
+| Issue #25 | In progress | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | Open draft PR |
 
 ## Completed foundation work
 
@@ -38,7 +39,7 @@ Status owner: repository maintainer
 - Issue #15 completed through merged PR #16, establishing client organization and client-contact CRM, commercial-data gating, archival lifecycle rules, parent-client concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Issue #17 completed through merged PR #18, establishing reusable candidate master/profile CRM, candidate compensation and consent gating, parent-candidate concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Issue #19 completed through merged PR #20, establishing recruitment mission CRM, multiple recruiter/contributor assignments, structured mission closure, commercial-data gating, parent-mission concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
-- Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
+- Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, public opportunity applications, optional future client access, multi-session training attendance, document versioning, messaging, dashboards, commercial operations, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
 
@@ -84,7 +85,7 @@ Status owner: repository maintainer
 - Client contacts keep normalized email uniqueness within one client; the same normalized email may exist under different clients.
 - Client archive is transactional and archives active contacts under the same client without physical deletion.
 - PR #16 lifecycle/concurrency correction serializes client archive, contact creation, client updates, client status changes, contact updates, contact status changes, and contact archive through one transaction-scoped PostgreSQL row lock on the parent `Client`.
-- Normal client/contact permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; unresolved team or assigned scopes do not receive broad client access by default.
+- Normal client/contact permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; unresolved team, assigned, or optional future client scopes do not receive broad client access by default.
 - Commercial client fields require `commercial_data:access`; ordinary client access receives `commercial: null`.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, Mermaid CLI rendering for all 8 diagrams, fresh migration deploy, migration reset, seed twice, `pnpm test:db`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Local PostgreSQL validation used Docker Compose with `POSTGRES_PORT=55432` because another project already occupied `127.0.0.1:5432`.
@@ -134,7 +135,7 @@ Status owner: repository maintainer
 
 ## Issue #23 Verification State
 
-- Interview and structured-evaluation implementation is complete in draft PR #24 on branch `feat/interviews-evaluations`.
+- Interview and structured-evaluation implementation is merged through PR #24.
 - The API exposes permission-code guarded nested interview and evaluation endpoints under mission-candidate processes.
 - The implementation refines the existing provisional `Interview` and `CandidateEvaluation` models and adds explicit `InterviewParticipant` and `InterviewEvent` records.
 - Client interviews require explicit mission-candidate presentation, and client interview 2 requires an appropriately progressed first client interview.
@@ -144,6 +145,20 @@ Status owner: repository maintainer
 - Local checks passed after the cancellation-idempotency correction: focused `interviews.integration.test.ts` regression coverage, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 61 PostgreSQL integration tests passing, `pnpm check:architecture`, Mermaid CLI rendering for all 10 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - `pnpm test:db` initially failed in the local shell because authentication test secrets were intentionally absent from `.env`; it passed after setting safe synthetic `AUTH_ACCESS_TOKEN_SECRET` and `AUTH_REFRESH_TOKEN_PEPPER` values for the command invocation only.
 - `pnpm build` passed with Vite's existing large-chunk advisory warning.
+
+## Issue #25 Verification State
+
+- Issue #25 is documentation and architecture realignment only.
+- Confirmed product direction: the main application is authenticated and internal; candidates apply through unauthenticated opportunity links without accounts or dashboards.
+- Public opportunity lifecycle, application-link availability, and public listing are independent controls.
+- Client portal is optional future scope, not MVP.
+- Training participants are records by default, while trainers and internal training operators require internal accounts.
+- Commercial and operational accounting is in scope with explicit boundaries excluding full legal accounting, general ledger, tax declarations, and bank reconciliation unless later approved.
+- Next implementation issue after Issue #25 should be Public opportunity and candidate application foundation.
+- Local checks passed for the documentation-only change: Mermaid CLI rendered all 11 documentation diagrams, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm build` passed with Vite's existing large-chunk advisory warning.
+- PR #26 blocking comment correction reconciles D-027 with D-037 by making D-027 govern staff-controlled external client sharing without assuming a client portal. The correction also removes stale "Clients see" and client-portal visibility-boundary wording while preserving the confidentiality exclusions for internal notes, confidential scores, unrelated missions, internal history, protected salary or compensation data unless specifically approved, and recruiter-only operational information.
+- Local checks after the PR #26 blocking-comment correction passed: Mermaid CLI rendering for all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 
 ## Current open technical questions
 
@@ -158,11 +173,13 @@ Status owner: repository maintainer
 - Real-time messaging and notification transport.
 - Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
+- Public opportunity URL/token strategy, anti-abuse controls, applicant duplicate matching, file upload limits, and consent retention.
+- Commercial accounting numbering, correction, VAT/tax, partial-payment allocation, and profitability rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Review draft PR #24 and CI.
+1. Push `docs/issue-25-product-realignment` and open a draft PR for Issue #25.
 
 ## Status Update Rules
 

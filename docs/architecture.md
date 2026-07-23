@@ -2,7 +2,7 @@
 
 ## Summary
 
-Hire Me Platform should start as a TypeScript modular monolith in a monorepo. The recommended stack is a React + Vite web application, a NestJS backend API, PostgreSQL, Prisma ORM, shared validation and TypeScript types, Docker Compose for local services, an object/file storage abstraction, role-based authorization, audit logging, background jobs, integration adapters, and protected document storage.
+Hire Me Platform should start as a TypeScript modular monolith in a monorepo. The primary application is an authenticated internal Hire Me platform. The same web/API system may also expose a tightly bounded unauthenticated public opportunity/application surface. The recommended stack is a React + Vite web application, a NestJS backend API, PostgreSQL, Prisma ORM, shared validation and TypeScript types, Docker Compose for local services, an object/file storage abstraction, role-based authorization, audit logging, background jobs, integration adapters, and protected document storage.
 
 This structure is simple enough for a single-developer MVP while preserving boundaries for future expansion and the confirmed V1 and roadmap requirements.
 
@@ -12,6 +12,7 @@ This structure is simple enough for a single-developer MVP while preserving boun
 - Responsive web support.
 - Advanced multi-criteria search.
 - Customizable dashboards and exportable reports.
+- Public opportunity listing and unauthenticated candidate application links with separate lifecycle, link availability, and website listing controls.
 - Automatic reminders and notifications.
 - Real-time internal notifications.
 - Audit logs for sensitive and business-critical actions, including successful user connections and logins.
@@ -19,6 +20,7 @@ This structure is simple enough for a single-developer MVP while preserving boun
 - Confidential-data protection for candidate, HR, salary, CV, client, commercial, message, document, export, and audit data.
 - Module-by-module validation and UAT.
 - Confirmed dashboard metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
+- Commercial and operational accounting for quotations, contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and mission or training profitability.
 - Confirmed integration and output requirements for Microsoft 365 authentication, Outlook/Microsoft email and contacts, Outlook Calendar, Google Calendar, SMTP or Outlook email, WhatsApp Business reminders, LinkedIn-assisted candidate creation/profile links, Excel import/export, PDF generation, Word-compatible output, protected document storage, and real-time internal notifications.
 
 ## Architecture Principles
@@ -31,6 +33,8 @@ This structure is simple enough for a single-developer MVP while preserving boun
 - Preserve candidate history across multiple recruitment missions.
 - Support multiple recruiters per mission through `MissionAssignment`.
 - Support participant-specific training lifecycle data through `TrainingEnrollment`.
+- Keep candidate applicants unauthenticated; do not create candidate accounts or dashboards for the MVP.
+- Keep client portal behavior optional and future-scoped; `clientVisible` means approved for external sharing, not necessarily visible in a portal.
 
 ## Proposed Stack
 
@@ -49,7 +53,7 @@ No monorepo scaffolding is added in this task.
 
 ### React + Vite Frontend
 
-React + Vite is appropriate for dashboards, forms, tables, responsive client portal screens, multilingual UI, search, reporting, workflow controls, and internal messaging. The frontend should use permissions to shape navigation and controls, but backend authorization remains the source of truth.
+React + Vite is appropriate for internal dashboards, forms, tables, multilingual UI, search, reporting, workflow controls, public opportunity/application forms, and internal messaging. The frontend should use permissions to shape navigation and controls, but backend authorization remains the source of truth. Public application pages must use explicit public contracts and must not reuse internal DTOs that include confidential mission, client, salary, recruiter, pipeline, commercial, or audit data.
 
 ### NestJS Backend API
 
@@ -77,7 +81,7 @@ Docker Compose should run local services such as PostgreSQL and any selected que
 
 ### Object/File Storage Abstraction
 
-Uploaded CVs, HR documents, quotations, purchase orders, contracts, invoice documents, generated PDF/Word/Excel files, training documents, message attachments, and client-facing files should be accessed through a storage service interface. Feature modules should not call a provider directly. Business records such as candidate summaries, evaluations, presentations, job-description content, pipeline events, placement confirmations, client feedback, and mission closure are not documents solely because they may later be exported.
+Uploaded CVs, HR documents, quotation files, purchase order files, contract files, invoice files, generated PDF/Word/Excel files, training files, message attachments, and externally shared files should be accessed through a storage service interface. Feature modules should not call a provider directly. Business records such as opportunities, candidate applications, quotations, contracts, purchase orders, invoices, payments, expenses, candidate summaries, evaluations, presentations, job-description content, pipeline events, placement confirmations, client feedback, and mission closure are not documents solely because they may later be exported.
 
 Storage must support protected download paths, randomized storage keys, file metadata, version history, ownership checks, explicit sharing rules, access audit logs, and future malware scanning.
 
@@ -91,7 +95,8 @@ Recommended authorization approach:
 - `User` records receive one or more `Role` records.
 - `Role` records grant explicit `Permission` records.
 - Backend guards enforce permissions and record scope.
-- Client users receive client-scoped permissions only.
+- Candidate applicants do not authenticate and do not receive roles or permissions.
+- Future client users, if approved later, receive client-scoped permissions only.
 - Guest users receive only individually shared read-only access.
 - Commercial-data permissions are explicit assignments, not broad role defaults.
 - Deny-by-default policy checks protect candidate, HR, salary, CV, client, message, document, export, and commercial data.
@@ -182,7 +187,20 @@ Issue #23 implements the interview and structured-evaluation module under missio
 - transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then `Interview` for dependent writes and concurrency races
 - PostgreSQL-backed tests for ownership, IDOR, invalid participants, client interview prerequisites, history, idempotency, redaction, and lifecycle races
 
-Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, offers, full structured client portal feedback, and broader business workflow behavior remain later implementation work.
+Training, documents, optional future client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, offers, commercial accounting, full structured external feedback, and broader business workflow behavior remain later implementation work.
+
+### Public Opportunity and Application Surface
+
+The next planned implementation issue is the public opportunity and candidate application foundation. Architecturally, this surface is separate from the authenticated internal application even if it is served by the same web app and API deployment:
+
+- Internal users create or prepare recruitment missions and control public opportunity settings.
+- Opportunity lifecycle, application-link availability, and website/home-page listing are separate controls.
+- Listed opportunities are public and link-enabled.
+- Unlisted opportunities are link-enabled but absent from public listings.
+- Internal-sourcing-only missions have no active public application link.
+- Public opportunity responses expose only explicitly approved fields and hide client identity, salary, commercial terms, recruiter assignments, application counts, pipeline progress, internal notes, and other confidential mission data unless a later issue approves a specific public field.
+- Public applications can collect approved structured candidate information, CV, certifications, optional diplomas, professional links, salary expectations, availability, and consent.
+- Public submission handling must preserve CV/file version and opportunity-submission history, safely reuse existing candidates when matched, and enforce one mission-candidate process ever per mission/candidate pair.
 
 ### Audit Logging
 
@@ -194,7 +212,7 @@ The backend should write `AuditLog` records for sensitive or business-critical a
 - candidate export and report export
 - successful user connections and logins
 - document upload, generated document creation, explicit document version creation, sharing, and download
-- client portal sharing
+- approved external sharing
 - commercial-data access
 - workflow state transitions
 - mission assignment changes
@@ -216,11 +234,13 @@ Advanced multi-criteria search should be designed as a backend capability with p
 
 Confirmed dashboard metrics are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue. Dashboards and reporting must be customizable. Exact formulas, time windows, saved-view ownership, widget configuration, and authorization rules, especially for revenue, remain unresolved technical choices.
 
-### Document Versioning and Outputs
+### Document Versioning, Outputs, and Commercial Records
 
-Centralized documents should use a logical `Document` record with one or more `DocumentVersion` records. Candidate-specific CVs and attachments should use `CandidateDocument` with one or more `CandidateDocumentVersion` records. A new version represents a new stored file, generated output, or imported revision while preserving the logical document relationship.
+Centralized files should use a logical `Document` record with one or more `DocumentVersion` records. Candidate-specific CVs and attachments should use `CandidateDocument` with one or more `CandidateDocumentVersion` records. A new version represents a new stored file, generated output, public application upload, or imported revision while preserving the logical document relationship and submission history.
 
-Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output. Generated outputs include quotations, purchase orders, contracts, invoice documents, HR document templates, candidate summaries, interview reports, training documents, dashboards, and reports. Uploaded or stored-only files include raw CVs, candidate attachments, signed documents, client-provided files, external HR files, and imported legacy documents.
+Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output. Generated outputs may include quotation files, purchase order files, contract files, invoice files, HR document templates, candidate summaries, interview reports, training documents, dashboards, and reports. Uploaded or stored-only files include raw CVs, candidate attachments, certifications, diplomas, signed documents, client-provided files, external HR files, and imported legacy documents.
+
+Commercial records remain structured source-of-truth data. Quotation, contract, purchase order, invoice, payment, partial payment, overdue balance, expense, VAT/tax, client balance, revenue, and profitability concepts are not `Document` records merely because they can later be generated as PDF, Word, or Excel outputs. Full legal accounting, general ledger, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
 
 ### Data Migration
 
@@ -244,8 +264,8 @@ Testing should match risk and behavior:
 
 - Unit tests for workflow transitions, permission checks, validation schemas, import validation, and domain services.
 - Integration tests for API behavior, persistence, authorization scopes, storage adapters, background jobs, messaging membership, and integration adapters.
-- Frontend tests for permission-aware rendering, multilingual UI behavior, responsive forms, workflow controls, dashboards, search, and client portal behavior.
-- End-to-end tests for the main recruitment workflow, client portal access, document download controls, messaging permissions, training enrollment, and report export.
+- Frontend tests for permission-aware rendering, multilingual UI behavior, responsive forms, workflow controls, public application forms, dashboards, and search.
+- End-to-end tests for the main recruitment workflow, public candidate application, document download controls, messaging permissions, training enrollment, and report export.
 - Migration, schema validation, generated-client boundary, and relational integration tests for Prisma changes.
 - Module-by-module validation and UAT before rollout.
 
@@ -254,7 +274,7 @@ Testing should match risk and behavior:
 ```mermaid
 flowchart TB
     InternalBrowser["Internal User Browser"]
-    ClientBrowser["Client User Browser"]
+    PublicBrowser["Public Candidate Browser"]
     Web["React + Vite Web App"]
     API["NestJS Backend API"]
     Auth["Authentication"]
@@ -270,11 +290,12 @@ flowchart TB
     Notifications["Notifications and Reminders"]
     Messaging["Messaging Module"]
     Reporting["Search and Reporting"]
+    PublicApplications["Public Opportunities and Applications"]
     Imports["Migration and Import Jobs"]
     IntegrationAdapters["Confirmed Integration Adapters"]
 
     InternalBrowser --> Web
-    ClientBrowser --> Web
+    PublicBrowser --> Web
     Web --> API
     Web --> Shared
     API --> Shared
@@ -293,6 +314,7 @@ flowchart TB
     Jobs --> Storage
     Domain --> Messaging
     Domain --> Reporting
+    Domain --> PublicApplications
     Jobs --> Imports
     Domain --> IntegrationAdapters
     IntegrationAdapters --> Jobs

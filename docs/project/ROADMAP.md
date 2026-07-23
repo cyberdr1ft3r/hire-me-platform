@@ -1,10 +1,10 @@
 # Delivery Roadmap
 
-Last updated: 2026-07-21
+Last updated: 2026-07-23
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
-## Phase 0 — Discovery
+## Phase 0 - Discovery
 
 **State:** Complete
 
@@ -12,7 +12,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Clarification questionnaire.
 - Client workflows, modules, roles, migration expectations, dashboard indicators, language requirements, and integration priorities collected.
 
-## Phase 1 — Product and architecture foundation
+## Phase 1 - Product and architecture foundation
 
 **State:** Complete
 
@@ -23,12 +23,12 @@ This roadmap records sequencing and dependencies. It does not replace individual
 **Exit criteria met:**
 
 - Confirmed requirements are represented without contradiction.
-- Domain entities and relationships support multiple recruiters, mission-specific candidate history, client access, multi-session training attendance, messaging, document versioning, dashboards, outputs, and migration needs.
+- Domain entities and relationships support multiple recruiters, mission-specific candidate history, public applications, optional future client access, multi-session training attendance, messaging, document versioning, dashboards, commercial operations, outputs, and migration needs.
 - Workflows match client-confirmed stages.
-- Permissions use confirmed operational scopes with explicit commercial-data controls.
+- Permissions use confirmed operational scopes with explicit commercial-data controls and public-application confidentiality boundaries.
 - PR #4 and PR #6 are merged.
 
-## Phase 2 — Repository and local development bootstrap
+## Phase 2 - Repository and local development bootstrap
 
 **State:** Complete
 
@@ -50,7 +50,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Lint, type-check, tests, build, and formatting checks pass locally and in CI.
 - No business modules or complete domain schema are implemented in this phase.
 
-## Phase 3 — Persistence foundation
+## Phase 3 - Persistence foundation
 
 **State:** Complete
 
@@ -58,7 +58,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Foundational Prisma schema.
 - Migrations, development seed, indexes, constraints, archival approach, and relational tests.
 
-## Phase 4 — Identity, authorization, and audit foundation
+## Phase 4 - Identity, authorization, and audit foundation
 
 **State:** Complete
 
@@ -68,7 +68,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Audit logging.
 - Protected-session and secret-handling rules.
 
-## Phase 5 — Core recruitment CRM
+## Phase 5 - Core recruitment CRM
 
 **State:** In progress
 
@@ -79,26 +79,63 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Interviews and evaluations.
 - Search and filtering.
 
-Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 completed recruitment missions and multiple recruiter/contributor assignments. Issue #21 implements the `MissionCandidate` process pipeline. Interviews, evaluations, CV/document handling, full client feedback, and broader search remain future scoped work.
+Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 completed recruitment missions and multiple recruiter/contributor assignments. Issue #21 completed the `MissionCandidate` process pipeline. Issue #23 completed interviews and evaluations.
 
-## Phase 6 — Collaboration and operational support
+The next implementation issue is Public opportunity and candidate application foundation. It should add public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
+
+Offers/placements and broader search remain separate future scoped work.
+
+## Phase 6 - Offers, placements, and task management
 
 **State:** Planned; issues not yet created
 
-- Tasks, reminders, notifications, comments, and mentions.
+- Recruitment offers and placement correction workflows.
+- Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
+- Notifications, comments, and mentions.
+
+## Phase 7 - Documents, reporting, and collaboration
+
+**State:** Planned; issues not yet created
+
+- Document templates, versions, and generation for confirmed commercial and HR files.
+- Customizable dashboard indicators, reports, and exports.
 - Private messages and discussion groups.
-- Client portal.
 - Protected document access and sharing.
 
-## Phase 7 — Training, commercial documents, and reporting
+## Phase 8 - Commercial and operational accounting
+
+**State:** Planned; issues not yet created
+
+- Quotations.
+- Recruitment contracts.
+- Training contracts.
+- Purchase orders.
+- Invoices.
+- Payments and partial payments.
+- Overdue balances.
+- Expenses.
+- VAT/tax fields.
+- Client balances.
+- Mission and training revenue and profitability.
+
+Full legal accounting, general ledger, statutory tax declarations, bank reconciliation, and balance-sheet behavior require separate approval and are not assumed.
+
+## Phase 9 - Training and coaching
 
 **State:** Planned; issues not yet created
 
 - Training programs, sessions, enrollment, per-session attendance, assessment, certificates, and follow-up.
-- Document templates, versions, and generation for confirmed commercial and HR documents.
-- Customizable dashboard indicators, reports, and exports.
+- Trainers and internal training operators use authenticated internal accounts.
+- Training participants are records by default and do not require accounts.
 
-## Phase 8 — Integrations and migration
+## Phase 10 - Optional future client portal
+
+**State:** Optional future scope; issue not yet approved
+
+- Any client portal or client account experience requires a separate product and security issue.
+- Existing `clientVisible` terms mean approved for external sharing, not current portal visibility.
+
+## Phase 11 - Integrations and migration
 
 **State:** Planned; issues not yet created
 
@@ -108,7 +145,7 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 - Excel-compatible import/export, PDF generation, and Word-compatible outputs.
 - Controlled migration tooling with duplicate detection, validation, and reporting.
 
-## Phase 9 — UAT and production readiness
+## Phase 12 - UAT and production readiness
 
 **State:** Planned; issues not yet created
 

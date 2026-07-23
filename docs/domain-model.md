@@ -15,6 +15,8 @@ This document defines conceptual entities and relationships for the first implem
 - Uniqueness rules: normalized email should be unique.
 - Audit requirements: user creation, suspension, archival, role changes, mission assignment changes, and permission-sensitive access should be audited.
 
+Candidate applicants are not `User` records in the MVP. They submit through unauthenticated opportunity links. Trainers and internal training operators are `User` records because their actions must be attributable. Training participants are business records through `TrainingEnrollment` and do not require accounts by default.
+
 ### Role
 
 - Purpose and owner: named access profile owned by administration.
@@ -47,6 +49,8 @@ This document defines conceptual entities and relationships for the first implem
 - Sensitive fields: contact details, CV information, HR notes, salary expectations, evaluations, documents.
 - Uniqueness rules: duplicate detection may use normalized email, phone, LinkedIn profile, and CV metadata; final matching rules are unresolved. The Issue #17 implementation preserves the existing global `Candidate.normalizedEmail` uniqueness constraint and rejects duplicates rather than automatically merging candidate records.
 - Audit requirements: creation, sensitive updates, export, archival, talent pool movement, and document access should be audited.
+
+Public opportunity applications may create a new reusable `Candidate` or safely match an existing one. Matching must not silently merge conflicting identity data, and the permanent one-candidate-per-mission rule still applies through `MissionCandidate`.
 
 ### CandidateSkill
 
@@ -96,12 +100,14 @@ This document defines conceptual entities and relationships for the first implem
 
 - Purpose and owner: candidate-specific file such as a CV, portfolio, certification, consent document, or HR attachment; owned by recruitment operations.
 - Important attributes: id, candidate id, document type, logical title, current version id, visibility, uploaded by, status.
-- Relationships: belongs to one candidate; may be shared through client portal rules; may be referenced by generated `Document` records.
+- Relationships: belongs to one candidate; may be approved for external sharing; may be referenced by generated `Document` records.
 - Cardinality: one candidate can have many candidate documents; one candidate document can have many candidate document versions.
 - Lifecycle: active, superseded, archived.
 - Sensitive fields: CVs, certifications, identity information, HR documents, version metadata.
 - Uniqueness rules: current version id should reference one version in the candidate document history.
 - Audit requirements: upload, download, version creation, visibility change, and archival should be audited.
+
+Public application uploads must preserve version and opportunity-submission history. A new CV or supporting file from a candidate application creates traceable candidate-file history rather than overwriting older CV files.
 
 ### CandidateDocumentVersion
 
@@ -117,7 +123,7 @@ This document defines conceptual entities and relationships for the first implem
 ### CandidateEvaluation
 
 - Purpose and owner: structured interview assessment of a mission-specific candidate process; owned by recruitment operations.
-- Important attributes: id, mission candidate id, interview id, author user id, evaluation type, bounded scores, recommendation, recommended flag, strengths, weaknesses, risks, safe comment, final-opinion flag, internal-only flag, client-visible flag, status, submitted timestamp.
+- Important attributes: id, mission candidate id, interview id, author user id, evaluation type, bounded scores, recommendation, recommended flag, strengths, weaknesses, risks, safe comment, final-opinion flag, internal-only flag, external-sharing approval flag, status, submitted timestamp.
 - Relationships: belongs to one `MissionCandidate`, exactly one `Interview`, and exactly one internal author `User`.
 - Cardinality: one interview can have many evaluations by different authorized evaluators; one evaluator can have at most one active evaluation of the same type for one interview.
 - Lifecycle: draft, submitted, archived.
@@ -129,7 +135,7 @@ This document defines conceptual entities and relationships for the first implem
 
 - Purpose and owner: organization receiving recruitment or training services; owned by commercial and recruitment operations.
 - Important attributes: id, name, normalized name, status, industry, website, main phone, country, city, commercial owner, and commercial summary where approved.
-- Relationships: has client contacts, recruitment missions, documents, and client portal users through contacts; may sponsor training enrollments.
+- Relationships: has client contacts, recruitment missions, documents, commercial records, and optional future client portal users through contacts; may sponsor training enrollments.
 - Cardinality: one client can have many contacts, missions, documents, and client participant enrollments.
 - Lifecycle: prospect, active, inactive, archived.
 - Sensitive fields: commercial terms, contracts, invoices, notes, contact details, and private contacts.
@@ -139,13 +145,15 @@ This document defines conceptual entities and relationships for the first implem
 ### ClientContact
 
 - Purpose and owner: person representing a client; owned by commercial and recruitment operations.
-- Important attributes: id, client id, name, email, phone, role, portal access status.
+- Important attributes: id, client id, name, email, phone, role, optional future portal access status.
 - Relationships: belongs to one client; may map to one user; may participate in training through `TrainingEnrollment`.
 - Cardinality: one client can have many contacts.
 - Lifecycle: active, inactive, archived.
 - Sensitive fields: contact details and communication notes.
 - Uniqueness rules: normalized email is unique within one client; the same normalized email may exist under another client.
 - Audit requirements: creation, update, status change, archival, portal activation, access changes, and training enrollment changes should be audited.
+
+Client portal access is optional future scope, not an MVP assumption. In the MVP, Hire Me staff records client feedback and decisions internally.
 
 ### RecruitmentMission
 
@@ -157,6 +165,8 @@ This document defines conceptual entities and relationships for the first implem
 - Sensitive fields: role requirements, salary range, commercial terms, client notes.
 - Uniqueness rules: mission identifiers should be unique; title uniqueness is not required.
 - Audit requirements: creation, assignment changes, state transitions, structured closure reason changes, commercial-data access, updates, archival, and export should be audited.
+
+Recruitment missions may later have one public opportunity/application surface. Opportunity lifecycle, application-link availability, and public website/home-page listing are independent controls and do not automatically expose confidential mission fields.
 
 Confirmed `closureReason` values must cover client closed or canceled the mission, closed without recruitment, deadline expired without renewal, and all planned positions filled with candidates integrated, optionally after probation validation. Successful closure with recruitment must consider `numberOfPositions` and filled-placement count. Exact enum names can be finalized during persistence design.
 
@@ -185,6 +195,31 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Placement rules: `ACCEPTED` does not count as a placement. Placement count changes only after manual integration confirmation, and confirmation does not auto-close the mission.
 - Audit requirements: process creation, pipeline transitions, optional skips, responsible recruiter transfer, client presentation, integration confirmation, outcome recording, and sensitive access should be audited.
 
+`clientVisible` and similar terms mean approved for external sharing. They do not imply a currently implemented client portal.
+
+### PublicOpportunity
+
+- Purpose and owner: public or link-only application surface for one recruitment mission; owned by recruitment operations.
+- Important attributes: id, mission id, lifecycle status, application link enabled flag, public listing enabled flag, public title, public summary, public location or work mode, application deadline, approved public requirements, upload requirements, consent text version, and archival timestamp.
+- Relationships: belongs to one `RecruitmentMission`; receives public candidate applications that create or match a `Candidate` and create one `MissionCandidate` process.
+- Cardinality: one recruitment mission can have zero or one active public opportunity surface in the MVP; a public opportunity can receive many applications.
+- Lifecycle: draft, open, paused, closed, archived.
+- Sensitive fields: internal mission id, client identity when not approved, salary, commercial terms, recruiter assignments, application counts, pipeline progress, internal notes, and operational metadata.
+- Uniqueness rules: public slugs or tokens must be unique; exact URL/token strategy is unresolved.
+- Visibility rules: only explicitly approved public fields are exposed. Supported modes are listed opportunity, unlisted link-only opportunity, and internal-sourcing-only mission.
+- Audit requirements: creation, publication, listing changes, application-link enablement changes, field approval, closure, and archival should be audited.
+
+### PublicCandidateApplication
+
+- Purpose and owner: unauthenticated candidate submission for one public opportunity; owned by recruitment operations.
+- Important attributes: id, public opportunity id, candidate id when matched or created, mission candidate id, submitted contact details, city, experience, skills, languages, current position, availability, salary expectation, professional links, motivation, consent status, submitted timestamp, and safe source metadata.
+- Relationships: belongs to one `PublicOpportunity`; results in one reusable `Candidate` and one `MissionCandidate`; references submitted `CandidateDocumentVersion` records for CVs, certifications, diplomas, and other approved uploads.
+- Cardinality: one public opportunity can have many applications; one candidate can apply to many opportunities, but at most once to the same recruitment mission.
+- Lifecycle: submitted, accepted for review, duplicate blocked, rejected as invalid, archived.
+- Sensitive fields: personal data, contact details, salary expectation, CV contents, certifications, diplomas, consent details, source metadata, and duplicate-matching evidence.
+- Uniqueness rules: duplicate application to the same mission must be blocked after safe matching; exact unauthenticated duplicate-detection strategy remains unresolved.
+- Audit requirements: submission acceptance, candidate matching, duplicate blocking, file version creation, consent capture, and invalid submission handling should be audited with safe metadata.
+
 ### Interview
 
 - Purpose and owner: scheduled or completed candidate meeting; owned by recruitment operations.
@@ -194,7 +229,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Lifecycle: scheduled, postponed, completed, canceled, archived.
 - Sensitive fields: meeting links, participant details, interview notes, outcome.
 - Uniqueness rules: no global uniqueness beyond id.
-- Audit requirements: scheduling, rescheduling, postponement, cancellation, completion, and client-visible changes should be audited.
+- Audit requirements: scheduling, rescheduling, postponement, cancellation, completion, and external-sharing approval changes should be audited.
 
 ### InterviewParticipant
 
@@ -240,15 +275,18 @@ Confirmed task contexts should map before persistence design:
 | training | `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, or `TrainingSessionParticipation` |
 | internal projects | deferred `InternalProject` concept |
 | users | `User` |
-| commercial opportunities or prospects | `Client` with prospect lifecycle; fuller opportunity entity deferred |
-| quotations | generated/stored `Document` of quotation type |
-| invoices | generated/stored `Document` of invoice type |
-| contracts | generated/stored `Document` of contract type |
+| commercial opportunities or prospects | `Client` with prospect lifecycle, `PublicOpportunity`, or deferred commercial opportunity concept |
+| quotations | structured `Quotation` record; generated or signed files use `DocumentVersion` |
+| invoices | structured `Invoice` record; generated or signed files use `DocumentVersion` |
+| contracts | structured recruitment or training contract record; generated or signed files use `DocumentVersion` |
+| purchase orders | structured `PurchaseOrder` record; generated or signed files use `DocumentVersion` |
+| payments | structured `Payment` record |
+| expenses | structured `Expense` record |
 | candidate integration | `MissionCandidate` states `ACCEPTED`, `INTEGRATED`, `PROBATION_COMPLETED`, and `PROCESS_COMPLETED` |
 | probation | `MissionCandidate` and `RecruitmentMission` probation states |
 | events or meetings | `Interview`, `TrainingSession`, or deferred `Event` concept |
 | document approval | `Document`, `DocumentVersion`, `CandidateDocument`, or `CandidateDocumentVersion` |
-| tender or pre-sales work | `Client`, prospect lifecycle, quotation `Document`, or deferred `Tender` concept |
+| tender or pre-sales work | `Client`, prospect lifecycle, `Quotation`, or deferred `Tender` concept |
 
 ### TrainingProgram
 
@@ -283,6 +321,8 @@ Confirmed task contexts should map before persistence design:
 - Uniqueness rules: active duplicate enrollment rules are unresolved and may depend on participant type.
 - Audit requirements: registration, approval, payment status, evaluation, certificate, satisfaction, coaching, follow-up, cancellation, and closure should be audited.
 
+Training participants are records by default. A participant portal or learning portal would require a separate approved decision.
+
 ### TrainingSessionParticipation
 
 - Purpose and owner: per-session participant attendance and session-level outcome record; owned by training operations.
@@ -315,6 +355,21 @@ Confirmed task contexts should map before persistence design:
 - Sensitive fields: quotations, purchase orders, contracts, invoices, HR documents, reports, client files, storage metadata.
 - Uniqueness rules: current version id should reference one version in the document history.
 - Audit requirements: generation, upload, version creation, download, sharing, visibility change, and archival should be audited.
+
+Commercial records, public opportunities, applications, evaluations, client feedback, placement confirmations, and task state are structured business records. They are not `Document` records merely because they can later be exported to PDF, Word, or Excel.
+
+### CommercialRecord
+
+- Purpose and owner: conceptual family of commercial and operational accounting records owned by commercial/accounting operations.
+- Important attributes: record type, client id, related mission or training activity, amount, currency, VAT or tax fields, status, due date, paid amount, balance, profitability allocation, and archival timestamp.
+- Relationships: may belong to a `Client`, `RecruitmentMission`, `TrainingProgram`, `TrainingSession`, or `TrainingEnrollment`; may have generated or signed file representations through `Document` and `DocumentVersion`.
+- Cardinality: one client, mission, or training activity can have many commercial records.
+- Lifecycle: draft, issued or approved, partially paid where applicable, paid, overdue, canceled, archived.
+- Sensitive fields: pricing, margin, revenue, payment status, expenses, tax details, client balance, and profitability.
+- Uniqueness rules: numbering rules for quotations, contracts, purchase orders, invoices, and payments are unresolved.
+- Audit requirements: creation, issue/approval, correction, payment allocation, overdue status changes, expense approval, commercial-data access, export, and archival should be audited.
+
+Included MVP commercial concepts are quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and mission or training revenue/profitability. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
 
 ### DocumentVersion
 
@@ -394,6 +449,8 @@ erDiagram
     Client ||--o{ ClientContact : has
     ClientContact o|--o| User : maps_to
     Client ||--o{ RecruitmentMission : owns
+    RecruitmentMission ||--o| PublicOpportunity : may_publish
+    PublicOpportunity ||--o{ PublicCandidateApplication : receives
 
     RecruitmentMission ||--o{ MissionAssignment : staffed_by
     User ||--o{ MissionAssignment : assigned_to
@@ -404,8 +461,10 @@ erDiagram
     Candidate ||--o{ CandidateWorkExperience : has
     Candidate ||--o{ CandidateEducation : has
     CandidateDocument ||--o{ CandidateDocumentVersion : versions
+    Candidate ||--o{ PublicCandidateApplication : submits
     Candidate ||--o{ MissionCandidate : considered_for
     RecruitmentMission ||--o{ MissionCandidate : includes
+    MissionCandidate ||--o| PublicCandidateApplication : created_from
 
     MissionCandidate ||--o{ Interview : schedules
     Interview ||--o{ InterviewParticipant : includes
@@ -437,6 +496,10 @@ erDiagram
     TrainingEnrollment ||--o{ Document : references
     Document ||--o{ DocumentVersion : versions
     User ||--o{ Document : creates
+    Client ||--o{ CommercialRecord : has
+    RecruitmentMission ||--o{ CommercialRecord : has
+    TrainingProgram ||--o{ CommercialRecord : has
+    CommercialRecord ||--o{ Document : represented_by
 
     User ||--o{ Notification : receives
     Document ||--o{ Notification : triggers
@@ -454,7 +517,7 @@ erDiagram
 ## Relationship Notes
 
 - `UserRole` and `RolePermission` are conceptual join entities.
-- A `ClientContact` maps to a `User` only when client portal access is enabled.
+- A `ClientContact` maps to a `User` only if a future client portal is separately approved and activated.
 - `MissionAssignment` replaces a single mission owner as the model for multiple recruiters and contributors.
 - `MissionCandidate` preserves candidate history across multiple recruitment missions.
 - `CandidateSkill`, `CandidateLanguage`, `CandidateWorkExperience`, and `CandidateEducation` preserve reusable candidate master profile data outside mission-specific pipeline state.
@@ -466,6 +529,8 @@ erDiagram
 - `TrainingSessionParticipation` owns per-session attendance and session-level outcomes.
 - `Document` represents logical centralized and generated documents; `DocumentVersion` stores each version and file output.
 - `CandidateDocument` represents logical candidate-specific files such as CVs; `CandidateDocumentVersion` stores each candidate-file version.
+- `PublicOpportunity` and `PublicCandidateApplication` model the unauthenticated public application surface without creating candidate accounts.
+- `CommercialRecord` is conceptual shorthand for structured quotations, contracts, purchase orders, invoices, payments, expenses, balances, tax fields, revenue, and profitability until future implementation issues decide concrete physical entities.
 - `Conversation`, `ConversationMember`, and `Message` represent confirmed private messaging and discussion groups.
 - `AuditLog` should be append-only and protected from ordinary update or delete operations.
 
@@ -491,7 +556,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 
 - Entity names in this document are implementation-facing unless a documented physical-name deviation exists.
 - The ER diagram is conceptual and not a physical schema.
-- Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`.
+- Client training participants are modeled through `ClientContact`; external participants are modeled through `ExternalTrainingParticipant`. Neither requires a `User` account by default.
 - Archival is preferred over deletion for records that carry recruitment, HR, client, commercial, message, document, training, or audit history.
 - Archived clients are terminal for Issue #15 and cannot receive ordinary updates or new contacts. Archived contacts are also terminal until a future explicitly approved reactivation workflow exists.
 - Archived candidates are terminal for Issue #17 and cannot receive ordinary updates or new profile child records. Archived candidate profile children are terminal until a future explicitly approved reactivation workflow exists.
@@ -502,6 +567,9 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 ## Unresolved Technical Choices
 
 - Whether client portal access supports one `User` across multiple `Client` records.
+- Whether a client portal is implemented at all in the MVP; Issue #25 moves it to optional future scope.
+- Public opportunity URL/token strategy, applicant duplicate matching, anti-spam protections, consent retention, and upload limits.
+- Commercial accounting entity granularity, numbering, corrections, VAT/tax rules, partial-payment allocation, and export formats.
 - Whether client organization names should become globally unique, tenant-scoped unique, or remain duplicate-tolerant.
 - Whether archived client contacts can later be reactivated through a controlled workflow.
 - Whether candidate consent, privacy preferences, compensation history, and retention deadlines need dedicated MVP entities beyond the Issue #17 protected candidate fields.
@@ -519,10 +587,13 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Storing confidential notes in broad entities can make access control harder.
 - Weak uniqueness rules can create duplicate candidates, clients, client contacts, and training participants.
 - A global candidate email uniqueness constraint can block legitimate duplicate or reactivated-person workflows until duplicate-review rules are designed.
+- Public opportunity exposure can leak confidential client, salary, recruiter, pipeline, or commercial data if public fields are not explicitly approved.
+- Public application uploads can destroy CV history if new files overwrite prior candidate documents instead of creating versions tied to the submission.
 - Document, notification, and message content can accidentally expose confidential data if summaries include too much detail.
 - Omitting `MissionAssignment` would make multiple-recruiter missions difficult to represent.
 - Omitting `TrainingEnrollment` would lose participant-specific payment, evaluation, certificate, satisfaction, coaching, and follow-up data.
 - Omitting `TrainingSessionParticipation` would lose per-session attendance and session-level participant outcome data.
+- Treating commercial records as files only would break reporting, balances, and profitability calculations.
 
 ## Non-Goals
 

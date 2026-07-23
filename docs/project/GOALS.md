@@ -1,15 +1,15 @@
 # Project Goals
 
-Last updated: 2026-07-21
+Last updated: 2026-07-23
 
 ## Product goals
 
-1. Centralize candidates, CVs, clients, contacts, recruitment missions, interviews, evaluations, placements, training, tasks, documents, and operational communication.
+1. Centralize candidates, CVs, clients, contacts, recruitment missions, public opportunities and applications, interviews, evaluations, placements, training, tasks, commercial operations, documents, and operational communication.
 2. Provide a reliable end-to-end recruitment workflow from client creation and mission intake through candidate integration and probation follow-up.
 3. Give internal teams clear ownership, deadlines, status visibility, notifications, and auditable actions.
-4. Provide client users with a restricted portal for approved missions, candidates, documents, and feedback.
+4. Provide unauthenticated public opportunity/application links for candidates without creating candidate accounts or dashboards.
 5. Support French and English through a responsive web interface.
-6. Provide operational visibility through the confirmed dashboard indicators: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
+6. Provide operational visibility through the confirmed dashboard indicators: active missions, candidates presented to clients, successful placements, upcoming tasks, revenue, and later commercial profitability.
 7. Support controlled import of existing business data and files, including duplicate detection, validation, and import reporting.
 8. Keep integrations behind adapters so external providers can evolve without contaminating core business logic.
 
@@ -32,7 +32,7 @@ Last updated: 2026-07-21
 
 ## Current milestone
 
-Complete and merge issue #2 so a fresh clone can run the React/Vite web app, NestJS API, PostgreSQL local service, Prisma wiring, shared packages, tests, and CI through documented commands. Do not begin the full business schema in issue #3 until this foundation is stable.
+Complete and merge Issue #25 so the product source of truth reflects the internal authenticated platform, public unauthenticated application surface, optional future client portal, training identity rules, commercial operational accounting scope, and next implementation sequence.
 
 ## Not yet quantified
 
