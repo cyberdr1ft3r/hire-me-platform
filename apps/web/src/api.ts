@@ -23,6 +23,10 @@ import {
   MissionCandidateDetailResponseSchema,
   MissionCandidateListResponseSchema,
   MissionDetailResponseSchema,
+  InterviewDetailResponseSchema,
+  InterviewListResponseSchema,
+  EvaluationDetailResponseSchema,
+  EvaluationListResponseSchema,
   MissionListResponseSchema,
   type AuthResponse,
   type HealthResponse,
@@ -71,6 +75,18 @@ import {
   type MissionCandidatePresentationRequest,
   type MissionCandidateTransferRequest,
   type MissionCandidateTransitionRequest,
+  type InterviewScheduleRequest,
+  type InterviewRescheduleRequest,
+  type InterviewPostponeRequest,
+  type InterviewCompletionRequest,
+  type InterviewCancellationRequest,
+  type InterviewParticipantCreateRequest,
+  type InterviewDetailResponse,
+  type InterviewListResponse,
+  type EvaluationCreateRequest,
+  type EvaluationUpdateRequest,
+  type EvaluationDetailResponse,
+  type EvaluationListResponse,
   type MissionClosureRequest,
   type MissionCreateRequest,
   type MissionDetailResponse,
@@ -1104,4 +1120,204 @@ export async function confirmMissionCandidateIntegration(
     apiBaseUrl,
   );
   return MissionCandidateDetailResponseSchema.parse(await response.json());
+}
+
+export async function listInterviews(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewListResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews`,
+    {},
+    apiBaseUrl,
+  );
+  return InterviewListResponseSchema.parse(await response.json());
+}
+
+export async function scheduleInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: InterviewScheduleRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function rescheduleInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: InterviewRescheduleRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/reschedule`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function postponeInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: InterviewPostponeRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/postpone`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function completeInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: InterviewCompletionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/complete`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function cancelInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: InterviewCancellationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/cancel`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveInterview(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function addInterviewParticipant(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: InterviewParticipantCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InterviewDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/participants`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InterviewDetailResponseSchema.parse(await response.json());
+}
+
+export async function listEvaluations(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<EvaluationListResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations`,
+    {},
+    apiBaseUrl,
+  );
+  return EvaluationListResponseSchema.parse(await response.json());
+}
+
+export async function createEvaluation(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  input: EvaluationCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<EvaluationDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return EvaluationDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateEvaluation(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  evaluationId: string,
+  input: EvaluationUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<EvaluationDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations/${evaluationId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return EvaluationDetailResponseSchema.parse(await response.json());
+}
+
+export async function finalizeEvaluation(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  interviewId: string,
+  evaluationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<EvaluationDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations/${evaluationId}/finalize`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return EvaluationDetailResponseSchema.parse(await response.json());
 }

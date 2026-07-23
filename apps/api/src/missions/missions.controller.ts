@@ -8,11 +8,26 @@ import {
   Param,
   Patch,
   Post,
+  Delete,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import {
+  EvaluationCreateRequestSchema,
+  EvaluationDetailResponseSchema,
+  EvaluationListQuerySchema,
+  EvaluationListResponseSchema,
+  EvaluationUpdateRequestSchema,
+  InterviewCancellationRequestSchema,
+  InterviewCompletionRequestSchema,
+  InterviewDetailResponseSchema,
+  InterviewListQuerySchema,
+  InterviewListResponseSchema,
+  InterviewParticipantCreateRequestSchema,
+  InterviewPostponeRequestSchema,
+  InterviewRescheduleRequestSchema,
+  InterviewScheduleRequestSchema,
   MissionAssignmentCreateRequestSchema,
   MissionAssignmentDetailResponseSchema,
   MissionAssignmentListQuerySchema,
@@ -39,6 +54,7 @@ import { z } from 'zod';
 
 import { badRequest } from './mission.errors.js';
 import { MissionCandidatesService } from './mission-candidates.service.js';
+import { MissionInterviewsService } from './mission-interviews.service.js';
 import { MISSION_PERMISSIONS } from './mission-permissions.js';
 import { MissionsService } from './missions.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -54,6 +70,8 @@ export class MissionsController {
   constructor(
     @Inject(MissionCandidatesService)
     private readonly missionCandidates: MissionCandidatesService,
+    @Inject(MissionInterviewsService)
+    private readonly missionInterviews: MissionInterviewsService,
     @Inject(MissionsService) private readonly missions: MissionsService,
   ) {}
 
@@ -359,6 +377,349 @@ export class MissionsController {
         this.uuid(missionId),
         this.uuid(processId),
         parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId/interviews')
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_VIEW)
+  async listInterviews(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_LIST_QUERY', 'Invalid interview list query.');
+    }
+
+    return InterviewListResponseSchema.parse(
+      await this.missionInterviews.listInterviews(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews')
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_SCHEDULE)
+  async scheduleInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewScheduleRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_SCHEDULE_REQUEST', 'Invalid interview schedule request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.scheduleInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId/interviews/:interviewId')
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_VIEW)
+  async getInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.getInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/reschedule')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_RESCHEDULE)
+  async rescheduleInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewRescheduleRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_RESCHEDULE_REQUEST', 'Invalid reschedule request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.rescheduleInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/postpone')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_RESCHEDULE)
+  async postponeInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewPostponeRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_POSTPONE_REQUEST', 'Invalid postpone request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.postponeInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/complete')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_COMPLETE)
+  async completeInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewCompletionRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_COMPLETION_REQUEST', 'Invalid completion request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.completeInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_CANCEL)
+  async cancelInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewCancellationRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_CANCELLATION_REQUEST', 'Invalid cancellation request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.cancelInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/archive')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEWS_ARCHIVE)
+  async archiveInterview(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.archiveInterview(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/participants')
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEW_PARTICIPANTS_MANAGE)
+  async addInterviewParticipant(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = InterviewParticipantCreateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INTERVIEW_PARTICIPANT_REQUEST', 'Invalid participant request.');
+    }
+
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.addParticipant(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Delete(':missionId/candidates/:processId/interviews/:interviewId/participants/:participantId')
+  @RequirePermissions(MISSION_PERMISSIONS.INTERVIEW_PARTICIPANTS_MANAGE)
+  async removeInterviewParticipant(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Param('participantId') participantId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return InterviewDetailResponseSchema.parse(
+      await this.missionInterviews.removeParticipant(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        this.uuid(participantId),
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId/interviews/:interviewId/evaluations')
+  @RequirePermissions(MISSION_PERMISSIONS.EVALUATIONS_VIEW)
+  async listEvaluations(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = EvaluationListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest('INVALID_EVALUATION_LIST_QUERY', 'Invalid evaluation list query.');
+    }
+
+    return EvaluationListResponseSchema.parse(
+      await this.missionInterviews.listEvaluations(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/interviews/:interviewId/evaluations')
+  @RequirePermissions(MISSION_PERMISSIONS.EVALUATIONS_CREATE)
+  async createEvaluation(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = EvaluationCreateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_EVALUATION_CREATE_REQUEST', 'Invalid evaluation request.');
+    }
+
+    return EvaluationDetailResponseSchema.parse(
+      await this.missionInterviews.createEvaluation(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Patch(':missionId/candidates/:processId/interviews/:interviewId/evaluations/:evaluationId')
+  @RequirePermissions(MISSION_PERMISSIONS.EVALUATIONS_UPDATE)
+  async updateEvaluation(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Param('evaluationId') evaluationId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = EvaluationUpdateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_EVALUATION_UPDATE_REQUEST', 'Invalid evaluation update request.');
+    }
+
+    return EvaluationDetailResponseSchema.parse(
+      await this.missionInterviews.updateEvaluation(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        this.uuid(evaluationId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(
+    ':missionId/candidates/:processId/interviews/:interviewId/evaluations/:evaluationId/finalize',
+  )
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.EVALUATIONS_FINALIZE)
+  async finalizeEvaluation(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('interviewId') interviewId: string,
+    @Param('evaluationId') evaluationId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return EvaluationDetailResponseSchema.parse(
+      await this.missionInterviews.finalizeEvaluation(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(interviewId),
+        this.uuid(evaluationId),
         request.user!.id,
         this.getContext(request),
       ),

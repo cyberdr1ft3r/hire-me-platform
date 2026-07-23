@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** ATS recruitment workflow foundation
-**Health:** PR #22 blocking-review correction for explicit presentation and integration-confirmation idempotency passed local Prisma, PostgreSQL, architecture, formatting, lint, typecheck, unit test, build, static Mermaid, and whitespace checks.
+**Health:** Issue #23 implementation is complete locally; the interview/evaluation schema, API, contract, web, documentation, database tests, and quality gates have passed.
 **Current blocker:** None locally.
-**Next executable development task:** Review draft PR #22 after pushed correction and CI.
+**Next executable development task:** Push the Issue #23 branch and open the draft PR.
 
 ## Active work
 
@@ -21,7 +21,8 @@ Status owner: repository maintainer
 | Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
 | Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
-| Issue #21 | In progress | Implement mission-specific candidate processes and the approved ATS pipeline | Review draft PR #22 |
+| Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
+| Issue #23 | In progress | Implement interviews and structured candidate evaluations under mission-candidate processes | Push branch and open draft PR |
 
 ## Completed foundation work
 
@@ -118,7 +119,7 @@ Status owner: repository maintainer
 
 ## Issue #21 Verification State
 
-- Mission-candidate process implementation is in progress on branch `feat/mission-candidate-pipeline`.
+- Mission-candidate process implementation is merged through PR #22.
 - The API exposes permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints with shared Zod contracts, safe DTOs, permanent `(missionId, candidateId)` uniqueness, responsible-recruiter ownership, explicit presentation, and manual integration confirmation.
 - The implemented pipeline uses the approved states `NEW`, `CV_TO_REVIEW`, `HR_PRESELECTION`, `HR_INTERVIEW_SCHEDULED`, `HR_INTERVIEW_COMPLETED`, `TECHNICAL_TEST`, `INTERNAL_VALIDATION`, `PRESENTED_TO_CLIENT`, `CLIENT_INTERVIEW_1`, `CLIENT_INTERVIEW_2`, `CLIENT_OFFER`, `ACCEPTED`, `INTEGRATED`, `PROBATION_COMPLETED`, `PROCESS_COMPLETED`, plus `WAITING`, `POSTPONED`, `CANDIDATE_REJECTED`, `CLIENT_REJECTED`, `WITHDRAWN`, and `TALENT_POOL`.
 - Optional skips are limited to `HR_INTERVIEW_COMPLETED` to `INTERNAL_VALIDATION` and `CLIENT_INTERVIEW_1` to `CLIENT_OFFER`; both require an explicit skip request, reason, and audit history.
@@ -130,6 +131,18 @@ Status owner: repository maintainer
 - Mission-candidate writes use the documented PostgreSQL lock order from D-033.
 - Local checks after the PR #22 blocking-review correction passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 54 PostgreSQL integration tests passing, `pnpm check:architecture`, static Mermaid validation for all 8 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary `@mermaid-js/mermaid-cli` download/execution was rejected by approval policy.
+
+## Issue #23 Verification State
+
+- Interview and structured-evaluation implementation is complete locally on branch `feat/interviews-evaluations`.
+- The API exposes permission-code guarded nested interview and evaluation endpoints under mission-candidate processes.
+- The implementation refines the existing provisional `Interview` and `CandidateEvaluation` models and adds explicit `InterviewParticipant` and `InterviewEvent` records.
+- Client interviews require explicit mission-candidate presentation, and client interview 2 requires an appropriately progressed first client interview.
+- Interview writes use the established lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then `Interview` when applicable.
+- Evaluations are structured business records with bounded scores, recommendations, strengths, weaknesses, risks, comments, explicit idempotent finalization, and permission-aware redaction.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 59 PostgreSQL integration tests passing, `pnpm check:architecture`, Mermaid CLI rendering for all 10 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm test:db` initially failed in the local shell because authentication test secrets were intentionally absent from `.env`; it passed after setting safe synthetic `AUTH_ACCESS_TOKEN_SECRET` and `AUTH_REFRESH_TOKEN_PEPPER` values for the command invocation only.
+- `pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 ## Current open technical questions
 
@@ -148,7 +161,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review draft PR #22 after the blocking-review correction and CI.
+1. Review the Issue #23 draft PR after it is opened and CI reports.
 
 ## Status Update Rules
 

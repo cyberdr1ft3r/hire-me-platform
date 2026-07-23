@@ -126,6 +126,64 @@ stateDiagram-v2
     PROCESS_COMPLETED --> [*]
 ```
 
+## Interview Workflow
+
+Interview state is tracked on `Interview`, which belongs to one `MissionCandidate`. Interview actions do not automatically move `MissionCandidate.state`; pipeline transitions remain explicit candidate-process actions.
+
+### Interview Types
+
+- `HR`: HR interview.
+- `TECHNICAL`: technical interview or technical-test review meeting.
+- `INTERNAL_VALIDATION`: internal validation meeting.
+- `CLIENT_INTERVIEW_1`: first client interview.
+- `CLIENT_INTERVIEW_2`: optional second client interview.
+
+Client interview scheduling requires `MissionCandidate.clientVisible = true` through explicit presentation. `CLIENT_INTERVIEW_2` requires an existing `CLIENT_INTERVIEW_1` that is completed or postponed. This preserves the confirmed client-visible boundary and avoids silent pipeline movement.
+
+### Interview States
+
+- `SCHEDULED`: interview has a planned start time.
+- `POSTPONED`: interview is delayed and needs rescheduling.
+- `COMPLETED`: interview occurred.
+- `CANCELED`: interview will not occur.
+- `ARCHIVED`: interview is retained but inactive.
+
+Rescheduling and postponement require a reason and create `InterviewEvent` history. Completion is idempotent: repeating completion returns the completed interview without another completion event or audit record. Canceling a completed interview is rejected with a stable conflict.
+
+```mermaid
+stateDiagram-v2
+    [*] --> SCHEDULED
+    SCHEDULED --> SCHEDULED: reschedule with reason
+    SCHEDULED --> POSTPONED: postpone with reason
+    POSTPONED --> SCHEDULED: reschedule with reason
+    SCHEDULED --> COMPLETED
+    POSTPONED --> COMPLETED
+    SCHEDULED --> CANCELED
+    POSTPONED --> CANCELED
+    COMPLETED --> ARCHIVED
+    CANCELED --> ARCHIVED
+    ARCHIVED --> [*]
+```
+
+## Evaluation Workflow
+
+`CandidateEvaluation` is a structured business record created under one interview by an authorized internal evaluator. It is not a document and does not expose raw candidate salary values in responses or audit metadata.
+
+### Evaluation States
+
+- `DRAFT`: author can update the structured evaluation.
+- `SUBMITTED`: finalized evaluation; finalization is explicit and idempotent.
+- `ARCHIVED`: retained but inactive.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SUBMITTED: finalize
+    DRAFT --> ARCHIVED
+    SUBMITTED --> ARCHIVED
+    ARCHIVED --> [*]
+```
+
 ## Recruitment Mission Pipeline
 
 Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific progress is tracked on `MissionCandidate`, but the mission state should reflect the overall recruitment process.

@@ -169,7 +169,20 @@ Issue #21 implements the mission-candidate process module:
 - live candidate compensation and consent fields are redacted unless the caller has the dedicated candidate permissions; internal process notes require mission-candidate note permission
 - PostgreSQL-backed tests for permanent uniqueness, concurrent duplicate creation, pipeline transitions and optional skips, responsible-recruiter transfer, presentation visibility, manual placement confirmation, IDOR, protected-field redaction, candidate archival races, and mission archival races
 
-Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, interviews, evaluations, offers, structured client feedback, and broader business workflow behavior remain later implementation work.
+Issue #23 implements the interview and structured-evaluation module under mission-candidate processes:
+
+- versioned nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints for interview listing, detail, scheduling, rescheduling, postponement, completion, cancellation, archival, participant management, and structured evaluation lifecycle
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService`
+- refined existing `Interview` and `CandidateEvaluation` records rather than parallel models
+- explicit `InterviewParticipant` and `InterviewEvent` records for participants and schedule/status history
+- participant validation for active internal users and active client contacts belonging to the mission client, with duplicate active participant protection
+- client interview scheduling guarded by explicit mission-candidate presentation, and client interview 2 guarded by client interview 1 progression
+- structured bounded evaluation scores, recommendations, strengths, weaknesses, risks, comments, explicit idempotent finalization, and permission-aware redaction
+- transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then `Interview` for dependent writes and concurrency races
+- PostgreSQL-backed tests for ownership, IDOR, invalid participants, client interview prerequisites, history, idempotency, redaction, and lifecycle races
+
+Training, documents, client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, offers, full structured client portal feedback, and broader business workflow behavior remain later implementation work.
 
 ### Audit Logging
 

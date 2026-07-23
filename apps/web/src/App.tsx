@@ -9,8 +9,10 @@ import type {
   AuthenticatedUser,
   CandidateDetail,
   CandidateSummary,
+  CandidateEvaluation,
   ClientContactSummary,
   ClientSummary,
+  InterviewSummary,
   MissionAssignmentSummary,
   MissionCandidateState,
   MissionCandidateSummary,
@@ -24,7 +26,10 @@ import {
   archiveClientContact,
   archiveMission,
   archiveMissionAssignment,
+  archiveInterview,
+  cancelInterview,
   assignAdminRole,
+  completeInterview,
   createCandidate,
   createCandidateEducation,
   createCandidateLanguage,
@@ -34,9 +39,11 @@ import {
   createClientContact,
   createMission,
   createMissionAssignment,
+  createEvaluation,
   createAdminUser,
   fetchHealthStatus,
   fetchMeWithRefresh,
+  finalizeEvaluation,
   getClient,
   getCandidate,
   getMission,
@@ -46,6 +53,8 @@ import {
   listClients,
   listMissionAssignments,
   listMissions,
+  listEvaluations,
+  listInterviews,
   listAdminPermissions,
   listAdminRoles,
   listAdminUsers,
@@ -69,9 +78,12 @@ import {
   confirmMissionCandidateIntegration,
   createMissionCandidate,
   setMissionLeadRecruiter,
+  scheduleInterview,
   listMissionCandidates,
   presentMissionCandidate,
+  postponeInterview,
   refresh,
+  rescheduleInterview,
   transferMissionCandidate,
   transitionMissionCandidate,
 } from './api.js';
@@ -1583,6 +1595,10 @@ function MissionsPanel({
   const [missions, setMissions] = useState<MissionSummary[]>([]);
   const [assignments, setAssignments] = useState<MissionAssignmentSummary[]>([]);
   const [candidateProcesses, setCandidateProcesses] = useState<MissionCandidateSummary[]>([]);
+  const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
+  const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
+  const [activeInterviewId, setActiveInterviewId] = useState<string | null>(null);
+  const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
   const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -1600,6 +1616,15 @@ function MissionsPanel({
   const canTransferProcesses = permissions.includes('mission_candidates:transfer');
   const canPresentProcesses = permissions.includes('mission_candidates:present');
   const canConfirmIntegration = permissions.includes('mission_candidates:integration:confirm');
+  const canViewInterviews = permissions.includes('interviews:view');
+  const canScheduleInterviews = permissions.includes('interviews:schedule');
+  const canRescheduleInterviews = permissions.includes('interviews:reschedule');
+  const canCompleteInterviews = permissions.includes('interviews:complete');
+  const canCancelInterviews = permissions.includes('interviews:cancel');
+  const canArchiveInterviews = permissions.includes('interviews:archive');
+  const canViewEvaluations = permissions.includes('evaluations:view');
+  const canCreateEvaluations = permissions.includes('evaluations:create');
+  const canFinalizeEvaluations = permissions.includes('evaluations:finalize');
 
   useEffect(() => {
     void loadMissions();
@@ -1619,6 +1644,10 @@ function MissionsPanel({
     const response = await getMission(accessToken, missionId);
     setSelectedMission(response.mission);
     setMessage(null);
+    setActiveProcessId(null);
+    setInterviews([]);
+    setActiveInterviewId(null);
+    setEvaluations([]);
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
       setAssignments(assignmentResponse.assignments);
@@ -1849,6 +1878,154 @@ function MissionsPanel({
     await selectMission(selectedMission.id);
     await loadMissions();
     setMessage('Integration confirmed and placement counted once.');
+  }
+
+  async function loadProcessInterviews(processId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    const response = await listInterviews(accessToken, selectedMission.id, processId);
+    setActiveProcessId(processId);
+    setInterviews(response.interviews);
+    setActiveInterviewId(null);
+    setEvaluations([]);
+    setMessage('Interviews loaded.');
+  }
+
+  async function handleScheduleInterview(
+    event: FormEvent<HTMLFormElement>,
+    processId: string,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await scheduleInterview(accessToken, selectedMission.id, processId, {
+      type: formValue(formData, 'type') as
+        'HR' | 'TECHNICAL' | 'INTERNAL_VALIDATION' | 'CLIENT_INTERVIEW_1' | 'CLIENT_INTERVIEW_2',
+      scheduledStartAt: dateTimeFormValue(formData, 'scheduledStartAt'),
+      scheduledEndAt: optionalDateTimeFormValue(formData, 'scheduledEndAt'),
+      timezone: formValue(formData, 'timezone', 'UTC'),
+      format: formValue(formData, 'format', 'VIDEO') as 'ONSITE' | 'PHONE' | 'VIDEO' | 'OTHER',
+      location: optionalFormValue(formData, 'location'),
+      meetingUrl: optionalFormValue(formData, 'meetingUrl'),
+      organizerUserId: formValue(formData, 'organizerUserId'),
+      internalUserParticipantIds: csvValues(formData, 'internalUserParticipantIds'),
+      clientContactParticipantIds: csvValues(formData, 'clientContactParticipantIds'),
+      externalParticipants: [],
+    });
+    form.reset();
+    await loadProcessInterviews(processId);
+    setMessage('Interview scheduled.');
+  }
+
+  async function updateInterviewStatus(
+    processId: string,
+    interviewId: string,
+    action: 'postpone' | 'complete' | 'cancel' | 'archive',
+  ): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    if (action === 'postpone') {
+      await postponeInterview(accessToken, selectedMission.id, processId, interviewId, {
+        reason: 'Updated from the protected mission workspace.',
+      });
+    } else if (action === 'complete') {
+      await completeInterview(accessToken, selectedMission.id, processId, interviewId, {
+        outcome: 'Completed from the protected mission workspace.',
+      });
+    } else if (action === 'cancel') {
+      await cancelInterview(accessToken, selectedMission.id, processId, interviewId, {
+        reason: 'Canceled from the protected mission workspace.',
+      });
+    } else {
+      await archiveInterview(accessToken, selectedMission.id, processId, interviewId);
+    }
+    await loadProcessInterviews(processId);
+    setMessage(`Interview ${action} action completed.`);
+  }
+
+  async function handleRescheduleInterview(
+    event: FormEvent<HTMLFormElement>,
+    processId: string,
+    interviewId: string,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    await rescheduleInterview(accessToken, selectedMission.id, processId, interviewId, {
+      scheduledStartAt: dateTimeFormValue(formData, 'scheduledStartAt'),
+      scheduledEndAt: optionalDateTimeFormValue(formData, 'scheduledEndAt'),
+      timezone: formValue(formData, 'timezone', 'UTC'),
+      reason: formValue(formData, 'reason'),
+    });
+    await loadProcessInterviews(processId);
+    setMessage('Interview rescheduled.');
+  }
+
+  async function loadInterviewEvaluations(processId: string, interviewId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    const response = await listEvaluations(accessToken, selectedMission.id, processId, interviewId);
+    setActiveProcessId(processId);
+    setActiveInterviewId(interviewId);
+    setEvaluations(response.evaluations);
+    setMessage('Evaluations loaded.');
+  }
+
+  async function handleCreateEvaluation(
+    event: FormEvent<HTMLFormElement>,
+    processId: string,
+    interviewId: string,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createEvaluation(accessToken, selectedMission.id, processId, interviewId, {
+      evaluationType: formValue(formData, 'evaluationType', 'INTERNAL_HR') as
+        'INTERNAL_HR' | 'INTERNAL_TECHNICAL' | 'CLIENT',
+      overallScore: optionalNumber(formData, 'overallScore'),
+      communicationScore: optionalNumber(formData, 'communicationScore'),
+      technicalScore: optionalNumber(formData, 'technicalScore'),
+      roleFitScore: optionalNumber(formData, 'roleFitScore'),
+      cultureFitScore: optionalNumber(formData, 'cultureFitScore'),
+      motivationScore: optionalNumber(formData, 'motivationScore'),
+      salaryAlignmentScore: optionalNumber(formData, 'salaryAlignmentScore'),
+      recommendation: formValue(formData, 'recommendation', 'NEUTRAL') as
+        'STRONG_YES' | 'YES' | 'NEUTRAL' | 'NO' | 'STRONG_NO',
+      strengths: optionalFormValue(formData, 'strengths'),
+      weaknesses: optionalFormValue(formData, 'weaknesses'),
+      risks: optionalFormValue(formData, 'risks'),
+      comment: optionalFormValue(formData, 'comment'),
+      finalOpinion: formData.get('finalOpinion') === 'on',
+      clientVisible: false,
+    });
+    form.reset();
+    await loadInterviewEvaluations(processId, interviewId);
+    await loadProcessInterviews(processId);
+    setMessage('Evaluation saved.');
+  }
+
+  async function finalizeSelectedEvaluation(
+    processId: string,
+    interviewId: string,
+    evaluationId: string,
+  ): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await finalizeEvaluation(accessToken, selectedMission.id, processId, interviewId, evaluationId);
+    await loadInterviewEvaluations(processId, interviewId);
+    setMessage('Evaluation finalized.');
   }
 
   return (
@@ -2120,6 +2297,258 @@ function MissionsPanel({
                             <button type="submit">Transfer</button>
                           </form>
                         ) : null}
+                        {canViewInterviews ? (
+                          <button
+                            type="button"
+                            onClick={() => void loadProcessInterviews(process.id)}
+                          >
+                            Interviews
+                          </button>
+                        ) : null}
+                        {canScheduleInterviews ? (
+                          <form
+                            className="stacked-form"
+                            aria-label="Schedule interview"
+                            onSubmit={(event) => void handleScheduleInterview(event, process.id)}
+                          >
+                            <select name="type" defaultValue="HR">
+                              <option value="HR">HR</option>
+                              <option value="TECHNICAL">Technical</option>
+                              <option value="INTERNAL_VALIDATION">Internal validation</option>
+                              <option value="CLIENT_INTERVIEW_1">Client interview 1</option>
+                              <option value="CLIENT_INTERVIEW_2">Client interview 2</option>
+                            </select>
+                            <input name="scheduledStartAt" type="datetime-local" required />
+                            <input name="scheduledEndAt" type="datetime-local" />
+                            <input name="timezone" placeholder="Timezone" defaultValue="UTC" />
+                            <select name="format" defaultValue="VIDEO">
+                              <option value="VIDEO">Video</option>
+                              <option value="PHONE">Phone</option>
+                              <option value="ONSITE">Onsite</option>
+                              <option value="OTHER">Other</option>
+                            </select>
+                            <input
+                              name="organizerUserId"
+                              placeholder="Organizer user id"
+                              required
+                            />
+                            <input name="location" placeholder="Location" />
+                            <input name="meetingUrl" placeholder="Meeting URL" />
+                            <input
+                              name="internalUserParticipantIds"
+                              placeholder="Internal participant ids, comma separated"
+                            />
+                            <input
+                              name="clientContactParticipantIds"
+                              placeholder="Client contact ids, comma separated"
+                            />
+                            <button type="submit">Schedule interview</button>
+                          </form>
+                        ) : null}
+                        {activeProcessId === process.id && interviews.length > 0 ? (
+                          <ul>
+                            {interviews.map((interview) => (
+                              <li key={interview.id}>
+                                {interview.type} - {interview.status} -{' '}
+                                {new Date(interview.scheduledStartAt).toLocaleString()}
+                                <div className="action-row">
+                                  {canCompleteInterviews ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void updateInterviewStatus(
+                                          process.id,
+                                          interview.id,
+                                          'complete',
+                                        )
+                                      }
+                                    >
+                                      Complete
+                                    </button>
+                                  ) : null}
+                                  {canRescheduleInterviews ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void updateInterviewStatus(
+                                          process.id,
+                                          interview.id,
+                                          'postpone',
+                                        )
+                                      }
+                                    >
+                                      Postpone
+                                    </button>
+                                  ) : null}
+                                  {canCancelInterviews ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void updateInterviewStatus(
+                                          process.id,
+                                          interview.id,
+                                          'cancel',
+                                        )
+                                      }
+                                    >
+                                      Cancel
+                                    </button>
+                                  ) : null}
+                                  {canArchiveInterviews ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void updateInterviewStatus(
+                                          process.id,
+                                          interview.id,
+                                          'archive',
+                                        )
+                                      }
+                                    >
+                                      Archive
+                                    </button>
+                                  ) : null}
+                                  {canViewEvaluations ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void loadInterviewEvaluations(process.id, interview.id)
+                                      }
+                                    >
+                                      Evaluations
+                                    </button>
+                                  ) : null}
+                                </div>
+                                {canRescheduleInterviews ? (
+                                  <form
+                                    className="inline-form"
+                                    onSubmit={(event) =>
+                                      void handleRescheduleInterview(
+                                        event,
+                                        process.id,
+                                        interview.id,
+                                      )
+                                    }
+                                  >
+                                    <input name="scheduledStartAt" type="datetime-local" required />
+                                    <input name="scheduledEndAt" type="datetime-local" />
+                                    <input name="timezone" defaultValue="UTC" />
+                                    <input name="reason" placeholder="Reason" required />
+                                    <button type="submit">Reschedule</button>
+                                  </form>
+                                ) : null}
+                                {activeInterviewId === interview.id ? (
+                                  <>
+                                    <ul>
+                                      {evaluations.map((evaluation) => (
+                                        <li key={evaluation.id}>
+                                          {evaluation.evaluationType} - {evaluation.status}
+                                          {evaluation.redacted ? ' - redacted' : ''}
+                                          {evaluation.comment ? ` - ${evaluation.comment}` : ''}
+                                          {canFinalizeEvaluations &&
+                                          evaluation.status === 'DRAFT' ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                void finalizeSelectedEvaluation(
+                                                  process.id,
+                                                  interview.id,
+                                                  evaluation.id,
+                                                )
+                                              }
+                                            >
+                                              Finalize
+                                            </button>
+                                          ) : null}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    {canCreateEvaluations ? (
+                                      <form
+                                        className="stacked-form"
+                                        aria-label="Create evaluation"
+                                        onSubmit={(event) =>
+                                          void handleCreateEvaluation(
+                                            event,
+                                            process.id,
+                                            interview.id,
+                                          )
+                                        }
+                                      >
+                                        <select name="evaluationType" defaultValue="INTERNAL_HR">
+                                          <option value="INTERNAL_HR">Internal HR</option>
+                                          <option value="INTERNAL_TECHNICAL">
+                                            Internal technical
+                                          </option>
+                                          <option value="CLIENT">Client</option>
+                                        </select>
+                                        <select name="recommendation" defaultValue="NEUTRAL">
+                                          <option value="STRONG_YES">Strong yes</option>
+                                          <option value="YES">Yes</option>
+                                          <option value="NEUTRAL">Neutral</option>
+                                          <option value="NO">No</option>
+                                          <option value="STRONG_NO">Strong no</option>
+                                        </select>
+                                        <input name="overallScore" type="number" min="1" max="5" />
+                                        <input
+                                          name="communicationScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Communication"
+                                        />
+                                        <input
+                                          name="technicalScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Technical"
+                                        />
+                                        <input
+                                          name="roleFitScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Role fit"
+                                        />
+                                        <input
+                                          name="cultureFitScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Culture fit"
+                                        />
+                                        <input
+                                          name="motivationScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Motivation"
+                                        />
+                                        <input
+                                          name="salaryAlignmentScore"
+                                          type="number"
+                                          min="1"
+                                          max="5"
+                                          placeholder="Salary alignment"
+                                        />
+                                        <textarea name="strengths" placeholder="Strengths" />
+                                        <textarea name="weaknesses" placeholder="Weaknesses" />
+                                        <textarea name="risks" placeholder="Risks" />
+                                        <textarea name="comment" placeholder="Comment" />
+                                        <label>
+                                          Final opinion
+                                          <input name="finalOpinion" type="checkbox" />
+                                        </label>
+                                        <button type="submit">Save evaluation</button>
+                                      </form>
+                                    ) : null}
+                                  </>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -2246,6 +2675,27 @@ function formValue(formData: FormData, name: string, fallback = ''): string {
 function optionalFormValue(formData: FormData, name: string): string | undefined {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? value : undefined;
+}
+
+function csvValues(formData: FormData, name: string): string[] {
+  return formValue(formData, name)
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
+function optionalNumber(formData: FormData, name: string): number | undefined {
+  const value = formValue(formData, name).trim();
+  return value.length > 0 ? Number(value) : undefined;
+}
+
+function dateTimeFormValue(formData: FormData, name: string): string {
+  return new Date(formValue(formData, name)).toISOString();
+}
+
+function optionalDateTimeFormValue(formData: FormData, name: string): string | undefined {
+  const value = formValue(formData, name).trim();
+  return value.length > 0 ? new Date(value).toISOString() : undefined;
 }
 
 function nullableFormValue(formData: FormData, name: string): string | null {

@@ -192,10 +192,11 @@ enum MissionCandidateEventAction {
 }
 
 enum InterviewType {
-  HR        @map("hr")
-  TECHNICAL @map("technical")
-  CLIENT    @map("client")
-  OTHER     @map("other")
+  HR                  @map("hr")
+  TECHNICAL           @map("technical")
+  INTERNAL_VALIDATION @map("internal_validation")
+  CLIENT_INTERVIEW_1  @map("client_interview_1")
+  CLIENT_INTERVIEW_2  @map("client_interview_2")
 }
 
 enum InterviewStatus {
@@ -204,6 +205,41 @@ enum InterviewStatus {
   COMPLETED @map("completed")
   CANCELED  @map("canceled")
   ARCHIVED  @map("archived")
+}
+
+enum InterviewFormat {
+  ONSITE @map("onsite")
+  PHONE  @map("phone")
+  VIDEO  @map("video")
+  OTHER  @map("other")
+}
+
+enum InterviewParticipantKind {
+  INTERNAL_USER  @map("internal_user")
+  CLIENT_CONTACT @map("client_contact")
+  EXTERNAL       @map("external")
+}
+
+enum InterviewParticipantStatus {
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum InterviewEventAction {
+  SCHEDULED         @map("scheduled")
+  RESCHEDULED       @map("rescheduled")
+  POSTPONED         @map("postponed")
+  COMPLETED         @map("completed")
+  CANCELED          @map("canceled")
+  ARCHIVED          @map("archived")
+  PARTICIPANT_ADDED @map("participant_added")
+  PARTICIPANT_REMOVED @map("participant_removed")
+}
+
+enum EvaluationType {
+  INTERNAL_HR        @map("internal_hr")
+  INTERNAL_TECHNICAL @map("internal_technical")
+  CLIENT             @map("client")
 }
 
 enum EvaluationStatus {
@@ -383,6 +419,9 @@ model User {
   presentedMissionCandidates          MissionCandidate[]         @relation("MissionCandidatePresenter")
   placementConfirmedMissionCandidates MissionCandidate[]         @relation("MissionCandidatePlacementConfirmer")
   missionCandidateEvents              MissionCandidateEvent[]    @relation("MissionCandidateEventActor")
+  organizedInterviews                 Interview[]                @relation("InterviewOrganizer")
+  interviewParticipants               InterviewParticipant[]     @relation("InterviewParticipantUser")
+  interviewEvents                     InterviewEvent[]           @relation("InterviewEventActor")
   candidateEvaluations                CandidateEvaluation[]      @relation("EvaluationAuthor")
   assignedTasks                       Task[]                     @relation("TaskAssignee")
   createdTasks                        Task[]                     @relation("TaskCreator")
@@ -552,6 +591,7 @@ model ClientContact {
 
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
   user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  interviewParticipants InterviewParticipant[] @relation("InterviewParticipantClientContact")
   trainingEnrollments TrainingEnrollment[] @relation("ClientContactTrainingEnrollment")
   tasks               Task[]
 
@@ -854,47 +894,125 @@ model Interview {
   id                 String          @id @default(uuid()) @db.Uuid
   missionCandidateId String          @db.Uuid
   type               InterviewType
-  scheduledAt        DateTime
+  scheduledStartAt   DateTime
+  scheduledEndAt     DateTime?
+  timezone           String
+  format             InterviewFormat
   location           String?
   meetingUrl         String?
+  organizerUserId    String          @db.Uuid
   status             InterviewStatus @default(SCHEDULED)
   outcome            String?
+  completedAt        DateTime?
+  canceledAt         DateTime?
+  postponedAt        DateTime?
   archivedAt         DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   missionCandidate MissionCandidate      @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  organizer        User                  @relation("InterviewOrganizer", fields: [organizerUserId], references: [id], onDelete: Restrict)
+  participants     InterviewParticipant[]
+  events           InterviewEvent[]
   evaluations      CandidateEvaluation[]
   documents        Document[]
   tasks            Task[]
   notifications    Notification[]
 
   @@index([missionCandidateId])
-  @@index([scheduledAt])
+  @@index([organizerUserId])
+  @@index([scheduledStartAt])
+  @@index([status])
+  @@index([type])
+}
+
+model InterviewParticipant {
+  id              String                     @id @default(uuid()) @db.Uuid
+  interviewId     String                     @db.Uuid
+  kind            InterviewParticipantKind
+  userId          String?                    @db.Uuid
+  clientContactId String?                    @db.Uuid
+  externalName    String?
+  externalRole    String?
+  status          InterviewParticipantStatus @default(ACTIVE)
+  archivedAt      DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  interview     Interview      @relation(fields: [interviewId], references: [id], onDelete: Restrict)
+  user          User?          @relation("InterviewParticipantUser", fields: [userId], references: [id], onDelete: Restrict)
+  clientContact ClientContact? @relation("InterviewParticipantClientContact", fields: [clientContactId], references: [id], onDelete: Restrict)
+
+  @@index([interviewId])
+  @@index([userId])
+  @@index([clientContactId])
   @@index([status])
 }
 
+model InterviewEvent {
+  id                    String                @id @default(uuid()) @db.Uuid
+  interviewId           String                @db.Uuid
+  actorUserId           String?               @db.Uuid
+  action                InterviewEventAction
+  previousStatus        InterviewStatus?
+  nextStatus            InterviewStatus?
+  previousStartAt       DateTime?
+  nextStartAt           DateTime?
+  previousEndAt         DateTime?
+  nextEndAt             DateTime?
+  previousTimezone      String?
+  nextTimezone          String?
+  participantId         String?               @db.Uuid
+  reason                String?
+  safeComment           String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Restrict)
+  actor     User?     @relation("InterviewEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([interviewId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
 model CandidateEvaluation {
-  id                 String                    @id @default(uuid()) @db.Uuid
-  missionCandidateId String                    @db.Uuid
-  interviewId        String?                   @db.Uuid
-  authorUserId       String?                   @db.Uuid
-  recommendation     EvaluationRecommendation?
-  score              Int?
-  feedback           String?
-  evaluationType     String
-  status             EvaluationStatus          @default(DRAFT)
-  archivedAt         DateTime?
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  id                         String                    @id @default(uuid()) @db.Uuid
+  missionCandidateId         String                    @db.Uuid
+  interviewId                String                    @db.Uuid
+  authorUserId               String                    @db.Uuid
+  evaluationType             EvaluationType
+  recommendation             EvaluationRecommendation?
+  recommended                Boolean?
+  overallScore               Int?
+  communicationScore         Int?
+  technicalScore             Int?
+  roleFitScore               Int?
+  cultureFitScore            Int?
+  motivationScore            Int?
+  salaryAlignmentScore       Int?
+  strengths                  String?
+  weaknesses                 String?
+  risks                      String?
+  comment                    String?
+  finalOpinion               Boolean                   @default(false)
+  internalOnly               Boolean                   @default(true)
+  clientVisible              Boolean                   @default(false)
+  status                     EvaluationStatus          @default(DRAFT)
+  submittedAt                DateTime?
+  archivedAt                 DateTime?
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
 
   missionCandidate MissionCandidate @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
-  interview        Interview?       @relation(fields: [interviewId], references: [id], onDelete: SetNull)
-  author           User?            @relation("EvaluationAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  interview        Interview       @relation(fields: [interviewId], references: [id], onDelete: Restrict)
+  author           User            @relation("EvaluationAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
 
   @@index([missionCandidateId])
   @@index([interviewId])
   @@index([authorUserId])
+  @@index([evaluationType])
   @@index([status])
 }
 

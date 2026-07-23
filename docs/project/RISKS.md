@@ -1,6 +1,6 @@
 # Risk Register
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 | ID | Risk | Impact | Current mitigation | State |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ Last updated: 2026-07-22
 | R-017 | Candidate duplicate prevention is too strict or too weak for real migrated data. | Real candidate records could be blocked during import or accidentally duplicated without review. | Issue #17 keeps the existing global normalized-email uniqueness constraint, rejects duplicates without automatic merging, documents the stricter implementation choice, and defers import duplicate-review and merge workflows to later scoped work. | Active |
 | R-018 | Mission row-scope assumptions or assignment races grant broad mission, salary, commercial, or client recruitment access before assignment/team/client-portal scoping is complete. | Unauthorized users could see confidential client requirements, salary ranges, commercial terms, or mutate terminal missions. | Issue #19 seeds broad mission permissions only to explicitly authorized internal roles, gives mission commercial permissions only to `SUPER_ADMIN` by default, verifies nested assignment ownership, serializes mission lifecycle/assignment writes on the parent mission row, re-checks assignee eligibility for assignment activation and lead selection, validates effective salary ranges for partial updates under the parent lock, enforces active duplicate and lead uniqueness with PostgreSQL indexes, and tests authorization, IDOR, lifecycle, protected commercial fields, and concurrency behavior against PostgreSQL. | Active |
 | R-019 | Mission-candidate process scope, pipeline, or race handling could expose candidates to clients too early, duplicate applications, or count placements incorrectly. | Candidate confidentiality, reporting accuracy, and client trust could be damaged. | Issue #21 keeps linking internal-only until explicit presentation, enforces permanent `(missionId, candidateId)` uniqueness, uses responsible-recruiter ownership, redacts live candidate compensation and consent fields by permission, counts placements only through manual idempotent integration confirmation, serializes process writes through the D-033 lock order, and tests duplicate creation, IDOR, presentation, protected redaction, placement counting, and mission/candidate archival races against PostgreSQL. | Active |
+| R-020 | Interview and evaluation records could expose confidential internal scoring, risks, comments, client feedback, or candidate salary context if treated as ordinary process data. | Candidate confidentiality, HR decision quality, and client trust could be damaged. | Issue #23 keeps evaluations as structured business records, gates internal evaluation content behind `evaluations:internal:view`, gates client-authored feedback behind `client_feedback:view`, omits raw candidate salary values from evaluation responses and audit metadata, uses safe audit summaries, and tests redaction and lifecycle behavior against PostgreSQL. | Active |
 
 ## Risk protocol
 
