@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CandidateSummarySchema } from './candidates.js';
+
 export const MissionLifecycleStateSchema = z.enum([
   'DRAFT',
   'INTERNAL_VALIDATION',
@@ -39,6 +41,39 @@ export const MissionAssignmentRoleSchema = z.enum([
   'CONTRIBUTOR',
 ]);
 export const MissionAssignmentStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']);
+export const MissionCandidateStateSchema = z.enum([
+  'NEW',
+  'CV_TO_REVIEW',
+  'HR_PRESELECTION',
+  'HR_INTERVIEW_SCHEDULED',
+  'HR_INTERVIEW_COMPLETED',
+  'TECHNICAL_TEST',
+  'INTERNAL_VALIDATION',
+  'PRESENTED_TO_CLIENT',
+  'CLIENT_INTERVIEW_1',
+  'CLIENT_INTERVIEW_2',
+  'CLIENT_OFFER',
+  'ACCEPTED',
+  'INTEGRATED',
+  'PROBATION_COMPLETED',
+  'PROCESS_COMPLETED',
+  'WAITING',
+  'POSTPONED',
+  'CANDIDATE_REJECTED',
+  'CLIENT_REJECTED',
+  'WITHDRAWN',
+  'TALENT_POOL',
+]);
+export const MissionCandidateEventActionSchema = z.enum([
+  'CREATED',
+  'TRANSITIONED',
+  'OPTIONAL_STAGE_SKIPPED',
+  'RESPONSIBLE_RECRUITER_ASSIGNED',
+  'RESPONSIBLE_RECRUITER_TRANSFERRED',
+  'PRESENTED_TO_CLIENT',
+  'INTEGRATION_CONFIRMED',
+  'OUTCOME_RECORDED',
+]);
 
 export const MissionCommercialFieldsSchema = z.object({
   salaryMinCents: z.number().int().nonnegative().nullable(),
@@ -84,6 +119,46 @@ export const MissionAssignmentSummarySchema = z.object({
   archivedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const MissionCandidateEventSchema = z.object({
+  id: z.string().uuid(),
+  missionCandidateId: z.string().uuid(),
+  actorUserId: z.string().uuid().nullable(),
+  action: MissionCandidateEventActionSchema,
+  previousState: MissionCandidateStateSchema.nullable(),
+  nextState: MissionCandidateStateSchema.nullable(),
+  previousRecruiterId: z.string().uuid().nullable(),
+  nextRecruiterId: z.string().uuid().nullable(),
+  reason: z.string().nullable(),
+  safeComment: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export const MissionCandidateSummarySchema = z.object({
+  id: z.string().uuid(),
+  missionId: z.string().uuid(),
+  candidateId: z.string().uuid(),
+  candidate: CandidateSummarySchema,
+  responsibleRecruiterUserId: z.string().uuid(),
+  responsibleRecruiterDisplayName: z.string(),
+  state: MissionCandidateStateSchema,
+  rank: z.number().int().nullable(),
+  source: z.string().nullable(),
+  sourceContext: z.string().nullable(),
+  priority: MissionPrioritySchema,
+  internalNotes: z.string().nullable(),
+  outcomeReason: z.string().nullable(),
+  clientVisible: z.boolean(),
+  presentedAt: z.string().datetime().nullable(),
+  placementConfirmedAt: z.string().datetime().nullable(),
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const MissionCandidateDetailSchema = MissionCandidateSummarySchema.extend({
+  history: z.array(MissionCandidateEventSchema),
 });
 
 export const MissionListQuerySchema = z.object({
@@ -172,6 +247,50 @@ export const MissionAssignmentListQuerySchema = z.object({
   role: MissionAssignmentRoleSchema.optional(),
 });
 
+export const MissionCandidateListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().max(500).default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  state: MissionCandidateStateSchema.optional(),
+  responsibleRecruiterUserId: z.string().uuid().optional(),
+  candidateId: z.string().uuid().optional(),
+  clientVisible: z.coerce.boolean().optional(),
+  search: z.string().trim().max(120).optional(),
+});
+
+export const MissionCandidateCreateRequestSchema = z.object({
+  candidateId: z.string().uuid(),
+  responsibleRecruiterUserId: z.string().uuid(),
+  source: z.string().trim().min(1).max(120).optional(),
+  sourceContext: z.string().trim().min(1).max(1000).optional(),
+  priority: MissionPrioritySchema.optional(),
+  internalNotes: z.string().trim().min(1).max(2000).optional(),
+});
+
+export const MissionCandidateTransitionRequestSchema = z
+  .object({
+    state: MissionCandidateStateSchema,
+    reason: z.string().trim().min(1).max(1000).optional(),
+    comment: z.string().trim().min(1).max(1000).optional(),
+    skip: z.boolean().default(false),
+  })
+  .refine((value) => !value.skip || Boolean(value.reason), {
+    message: 'A reason is required when an optional stage is skipped.',
+  });
+
+export const MissionCandidateTransferRequestSchema = z.object({
+  responsibleRecruiterUserId: z.string().uuid(),
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const MissionCandidatePresentationRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(1000).optional(),
+  comment: z.string().trim().min(1).max(1000).optional(),
+});
+
+export const MissionCandidateIntegrationConfirmationRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
+});
+
 export const MissionAssignmentCreateRequestSchema = z.object({
   userId: z.string().uuid(),
   role: MissionAssignmentRoleSchema.default('RECRUITER'),
@@ -214,6 +333,19 @@ export const MissionAssignmentListResponseSchema = z.object({
   }),
 });
 
+export const MissionCandidateListResponseSchema = z.object({
+  candidates: z.array(MissionCandidateSummarySchema),
+  pagination: z.object({
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+  }),
+});
+
+export const MissionCandidateDetailResponseSchema = z.object({
+  candidateProcess: MissionCandidateDetailSchema,
+});
+
 export const MissionAssignmentDetailResponseSchema = z.object({
   assignment: MissionAssignmentSummarySchema,
 });
@@ -247,18 +379,37 @@ export type MissionClosureReason = z.infer<typeof MissionClosureReasonSchema>;
 export type MissionPriority = z.infer<typeof MissionPrioritySchema>;
 export type MissionAssignmentRole = z.infer<typeof MissionAssignmentRoleSchema>;
 export type MissionAssignmentStatus = z.infer<typeof MissionAssignmentStatusSchema>;
+export type MissionCandidateState = z.infer<typeof MissionCandidateStateSchema>;
+export type MissionCandidateEventAction = z.infer<typeof MissionCandidateEventActionSchema>;
 export type MissionSummary = z.infer<typeof MissionSummarySchema>;
 export type MissionAssignmentSummary = z.infer<typeof MissionAssignmentSummarySchema>;
+export type MissionCandidateEvent = z.infer<typeof MissionCandidateEventSchema>;
+export type MissionCandidateSummary = z.infer<typeof MissionCandidateSummarySchema>;
+export type MissionCandidateDetail = z.infer<typeof MissionCandidateDetailSchema>;
 export type MissionListQuery = z.infer<typeof MissionListQuerySchema>;
 export type MissionCreateRequest = z.infer<typeof MissionCreateRequestSchema>;
 export type MissionUpdateRequest = z.infer<typeof MissionUpdateRequestSchema>;
 export type MissionStatusUpdateRequest = z.infer<typeof MissionStatusUpdateRequestSchema>;
 export type MissionClosureRequest = z.infer<typeof MissionClosureRequestSchema>;
 export type MissionAssignmentListQuery = z.infer<typeof MissionAssignmentListQuerySchema>;
+export type MissionCandidateListQuery = z.infer<typeof MissionCandidateListQuerySchema>;
 export type MissionAssignmentCreateRequest = z.infer<typeof MissionAssignmentCreateRequestSchema>;
 export type MissionAssignmentUpdateRequest = z.infer<typeof MissionAssignmentUpdateRequestSchema>;
 export type MissionLeadRecruiterRequest = z.infer<typeof MissionLeadRecruiterRequestSchema>;
+export type MissionCandidateCreateRequest = z.infer<typeof MissionCandidateCreateRequestSchema>;
+export type MissionCandidateTransitionRequest = z.infer<
+  typeof MissionCandidateTransitionRequestSchema
+>;
+export type MissionCandidateTransferRequest = z.infer<typeof MissionCandidateTransferRequestSchema>;
+export type MissionCandidatePresentationRequest = z.infer<
+  typeof MissionCandidatePresentationRequestSchema
+>;
+export type MissionCandidateIntegrationConfirmationRequest = z.infer<
+  typeof MissionCandidateIntegrationConfirmationRequestSchema
+>;
 export type MissionListResponse = z.infer<typeof MissionListResponseSchema>;
 export type MissionDetailResponse = z.infer<typeof MissionDetailResponseSchema>;
 export type MissionAssignmentListResponse = z.infer<typeof MissionAssignmentListResponseSchema>;
 export type MissionAssignmentDetailResponse = z.infer<typeof MissionAssignmentDetailResponseSchema>;
+export type MissionCandidateListResponse = z.infer<typeof MissionCandidateListResponseSchema>;
+export type MissionCandidateDetailResponse = z.infer<typeof MissionCandidateDetailResponseSchema>;

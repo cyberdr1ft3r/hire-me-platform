@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Core recruitment CRM foundation
-**Health:** Issue #19 recruitment mission/assignment implementation passed local database lifecycle, PostgreSQL integration, architecture, formatting, lint, typecheck, unit test, build, Mermaid render, and whitespace validation after PR #20 blocking-review fixes.
+**Phase:** ATS recruitment workflow foundation
+**Health:** PR #22 blocking-review correction for explicit presentation and integration-confirmation idempotency passed local Prisma, PostgreSQL, architecture, formatting, lint, typecheck, unit test, build, static Mermaid, and whitespace checks.
 **Current blocker:** None locally.
-**Next executable development task:** Review the Issue #19 draft PR.
+**Next executable development task:** Review draft PR #22 after pushed correction and CI.
 
 ## Active work
 
@@ -20,7 +20,8 @@ Status owner: repository maintainer
 | Issue #13 | Complete | Implement secured internal user administration, role assignment, status management, permission visibility, central active-user authorization, and session revocation | No action |
 | Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
 | Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
-| Issue #19 | In progress | Implement recruitment missions and multiple recruiter/contributor assignments | Review draft PR |
+| Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
+| Issue #21 | In progress | Implement mission-specific candidate processes and the approved ATS pipeline | Review draft PR #22 |
 
 ## Completed foundation work
 
@@ -35,6 +36,7 @@ Status owner: repository maintainer
 - Issue #13 completed through merged PR #14, establishing secured internal user administration, permission-code authorization, safe DTOs, active-user authorization checks, session revocation, and safe administration audit logs.
 - Issue #15 completed through merged PR #16, establishing client organization and client-contact CRM, commercial-data gating, archival lifecycle rules, parent-client concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Issue #17 completed through merged PR #18, establishing reusable candidate master/profile CRM, candidate compensation and consent gating, parent-candidate concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
+- Issue #19 completed through merged PR #20, establishing recruitment mission CRM, multiple recruiter/contributor assignments, structured mission closure, commercial-data gating, parent-mission concurrency locking, and PostgreSQL-backed authorization/lifecycle tests.
 - Confirmed requirements now include detailed recruitment workflows, multiple recruiters per mission, client access, multi-session training attendance, document versioning, messaging, dashboards, outputs, integrations, migration scale, and scoped permissions.
 
 ## Issue #2 Verification State
@@ -102,7 +104,7 @@ Status owner: repository maintainer
 
 ## Issue #19 Verification State
 
-- Recruitment mission and assignment implementation is in progress on branch `feat/recruitment-missions`.
+- Recruitment mission and assignment implementation is merged through PR #20.
 - The API exposes permission-code guarded `/v1/missions` endpoints with shared Zod contracts, safe DTOs, documented lifecycle transitions, structured closure reasons, mission archival, nested assignment ownership checks, and safe audit summaries.
 - Mission creation verifies the parent client is valid and writable.
 - Mission updates, status changes, closure, archival, assignment writes, assignment archival, and lead-recruiter replacement share one transaction-scoped PostgreSQL row lock on the parent `RecruitmentMission`.
@@ -113,6 +115,21 @@ Status owner: repository maintainer
 - Normal mission and assignment permissions are seeded only to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; only `SUPER_ADMIN` receives mission commercial permissions by default.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db`, Mermaid CLI rendering for all 8 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - `pnpm test:db` now includes PostgreSQL-backed regression coverage for reactivating an inactive assignment after assignee suspension, selecting an existing assignment as lead after assignee suspension or archival, and stable `MISSION_SALARY_RANGE_INVALID` responses for partial salary minimum/maximum updates against persisted counterpart values.
+
+## Issue #21 Verification State
+
+- Mission-candidate process implementation is in progress on branch `feat/mission-candidate-pipeline`.
+- The API exposes permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints with shared Zod contracts, safe DTOs, permanent `(missionId, candidateId)` uniqueness, responsible-recruiter ownership, explicit presentation, and manual integration confirmation.
+- The implemented pipeline uses the approved states `NEW`, `CV_TO_REVIEW`, `HR_PRESELECTION`, `HR_INTERVIEW_SCHEDULED`, `HR_INTERVIEW_COMPLETED`, `TECHNICAL_TEST`, `INTERNAL_VALIDATION`, `PRESENTED_TO_CLIENT`, `CLIENT_INTERVIEW_1`, `CLIENT_INTERVIEW_2`, `CLIENT_OFFER`, `ACCEPTED`, `INTEGRATED`, `PROBATION_COMPLETED`, `PROCESS_COMPLETED`, plus `WAITING`, `POSTPONED`, `CANDIDATE_REJECTED`, `CLIENT_REJECTED`, `WITHDRAWN`, and `TALENT_POOL`.
+- Optional skips are limited to `HR_INTERVIEW_COMPLETED` to `INTERNAL_VALIDATION` and `CLIENT_INTERVIEW_1` to `CLIENT_OFFER`; both require an explicit skip request, reason, and audit history.
+- Candidate profile and compensation values remain live source-of-truth data from `Candidate`; mission-candidate records do not snapshot salary/profile values.
+- Client visibility starts only after explicit presentation. Linking a candidate to a mission remains internal-only.
+- Manual integration confirmation increments filled placement count once and does not close the mission automatically.
+- PR #22 blocking-review correction makes `PRESENTED_TO_CLIENT` reachable only through the dedicated presentation action, which atomically sets visibility, timestamp, presenter identity, process event, and safe audit event. Generic transition attempts return `MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED` without partial metadata.
+- PR #22 blocking-review correction makes repeated integration confirmation a true no-op that preserves placement count, confirmation metadata, process-event history, and audit history.
+- Mission-candidate writes use the documented PostgreSQL lock order from D-033.
+- Local checks after the PR #22 blocking-review correction passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 54 PostgreSQL integration tests passing, `pnpm check:architecture`, static Mermaid validation for all 8 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary `@mermaid-js/mermaid-cli` download/execution was rejected by approval policy.
 
 ## Current open technical questions
 
@@ -125,14 +142,13 @@ Status owner: repository maintainer
 - Production file-storage provider.
 - Advanced-search implementation.
 - Real-time messaging and notification transport.
-- Detailed per-module permission names beyond the implemented administration, client CRM, and candidate profile catalog.
+- Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Review recruitment mission lifecycle transitions, closure invariants, assignment invariants, concurrency behavior, audit safety, web/contracts Prisma isolation, and excluded scope.
-2. Merge Issue #19 only after maintainer approval.
+1. Review draft PR #22 after the blocking-review correction and CI.
 
 ## Status Update Rules
 

@@ -8,6 +8,8 @@ export {
   DocumentVersionSource,
   DocumentVisibility,
   AssignmentStatus,
+  MissionCandidateEventAction,
+  MissionCandidateState,
   MissionClosureReason,
   MissionRecruiterRole,
   RecruitmentMissionState,
@@ -18,6 +20,7 @@ export {
   PrismaClient,
   RoleName,
   RoleStatus,
+  TaskPriority,
   UserStatus,
   UserType,
 } from '../../../prisma/generated/client/index.js';

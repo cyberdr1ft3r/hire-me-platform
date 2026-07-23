@@ -299,6 +299,51 @@ const permissions = [
     description: 'Update protected mission salary and commercial fields.',
     scopeType: PermissionScopeType.EXPLICIT,
   },
+  {
+    code: 'mission_candidates:view',
+    description: 'View mission-specific candidate recruitment processes.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:create',
+    description: 'Link reusable candidates to recruitment missions.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:transition',
+    description: 'Move mission candidate processes through the approved standard pipeline.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:transfer',
+    description: 'Transfer responsible recruiter ownership for mission candidate processes.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:present',
+    description: 'Explicitly present a mission candidate to the client.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidate_notes:view',
+    description: 'View internal mission candidate notes.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidate_notes:manage',
+    description: 'Create or update internal mission candidate notes.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:outcome:manage',
+    description: 'Record mission candidate rejection, withdrawal, or talent-pool outcomes.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'mission_candidates:integration:confirm',
+    description: 'Confirm candidate integration and count a placement manually.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
 ] as const;
 
 async function main(): Promise<void> {
@@ -377,6 +422,15 @@ async function main(): Promise<void> {
       'missions:closure:manage',
       'mission_assignments:view',
       'mission_assignments:manage',
+      'mission_candidates:view',
+      'mission_candidates:create',
+      'mission_candidates:transition',
+      'mission_candidates:transfer',
+      'mission_candidates:present',
+      'mission_candidate_notes:view',
+      'mission_candidate_notes:manage',
+      'mission_candidates:outcome:manage',
+      'mission_candidates:integration:confirm',
     ],
     [RoleName.HR_MANAGER]: [
       'records:view',
@@ -413,6 +467,15 @@ async function main(): Promise<void> {
       'missions:closure:manage',
       'mission_assignments:view',
       'mission_assignments:manage',
+      'mission_candidates:view',
+      'mission_candidates:create',
+      'mission_candidates:transition',
+      'mission_candidates:transfer',
+      'mission_candidates:present',
+      'mission_candidate_notes:view',
+      'mission_candidate_notes:manage',
+      'mission_candidates:outcome:manage',
+      'mission_candidates:integration:confirm',
     ],
     [RoleName.MANAGER]: [
       'records:view',

@@ -12,6 +12,8 @@ import type {
   ClientContactSummary,
   ClientSummary,
   MissionAssignmentSummary,
+  MissionCandidateState,
+  MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
 } from '@hire-me/contracts';
@@ -64,8 +66,14 @@ import {
   updateMissionAssignment,
   updateMissionStatus,
   closeMission,
+  confirmMissionCandidateIntegration,
+  createMissionCandidate,
   setMissionLeadRecruiter,
+  listMissionCandidates,
+  presentMissionCandidate,
   refresh,
+  transferMissionCandidate,
+  transitionMissionCandidate,
 } from './api.js';
 
 type ApiState =
@@ -1574,6 +1582,7 @@ function MissionsPanel({
 }) {
   const [missions, setMissions] = useState<MissionSummary[]>([]);
   const [assignments, setAssignments] = useState<MissionAssignmentSummary[]>([]);
+  const [candidateProcesses, setCandidateProcesses] = useState<MissionCandidateSummary[]>([]);
   const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -1585,6 +1594,12 @@ function MissionsPanel({
   const canArchive = permissions.includes('missions:archive');
   const canViewAssignments = permissions.includes('mission_assignments:view');
   const canManageAssignments = permissions.includes('mission_assignments:manage');
+  const canViewProcesses = permissions.includes('mission_candidates:view');
+  const canCreateProcesses = permissions.includes('mission_candidates:create');
+  const canTransitionProcesses = permissions.includes('mission_candidates:transition');
+  const canTransferProcesses = permissions.includes('mission_candidates:transfer');
+  const canPresentProcesses = permissions.includes('mission_candidates:present');
+  const canConfirmIntegration = permissions.includes('mission_candidates:integration:confirm');
 
   useEffect(() => {
     void loadMissions();
@@ -1607,6 +1622,10 @@ function MissionsPanel({
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
       setAssignments(assignmentResponse.assignments);
+    }
+    if (canViewProcesses) {
+      const processResponse = await listMissionCandidates(accessToken, missionId);
+      setCandidateProcesses(processResponse.candidates);
     }
   }
 
@@ -1701,6 +1720,7 @@ function MissionsPanel({
     const archived = await archiveMission(accessToken, selectedMission.id);
     setSelectedMission(archived.mission);
     setAssignments([]);
+    setCandidateProcesses([]);
     setMessage('Mission archived.');
     await loadMissions();
   }
@@ -1752,6 +1772,83 @@ function MissionsPanel({
     await archiveMissionAssignment(accessToken, selectedMission.id, assignmentId);
     await selectMission(selectedMission.id);
     setMessage('Assignment archived.');
+  }
+
+  async function handleCreateProcess(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createMissionCandidate(accessToken, selectedMission.id, {
+      candidateId: formValue(formData, 'candidateId'),
+      responsibleRecruiterUserId: formValue(formData, 'responsibleRecruiterUserId'),
+      source: optionalFormValue(formData, 'source'),
+      sourceContext: optionalFormValue(formData, 'sourceContext'),
+      priority: formValue(formData, 'priority', 'NORMAL') as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
+      internalNotes: optionalFormValue(formData, 'internalNotes'),
+    });
+    form.reset();
+    await selectMission(selectedMission.id);
+    setMessage('Candidate linked to mission.');
+  }
+
+  async function moveProcess(
+    processId: string,
+    currentState: MissionCandidateState,
+    nextState: MissionCandidateState,
+  ): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await transitionMissionCandidate(accessToken, selectedMission.id, processId, {
+      state: nextState,
+      reason: 'Updated from the protected mission workspace.',
+      skip: isOptionalProcessSkip(currentState, nextState),
+    });
+    await selectMission(selectedMission.id);
+    setMessage(`Candidate process moved to ${nextState}.`);
+  }
+
+  async function transferProcess(
+    event: FormEvent<HTMLFormElement>,
+    processId: string,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    await transferMissionCandidate(accessToken, selectedMission.id, processId, {
+      responsibleRecruiterUserId: formValue(formData, 'responsibleRecruiterUserId'),
+      reason: formValue(formData, 'reason'),
+    });
+    await selectMission(selectedMission.id);
+    setMessage('Responsible recruiter transferred.');
+  }
+
+  async function presentProcess(processId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await presentMissionCandidate(accessToken, selectedMission.id, processId, {
+      reason: 'Explicit client presentation approved.',
+    });
+    await selectMission(selectedMission.id);
+    setMessage('Candidate presented to client.');
+  }
+
+  async function confirmIntegration(processId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    await confirmMissionCandidateIntegration(accessToken, selectedMission.id, processId, {
+      reason: 'Manual integration confirmed.',
+    });
+    await selectMission(selectedMission.id);
+    await loadMissions();
+    setMessage('Integration confirmed and placement counted once.');
   }
 
   return (
@@ -1975,6 +2072,85 @@ function MissionsPanel({
                   <button type="submit">Assign user</button>
                 </form>
               ) : null}
+
+              {canViewProcesses ? (
+                <>
+                  <h3>Candidate processes</h3>
+                  <ul>
+                    {candidateProcesses.map((process) => (
+                      <li key={process.id}>
+                        {process.candidate.displayName} - {process.state} - responsible:{' '}
+                        {process.responsibleRecruiterDisplayName}
+                        {process.clientVisible ? ' - client visible' : ' - internal only'}
+                        {process.placementConfirmedAt ? ' - placement confirmed' : ''}
+                        {canTransitionProcesses ? (
+                          <div className="action-row">
+                            {nextProcessStates(process.state).map((state) => (
+                              <button
+                                key={state}
+                                type="button"
+                                onClick={() => void moveProcess(process.id, process.state, state)}
+                              >
+                                {state}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                        {canPresentProcesses ? (
+                          <button type="button" onClick={() => void presentProcess(process.id)}>
+                            Present to client
+                          </button>
+                        ) : null}
+                        {canConfirmIntegration && process.state === 'INTEGRATED' ? (
+                          <button type="button" onClick={() => void confirmIntegration(process.id)}>
+                            Confirm integration
+                          </button>
+                        ) : null}
+                        {canTransferProcesses ? (
+                          <form
+                            className="inline-form"
+                            onSubmit={(event) => void transferProcess(event, process.id)}
+                          >
+                            <input
+                              name="responsibleRecruiterUserId"
+                              placeholder="New recruiter user id"
+                              required
+                            />
+                            <input name="reason" placeholder="Transfer reason" required />
+                            <button type="submit">Transfer</button>
+                          </form>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+
+              {canCreateProcesses ? (
+                <form
+                  className="stacked-form"
+                  aria-label="Link candidate to mission"
+                  onSubmit={(event) => void handleCreateProcess(event)}
+                >
+                  <h3>Link candidate</h3>
+                  <input name="candidateId" placeholder="Candidate id" required />
+                  <input
+                    name="responsibleRecruiterUserId"
+                    placeholder="Responsible recruiter user id"
+                    required
+                  />
+                  <select name="priority" defaultValue="NORMAL">
+                    <option value="LOW">Low</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                  <input name="source" placeholder="Source" />
+                  <textarea name="sourceContext" placeholder="Source context" />
+                  <textarea name="internalNotes" placeholder="Internal notes" />
+                  <button type="submit">Link candidate</button>
+                </form>
+              ) : null}
               {message ? <p role="status">{message}</p> : null}
             </>
           ) : (
@@ -1983,6 +2159,38 @@ function MissionsPanel({
         </section>
       </div>
     </section>
+  );
+}
+
+function nextProcessStates(state: MissionCandidateState): MissionCandidateState[] {
+  const transitions: Partial<Record<MissionCandidateState, MissionCandidateState[]>> = {
+    NEW: ['CV_TO_REVIEW', 'WITHDRAWN'],
+    CV_TO_REVIEW: ['HR_PRESELECTION', 'WAITING', 'CANDIDATE_REJECTED', 'TALENT_POOL'],
+    HR_PRESELECTION: ['HR_INTERVIEW_SCHEDULED', 'WAITING', 'CANDIDATE_REJECTED', 'TALENT_POOL'],
+    HR_INTERVIEW_SCHEDULED: ['HR_INTERVIEW_COMPLETED', 'POSTPONED'],
+    HR_INTERVIEW_COMPLETED: ['TECHNICAL_TEST', 'INTERNAL_VALIDATION'],
+    TECHNICAL_TEST: ['INTERNAL_VALIDATION'],
+    INTERNAL_VALIDATION: ['PRESENTED_TO_CLIENT', 'WAITING', 'CANDIDATE_REJECTED'],
+    PRESENTED_TO_CLIENT: ['CLIENT_INTERVIEW_1', 'CLIENT_REJECTED'],
+    CLIENT_INTERVIEW_1: ['CLIENT_INTERVIEW_2', 'CLIENT_OFFER', 'CLIENT_REJECTED'],
+    CLIENT_INTERVIEW_2: ['CLIENT_OFFER', 'CLIENT_REJECTED'],
+    CLIENT_OFFER: ['ACCEPTED', 'CANDIDATE_REJECTED', 'WITHDRAWN'],
+    ACCEPTED: ['INTEGRATED'],
+    INTEGRATED: ['PROBATION_COMPLETED'],
+    PROBATION_COMPLETED: ['PROCESS_COMPLETED'],
+    WAITING: ['CV_TO_REVIEW', 'HR_PRESELECTION', 'PRESENTED_TO_CLIENT', 'WITHDRAWN'],
+    POSTPONED: ['HR_INTERVIEW_SCHEDULED', 'CLIENT_INTERVIEW_1', 'CLIENT_INTERVIEW_2'],
+  };
+  return transitions[state] ?? [];
+}
+
+function isOptionalProcessSkip(
+  currentState: MissionCandidateState,
+  nextState: MissionCandidateState,
+): boolean {
+  return (
+    (currentState === 'HR_INTERVIEW_COMPLETED' && nextState === 'INTERNAL_VALIDATION') ||
+    (currentState === 'CLIENT_INTERVIEW_1' && nextState === 'CLIENT_OFFER')
   );
 }
 

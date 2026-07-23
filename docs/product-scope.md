@@ -126,7 +126,7 @@ The recommended sequence is:
 5. Candidates are created or updated in candidate management.
 6. CVs and supporting candidate files are stored as protected `CandidateDocument` records.
 7. Candidates are associated with the mission through `MissionCandidate`.
-8. `MissionCandidate` records move through the confirmed candidate pipeline: new, CV review, HR preselection, HR interview, technical test, internal validation, client presentation, client interviews, client offer, acceptance, integration, probation monitoring, end of probation, and closure.
+8. `MissionCandidate` records move through the confirmed candidate pipeline: new, CV to review, HR preselection, HR interview scheduled and completed, technical test when required, internal validation, client presentation, client interviews, client offer, acceptance, integration, probation completed, and process completed, with waiting, postponed, rejection, withdrawal, and talent-pool outcomes handled as structured states.
 9. Interviews are scheduled and recorded as `Interview` records.
 10. Interview feedback and scoring are captured as `CandidateEvaluation` records.
 11. Approved candidate, interview, and document information is shared with client users through the client portal.

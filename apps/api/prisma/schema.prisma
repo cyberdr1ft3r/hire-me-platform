@@ -158,7 +158,7 @@ enum AssignmentStatus {
 
 enum MissionCandidateState {
   NEW                    @map("new")
-  CV_REVIEW              @map("cv_review")
+  CV_TO_REVIEW           @map("cv_to_review")
   HR_PRESELECTION        @map("hr_preselection")
   HR_INTERVIEW_SCHEDULED @map("hr_interview_scheduled")
   HR_INTERVIEW_COMPLETED @map("hr_interview_completed")
@@ -170,17 +170,25 @@ enum MissionCandidateState {
   CLIENT_OFFER           @map("client_offer")
   ACCEPTED               @map("accepted")
   INTEGRATED             @map("integrated")
-  PROBATION_MONITORING   @map("probation_monitoring")
-  END_OF_PROBATION       @map("end_of_probation")
-  CLOSED                 @map("closed")
+  PROBATION_COMPLETED    @map("probation_completed")
+  PROCESS_COMPLETED      @map("process_completed")
   WAITING                @map("waiting")
-  ON_HOLD                @map("on_hold")
   POSTPONED              @map("postponed")
-  CANDIDATE_DECLINED     @map("candidate_declined")
+  CANDIDATE_REJECTED     @map("candidate_rejected")
   CLIENT_REJECTED        @map("client_rejected")
   WITHDRAWN              @map("withdrawn")
   TALENT_POOL            @map("talent_pool")
-  ARCHIVED               @map("archived")
+}
+
+enum MissionCandidateEventAction {
+  CREATED                           @map("created")
+  TRANSITIONED                      @map("transitioned")
+  OPTIONAL_STAGE_SKIPPED            @map("optional_stage_skipped")
+  RESPONSIBLE_RECRUITER_ASSIGNED    @map("responsible_recruiter_assigned")
+  RESPONSIBLE_RECRUITER_TRANSFERRED @map("responsible_recruiter_transferred")
+  PRESENTED_TO_CLIENT               @map("presented_to_client")
+  INTEGRATION_CONFIRMED             @map("integration_confirmed")
+  OUTCOME_RECORDED                  @map("outcome_recorded")
 }
 
 enum InterviewType {
@@ -367,29 +375,33 @@ model User {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  roles                            UserRole[]
-  clientContact                    ClientContact?
-  commercialOwnedClients           Client[]                   @relation("ClientCommercialOwner")
-  missionRecruiters                MissionRecruiter[]
-  candidateEvaluations             CandidateEvaluation[]      @relation("EvaluationAuthor")
-  assignedTasks                    Task[]                     @relation("TaskAssignee")
-  createdTasks                     Task[]                     @relation("TaskCreator")
-  ownedDocuments                   Document[]                 @relation("DocumentOwner")
-  createdDocuments                 Document[]                 @relation("DocumentCreator")
-  createdDocumentVersions          DocumentVersion[]          @relation("DocumentVersionCreator")
-  uploadedCandidateDocuments       CandidateDocument[]        @relation("CandidateDocumentUploader")
-  createdCandidateDocumentVersions CandidateDocumentVersion[] @relation("CandidateDocumentVersionCreator")
-  notifications                    Notification[]             @relation("NotificationRecipient")
-  authoredNotifications            Notification[]             @relation("NotificationActor")
-  authoredMessages                 Message[]                  @relation("MessageAuthor")
-  conversationMemberships          ConversationMember[]
-  trainingEnrollments              TrainingEnrollment[]       @relation("UserTrainingEnrollment")
-  trainingProgramsOwned            TrainingProgram[]          @relation("TrainingProgramOwner")
-  trainingSessionsTrained          TrainingSession[]          @relation("TrainingSessionTrainer")
-  auditLogs                        AuditLog[]                 @relation("AuditActor")
-  targetedAuditLogs                AuditLog[]                 @relation("AuditTargetUser")
-  passwordCredential               PasswordCredential?
-  refreshSessions                  RefreshSession[]
+  roles                               UserRole[]
+  clientContact                       ClientContact?
+  commercialOwnedClients              Client[]                   @relation("ClientCommercialOwner")
+  missionRecruiters                   MissionRecruiter[]
+  responsibleMissionCandidates        MissionCandidate[]         @relation("MissionCandidateResponsibleRecruiter")
+  presentedMissionCandidates          MissionCandidate[]         @relation("MissionCandidatePresenter")
+  placementConfirmedMissionCandidates MissionCandidate[]         @relation("MissionCandidatePlacementConfirmer")
+  missionCandidateEvents              MissionCandidateEvent[]    @relation("MissionCandidateEventActor")
+  candidateEvaluations                CandidateEvaluation[]      @relation("EvaluationAuthor")
+  assignedTasks                       Task[]                     @relation("TaskAssignee")
+  createdTasks                        Task[]                     @relation("TaskCreator")
+  ownedDocuments                      Document[]                 @relation("DocumentOwner")
+  createdDocuments                    Document[]                 @relation("DocumentCreator")
+  createdDocumentVersions             DocumentVersion[]          @relation("DocumentVersionCreator")
+  uploadedCandidateDocuments          CandidateDocument[]        @relation("CandidateDocumentUploader")
+  createdCandidateDocumentVersions    CandidateDocumentVersion[] @relation("CandidateDocumentVersionCreator")
+  notifications                       Notification[]             @relation("NotificationRecipient")
+  authoredNotifications               Notification[]             @relation("NotificationActor")
+  authoredMessages                    Message[]                  @relation("MessageAuthor")
+  conversationMemberships             ConversationMember[]
+  trainingEnrollments                 TrainingEnrollment[]       @relation("UserTrainingEnrollment")
+  trainingProgramsOwned               TrainingProgram[]          @relation("TrainingProgramOwner")
+  trainingSessionsTrained             TrainingSession[]          @relation("TrainingSessionTrainer")
+  auditLogs                           AuditLog[]                 @relation("AuditActor")
+  targetedAuditLogs                   AuditLog[]                 @relation("AuditTargetUser")
+  passwordCredential                  PasswordCredential?
+  refreshSessions                     RefreshSession[]
 
   @@index([status])
   @@index([userType])
@@ -774,31 +786,68 @@ model MissionRecruiter {
 }
 
 model MissionCandidate {
-  id              String                @id @default(uuid()) @db.Uuid
-  missionId       String                @db.Uuid
-  candidateId     String                @db.Uuid
-  state           MissionCandidateState @default(NEW)
-  rank            Int?
-  source          String?
-  presentedAt     DateTime?
-  rejectionReason String?
-  closureReason   String?
-  archivedAt      DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id                         String                @id @default(uuid()) @db.Uuid
+  missionId                  String                @db.Uuid
+  candidateId                String                @db.Uuid
+  responsibleRecruiterUserId String                @db.Uuid
+  state                      MissionCandidateState @default(NEW)
+  rank                       Int?
+  source                     String?
+  sourceContext              String?
+  priority                   TaskPriority          @default(NORMAL)
+  internalNotes              String?
+  outcomeReason              String?
+  clientVisible              Boolean               @default(false)
+  presentedAt                DateTime?
+  presentedByUserId          String?               @db.Uuid
+  placementConfirmedAt       DateTime?
+  placementConfirmedByUserId String?               @db.Uuid
+  archivedAt                 DateTime?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
 
-  mission       RecruitmentMission    @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  candidate     Candidate             @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  interviews    Interview[]
-  evaluations   CandidateEvaluation[]
-  documents     Document[]
-  tasks         Task[]
-  notifications Notification[]
+  mission              RecruitmentMission      @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidate            Candidate               @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  responsibleRecruiter User                    @relation("MissionCandidateResponsibleRecruiter", fields: [responsibleRecruiterUserId], references: [id], onDelete: Restrict)
+  presentedBy          User?                   @relation("MissionCandidatePresenter", fields: [presentedByUserId], references: [id], onDelete: SetNull)
+  placementConfirmedBy User?                   @relation("MissionCandidatePlacementConfirmer", fields: [placementConfirmedByUserId], references: [id], onDelete: SetNull)
+  events               MissionCandidateEvent[]
+  interviews           Interview[]
+  evaluations          CandidateEvaluation[]
+  documents            Document[]
+  tasks                Task[]
+  notifications        Notification[]
 
   @@unique([missionId, candidateId])
   @@index([candidateId])
   @@index([missionId])
+  @@index([responsibleRecruiterUserId])
   @@index([state])
+  @@index([clientVisible])
+  @@index([presentedAt])
+}
+
+model MissionCandidateEvent {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  missionCandidateId  String                      @db.Uuid
+  actorUserId         String?                     @db.Uuid
+  action              MissionCandidateEventAction
+  previousState       MissionCandidateState?
+  nextState           MissionCandidateState?
+  previousRecruiterId String?                     @db.Uuid
+  nextRecruiterId     String?                     @db.Uuid
+  reason              String?
+  safeComment         String?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  missionCandidate MissionCandidate @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  actor            User?            @relation("MissionCandidateEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([missionCandidateId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Interview {

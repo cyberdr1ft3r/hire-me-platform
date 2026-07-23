@@ -79,7 +79,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 - Interviews and evaluations.
 - Search and filtering.
 
-Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 implements recruitment missions and multiple recruiter/contributor assignments. MissionCandidate pipeline, interviews, evaluations, CV/document handling, and broader search remain future scoped work.
+Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 completed recruitment missions and multiple recruiter/contributor assignments. Issue #21 implements the `MissionCandidate` process pipeline. Interviews, evaluations, CV/document handling, full client feedback, and broader search remain future scoped work.
 
 ## Phase 6 — Collaboration and operational support
 

@@ -196,6 +196,32 @@ Mission salary and commercial fields require dedicated mission commercial permis
 
 Mission archival, closure, status changes, ordinary mission updates, assignment creation, assignment updates, assignment archival, and lead-recruiter replacement use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `RecruitmentMission`. This prevents concurrent assignment creation or ordinary mutation from committing after mission archival or terminal closure. Assignment activation and lead-recruiter selection re-check that the assigned user is still active, non-archived, and internal inside the same transaction. When the losing operation observes the terminal parent, it receives the stable conflict code `MISSION_TERMINAL`.
 
+## Implemented Mission Candidate Process Permissions
+
+Issue #21 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `mission_candidates:view` | List or read mission-specific candidate processes under assignment or authorized override scope. |
+| `mission_candidates:create` | Link one reusable candidate to one writable recruitment mission with a responsible recruiter. |
+| `mission_candidates:transition` | Move a mission-candidate process through the approved standard pipeline. |
+| `mission_candidates:transfer` | Transfer responsible recruiter ownership with a required reason. |
+| `mission_candidates:present` | Explicitly present a candidate to the client for that mission. |
+| `mission_candidates:integration:confirm` | Manually confirm integration and count one placement idempotently. |
+| `mission_candidates:outcome:manage` | Record rejection, withdrawal, and talent-pool outcomes. |
+| `mission_candidate_notes:view` | Read internal process notes. |
+| `mission_candidate_notes:manage` | Create or update internal process notes. |
+
+Development seed mapping gives normal mission-candidate process permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent read permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad mission-candidate process permissions until assignment, team, guest, or client-portal row scopes are implemented.
+
+Mission-candidate access remains deny-by-default. A caller must have the route permission and either an active mission assignment or an explicit authorized override. The responsible recruiter, active lead recruiter, or authorized override user may manage the process depending on the operation. Responsible recruiters must be active, internal, non-archived users with an active mission assignment as lead recruiter, recruiter, or sourcer.
+
+Mission-candidate responses are shaped by the caller's effective permissions. Internal notes require `mission_candidate_notes:view`; live candidate compensation requires `candidate_compensation:view`; live candidate consent requires `candidate_consent:view`. Linking a candidate to a mission does not make the candidate client-visible. Client visibility starts only through the explicit presentation action, never through a generic transition to `PRESENTED_TO_CLIENT`, and future client-facing APIs must continue to exclude internal notes, confidential scores, other missions, and internal history.
+
+Integration confirmation is a first-confirmation write and a retry-safe read thereafter. Repeating confirmation for an already-confirmed process must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
+
+Mission-candidate creation and writes use a consistent PostgreSQL lock order: parent `RecruitmentMission`, then `MissionCandidate` when one already exists, then parent `Candidate`. Creation locks the mission and candidate before inserting the process. This prevents candidate archival, mission closure or archival, duplicate process creation, and dependent process writes from committing in an unsafe order. Losing operations receive stable conflict codes such as `MISSION_TERMINAL`, `CANDIDATE_ARCHIVED`, or `MISSION_CANDIDATE_ALREADY_EXISTS`.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
@@ -209,7 +235,7 @@ Mission archival, closure, status changes, ordinary mission updates, assignment 
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Exact remaining business record-scope queries, approval workflows, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, and client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Exact remaining business record-scope queries, approval workflows, client-facing row scopes, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 

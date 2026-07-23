@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   Patch,
@@ -16,6 +18,14 @@ import {
   MissionAssignmentListQuerySchema,
   MissionAssignmentListResponseSchema,
   MissionAssignmentUpdateRequestSchema,
+  MissionCandidateCreateRequestSchema,
+  MissionCandidateDetailResponseSchema,
+  MissionCandidateIntegrationConfirmationRequestSchema,
+  MissionCandidateListQuerySchema,
+  MissionCandidateListResponseSchema,
+  MissionCandidatePresentationRequestSchema,
+  MissionCandidateTransferRequestSchema,
+  MissionCandidateTransitionRequestSchema,
   MissionClosureRequestSchema,
   MissionDetailResponseSchema,
   MissionLeadRecruiterRequestSchema,
@@ -28,6 +38,7 @@ import {
 import { z } from 'zod';
 
 import { badRequest } from './mission.errors.js';
+import { MissionCandidatesService } from './mission-candidates.service.js';
 import { MISSION_PERMISSIONS } from './mission-permissions.js';
 import { MissionsService } from './missions.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -40,7 +51,11 @@ const UuidParamSchema = z.string().uuid();
 @Controller('v1/missions')
 @UseGuards(AuthGuard, PermissionGuard)
 export class MissionsController {
-  constructor(@Inject(MissionsService) private readonly missions: MissionsService) {}
+  constructor(
+    @Inject(MissionCandidatesService)
+    private readonly missionCandidates: MissionCandidatesService,
+    @Inject(MissionsService) private readonly missions: MissionsService,
+  ) {}
 
   @Get()
   @RequirePermissions(MISSION_PERMISSIONS.MISSIONS_VIEW)
@@ -168,6 +183,185 @@ export class MissionsController {
 
     return MissionAssignmentListResponseSchema.parse(
       await this.missions.listAssignments(this.uuid(missionId), parsed.data),
+    );
+  }
+
+  @Get(':missionId/candidates')
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)
+  async listMissionCandidates(
+    @Param('missionId') missionId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidateListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_CANDIDATE_LIST_QUERY',
+        'Invalid mission candidate list query.',
+      );
+    }
+
+    return MissionCandidateListResponseSchema.parse(
+      await this.missionCandidates.listMissionCandidates(
+        this.uuid(missionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates')
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_CREATE)
+  async createMissionCandidate(
+    @Param('missionId') missionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidateCreateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_CREATE_MISSION_CANDIDATE_REQUEST',
+        'Invalid mission candidate request.',
+      );
+    }
+
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.createMissionCandidate(
+        this.uuid(missionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId')
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)
+  async getMissionCandidate(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.getMissionCandidate(
+        this.uuid(missionId),
+        this.uuid(processId),
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/transition')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSITION)
+  async transitionMissionCandidate(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidateTransitionRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_CANDIDATE_TRANSITION_REQUEST',
+        'Invalid mission candidate transition request.',
+      );
+    }
+
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.transitionMissionCandidate(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/transfer')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER)
+  async transferResponsibleRecruiter(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidateTransferRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_CANDIDATE_TRANSFER_REQUEST',
+        'Invalid mission candidate transfer request.',
+      );
+    }
+
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.transferResponsibleRecruiter(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/present')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_PRESENT)
+  async presentMissionCandidate(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidatePresentationRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_CANDIDATE_PRESENTATION_REQUEST',
+        'Invalid mission candidate presentation request.',
+      );
+    }
+
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.presentMissionCandidate(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/confirm-integration')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_CANDIDATES_INTEGRATION_CONFIRM)
+  async confirmMissionCandidateIntegration(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = MissionCandidateIntegrationConfirmationRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_CANDIDATE_INTEGRATION_REQUEST',
+        'Invalid mission candidate integration confirmation request.',
+      );
+    }
+
+    return MissionCandidateDetailResponseSchema.parse(
+      await this.missionCandidates.confirmIntegration(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
     );
   }
 
