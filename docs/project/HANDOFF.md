@@ -10,6 +10,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issue #25 is implemented locally on branch `docs/issue-25-product-realignment`.
 - This is documentation and architecture realignment only. Do not add schemas, migrations, APIs, UI, dependencies, or production behavior.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
+- PR #26 blocking comment correction reconciles D-027 with D-037: D-027 now governs staff-controlled external client sharing and no longer assumes a client portal.
 
 ## Next Action
 
@@ -48,6 +49,8 @@ Completed locally for Issue #25:
 - `git diff --check`
 
 `pnpm build` passed with Vite's existing large-chunk advisory warning.
+
+After the PR #26 blocking-comment correction, the focused validation also passed: Mermaid CLI rendered all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

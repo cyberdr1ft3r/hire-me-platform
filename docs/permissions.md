@@ -202,7 +202,7 @@ Issue #17 implements these route permissions:
 | `candidate_consent:view` | Read candidate consent status and recorded timestamp. |
 | `candidate_consent:manage` | Create or update candidate consent fields. |
 
-Development seed mapping gives normal candidate/profile permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad candidate permissions until mission assignment, team, assigned-record, guest sharing, and client-portal row scopes are implemented.
+Development seed mapping gives normal candidate/profile permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Only `SUPER_ADMIN` receives candidate compensation and consent permissions by default. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad candidate permissions until mission assignment, team, assigned-record, guest sharing, and optional future client-portal row scopes are implemented.
 
 Candidate detail and mutation responses are shaped by the caller's effective permissions independently. A caller with `candidates:create`, `candidates:update`, `candidates:status:manage`, or `candidates:archive` but without `candidate_profile:view` receives empty structured profile arrays for skills, languages, work experience, and education. Candidate listing responses do not include structured profile arrays, and profile-backed candidate search is available only when `candidate_profile:view` is effective. Candidate compensation and consent fields require their dedicated permissions even when ordinary candidate permissions are present. Frontend hiding is only a usability layer; the API enforces this rule.
 
@@ -251,7 +251,7 @@ Development seed mapping gives normal mission-candidate process permissions to `
 
 Mission-candidate access remains deny-by-default. A caller must have the route permission and either an active mission assignment or an explicit authorized override. The responsible recruiter, active lead recruiter, or authorized override user may manage the process depending on the operation. Responsible recruiters must be active, internal, non-archived users with an active mission assignment as lead recruiter, recruiter, or sourcer.
 
-Mission-candidate responses are shaped by the caller's effective permissions. Internal notes require `mission_candidate_notes:view`; live candidate compensation requires `candidate_compensation:view`; live candidate consent requires `candidate_consent:view`. Linking a candidate to a mission does not make the candidate client-visible. Client visibility starts only through the explicit presentation action, never through a generic transition to `PRESENTED_TO_CLIENT`, and future client-facing APIs must continue to exclude internal notes, confidential scores, other missions, and internal history.
+Mission-candidate responses are shaped by the caller's effective permissions. Internal notes require `mission_candidate_notes:view`; live candidate compensation requires `candidate_compensation:view`; live candidate consent requires `candidate_consent:view`. Linking a candidate to a mission does not approve candidate information for external client sharing. External client sharing starts only through the explicit presentation action, never through a generic transition to `PRESENTED_TO_CLIENT`, and future client-facing APIs must continue to exclude internal notes, confidential scores, unrelated missions, internal history, protected salary or compensation data unless specifically approved, and recruiter-only operational information.
 
 `clientVisible` and client-facing wording mean approved for external sharing. They do not imply a current client portal.
 
@@ -279,7 +279,7 @@ Issue #23 implements these route permissions:
 | `evaluations:finalize` | Explicitly finalize evaluations idempotently. |
 | `client_feedback:view` | View client-authored feedback records where future client-feedback scope allows it. |
 
-Development seed mapping gives normal interview and evaluation permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad interview or evaluation permissions until assignment, team, guest, or client-portal row scopes are implemented.
+Development seed mapping gives normal interview and evaluation permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad interview or evaluation permissions until assignment, team, guest, or optional future client-portal row scopes are implemented.
 
 Interview and evaluation access remains deny-by-default. A caller must have the route permission and either authorized override scope or an active mission assignment, depending on the operation. Interview and evaluation writes use the established mission-candidate lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then the `Interview` row where applicable. Internal evaluations are redacted unless `evaluations:internal:view` is effective. Client feedback records are redacted unless `client_feedback:view` is effective. Candidate salary values are not returned through evaluation responses or audit metadata.
 

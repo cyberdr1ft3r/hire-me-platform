@@ -123,7 +123,7 @@ Public application uploads must preserve version and opportunity-submission hist
 ### CandidateEvaluation
 
 - Purpose and owner: structured interview assessment of a mission-specific candidate process; owned by recruitment operations.
-- Important attributes: id, mission candidate id, interview id, author user id, evaluation type, bounded scores, recommendation, recommended flag, strengths, weaknesses, risks, safe comment, final-opinion flag, internal-only flag, client-visible flag, status, submitted timestamp.
+- Important attributes: id, mission candidate id, interview id, author user id, evaluation type, bounded scores, recommendation, recommended flag, strengths, weaknesses, risks, safe comment, final-opinion flag, internal-only flag, external-sharing approval flag, status, submitted timestamp.
 - Relationships: belongs to one `MissionCandidate`, exactly one `Interview`, and exactly one internal author `User`.
 - Cardinality: one interview can have many evaluations by different authorized evaluators; one evaluator can have at most one active evaluation of the same type for one interview.
 - Lifecycle: draft, submitted, archived.
@@ -229,7 +229,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Lifecycle: scheduled, postponed, completed, canceled, archived.
 - Sensitive fields: meeting links, participant details, interview notes, outcome.
 - Uniqueness rules: no global uniqueness beyond id.
-- Audit requirements: scheduling, rescheduling, postponement, cancellation, completion, and client-visible changes should be audited.
+- Audit requirements: scheduling, rescheduling, postponement, cancellation, completion, and external-sharing approval changes should be audited.
 
 ### InterviewParticipant
 
