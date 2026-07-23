@@ -108,8 +108,21 @@ Candidate, HR, salary, CV, client, commercial, message, document, export, and au
 - `mission_assignments:manage`
 - `mission_commercial_data:view`
 - `mission_commercial_data:update`
+- `interviews:view`
+- `interviews:schedule`
+- `interviews:reschedule`
+- `interviews:complete`
+- `interviews:cancel`
+- `interviews:archive`
+- `interview_participants:manage`
+- `evaluations:view`
+- `evaluations:internal:view`
+- `evaluations:create`
+- `evaluations:update`
+- `evaluations:finalize`
+- `client_feedback:view`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Administration Permissions
 
@@ -221,6 +234,30 @@ Mission-candidate responses are shaped by the caller's effective permissions. In
 Integration confirmation is a first-confirmation write and a retry-safe read thereafter. Repeating confirmation for an already-confirmed process must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
 
 Mission-candidate creation and writes use a consistent PostgreSQL lock order: parent `RecruitmentMission`, then `MissionCandidate` when one already exists, then parent `Candidate`. Creation locks the mission and candidate before inserting the process. This prevents candidate archival, mission closure or archival, duplicate process creation, and dependent process writes from committing in an unsafe order. Losing operations receive stable conflict codes such as `MISSION_TERMINAL`, `CANDIDATE_ARCHIVED`, or `MISSION_CANDIDATE_ALREADY_EXISTS`.
+
+## Implemented Interview and Evaluation Permissions
+
+Issue #23 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `interviews:view` | List and read interviews for authorized mission-candidate processes. |
+| `interviews:schedule` | Schedule HR, technical, internal-validation, and client interviews under a writable mission-candidate process. |
+| `interviews:reschedule` | Reschedule or postpone interviews with required reason history. |
+| `interviews:complete` | Complete interviews idempotently without moving the candidate pipeline. |
+| `interviews:cancel` | Cancel scheduled or postponed interviews with a required reason. |
+| `interviews:archive` | Archive interview records without physical deletion. |
+| `interview_participants:manage` | Add or archive internal-user, client-contact, or bounded external participants. |
+| `evaluations:view` | List structured evaluations with permission-aware redaction. |
+| `evaluations:internal:view` | View internal-only evaluation content, confidential scores, strengths, weaknesses, risks, and comments. |
+| `evaluations:create` | Create structured interview evaluations as an authorized evaluator. |
+| `evaluations:update` | Update own draft structured evaluations. |
+| `evaluations:finalize` | Explicitly finalize evaluations idempotently. |
+| `client_feedback:view` | View client-authored feedback records where future client-feedback scope allows it. |
+
+Development seed mapping gives normal interview and evaluation permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad interview or evaluation permissions until assignment, team, guest, or client-portal row scopes are implemented.
+
+Interview and evaluation access remains deny-by-default. A caller must have the route permission and either authorized override scope or an active mission assignment, depending on the operation. Interview and evaluation writes use the established mission-candidate lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then the `Interview` row where applicable. Internal evaluations are redacted unless `evaluations:internal:view` is effective. Client feedback records are redacted unless `client_feedback:view` is effective. Candidate salary values are not returned through evaluation responses or audit metadata.
 
 ## Security and Audit Requirements
 

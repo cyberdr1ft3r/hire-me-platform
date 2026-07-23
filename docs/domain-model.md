@@ -116,14 +116,14 @@ This document defines conceptual entities and relationships for the first implem
 
 ### CandidateEvaluation
 
-- Purpose and owner: structured assessment of a candidate; owned by recruitment operations.
-- Important attributes: id, recommendation, score, feedback, evaluation type, created by, status.
-- Relationships: belongs to a `MissionCandidate`; may belong to an `Interview`; written by a user.
-- Cardinality: one mission candidate can have many evaluations; one interview can produce many evaluations.
+- Purpose and owner: structured interview assessment of a mission-specific candidate process; owned by recruitment operations.
+- Important attributes: id, mission candidate id, interview id, author user id, evaluation type, bounded scores, recommendation, recommended flag, strengths, weaknesses, risks, safe comment, final-opinion flag, internal-only flag, client-visible flag, status, submitted timestamp.
+- Relationships: belongs to one `MissionCandidate`, exactly one `Interview`, and exactly one internal author `User`.
+- Cardinality: one interview can have many evaluations by different authorized evaluators; one evaluator can have at most one active evaluation of the same type for one interview.
 - Lifecycle: draft, submitted, archived.
-- Sensitive fields: interview notes, HR feedback, scoring, salary or compensation notes.
-- Uniqueness rules: unresolved; duplicate evaluations may be allowed for multiple evaluators.
-- Audit requirements: submission, updates after submission, and access should be audited.
+- Sensitive fields: internal evaluation content, scoring, recommendation, risks, comments, evaluator attribution, and any compensation-related assessment.
+- Uniqueness rules: one active evaluation per interview, author, and evaluation type.
+- Audit requirements: creation, draft update, explicit finalization, and sensitive access should be audited with safe metadata.
 
 ### Client
 
@@ -188,13 +188,35 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 ### Interview
 
 - Purpose and owner: scheduled or completed candidate meeting; owned by recruitment operations.
-- Important attributes: id, mission candidate id, interview type, scheduled time, location or meeting link, status, participants, outcome.
-- Relationships: belongs to one mission candidate; can produce candidate evaluations; can create tasks and notifications.
-- Cardinality: one mission candidate can have many interviews, including HR and client interviews.
+- Important attributes: id, mission candidate id, interview type, start/end time, timezone, format, optional location or meeting link, organizer, status, outcome, lifecycle timestamps.
+- Relationships: belongs to one `MissionCandidate`; has participants through `InterviewParticipant`; preserves lifecycle history through `InterviewEvent`; produces `CandidateEvaluation` records; can create tasks and notifications.
+- Cardinality: one mission candidate can have many interviews, including HR, technical, internal-validation, client interview 1, and client interview 2.
 - Lifecycle: scheduled, postponed, completed, canceled, archived.
 - Sensitive fields: meeting links, participant details, interview notes, outcome.
 - Uniqueness rules: no global uniqueness beyond id.
 - Audit requirements: scheduling, rescheduling, postponement, cancellation, completion, and client-visible changes should be audited.
+
+### InterviewParticipant
+
+- Purpose and owner: explicit participant attached to one interview; owned by recruitment operations.
+- Important attributes: id, interview id, participant kind, internal user id, client contact id, bounded external participant name/role, status, archived timestamp.
+- Relationships: belongs to one `Interview`; may reference one internal `User` or one `ClientContact`.
+- Cardinality: one interview can have many participants; duplicate active participants of the same referenced user or client contact are prevented.
+- Lifecycle: active, archived.
+- Sensitive fields: participant identity, client contact participation, external participant names, and meeting context.
+- Uniqueness rules: one active participant per interview/user; one active participant per interview/client contact; one active external name per interview.
+- Audit requirements: participant addition and removal should be audited with safe metadata.
+
+### InterviewEvent
+
+- Purpose and owner: append-style history for interview lifecycle and participant changes; owned by recruitment operations.
+- Important attributes: id, interview id, action, previous and next status, previous and next schedule values, participant id, reason, safe comment, actor, timestamp.
+- Relationships: belongs to one `Interview`; may reference one actor `User`.
+- Cardinality: one interview can have many history events.
+- Lifecycle: append-oriented business history; no ordinary update workflow.
+- Sensitive fields: reasons and comments can reveal HR or client context and must remain concise and safe.
+- Uniqueness rules: no global uniqueness beyond id.
+- Audit requirements: rescheduling, postponement, completion, cancellation, archival, and participant changes should create history and safe audit records.
 
 ### Task
 
@@ -386,6 +408,8 @@ erDiagram
     RecruitmentMission ||--o{ MissionCandidate : includes
 
     MissionCandidate ||--o{ Interview : schedules
+    Interview ||--o{ InterviewParticipant : includes
+    Interview ||--o{ InterviewEvent : records
     MissionCandidate ||--o{ CandidateEvaluation : receives
     Interview ||--o{ CandidateEvaluation : produces
     User ||--o{ CandidateEvaluation : writes
@@ -435,6 +459,9 @@ erDiagram
 - `MissionCandidate` preserves candidate history across multiple recruitment missions.
 - `CandidateSkill`, `CandidateLanguage`, `CandidateWorkExperience`, and `CandidateEducation` preserve reusable candidate master profile data outside mission-specific pipeline state.
 - `CandidateEvaluation` can be tied to an `Interview`, `MissionCandidate`, and evaluator `User`.
+- Issue #23 refines `CandidateEvaluation` so every evaluation belongs to exactly one `Interview` while still keeping the mission-candidate relationship for scoped querying and reporting.
+- `InterviewParticipant` models internal users and valid client contacts as structured participants; bounded external participants exist only for people not represented by those records.
+- `InterviewEvent` preserves rescheduling, postponement, status, and participant history without moving the candidate pipeline implicitly.
 - `TrainingEnrollment` owns participant-specific program registration, approval, payment, evaluation, certificate, satisfaction, coaching, and follow-up state.
 - `TrainingSessionParticipation` owns per-session attendance and session-level outcomes.
 - `Document` represents logical centralized and generated documents; `DocumentVersion` stores each version and file output.
@@ -457,6 +484,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - Issue #15 extends the physical client schema with optional website, main phone, country, and city fields. It implements client and client-contact APIs with shared Zod DTOs, no physical deletion, transactional client archive that archives active contacts, per-client contact normalized-email uniqueness, and safe audit summaries. Client archival and dependent client/contact writes share a transaction-scoped PostgreSQL row lock on the parent `Client`, so an archive racing contact creation, client updates, client status changes, contact updates, contact status changes, or contact archival serializes safely; writes that run after archival fail with `409 CLIENT_ARCHIVED`. Commercial client fields are present in the database but returned only to callers with `commercial_data:access`; callers without that permission receive `commercial: null`.
 - Issue #17 extends the physical candidate schema with reusable candidate master profile fields and structured child records for skills, languages, work experience, and education. Candidate and child records use archival, not physical deletion. Candidate archival and dependent candidate/profile writes share a transaction-scoped PostgreSQL row lock on the parent `Candidate`, so archival racing child creation or ordinary profile updates serializes safely; writes that observe the archived parent fail with `409 CANDIDATE_ARCHIVED`. Compensation fields require `candidate_compensation:update` to write and `candidate_compensation:view` to read; consent fields require `candidate_consent:manage` to write and `candidate_consent:view` to read. The implementation keeps the foundational global `Candidate.normalizedEmail` uniqueness constraint as a stricter duplicate-prevention rule than the conceptual non-archived-only option.
 - Issue #21 implements the physical `MissionCandidate` process as the mission-specific candidate application record. It enforces permanent `(missionId, candidateId)` uniqueness, exactly one responsible recruiter at a time, explicit client presentation before client visibility, audited process events, and manual idempotent integration confirmation for placement counting. The implementation does not snapshot candidate salary or profile values; responses join live `Candidate` data and redact compensation, consent, and internal notes by permission. Mission-candidate writes use the D-033 PostgreSQL lock order to serialize mission archival/closure races, candidate archival races, duplicate creation, transitions, transfer, presentation, and integration confirmation.
+- Issue #23 refines the physical `Interview` and `CandidateEvaluation` records. Interviews belong to exactly one `MissionCandidate`, use explicit participant and lifecycle-history records, and do not move candidate pipeline state automatically. Client interviews require explicit candidate presentation, and client interview 2 requires a completed or postponed client interview 1. Evaluations are structured business records tied to one interview and author, use bounded 1-5 scores, support explicit idempotent finalization, and redact internal or client-authored feedback unless the caller has the matching evaluation visibility permission.
 - Issue #19 extends the physical recruitment mission schema with approved operational fields, protected salary fields, structured closure reasons, and assignment lifecycle APIs. Mission creation locks and verifies the parent `Client` is writable. Mission updates, lifecycle changes, closure, archival, assignment writes, assignment archival, assignment activation eligibility, lead-recruiter replacement, and effective salary-range validation share a transaction-scoped PostgreSQL row lock on the parent `RecruitmentMission`; writes that observe an archived or terminal mission fail with `409 MISSION_TERMINAL`. Active duplicate assignments are prevented by a partial PostgreSQL unique index on mission, user, and role where the assignment is active and not archived. At most one active lead recruiter is enforced by a partial PostgreSQL unique index on the mission where `isLead` is true, active, and not archived. The existing physical role enum includes `LEAD_RECRUITER`, `RECRUITER`, `SOURCER`, and `CONTRIBUTOR`; Issue #19 treats `LEAD_RECRUITER` and `isLead: true` as a paired invariant.
 
 ## Assumptions

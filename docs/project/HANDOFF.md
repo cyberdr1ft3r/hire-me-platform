@@ -1,44 +1,40 @@
 # Current Agent Handoff
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- Issues #1, #2, #3, #5, #10, #13, #15, #17, and #19 are complete and merged on `main`.
-- Issue #21 is implemented on branch `feat/mission-candidate-pipeline`, and draft PR #22 is open.
-- The PR #22 blocking-review correction is implemented locally for explicit candidate presentation and integration-confirmation idempotency.
-- The implementation covers mission-specific candidate processes only: Prisma schema/migration, API service/controller, shared contracts, minimal protected web controls, seed permissions, PostgreSQL-backed tests, and documentation.
-- Excluded Issue #21 scope remains excluded: interviews, evaluations, technical-test scoring, offers, documents, client portal, full client feedback, tasks, reminders, notifications, email, calendars, WhatsApp, dashboards, imports, exports, AI matching, training, custom pipeline builders, and physical deletion.
+- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, and #21 are complete and merged on `main`.
+- Issue #23 is implemented in draft PR #24 on branch `feat/interviews-evaluations`.
+- The implementation covers interviews and structured evaluations only: Prisma schema/migration, API service/controller, shared contracts, minimal protected web controls, seed permissions, PostgreSQL-backed tests, and documentation.
+- Excluded Issue #23 scope remains excluded: calendar integrations, reminders, documents, PDF/Word exports, technical-test execution, client portal, offers, dashboards, imports, AI, custom evaluation builders, and physical deletion.
 
 ## Next Action
 
-Review draft PR #22 after the pushed correction and CI.
+Review draft PR #24 and confirm GitHub Actions scheduling for the latest branch head.
 
 Check especially:
 
-- One reusable `Candidate` can join multiple missions but has only one process ever for the same `(missionId, candidateId)` pair.
-- Terminal rejected, withdrawn, talent-pool, or completed processes cannot be recreated for the same mission.
-- The implemented pipeline state names match Issue #21 exactly.
-- Optional skips are limited to technical test and second client interview, and require a reason plus audit history.
-- Every process has exactly one responsible recruiter at a time.
-- Responsible recruiters are active, internal, non-archived, and actively assigned to the mission.
-- Responsible recruiter transfer is reasoned, audited, and atomic.
-- Mission-candidate writes follow lock order: `RecruitmentMission`, existing `MissionCandidate` when present, then `Candidate`.
-- Candidate archival and mission closure or archival races return stable conflicts without committing dependent writes.
-- Candidate salary, compensation, consent, and profile values remain live source-of-truth data and are permission-shaped on response.
-- Linking a candidate to a mission is internal-only until explicit presentation.
-- `PRESENTED_TO_CLIENT` is reachable only through the dedicated presentation action, not through generic pipeline transition.
-- Generic transition attempts to `PRESENTED_TO_CLIENT` return `MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED` without partial presentation metadata.
-- Integration confirmation counts placement once, is idempotent, and never closes the mission automatically.
-- Retried integration confirmation is a true no-op: no second placement increment, process event, audit record, confirmer overwrite, or timestamp overwrite.
-- Business records remain structured records, not document tables.
+- Every interview belongs to exactly one `MissionCandidate`.
+- Interview actions do not automatically move `MissionCandidate.state`.
+- Client interviews require explicit candidate presentation.
+- Client interview 2 requires a completed or postponed client interview 1.
+- Internal users and client contacts are validated as active, non-archived participants, and client contacts must belong to the mission client.
+- Duplicate active interview participants are rejected.
+- Rescheduling and postponement preserve required reason history.
+- Completion, cancellation, and evaluation finalization are idempotent.
+- Repeated and concurrent cancellation attempts preserve the original `canceledAt`, cancellation event, reason history, and audit history.
+- Evaluation drafts are author-owned, and finalized evaluations reject ordinary mutation.
+- Internal evaluation content and client feedback are redacted unless the caller has the matching visibility permission.
+- Candidate salary values do not appear in evaluation responses or audit metadata.
+- Interview and evaluation writes follow lock order: `RecruitmentMission`, `MissionCandidate`, `Candidate`, then `Interview`.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
 
 ## Verification Notes
 
-Completed locally during Issue #21 work:
+Completed locally:
 
 - `pnpm prisma:validate`
 - `pnpm prisma:generate`
@@ -47,20 +43,20 @@ Completed locally during Issue #21 work:
 - `pnpm prisma:migrate:reset --force`
 - `pnpm prisma:seed`
 - second `pnpm prisma:seed`
-- `pnpm test:db` with 54 PostgreSQL integration tests passing
+- `pnpm test:db` with 61 PostgreSQL integration tests passing
+- Mermaid CLI rendering for all 10 documentation diagrams
 - `pnpm format:check`
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
 - `git diff --check`
-- static Mermaid validation for all 8 documentation diagrams
 
-The same check set was rerun after the PR #22 blocking-review correction. The PostgreSQL suite still passes with 54 integration tests, including regressions for blocked transition-only presentation, atomic dedicated presentation metadata, failed presentation rollback/no partial metadata, and repeated integration confirmation no-op behavior.
+Notes:
 
-Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary `@mermaid-js/mermaid-cli` download/execution was rejected by approval policy. `pnpm test:db`, `pnpm test`, and `pnpm build` were rerun outside the filesystem sandbox when Vitest/esbuild/Vite needed access to local config paths. Safe synthetic auth environment values were used for local test processes only because the local `.env` did not contain auth secrets. PostgreSQL used Docker Compose on `127.0.0.1:5432`.
-
-After pushing the PR #22 blocking-review correction, verify GitHub Actions remains green and keep the PR draft.
+- The first local `pnpm test:db` attempt failed because the shell did not have authentication secrets configured. It passed with safe synthetic `AUTH_ACCESS_TOKEN_SECRET` and `AUTH_REFRESH_TOKEN_PEPPER` values set only for the command.
+- `pnpm build` passed with Vite's large-chunk advisory warning.
+- After the cancellation-idempotency fix, PR #24 reached latest branch head `000e1c2`, but GitHub Actions did not report checks for that head after multiple pushes and a close/reopen retry. The older PR checks are green but belong to the pre-fix head.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
@@ -81,5 +77,5 @@ Before finishing:
 - Update `STATUS.md`.
 - Replace this handoff with the next concrete action.
 - Update the decision and risk logs when applicable.
-- Link the issue and pull request that support changes.
+- Link the issue or pull request that supports changes.
 - Report checks performed and remaining blockers.

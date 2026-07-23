@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -21,7 +21,7 @@ ATS recruitment workflow foundation.
 - Issue #15 is complete; PR #16 merged the client organization and client-contact CRM module.
 - Issue #17 is complete; PR #18 merged the reusable candidate master records and structured candidate profile foundation.
 - Issue #19 is complete; PR #20 merged recruitment missions and multiple recruiter/contributor assignments.
-- Current executable goal: Issue #21 candidate-to-mission recruitment processes and the client-approved ATS pipeline on branch `feat/mission-candidate-pipeline`, using decisions D-004 and D-023 through D-033.
+- Current executable goal: Issue #23 interviews and structured evaluations on branch `feat/interviews-evaluations`, using decisions D-004 and D-023 through D-034.
 
 ## Confirmed Product Facts
 
@@ -60,6 +60,7 @@ ATS recruitment workflow foundation.
 - Candidate master/profile CRM uses permission-code guarded `/v1/candidates` endpoints, shared Prisma-independent contracts, archival lifecycles, transaction-scoped parent-candidate row locks for archival and dependent writes, nested profile ownership checks, global normalized candidate email duplicate rejection, structured skills/languages/work-experience/education records, explicit compensation and consent permissions, and safe candidate audit logs.
 - Recruitment mission CRM uses permission-code guarded `/v1/missions` endpoints, shared Prisma-independent contracts, documented lifecycle transitions, structured closure reasons, archival lifecycles, transaction-scoped parent-mission row locks for lifecycle and assignment writes, assignee eligibility re-checks for assignment activation and lead selection, effective salary-range validation for partial updates, nested assignment ownership checks, active duplicate assignment protection, single active lead-recruiter protection, explicit mission commercial-data permissions, and safe mission audit logs.
 - Mission-candidate process implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints, permanent mission/candidate uniqueness, responsible-recruiter ownership, the client-approved standard pipeline, optional skip audit history, explicit presentation visibility boundary, protected live candidate-field redaction, manual idempotent placement confirmation, and client-controlled closure eligibility.
+- Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.
