@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** ATS recruitment workflow foundation
 **Health:** Issue #23 implementation is complete in draft PR #24; the interview/evaluation schema, API, contract, web, documentation, database tests, and quality gates have passed locally.
-**Current blocker:** None locally.
-**Next executable development task:** Review draft PR #24 and CI.
+**Current blocker:** GitHub Actions has not reported checks for the latest PR #24 branch head even after corrective pushes and a close/reopen retry; local validation is complete.
+**Next executable development task:** Review draft PR #24 and confirm GitHub Actions scheduling for the latest branch head.
 
 ## Active work
 

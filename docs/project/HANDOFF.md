@@ -13,7 +13,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Review draft PR #24 and CI.
+Review draft PR #24 and confirm GitHub Actions scheduling for the latest branch head.
 
 Check especially:
 
@@ -56,6 +56,7 @@ Notes:
 
 - The first local `pnpm test:db` attempt failed because the shell did not have authentication secrets configured. It passed with safe synthetic `AUTH_ACCESS_TOKEN_SECRET` and `AUTH_REFRESH_TOKEN_PEPPER` values set only for the command.
 - `pnpm build` passed with Vite's large-chunk advisory warning.
+- After the cancellation-idempotency fix, PR #24 reached latest branch head `000e1c2`, but GitHub Actions did not report checks for that head after multiple pushes and a close/reopen retry. The older PR checks are green but belong to the pre-fix head.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
