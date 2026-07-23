@@ -7,13 +7,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, and #19 are complete and merged on `main`.
-- Issue #21 is implemented on branch `feat/mission-candidate-pipeline` and is still pending commit, push, and draft PR creation.
+- Issue #21 is implemented on branch `feat/mission-candidate-pipeline`, and draft PR #22 is open.
+- The PR #22 blocking-review correction is implemented locally for explicit candidate presentation and integration-confirmation idempotency.
 - The implementation covers mission-specific candidate processes only: Prisma schema/migration, API service/controller, shared contracts, minimal protected web controls, seed permissions, PostgreSQL-backed tests, and documentation.
 - Excluded Issue #21 scope remains excluded: interviews, evaluations, technical-test scoring, offers, documents, client portal, full client feedback, tasks, reminders, notifications, email, calendars, WhatsApp, dashboards, imports, exports, AI matching, training, custom pipeline builders, and physical deletion.
 
 ## Next Action
 
-Open a draft PR with `Closes #21`.
+Review draft PR #22 after the pushed correction and CI.
 
 Check especially:
 
@@ -28,7 +29,10 @@ Check especially:
 - Candidate archival and mission closure or archival races return stable conflicts without committing dependent writes.
 - Candidate salary, compensation, consent, and profile values remain live source-of-truth data and are permission-shaped on response.
 - Linking a candidate to a mission is internal-only until explicit presentation.
+- `PRESENTED_TO_CLIENT` is reachable only through the dedicated presentation action, not through generic pipeline transition.
+- Generic transition attempts to `PRESENTED_TO_CLIENT` return `MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED` without partial presentation metadata.
 - Integration confirmation counts placement once, is idempotent, and never closes the mission automatically.
+- Retried integration confirmation is a true no-op: no second placement increment, process event, audit record, confirmer overwrite, or timestamp overwrite.
 - Business records remain structured records, not document tables.
 - `apps/web` and `packages/contracts` remain Prisma-independent.
 
@@ -52,7 +56,11 @@ Completed locally during Issue #21 work:
 - `git diff --check`
 - static Mermaid validation for all 8 documentation diagrams
 
+The same check set was rerun after the PR #22 blocking-review correction. The PostgreSQL suite still passes with 54 integration tests, including regressions for blocked transition-only presentation, atomic dedicated presentation metadata, failed presentation rollback/no partial metadata, and repeated integration confirmation no-op behavior.
+
 Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary `@mermaid-js/mermaid-cli` download/execution was rejected by approval policy. `pnpm test:db`, `pnpm test`, and `pnpm build` were rerun outside the filesystem sandbox when Vitest/esbuild/Vite needed access to local config paths. Safe synthetic auth environment values were used for local test processes only because the local `.env` did not contain auth secrets. PostgreSQL used Docker Compose on `127.0.0.1:5432`.
+
+After pushing the PR #22 blocking-review correction, verify GitHub Actions remains green and keep the PR draft.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

@@ -60,6 +60,10 @@ Only these standard-pipeline skips are approved:
 
 All other transitions must follow the standard pipeline or approved exceptional/outcome paths.
 
+`PRESENTED_TO_CLIENT` is a pipeline state, but it is not reachable through the generic transition endpoint. The dedicated presentation action is the only operation that may enter this state, and it must atomically set client visibility, presentation timestamp, presenter identity, process history, and safe audit history.
+
+Integration confirmation is idempotent. The first successful confirmation records the timestamp, confirmer, process event, safe audit event, and one placement-count increment. Retrying the same confirmation returns the already-confirmed process without changing placement count, confirmation metadata, process-event history, or audit history.
+
 ### Valid Transitions
 
 ```mermaid
@@ -83,7 +87,7 @@ stateDiagram-v2
     HR_INTERVIEW_COMPLETED --> TECHNICAL_TEST
     HR_INTERVIEW_COMPLETED --> INTERNAL_VALIDATION: optional skip
     TECHNICAL_TEST --> INTERNAL_VALIDATION
-    INTERNAL_VALIDATION --> PRESENTED_TO_CLIENT
+    INTERNAL_VALIDATION --> PRESENTED_TO_CLIENT: dedicated presentation action
     INTERNAL_VALIDATION --> WAITING
     INTERNAL_VALIDATION --> CANDIDATE_REJECTED
     INTERNAL_VALIDATION --> WITHDRAWN

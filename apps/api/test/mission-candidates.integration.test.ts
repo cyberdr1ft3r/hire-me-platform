@@ -610,6 +610,78 @@ describe('Mission candidate process API', () => {
       expect(response.status).toBe(200);
     }
 
+    const blockedPresentationTransition = await transitionProcess(
+      baseUrl,
+      token,
+      missionId,
+      processId,
+      MissionCandidateState.PRESENTED_TO_CLIENT,
+      'Synthetic transition-only presentation.',
+    );
+    const processAfterBlockedPresentation = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: processId },
+    });
+    expect(blockedPresentationTransition.status).toBe(409);
+    expect(await readErrorCode(blockedPresentationTransition)).toBe(
+      'MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED',
+    );
+    expect(processAfterBlockedPresentation.state).toBe(MissionCandidateState.INTERNAL_VALIDATION);
+    expect(processAfterBlockedPresentation.clientVisible).toBe(false);
+    expect(processAfterBlockedPresentation.presentedAt).toBeNull();
+    expect(processAfterBlockedPresentation.presentedByUserId).toBeNull();
+
+    const failedPresentationMissionId = await createIssue21ClientAndMission(
+      'Issue21 Failed Presentation Mission',
+    );
+    const failedPresentationCandidate = await createCandidate(
+      'failed-presentation@mission-candidates.test',
+    );
+    await assignUserToMission(failedPresentationMissionId, hrUserId);
+    const failedPresentationCreate = await createProcess(
+      baseUrl,
+      token,
+      failedPresentationMissionId,
+      failedPresentationCandidate.id,
+      hrUserId,
+    );
+    const failedPresentationProcessId = MissionCandidateDetailResponseSchema.parse(
+      await failedPresentationCreate.json(),
+    ).candidateProcess.id;
+    const failedPresentation = await fetch(
+      `${baseUrl}/v1/missions/${failedPresentationMissionId}/candidates/${failedPresentationProcessId}/present`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reason: 'Should not partially present from NEW.' }),
+      },
+    );
+    const processAfterFailedPresentation = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: failedPresentationProcessId },
+    });
+    expect(failedPresentation.status).toBe(409);
+    expect(await readErrorCode(failedPresentation)).toBe('MISSION_CANDIDATE_TRANSITION_BLOCKED');
+    expect(processAfterFailedPresentation.state).toBe(MissionCandidateState.NEW);
+    expect(processAfterFailedPresentation.clientVisible).toBe(false);
+    expect(processAfterFailedPresentation.presentedAt).toBeNull();
+    expect(processAfterFailedPresentation.presentedByUserId).toBeNull();
+    expect(
+      await prisma.missionCandidateEvent.count({
+        where: {
+          missionCandidateId: failedPresentationProcessId,
+          action: 'PRESENTED_TO_CLIENT',
+        },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'MissionCandidate',
+          entityId: failedPresentationProcessId,
+          action: 'mission_candidates.process.presented_to_client',
+        },
+      }),
+    ).toBe(0);
+
     const presented = await fetch(
       `${baseUrl}/v1/missions/${missionId}/candidates/${processId}/present`,
       {
@@ -618,10 +690,32 @@ describe('Mission candidate process API', () => {
         body: JSON.stringify({ reason: 'Explicit client presentation.' }),
       },
     );
+    const presentedProcess = MissionCandidateDetailResponseSchema.parse(
+      await presented.json(),
+    ).candidateProcess;
+    const storedPresentation = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: processId },
+    });
+    expect(presented.status).toBe(200);
+    expect(presentedProcess.state).toBe('PRESENTED_TO_CLIENT');
+    expect(presentedProcess.clientVisible).toBe(true);
+    expect(storedPresentation.clientVisible).toBe(true);
+    expect(storedPresentation.presentedAt).toBeInstanceOf(Date);
+    expect(storedPresentation.presentedByUserId).toBe(hrUserId);
     expect(
-      MissionCandidateDetailResponseSchema.parse(await presented.json()).candidateProcess
-        .clientVisible,
-    ).toBe(true);
+      await prisma.missionCandidateEvent.count({
+        where: { missionCandidateId: processId, action: 'PRESENTED_TO_CLIENT' },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'MissionCandidate',
+          entityId: processId,
+          action: 'mission_candidates.process.presented_to_client',
+        },
+      }),
+    ).toBe(1);
 
     for (const state of [
       MissionCandidateState.CLIENT_INTERVIEW_1,
@@ -664,9 +758,37 @@ describe('Mission candidate process API', () => {
 
     expect(confirmed.status).toBe(200);
     expect(repeated.status).toBe(200);
+    const confirmedProcess = MissionCandidateDetailResponseSchema.parse(
+      await confirmed.json(),
+    ).candidateProcess;
+    const repeatedProcess = MissionCandidateDetailResponseSchema.parse(
+      await repeated.json(),
+    ).candidateProcess;
     const mission = await prisma.recruitmentMission.findUniqueOrThrow({ where: { id: missionId } });
+    const storedProcess = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: processId },
+    });
     expect(mission.filledPlacementCount).toBe(1);
     expect(mission.state).not.toMatch(/CLOSED/);
+    expect(repeatedProcess.placementConfirmedAt).toBe(confirmedProcess.placementConfirmedAt);
+    expect(storedProcess.placementConfirmedAt?.toISOString()).toBe(
+      confirmedProcess.placementConfirmedAt,
+    );
+    expect(storedProcess.placementConfirmedByUserId).toBe(hrUserId);
+    expect(
+      await prisma.missionCandidateEvent.count({
+        where: { missionCandidateId: processId, action: 'INTEGRATION_CONFIRMED' },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'MissionCandidate',
+          entityId: processId,
+          action: 'mission_candidates.integration.confirmed',
+        },
+      }),
+    ).toBe(1);
   });
 
   it('applies mission scope, nested IDOR, and protected field redaction', async () => {

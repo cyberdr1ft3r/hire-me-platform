@@ -321,6 +321,12 @@ export class MissionCandidatesService {
           access,
           transaction,
         );
+        if (input.state === MissionCandidateState.PRESENTED_TO_CLIENT) {
+          throw conflict(
+            'MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED',
+            'Candidates must be presented through the dedicated presentation action.',
+          );
+        }
         this.assertAllowedTransition(existing.state, input.state, input.skip, input.reason);
         if (reasonRequiredStates.has(input.state) && !input.reason) {
           throw conflict(
@@ -478,7 +484,7 @@ export class MissionCandidatesService {
     context: RequestContext,
   ): Promise<MissionCandidateDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
-    const process = await this.withWritableProcessLock(
+    const { process, confirmed } = await this.withWritableProcessLock(
       missionId,
       processId,
       async (transaction, existing, mission) => {
@@ -495,18 +501,19 @@ export class MissionCandidatesService {
             'Placement confirmation requires an integrated candidate process.',
           );
         }
-        if (!existing.placementConfirmedAt) {
-          if (mission.filledPlacementCount + 1 > mission.numberOfPositions) {
-            throw conflict(
-              'MISSION_PLACEMENT_COUNTS_INVALID',
-              'Mission placement count would exceed planned positions.',
-            );
-          }
-          await transaction.recruitmentMission.update({
-            where: { id: missionId },
-            data: { filledPlacementCount: { increment: 1 } },
-          });
+        if (existing.placementConfirmedAt) {
+          return { process: existing, confirmed: false };
         }
+        if (mission.filledPlacementCount + 1 > mission.numberOfPositions) {
+          throw conflict(
+            'MISSION_PLACEMENT_COUNTS_INVALID',
+            'Mission placement count would exceed planned positions.',
+          );
+        }
+        await transaction.recruitmentMission.update({
+          where: { id: missionId },
+          data: { filledPlacementCount: { increment: 1 } },
+        });
         const updated = await transaction.missionCandidate.update({
           where: { id: processId },
           data: {
@@ -523,16 +530,18 @@ export class MissionCandidatesService {
           nextState: existing.state,
           reason: input.reason,
         });
-        return updated;
+        return { process: updated, confirmed: true };
       },
     );
 
-    await this.audit.record('mission_candidates.integration.confirmed', context, {
-      actorUserId,
-      entityType: 'MissionCandidate',
-      entityId: process.id,
-      metadataSummary: 'Mission candidate integration confirmed manually.',
-    });
+    if (confirmed) {
+      await this.audit.record('mission_candidates.integration.confirmed', context, {
+        actorUserId,
+        entityType: 'MissionCandidate',
+        entityId: process.id,
+        metadataSummary: 'Mission candidate integration confirmed manually.',
+      });
+    }
 
     return { candidateProcess: this.toDetail(process, access) };
   }

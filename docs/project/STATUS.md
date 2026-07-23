@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** ATS recruitment workflow foundation
-**Health:** Issue #21 mission-candidate process implementation passed local Prisma validation/generation, PostgreSQL migration deploy/reset, seed, PostgreSQL integration tests, architecture, formatting, lint, typecheck, unit test, build, static Mermaid validation, and whitespace checks. Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary renderer download/execution was rejected by approval policy.
+**Health:** PR #22 blocking-review correction for explicit presentation and integration-confirmation idempotency passed local Prisma, PostgreSQL, architecture, formatting, lint, typecheck, unit test, build, static Mermaid, and whitespace checks.
 **Current blocker:** None locally.
-**Next executable development task:** Open the Issue #21 draft PR.
+**Next executable development task:** Review draft PR #22 after pushed correction and CI.
 
 ## Active work
 
@@ -21,7 +21,7 @@ Status owner: repository maintainer
 | Issue #15 | Complete | Implement client organization and client-contact CRM | No action |
 | Issue #17 | Complete | Implement reusable candidate master records and structured candidate profiles | No action |
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
-| Issue #21 | In progress | Implement mission-specific candidate processes and the approved ATS pipeline | Open draft PR |
+| Issue #21 | In progress | Implement mission-specific candidate processes and the approved ATS pipeline | Review draft PR #22 |
 
 ## Completed foundation work
 
@@ -125,8 +125,10 @@ Status owner: repository maintainer
 - Candidate profile and compensation values remain live source-of-truth data from `Candidate`; mission-candidate records do not snapshot salary/profile values.
 - Client visibility starts only after explicit presentation. Linking a candidate to a mission remains internal-only.
 - Manual integration confirmation increments filled placement count once and does not close the mission automatically.
+- PR #22 blocking-review correction makes `PRESENTED_TO_CLIENT` reachable only through the dedicated presentation action, which atomically sets visibility, timestamp, presenter identity, process event, and safe audit event. Generic transition attempts return `MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED` without partial metadata.
+- PR #22 blocking-review correction makes repeated integration confirmation a true no-op that preserves placement count, confirmation metadata, process-event history, and audit history.
 - Mission-candidate writes use the documented PostgreSQL lock order from D-033.
-- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 54 PostgreSQL integration tests passing, `pnpm check:architecture`, static Mermaid validation for all 8 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- Local checks after the PR #22 blocking-review correction passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset --force`, `pnpm prisma:seed` twice after reset, `pnpm test:db` with 54 PostgreSQL integration tests passing, `pnpm check:architecture`, static Mermaid validation for all 8 documentation diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - Actual Mermaid CLI rendering could not run locally because no renderer is installed and temporary `@mermaid-js/mermaid-cli` download/execution was rejected by approval policy.
 
 ## Current open technical questions
@@ -146,7 +148,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Open the Issue #21 draft PR with `Closes #21`.
+1. Review draft PR #22 after the blocking-review correction and CI.
 
 ## Status Update Rules
 
