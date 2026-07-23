@@ -355,7 +355,7 @@ export class MissionInterviewsService {
     context: RequestContext,
   ): Promise<InterviewDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
-    const interview = await this.withWritableInterviewLock(
+    const { interview, changed } = await this.withWritableInterviewLock(
       missionId,
       processId,
       interviewId,
@@ -369,7 +369,7 @@ export class MissionInterviewsService {
           throw conflict('INTERVIEW_ARCHIVED', 'Archived interviews cannot be canceled.');
         }
         if (existing.status === InterviewStatus.CANCELED) {
-          return existing;
+          return { interview: existing, changed: false };
         }
         const updated = await transaction.interview.update({
           where: { id: interviewId },
@@ -384,15 +384,17 @@ export class MissionInterviewsService {
           nextStatus: InterviewStatus.CANCELED,
           reason: input.reason,
         });
-        return updated;
+        return { interview: updated, changed: true };
       },
     );
-    await this.audit.record('interviews.interview.canceled', context, {
-      actorUserId,
-      entityType: 'Interview',
-      entityId: interview.id,
-      metadataSummary: 'Interview canceled with preserved reason.',
-    });
+    if (changed) {
+      await this.audit.record('interviews.interview.canceled', context, {
+        actorUserId,
+        entityType: 'Interview',
+        entityId: interview.id,
+        metadataSummary: 'Interview canceled with preserved reason.',
+      });
+    }
     return { interview: this.toInterviewDetail(interview, access) };
   }
 

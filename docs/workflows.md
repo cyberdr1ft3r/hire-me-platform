@@ -148,7 +148,7 @@ Client interview scheduling requires `MissionCandidate.clientVisible = true` thr
 - `CANCELED`: interview will not occur.
 - `ARCHIVED`: interview is retained but inactive.
 
-Rescheduling and postponement require a reason and create `InterviewEvent` history. Completion is idempotent: repeating completion returns the completed interview without another completion event or audit record. Canceling a completed interview is rejected with a stable conflict.
+Rescheduling and postponement require a reason and create `InterviewEvent` history. Completion and cancellation are idempotent: repeating either operation returns the existing terminal interview without another event or audit record, and cancellation retries preserve the original `canceledAt` timestamp and reason history. Canceling a completed interview is rejected with a stable conflict.
 
 ```mermaid
 stateDiagram-v2

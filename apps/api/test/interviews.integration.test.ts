@@ -537,6 +537,115 @@ describe('Interviews and structured evaluations API', () => {
     ).toMatchObject({ state: MissionCandidateState.INTERNAL_VALIDATION });
   });
 
+  it('keeps repeated cancellation idempotent without duplicating events or audit logs', async () => {
+    const token = await loginAccessToken(baseUrl, 'hr@interviews.test');
+    const fixture = await createFixture('Issue23 Sequential Cancellation', hrUserId);
+    const scheduled = await scheduleInterview(
+      baseUrl,
+      token,
+      fixture.mission.id,
+      fixture.process.id,
+      hrUserId,
+    );
+    const interviewId = InterviewDetailResponseSchema.parse(await scheduled.json()).interview.id;
+
+    const first = await fetch(
+      `${baseUrl}/v1/missions/${fixture.mission.id}/candidates/${fixture.process.id}/interviews/${interviewId}/cancel`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reason: 'Original cancellation reason.' }),
+      },
+    );
+    const firstBody = InterviewDetailResponseSchema.parse(await first.json()).interview;
+    const retry = await fetch(
+      `${baseUrl}/v1/missions/${fixture.mission.id}/candidates/${fixture.process.id}/interviews/${interviewId}/cancel`,
+      {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reason: 'Retry reason must not be recorded.' }),
+      },
+    );
+    const retryBody = InterviewDetailResponseSchema.parse(await retry.json()).interview;
+    const stored = await prisma.interview.findUniqueOrThrow({ where: { id: interviewId } });
+    const events = await prisma.interviewEvent.findMany({
+      where: { interviewId, action: 'CANCELED' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        action: 'interviews.interview.canceled',
+        entityType: 'Interview',
+        entityId: interviewId,
+      },
+    });
+
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    expect(firstBody.status).toBe('CANCELED');
+    expect(retryBody.status).toBe('CANCELED');
+    expect(retryBody.canceledAt).toBe(firstBody.canceledAt);
+    expect(stored.status).toBe('CANCELED');
+    expect(stored.canceledAt?.toISOString()).toBe(firstBody.canceledAt);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.reason).toBe('Original cancellation reason.');
+    expect(auditCount).toBe(1);
+  });
+
+  it('serializes concurrent duplicate cancellation into one state change, event, and audit log', async () => {
+    const token = await loginAccessToken(baseUrl, 'hr@interviews.test');
+    const fixture = await createFixture('Issue23 Concurrent Cancellation', hrUserId);
+    const scheduled = await scheduleInterview(
+      baseUrl,
+      token,
+      fixture.mission.id,
+      fixture.process.id,
+      hrUserId,
+    );
+    const interviewId = InterviewDetailResponseSchema.parse(await scheduled.json()).interview.id;
+    const url = `${baseUrl}/v1/missions/${fixture.mission.id}/candidates/${fixture.process.id}/interviews/${interviewId}/cancel`;
+
+    const responses = await Promise.all([
+      fetch(url, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reason: 'Concurrent cancellation A.' }),
+      }),
+      fetch(url, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ reason: 'Concurrent cancellation B.' }),
+      }),
+    ]);
+    const bodies = await Promise.all(
+      responses.map(async (response) => InterviewDetailResponseSchema.parse(await response.json())),
+    );
+    const stored = await prisma.interview.findUniqueOrThrow({ where: { id: interviewId } });
+    const events = await prisma.interviewEvent.findMany({
+      where: { interviewId, action: 'CANCELED' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const auditLogs = await prisma.auditLog.findMany({
+      where: {
+        action: 'interviews.interview.canceled',
+        entityType: 'Interview',
+        entityId: interviewId,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(bodies.map((body) => body.interview.status)).toEqual(['CANCELED', 'CANCELED']);
+    expect(new Set(bodies.map((body) => body.interview.canceledAt)).size).toBe(1);
+    expect(stored.status).toBe('CANCELED');
+    expect(stored.canceledAt?.toISOString()).toBe(bodies[0]?.interview.canceledAt);
+    expect(events).toHaveLength(1);
+    expect(['Concurrent cancellation A.', 'Concurrent cancellation B.']).toContain(
+      events[0]?.reason,
+    );
+    expect(auditLogs).toHaveLength(1);
+  });
+
   it('supports multiple evaluators, author-owned drafts, idempotent finalization, and redaction', async () => {
     const token = await loginAccessToken(baseUrl, 'hr@interviews.test');
     const secondToken = await loginAccessToken(baseUrl, 'evaluator@interviews.test');

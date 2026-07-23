@@ -24,7 +24,8 @@ Check especially:
 - Internal users and client contacts are validated as active, non-archived participants, and client contacts must belong to the mission client.
 - Duplicate active interview participants are rejected.
 - Rescheduling and postponement preserve required reason history.
-- Completion and evaluation finalization are idempotent.
+- Completion, cancellation, and evaluation finalization are idempotent.
+- Repeated and concurrent cancellation attempts preserve the original `canceledAt`, cancellation event, reason history, and audit history.
 - Evaluation drafts are author-owned, and finalized evaluations reject ordinary mutation.
 - Internal evaluation content and client feedback are redacted unless the caller has the matching visibility permission.
 - Candidate salary values do not appear in evaluation responses or audit metadata.
@@ -42,7 +43,7 @@ Completed locally:
 - `pnpm prisma:migrate:reset --force`
 - `pnpm prisma:seed`
 - second `pnpm prisma:seed`
-- `pnpm test:db` with 59 PostgreSQL integration tests passing
+- `pnpm test:db` with 61 PostgreSQL integration tests passing
 - Mermaid CLI rendering for all 10 documentation diagrams
 - `pnpm format:check`
 - `pnpm lint`
