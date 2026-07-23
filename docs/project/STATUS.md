@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Product and roadmap realignment before next ATS module
-**Health:** Issue #25 documentation realignment is implemented locally and validation has passed. Main now includes the merged Issue #23 interview/evaluation foundation.
+**Phase:** Public opportunity and candidate application foundation
+**Health:** Issue #27 implementation is complete locally and validation has passed. Main includes the approved product realignment and merged interview/evaluation foundation.
 **Current blocker:** None locally.
-**Next executable development task:** Open the Issue #25 draft PR. After approval, the next implementation issue should be Public opportunity and candidate application foundation.
+**Next executable development task:** Finish validation and open the Issue #27 draft PR for the public opportunity and candidate application foundation.
 
 ## Active work
 
@@ -154,11 +154,23 @@ Status owner: repository maintainer
 - Client portal is optional future scope, not MVP.
 - Training participants are records by default, while trainers and internal training operators require internal accounts.
 - Commercial and operational accounting is in scope with explicit boundaries excluding full legal accounting, general ledger, tax declarations, and bank reconciliation unless later approved.
-- Next implementation issue after Issue #25 should be Public opportunity and candidate application foundation.
+- Issue #27 is implementing the public opportunity and candidate application foundation.
 - Local checks passed for the documentation-only change: Mermaid CLI rendered all 11 documentation diagrams, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - `pnpm build` passed with Vite's existing large-chunk advisory warning.
 - PR #26 blocking comment correction reconciles D-027 with D-037 by making D-027 govern staff-controlled external client sharing without assuming a client portal. The correction also removes stale "Clients see" and client-portal visibility-boundary wording while preserving the confidentiality exclusions for internal notes, confidential scores, unrelated missions, internal history, protected salary or compensation data unless specifically approved, and recruiter-only operational information.
 - Local checks after the PR #26 blocking-comment correction passed: Mermaid CLI rendering for all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+
+## Issue #27 Verification State
+
+- Public opportunity and unauthenticated candidate application foundation is implemented locally on branch `feat/public-applications`.
+- The implementation adds API-owned `PublicOpportunity`, `PublicCandidateApplication`, and `PublicCandidateApplicationFile` Prisma models plus shared public DTOs that are separate from internal mission DTOs.
+- Public list/detail responses expose only approved public fields. Client name and salary remain hidden unless explicitly enabled, and commercial data, recruiter assignments, application counts, pipeline data, internal notes, audit metadata, and client-contact data are never included.
+- Public submissions accept structured candidate information, consent, and configured private files through the protected storage abstraction. CV submissions preserve version history and are linked to the exact opportunity submission and mission-candidate process.
+- Candidate reuse is deterministic by normalized email for active candidates only; phone does not merge records and archived candidates are not silently reactivated.
+- Submissions create an internal `MissionCandidate` process at `NEW`, keep `clientVisible = false`, and assign an eligible active internal mission recruiter. The implementation does not present candidates to clients.
+- PostgreSQL-backed public-application tests cover listed/unlisted confidentiality, submission creation, file traceability, active-candidate reuse across missions, duplicate same-mission prevention, concurrent duplicate prevention, archived-candidate handling, invalid file rejection, consent requirement, unavailable opportunities, missing-recruiter safe responses, and internal configuration permissions.
+- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, PostgreSQL Docker Compose health, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset`, `pnpm prisma:seed` twice after reset, focused `public-applications.integration.test.ts`, full `pnpm test:db` with 68 PostgreSQL integration tests passing, Mermaid CLI rendering for all 11 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- `pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 ## Current open technical questions
 
@@ -173,13 +185,13 @@ Status owner: repository maintainer
 - Real-time messaging and notification transport.
 - Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
-- Public opportunity URL/token strategy, anti-abuse controls, applicant duplicate matching, file upload limits, and consent retention.
+- Production public opportunity URL strategy beyond opaque slugs, CAPTCHA provider, production malware scanner, production storage provider, public upload retention schedule, and applicant duplicate-review workflow.
 - Commercial accounting numbering, correction, VAT/tax, partial-payment allocation, and profitability rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Push `docs/issue-25-product-realignment` and open a draft PR for Issue #25.
+1. Finish Issue #27 validation, push `feat/public-applications`, and open a draft PR with `Closes #27`.
 
 ## Status Update Rules
 

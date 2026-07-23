@@ -24,6 +24,15 @@ Supported publication modes are:
 
 Public applications are unauthenticated candidate submissions. A submission collects only approved public fields and files, then creates or safely matches one reusable `Candidate` and creates exactly one `MissionCandidate` process for the opportunity's recruitment mission. A candidate cannot apply twice to the same mission but may apply to a different mission. New CVs, certifications, diplomas, and approved uploads create traceable candidate-file versions tied to the opportunity submission rather than overwriting older files.
 
+Issue #27 implements the first operational version of this workflow:
+
+- Public opportunity list responses include only open, link-enabled, listed opportunities inside their publication window and attached to applicable non-archived missions.
+- Public detail responses allow unlisted link-only opportunities but use the same link, lifecycle, and publication-window checks.
+- Public submissions return a stable generic received response for duplicate, archived-candidate, and missing-recruiter outcomes that should not reveal internal state.
+- Successful submissions create an internal `MissionCandidate` at `NEW`, keep `clientVisible = false`, and assign an eligible active internal recruiter already assigned to the mission.
+- File uploads use private storage keys, server-side type and size validation, and exact `CandidateDocumentVersion` traceability through `PublicCandidateApplicationFile`.
+- The first anti-bot boundary is a honeypot field and server rate limiting; CAPTCHA provider selection remains a later unresolved technical choice.
+
 ```mermaid
 stateDiagram-v2
     [*] --> draft
@@ -483,7 +492,7 @@ stateDiagram-v2
 - Whether `MissionCandidate` can move backward to earlier active states and which roles can do that.
 - Whether client feedback can create tasks automatically.
 - Exact enum names for mission `closureReason`; structured closure reasons are confirmed.
-- Public opportunity URL/token strategy, applicant duplicate matching, anti-abuse controls, upload limits, and consent-retention behavior.
+- Production public opportunity URL/token strategy beyond opaque slugs, CAPTCHA provider, malware scanner, retention schedule, and applicant duplicate-review workflow.
 - How `TrainingEnrollment` payment status integrates with the later commercial-accounting module.
 - Commercial accounting workflows for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, balances, and profitability.
 - Whether workflow state names become database enums or shared constants.

@@ -31,6 +31,7 @@ import { PrismaModule } from '../persistence/prisma/prisma.module.js';
     PasswordService,
     PermissionGuard,
     PermissionsService,
+    RateLimitService,
     TokenService,
   ],
 })

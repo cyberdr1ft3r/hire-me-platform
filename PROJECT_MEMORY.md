@@ -50,7 +50,7 @@ ATS recruitment workflow foundation.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
-- The next implementation issue after Issue #25 should be Public opportunity and candidate application foundation. Offers/placements and task management should be sequenced separately after that; accounting, training, and any future client portal each need their own later issues.
+- Issue #27 implements the public opportunity and candidate application foundation. Offers/placements and task management should be sequenced separately after that; accounting, training, and any future client portal each need their own later issues.
 
 ## Technical Direction
 
@@ -67,7 +67,7 @@ ATS recruitment workflow foundation.
 - Recruitment mission CRM uses permission-code guarded `/v1/missions` endpoints, shared Prisma-independent contracts, documented lifecycle transitions, structured closure reasons, archival lifecycles, transaction-scoped parent-mission row locks for lifecycle and assignment writes, assignee eligibility re-checks for assignment activation and lead selection, effective salary-range validation for partial updates, nested assignment ownership checks, active duplicate assignment protection, single active lead-recruiter protection, explicit mission commercial-data permissions, and safe mission audit logs.
 - Mission-candidate process implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints, permanent mission/candidate uniqueness, responsible-recruiter ownership, the client-approved standard pipeline, optional skip audit history, a staff-controlled external-sharing boundary, protected live candidate-field redaction, manual idempotent placement confirmation, and client-controlled closure eligibility.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
-- Public opportunity and candidate application foundation is the next planned module. It must preserve the API-owned Prisma boundary, use explicit public DTOs, expose only approved public fields, accept unauthenticated submissions safely, preserve file-version history, and enforce one candidate process per mission/candidate pair.
+- Public opportunity and candidate application foundation is implemented locally for Issue #27. It preserves the API-owned Prisma boundary, uses explicit public DTOs, exposes only approved public fields, accepts unauthenticated submissions safely, preserves file-version history, and enforces one candidate process per mission/candidate pair.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

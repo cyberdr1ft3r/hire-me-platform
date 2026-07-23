@@ -81,7 +81,7 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 completed recruitment missions and multiple recruiter/contributor assignments. Issue #21 completed the `MissionCandidate` process pipeline. Issue #23 completed interviews and evaluations.
 
-The next implementation issue is Public opportunity and candidate application foundation. It should add public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
+Issue #27 implements the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
 Offers/placements and broader search remain separate future scoped work.
 

@@ -409,6 +409,26 @@ const permissions = [
     description: 'View client-authored interview feedback where explicitly authorized.',
     scopeType: PermissionScopeType.EXPLICIT,
   },
+  {
+    code: 'public_opportunities:view',
+    description: 'View internal public opportunity configuration for recruitment missions.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'public_opportunities:manage',
+    description: 'Manage approved public opportunity fields and application-link controls.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'public_opportunities:publish',
+    description: 'Publish or unpublish public opportunity listing and link availability.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'public_applications:view',
+    description: 'Review public application submissions within authorized mission context.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
 ] as const;
 
 async function main(): Promise<void> {
@@ -509,6 +529,10 @@ async function main(): Promise<void> {
       'evaluations:update',
       'evaluations:finalize',
       'client_feedback:view',
+      'public_opportunities:view',
+      'public_opportunities:manage',
+      'public_opportunities:publish',
+      'public_applications:view',
     ],
     [RoleName.HR_MANAGER]: [
       'records:view',
@@ -567,6 +591,10 @@ async function main(): Promise<void> {
       'evaluations:update',
       'evaluations:finalize',
       'client_feedback:view',
+      'public_opportunities:view',
+      'public_opportunities:manage',
+      'public_opportunities:publish',
+      'public_applications:view',
     ],
     [RoleName.MANAGER]: [
       'records:view',

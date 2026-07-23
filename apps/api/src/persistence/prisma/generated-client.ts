@@ -1,6 +1,7 @@
 export {
   CandidateStatus,
   ConsentStatus,
+  CandidateDocumentStatus,
   CandidateDocumentType,
   ClientContactStatus,
   ClientStatus,
@@ -27,6 +28,9 @@ export {
   PortalAccessStatus,
   Prisma,
   PrismaClient,
+  PublicApplicationFileCategory,
+  PublicApplicationStatus,
+  PublicOpportunityStatus,
   RoleName,
   RoleStatus,
   TaskPriority,

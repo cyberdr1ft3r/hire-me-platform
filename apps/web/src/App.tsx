@@ -18,6 +18,7 @@ import type {
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
+  PublicOpportunity,
 } from '@hire-me/contracts';
 
 import {
@@ -53,6 +54,7 @@ import {
   listClients,
   listMissionAssignments,
   listMissions,
+  listPublicOpportunities,
   listEvaluations,
   listInterviews,
   listAdminPermissions,
@@ -79,6 +81,8 @@ import {
   createMissionCandidate,
   setMissionLeadRecruiter,
   scheduleInterview,
+  submitPublicApplication,
+  getPublicOpportunity,
   listMissionCandidates,
   presentMissionCandidate,
   postponeInterview,
@@ -223,6 +227,14 @@ export function App() {
               ? '/missions'
               : '/',
     );
+  }
+
+  const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
+  if (window.location.pathname === '/opportunities') {
+    return <PublicOpportunitiesPage />;
+  }
+  if (publicOpportunityMatch?.[1]) {
+    return <PublicOpportunityDetailPage publicSlug={publicOpportunityMatch[1]} />;
   }
 
   const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
@@ -2667,6 +2679,254 @@ function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[
   return transitions[state] ?? [];
 }
 
+function PublicOpportunitiesPage() {
+  const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([]);
+  const [status, setStatus] = useState('Loading opportunities...');
+
+  useEffect(() => {
+    let isMounted = true;
+    listPublicOpportunities()
+      .then((response) => {
+        if (isMounted) {
+          setOpportunities(response.opportunities);
+          setStatus(response.opportunities.length === 0 ? 'No public opportunities are open.' : '');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus('Public opportunities are unavailable.');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return (
+    <main className="shell">
+      <section className="intro">
+        <p className="eyebrow">Hire Me Opportunities</p>
+        <h1>Open roles</h1>
+      </section>
+      {status ? <p>{status}</p> : null}
+      <section className="data-grid" aria-label="Public opportunities">
+        {opportunities.map((opportunity) => (
+          <article className="record-card" key={opportunity.publicSlug}>
+            <h2>{opportunity.publicTitle}</h2>
+            <p>
+              {opportunity.publicSummary ?? opportunity.publicLocation ?? 'Recruitment opportunity'}
+            </p>
+            <a className="button-link" href={`/opportunities/${opportunity.publicSlug}`}>
+              View opportunity
+            </a>
+          </article>
+        ))}
+      </section>
+    </main>
+  );
+}
+
+function PublicOpportunityDetailPage({ publicSlug }: { publicSlug: string }) {
+  const [opportunity, setOpportunity] = useState<PublicOpportunity | null>(null);
+  const [status, setStatus] = useState('Loading opportunity...');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPublicOpportunity(publicSlug)
+      .then((response) => {
+        if (isMounted) {
+          setOpportunity(response.opportunity);
+          setStatus('');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus('This opportunity is not available.');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [publicSlug]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!opportunity) {
+      return;
+    }
+    setSubmitting(true);
+    setStatus('');
+    const formData = new FormData(event.currentTarget);
+    const cvFile = firstFile(formData, 'cv');
+    const certificationFile = firstFile(formData, 'certification');
+    const diplomaFile = firstFile(formData, 'diploma');
+    const additionalFile = firstFile(formData, 'additional');
+    const files = await Promise.all(
+      [
+        cvFile ? fileInput('CV', cvFile) : null,
+        certificationFile ? fileInput('CERTIFICATION', certificationFile) : null,
+        diplomaFile ? fileInput('DIPLOMA', diplomaFile) : null,
+        additionalFile ? fileInput('ADDITIONAL', additionalFile) : null,
+      ].filter((file): file is Promise<Awaited<ReturnType<typeof fileInput>>> => Boolean(file)),
+    );
+
+    try {
+      const response = await submitPublicApplication(publicSlug, {
+        fullName: formValue(formData, 'fullName'),
+        email: formValue(formData, 'email'),
+        phone: optionalFormValue(formData, 'phone'),
+        city: optionalFormValue(formData, 'city'),
+        country: optionalFormValue(formData, 'country'),
+        currentPosition: optionalFormValue(formData, 'currentPosition'),
+        experienceYears: optionalNumber(formData, 'experienceYears'),
+        skills: optionalFormValue(formData, 'skills'),
+        languages: optionalFormValue(formData, 'languages'),
+        availability: optionalFormValue(formData, 'availability'),
+        salaryExpectationCents: optionalNumber(formData, 'salaryExpectationCents'),
+        salaryExpectationCurrency: optionalFormValue(formData, 'salaryExpectationCurrency'),
+        professionalLinks: optionalFormValue(formData, 'professionalLinks'),
+        motivation: optionalFormValue(formData, 'motivation'),
+        consentGranted: formData.get('consentGranted') === 'on',
+        captchaToken: undefined,
+        website: optionalFormValue(formData, 'website'),
+        files,
+      });
+      event.currentTarget.reset();
+      setStatus(response.message);
+    } catch {
+      setStatus('Application could not be submitted.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="shell">
+      <section className="intro">
+        <p className="eyebrow">Hire Me Opportunity</p>
+        <h1>{opportunity?.publicTitle ?? 'Opportunity'}</h1>
+        {opportunity?.publicSummary ? <p>{opportunity.publicSummary}</p> : null}
+      </section>
+      {status ? <p aria-live="polite">{status}</p> : null}
+      {opportunity ? (
+        <section className="workspace-grid">
+          <article className="record-card">
+            <h2>Details</h2>
+            <p>{opportunity.publicDescription ?? opportunity.publicSummary}</p>
+            <dl>
+              <dt>Location</dt>
+              <dd>{opportunity.publicLocation ?? 'Not specified'}</dd>
+              <dt>Work arrangement</dt>
+              <dd>{opportunity.publicWorkArrangement ?? 'Not specified'}</dd>
+              <dt>Client</dt>
+              <dd>{opportunity.clientName ?? 'Confidential'}</dd>
+            </dl>
+          </article>
+          <form
+            className="record-card form-grid"
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+          >
+            <label>
+              Full name
+              <input name="fullName" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required />
+            </label>
+            <label>
+              Phone
+              <input name="phone" />
+            </label>
+            <label>
+              City
+              <input name="city" />
+            </label>
+            <label>
+              Country
+              <input name="country" />
+            </label>
+            <label>
+              Current position
+              <input name="currentPosition" />
+            </label>
+            <label>
+              Experience years
+              <input name="experienceYears" min="0" type="number" />
+            </label>
+            <label>
+              Skills
+              <textarea name="skills" rows={3} />
+            </label>
+            <label>
+              Languages
+              <textarea name="languages" rows={2} />
+            </label>
+            <label>
+              Availability
+              <input name="availability" />
+            </label>
+            <label>
+              Salary expectation
+              <input name="salaryExpectationCents" min="0" type="number" />
+            </label>
+            <label>
+              Salary currency
+              <input name="salaryExpectationCurrency" maxLength={3} />
+            </label>
+            <label>
+              Professional links
+              <textarea name="professionalLinks" rows={2} />
+            </label>
+            <label>
+              Motivation
+              <textarea name="motivation" rows={4} />
+            </label>
+            <label>
+              CV
+              <input
+                name="cv"
+                type="file"
+                required={opportunity.uploadRequirements.cvRequired}
+                accept={opportunity.uploadRequirements.allowedMimeTypes.join(',')}
+              />
+            </label>
+            {opportunity.uploadRequirements.certificationsEnabled ? (
+              <label>
+                Certification
+                <input name="certification" type="file" />
+              </label>
+            ) : null}
+            {opportunity.uploadRequirements.diplomasEnabled ? (
+              <label>
+                Diploma
+                <input name="diploma" type="file" />
+              </label>
+            ) : null}
+            {opportunity.uploadRequirements.additionalAttachmentsEnabled ? (
+              <label>
+                Additional attachment
+                <input name="additional" type="file" />
+              </label>
+            ) : null}
+            <label className="checkbox-row">
+              <input name="consentGranted" type="checkbox" required />I consent to Hire Me
+              processing this application.
+            </label>
+            <input aria-hidden="true" className="hidden-field" name="website" tabIndex={-1} />
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit application'}
+            </button>
+          </form>
+        </section>
+      ) : null}
+    </main>
+  );
+}
+
 function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : fallback;
@@ -2701,4 +2961,24 @@ function optionalDateTimeFormValue(formData: FormData, name: string): string | u
 function nullableFormValue(formData: FormData, name: string): string | null {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? value : null;
+}
+
+function firstFile(formData: FormData, name: string): File | null {
+  const value = formData.get(name);
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+async function fileInput(category: 'CV' | 'CERTIFICATION' | 'DIPLOMA' | 'ADDITIONAL', file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return {
+    category,
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    base64Content: btoa(binary),
+  };
 }

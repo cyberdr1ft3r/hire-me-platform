@@ -112,6 +112,26 @@ enum DocumentVersionSource {
   IMPORTED  @map("imported")
 }
 
+enum PublicOpportunityStatus {
+  DRAFT    @map("draft")
+  OPEN     @map("open")
+  PAUSED   @map("paused")
+  CLOSED   @map("closed")
+  ARCHIVED @map("archived")
+}
+
+enum PublicApplicationStatus {
+  SUBMITTED @map("submitted")
+  ARCHIVED  @map("archived")
+}
+
+enum PublicApplicationFileCategory {
+  CV            @map("cv")
+  CERTIFICATION @map("certification")
+  DIPLOMA       @map("diploma")
+  ADDITIONAL    @map("additional")
+}
+
 enum RecruitmentMissionState {
   DRAFT                            @map("draft")
   INTERNAL_VALIDATION              @map("internal_validation")
@@ -633,6 +653,8 @@ model Candidate {
   education           CandidateEducation[]
   missionCandidates   MissionCandidate[]
   documentsReferenced Document[]
+  publicApplications   PublicCandidateApplication[]
+  publicApplicationFiles PublicCandidateApplicationFile[]
   trainingEnrollments TrainingEnrollment[]      @relation("CandidateTrainingEnrollment")
   tasks               Task[]
 
@@ -758,10 +780,131 @@ model CandidateDocumentVersion {
   candidateDocument CandidateDocument  @relation("CandidateDocumentVersions", fields: [candidateDocumentId], references: [id], onDelete: Restrict)
   currentFor        CandidateDocument? @relation("CurrentCandidateDocumentVersion")
   createdBy         User?              @relation("CandidateDocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publicApplicationFiles PublicCandidateApplicationFile[]
 
   @@unique([candidateDocumentId, versionNumber])
   @@index([candidateDocumentId])
   @@index([createdByUserId])
+}
+
+model PublicOpportunity {
+  id                         String                  @id @default(uuid()) @db.Uuid
+  missionId                  String                  @unique @db.Uuid
+  status                     PublicOpportunityStatus @default(DRAFT)
+  applicationLinkEnabled     Boolean                 @default(false)
+  listedOnWebsite            Boolean                 @default(false)
+  publicSlug                 String                  @unique
+  publicationStartsAt        DateTime?
+  applicationDeadline        DateTime?
+  publicTitle                String
+  publicSummary              String?
+  publicDescription          String?
+  publicLocation             String?
+  publicWorkArrangement      String?
+  publicEngagementType       String?
+  publicExperienceLevel      String?
+  publicSkills               String?
+  showClientName             Boolean                 @default(false)
+  showSalary                 Boolean                 @default(false)
+  cvRequired                 Boolean                 @default(true)
+  certificationsEnabled      Boolean                 @default(true)
+  certificationsRequired     Boolean                 @default(false)
+  diplomasEnabled            Boolean                 @default(true)
+  diplomasRequired           Boolean                 @default(false)
+  additionalAttachmentsEnabled Boolean               @default(false)
+  consentTextVersion         String                  @default("public-application-consent-v1")
+  archivedAt                 DateTime?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+
+  mission      RecruitmentMission          @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  applications PublicCandidateApplication[]
+  files        PublicCandidateApplicationFile[]
+
+  @@index([status])
+  @@index([applicationLinkEnabled])
+  @@index([listedOnWebsite])
+  @@index([publicationStartsAt])
+  @@index([applicationDeadline])
+  @@index([archivedAt])
+}
+
+model PublicCandidateApplication {
+  id                         String                  @id @default(uuid()) @db.Uuid
+  publicOpportunityId        String                  @db.Uuid
+  missionId                  String                  @db.Uuid
+  candidateId                String                  @db.Uuid
+  missionCandidateId         String                  @unique @db.Uuid
+  status                     PublicApplicationStatus @default(SUBMITTED)
+  submittedFullName          String
+  submittedEmail             String
+  submittedNormalizedEmail   String
+  submittedPhone             String?
+  submittedNormalizedPhone   String?
+  submittedCity              String?
+  submittedCountry           String?
+  submittedCurrentPosition   String?
+  submittedExperienceYears   Int?
+  submittedSkills            String?
+  submittedLanguages         String?
+  submittedAvailability      String?
+  submittedSalaryExpectationCents Int?
+  submittedSalaryExpectationCurrency String?
+  submittedProfessionalLinks String?
+  submittedMotivation        String?
+  consentGranted             Boolean
+  consentTextVersion         String
+  submittedAt                DateTime                @default(now())
+  sourceIpHash               String?
+  userAgentHash              String?
+  archivedAt                 DateTime?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+
+  publicOpportunity PublicOpportunity             @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
+  mission           RecruitmentMission            @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidate         Candidate                     @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  missionCandidate  MissionCandidate              @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  files             PublicCandidateApplicationFile[]
+
+  @@unique([publicOpportunityId, submittedNormalizedEmail])
+  @@index([missionId])
+  @@index([candidateId])
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model PublicCandidateApplicationFile {
+  id                         String                        @id @default(uuid()) @db.Uuid
+  publicCandidateApplicationId String                       @db.Uuid
+  publicOpportunityId        String                        @db.Uuid
+  missionId                  String                        @db.Uuid
+  missionCandidateId         String                        @db.Uuid
+  candidateId                String                        @db.Uuid
+  candidateDocumentVersionId String                        @unique @db.Uuid
+  category                   PublicApplicationFileCategory
+  originalFilename           String
+  sanitizedFilename          String
+  mimeType                   String
+  sizeBytes                  BigInt
+  storageKey                 String
+  createdAt                  DateTime                      @default(now())
+  updatedAt                  DateTime                      @updatedAt
+
+  application              PublicCandidateApplication @relation(fields: [publicCandidateApplicationId], references: [id], onDelete: Restrict)
+  publicOpportunity        PublicOpportunity           @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
+  mission                  RecruitmentMission          @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  missionCandidate         MissionCandidate            @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  candidate                Candidate                   @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  candidateDocumentVersion CandidateDocumentVersion    @relation(fields: [candidateDocumentVersionId], references: [id], onDelete: Restrict)
+
+  @@index([publicCandidateApplicationId])
+  @@index([publicOpportunityId])
+  @@index([missionId])
+  @@index([missionCandidateId])
+  @@index([candidateId])
+  @@index([category])
+  @@index([createdAt])
 }
 
 model RecruitmentMission {
@@ -792,6 +935,9 @@ model RecruitmentMission {
   client            Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
   recruiters        MissionRecruiter[]
   missionCandidates MissionCandidate[]
+  publicOpportunity PublicOpportunity?
+  publicApplications PublicCandidateApplication[]
+  publicApplicationFiles PublicCandidateApplicationFile[]
   documents         Document[]
   tasks             Task[]
   notifications     Notification[]
@@ -854,6 +1000,8 @@ model MissionCandidate {
   events               MissionCandidateEvent[]
   interviews           Interview[]
   evaluations          CandidateEvaluation[]
+  publicApplication     PublicCandidateApplication?
+  publicApplicationFiles PublicCandidateApplicationFile[]
   documents            Document[]
   tasks                Task[]
   notifications        Notification[]

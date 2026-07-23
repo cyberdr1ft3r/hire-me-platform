@@ -8,4 +8,6 @@ process.env.AUTH_REFRESH_TOKEN_PEPPER ??= 'test_refresh_token_pepper_32_characte
 process.env.DATABASE_URL ??=
   'postgresql://hire_me:hire_me_dev_password@127.0.0.1:5432/hire_me_dev?schema=public';
 process.env.NODE_ENV ??= 'test';
+process.env.PRIVATE_UPLOAD_STORAGE_ROOT ??= '.tmp-runtime/test-private-uploads';
+process.env.PUBLIC_APPLICATION_JSON_LIMIT ??= '6mb';
 process.env.REFRESH_TOKEN_TTL_SECONDS ??= '604800';

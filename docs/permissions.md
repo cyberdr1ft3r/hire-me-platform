@@ -81,7 +81,6 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `public_opportunities:manage`
 - `public_opportunities:publish`
 - `public_applications:view`
-- `public_applications:review`
 - `clients:view`
 - `clients:create`
 - `clients:update`
@@ -319,7 +318,7 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 - Whether guest access should expire automatically and how expiration is enforced.
 - Whether future client users can upload documents.
 - Whether a future client portal exists in the MVP at all; Issue #25 classifies it as optional future scope.
-- Public opportunity permission split for managing lifecycle, application-link availability, listing, approved public fields, and application review.
+- Public opportunity management currently uses `public_opportunities:manage` for approved public fields and `public_opportunities:publish` for publishing/listing authority. `public_applications:view` covers internal review of received public submissions; unauthenticated applicants do not receive permissions.
 - Commercial-accounting permission split for quotation, contract, purchase order, invoice, payment, expense, tax, balance, revenue, and profitability actions.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.

@@ -6,15 +6,15 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, and #23 are complete and merged on `main`.
-- Issue #25 is implemented locally on branch `docs/issue-25-product-realignment`.
-- This is documentation and architecture realignment only. Do not add schemas, migrations, APIs, UI, dependencies, or production behavior.
+- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, and #25 are complete and merged on `main`.
+- Issue #27 is implemented locally on branch `feat/public-applications`.
+- This branch adds the first public opportunity and unauthenticated candidate application implementation. Keep remaining changes inside Issue #27.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
 - PR #26 blocking comment correction reconciles D-027 with D-037: D-027 now governs staff-controlled external client sharing and no longer assumes a client portal.
 
 ## Next Action
 
-Push `docs/issue-25-product-realignment` and open a draft PR with `Closes #25`.
+Finish full validation, push `feat/public-applications`, and open a draft PR with `Closes #27`.
 
 Check especially:
 
@@ -31,7 +31,7 @@ Check especially:
 - Task management remains planned but not implemented.
 - Commercial and operational accounting is in scope, while full legal accounting, general ledger, tax declarations, and bank reconciliation remain unresolved.
 - Business records remain structured source-of-truth data; files/documents are uploaded, signed, archived, or generated representations.
-- Roadmap next implementation issue is Public opportunity and candidate application foundation.
+- Public opportunity foundation is now the active implementation branch; offers/placements and task management remain later separate issues.
 
 ## Verification Notes
 
@@ -51,6 +51,28 @@ Completed locally for Issue #25:
 `pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 After the PR #26 blocking-comment correction, the focused validation also passed: Mermaid CLI rendered all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+
+Completed so far for Issue #27:
+
+- `pnpm prisma:validate`
+- `pnpm prisma:generate`
+- `pnpm check:architecture`
+- `pnpm --filter @hire-me/contracts build`
+- PostgreSQL Docker Compose health confirmed
+- `pnpm prisma:migrate:deploy`
+- `pnpm prisma:migrate:reset`
+- `pnpm prisma:seed` twice sequentially
+- Focused PostgreSQL `public-applications.integration.test.ts`
+- Full `pnpm test:db` with 68 PostgreSQL integration tests passing
+- Mermaid CLI rendering for all 11 diagrams
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+
+`pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

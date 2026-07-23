@@ -191,7 +191,7 @@ Training, documents, optional future client portal activation, messaging, dashbo
 
 ### Public Opportunity and Application Surface
 
-The next planned implementation issue is the public opportunity and candidate application foundation. Architecturally, this surface is separate from the authenticated internal application even if it is served by the same web app and API deployment:
+Issue #27 implements the public opportunity and candidate application foundation. Architecturally, this surface is separate from the authenticated internal application even if it is served by the same web app and API deployment:
 
 - Internal users create or prepare recruitment missions and control public opportunity settings.
 - Opportunity lifecycle, application-link availability, and website/home-page listing are separate controls.
@@ -201,6 +201,7 @@ The next planned implementation issue is the public opportunity and candidate ap
 - Public opportunity responses expose only explicitly approved fields and hide client identity, salary, commercial terms, recruiter assignments, application counts, pipeline progress, internal notes, and other confidential mission data unless a later issue approves a specific public field.
 - Public applications can collect approved structured candidate information, CV, certifications, optional diplomas, professional links, salary expectations, availability, and consent.
 - Public submission handling must preserve CV/file version and opportunity-submission history, safely reuse existing candidates when matched, and enforce one mission-candidate process ever per mission/candidate pair.
+- The implementation uses API-owned `PublicOpportunity`, `PublicCandidateApplication`, and `PublicCandidateApplicationFile` persistence, separate public contracts, private storage keys, JSON file-upload DTOs with server-side validation, and PostgreSQL-backed duplicate/concurrency tests.
 
 ### Audit Logging
 

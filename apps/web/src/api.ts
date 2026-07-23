@@ -23,11 +23,16 @@ import {
   MissionCandidateDetailResponseSchema,
   MissionCandidateListResponseSchema,
   MissionDetailResponseSchema,
+  InternalPublicApplicationListResponseSchema,
+  InternalPublicOpportunityDetailResponseSchema,
   InterviewDetailResponseSchema,
   InterviewListResponseSchema,
   EvaluationDetailResponseSchema,
   EvaluationListResponseSchema,
   MissionListResponseSchema,
+  PublicApplicationSubmitResponseSchema,
+  PublicOpportunityDetailResponseSchema,
+  PublicOpportunityListResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -75,6 +80,9 @@ import {
   type MissionCandidatePresentationRequest,
   type MissionCandidateTransferRequest,
   type MissionCandidateTransitionRequest,
+  type InternalPublicApplicationListResponse,
+  type InternalPublicOpportunityDetailResponse,
+  type InternalPublicOpportunityUpdateRequest,
   type InterviewScheduleRequest,
   type InterviewRescheduleRequest,
   type InterviewPostponeRequest,
@@ -94,6 +102,10 @@ import {
   type MissionListResponse,
   type MissionStatusUpdateRequest,
   type MissionUpdateRequest,
+  type PublicApplicationSubmitRequest,
+  type PublicApplicationSubmitResponse,
+  type PublicOpportunityDetailResponse,
+  type PublicOpportunityListResponse,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -1320,4 +1332,84 @@ export async function finalizeEvaluation(
     apiBaseUrl,
   );
   return EvaluationDetailResponseSchema.parse(await response.json());
+}
+
+export async function listPublicOpportunities(
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PublicOpportunityListResponse> {
+  const response = await fetch(`${apiBaseUrl}/v1/public/opportunities`);
+  if (!response.ok) {
+    throw new Error(`Public opportunities request failed with status ${response.status}`);
+  }
+  return PublicOpportunityListResponseSchema.parse(await response.json());
+}
+
+export async function getPublicOpportunity(
+  publicSlug: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PublicOpportunityDetailResponse> {
+  const response = await fetch(`${apiBaseUrl}/v1/public/opportunities/${publicSlug}`);
+  if (!response.ok) {
+    throw new Error(`Public opportunity request failed with status ${response.status}`);
+  }
+  return PublicOpportunityDetailResponseSchema.parse(await response.json());
+}
+
+export async function submitPublicApplication(
+  publicSlug: string,
+  input: PublicApplicationSubmitRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PublicApplicationSubmitResponse> {
+  const response = await fetch(`${apiBaseUrl}/v1/public/opportunities/${publicSlug}/applications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`Public application request failed with status ${response.status}`);
+  }
+  return PublicApplicationSubmitResponseSchema.parse(await response.json());
+}
+
+export async function getInternalPublicOpportunity(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InternalPublicOpportunityDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/public-opportunity`,
+    {},
+    apiBaseUrl,
+  );
+  return InternalPublicOpportunityDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateInternalPublicOpportunity(
+  accessToken: string,
+  missionId: string,
+  input: InternalPublicOpportunityUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InternalPublicOpportunityDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/public-opportunity`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InternalPublicOpportunityDetailResponseSchema.parse(await response.json());
+}
+
+export async function listInternalPublicApplications(
+  accessToken: string,
+  missionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InternalPublicApplicationListResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/public-opportunity/applications`,
+    {},
+    apiBaseUrl,
+  );
+  return InternalPublicApplicationListResponseSchema.parse(await response.json());
 }
