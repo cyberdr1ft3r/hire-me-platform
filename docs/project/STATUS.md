@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-07-23
+Last updated: 2026-07-27
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Public opportunity and candidate application foundation
-**Health:** Issue #27 implementation is complete locally and validation has passed. Main includes the approved product realignment and merged interview/evaluation foundation.
-**Current blocker:** None locally.
-**Next executable development task:** Finish validation and open the Issue #27 draft PR for the public opportunity and candidate application foundation.
+**Health:** Issue #27 is in draft PR #28. The blocking review correction is locally validated on `feat/public-applications`.
+**Current blocker:** Green GitHub Actions are still required on the corrective PR #28 head after push.
+**Next executable development task:** Push the corrective commit, update the draft PR, and confirm all workflow jobs pass.
 
 ## Active work
 
@@ -23,7 +23,8 @@ Status owner: repository maintainer
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
-| Issue #25 | In progress | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | Open draft PR |
+| Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
+| Issue #27 | In progress | Implement public opportunity and unauthenticated candidate application foundation | Push PR #28 correction and confirm CI |
 
 ## Completed foundation work
 
@@ -163,13 +164,19 @@ Status owner: repository maintainer
 ## Issue #27 Verification State
 
 - Public opportunity and unauthenticated candidate application foundation is implemented locally on branch `feat/public-applications`.
+- Draft PR #28 is open and remains draft/unmerged.
 - The implementation adds API-owned `PublicOpportunity`, `PublicCandidateApplication`, and `PublicCandidateApplicationFile` Prisma models plus shared public DTOs that are separate from internal mission DTOs.
 - Public list/detail responses expose only approved public fields. Client name and salary remain hidden unless explicitly enabled, and commercial data, recruiter assignments, application counts, pipeline data, internal notes, audit metadata, and client-contact data are never included.
 - Public submissions accept structured candidate information, consent, and configured private files through the protected storage abstraction. CV submissions preserve version history and are linked to the exact opportunity submission and mission-candidate process.
 - Candidate reuse is deterministic by normalized email for active candidates only; phone does not merge records and archived candidates are not silently reactivated.
 - Submissions create an internal `MissionCandidate` process at `NEW`, keep `clientVisible = false`, and assign an eligible active internal mission recruiter. The implementation does not present candidates to clients.
 - PostgreSQL-backed public-application tests cover listed/unlisted confidentiality, submission creation, file traceability, active-candidate reuse across missions, duplicate same-mission prevention, concurrent duplicate prevention, archived-candidate handling, invalid file rejection, consent requirement, unavailable opportunities, missing-recruiter safe responses, and internal configuration permissions.
+- PR #28 blocking review correction adds protected mission-workspace controls for authorized staff to view and edit public opportunity configuration, independently enable/disable application links, list/unlist website publication, configure publication dates and file requirements, copy/open the generated public link, and inspect mission-related public applications.
+- Web coverage verifies that users without public permissions do not see the controls, read-only users cannot edit or publish, publication actions require `public_opportunities:publish`, application review requires `public_applications:view`, authorized users can save configuration, listed/unlisted/disabled states are visible, and generated public links use public slugs rather than internal mission IDs.
+- Failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not the public-application suite: `serializes mission archival and candidate archival races against process creation` expected `409` but received `201`. The test passed locally on the corrective tree, but the final PR #28 head still needs a green workflow run.
 - Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, PostgreSQL Docker Compose health, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset`, `pnpm prisma:seed` twice after reset, focused `public-applications.integration.test.ts`, full `pnpm test:db` with 68 PostgreSQL integration tests passing, Mermaid CLI rendering for all 11 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+- Focused web validation for the blocking review correction passed: `pnpm.cmd --filter @hire-me/web typecheck` and `pnpm.cmd --filter @hire-me/web test` with 11 web tests passing. The focused Vitest run requires execution outside the restricted Windows sandbox because Vite/esbuild cannot read the workspace config path from inside the sandbox.
+- Local validation after the blocking-review correction passed: PostgreSQL container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, `pnpm.cmd test:db` with 68 PostgreSQL integration tests passing, and focused web tests with 11 tests passing.
 - `pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 ## Current open technical questions
@@ -191,7 +198,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Finish Issue #27 validation, push `feat/public-applications`, and open a draft PR with `Closes #27`.
+1. Push the corrective commit to `feat/public-applications`, update the draft PR description, and confirm all GitHub Actions jobs pass on the final head.
 
 ## Status Update Rules
 

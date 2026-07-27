@@ -18,6 +18,8 @@ import type {
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
+  InternalPublicApplicationSummary,
+  InternalPublicOpportunity,
   PublicOpportunity,
 } from '@hire-me/contracts';
 
@@ -48,12 +50,14 @@ import {
   getClient,
   getCandidate,
   getMission,
+  getInternalPublicOpportunity,
   getAdminUser,
   listCandidates,
   listClientContacts,
   listClients,
   listMissionAssignments,
   listMissions,
+  listInternalPublicApplications,
   listPublicOpportunities,
   listEvaluations,
   listInterviews,
@@ -76,6 +80,7 @@ import {
   updateMission,
   updateMissionAssignment,
   updateMissionStatus,
+  updateInternalPublicOpportunity,
   closeMission,
   confirmMissionCandidateIntegration,
   createMissionCandidate,
@@ -1611,6 +1616,12 @@ function MissionsPanel({
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [activeInterviewId, setActiveInterviewId] = useState<string | null>(null);
   const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
+  const [publicOpportunity, setPublicOpportunity] = useState<InternalPublicOpportunity | null>(
+    null,
+  );
+  const [publicApplications, setPublicApplications] = useState<InternalPublicApplicationSummary[]>(
+    [],
+  );
   const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -1637,6 +1648,10 @@ function MissionsPanel({
   const canViewEvaluations = permissions.includes('evaluations:view');
   const canCreateEvaluations = permissions.includes('evaluations:create');
   const canFinalizeEvaluations = permissions.includes('evaluations:finalize');
+  const canViewPublicOpportunity = permissions.includes('public_opportunities:view');
+  const canManagePublicOpportunity = permissions.includes('public_opportunities:manage');
+  const canPublishPublicOpportunity = permissions.includes('public_opportunities:publish');
+  const canViewPublicApplications = permissions.includes('public_applications:view');
 
   useEffect(() => {
     void loadMissions();
@@ -1660,6 +1675,8 @@ function MissionsPanel({
     setInterviews([]);
     setActiveInterviewId(null);
     setEvaluations([]);
+    setPublicOpportunity(null);
+    setPublicApplications([]);
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
       setAssignments(assignmentResponse.assignments);
@@ -1667,6 +1684,14 @@ function MissionsPanel({
     if (canViewProcesses) {
       const processResponse = await listMissionCandidates(accessToken, missionId);
       setCandidateProcesses(processResponse.candidates);
+    }
+    if (canViewPublicOpportunity) {
+      const opportunityResponse = await getInternalPublicOpportunity(accessToken, missionId);
+      setPublicOpportunity(opportunityResponse.publicOpportunity);
+    }
+    if (canViewPublicApplications) {
+      const applicationResponse = await listInternalPublicApplications(accessToken, missionId);
+      setPublicApplications(applicationResponse.applications);
     }
   }
 
@@ -2040,6 +2065,48 @@ function MissionsPanel({
     setMessage('Evaluation finalized.');
   }
 
+  async function handlePublicOpportunityUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission || !publicOpportunity || !canManagePublicOpportunity) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateInternalPublicOpportunity(accessToken, selectedMission.id, {
+      publicTitle: formValue(formData, 'publicTitle', publicOpportunity.publicTitle),
+      publicSummary: nullableFormValue(formData, 'publicSummary'),
+      publicDescription: nullableFormValue(formData, 'publicDescription'),
+      publicLocation: nullableFormValue(formData, 'publicLocation'),
+      publicWorkArrangement: nullableFormValue(formData, 'publicWorkArrangement'),
+      publicEngagementType: nullableFormValue(formData, 'publicEngagementType'),
+      publicExperienceLevel: nullableFormValue(formData, 'publicExperienceLevel'),
+      publicSkills: nullableFormValue(formData, 'publicSkills'),
+      publicationStartsAt: optionalDateTimeFormValue(formData, 'publicationStartsAt') ?? null,
+      applicationDeadline: optionalDateTimeFormValue(formData, 'applicationDeadline') ?? null,
+      showClientName: formData.get('showClientName') === 'on',
+      showSalary: formData.get('showSalary') === 'on',
+      cvRequired: formData.get('cvRequired') === 'on',
+      certificationsEnabled: formData.get('certificationsEnabled') === 'on',
+      certificationsRequired: formData.get('certificationsRequired') === 'on',
+      diplomasEnabled: formData.get('diplomasEnabled') === 'on',
+      diplomasRequired: formData.get('diplomasRequired') === 'on',
+      additionalAttachmentsEnabled: formData.get('additionalAttachmentsEnabled') === 'on',
+    });
+    setPublicOpportunity(updated.publicOpportunity);
+    setMessage('Public opportunity configuration saved.');
+  }
+
+  async function updatePublicOpportunityPublication(
+    input: Parameters<typeof updateInternalPublicOpportunity>[2],
+    successMessage: string,
+  ): Promise<void> {
+    if (!selectedMission || !publicOpportunity || !canPublishPublicOpportunity) {
+      return;
+    }
+    const updated = await updateInternalPublicOpportunity(accessToken, selectedMission.id, input);
+    setPublicOpportunity(updated.publicOpportunity);
+    setMessage(successMessage);
+  }
+
   return (
     <section className="admin-panel" aria-label="Missions">
       <div className="admin-grid">
@@ -2207,6 +2274,253 @@ function MissionsPanel({
                 <button type="button" onClick={() => void archiveSelectedMission()}>
                   Archive mission
                 </button>
+              ) : null}
+
+              {canViewPublicOpportunity && publicOpportunity ? (
+                <section aria-label="Public opportunity controls">
+                  <h3>Public opportunity</h3>
+                  <p>
+                    {publicOpportunity.status} -{' '}
+                    {publicOpportunity.applicationLinkEnabled
+                      ? 'application link enabled'
+                      : 'application link disabled'}{' '}
+                    - {publicOpportunity.listedOnWebsite ? 'listed' : 'unlisted'}
+                  </p>
+                  <p>
+                    Public link:{' '}
+                    <a href={`/opportunities/${publicOpportunity.publicSlug}`}>
+                      {`${window.location.origin}/opportunities/${publicOpportunity.publicSlug}`}
+                    </a>
+                  </p>
+                  <div className="action-row">
+                    <a
+                      className="button-link"
+                      href={`/opportunities/${publicOpportunity.publicSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open public preview
+                    </a>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          {
+                            status: 'OPEN',
+                            applicationLinkEnabled: true,
+                          },
+                          'Application link enabled.',
+                        )
+                      }
+                    >
+                      Enable applications
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { applicationLinkEnabled: false },
+                          'Application link disabled.',
+                        )
+                      }
+                    >
+                      Disable applications
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { listedOnWebsite: true },
+                          'Opportunity listed on website.',
+                        )
+                      }
+                    >
+                      List on website
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { listedOnWebsite: false },
+                          'Opportunity unlisted from website.',
+                        )
+                      }
+                    >
+                      Unlist from website
+                    </button>
+                  </div>
+                  <form
+                    className="stacked-form"
+                    aria-label="Edit public opportunity"
+                    onSubmit={(event) => void handlePublicOpportunityUpdate(event)}
+                  >
+                    <input
+                      name="publicTitle"
+                      defaultValue={publicOpportunity.publicTitle}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicSummary"
+                      placeholder="Public summary"
+                      defaultValue={publicOpportunity.publicSummary ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicDescription"
+                      placeholder="Public description"
+                      defaultValue={publicOpportunity.publicDescription ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicLocation"
+                      placeholder="Public location"
+                      defaultValue={publicOpportunity.publicLocation ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicWorkArrangement"
+                      placeholder="Work arrangement"
+                      defaultValue={publicOpportunity.publicWorkArrangement ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicEngagementType"
+                      placeholder="Contract type"
+                      defaultValue={publicOpportunity.publicEngagementType ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicExperienceLevel"
+                      placeholder="Experience level"
+                      defaultValue={publicOpportunity.publicExperienceLevel ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicSkills"
+                      placeholder="Public skills"
+                      defaultValue={publicOpportunity.publicSkills ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <label>
+                      Publication start
+                      <input
+                        name="publicationStartsAt"
+                        type="datetime-local"
+                        defaultValue={dateTimeInputValue(publicOpportunity.publicationStartsAt)}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Application deadline
+                      <input
+                        name="applicationDeadline"
+                        type="datetime-local"
+                        defaultValue={dateTimeInputValue(publicOpportunity.applicationDeadline)}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Show client name
+                      <input
+                        name="showClientName"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.showClientName}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Show salary
+                      <input
+                        name="showSalary"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.showSalary}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      CV required
+                      <input
+                        name="cvRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.cvRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Certifications enabled
+                      <input
+                        name="certificationsEnabled"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.certificationsEnabled}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Certifications required
+                      <input
+                        name="certificationsRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.certificationsRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Diplomas enabled
+                      <input
+                        name="diplomasEnabled"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.diplomasEnabled}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Diplomas required
+                      <input
+                        name="diplomasRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.diplomasRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Additional files enabled
+                      <input
+                        name="additionalAttachmentsEnabled"
+                        type="checkbox"
+                        defaultChecked={
+                          publicOpportunity.uploadRequirements.additionalAttachmentsEnabled
+                        }
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <button type="submit" disabled={!canManagePublicOpportunity}>
+                      Save public opportunity
+                    </button>
+                  </form>
+                </section>
+              ) : null}
+
+              {canViewPublicApplications ? (
+                <section aria-label="Public applications">
+                  <h3>Public applications</h3>
+                  {publicApplications.length > 0 ? (
+                    <ul>
+                      {publicApplications.map((application) => (
+                        <li key={application.id}>
+                          {application.submittedFullName} - {application.submittedEmail} -{' '}
+                          {application.fileCount} files -{' '}
+                          {new Date(application.submittedAt).toLocaleString()}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No public applications submitted for this mission.</p>
+                  )}
+                </section>
               ) : null}
 
               {canViewAssignments ? (
@@ -2956,6 +3270,10 @@ function dateTimeFormValue(formData: FormData, name: string): string {
 function optionalDateTimeFormValue(formData: FormData, name: string): string | undefined {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? new Date(value).toISOString() : undefined;
+}
+
+function dateTimeInputValue(value: string | null): string {
+  return value ? value.slice(0, 16) : '';
 }
 
 function nullableFormValue(formData: FormData, name: string): string | null {
