@@ -1,12 +1,12 @@
 # Project Status
 
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Public opportunity and candidate application foundation
-**Health:** Issue #27 is in draft PR #28. The blocking review correction is locally validated on `feat/public-applications`.
+**Health:** Issue #27 is in draft PR #28. The latest blocking review correction is locally validated on `feat/public-applications`.
 **Current blocker:** Green GitHub Actions are still required on the corrective PR #28 head after push.
 **Next executable development task:** Push the corrective commit, update the draft PR, and confirm all workflow jobs pass.
 
@@ -172,11 +172,10 @@ Status owner: repository maintainer
 - Submissions create an internal `MissionCandidate` process at `NEW`, keep `clientVisible = false`, and assign an eligible active internal mission recruiter. The implementation does not present candidates to clients.
 - PostgreSQL-backed public-application tests cover listed/unlisted confidentiality, submission creation, file traceability, active-candidate reuse across missions, duplicate same-mission prevention, concurrent duplicate prevention, archived-candidate handling, invalid file rejection, consent requirement, unavailable opportunities, missing-recruiter safe responses, and internal configuration permissions.
 - PR #28 blocking review correction adds protected mission-workspace controls for authorized staff to view and edit public opportunity configuration, independently enable/disable application links, list/unlist website publication, configure publication dates and file requirements, copy/open the generated public link, and inspect mission-related public applications.
+- The latest correction adds an explicit "Copy public link" action using the opaque public slug, handles clipboard failures visibly, enforces publish permission for publish-controlled API fields, validates effective publication windows on partial updates, and expands PostgreSQL-backed coverage for manage-only edits, each protected publish field, audit non-writes on denied attempts, and deterministic `GUEST` role permission restoration.
 - Web coverage verifies that users without public permissions do not see the controls, read-only users cannot edit or publish, publication actions require `public_opportunities:publish`, application review requires `public_applications:view`, authorized users can save configuration, listed/unlisted/disabled states are visible, and generated public links use public slugs rather than internal mission IDs.
 - Failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not the public-application suite: `serializes mission archival and candidate archival races against process creation` expected `409` but received `201`. The test passed locally on the corrective tree, but the final PR #28 head still needs a green workflow run.
-- Local checks passed: `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, PostgreSQL Docker Compose health, `pnpm prisma:migrate:deploy`, `pnpm prisma:migrate:reset`, `pnpm prisma:seed` twice after reset, focused `public-applications.integration.test.ts`, full `pnpm test:db` with 68 PostgreSQL integration tests passing, Mermaid CLI rendering for all 11 diagrams, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
-- Focused web validation for the blocking review correction passed: `pnpm.cmd --filter @hire-me/web typecheck` and `pnpm.cmd --filter @hire-me/web test` with 11 web tests passing. The focused Vitest run requires execution outside the restricted Windows sandbox because Vite/esbuild cannot read the workspace config path from inside the sandbox.
-- Local validation after the blocking-review correction passed: PostgreSQL container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, `pnpm.cmd test:db` with 68 PostgreSQL integration tests passing, and focused web tests with 11 tests passing.
+- Local checks passed: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, PostgreSQL Docker Compose health, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, full `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 13 web tests passing, `pnpm.cmd format:check`, package-level lint/typecheck/test/build fallbacks after the known Windows Turbo `spawn UNKNOWN` issue, and `git diff --check`.
 - `pnpm build` passed with Vite's existing large-chunk advisory warning.
 
 ## Current open technical questions

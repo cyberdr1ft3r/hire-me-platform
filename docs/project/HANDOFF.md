@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
@@ -9,7 +9,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, and #25 are complete and merged on `main`.
 - Issue #27 is implemented on branch `feat/public-applications` in draft PR #28.
 - This branch adds the first public opportunity and unauthenticated candidate application implementation. Keep remaining changes inside Issue #27 and PR #28.
-- The PR #28 blocking review correction adds protected mission-workspace controls for public opportunity configuration and public application inspection.
+- The PR #28 blocking review correction adds protected mission-workspace controls for public opportunity configuration and public application inspection, plus the latest copy-link and server-side publish-authorization regression fixes.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
 - PR #26 blocking comment correction reconciles D-027 with D-037: D-027 now governs staff-controlled external client sharing and no longer assumes a client portal.
 
@@ -81,8 +81,10 @@ Completed so far for the PR #28 blocking-review correction:
 - Protected `/missions` workspace controls now load internal public opportunity configuration with `public_opportunities:view`.
 - Edit controls require `public_opportunities:manage`; publish/list/link actions require `public_opportunities:publish`; application inspection requires `public_applications:view`.
 - The UI exposes public title, summary, description, location, work arrangement, contract type, experience, skills, publication start, application deadline, client-name visibility, salary visibility, and upload requirement toggles.
-- The generated link and preview use `/opportunities/:publicSlug` and do not expose internal mission IDs.
-- Focused validation passed: `pnpm.cmd --filter @hire-me/web typecheck` and `pnpm.cmd --filter @hire-me/web test` with 11 web tests passing. The focused web tests had to run outside the restricted Windows sandbox because Vite/esbuild cannot read the workspace config path inside it.
+- The generated link, copy action, and preview use `/opportunities/:publicSlug` and do not expose internal mission IDs; clipboard failure is handled with a visible UI message.
+- Server-side authorization now requires `public_opportunities:publish` whenever protected publication fields are present, while still allowing manage-only ordinary configuration edits. PostgreSQL tests cover `status`, `applicationLinkEnabled`, and `listedOnWebsite` denial, publish-capable success, unchanged rows after denial, and no misleading audit writes.
+- Public-application tests snapshot and restore the enum-bound seeded `GUEST` role permissions in `afterAll` so repeated database runs do not leak manage-only test permissions.
+- Focused validation passed: `pnpm.cmd test:db` with 70 PostgreSQL tests, `pnpm.cmd --filter @hire-me/web test` with 13 web tests, package-level typecheck/lint/test/build fallbacks after root Turbo commands hit the known Windows `spawn UNKNOWN` issue, and `git diff --check`.
 - PostgreSQL validation passed after Docker Desktop was unpaused: container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, and `pnpm.cmd test:db` with 68 PostgreSQL integration tests passing.
 
 ## Mandatory Rehydration Checklist For Every New Agent

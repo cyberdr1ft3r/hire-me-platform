@@ -2107,6 +2107,19 @@ function MissionsPanel({
     setMessage(successMessage);
   }
 
+  async function copyPublicOpportunityLink(): Promise<void> {
+    if (!publicOpportunity) {
+      return;
+    }
+    const publicUrl = `${window.location.origin}/opportunities/${publicOpportunity.publicSlug}`;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setMessage('Public link copied.');
+    } catch {
+      setMessage('Public link could not be copied.');
+    }
+  }
+
   return (
     <section className="admin-panel" aria-label="Missions">
       <div className="admin-grid">
@@ -2301,6 +2314,9 @@ function MissionsPanel({
                     >
                       Open public preview
                     </a>
+                    <button type="button" onClick={() => void copyPublicOpportunityLink()}>
+                      Copy public link
+                    </button>
                     <button
                       type="button"
                       disabled={!canPublishPublicOpportunity}

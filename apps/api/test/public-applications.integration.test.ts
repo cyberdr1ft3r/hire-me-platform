@@ -38,6 +38,12 @@ const manageOnlyPublicPermissions = [
   'public_opportunities:manage',
 ] as const;
 
+type RolePermissionSnapshot = {
+  permissionId: string;
+  grantedAt: Date;
+  archivedAt: Date | null;
+};
+
 async function cleanPublicApplicationRecords(): Promise<void> {
   await prisma.publicCandidateApplicationFile.deleteMany({
     where: { publicOpportunity: { publicSlug: { contains: 'issue27' } } },
@@ -154,6 +160,51 @@ async function removeRolePermissions(roleName: RoleName, permissionCodes: readon
       permissionId: { in: permissions.map((permission) => permission.id) },
     },
   });
+}
+
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot[]> {
+  const role = await prisma.role.findUniqueOrThrow({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  return role.permissions.map((rolePermission) => ({
+    permissionId: rolePermission.permissionId,
+    grantedAt: rolePermission.grantedAt,
+    archivedAt: rolePermission.archivedAt,
+  }));
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot[],
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: { notIn: snapshot.map((rolePermission) => rolePermission.permissionId) },
+    },
+  });
+  for (const rolePermission of snapshot) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
+      },
+      update: {
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+      create: {
+        roleId: role.id,
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+    });
+  }
 }
 
 async function createUser(email: string, roleName: RoleName): Promise<string> {
@@ -277,9 +328,13 @@ describe('public opportunity applications', () => {
   let app: INestApplication;
   let baseUrl: string;
   let recruiterUserId: string;
+  let guestRolePermissionSnapshot: RolePermissionSnapshot[] = [];
+  let guestRolePermissionSnapshotCaptured = false;
 
   beforeAll(async () => {
     await cleanPublicApplicationRecords();
+    guestRolePermissionSnapshot = await snapshotRolePermissions(RoleName.GUEST);
+    guestRolePermissionSnapshotCaptured = true;
     await ensureRoleWithPermissions(RoleName.HR_MANAGER, publicPermissions);
     await ensureRoleWithPermissions(RoleName.GUEST, manageOnlyPublicPermissions);
     await removeRolePermissions(RoleName.GUEST, [
@@ -296,8 +351,11 @@ describe('public opportunity applications', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
     await cleanPublicApplicationRecords();
+    if (guestRolePermissionSnapshotCaptured) {
+      await restoreRolePermissions(RoleName.GUEST, guestRolePermissionSnapshot);
+    }
     await prisma.$disconnect();
   });
 
@@ -554,7 +612,7 @@ describe('public opportunity applications', () => {
     expect(body.publicOpportunity.salary?.salaryMinCents).toBe(100000);
   });
 
-  it('requires publish permission for direct publication changes', async () => {
+  it('allows manage-only configuration updates but requires publish permission for publication fields', async () => {
     const manageOnlyToken = await loginAccessToken(baseUrl, 'manage-only@public-applications.test');
     const publishToken = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
     const { mission, opportunity } = await createMissionWithOpportunity(
@@ -562,27 +620,69 @@ describe('public opportunity applications', () => {
       recruiterUserId,
     );
 
-    const denied = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+    const ordinaryUpdate = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
       method: 'PATCH',
       headers: authHeaders(manageOnlyToken),
-      body: JSON.stringify({ listedOnWebsite: false }),
+      body: JSON.stringify({
+        publicTitle: 'Issue27 manage-only update',
+        publicSummary: 'Manage-only summary update.',
+        showClientName: true,
+        cvRequired: false,
+      }),
     });
-    expect(denied.status).toBe(403);
-    expect(await denied.json()).toMatchObject({
-      error: { code: 'PUBLIC_OPPORTUNITY_PUBLISH_PERMISSION_REQUIRED' },
-    });
-    await expect(
-      prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
-    ).resolves.toMatchObject({ listedOnWebsite: true });
+    expect(ordinaryUpdate.status).toBe(200);
+    const ordinaryBody = InternalPublicOpportunityDetailResponseSchema.parse(
+      await ordinaryUpdate.json(),
+    );
+    expect(ordinaryBody.publicOpportunity.publicTitle).toBe('Issue27 manage-only update');
+    expect(ordinaryBody.publicOpportunity.publicSummary).toBe('Manage-only summary update.');
+    expect(ordinaryBody.publicOpportunity.showClientName).toBe(true);
+    expect(ordinaryBody.publicOpportunity.uploadRequirements.cvRequired).toBe(false);
+
+    const auditWhere = {
+      action: 'public_opportunities.configuration.updated',
+      entityType: 'PublicOpportunity',
+      entityId: opportunity.id,
+    };
+    await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(1);
+
+    const deniedAttempts = [
+      { input: { status: PublicOpportunityStatus.PAUSED }, expected: { status: 'OPEN' } },
+      { input: { applicationLinkEnabled: false }, expected: { applicationLinkEnabled: true } },
+      { input: { listedOnWebsite: false }, expected: { listedOnWebsite: true } },
+    ] as const;
+
+    for (const attempt of deniedAttempts) {
+      const denied = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+        method: 'PATCH',
+        headers: authHeaders(manageOnlyToken),
+        body: JSON.stringify(attempt.input),
+      });
+      expect(denied.status).toBe(403);
+      expect(await denied.json()).toMatchObject({
+        error: { code: 'PUBLIC_OPPORTUNITY_PUBLISH_PERMISSION_REQUIRED' },
+      });
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject(attempt.expected);
+      await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(1);
+    }
 
     const allowed = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
       method: 'PATCH',
       headers: authHeaders(publishToken),
-      body: JSON.stringify({ listedOnWebsite: false }),
+      body: JSON.stringify({
+        status: PublicOpportunityStatus.PAUSED,
+        applicationLinkEnabled: false,
+        listedOnWebsite: false,
+      }),
     });
     expect(allowed.status).toBe(200);
     const body = InternalPublicOpportunityDetailResponseSchema.parse(await allowed.json());
+    expect(body.publicOpportunity.status).toBe('PAUSED');
+    expect(body.publicOpportunity.applicationLinkEnabled).toBe(false);
     expect(body.publicOpportunity.listedOnWebsite).toBe(false);
+    await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(2);
   });
 
   it('validates partial publication window updates against persisted values', async () => {

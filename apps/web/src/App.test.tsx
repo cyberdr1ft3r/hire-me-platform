@@ -688,6 +688,38 @@ describe('App', () => {
     expect(patchBody?.publicTitle).toBe('Updated public role');
     expect(patchBody).not.toHaveProperty('missionId');
   });
+
+  it('copies the slug-based public opportunity link without exposing mission identifiers', async () => {
+    mockMissionWorkspace(['missions:view', 'public_opportunities:view']);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const missionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+    await openMissionWorkspace('Mission Operator');
+    fireEvent.click(await screen.findByRole('button', { name: /copy public link/i }));
+
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/opportunities/synthetic-public-role`,
+    );
+    expect(writeText.mock.calls[0]?.[0]).not.toContain(missionId);
+    expect(await screen.findByText('Public link copied.')).toBeVisible();
+  });
+
+  it('handles clipboard copy failures without crashing', async () => {
+    mockMissionWorkspace(['missions:view', 'public_opportunities:view']);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard unavailable')) },
+    });
+
+    await openMissionWorkspace('Mission Operator');
+    fireEvent.click(await screen.findByRole('button', { name: /copy public link/i }));
+
+    expect(await screen.findByText('Public link could not be copied.')).toBeVisible();
+  });
 });
 
 function mockMissionWorkspace(permissions: string[]) {
