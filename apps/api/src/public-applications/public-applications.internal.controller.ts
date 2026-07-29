@@ -7,12 +7,13 @@ import {
 import { z } from 'zod';
 
 import { PUBLIC_APPLICATION_PERMISSIONS } from './public-application-permissions.js';
-import { badRequest } from './public-application.errors.js';
+import { badRequest, forbidden } from './public-application.errors.js';
 import { PublicApplicationsService } from './public-applications.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { RequestContext, RequestWithUser } from '../auth/auth.types.js';
 import { PermissionGuard } from '../auth/permission.guard.js';
 import { RequirePermissions } from '../auth/permissions.decorator.js';
+import { PermissionsService } from '../auth/permissions.service.js';
 
 const UuidParamSchema = z.string().uuid();
 
@@ -21,6 +22,7 @@ const UuidParamSchema = z.string().uuid();
 export class InternalPublicApplicationsController {
   constructor(
     @Inject(PublicApplicationsService) private readonly service: PublicApplicationsService,
+    @Inject(PermissionsService) private readonly permissions: PermissionsService,
   ) {}
 
   @Get()
@@ -42,6 +44,7 @@ export class InternalPublicApplicationsController {
     if (!parsed.success) {
       throw badRequest('INVALID_PUBLIC_OPPORTUNITY_REQUEST', 'Invalid public opportunity request.');
     }
+    await this.assertPublishPermissionIfNeeded(parsed.data, request.user!.id);
     return InternalPublicOpportunityDetailResponseSchema.parse(
       await this.service.updateInternalOpportunity(
         this.uuid(missionId),
@@ -66,6 +69,29 @@ export class InternalPublicApplicationsController {
       throw badRequest('INVALID_UUID', 'Invalid identifier.');
     }
     return parsed.data;
+  }
+
+  private async assertPublishPermissionIfNeeded(
+    input: z.infer<typeof InternalPublicOpportunityUpdateRequestSchema>,
+    actorUserId: string,
+  ): Promise<void> {
+    if (
+      input.status === undefined &&
+      input.applicationLinkEnabled === undefined &&
+      input.listedOnWebsite === undefined
+    ) {
+      return;
+    }
+
+    const effectivePermissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    if (
+      !effectivePermissions.includes(PUBLIC_APPLICATION_PERMISSIONS.PUBLIC_OPPORTUNITIES_PUBLISH)
+    ) {
+      throw forbidden(
+        'PUBLIC_OPPORTUNITY_PUBLISH_PERMISSION_REQUIRED',
+        'Publishing public opportunities requires publish permission.',
+      );
+    }
   }
 
   private getContext(request: RequestWithUser): RequestContext {

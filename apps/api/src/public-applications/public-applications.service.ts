@@ -175,9 +175,11 @@ export class PublicApplicationsService {
       if (terminalMissionStates.has(mission.state) || mission.archivedAt) {
         throw conflict('MISSION_TERMINAL', 'Terminal recruitment missions cannot be published.');
       }
-      this.assertPublicationWindow(input);
-
       const existing = await transaction.publicOpportunity.findUnique({ where: { missionId } });
+      this.assertPublicationWindow(input, {
+        publicationStartsAt: existing?.publicationStartsAt ?? null,
+        applicationDeadline: existing?.applicationDeadline ?? mission.applicationDeadline,
+      });
       const data = {
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.applicationLinkEnabled !== undefined
@@ -721,11 +723,23 @@ export class PublicApplicationsService {
     await Promise.all(keys.map((key) => this.storage.delete(key)));
   }
 
-  private assertPublicationWindow(input: InternalPublicOpportunityUpdateRequest): void {
-    if (input.publicationStartsAt && input.applicationDeadline) {
-      const startsAt = new Date(input.publicationStartsAt).getTime();
-      const deadline = new Date(input.applicationDeadline).getTime();
-      if (startsAt > deadline) {
+  private assertPublicationWindow(
+    input: InternalPublicOpportunityUpdateRequest,
+    current: { publicationStartsAt: Date | null; applicationDeadline: Date | null },
+  ): void {
+    const startsAt =
+      input.publicationStartsAt !== undefined
+        ? dateOrNull(input.publicationStartsAt)
+        : current.publicationStartsAt;
+    const deadline =
+      input.applicationDeadline !== undefined
+        ? dateOrNull(input.applicationDeadline)
+        : current.applicationDeadline;
+
+    if (startsAt && deadline) {
+      const startsAtTimestamp = startsAt.getTime();
+      const deadlineTimestamp = deadline.getTime();
+      if (startsAtTimestamp > deadlineTimestamp) {
         throw conflict(
           'PUBLIC_OPPORTUNITY_WINDOW_INVALID',
           'Publication start must be before the application deadline.',

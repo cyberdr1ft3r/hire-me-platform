@@ -33,6 +33,10 @@ const publicPermissions = [
   'public_opportunities:publish',
   'public_applications:view',
 ] as const;
+const manageOnlyPublicPermissions = [
+  'public_opportunities:view',
+  'public_opportunities:manage',
+] as const;
 
 async function cleanPublicApplicationRecords(): Promise<void> {
   await prisma.publicCandidateApplicationFile.deleteMany({
@@ -137,6 +141,19 @@ async function ensureRoleWithPermissions(
       create: { roleId: role.id, permissionId: permission.id },
     });
   }
+}
+
+async function removeRolePermissions(roleName: RoleName, permissionCodes: readonly string[]) {
+  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
+  const permissions = await prisma.permission.findMany({
+    where: { code: { in: [...permissionCodes] } },
+  });
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: { in: permissions.map((permission) => permission.id) },
+    },
+  });
 }
 
 async function createUser(email: string, roleName: RoleName): Promise<string> {
@@ -264,7 +281,13 @@ describe('public opportunity applications', () => {
   beforeAll(async () => {
     await cleanPublicApplicationRecords();
     await ensureRoleWithPermissions(RoleName.HR_MANAGER, publicPermissions);
+    await ensureRoleWithPermissions(RoleName.GUEST, manageOnlyPublicPermissions);
+    await removeRolePermissions(RoleName.GUEST, [
+      'public_opportunities:publish',
+      'public_applications:view',
+    ]);
     recruiterUserId = await createUser('recruiter@public-applications.test', RoleName.HR_MANAGER);
+    await createUser('manage-only@public-applications.test', RoleName.GUEST);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.enableCors({ origin: 'http://127.0.0.1:5173', credentials: true });
@@ -529,5 +552,78 @@ describe('public opportunity applications', () => {
     expect(body.publicOpportunity.publicTitle).toBe('Issue27 configured public title');
     expect(body.publicOpportunity.clientName).toContain('Issue27');
     expect(body.publicOpportunity.salary?.salaryMinCents).toBe(100000);
+  });
+
+  it('requires publish permission for direct publication changes', async () => {
+    const manageOnlyToken = await loginAccessToken(baseUrl, 'manage-only@public-applications.test');
+    const publishToken = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue27-publish-permission',
+      recruiterUserId,
+    );
+
+    const denied = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+      method: 'PATCH',
+      headers: authHeaders(manageOnlyToken),
+      body: JSON.stringify({ listedOnWebsite: false }),
+    });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({
+      error: { code: 'PUBLIC_OPPORTUNITY_PUBLISH_PERMISSION_REQUIRED' },
+    });
+    await expect(
+      prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+    ).resolves.toMatchObject({ listedOnWebsite: true });
+
+    const allowed = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+      method: 'PATCH',
+      headers: authHeaders(publishToken),
+      body: JSON.stringify({ listedOnWebsite: false }),
+    });
+    expect(allowed.status).toBe(200);
+    const body = InternalPublicOpportunityDetailResponseSchema.parse(await allowed.json());
+    expect(body.publicOpportunity.listedOnWebsite).toBe(false);
+  });
+
+  it('validates partial publication window updates against persisted values', async () => {
+    const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue27-window-validation',
+      recruiterUserId,
+    );
+    const deadline = new Date(Date.now() + 86_400_000);
+    await prisma.publicOpportunity.update({
+      where: { id: opportunity.id },
+      data: { publicationStartsAt: null, applicationDeadline: deadline },
+    });
+
+    const invalidStart = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        publicationStartsAt: new Date(deadline.getTime() + 60_000).toISOString(),
+      }),
+    });
+    expect(invalidStart.status).toBe(409);
+    expect(await invalidStart.json()).toMatchObject({
+      error: { code: 'PUBLIC_OPPORTUNITY_WINDOW_INVALID' },
+    });
+
+    const startsAt = new Date(Date.now() + 3_600_000);
+    await prisma.publicOpportunity.update({
+      where: { id: opportunity.id },
+      data: { publicationStartsAt: startsAt, applicationDeadline: deadline },
+    });
+    const invalidDeadline = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        applicationDeadline: new Date(startsAt.getTime() - 60_000).toISOString(),
+      }),
+    });
+    expect(invalidDeadline.status).toBe(409);
+    expect(await invalidDeadline.json()).toMatchObject({
+      error: { code: 'PUBLIC_OPPORTUNITY_WINDOW_INVALID' },
+    });
   });
 });
