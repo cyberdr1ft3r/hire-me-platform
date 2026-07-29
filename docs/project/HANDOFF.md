@@ -7,7 +7,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, and #25 are complete and merged on `main`.
-- Issue #27 is implemented on branch `feat/public-applications` in draft PR #28.
+- Issue #27 is implemented on branch `feat/public-applications` in draft PR #28, with corrective commits pushed and GitHub Actions run `30444387092` passing.
 - This branch adds the first public opportunity and unauthenticated candidate application implementation. Keep remaining changes inside Issue #27 and PR #28.
 - The PR #28 blocking review correction adds protected mission-workspace controls for public opportunity configuration and public application inspection, plus the latest copy-link and server-side publish-authorization regression fixes.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
@@ -15,7 +15,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Push the corrective commit to `feat/public-applications`, update PR #28, and confirm GitHub Actions is green on the final head.
+Complete final review for draft PR #28 and merge it when approved.
 
 Check especially:
 
@@ -33,7 +33,7 @@ Check especially:
 - Commercial and operational accounting is in scope, while full legal accounting, general ledger, tax declarations, and bank reconciliation remain unresolved.
 - Business records remain structured source-of-truth data; files/documents are uploaded, signed, archived, or generated representations.
 - Public opportunity foundation is now the active implementation branch; offers/placements and task management remain later separate issues.
-- Existing failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not `public-applications.integration.test.ts`: the archival race test expected `409` and received `201`. That test passed locally on the corrective tree. Recheck CI on the corrective head and only change code if the final run proves a real regression remains.
+- Earlier failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not `public-applications.integration.test.ts`: the archival race test expected `409` and received `201`. That test passed locally on the corrective tree, and GitHub Actions run `30444387092` is green on the current PR #28 head.
 
 ## Verification Notes
 
@@ -83,9 +83,10 @@ Completed so far for the PR #28 blocking-review correction:
 - The UI exposes public title, summary, description, location, work arrangement, contract type, experience, skills, publication start, application deadline, client-name visibility, salary visibility, and upload requirement toggles.
 - The generated link, copy action, and preview use `/opportunities/:publicSlug` and do not expose internal mission IDs; clipboard failure is handled with a visible UI message.
 - Server-side authorization now requires `public_opportunities:publish` whenever protected publication fields are present, while still allowing manage-only ordinary configuration edits. PostgreSQL tests cover `status`, `applicationLinkEnabled`, and `listedOnWebsite` denial, publish-capable success, unchanged rows after denial, and no misleading audit writes.
-- Public-application tests snapshot and restore the enum-bound seeded `GUEST` role permissions in `afterAll` so repeated database runs do not leak manage-only test permissions.
+- Public-application tests snapshot and restore the enum-bound seeded `CLIENT_USER` role permissions in `afterAll` so repeated database runs do not leak manage-only test permissions or race with suites that exercise `GUEST`.
 - Focused validation passed: `pnpm.cmd test:db` with 70 PostgreSQL tests, `pnpm.cmd --filter @hire-me/web test` with 13 web tests, package-level typecheck/lint/test/build fallbacks after root Turbo commands hit the known Windows `spawn UNKNOWN` issue, and `git diff --check`.
-- PostgreSQL validation passed after Docker Desktop was unpaused: container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, and `pnpm.cmd test:db` with 68 PostgreSQL integration tests passing.
+- GitHub Actions run `30444387092` passed PostgreSQL Docker Compose health, database migration/seed/integration tests, and quality checks.
+- PostgreSQL validation passed after Docker Desktop was unpaused: container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, and `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

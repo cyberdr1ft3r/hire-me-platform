@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Public opportunity and candidate application foundation
-**Health:** Issue #27 is in draft PR #28. The latest blocking review correction is locally validated on `feat/public-applications`.
-**Current blocker:** Green GitHub Actions are still required on the corrective PR #28 head after push.
-**Next executable development task:** Push the corrective commit, update the draft PR, and confirm all workflow jobs pass.
+**Health:** Issue #27 is in draft PR #28. The latest corrective commits are pushed, and GitHub Actions run `30444387092` passed on `feat/public-applications`.
+**Current blocker:** PR #28 is open, draft, and awaiting final review/merge.
+**Next executable development task:** Complete final review and merge PR #28 when approved.
 
 ## Active work
 
@@ -24,7 +24,7 @@ Status owner: repository maintainer
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
-| Issue #27 | In progress | Implement public opportunity and unauthenticated candidate application foundation | Push PR #28 correction and confirm CI |
+| Issue #27 | In progress | Implement public opportunity and unauthenticated candidate application foundation | Final review and merge PR #28 when approved |
 
 ## Completed foundation work
 
@@ -172,11 +172,12 @@ Status owner: repository maintainer
 - Submissions create an internal `MissionCandidate` process at `NEW`, keep `clientVisible = false`, and assign an eligible active internal mission recruiter. The implementation does not present candidates to clients.
 - PostgreSQL-backed public-application tests cover listed/unlisted confidentiality, submission creation, file traceability, active-candidate reuse across missions, duplicate same-mission prevention, concurrent duplicate prevention, archived-candidate handling, invalid file rejection, consent requirement, unavailable opportunities, missing-recruiter safe responses, and internal configuration permissions.
 - PR #28 blocking review correction adds protected mission-workspace controls for authorized staff to view and edit public opportunity configuration, independently enable/disable application links, list/unlist website publication, configure publication dates and file requirements, copy/open the generated public link, and inspect mission-related public applications.
-- The latest correction adds an explicit "Copy public link" action using the opaque public slug, handles clipboard failures visibly, enforces publish permission for publish-controlled API fields, validates effective publication windows on partial updates, and expands PostgreSQL-backed coverage for manage-only edits, each protected publish field, audit non-writes on denied attempts, and deterministic `GUEST` role permission restoration.
+- The latest correction adds an explicit "Copy public link" action using the opaque public slug, handles clipboard failures visibly, enforces publish permission for publish-controlled API fields, validates effective publication windows on partial updates, and expands PostgreSQL-backed coverage for manage-only edits, each protected publish field, audit non-writes on denied attempts, and deterministic `CLIENT_USER` role permission restoration.
 - Web coverage verifies that users without public permissions do not see the controls, read-only users cannot edit or publish, publication actions require `public_opportunities:publish`, application review requires `public_applications:view`, authorized users can save configuration, listed/unlisted/disabled states are visible, and generated public links use public slugs rather than internal mission IDs.
-- Failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not the public-application suite: `serializes mission archival and candidate archival races against process creation` expected `409` but received `201`. The test passed locally on the corrective tree, but the final PR #28 head still needs a green workflow run.
+- Earlier failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not the public-application suite: `serializes mission archival and candidate archival races against process creation` expected `409` but received `201`. The test passed locally on the corrective tree, and GitHub Actions run `30444387092` passed on the current PR #28 head.
 - Local checks passed: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, PostgreSQL Docker Compose health, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, full `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 13 web tests passing, `pnpm.cmd format:check`, package-level lint/typecheck/test/build fallbacks after the known Windows Turbo `spawn UNKNOWN` issue, and `git diff --check`.
-- `pnpm build` passed with Vite's existing large-chunk advisory warning.
+- GitHub Actions run `30444387092` passed PostgreSQL Docker Compose health, database migration/seed/integration tests, and quality checks.
+- Package-level builds passed locally after the known Windows Turbo `spawn UNKNOWN` issue, with the web build retaining Vite's existing large-chunk advisory warning; GitHub Actions run `30444387092` passed the root quality commands.
 
 ## Current open technical questions
 
@@ -197,7 +198,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Push the corrective commit to `feat/public-applications`, update the draft PR description, and confirm all GitHub Actions jobs pass on the final head.
+1. Complete final review for draft PR #28 and merge it when approved.
 
 ## Status Update Rules
 

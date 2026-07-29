@@ -39,9 +39,12 @@ const manageOnlyPublicPermissions = [
 ] as const;
 
 type RolePermissionSnapshot = {
-  permissionId: string;
-  grantedAt: Date;
-  archivedAt: Date | null;
+  roleExisted: boolean;
+  permissions: {
+    permissionId: string;
+    grantedAt: Date;
+    archivedAt: Date | null;
+  }[];
 };
 
 async function cleanPublicApplicationRecords(): Promise<void> {
@@ -163,15 +166,23 @@ async function removeRolePermissions(roleName: RoleName, permissionCodes: readon
 }
 
 async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot[]> {
-  const role = await prisma.role.findUniqueOrThrow({
+  const role = await prisma.role.findUnique({
     where: { name: roleName },
     include: { permissions: true },
   });
-  return role.permissions.map((rolePermission) => ({
-    permissionId: rolePermission.permissionId,
-    grantedAt: rolePermission.grantedAt,
-    archivedAt: rolePermission.archivedAt,
-  }));
+  if (!role) {
+    return [{ roleExisted: false, permissions: [] }];
+  }
+  return [
+    {
+      roleExisted: true,
+      permissions: role.permissions.map((rolePermission) => ({
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      })),
+    },
+  ];
 }
 
 async function restoreRolePermissions(
@@ -182,13 +193,20 @@ async function restoreRolePermissions(
   if (!role) {
     return;
   }
+  const original = snapshot[0] ?? { roleExisted: false, permissions: [] };
+  if (!original.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
   await prisma.rolePermission.deleteMany({
     where: {
       roleId: role.id,
-      permissionId: { notIn: snapshot.map((rolePermission) => rolePermission.permissionId) },
+      permissionId: {
+        notIn: original.permissions.map((rolePermission) => rolePermission.permissionId),
+      },
     },
   });
-  for (const rolePermission of snapshot) {
+  for (const rolePermission of original.permissions) {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
@@ -204,6 +222,29 @@ async function restoreRolePermissions(
         archivedAt: rolePermission.archivedAt,
       },
     });
+  }
+}
+
+async function deleteRoleIfCreatedForSnapshot(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot[],
+): Promise<void> {
+  if (snapshot[0]?.roleExisted !== false) {
+    return;
+  }
+  await prisma.role.deleteMany({ where: { name: roleName } });
+}
+
+async function captureCleanupFailure(
+  cleanupStep: () => Promise<void>,
+  existingError: Error | undefined,
+): Promise<Error | undefined> {
+  try {
+    await cleanupStep();
+    return existingError;
+  } catch (error) {
+    const cleanupError = error instanceof Error ? error : new Error(String(error));
+    return existingError ?? cleanupError;
   }
 }
 
@@ -328,21 +369,21 @@ describe('public opportunity applications', () => {
   let app: INestApplication;
   let baseUrl: string;
   let recruiterUserId: string;
-  let guestRolePermissionSnapshot: RolePermissionSnapshot[] = [];
-  let guestRolePermissionSnapshotCaptured = false;
+  let clientUserRolePermissionSnapshot: RolePermissionSnapshot[] = [];
+  let clientUserRolePermissionSnapshotCaptured = false;
 
   beforeAll(async () => {
     await cleanPublicApplicationRecords();
-    guestRolePermissionSnapshot = await snapshotRolePermissions(RoleName.GUEST);
-    guestRolePermissionSnapshotCaptured = true;
+    clientUserRolePermissionSnapshot = await snapshotRolePermissions(RoleName.CLIENT_USER);
+    clientUserRolePermissionSnapshotCaptured = true;
     await ensureRoleWithPermissions(RoleName.HR_MANAGER, publicPermissions);
-    await ensureRoleWithPermissions(RoleName.GUEST, manageOnlyPublicPermissions);
-    await removeRolePermissions(RoleName.GUEST, [
+    await ensureRoleWithPermissions(RoleName.CLIENT_USER, manageOnlyPublicPermissions);
+    await removeRolePermissions(RoleName.CLIENT_USER, [
       'public_opportunities:publish',
       'public_applications:view',
     ]);
     recruiterUserId = await createUser('recruiter@public-applications.test', RoleName.HR_MANAGER);
-    await createUser('manage-only@public-applications.test', RoleName.GUEST);
+    await createUser('manage-only@public-applications.test', RoleName.CLIENT_USER);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.enableCors({ origin: 'http://127.0.0.1:5173', credentials: true });
@@ -351,12 +392,31 @@ describe('public opportunity applications', () => {
   });
 
   afterAll(async () => {
-    await app?.close();
-    await cleanPublicApplicationRecords();
-    if (guestRolePermissionSnapshotCaptured) {
-      await restoreRolePermissions(RoleName.GUEST, guestRolePermissionSnapshot);
+    let cleanupError: Error | undefined;
+    try {
+      cleanupError = await captureCleanupFailure(async () => {
+        await app?.close();
+      }, cleanupError);
+      cleanupError = await captureCleanupFailure(async () => {
+        if (clientUserRolePermissionSnapshotCaptured) {
+          await restoreRolePermissions(RoleName.CLIENT_USER, clientUserRolePermissionSnapshot);
+        }
+      }, cleanupError);
+      cleanupError = await captureCleanupFailure(cleanPublicApplicationRecords, cleanupError);
+      cleanupError = await captureCleanupFailure(async () => {
+        if (clientUserRolePermissionSnapshotCaptured) {
+          await deleteRoleIfCreatedForSnapshot(
+            RoleName.CLIENT_USER,
+            clientUserRolePermissionSnapshot,
+          );
+        }
+      }, cleanupError);
+    } finally {
+      await prisma.$disconnect();
     }
-    await prisma.$disconnect();
+    if (cleanupError) {
+      throw cleanupError;
+    }
   });
 
   it('exposes only approved fields for listed and unlisted opportunities', async () => {
