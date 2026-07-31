@@ -10,6 +10,8 @@ const EnvironmentSchema = z.object({
   AUTH_REFRESH_TOKEN_PEPPER: z.string().min(32),
   DATABASE_URL: z.string().url(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PRIVATE_UPLOAD_STORAGE_ROOT: z.string().min(1).default('.tmp-runtime/private-uploads'),
+  PUBLIC_APPLICATION_JSON_LIMIT: z.string().min(1).default('6mb'),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().min(3600).max(2592000).default(604800),
 });
 

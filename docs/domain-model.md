@@ -201,6 +201,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 
 - Purpose and owner: public or link-only application surface for one recruitment mission; owned by recruitment operations.
 - Important attributes: id, mission id, lifecycle status, application link enabled flag, public listing enabled flag, public title, public summary, public location or work mode, application deadline, approved public requirements, upload requirements, consent text version, and archival timestamp.
+- Implementation note: Issue #27 stores one `PublicOpportunity` per mission with an opaque public slug, independent `status`, `applicationLinkEnabled`, and `listedOnWebsite` controls, hidden client and salary defaults, and explicit upload requirement flags.
 - Relationships: belongs to one `RecruitmentMission`; receives public candidate applications that create or match a `Candidate` and create one `MissionCandidate` process.
 - Cardinality: one recruitment mission can have zero or one active public opportunity surface in the MVP; a public opportunity can receive many applications.
 - Lifecycle: draft, open, paused, closed, archived.
@@ -217,8 +218,18 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Cardinality: one public opportunity can have many applications; one candidate can apply to many opportunities, but at most once to the same recruitment mission.
 - Lifecycle: submitted, accepted for review, duplicate blocked, rejected as invalid, archived.
 - Sensitive fields: personal data, contact details, salary expectation, CV contents, certifications, diplomas, consent details, source metadata, and duplicate-matching evidence.
-- Uniqueness rules: duplicate application to the same mission must be blocked after safe matching; exact unauthenticated duplicate-detection strategy remains unresolved.
+- Uniqueness rules: duplicate application to the same mission must be blocked after safe matching. Issue #27 uses normalized email as the deterministic match key, reuses active candidates, does not merge by phone, and does not silently reactivate archived candidates.
 - Audit requirements: submission acceptance, candidate matching, duplicate blocking, file version creation, consent capture, and invalid submission handling should be audited with safe metadata.
+- Implementation note: Issue #27 persists successful public submissions as `SUBMITTED`; duplicate, archived-candidate, and missing-recruiter public outcomes use a stable generic public response without creating a second process or exposing internal state.
+
+### PublicCandidateApplicationFile
+
+- Purpose and owner: trace record for a file submitted through a public application; owned by recruitment operations.
+- Important attributes: id, application id, candidate id, opportunity id, mission id, mission-candidate id, candidate-document-version id, category, original and sanitized filenames, MIME type, size, storage key, and timestamp.
+- Relationships: belongs to one `PublicCandidateApplication`; references one exact `CandidateDocumentVersion`.
+- Cardinality: one public application can have many file traces; one file trace references one exact stored candidate document version.
+- Sensitive fields: filenames, storage keys, file metadata, and submitted candidate-file content.
+- Implementation note: CV uploads append a version to the candidate's active logical CV document when present. Supporting public files create traceable candidate-file versions without becoming business records themselves.
 
 ### Interview
 
@@ -568,7 +579,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 
 - Whether client portal access supports one `User` across multiple `Client` records.
 - Whether a client portal is implemented at all in the MVP; Issue #25 moves it to optional future scope.
-- Public opportunity URL/token strategy, applicant duplicate matching, anti-spam protections, consent retention, and upload limits.
+- Production public opportunity URL/token strategy beyond Issue #27 opaque slugs, CAPTCHA provider, malware scanner, retention schedule, and applicant duplicate-review workflow.
 - Commercial accounting entity granularity, numbering, corrections, VAT/tax rules, partial-payment allocation, and export formats.
 - Whether client organization names should become globally unique, tenant-scoped unique, or remain duplicate-tolerant.
 - Whether archived client contacts can later be reactivated through a controlled workflow.

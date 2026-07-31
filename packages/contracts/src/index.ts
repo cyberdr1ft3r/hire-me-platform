@@ -286,3 +286,32 @@ export type {
 } from './candidates.js';
 export { HealthResponseSchema } from './health.js';
 export type { HealthResponse } from './health.js';
+export {
+  InternalPublicApplicationListResponseSchema,
+  InternalPublicApplicationSummarySchema,
+  InternalPublicOpportunityDetailResponseSchema,
+  InternalPublicOpportunitySchema,
+  InternalPublicOpportunityUpdateRequestSchema,
+  PublicApplicationFileCategorySchema,
+  PublicApplicationFileInputSchema,
+  PublicApplicationSubmitRequestSchema,
+  PublicApplicationSubmitResponseSchema,
+  PublicOpportunityDetailResponseSchema,
+  PublicOpportunityListResponseSchema,
+  PublicOpportunitySchema,
+  PublicOpportunityStatusSchema,
+  PublicOpportunityUploadRequirementsSchema,
+} from './public-applications.js';
+export type {
+  InternalPublicApplicationListResponse,
+  InternalPublicApplicationSummary,
+  InternalPublicOpportunity,
+  InternalPublicOpportunityDetailResponse,
+  InternalPublicOpportunityUpdateRequest,
+  PublicApplicationFileInput,
+  PublicApplicationSubmitRequest,
+  PublicApplicationSubmitResponse,
+  PublicOpportunity,
+  PublicOpportunityDetailResponse,
+  PublicOpportunityListResponse,
+} from './public-applications.js';

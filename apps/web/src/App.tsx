@@ -18,6 +18,9 @@ import type {
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
+  InternalPublicApplicationSummary,
+  InternalPublicOpportunity,
+  PublicOpportunity,
 } from '@hire-me/contracts';
 
 import {
@@ -47,12 +50,15 @@ import {
   getClient,
   getCandidate,
   getMission,
+  getInternalPublicOpportunity,
   getAdminUser,
   listCandidates,
   listClientContacts,
   listClients,
   listMissionAssignments,
   listMissions,
+  listInternalPublicApplications,
+  listPublicOpportunities,
   listEvaluations,
   listInterviews,
   listAdminPermissions,
@@ -74,11 +80,14 @@ import {
   updateMission,
   updateMissionAssignment,
   updateMissionStatus,
+  updateInternalPublicOpportunity,
   closeMission,
   confirmMissionCandidateIntegration,
   createMissionCandidate,
   setMissionLeadRecruiter,
   scheduleInterview,
+  submitPublicApplication,
+  getPublicOpportunity,
   listMissionCandidates,
   presentMissionCandidate,
   postponeInterview,
@@ -223,6 +232,14 @@ export function App() {
               ? '/missions'
               : '/',
     );
+  }
+
+  const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
+  if (window.location.pathname === '/opportunities') {
+    return <PublicOpportunitiesPage />;
+  }
+  if (publicOpportunityMatch?.[1]) {
+    return <PublicOpportunityDetailPage publicSlug={publicOpportunityMatch[1]} />;
   }
 
   const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
@@ -1599,6 +1616,12 @@ function MissionsPanel({
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [activeInterviewId, setActiveInterviewId] = useState<string | null>(null);
   const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
+  const [publicOpportunity, setPublicOpportunity] = useState<InternalPublicOpportunity | null>(
+    null,
+  );
+  const [publicApplications, setPublicApplications] = useState<InternalPublicApplicationSummary[]>(
+    [],
+  );
   const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -1625,6 +1648,10 @@ function MissionsPanel({
   const canViewEvaluations = permissions.includes('evaluations:view');
   const canCreateEvaluations = permissions.includes('evaluations:create');
   const canFinalizeEvaluations = permissions.includes('evaluations:finalize');
+  const canViewPublicOpportunity = permissions.includes('public_opportunities:view');
+  const canManagePublicOpportunity = permissions.includes('public_opportunities:manage');
+  const canPublishPublicOpportunity = permissions.includes('public_opportunities:publish');
+  const canViewPublicApplications = permissions.includes('public_applications:view');
 
   useEffect(() => {
     void loadMissions();
@@ -1648,6 +1675,8 @@ function MissionsPanel({
     setInterviews([]);
     setActiveInterviewId(null);
     setEvaluations([]);
+    setPublicOpportunity(null);
+    setPublicApplications([]);
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
       setAssignments(assignmentResponse.assignments);
@@ -1655,6 +1684,14 @@ function MissionsPanel({
     if (canViewProcesses) {
       const processResponse = await listMissionCandidates(accessToken, missionId);
       setCandidateProcesses(processResponse.candidates);
+    }
+    if (canViewPublicOpportunity) {
+      const opportunityResponse = await getInternalPublicOpportunity(accessToken, missionId);
+      setPublicOpportunity(opportunityResponse.publicOpportunity);
+    }
+    if (canViewPublicApplications) {
+      const applicationResponse = await listInternalPublicApplications(accessToken, missionId);
+      setPublicApplications(applicationResponse.applications);
     }
   }
 
@@ -2028,6 +2065,61 @@ function MissionsPanel({
     setMessage('Evaluation finalized.');
   }
 
+  async function handlePublicOpportunityUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission || !publicOpportunity || !canManagePublicOpportunity) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateInternalPublicOpportunity(accessToken, selectedMission.id, {
+      publicTitle: formValue(formData, 'publicTitle', publicOpportunity.publicTitle),
+      publicSummary: nullableFormValue(formData, 'publicSummary'),
+      publicDescription: nullableFormValue(formData, 'publicDescription'),
+      publicLocation: nullableFormValue(formData, 'publicLocation'),
+      publicWorkArrangement: nullableFormValue(formData, 'publicWorkArrangement'),
+      publicEngagementType: nullableFormValue(formData, 'publicEngagementType'),
+      publicExperienceLevel: nullableFormValue(formData, 'publicExperienceLevel'),
+      publicSkills: nullableFormValue(formData, 'publicSkills'),
+      publicationStartsAt: optionalDateTimeFormValue(formData, 'publicationStartsAt') ?? null,
+      applicationDeadline: optionalDateTimeFormValue(formData, 'applicationDeadline') ?? null,
+      showClientName: formData.get('showClientName') === 'on',
+      showSalary: formData.get('showSalary') === 'on',
+      cvRequired: formData.get('cvRequired') === 'on',
+      certificationsEnabled: formData.get('certificationsEnabled') === 'on',
+      certificationsRequired: formData.get('certificationsRequired') === 'on',
+      diplomasEnabled: formData.get('diplomasEnabled') === 'on',
+      diplomasRequired: formData.get('diplomasRequired') === 'on',
+      additionalAttachmentsEnabled: formData.get('additionalAttachmentsEnabled') === 'on',
+    });
+    setPublicOpportunity(updated.publicOpportunity);
+    setMessage('Public opportunity configuration saved.');
+  }
+
+  async function updatePublicOpportunityPublication(
+    input: Parameters<typeof updateInternalPublicOpportunity>[2],
+    successMessage: string,
+  ): Promise<void> {
+    if (!selectedMission || !publicOpportunity || !canPublishPublicOpportunity) {
+      return;
+    }
+    const updated = await updateInternalPublicOpportunity(accessToken, selectedMission.id, input);
+    setPublicOpportunity(updated.publicOpportunity);
+    setMessage(successMessage);
+  }
+
+  async function copyPublicOpportunityLink(): Promise<void> {
+    if (!publicOpportunity) {
+      return;
+    }
+    const publicUrl = `${window.location.origin}/opportunities/${publicOpportunity.publicSlug}`;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setMessage('Public link copied.');
+    } catch {
+      setMessage('Public link could not be copied.');
+    }
+  }
+
   return (
     <section className="admin-panel" aria-label="Missions">
       <div className="admin-grid">
@@ -2195,6 +2287,256 @@ function MissionsPanel({
                 <button type="button" onClick={() => void archiveSelectedMission()}>
                   Archive mission
                 </button>
+              ) : null}
+
+              {canViewPublicOpportunity && publicOpportunity ? (
+                <section aria-label="Public opportunity controls">
+                  <h3>Public opportunity</h3>
+                  <p>
+                    {publicOpportunity.status} -{' '}
+                    {publicOpportunity.applicationLinkEnabled
+                      ? 'application link enabled'
+                      : 'application link disabled'}{' '}
+                    - {publicOpportunity.listedOnWebsite ? 'listed' : 'unlisted'}
+                  </p>
+                  <p>
+                    Public link:{' '}
+                    <a href={`/opportunities/${publicOpportunity.publicSlug}`}>
+                      {`${window.location.origin}/opportunities/${publicOpportunity.publicSlug}`}
+                    </a>
+                  </p>
+                  <div className="action-row">
+                    <a
+                      className="button-link"
+                      href={`/opportunities/${publicOpportunity.publicSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open public preview
+                    </a>
+                    <button type="button" onClick={() => void copyPublicOpportunityLink()}>
+                      Copy public link
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          {
+                            status: 'OPEN',
+                            applicationLinkEnabled: true,
+                          },
+                          'Application link enabled.',
+                        )
+                      }
+                    >
+                      Enable applications
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { applicationLinkEnabled: false },
+                          'Application link disabled.',
+                        )
+                      }
+                    >
+                      Disable applications
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { listedOnWebsite: true },
+                          'Opportunity listed on website.',
+                        )
+                      }
+                    >
+                      List on website
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canPublishPublicOpportunity}
+                      onClick={() =>
+                        void updatePublicOpportunityPublication(
+                          { listedOnWebsite: false },
+                          'Opportunity unlisted from website.',
+                        )
+                      }
+                    >
+                      Unlist from website
+                    </button>
+                  </div>
+                  <form
+                    className="stacked-form"
+                    aria-label="Edit public opportunity"
+                    onSubmit={(event) => void handlePublicOpportunityUpdate(event)}
+                  >
+                    <input
+                      name="publicTitle"
+                      defaultValue={publicOpportunity.publicTitle}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicSummary"
+                      placeholder="Public summary"
+                      defaultValue={publicOpportunity.publicSummary ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicDescription"
+                      placeholder="Public description"
+                      defaultValue={publicOpportunity.publicDescription ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicLocation"
+                      placeholder="Public location"
+                      defaultValue={publicOpportunity.publicLocation ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicWorkArrangement"
+                      placeholder="Work arrangement"
+                      defaultValue={publicOpportunity.publicWorkArrangement ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicEngagementType"
+                      placeholder="Contract type"
+                      defaultValue={publicOpportunity.publicEngagementType ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <input
+                      name="publicExperienceLevel"
+                      placeholder="Experience level"
+                      defaultValue={publicOpportunity.publicExperienceLevel ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <textarea
+                      name="publicSkills"
+                      placeholder="Public skills"
+                      defaultValue={publicOpportunity.publicSkills ?? ''}
+                      disabled={!canManagePublicOpportunity}
+                    />
+                    <label>
+                      Publication start
+                      <input
+                        name="publicationStartsAt"
+                        type="datetime-local"
+                        defaultValue={dateTimeInputValue(publicOpportunity.publicationStartsAt)}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Application deadline
+                      <input
+                        name="applicationDeadline"
+                        type="datetime-local"
+                        defaultValue={dateTimeInputValue(publicOpportunity.applicationDeadline)}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Show client name
+                      <input
+                        name="showClientName"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.showClientName}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Show salary
+                      <input
+                        name="showSalary"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.showSalary}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      CV required
+                      <input
+                        name="cvRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.cvRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Certifications enabled
+                      <input
+                        name="certificationsEnabled"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.certificationsEnabled}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Certifications required
+                      <input
+                        name="certificationsRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.certificationsRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Diplomas enabled
+                      <input
+                        name="diplomasEnabled"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.diplomasEnabled}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Diplomas required
+                      <input
+                        name="diplomasRequired"
+                        type="checkbox"
+                        defaultChecked={publicOpportunity.uploadRequirements.diplomasRequired}
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <label>
+                      Additional files enabled
+                      <input
+                        name="additionalAttachmentsEnabled"
+                        type="checkbox"
+                        defaultChecked={
+                          publicOpportunity.uploadRequirements.additionalAttachmentsEnabled
+                        }
+                        disabled={!canManagePublicOpportunity}
+                      />
+                    </label>
+                    <button type="submit" disabled={!canManagePublicOpportunity}>
+                      Save public opportunity
+                    </button>
+                  </form>
+                </section>
+              ) : null}
+
+              {canViewPublicApplications ? (
+                <section aria-label="Public applications">
+                  <h3>Public applications</h3>
+                  {publicApplications.length > 0 ? (
+                    <ul>
+                      {publicApplications.map((application) => (
+                        <li key={application.id}>
+                          {application.submittedFullName} - {application.submittedEmail} -{' '}
+                          {application.fileCount} files -{' '}
+                          {new Date(application.submittedAt).toLocaleString()}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No public applications submitted for this mission.</p>
+                  )}
+                </section>
               ) : null}
 
               {canViewAssignments ? (
@@ -2667,6 +3009,254 @@ function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[
   return transitions[state] ?? [];
 }
 
+function PublicOpportunitiesPage() {
+  const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([]);
+  const [status, setStatus] = useState('Loading opportunities...');
+
+  useEffect(() => {
+    let isMounted = true;
+    listPublicOpportunities()
+      .then((response) => {
+        if (isMounted) {
+          setOpportunities(response.opportunities);
+          setStatus(response.opportunities.length === 0 ? 'No public opportunities are open.' : '');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus('Public opportunities are unavailable.');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return (
+    <main className="shell">
+      <section className="intro">
+        <p className="eyebrow">Hire Me Opportunities</p>
+        <h1>Open roles</h1>
+      </section>
+      {status ? <p>{status}</p> : null}
+      <section className="data-grid" aria-label="Public opportunities">
+        {opportunities.map((opportunity) => (
+          <article className="record-card" key={opportunity.publicSlug}>
+            <h2>{opportunity.publicTitle}</h2>
+            <p>
+              {opportunity.publicSummary ?? opportunity.publicLocation ?? 'Recruitment opportunity'}
+            </p>
+            <a className="button-link" href={`/opportunities/${opportunity.publicSlug}`}>
+              View opportunity
+            </a>
+          </article>
+        ))}
+      </section>
+    </main>
+  );
+}
+
+function PublicOpportunityDetailPage({ publicSlug }: { publicSlug: string }) {
+  const [opportunity, setOpportunity] = useState<PublicOpportunity | null>(null);
+  const [status, setStatus] = useState('Loading opportunity...');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPublicOpportunity(publicSlug)
+      .then((response) => {
+        if (isMounted) {
+          setOpportunity(response.opportunity);
+          setStatus('');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus('This opportunity is not available.');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [publicSlug]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!opportunity) {
+      return;
+    }
+    setSubmitting(true);
+    setStatus('');
+    const formData = new FormData(event.currentTarget);
+    const cvFile = firstFile(formData, 'cv');
+    const certificationFile = firstFile(formData, 'certification');
+    const diplomaFile = firstFile(formData, 'diploma');
+    const additionalFile = firstFile(formData, 'additional');
+    const files = await Promise.all(
+      [
+        cvFile ? fileInput('CV', cvFile) : null,
+        certificationFile ? fileInput('CERTIFICATION', certificationFile) : null,
+        diplomaFile ? fileInput('DIPLOMA', diplomaFile) : null,
+        additionalFile ? fileInput('ADDITIONAL', additionalFile) : null,
+      ].filter((file): file is Promise<Awaited<ReturnType<typeof fileInput>>> => Boolean(file)),
+    );
+
+    try {
+      const response = await submitPublicApplication(publicSlug, {
+        fullName: formValue(formData, 'fullName'),
+        email: formValue(formData, 'email'),
+        phone: optionalFormValue(formData, 'phone'),
+        city: optionalFormValue(formData, 'city'),
+        country: optionalFormValue(formData, 'country'),
+        currentPosition: optionalFormValue(formData, 'currentPosition'),
+        experienceYears: optionalNumber(formData, 'experienceYears'),
+        skills: optionalFormValue(formData, 'skills'),
+        languages: optionalFormValue(formData, 'languages'),
+        availability: optionalFormValue(formData, 'availability'),
+        salaryExpectationCents: optionalNumber(formData, 'salaryExpectationCents'),
+        salaryExpectationCurrency: optionalFormValue(formData, 'salaryExpectationCurrency'),
+        professionalLinks: optionalFormValue(formData, 'professionalLinks'),
+        motivation: optionalFormValue(formData, 'motivation'),
+        consentGranted: formData.get('consentGranted') === 'on',
+        captchaToken: undefined,
+        website: optionalFormValue(formData, 'website'),
+        files,
+      });
+      event.currentTarget.reset();
+      setStatus(response.message);
+    } catch {
+      setStatus('Application could not be submitted.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="shell">
+      <section className="intro">
+        <p className="eyebrow">Hire Me Opportunity</p>
+        <h1>{opportunity?.publicTitle ?? 'Opportunity'}</h1>
+        {opportunity?.publicSummary ? <p>{opportunity.publicSummary}</p> : null}
+      </section>
+      {status ? <p aria-live="polite">{status}</p> : null}
+      {opportunity ? (
+        <section className="workspace-grid">
+          <article className="record-card">
+            <h2>Details</h2>
+            <p>{opportunity.publicDescription ?? opportunity.publicSummary}</p>
+            <dl>
+              <dt>Location</dt>
+              <dd>{opportunity.publicLocation ?? 'Not specified'}</dd>
+              <dt>Work arrangement</dt>
+              <dd>{opportunity.publicWorkArrangement ?? 'Not specified'}</dd>
+              <dt>Client</dt>
+              <dd>{opportunity.clientName ?? 'Confidential'}</dd>
+            </dl>
+          </article>
+          <form
+            className="record-card form-grid"
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+          >
+            <label>
+              Full name
+              <input name="fullName" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required />
+            </label>
+            <label>
+              Phone
+              <input name="phone" />
+            </label>
+            <label>
+              City
+              <input name="city" />
+            </label>
+            <label>
+              Country
+              <input name="country" />
+            </label>
+            <label>
+              Current position
+              <input name="currentPosition" />
+            </label>
+            <label>
+              Experience years
+              <input name="experienceYears" min="0" type="number" />
+            </label>
+            <label>
+              Skills
+              <textarea name="skills" rows={3} />
+            </label>
+            <label>
+              Languages
+              <textarea name="languages" rows={2} />
+            </label>
+            <label>
+              Availability
+              <input name="availability" />
+            </label>
+            <label>
+              Salary expectation
+              <input name="salaryExpectationCents" min="0" type="number" />
+            </label>
+            <label>
+              Salary currency
+              <input name="salaryExpectationCurrency" maxLength={3} />
+            </label>
+            <label>
+              Professional links
+              <textarea name="professionalLinks" rows={2} />
+            </label>
+            <label>
+              Motivation
+              <textarea name="motivation" rows={4} />
+            </label>
+            <label>
+              CV
+              <input
+                name="cv"
+                type="file"
+                required={opportunity.uploadRequirements.cvRequired}
+                accept={opportunity.uploadRequirements.allowedMimeTypes.join(',')}
+              />
+            </label>
+            {opportunity.uploadRequirements.certificationsEnabled ? (
+              <label>
+                Certification
+                <input name="certification" type="file" />
+              </label>
+            ) : null}
+            {opportunity.uploadRequirements.diplomasEnabled ? (
+              <label>
+                Diploma
+                <input name="diploma" type="file" />
+              </label>
+            ) : null}
+            {opportunity.uploadRequirements.additionalAttachmentsEnabled ? (
+              <label>
+                Additional attachment
+                <input name="additional" type="file" />
+              </label>
+            ) : null}
+            <label className="checkbox-row">
+              <input name="consentGranted" type="checkbox" required />I consent to Hire Me
+              processing this application.
+            </label>
+            <input aria-hidden="true" className="hidden-field" name="website" tabIndex={-1} />
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit application'}
+            </button>
+          </form>
+        </section>
+      ) : null}
+    </main>
+  );
+}
+
 function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : fallback;
@@ -2698,7 +3288,31 @@ function optionalDateTimeFormValue(formData: FormData, name: string): string | u
   return value.length > 0 ? new Date(value).toISOString() : undefined;
 }
 
+function dateTimeInputValue(value: string | null): string {
+  return value ? value.slice(0, 16) : '';
+}
+
 function nullableFormValue(formData: FormData, name: string): string | null {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? value : null;
+}
+
+function firstFile(formData: FormData, name: string): File | null {
+  const value = formData.get(name);
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+async function fileInput(category: 'CV' | 'CERTIFICATION' | 'DIPLOMA' | 'ADDITIONAL', file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return {
+    category,
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    base64Content: btoa(binary),
+  };
 }

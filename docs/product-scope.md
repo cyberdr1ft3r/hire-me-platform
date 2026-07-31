@@ -210,7 +210,7 @@ Candidate data, HR notes, salary expectations, CVs, client records, commercial t
 - Backup provider, retention policy, and restore testing cadence.
 - Whether candidate consent, privacy preferences, and data-retention deadlines need dedicated first-phase entities.
 - Exact enum values for `closureReason`; the existence of structured mission closure reasons is confirmed.
-- Public opportunity URL/token strategy, anti-abuse controls, applicant duplicate matching, file upload limits, and consent-retention rules.
+- Production public opportunity URL/token strategy beyond opaque slugs, CAPTCHA provider, malware scanner, retention schedule, and applicant duplicate-review workflow.
 - Whether future client portal access maps one `ClientContact` to one `User`, supports multiple clients per user, or uses a separate identity model.
 - Commercial accounting entity granularity, numbering rules, VAT/tax handling, partial-payment allocation, correction workflows, and export formats.
 

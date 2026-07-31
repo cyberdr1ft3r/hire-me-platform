@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-07-23
+Last updated: 2026-07-29
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Product and roadmap realignment before next ATS module
-**Health:** Issue #25 documentation realignment is implemented locally and validation has passed. Main now includes the merged Issue #23 interview/evaluation foundation.
-**Current blocker:** None locally.
-**Next executable development task:** Open the Issue #25 draft PR. After approval, the next implementation issue should be Public opportunity and candidate application foundation.
+**Phase:** Public opportunity and candidate application foundation
+**Health:** Issue #27 is in draft PR #28. The latest corrective commits are pushed, and GitHub Actions run `30444387092` passed on `feat/public-applications`.
+**Current blocker:** PR #28 is open, draft, and awaiting final review/merge.
+**Next executable development task:** Complete final review and merge PR #28 when approved.
 
 ## Active work
 
@@ -23,7 +23,8 @@ Status owner: repository maintainer
 | Issue #19 | Complete | Implement recruitment missions and multiple recruiter/contributor assignments | No action |
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
-| Issue #25 | In progress | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | Open draft PR |
+| Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
+| Issue #27 | In progress | Implement public opportunity and unauthenticated candidate application foundation | Final review and merge PR #28 when approved |
 
 ## Completed foundation work
 
@@ -154,11 +155,29 @@ Status owner: repository maintainer
 - Client portal is optional future scope, not MVP.
 - Training participants are records by default, while trainers and internal training operators require internal accounts.
 - Commercial and operational accounting is in scope with explicit boundaries excluding full legal accounting, general ledger, tax declarations, and bank reconciliation unless later approved.
-- Next implementation issue after Issue #25 should be Public opportunity and candidate application foundation.
+- Issue #27 is implementing the public opportunity and candidate application foundation.
 - Local checks passed for the documentation-only change: Mermaid CLI rendered all 11 documentation diagrams, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
 - `pnpm build` passed with Vite's existing large-chunk advisory warning.
 - PR #26 blocking comment correction reconciles D-027 with D-037 by making D-027 govern staff-controlled external client sharing without assuming a client portal. The correction also removes stale "Clients see" and client-portal visibility-boundary wording while preserving the confidentiality exclusions for internal notes, confidential scores, unrelated missions, internal history, protected salary or compensation data unless specifically approved, and recruiter-only operational information.
 - Local checks after the PR #26 blocking-comment correction passed: Mermaid CLI rendering for all 11 documentation diagrams, `pnpm check:architecture`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check`.
+
+## Issue #27 Verification State
+
+- Public opportunity and unauthenticated candidate application foundation is implemented locally on branch `feat/public-applications`.
+- Draft PR #28 is open and remains draft/unmerged.
+- The implementation adds API-owned `PublicOpportunity`, `PublicCandidateApplication`, and `PublicCandidateApplicationFile` Prisma models plus shared public DTOs that are separate from internal mission DTOs.
+- Public list/detail responses expose only approved public fields. Client name and salary remain hidden unless explicitly enabled, and commercial data, recruiter assignments, application counts, pipeline data, internal notes, audit metadata, and client-contact data are never included.
+- Public submissions accept structured candidate information, consent, and configured private files through the protected storage abstraction. CV submissions preserve version history and are linked to the exact opportunity submission and mission-candidate process.
+- Candidate reuse is deterministic by normalized email for active candidates only; phone does not merge records and archived candidates are not silently reactivated.
+- Submissions create an internal `MissionCandidate` process at `NEW`, keep `clientVisible = false`, and assign an eligible active internal mission recruiter. The implementation does not present candidates to clients.
+- PostgreSQL-backed public-application tests cover listed/unlisted confidentiality, submission creation, file traceability, active-candidate reuse across missions, duplicate same-mission prevention, concurrent duplicate prevention, archived-candidate handling, invalid file rejection, consent requirement, unavailable opportunities, missing-recruiter safe responses, and internal configuration permissions.
+- PR #28 blocking review correction adds protected mission-workspace controls for authorized staff to view and edit public opportunity configuration, independently enable/disable application links, list/unlist website publication, configure publication dates and file requirements, copy/open the generated public link, and inspect mission-related public applications.
+- The latest correction adds an explicit "Copy public link" action using the opaque public slug, handles clipboard failures visibly, enforces publish permission for publish-controlled API fields, validates effective publication windows on partial updates, and expands PostgreSQL-backed coverage for manage-only edits, each protected publish field, audit non-writes on denied attempts, and deterministic `CLIENT_USER` role permission restoration.
+- Web coverage verifies that users without public permissions do not see the controls, read-only users cannot edit or publish, publication actions require `public_opportunities:publish`, application review requires `public_applications:view`, authorized users can save configuration, listed/unlisted/disabled states are visible, and generated public links use public slugs rather than internal mission IDs.
+- Earlier failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not the public-application suite: `serializes mission archival and candidate archival races against process creation` expected `409` but received `201`. The test passed locally on the corrective tree, and GitHub Actions run `30444387092` passed on the current PR #28 head.
+- Local checks passed: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, PostgreSQL Docker Compose health, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, full `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 13 web tests passing, `pnpm.cmd format:check`, package-level lint/typecheck/test/build fallbacks after the known Windows Turbo `spawn UNKNOWN` issue, and `git diff --check`.
+- GitHub Actions run `30444387092` passed PostgreSQL Docker Compose health, database migration/seed/integration tests, and quality checks.
+- Package-level builds passed locally after the known Windows Turbo `spawn UNKNOWN` issue, with the web build retaining Vite's existing large-chunk advisory warning; GitHub Actions run `30444387092` passed the root quality commands.
 
 ## Current open technical questions
 
@@ -173,13 +192,13 @@ Status owner: repository maintainer
 - Real-time messaging and notification transport.
 - Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
-- Public opportunity URL/token strategy, anti-abuse controls, applicant duplicate matching, file upload limits, and consent retention.
+- Production public opportunity URL strategy beyond opaque slugs, CAPTCHA provider, production malware scanner, production storage provider, public upload retention schedule, and applicant duplicate-review workflow.
 - Commercial accounting numbering, correction, VAT/tax, partial-payment allocation, and profitability rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Push `docs/issue-25-product-realignment` and open a draft PR for Issue #25.
+1. Complete final review for draft PR #28 and merge it when approved.
 
 ## Status Update Rules
 
