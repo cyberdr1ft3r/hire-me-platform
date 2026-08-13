@@ -187,7 +187,21 @@ Issue #23 implements the interview and structured-evaluation module under missio
 - transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then `Interview` for dependent writes and concurrency races
 - PostgreSQL-backed tests for ownership, IDOR, invalid participants, client interview prerequisites, history, idempotency, redaction, and lifecycle races
 
-Training, documents, optional future client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, offers, commercial accounting, full structured external feedback, and broader business workflow behavior remain later implementation work.
+Issue #29 implements the internal offer-to-placement lifecycle under mission-candidate processes:
+
+- nested `/v1/missions/:missionId/candidates/:processId/offers` and placement endpoints for offer versions, staff-recorded lifecycle outcomes, placement confirmation, and placement correction
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService` and explicit generated-client boundary exports for offer/placement enums
+- `RecruitmentOffer`, `RecruitmentOfferVersion`, `OfferEvent`, `MissionPlacement`, and `PlacementEvent` records owned by the API schema
+- immutable offer versions with a database-backed one-current-active-version invariant
+- explicit placement confirmation from the current accepted offer version; offer acceptance alone does not increment mission placement count
+- placement correction that preserves original confirmation metadata, decrements at most once, and cannot make placement count negative
+- mission closure eligibility returned from placement state without automatic mission closure
+- bounded commercial eligibility for later invoicing without implementing invoices, accounting, or payroll
+- transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then offer/placement rows where applicable
+- PostgreSQL-backed tests for lifecycle, versioning, idempotency, concurrency, authorization, IDOR, placement counts, and safe audit behavior
+
+Training, documents, optional future client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, commercial accounting, payroll implementation, full structured external feedback, and broader business workflow behavior remain later implementation work.
 
 ### Public Opportunity and Application Surface
 
@@ -217,6 +231,7 @@ The backend should write `AuditLog` records for sensitive or business-critical a
 - commercial-data access
 - workflow state transitions
 - mission assignment changes
+- offer lifecycle, placement confirmation, placement correction, and commercial eligibility changes
 - training enrollment approval, payment status change, session attendance, evaluation, certificate, and follow-up changes
 - message attachment downloads and sensitive conversation membership changes
 - import validation, administrator approval, and import completion

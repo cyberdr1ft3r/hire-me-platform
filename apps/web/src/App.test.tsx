@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './App.js';
 
+const syntheticMissionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
 describe('App', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -720,10 +722,91 @@ describe('App', () => {
 
     expect(await screen.findByText('Public link could not be copied.')).toBeVisible();
   });
+
+  it('hides offer and placement controls from mission users without offer permissions', async () => {
+    mockMissionWorkspace(['missions:view', 'mission_candidates:view']);
+
+    await openMissionWorkspace('Mission Operator');
+
+    expect(screen.queryByRole('region', { name: /offer and placement controls/i })).toBeNull();
+  });
+
+  it('shows read-only offer controls without mutation authority', async () => {
+    mockMissionWorkspace([
+      'missions:view',
+      'mission_candidates:view',
+      'offers:view',
+      'placements:view',
+    ]);
+
+    await openMissionWorkspace('Mission Operator');
+    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
+
+    expect(
+      await screen.findByRole('region', { name: /offer and placement controls/i }),
+    ).toBeVisible();
+    expect(screen.getByText(/current offer: sent - versions 1/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /revise offer/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /confirm placement/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /correct placement/i })).toBeDisabled();
+  });
+
+  it('allows authorized mission users to create and progress offers', async () => {
+    const fetchMock = mockMissionWorkspace([
+      'missions:view',
+      'mission_candidates:view',
+      'offers:view',
+      'offers:create',
+      'offers:send_or_mark_sent',
+      'offers:record_response',
+      'placements:view',
+    ]);
+
+    await openMissionWorkspace('Mission Operator');
+    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /mark sent/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /accepted/i }));
+
+    expect(fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/mark-sent'))).toBe(
+      true,
+    );
+    expect(fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/response'))).toBe(
+      true,
+    );
+    expect(await screen.findByText('Offer response recorded as ACCEPTED.')).toBeVisible();
+  });
+
+  it('requires placement permissions for confirmation and correction controls', async () => {
+    const fetchMock = mockMissionWorkspace([
+      'missions:view',
+      'mission_candidates:view',
+      'offers:view',
+      'placements:view',
+      'placements:confirm',
+      'placements:correct',
+      'placement_commercial_eligibility:view',
+    ]);
+
+    await openMissionWorkspace('Mission Operator');
+    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /confirm placement/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /correct placement/i }));
+
+    expect(
+      fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/confirm-placement')),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/placement/correct')),
+    ).toBe(true);
+    expect(await screen.findByText('Placement correction recorded.')).toBeVisible();
+  });
 });
 
 function mockMissionWorkspace(permissions: string[]) {
   const mission = syntheticMission();
+  const missionCandidate = syntheticMissionCandidate();
+  const offer = syntheticOffer();
+  const placement = syntheticPlacement();
   const publicOpportunity = syntheticPublicOpportunity();
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url = input instanceof Request ? input.url : input.toString();
@@ -769,6 +852,113 @@ function mockMissionWorkspace(permissions: string[]) {
 
     if (url.endsWith(`/v1/missions/${mission.id}`)) {
       return Promise.resolve(jsonResponse({ mission }));
+    }
+
+    if (url.endsWith(`/v1/missions/${mission.id}/candidates`)) {
+      return Promise.resolve(
+        jsonResponse({
+          candidates: [missionCandidate],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (
+      url.endsWith(`/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers`) &&
+      init?.method === 'POST'
+    ) {
+      return Promise.resolve(jsonResponse({ offer }));
+    }
+
+    if (url.endsWith(`/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers`)) {
+      return Promise.resolve(jsonResponse({ offer }));
+    }
+
+    if (
+      url.endsWith(
+        `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/revise`,
+      )
+    ) {
+      return Promise.resolve(
+        jsonResponse({
+          offer: {
+            ...offer,
+            versions: [
+              {
+                ...offer.versions[0],
+                id: '44444444-4444-4444-8444-444444444444',
+                versionNumber: 2,
+                status: 'DRAFT',
+                isCurrent: true,
+              },
+              { ...offer.versions[0], isCurrent: false },
+            ],
+            currentVersionId: '44444444-4444-4444-8444-444444444444',
+          },
+        }),
+      );
+    }
+
+    if (
+      url.endsWith(
+        `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/mark-sent`,
+      )
+    ) {
+      return Promise.resolve(jsonResponse({ offer }));
+    }
+
+    if (
+      url.endsWith(
+        `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/response`,
+      )
+    ) {
+      const update = requestJsonBody(init);
+      return Promise.resolve(
+        jsonResponse({
+          offer: {
+            ...offer,
+            versions: [{ ...offer.versions[0], status: update.status ?? 'ACCEPTED' }],
+          },
+        }),
+      );
+    }
+
+    if (
+      url.endsWith(
+        `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/withdraw`,
+      )
+    ) {
+      return Promise.resolve(
+        jsonResponse({
+          offer: { ...offer, versions: [{ ...offer.versions[0], status: 'WITHDRAWN' }] },
+        }),
+      );
+    }
+
+    if (url.endsWith(`/v1/missions/${mission.id}/candidates/${missionCandidate.id}/placement`)) {
+      return Promise.resolve(jsonResponse({ placement }));
+    }
+
+    if (
+      url.endsWith(
+        `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/confirm-placement`,
+      )
+    ) {
+      return Promise.resolve(jsonResponse({ placement }));
+    }
+
+    if (
+      url.endsWith(`/v1/missions/${mission.id}/candidates/${missionCandidate.id}/placement/correct`)
+    ) {
+      return Promise.resolve(
+        jsonResponse({
+          placement: {
+            ...placement,
+            status: 'CORRECTED',
+            correctionReason: 'ADMINISTRATIVE_ERROR',
+          },
+        }),
+      );
     }
 
     if (url.endsWith(`/v1/missions/${mission.id}/public-opportunity`) && init?.method === 'PATCH') {
@@ -853,6 +1043,122 @@ function syntheticMission() {
     archivedAt: null,
     createdAt: '2026-07-21T10:00:00.000Z',
     updatedAt: '2026-07-21T10:00:00.000Z',
+  };
+}
+
+function syntheticMissionCandidate() {
+  return {
+    id: '99999999-9999-4999-8999-999999999999',
+    missionId: syntheticMissionId,
+    candidateId: '88888888-8888-4888-8888-888888888888',
+    candidate: {
+      id: '88888888-8888-4888-8888-888888888888',
+      displayName: 'Synthetic Candidate',
+      firstName: 'Synthetic',
+      lastName: 'Candidate',
+      email: 'candidate@example.test',
+      normalizedEmail: 'candidate@example.test',
+      phone: null,
+      city: null,
+      country: null,
+      currentJobTitle: null,
+      professionalSummary: null,
+      linkedinUrl: null,
+      status: 'ACTIVE',
+      source: null,
+      sourceDetail: null,
+      availabilityNotice: null,
+      compensation: null,
+      consent: null,
+      archivedAt: null,
+      createdAt: '2026-07-21T10:00:00.000Z',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+    },
+    responsibleRecruiterUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    responsibleRecruiterDisplayName: 'Mission Operator',
+    state: 'CLIENT_OFFER',
+    rank: null,
+    source: 'PUBLIC_APPLICATION',
+    sourceContext: null,
+    priority: 'NORMAL',
+    internalNotes: null,
+    outcomeReason: null,
+    clientVisible: false,
+    presentedAt: null,
+    placementConfirmedAt: null,
+    archivedAt: null,
+    createdAt: '2026-07-21T10:00:00.000Z',
+    updatedAt: '2026-07-21T10:00:00.000Z',
+  };
+}
+
+function syntheticOffer() {
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    missionId: syntheticMissionId,
+    missionCandidateId: '99999999-9999-4999-8999-999999999999',
+    currentVersionId: '22222222-2222-4222-8222-222222222222',
+    versions: [
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        offerId: '11111111-1111-4111-8111-111111111111',
+        missionId: syntheticMissionId,
+        missionCandidateId: '99999999-9999-4999-8999-999999999999',
+        versionNumber: 1,
+        status: 'SENT',
+        isCurrent: true,
+        offeredSalaryAmountCents: 900000,
+        offeredSalaryCurrency: 'MAD',
+        contractType: 'CDI',
+        proposedStartDate: null,
+        probationPeriod: null,
+        bonuses: null,
+        benefits: null,
+        allowances: null,
+        compensationNotes: null,
+        clientFacingRemarks: null,
+        internalRecruiterRemarks: null,
+        sentAt: '2026-07-21T10:00:00.000Z',
+        responseRecordedAt: null,
+        responseReason: null,
+        withdrawnAt: null,
+        withdrawalReason: null,
+        expiresAt: null,
+        expiredAt: null,
+        archivedAt: null,
+        createdAt: '2026-07-21T10:00:00.000Z',
+        updatedAt: '2026-07-21T10:00:00.000Z',
+      },
+    ],
+    history: [],
+    archivedAt: null,
+    createdAt: '2026-07-21T10:00:00.000Z',
+    updatedAt: '2026-07-21T10:00:00.000Z',
+  };
+}
+
+function syntheticPlacement() {
+  return {
+    id: '33333333-3333-4333-8333-333333333333',
+    missionId: syntheticMissionId,
+    missionCandidateId: '99999999-9999-4999-8999-999999999999',
+    offerVersionId: '22222222-2222-4222-8222-222222222222',
+    status: 'CONFIRMED',
+    integrationStartDate: '2026-07-21T10:00:00.000Z',
+    confirmedAt: '2026-07-21T10:00:00.000Z',
+    confirmedByUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    operationalNote: null,
+    eligibleForInvoicing: true,
+    invoicingEligibleAt: '2026-07-21T10:00:00.000Z',
+    correctedAt: null,
+    correctedByUserId: null,
+    correctionReason: null,
+    correctionComment: null,
+    closureEligible: true,
+    archivedAt: null,
+    createdAt: '2026-07-21T10:00:00.000Z',
+    updatedAt: '2026-07-21T10:00:00.000Z',
+    history: [],
   };
 }
 

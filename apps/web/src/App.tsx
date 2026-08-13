@@ -18,6 +18,8 @@ import type {
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
+  MissionPlacement,
+  OfferAggregate,
   InternalPublicApplicationSummary,
   InternalPublicOpportunity,
   PublicOpportunity,
@@ -82,8 +84,13 @@ import {
   updateMissionStatus,
   updateInternalPublicOpportunity,
   closeMission,
+  confirmMissionCandidatePlacement,
   confirmMissionCandidateIntegration,
+  correctMissionCandidatePlacement,
+  createMissionCandidateOffer,
   createMissionCandidate,
+  getMissionCandidateOffers,
+  getMissionCandidatePlacement,
   setMissionLeadRecruiter,
   scheduleInterview,
   submitPublicApplication,
@@ -95,6 +102,10 @@ import {
   rescheduleInterview,
   transferMissionCandidate,
   transitionMissionCandidate,
+  markMissionCandidateOfferSent,
+  recordMissionCandidateOfferResponse,
+  reviseMissionCandidateOffer,
+  withdrawMissionCandidateOffer,
 } from './api.js';
 
 type ApiState =
@@ -1612,6 +1623,12 @@ function MissionsPanel({
   const [missions, setMissions] = useState<MissionSummary[]>([]);
   const [assignments, setAssignments] = useState<MissionAssignmentSummary[]>([]);
   const [candidateProcesses, setCandidateProcesses] = useState<MissionCandidateSummary[]>([]);
+  const [offersByProcessId, setOffersByProcessId] = useState<Record<string, OfferAggregate | null>>(
+    {},
+  );
+  const [placementsByProcessId, setPlacementsByProcessId] = useState<
+    Record<string, MissionPlacement | null>
+  >({});
   const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [activeInterviewId, setActiveInterviewId] = useState<string | null>(null);
@@ -1652,6 +1669,18 @@ function MissionsPanel({
   const canManagePublicOpportunity = permissions.includes('public_opportunities:manage');
   const canPublishPublicOpportunity = permissions.includes('public_opportunities:publish');
   const canViewPublicApplications = permissions.includes('public_applications:view');
+  const canViewOffers = permissions.includes('offers:view');
+  const canCreateOffers = permissions.includes('offers:create');
+  const canUpdateOffers = permissions.includes('offers:update');
+  const canSendOffers = permissions.includes('offers:send_or_mark_sent');
+  const canRecordOfferResponses = permissions.includes('offers:record_response');
+  const canWithdrawOffers = permissions.includes('offers:withdraw');
+  const canViewPlacements = permissions.includes('placements:view');
+  const canConfirmPlacements = permissions.includes('placements:confirm');
+  const canCorrectPlacements = permissions.includes('placements:correct');
+  const canViewPlacementCommercialEligibility = permissions.includes(
+    'placement_commercial_eligibility:view',
+  );
 
   useEffect(() => {
     void loadMissions();
@@ -1677,6 +1706,8 @@ function MissionsPanel({
     setEvaluations([]);
     setPublicOpportunity(null);
     setPublicApplications([]);
+    setOffersByProcessId({});
+    setPlacementsByProcessId({});
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
       setAssignments(assignmentResponse.assignments);
@@ -1915,6 +1946,174 @@ function MissionsPanel({
     await selectMission(selectedMission.id);
     await loadMissions();
     setMessage('Integration confirmed and placement counted once.');
+  }
+
+  async function loadOfferPlacement(processId: string): Promise<void> {
+    if (!selectedMission) {
+      return;
+    }
+    if (canViewOffers) {
+      const offerResponse = await getMissionCandidateOffers(
+        accessToken,
+        selectedMission.id,
+        processId,
+      );
+      setOffersByProcessId((current) => ({ ...current, [processId]: offerResponse.offer }));
+    }
+    if (canViewPlacements) {
+      const placementResponse = await getMissionCandidatePlacement(
+        accessToken,
+        selectedMission.id,
+        processId,
+      );
+      setPlacementsByProcessId((current) => ({
+        ...current,
+        [processId]: placementResponse.placement,
+      }));
+    }
+    setMessage('Offer and placement details loaded.');
+  }
+
+  async function handleCreateOffer(
+    event: FormEvent<HTMLFormElement>,
+    processId: string,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!selectedMission || !canCreateOffers) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const response = await createMissionCandidateOffer(accessToken, selectedMission.id, processId, {
+      offeredSalaryAmountCents: optionalNumber(formData, 'offeredSalaryAmountCents'),
+      offeredSalaryCurrency: optionalFormValue(formData, 'offeredSalaryCurrency'),
+      contractType: optionalFormValue(formData, 'contractType'),
+      proposedStartDate: optionalDateTimeFormValue(formData, 'proposedStartDate') ?? undefined,
+      probationPeriod: optionalFormValue(formData, 'probationPeriod'),
+      clientFacingRemarks: optionalFormValue(formData, 'clientFacingRemarks'),
+      internalRecruiterRemarks: optionalFormValue(formData, 'internalRecruiterRemarks'),
+    });
+    form.reset();
+    setOffersByProcessId((current) => ({ ...current, [processId]: response.offer }));
+    setMessage('Offer draft created.');
+  }
+
+  async function reviseOffer(processId: string, offer: OfferAggregate): Promise<void> {
+    if (!selectedMission || !offer.currentVersionId || !canUpdateOffers) {
+      return;
+    }
+    const currentVersion = offer.versions.find((version) => version.id === offer.currentVersionId);
+    const response = await reviseMissionCandidateOffer(
+      accessToken,
+      selectedMission.id,
+      processId,
+      offer.currentVersionId,
+      {
+        reason: 'Offer revised from the protected mission workspace.',
+        offeredSalaryAmountCents: currentVersion?.offeredSalaryAmountCents ?? undefined,
+        offeredSalaryCurrency: currentVersion?.offeredSalaryCurrency ?? undefined,
+        contractType: currentVersion?.contractType ?? undefined,
+        clientFacingRemarks: currentVersion?.clientFacingRemarks ?? undefined,
+        internalRecruiterRemarks: currentVersion?.internalRecruiterRemarks ?? undefined,
+      },
+    );
+    setOffersByProcessId((current) => ({ ...current, [processId]: response.offer }));
+    setMessage('Offer revised into a new version.');
+  }
+
+  async function markOfferSent(processId: string, offer: OfferAggregate): Promise<void> {
+    if (!selectedMission || !offer.currentVersionId || !canSendOffers) {
+      return;
+    }
+    const response = await markMissionCandidateOfferSent(
+      accessToken,
+      selectedMission.id,
+      processId,
+      offer.currentVersionId,
+      { reason: 'Offer sent by staff.' },
+    );
+    setOffersByProcessId((current) => ({ ...current, [processId]: response.offer }));
+    setMessage('Offer marked as sent.');
+  }
+
+  async function recordOfferResponse(
+    processId: string,
+    offer: OfferAggregate,
+    status: 'NEGOTIATING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED',
+  ): Promise<void> {
+    if (!selectedMission || !offer.currentVersionId || !canRecordOfferResponses) {
+      return;
+    }
+    const response = await recordMissionCandidateOfferResponse(
+      accessToken,
+      selectedMission.id,
+      processId,
+      offer.currentVersionId,
+      {
+        status,
+        reason:
+          status === 'REJECTED'
+            ? 'Candidate rejected the offer.'
+            : `Offer response recorded as ${status}.`,
+      },
+    );
+    setOffersByProcessId((current) => ({ ...current, [processId]: response.offer }));
+    setMessage(`Offer response recorded as ${status}.`);
+  }
+
+  async function withdrawOffer(processId: string, offer: OfferAggregate): Promise<void> {
+    if (!selectedMission || !offer.currentVersionId || !canWithdrawOffers) {
+      return;
+    }
+    const response = await withdrawMissionCandidateOffer(
+      accessToken,
+      selectedMission.id,
+      processId,
+      offer.currentVersionId,
+      { reason: 'Offer withdrawn by staff.' },
+    );
+    setOffersByProcessId((current) => ({ ...current, [processId]: response.offer }));
+    setMessage('Offer withdrawn.');
+  }
+
+  async function confirmPlacement(processId: string, offer: OfferAggregate): Promise<void> {
+    if (!selectedMission || !offer.currentVersionId || !canConfirmPlacements) {
+      return;
+    }
+    const response = await confirmMissionCandidatePlacement(
+      accessToken,
+      selectedMission.id,
+      processId,
+      offer.currentVersionId,
+      {
+        integrationStartDate: new Date().toISOString(),
+        eligibleForInvoicing: false,
+        operationalNote: 'Placement confirmed from the protected mission workspace.',
+      },
+    );
+    await selectMission(selectedMission.id);
+    setPlacementsByProcessId((current) => ({ ...current, [processId]: response.placement }));
+    await loadMissions();
+    setMessage('Placement confirmed from accepted offer.');
+  }
+
+  async function correctPlacement(processId: string): Promise<void> {
+    if (!selectedMission || !canCorrectPlacements) {
+      return;
+    }
+    const response = await correctMissionCandidatePlacement(
+      accessToken,
+      selectedMission.id,
+      processId,
+      {
+        reason: 'ADMINISTRATIVE_ERROR',
+        comment: 'Placement corrected from the protected mission workspace.',
+      },
+    );
+    await selectMission(selectedMission.id);
+    setPlacementsByProcessId((current) => ({ ...current, [processId]: response.placement }));
+    await loadMissions();
+    setMessage('Placement correction recorded.');
   }
 
   async function loadProcessInterviews(processId: string): Promise<void> {
@@ -2624,6 +2823,197 @@ function MissionsPanel({
                           <button type="button" onClick={() => void confirmIntegration(process.id)}>
                             Confirm integration
                           </button>
+                        ) : null}
+                        {canViewOffers || canViewPlacements ? (
+                          <section aria-label="Offer and placement controls">
+                            <h4>Offer and placement</h4>
+                            <button
+                              type="button"
+                              onClick={() => void loadOfferPlacement(process.id)}
+                            >
+                              Load offer and placement
+                            </button>
+                            {canViewOffers ? (
+                              <>
+                                {offersByProcessId[process.id] ? (
+                                  <div>
+                                    <p>
+                                      Current offer:{' '}
+                                      {offersByProcessId[process.id]?.versions.find(
+                                        (version) =>
+                                          version.id ===
+                                          offersByProcessId[process.id]?.currentVersionId,
+                                      )?.status ?? 'none'}{' '}
+                                      - versions {offersByProcessId[process.id]?.versions.length}
+                                    </p>
+                                    <div className="action-row">
+                                      <button
+                                        type="button"
+                                        disabled={!canUpdateOffers}
+                                        onClick={() =>
+                                          void reviseOffer(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                          )
+                                        }
+                                      >
+                                        Revise offer
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canSendOffers}
+                                        onClick={() =>
+                                          void markOfferSent(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                          )
+                                        }
+                                      >
+                                        Mark sent
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canRecordOfferResponses}
+                                        onClick={() =>
+                                          void recordOfferResponse(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                            'NEGOTIATING',
+                                          )
+                                        }
+                                      >
+                                        Negotiating
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canRecordOfferResponses}
+                                        onClick={() =>
+                                          void recordOfferResponse(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                            'ACCEPTED',
+                                          )
+                                        }
+                                      >
+                                        Accepted
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canRecordOfferResponses}
+                                        onClick={() =>
+                                          void recordOfferResponse(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                            'REJECTED',
+                                          )
+                                        }
+                                      >
+                                        Rejected
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canRecordOfferResponses}
+                                        onClick={() =>
+                                          void recordOfferResponse(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                            'EXPIRED',
+                                          )
+                                        }
+                                      >
+                                        Expired
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canWithdrawOffers}
+                                        onClick={() =>
+                                          void withdrawOffer(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                          )
+                                        }
+                                      >
+                                        Withdraw
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!canConfirmPlacements}
+                                        onClick={() =>
+                                          void confirmPlacement(
+                                            process.id,
+                                            offersByProcessId[process.id]!,
+                                          )
+                                        }
+                                      >
+                                        Confirm placement
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : canCreateOffers ? (
+                                  <form
+                                    className="inline-form"
+                                    aria-label="Create offer draft"
+                                    onSubmit={(event) => void handleCreateOffer(event, process.id)}
+                                  >
+                                    <input
+                                      name="offeredSalaryAmountCents"
+                                      type="number"
+                                      min="0"
+                                      placeholder="Salary cents"
+                                    />
+                                    <input
+                                      name="offeredSalaryCurrency"
+                                      placeholder="Currency"
+                                      defaultValue="MAD"
+                                    />
+                                    <input name="contractType" placeholder="Contract type" />
+                                    <input
+                                      name="proposedStartDate"
+                                      type="datetime-local"
+                                      aria-label="Proposed start date"
+                                    />
+                                    <input name="probationPeriod" placeholder="Probation" />
+                                    <input
+                                      name="clientFacingRemarks"
+                                      placeholder="Client-facing remarks"
+                                    />
+                                    <input
+                                      name="internalRecruiterRemarks"
+                                      placeholder="Internal remarks"
+                                    />
+                                    <button type="submit">Create offer draft</button>
+                                  </form>
+                                ) : (
+                                  <p>No offer loaded for this process.</p>
+                                )}
+                              </>
+                            ) : null}
+                            {canViewPlacements ? (
+                              <div>
+                                <p>
+                                  Placement:{' '}
+                                  {placementsByProcessId[process.id]?.status ?? 'not confirmed'}
+                                  {placementsByProcessId[process.id]?.closureEligible
+                                    ? ' - closure eligible'
+                                    : ''}
+                                  {canViewPlacementCommercialEligibility &&
+                                  placementsByProcessId[process.id]?.eligibleForInvoicing
+                                    ? ' - invoicing eligible'
+                                    : ''}
+                                </p>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    !canCorrectPlacements ||
+                                    placementsByProcessId[process.id]?.status !== 'CONFIRMED'
+                                  }
+                                  onClick={() => void correctPlacement(process.id)}
+                                >
+                                  Correct placement
+                                </button>
+                              </div>
+                            ) : null}
+                          </section>
                         ) : null}
                         {canTransferProcesses ? (
                           <form

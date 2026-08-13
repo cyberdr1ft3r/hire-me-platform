@@ -1,21 +1,21 @@
 # Current Agent Handoff
 
-Last updated: 2026-07-29
+Last updated: 2026-08-13
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, and #25 are complete and merged on `main`.
-- Issue #27 is implemented on branch `feat/public-applications` in draft PR #28, with corrective commits pushed and GitHub Actions run `30444387092` passing.
-- This branch adds the first public opportunity and unauthenticated candidate application implementation. Keep remaining changes inside Issue #27 and PR #28.
-- The PR #28 blocking review correction adds protected mission-workspace controls for public opportunity configuration and public application inspection, plus the latest copy-link and server-side publish-authorization regression fixes.
+- Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, #25, and #27 are complete and merged on `main`.
+- Issue #29 is active on branch `feat/offer-placement-lifecycle`.
+- This branch adds the internal offer-to-placement lifecycle only: versioned staff-managed offers, negotiation outcomes, explicit placement confirmation, placement correction, mission fill/closure eligibility, and bounded commercial eligibility for future invoicing.
+- The implementation must not add candidate accounts, public offer acceptance, payroll, invoice/accounting implementation, or unrelated business modules.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
 - PR #26 blocking comment correction reconciles D-027 with D-037: D-027 now governs staff-controlled external client sharing and no longer assumes a client portal.
 
 ## Next Action
 
-Complete final review for draft PR #28 and merge it when approved.
+Push `feat/offer-placement-lifecycle`, open a draft PR that closes #29, confirm GitHub Actions, and keep it unmerged.
 
 Check especially:
 
@@ -32,7 +32,14 @@ Check especially:
 - Task management remains planned but not implemented.
 - Commercial and operational accounting is in scope, while full legal accounting, general ledger, tax declarations, and bank reconciliation remain unresolved.
 - Business records remain structured source-of-truth data; files/documents are uploaded, signed, archived, or generated representations.
-- Public opportunity foundation is now the active implementation branch; offers/placements and task management remain later separate issues.
+- Public opportunity foundation is merged. Offers/placements are now the active implementation scope. Task management, accounting, training, client portal, and Moroccan payroll implementation remain later separate issues.
+- Offer acceptance must not increment `filledPlacementCount`; placement counts only after explicit authorized confirmation.
+- Placement confirmation must be idempotent and concurrency-safe.
+- Revised offers create immutable new versions, with one current active version per mission-candidate process.
+- Placement correction requires a reason, preserves original confirmation metadata, decrements at most once, and never makes count negative.
+- Reaching capacity makes the mission closure-eligible but never closes it automatically; managers can keep recruiting.
+- Confirmed placements may be flagged eligible for future invoicing, but invoices/accounting are out of scope.
+- Complete Moroccan payroll is a confirmed future requirement to document only in this issue.
 - Earlier failed workflow run `30005337078` failed in `mission-candidates.integration.test.ts`, not `public-applications.integration.test.ts`: the archival race test expected `409` and received `201`. That test passed locally on the corrective tree, and GitHub Actions run `30444387092` is green on the current PR #28 head.
 
 ## Verification Notes
@@ -87,6 +94,22 @@ Completed so far for the PR #28 blocking-review correction:
 - Focused validation passed: `pnpm.cmd test:db` with 70 PostgreSQL tests, `pnpm.cmd --filter @hire-me/web test` with 13 web tests, package-level typecheck/lint/test/build fallbacks after root Turbo commands hit the known Windows `spawn UNKNOWN` issue, and `git diff --check`.
 - GitHub Actions run `30444387092` passed PostgreSQL Docker Compose health, database migration/seed/integration tests, and quality checks.
 - PostgreSQL validation passed after Docker Desktop was unpaused: container healthy, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice, and `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing.
+
+Completed so far for Issue #29:
+
+- Prisma schema and additive migration for offer aggregates, immutable offer versions, offer events, placement records, and placement events.
+- Shared Prisma-independent contracts for offer and placement lifecycle requests/responses.
+- API-owned generated-client boundary updated for new enums.
+- Permission catalog and seed additions for offer and placement operations.
+- Nested mission-candidate offer and placement endpoints with server-side permission checks, process ownership checks, safe audit metadata, and mission/process/candidate row locking.
+- Minimal protected mission-workspace controls and focused web tests for permission-gated offer and placement actions.
+- Local validation passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 75 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
+- Root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
+
+Still required before handoff completion:
+
+- Review final diff for unrelated changes.
+- Commit, push, open a draft PR with `Closes #29`, and report CI status.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

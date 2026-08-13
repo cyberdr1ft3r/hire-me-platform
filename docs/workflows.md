@@ -103,6 +103,50 @@ All other transitions must follow the standard pipeline or approved exceptional/
 
 Integration confirmation is idempotent. The first successful confirmation records the timestamp, confirmer, process event, safe audit event, and one placement-count increment. Retrying the same confirmation returns the already-confirmed process without changing placement count, confirmation metadata, process-event history, or audit history.
 
+## Offer and Placement Workflow
+
+Offer and placement records are internal staff-controlled business records. Candidates do not have accounts, dashboards, or public offer-acceptance actions in this workflow. Hire Me staff records negotiation outcomes from controlled internal screens.
+
+An offer belongs to exactly one `MissionCandidate`. Revisions create new immutable versions and preserve the prior version history. Only one current active offer version can exist for a process at a time.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SENT: mark sent
+    DRAFT --> WITHDRAWN: withdraw
+    SENT --> NEGOTIATING: record negotiation
+    SENT --> ACCEPTED: record acceptance
+    SENT --> REJECTED: record rejection with reason
+    SENT --> EXPIRED: expire
+    SENT --> WITHDRAWN: withdraw
+    NEGOTIATING --> ACCEPTED: record acceptance
+    NEGOTIATING --> REJECTED: record rejection with reason
+    NEGOTIATING --> EXPIRED: expire
+    NEGOTIATING --> WITHDRAWN: withdraw
+    ACCEPTED --> WITHDRAWN: withdraw before placement
+    REJECTED --> ARCHIVED
+    EXPIRED --> ARCHIVED
+    WITHDRAWN --> ARCHIVED
+    ARCHIVED --> [*]
+```
+
+Placement confirmation is separate from offer acceptance:
+
+- `ACCEPTED` records the candidate or client-side offer outcome but does not increment `filledPlacementCount`.
+- Placement confirmation requires the current accepted offer version and an authorized internal actor.
+- The first confirmation creates `MissionPlacement`, records integration metadata, increments `filledPlacementCount` once, and can mark the placement eligible for future invoicing.
+- Repeated or concurrent confirmation is a no-op after the first successful write and must not create duplicate placement, process, or audit history.
+- Placement correction requires a structured reason, preserves the original confirmation timestamp and confirmer, decrements `filledPlacementCount` at most once, removes commercial eligibility when present, and cannot make the count negative.
+- Reaching mission capacity makes the mission eligible for closure but never closes it automatically. Managers can keep recruiting after capacity is reached.
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_PLACED
+    NOT_PLACED --> CONFIRMED: confirm current accepted offer
+    CONFIRMED --> CORRECTED: correct with reason
+    CORRECTED --> [*]
+```
+
 ### Valid Transitions
 
 ```mermaid

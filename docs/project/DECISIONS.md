@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-23
+Last updated: 2026-08-13
 
 Use this log for accepted project-level decisions. Detailed architectural decisions may later be promoted into individual ADR files. Do not record unresolved ideas as accepted decisions.
 
@@ -49,6 +49,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-041 | 2026-07-23 | Accepted | Public application file uploads are private `CandidateDocumentVersion` records with a `PublicCandidateApplicationFile` trace record linking the exact version to the candidate, opportunity, submission, mission, and mission-candidate process. CV submissions reuse the candidate's active logical CV document and append a new version; supporting files create their own traceable candidate-file version. | Required by issue #27 CV/file history preservation requirements. |
 | D-042 | 2026-07-23 | Accepted | Public submissions match candidates deterministically by normalized email only. Matching reuses active candidates, never silently merges by phone, never silently reactivates archived candidates, and still relies on the permanent `(missionId, candidateId)` mission-candidate uniqueness rule. | Required by issue #27 candidate matching requirements. |
 | D-043 | 2026-07-23 | Accepted | The first public upload transport accepts file input through shared JSON DTOs with base64 content, server-side size and MIME/signature validation, private storage keys, and a malware-scanning extension boundary. Production storage provider and malware scanner selection remain unresolved technical choices. | Required by issue #27 while preserving the API-owned storage boundary. |
+| D-044 | 2026-08-13 | Accepted | Internal offer acceptance, placement confirmation, placement correction, and commercial eligibility are separate staff-controlled actions. Offer acceptance does not increment mission placement count; explicit placement confirmation increments at most once; correction decrements at most once without overwriting original confirmation; capacity only makes closure eligible. | Required by issue #29 offer-to-placement lifecycle and protects later invoicing/payroll/accounting sequencing. |
 
 ## Decision protocol
 

@@ -90,7 +90,7 @@ Centralized and versioned storage and generation are in scope for:
 
 Commercial records such as quotations, contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and profitability records are structured business data first. They become documents only when there is an uploaded, signed, archived, or generated file representation requiring storage, download, versioning, approval, signature, or archival.
 
-Invoice document generation and operational payment tracking are in scope. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, balance sheet, payroll-calculation engine, and subscription billing engine are unresolved and must not be assumed.
+Invoice document generation and operational payment tracking are in scope. A complete Moroccan payroll requirement is confirmed for future product planning, including country-specific payroll calculations and statutory outputs, but it is not part of Issue #29. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, balance sheet, payroll-calculation engine, and subscription billing engine remain unresolved implementation scopes and must not be assumed until separately approved.
 
 Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output where applicable.
 
@@ -129,11 +129,12 @@ The recommended sequence is:
 7. Task management, reminders, notifications, dashboard metrics, search, reports, and exports.
 8. Document generation and versioned storage for commercial, HR, candidate, interview, and training files.
 9. Commercial and operational accounting.
-10. Training and coaching workflows with `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation`.
-11. Optional future client portal and controlled external sharing, only after a separate approved issue.
-12. Internal messaging and discussion groups.
-13. Data migration, import validation, duplicate detection, and administrator approval flows.
-14. Confirmed external integrations, sequenced by business priority and implementation risk.
+10. Complete Moroccan payroll, sequenced as its own later issue after payroll requirements and legal-accounting boundaries are approved.
+11. Training and coaching workflows with `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation`.
+12. Optional future client portal and controlled external sharing, only after a separate approved issue.
+13. Internal messaging and discussion groups.
+14. Data migration, import validation, duplicate detection, and administrator approval flows.
+15. Confirmed external integrations, sequenced by business priority and implementation risk.
 
 ## Main Recruitment Workflow
 

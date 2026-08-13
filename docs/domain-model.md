@@ -186,7 +186,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 
 - Purpose and owner: association between a candidate and a recruitment mission; owned by recruitment operations.
 - Important attributes: id, candidate id, mission id, responsible recruiter user id, candidate pipeline state, rank, source, source context, priority, internal notes, outcome reason, client visibility flag, presented date, placement confirmation date.
-- Relationships: belongs to one reusable `Candidate`, one `RecruitmentMission`, and exactly one responsible internal recruiter at a time; has auditable process events and can later have interviews, evaluations, tasks, notifications, and actual uploaded or generated documents.
+- Relationships: belongs to one reusable `Candidate`, one `RecruitmentMission`, and exactly one responsible internal recruiter at a time; has auditable process events and can have interviews, evaluations, offers, placement confirmation, tasks, notifications, and actual uploaded or generated documents.
 - Cardinality: one candidate can be linked to many missions; one mission can include many candidates; one `(missionId, candidateId)` pair can have only one process ever.
 - Lifecycle: follows the candidate pipeline in `docs/workflows.md`, from `new` through closure or exceptional outcome states.
 - Sensitive fields: status history, internal notes, outcome reasons, client feedback, salary and offer details, and live candidate compensation or consent fields joined from `Candidate`.
@@ -196,6 +196,41 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Audit requirements: process creation, pipeline transitions, optional skips, responsible recruiter transfer, client presentation, integration confirmation, outcome recording, and sensitive access should be audited.
 
 `clientVisible` and similar terms mean approved for external sharing. They do not imply a currently implemented client portal.
+
+### RecruitmentOffer
+
+- Purpose and owner: staff-managed offer aggregate for one mission-candidate process; owned by recruitment operations.
+- Important attributes: id, mission id, mission-candidate id, current version reference, archival timestamp, creator/updater metadata.
+- Relationships: belongs to one `RecruitmentMission` and one `MissionCandidate`; has many immutable `RecruitmentOfferVersion` records and many `OfferEvent` history records.
+- Cardinality: one mission-candidate process can have zero or one offer aggregate; one offer aggregate can have many versions.
+- Lifecycle: the aggregate is retained while versions carry draft, sent, negotiating, accepted, rejected, expired, withdrawn, and archived states.
+- Sensitive fields: salary, compensation notes, benefits, allowances, client-facing remarks before approval, internal recruiter remarks, and negotiation history.
+- Uniqueness rules: one offer aggregate per mission-candidate process; version numbers are unique within one offer.
+- Audit requirements: offer creation, revision, sent status, response recording, withdrawal, expiry, archival, and sensitive access should be audited with safe metadata that excludes salary and confidential notes.
+
+### RecruitmentOfferVersion
+
+- Purpose and owner: immutable version of an offer proposal; owned by recruitment operations.
+- Important attributes: id, offer id, version number, status, current flag, salary amount/currency, contract type, proposed start date, probation period, bonuses, benefits, allowances, compensation notes, client-facing remarks, internal remarks, sent/response/withdrawal/expiry metadata.
+- Relationships: belongs to one `RecruitmentOffer`, one `RecruitmentMission`, and one `MissionCandidate`; can be the source for one confirmed `MissionPlacement`.
+- Cardinality: one offer has many versions; only one current active version can exist at a time.
+- Lifecycle: draft, sent, negotiating, accepted, rejected, expired, withdrawn, archived.
+- Sensitive fields: all salary, compensation, negotiation, and internal remarks fields.
+- Uniqueness rules: a revised offer creates a new version and never overwrites earlier versions; database constraints enforce one current active version.
+- Audit requirements: version lifecycle events are retained as structured `OfferEvent` records and safe audit summaries.
+
+### MissionPlacement
+
+- Purpose and owner: explicit staff confirmation that an accepted offer became a counted placement; owned by recruitment operations.
+- Important attributes: id, mission id, mission-candidate id, offer-version id, status, integration start date, confirmer, confirmed timestamp, operational note, commercial eligibility for later invoicing, correction reason/comment, correction actor/timestamp.
+- Relationships: belongs to one `RecruitmentMission`, one `MissionCandidate`, and one accepted current `RecruitmentOfferVersion`; has many `PlacementEvent` history records.
+- Cardinality: one mission-candidate process can have zero or one placement; one accepted offer version can back zero or one placement.
+- Lifecycle: confirmed, corrected, archived.
+- Sensitive fields: operational notes, commercial eligibility, correction rationale, salary or compensation context reached through the offer version.
+- Counting rules: offer acceptance alone does not increment `filledPlacementCount`. The first authorized confirmation increments placement count once. Repeated confirmation returns the existing placement without another count, event, audit entry, or metadata overwrite. Correction decrements at most once and cannot take the count below zero.
+- Closure rules: reaching `numberOfPositions` makes the mission eligible for closure but never closes it automatically. Managers can keep recruiting after capacity is reached.
+- Commercial rules: confirmed placements can be marked eligible for later invoicing, but invoices, accounting, and payroll are separate future modules.
+- Audit requirements: confirmation, correction, and commercial-eligibility changes must be audited without salary or confidential notes in audit metadata.
 
 ### PublicOpportunity
 

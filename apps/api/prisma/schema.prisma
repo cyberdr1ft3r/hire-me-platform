@@ -211,6 +211,46 @@ enum MissionCandidateEventAction {
   OUTCOME_RECORDED                  @map("outcome_recorded")
 }
 
+enum OfferStatus {
+  DRAFT       @map("draft")
+  SENT        @map("sent")
+  NEGOTIATING @map("negotiating")
+  ACCEPTED    @map("accepted")
+  REJECTED    @map("rejected")
+  EXPIRED     @map("expired")
+  WITHDRAWN   @map("withdrawn")
+  ARCHIVED    @map("archived")
+}
+
+enum OfferEventAction {
+  CREATED           @map("created")
+  REVISED           @map("revised")
+  MARKED_SENT       @map("marked_sent")
+  RESPONSE_RECORDED @map("response_recorded")
+  WITHDRAWN         @map("withdrawn")
+  EXPIRED           @map("expired")
+  ARCHIVED          @map("archived")
+}
+
+enum PlacementStatus {
+  CONFIRMED @map("confirmed")
+  CORRECTED @map("corrected")
+}
+
+enum PlacementEventAction {
+  CONFIRMED                      @map("confirmed")
+  CORRECTED                      @map("corrected")
+  COMMERCIAL_ELIGIBILITY_CREATED @map("commercial_eligibility_created")
+  COMMERCIAL_ELIGIBILITY_REMOVED @map("commercial_eligibility_removed")
+}
+
+enum PlacementCorrectionReason {
+  PROBATION_FAILED     @map("probation_failed")
+  ADMINISTRATIVE_ERROR @map("administrative_error")
+  CANCELED_INTEGRATION @map("canceled_integration")
+  OTHER                @map("other")
+}
+
 enum InterviewType {
   HR                  @map("hr")
   TECHNICAL           @map("technical")
@@ -246,13 +286,13 @@ enum InterviewParticipantStatus {
 }
 
 enum InterviewEventAction {
-  SCHEDULED         @map("scheduled")
-  RESCHEDULED       @map("rescheduled")
-  POSTPONED         @map("postponed")
-  COMPLETED         @map("completed")
-  CANCELED          @map("canceled")
-  ARCHIVED          @map("archived")
-  PARTICIPANT_ADDED @map("participant_added")
+  SCHEDULED           @map("scheduled")
+  RESCHEDULED         @map("rescheduled")
+  POSTPONED           @map("postponed")
+  COMPLETED           @map("completed")
+  CANCELED            @map("canceled")
+  ARCHIVED            @map("archived")
+  PARTICIPANT_ADDED   @map("participant_added")
   PARTICIPANT_REMOVED @map("participant_removed")
 }
 
@@ -439,6 +479,17 @@ model User {
   presentedMissionCandidates          MissionCandidate[]         @relation("MissionCandidatePresenter")
   placementConfirmedMissionCandidates MissionCandidate[]         @relation("MissionCandidatePlacementConfirmer")
   missionCandidateEvents              MissionCandidateEvent[]    @relation("MissionCandidateEventActor")
+  createdOffers                       RecruitmentOffer[]         @relation("RecruitmentOfferCreator")
+  updatedOffers                       RecruitmentOffer[]         @relation("RecruitmentOfferUpdater")
+  createdOfferVersions                RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionCreator")
+  updatedOfferVersions                RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionUpdater")
+  sentOfferVersions                   RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionSender")
+  respondedOfferVersions              RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionResponder")
+  withdrawnOfferVersions              RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionWithdrawer")
+  offerEvents                         OfferEvent[]               @relation("OfferEventActor")
+  confirmedPlacements                 MissionPlacement[]         @relation("MissionPlacementConfirmer")
+  correctedPlacements                 MissionPlacement[]         @relation("MissionPlacementCorrector")
+  placementEvents                     PlacementEvent[]           @relation("PlacementEventActor")
   organizedInterviews                 Interview[]                @relation("InterviewOrganizer")
   interviewParticipants               InterviewParticipant[]     @relation("InterviewParticipantUser")
   interviewEvents                     InterviewEvent[]           @relation("InterviewEventActor")
@@ -609,11 +660,11 @@ model ClientContact {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  client                Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  user                  User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
   interviewParticipants InterviewParticipant[] @relation("InterviewParticipantClientContact")
-  trainingEnrollments TrainingEnrollment[] @relation("ClientContactTrainingEnrollment")
-  tasks               Task[]
+  trainingEnrollments   TrainingEnrollment[]   @relation("ClientContactTrainingEnrollment")
+  tasks                 Task[]
 
   @@unique([clientId, normalizedEmail])
   @@index([clientId])
@@ -646,17 +697,17 @@ model Candidate {
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
-  documents           CandidateDocument[]
-  skills              CandidateSkill[]
-  languages           CandidateLanguage[]
-  workExperiences     CandidateWorkExperience[]
-  education           CandidateEducation[]
-  missionCandidates   MissionCandidate[]
-  documentsReferenced Document[]
-  publicApplications   PublicCandidateApplication[]
+  documents              CandidateDocument[]
+  skills                 CandidateSkill[]
+  languages              CandidateLanguage[]
+  workExperiences        CandidateWorkExperience[]
+  education              CandidateEducation[]
+  missionCandidates      MissionCandidate[]
+  documentsReferenced    Document[]
+  publicApplications     PublicCandidateApplication[]
   publicApplicationFiles PublicCandidateApplicationFile[]
-  trainingEnrollments TrainingEnrollment[]      @relation("CandidateTrainingEnrollment")
-  tasks               Task[]
+  trainingEnrollments    TrainingEnrollment[]             @relation("CandidateTrainingEnrollment")
+  tasks                  Task[]
 
   @@unique([normalizedEmail])
   @@index([status])
@@ -777,9 +828,9 @@ model CandidateDocumentVersion {
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
 
-  candidateDocument CandidateDocument  @relation("CandidateDocumentVersions", fields: [candidateDocumentId], references: [id], onDelete: Restrict)
-  currentFor        CandidateDocument? @relation("CurrentCandidateDocumentVersion")
-  createdBy         User?              @relation("CandidateDocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  candidateDocument      CandidateDocument                @relation("CandidateDocumentVersions", fields: [candidateDocumentId], references: [id], onDelete: Restrict)
+  currentFor             CandidateDocument?               @relation("CurrentCandidateDocumentVersion")
+  createdBy              User?                            @relation("CandidateDocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   publicApplicationFiles PublicCandidateApplicationFile[]
 
   @@unique([candidateDocumentId, versionNumber])
@@ -788,36 +839,36 @@ model CandidateDocumentVersion {
 }
 
 model PublicOpportunity {
-  id                         String                  @id @default(uuid()) @db.Uuid
-  missionId                  String                  @unique @db.Uuid
-  status                     PublicOpportunityStatus @default(DRAFT)
-  applicationLinkEnabled     Boolean                 @default(false)
-  listedOnWebsite            Boolean                 @default(false)
-  publicSlug                 String                  @unique
-  publicationStartsAt        DateTime?
-  applicationDeadline        DateTime?
-  publicTitle                String
-  publicSummary              String?
-  publicDescription          String?
-  publicLocation             String?
-  publicWorkArrangement      String?
-  publicEngagementType       String?
-  publicExperienceLevel      String?
-  publicSkills               String?
-  showClientName             Boolean                 @default(false)
-  showSalary                 Boolean                 @default(false)
-  cvRequired                 Boolean                 @default(true)
-  certificationsEnabled      Boolean                 @default(true)
-  certificationsRequired     Boolean                 @default(false)
-  diplomasEnabled            Boolean                 @default(true)
-  diplomasRequired           Boolean                 @default(false)
-  additionalAttachmentsEnabled Boolean               @default(false)
-  consentTextVersion         String                  @default("public-application-consent-v1")
-  archivedAt                 DateTime?
-  createdAt                  DateTime                @default(now())
-  updatedAt                  DateTime                @updatedAt
+  id                           String                  @id @default(uuid()) @db.Uuid
+  missionId                    String                  @unique @db.Uuid
+  status                       PublicOpportunityStatus @default(DRAFT)
+  applicationLinkEnabled       Boolean                 @default(false)
+  listedOnWebsite              Boolean                 @default(false)
+  publicSlug                   String                  @unique
+  publicationStartsAt          DateTime?
+  applicationDeadline          DateTime?
+  publicTitle                  String
+  publicSummary                String?
+  publicDescription            String?
+  publicLocation               String?
+  publicWorkArrangement        String?
+  publicEngagementType         String?
+  publicExperienceLevel        String?
+  publicSkills                 String?
+  showClientName               Boolean                 @default(false)
+  showSalary                   Boolean                 @default(false)
+  cvRequired                   Boolean                 @default(true)
+  certificationsEnabled        Boolean                 @default(true)
+  certificationsRequired       Boolean                 @default(false)
+  diplomasEnabled              Boolean                 @default(true)
+  diplomasRequired             Boolean                 @default(false)
+  additionalAttachmentsEnabled Boolean                 @default(false)
+  consentTextVersion           String                  @default("public-application-consent-v1")
+  archivedAt                   DateTime?
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
 
-  mission      RecruitmentMission          @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  mission      RecruitmentMission               @relation(fields: [missionId], references: [id], onDelete: Restrict)
   applications PublicCandidateApplication[]
   files        PublicCandidateApplicationFile[]
 
@@ -830,41 +881,41 @@ model PublicOpportunity {
 }
 
 model PublicCandidateApplication {
-  id                         String                  @id @default(uuid()) @db.Uuid
-  publicOpportunityId        String                  @db.Uuid
-  missionId                  String                  @db.Uuid
-  candidateId                String                  @db.Uuid
-  missionCandidateId         String                  @unique @db.Uuid
-  status                     PublicApplicationStatus @default(SUBMITTED)
-  submittedFullName          String
-  submittedEmail             String
-  submittedNormalizedEmail   String
-  submittedPhone             String?
-  submittedNormalizedPhone   String?
-  submittedCity              String?
-  submittedCountry           String?
-  submittedCurrentPosition   String?
-  submittedExperienceYears   Int?
-  submittedSkills            String?
-  submittedLanguages         String?
-  submittedAvailability      String?
-  submittedSalaryExpectationCents Int?
+  id                                 String                  @id @default(uuid()) @db.Uuid
+  publicOpportunityId                String                  @db.Uuid
+  missionId                          String                  @db.Uuid
+  candidateId                        String                  @db.Uuid
+  missionCandidateId                 String                  @unique @db.Uuid
+  status                             PublicApplicationStatus @default(SUBMITTED)
+  submittedFullName                  String
+  submittedEmail                     String
+  submittedNormalizedEmail           String
+  submittedPhone                     String?
+  submittedNormalizedPhone           String?
+  submittedCity                      String?
+  submittedCountry                   String?
+  submittedCurrentPosition           String?
+  submittedExperienceYears           Int?
+  submittedSkills                    String?
+  submittedLanguages                 String?
+  submittedAvailability              String?
+  submittedSalaryExpectationCents    Int?
   submittedSalaryExpectationCurrency String?
-  submittedProfessionalLinks String?
-  submittedMotivation        String?
-  consentGranted             Boolean
-  consentTextVersion         String
-  submittedAt                DateTime                @default(now())
-  sourceIpHash               String?
-  userAgentHash              String?
-  archivedAt                 DateTime?
-  createdAt                  DateTime                @default(now())
-  updatedAt                  DateTime                @updatedAt
+  submittedProfessionalLinks         String?
+  submittedMotivation                String?
+  consentGranted                     Boolean
+  consentTextVersion                 String
+  submittedAt                        DateTime                @default(now())
+  sourceIpHash                       String?
+  userAgentHash                      String?
+  archivedAt                         DateTime?
+  createdAt                          DateTime                @default(now())
+  updatedAt                          DateTime                @updatedAt
 
-  publicOpportunity PublicOpportunity             @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
-  mission           RecruitmentMission            @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  candidate         Candidate                     @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  missionCandidate  MissionCandidate              @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  publicOpportunity PublicOpportunity                @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
+  mission           RecruitmentMission               @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidate         Candidate                        @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  missionCandidate  MissionCandidate                 @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
   files             PublicCandidateApplicationFile[]
 
   @@unique([publicOpportunityId, submittedNormalizedEmail])
@@ -875,28 +926,28 @@ model PublicCandidateApplication {
 }
 
 model PublicCandidateApplicationFile {
-  id                         String                        @id @default(uuid()) @db.Uuid
-  publicCandidateApplicationId String                       @db.Uuid
-  publicOpportunityId        String                        @db.Uuid
-  missionId                  String                        @db.Uuid
-  missionCandidateId         String                        @db.Uuid
-  candidateId                String                        @db.Uuid
-  candidateDocumentVersionId String                        @unique @db.Uuid
-  category                   PublicApplicationFileCategory
-  originalFilename           String
-  sanitizedFilename          String
-  mimeType                   String
-  sizeBytes                  BigInt
-  storageKey                 String
-  createdAt                  DateTime                      @default(now())
-  updatedAt                  DateTime                      @updatedAt
+  id                           String                        @id @default(uuid()) @db.Uuid
+  publicCandidateApplicationId String                        @db.Uuid
+  publicOpportunityId          String                        @db.Uuid
+  missionId                    String                        @db.Uuid
+  missionCandidateId           String                        @db.Uuid
+  candidateId                  String                        @db.Uuid
+  candidateDocumentVersionId   String                        @unique @db.Uuid
+  category                     PublicApplicationFileCategory
+  originalFilename             String
+  sanitizedFilename            String
+  mimeType                     String
+  sizeBytes                    BigInt
+  storageKey                   String
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
 
   application              PublicCandidateApplication @relation(fields: [publicCandidateApplicationId], references: [id], onDelete: Restrict)
-  publicOpportunity        PublicOpportunity           @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
-  mission                  RecruitmentMission          @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  missionCandidate         MissionCandidate            @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
-  candidate                Candidate                   @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  candidateDocumentVersion CandidateDocumentVersion    @relation(fields: [candidateDocumentVersionId], references: [id], onDelete: Restrict)
+  publicOpportunity        PublicOpportunity          @relation(fields: [publicOpportunityId], references: [id], onDelete: Restrict)
+  mission                  RecruitmentMission         @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  missionCandidate         MissionCandidate           @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  candidate                Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  candidateDocumentVersion CandidateDocumentVersion   @relation(fields: [candidateDocumentVersionId], references: [id], onDelete: Restrict)
 
   @@index([publicCandidateApplicationId])
   @@index([publicOpportunityId])
@@ -932,15 +983,18 @@ model RecruitmentMission {
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
 
-  client            Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  recruiters        MissionRecruiter[]
-  missionCandidates MissionCandidate[]
-  publicOpportunity PublicOpportunity?
-  publicApplications PublicCandidateApplication[]
+  client                 Client                           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruiters             MissionRecruiter[]
+  missionCandidates      MissionCandidate[]
+  offers                 RecruitmentOffer[]
+  offerVersions          RecruitmentOfferVersion[]
+  placements             MissionPlacement[]
+  publicOpportunity      PublicOpportunity?
+  publicApplications     PublicCandidateApplication[]
   publicApplicationFiles PublicCandidateApplicationFile[]
-  documents         Document[]
-  tasks             Task[]
-  notifications     Notification[]
+  documents              Document[]
+  tasks                  Task[]
+  notifications          Notification[]
 
   @@index([clientId])
   @@index([state])
@@ -992,19 +1046,22 @@ model MissionCandidate {
   createdAt                  DateTime              @default(now())
   updatedAt                  DateTime              @updatedAt
 
-  mission              RecruitmentMission      @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  candidate            Candidate               @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  responsibleRecruiter User                    @relation("MissionCandidateResponsibleRecruiter", fields: [responsibleRecruiterUserId], references: [id], onDelete: Restrict)
-  presentedBy          User?                   @relation("MissionCandidatePresenter", fields: [presentedByUserId], references: [id], onDelete: SetNull)
-  placementConfirmedBy User?                   @relation("MissionCandidatePlacementConfirmer", fields: [placementConfirmedByUserId], references: [id], onDelete: SetNull)
-  events               MissionCandidateEvent[]
-  interviews           Interview[]
-  evaluations          CandidateEvaluation[]
-  publicApplication     PublicCandidateApplication?
+  mission                RecruitmentMission               @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidate              Candidate                        @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  responsibleRecruiter   User                             @relation("MissionCandidateResponsibleRecruiter", fields: [responsibleRecruiterUserId], references: [id], onDelete: Restrict)
+  presentedBy            User?                            @relation("MissionCandidatePresenter", fields: [presentedByUserId], references: [id], onDelete: SetNull)
+  placementConfirmedBy   User?                            @relation("MissionCandidatePlacementConfirmer", fields: [placementConfirmedByUserId], references: [id], onDelete: SetNull)
+  offers                 RecruitmentOffer[]
+  offerVersions          RecruitmentOfferVersion[]
+  placement              MissionPlacement?
+  events                 MissionCandidateEvent[]
+  interviews             Interview[]
+  evaluations            CandidateEvaluation[]
+  publicApplication      PublicCandidateApplication?
   publicApplicationFiles PublicCandidateApplicationFile[]
-  documents            Document[]
-  tasks                Task[]
-  notifications        Notification[]
+  documents              Document[]
+  tasks                  Task[]
+  notifications          Notification[]
 
   @@unique([missionId, candidateId])
   @@index([candidateId])
@@ -1013,6 +1070,171 @@ model MissionCandidate {
   @@index([state])
   @@index([clientVisible])
   @@index([presentedAt])
+}
+
+model RecruitmentOffer {
+  id                 String    @id @default(uuid()) @db.Uuid
+  missionId          String    @db.Uuid
+  missionCandidateId String    @db.Uuid
+  createdByUserId    String?   @db.Uuid
+  updatedByUserId    String?   @db.Uuid
+  archivedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  mission          RecruitmentMission        @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  missionCandidate MissionCandidate          @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  createdBy        User?                     @relation("RecruitmentOfferCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy        User?                     @relation("RecruitmentOfferUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  versions         RecruitmentOfferVersion[]
+  events           OfferEvent[]
+
+  @@unique([missionCandidateId])
+  @@index([missionId])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
+  @@index([archivedAt])
+}
+
+model RecruitmentOfferVersion {
+  id                       String      @id @default(uuid()) @db.Uuid
+  offerId                  String      @db.Uuid
+  missionId                String      @db.Uuid
+  missionCandidateId       String      @db.Uuid
+  versionNumber            Int
+  status                   OfferStatus @default(DRAFT)
+  isCurrent                Boolean     @default(true)
+  offeredSalaryAmountCents Int?
+  offeredSalaryCurrency    String?
+  contractType             String?
+  proposedStartDate        DateTime?
+  probationPeriod          String?
+  bonuses                  String?
+  benefits                 String?
+  allowances               String?
+  compensationNotes        String?
+  clientFacingRemarks      String?
+  internalRecruiterRemarks String?
+  createdByUserId          String?     @db.Uuid
+  updatedByUserId          String?     @db.Uuid
+  sentByUserId             String?     @db.Uuid
+  sentAt                   DateTime?
+  responseRecordedByUserId String?     @db.Uuid
+  responseRecordedAt       DateTime?
+  responseReason           String?
+  withdrawnByUserId        String?     @db.Uuid
+  withdrawnAt              DateTime?
+  withdrawalReason         String?
+  expiresAt                DateTime?
+  expiredAt                DateTime?
+  archivedAt               DateTime?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  offer              RecruitmentOffer   @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  mission            RecruitmentMission @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  missionCandidate   MissionCandidate   @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  createdBy          User?              @relation("RecruitmentOfferVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?              @relation("RecruitmentOfferVersionUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  sentBy             User?              @relation("RecruitmentOfferVersionSender", fields: [sentByUserId], references: [id], onDelete: SetNull)
+  responseRecordedBy User?              @relation("RecruitmentOfferVersionResponder", fields: [responseRecordedByUserId], references: [id], onDelete: SetNull)
+  withdrawnBy        User?              @relation("RecruitmentOfferVersionWithdrawer", fields: [withdrawnByUserId], references: [id], onDelete: SetNull)
+  placement          MissionPlacement?
+  events             OfferEvent[]
+
+  @@unique([offerId, versionNumber])
+  @@index([offerId])
+  @@index([missionId])
+  @@index([missionCandidateId])
+  @@index([status])
+  @@index([isCurrent])
+  @@index([createdByUserId])
+  @@index([sentByUserId])
+  @@index([responseRecordedByUserId])
+  @@index([archivedAt])
+}
+
+model OfferEvent {
+  id                String           @id @default(uuid()) @db.Uuid
+  offerId           String           @db.Uuid
+  offerVersionId    String?          @db.Uuid
+  actorUserId       String?          @db.Uuid
+  action            OfferEventAction
+  previousStatus    OfferStatus?
+  nextStatus        OfferStatus?
+  previousVersionId String?          @db.Uuid
+  nextVersionId     String?          @db.Uuid
+  reason            String?
+  safeComment       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  offer        RecruitmentOffer         @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  offerVersion RecruitmentOfferVersion? @relation(fields: [offerVersionId], references: [id], onDelete: SetNull)
+  actor        User?                    @relation("OfferEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([offerId])
+  @@index([offerVersionId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model MissionPlacement {
+  id                            String                     @id @default(uuid()) @db.Uuid
+  missionId                     String                     @db.Uuid
+  missionCandidateId            String                     @unique @db.Uuid
+  offerVersionId                String                     @unique @db.Uuid
+  status                        PlacementStatus            @default(CONFIRMED)
+  integrationStartDate          DateTime
+  confirmedByUserId             String?                    @db.Uuid
+  confirmedAt                   DateTime                   @default(now())
+  operationalNote               String?
+  eligibleForInvoicing          Boolean                    @default(false)
+  invoicingEligibleAt           DateTime?
+  commercialEligibilityByUserId String?                    @db.Uuid
+  correctedAt                   DateTime?
+  correctedByUserId             String?                    @db.Uuid
+  correctionReason              PlacementCorrectionReason?
+  correctionComment             String?
+  archivedAt                    DateTime?
+  createdAt                     DateTime                   @default(now())
+  updatedAt                     DateTime                   @updatedAt
+
+  mission          RecruitmentMission      @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  missionCandidate MissionCandidate        @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  offerVersion     RecruitmentOfferVersion @relation(fields: [offerVersionId], references: [id], onDelete: Restrict)
+  confirmedBy      User?                   @relation("MissionPlacementConfirmer", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  correctedBy      User?                   @relation("MissionPlacementCorrector", fields: [correctedByUserId], references: [id], onDelete: SetNull)
+  events           PlacementEvent[]
+
+  @@index([missionId])
+  @@index([status])
+  @@index([confirmedByUserId])
+  @@index([correctedByUserId])
+  @@index([eligibleForInvoicing])
+  @@index([archivedAt])
+}
+
+model PlacementEvent {
+  id             String               @id @default(uuid()) @db.Uuid
+  placementId    String               @db.Uuid
+  actorUserId    String?              @db.Uuid
+  action         PlacementEventAction
+  previousStatus PlacementStatus?
+  nextStatus     PlacementStatus?
+  reason         String?
+  safeComment    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  placement MissionPlacement @relation(fields: [placementId], references: [id], onDelete: Restrict)
+  actor     User?            @relation("PlacementEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([placementId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model MissionCandidateEvent {
@@ -1058,8 +1280,8 @@ model Interview {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
-  missionCandidate MissionCandidate      @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
-  organizer        User                  @relation("InterviewOrganizer", fields: [organizerUserId], references: [id], onDelete: Restrict)
+  missionCandidate MissionCandidate       @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+  organizer        User                   @relation("InterviewOrganizer", fields: [organizerUserId], references: [id], onDelete: Restrict)
   participants     InterviewParticipant[]
   events           InterviewEvent[]
   evaluations      CandidateEvaluation[]
@@ -1098,23 +1320,23 @@ model InterviewParticipant {
 }
 
 model InterviewEvent {
-  id                    String                @id @default(uuid()) @db.Uuid
-  interviewId           String                @db.Uuid
-  actorUserId           String?               @db.Uuid
-  action                InterviewEventAction
-  previousStatus        InterviewStatus?
-  nextStatus            InterviewStatus?
-  previousStartAt       DateTime?
-  nextStartAt           DateTime?
-  previousEndAt         DateTime?
-  nextEndAt             DateTime?
-  previousTimezone      String?
-  nextTimezone          String?
-  participantId         String?               @db.Uuid
-  reason                String?
-  safeComment           String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  id               String               @id @default(uuid()) @db.Uuid
+  interviewId      String               @db.Uuid
+  actorUserId      String?              @db.Uuid
+  action           InterviewEventAction
+  previousStatus   InterviewStatus?
+  nextStatus       InterviewStatus?
+  previousStartAt  DateTime?
+  nextStartAt      DateTime?
+  previousEndAt    DateTime?
+  nextEndAt        DateTime?
+  previousTimezone String?
+  nextTimezone     String?
+  participantId    String?              @db.Uuid
+  reason           String?
+  safeComment      String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   interview Interview @relation(fields: [interviewId], references: [id], onDelete: Restrict)
   actor     User?     @relation("InterviewEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
@@ -1126,36 +1348,36 @@ model InterviewEvent {
 }
 
 model CandidateEvaluation {
-  id                         String                    @id @default(uuid()) @db.Uuid
-  missionCandidateId         String                    @db.Uuid
-  interviewId                String                    @db.Uuid
-  authorUserId               String                    @db.Uuid
-  evaluationType             EvaluationType
-  recommendation             EvaluationRecommendation?
-  recommended                Boolean?
-  overallScore               Int?
-  communicationScore         Int?
-  technicalScore             Int?
-  roleFitScore               Int?
-  cultureFitScore            Int?
-  motivationScore            Int?
-  salaryAlignmentScore       Int?
-  strengths                  String?
-  weaknesses                 String?
-  risks                      String?
-  comment                    String?
-  finalOpinion               Boolean                   @default(false)
-  internalOnly               Boolean                   @default(true)
-  clientVisible              Boolean                   @default(false)
-  status                     EvaluationStatus          @default(DRAFT)
-  submittedAt                DateTime?
-  archivedAt                 DateTime?
-  createdAt                  DateTime                  @default(now())
-  updatedAt                  DateTime                  @updatedAt
+  id                   String                    @id @default(uuid()) @db.Uuid
+  missionCandidateId   String                    @db.Uuid
+  interviewId          String                    @db.Uuid
+  authorUserId         String                    @db.Uuid
+  evaluationType       EvaluationType
+  recommendation       EvaluationRecommendation?
+  recommended          Boolean?
+  overallScore         Int?
+  communicationScore   Int?
+  technicalScore       Int?
+  roleFitScore         Int?
+  cultureFitScore      Int?
+  motivationScore      Int?
+  salaryAlignmentScore Int?
+  strengths            String?
+  weaknesses           String?
+  risks                String?
+  comment              String?
+  finalOpinion         Boolean                   @default(false)
+  internalOnly         Boolean                   @default(true)
+  clientVisible        Boolean                   @default(false)
+  status               EvaluationStatus          @default(DRAFT)
+  submittedAt          DateTime?
+  archivedAt           DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 
   missionCandidate MissionCandidate @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
-  interview        Interview       @relation(fields: [interviewId], references: [id], onDelete: Restrict)
-  author           User            @relation("EvaluationAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  interview        Interview        @relation(fields: [interviewId], references: [id], onDelete: Restrict)
+  author           User             @relation("EvaluationAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
 
   @@index([missionCandidateId])
   @@index([interviewId])

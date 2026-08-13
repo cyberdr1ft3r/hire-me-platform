@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-07-29
+Last updated: 2026-08-13
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Public opportunity and candidate application foundation
-**Health:** Issue #27 is in draft PR #28. The latest corrective commits are pushed, and GitHub Actions run `30444387092` passed on `feat/public-applications`.
-**Current blocker:** PR #28 is open, draft, and awaiting final review/merge.
-**Next executable development task:** Complete final review and merge PR #28 when approved.
+**Phase:** Internal offer-to-placement lifecycle
+**Health:** Issue #27 / PR #28 is merged. Issue #29 is implemented locally on `feat/offer-placement-lifecycle` with local validation passing.
+**Current blocker:** Draft PR and GitHub Actions validation still need to complete for Issue #29.
+**Next executable development task:** Push `feat/offer-placement-lifecycle`, open the draft PR, and confirm CI.
 
 ## Active work
 
@@ -24,7 +24,8 @@ Status owner: repository maintainer
 | Issue #21 | Complete | Implement mission-specific candidate processes and the approved ATS pipeline | No action |
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
-| Issue #27 | In progress | Implement public opportunity and unauthenticated candidate application foundation | Final review and merge PR #28 when approved |
+| Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
+| Issue #29 | In progress | Implement internal offer-to-placement lifecycle | Finish validation and open draft PR |
 
 ## Completed foundation work
 
@@ -163,8 +164,7 @@ Status owner: repository maintainer
 
 ## Issue #27 Verification State
 
-- Public opportunity and unauthenticated candidate application foundation is implemented locally on branch `feat/public-applications`.
-- Draft PR #28 is open and remains draft/unmerged.
+- Public opportunity and unauthenticated candidate application foundation is merged through PR #28.
 - The implementation adds API-owned `PublicOpportunity`, `PublicCandidateApplication`, and `PublicCandidateApplicationFile` Prisma models plus shared public DTOs that are separate from internal mission DTOs.
 - Public list/detail responses expose only approved public fields. Client name and salary remain hidden unless explicitly enabled, and commercial data, recruiter assignments, application counts, pipeline data, internal notes, audit metadata, and client-contact data are never included.
 - Public submissions accept structured candidate information, consent, and configured private files through the protected storage abstraction. CV submissions preserve version history and are linked to the exact opportunity submission and mission-candidate process.
@@ -178,6 +178,16 @@ Status owner: repository maintainer
 - Local checks passed: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, PostgreSQL Docker Compose health, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, full `pnpm.cmd test:db` with 70 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 13 web tests passing, `pnpm.cmd format:check`, package-level lint/typecheck/test/build fallbacks after the known Windows Turbo `spawn UNKNOWN` issue, and `git diff --check`.
 - GitHub Actions run `30444387092` passed PostgreSQL Docker Compose health, database migration/seed/integration tests, and quality checks.
 - Package-level builds passed locally after the known Windows Turbo `spawn UNKNOWN` issue, with the web build retaining Vite's existing large-chunk advisory warning; GitHub Actions run `30444387092` passed the root quality commands.
+
+## Issue #29 Verification State
+
+- Issue #29 is being implemented on branch `feat/offer-placement-lifecycle`.
+- Scope is limited to internal staff-managed offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for future invoicing.
+- Offer acceptance alone does not count a placement; `filledPlacementCount` changes only after explicit authorized placement confirmation.
+- Placement confirmation and correction are designed to be idempotent and serialized through the established mission-candidate lock order.
+- Moroccan payroll is recorded as future product scope only; no payroll, invoice, accounting, or candidate self-service implementation is included in Issue #29.
+- Local checks passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 75 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
+- Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
 ## Current open technical questions
 
@@ -198,7 +208,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete final review for draft PR #28 and merge it when approved.
+1. Push `feat/offer-placement-lifecycle`, open a draft PR that closes #29, and confirm GitHub Actions.
 
 ## Status Update Rules
 

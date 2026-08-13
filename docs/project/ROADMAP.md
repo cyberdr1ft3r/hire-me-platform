@@ -81,15 +81,22 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 Issue #15 completed clients and contacts. Issue #17 completed candidate master/profile records without CV uploads. Issue #19 completed recruitment missions and multiple recruiter/contributor assignments. Issue #21 completed the `MissionCandidate` process pipeline. Issue #23 completed interviews and evaluations.
 
-Issue #27 implements the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
+Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Offers/placements and broader search remain separate future scoped work.
+Issue #29 implements the internal offer-to-placement lifecycle. Task management, broader search, accounting, payroll, and document generation remain separate scoped work.
 
-## Phase 6 - Offers, placements, and task management
+## Phase 6 - Offers and placements
 
-**State:** Planned; issues not yet created
+**State:** In progress through Issue #29
 
-- Recruitment offers and placement correction workflows.
+- Versioned internal recruitment offers.
+- Staff-recorded negotiation, acceptance, rejection, expiry, and withdrawal.
+- Explicit placement confirmation, placement correction, mission closure eligibility, and bounded commercial eligibility for later invoicing.
+
+## Phase 6a - Task management
+
+**State:** Planned; issue not yet created
+
 - Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
 
@@ -119,6 +126,14 @@ Offers/placements and broader search remain separate future scoped work.
 - Mission and training revenue and profitability.
 
 Full legal accounting, general ledger, statutory tax declarations, bank reconciliation, and balance-sheet behavior require separate approval and are not assumed.
+
+## Phase 8a - Complete Moroccan payroll
+
+**State:** Confirmed future requirement; issue not yet created
+
+- Complete Moroccan payroll is confirmed as future product scope.
+- Payroll implementation requires its own requirements, security, legal/accounting boundary, and validation issue.
+- Issue #29 records the requirement only and does not implement payroll.
 
 ## Phase 9 - Training and coaching
 
