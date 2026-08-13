@@ -251,7 +251,7 @@ Issue #21 implements these route permissions:
 | `mission_candidates:transition` | Move a mission-candidate process through the approved standard pipeline. |
 | `mission_candidates:transfer` | Transfer responsible recruiter ownership with a required reason. |
 | `mission_candidates:present` | Explicitly present a candidate to the client for that mission. |
-| `mission_candidates:integration:confirm` | Manually confirm integration and count one placement idempotently. |
+| `mission_candidates:integration:confirm` | Deprecated legacy route permission retained only for compatibility; the route returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED` and does not count placements. |
 | `mission_candidates:outcome:manage` | Record rejection, withdrawal, and talent-pool outcomes. |
 | `mission_candidate_notes:view` | Read internal process notes. |
 | `mission_candidate_notes:manage` | Create or update internal process notes. |
@@ -264,7 +264,7 @@ Mission-candidate responses are shaped by the caller's effective permissions. In
 
 `clientVisible` and client-facing wording mean approved for external sharing. They do not imply a current client portal.
 
-Integration confirmation is a first-confirmation write and a retry-safe read thereafter. Repeating confirmation for an already-confirmed process must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
+Placement confirmation is no longer an independent mission-candidate mutation. The authoritative write is `placements:confirm` on the current accepted offer version, which creates `MissionPlacement`, sets integration metadata on `MissionCandidate`, and increments `filledPlacementCount` at most once. Repeating confirmation for an already-confirmed placement must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
 
 Mission-candidate creation and writes use a consistent PostgreSQL lock order: parent `RecruitmentMission`, then `MissionCandidate` when one already exists, then parent `Candidate`. Creation locks the mission and candidate before inserting the process. This prevents candidate archival, mission closure or archival, duplicate process creation, and dependent process writes from committing in an unsafe order. Losing operations receive stable conflict codes such as `MISSION_TERMINAL`, `CANDIDATE_ARCHIVED`, or `MISSION_CANDIDATE_ALREADY_EXISTS`.
 
@@ -281,7 +281,7 @@ Issue #29 implements these route permissions:
 | `offers:record_response` | Record negotiation, acceptance, rejection, or expiry outcomes from staff-controlled channels. |
 | `offers:withdraw` | Withdraw the current offer version with a required reason. |
 | `placements:view` | Read placement confirmation/correction status for an authorized mission-candidate process. |
-| `placements:confirm` | Confirm placement from the current accepted offer version and increment mission placement count at most once. |
+| `placements:confirm` | Confirm placement from the current accepted offer version, create the canonical `MissionPlacement`, and increment mission placement count at most once. |
 | `placements:correct` | Correct a confirmed placement with a structured reason and decrement count at most once. |
 | `placement_commercial_eligibility:view` | View whether a confirmed placement is eligible for later invoicing. |
 

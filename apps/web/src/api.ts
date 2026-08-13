@@ -78,7 +78,6 @@ import {
   type MissionAssignmentUpdateRequest,
   type MissionCandidateCreateRequest,
   type MissionCandidateDetailResponse,
-  type MissionCandidateIntegrationConfirmationRequest,
   type MissionCandidateListResponse,
   type MissionCandidatePresentationRequest,
   type MissionCandidateTransferRequest,
@@ -1125,22 +1124,6 @@ export async function presentMissionCandidate(
   const response = await missionRequest(
     accessToken,
     `/${missionId}/candidates/${processId}/present`,
-    { method: 'POST', body: JSON.stringify(input) },
-    apiBaseUrl,
-  );
-  return MissionCandidateDetailResponseSchema.parse(await response.json());
-}
-
-export async function confirmMissionCandidateIntegration(
-  accessToken: string,
-  missionId: string,
-  processId: string,
-  input: MissionCandidateIntegrationConfirmationRequest,
-  apiBaseUrl = getApiBaseUrl(),
-): Promise<MissionCandidateDetailResponse> {
-  const response = await missionRequest(
-    accessToken,
-    `/${missionId}/candidates/${processId}/confirm-integration`,
     { method: 'POST', body: JSON.stringify(input) },
     apiBaseUrl,
   );

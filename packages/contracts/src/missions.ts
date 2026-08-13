@@ -551,6 +551,10 @@ export const MissionCandidatePresentationRequestSchema = z.object({
   comment: z.string().trim().min(1).max(1000).optional(),
 });
 
+/**
+ * @deprecated Legacy compatibility shape for the retired integration-confirmation route.
+ * New placement confirmation must use PlacementConfirmRequestSchema with an accepted offer version.
+ */
 export const MissionCandidateIntegrationConfirmationRequestSchema = z.object({
   reason: z.string().trim().min(1).max(1000),
 });

@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Internal offer-to-placement lifecycle
-**Health:** Issue #27 / PR #28 is merged. Issue #29 is implemented locally on `feat/offer-placement-lifecycle` with local validation passing.
-**Current blocker:** Draft PR and GitHub Actions validation still need to complete for Issue #29.
-**Next executable development task:** Push `feat/offer-placement-lifecycle`, open the draft PR, and confirm CI.
+**Health:** Issue #27 / PR #28 is merged. Issue #29 is implemented in draft PR #30 on `feat/offer-placement-lifecycle`; the latest work is addressing a final blocking review on legacy integration confirmation.
+**Current blocker:** PR #30 must prove the retired legacy `confirm-integration` route cannot bypass offer-backed `MissionPlacement` confirmation.
+**Next executable development task:** Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm CI.
 
 ## Active work
 
@@ -25,7 +25,7 @@ Status owner: repository maintainer
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
-| Issue #29 | In progress | Implement internal offer-to-placement lifecycle | Finish validation and open draft PR |
+| Issue #29 | In progress | Implement internal offer-to-placement lifecycle | Finish PR #30 blocking-review correction and confirm CI |
 
 ## Completed foundation work
 
@@ -123,12 +123,12 @@ Status owner: repository maintainer
 ## Issue #21 Verification State
 
 - Mission-candidate process implementation is merged through PR #22.
-- The API exposes permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints with shared Zod contracts, safe DTOs, permanent `(missionId, candidateId)` uniqueness, responsible-recruiter ownership, explicit presentation, and manual integration confirmation.
+- The API exposes permission-code guarded nested `/v1/missions/:missionId/candidates` endpoints with shared Zod contracts, safe DTOs, permanent `(missionId, candidateId)` uniqueness, responsible-recruiter ownership, and explicit presentation.
 - The implemented pipeline uses the approved states `NEW`, `CV_TO_REVIEW`, `HR_PRESELECTION`, `HR_INTERVIEW_SCHEDULED`, `HR_INTERVIEW_COMPLETED`, `TECHNICAL_TEST`, `INTERNAL_VALIDATION`, `PRESENTED_TO_CLIENT`, `CLIENT_INTERVIEW_1`, `CLIENT_INTERVIEW_2`, `CLIENT_OFFER`, `ACCEPTED`, `INTEGRATED`, `PROBATION_COMPLETED`, `PROCESS_COMPLETED`, plus `WAITING`, `POSTPONED`, `CANDIDATE_REJECTED`, `CLIENT_REJECTED`, `WITHDRAWN`, and `TALENT_POOL`.
 - Optional skips are limited to `HR_INTERVIEW_COMPLETED` to `INTERNAL_VALIDATION` and `CLIENT_INTERVIEW_1` to `CLIENT_OFFER`; both require an explicit skip request, reason, and audit history.
 - Candidate profile and compensation values remain live source-of-truth data from `Candidate`; mission-candidate records do not snapshot salary/profile values.
 - Client visibility starts only after explicit presentation. Linking a candidate to a mission remains internal-only.
-- Manual integration confirmation increments filled placement count once and does not close the mission automatically.
+- Issue #29 supersedes independent manual integration counting with offer-backed `MissionPlacement` confirmation from the current accepted offer version; confirmation increments filled placement count once and does not close the mission automatically.
 - PR #22 blocking-review correction makes `PRESENTED_TO_CLIENT` reachable only through the dedicated presentation action, which atomically sets visibility, timestamp, presenter identity, process event, and safe audit event. Generic transition attempts return `MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED` without partial metadata.
 - PR #22 blocking-review correction makes repeated integration confirmation a true no-op that preserves placement count, confirmation metadata, process-event history, and audit history.
 - Mission-candidate writes use the documented PostgreSQL lock order from D-033.
@@ -181,12 +181,13 @@ Status owner: repository maintainer
 
 ## Issue #29 Verification State
 
-- Issue #29 is being implemented on branch `feat/offer-placement-lifecycle`.
+- Issue #29 is implemented in draft PR #30 on branch `feat/offer-placement-lifecycle`.
 - Scope is limited to internal staff-managed offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for future invoicing.
 - Offer acceptance alone does not count a placement; `filledPlacementCount` changes only after explicit authorized placement confirmation.
 - Placement confirmation and correction are designed to be idempotent and serialized through the established mission-candidate lock order.
+- Final blocking-review correction retires the legacy `confirm-integration` route as a counting mutation, blocks ordinary transitions into `INTEGRATED`, and keeps historical `MissionCandidate.placementConfirmedAt` rows as compatibility metadata unless a later audited reconciliation creates canonical `MissionPlacement` rows.
 - Moroccan payroll is recorded as future product scope only; no payroll, invoice, accounting, or candidate self-service implementation is included in Issue #29.
-- Local checks passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 75 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
+- Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
 ## Current open technical questions
@@ -208,7 +209,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Push `feat/offer-placement-lifecycle`, open a draft PR that closes #29, and confirm GitHub Actions.
+1. Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm GitHub Actions.
 
 ## Status Update Rules
 

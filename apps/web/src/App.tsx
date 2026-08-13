@@ -85,7 +85,6 @@ import {
   updateInternalPublicOpportunity,
   closeMission,
   confirmMissionCandidatePlacement,
-  confirmMissionCandidateIntegration,
   correctMissionCandidatePlacement,
   createMissionCandidateOffer,
   createMissionCandidate,
@@ -1655,7 +1654,6 @@ function MissionsPanel({
   const canTransitionProcesses = permissions.includes('mission_candidates:transition');
   const canTransferProcesses = permissions.includes('mission_candidates:transfer');
   const canPresentProcesses = permissions.includes('mission_candidates:present');
-  const canConfirmIntegration = permissions.includes('mission_candidates:integration:confirm');
   const canViewInterviews = permissions.includes('interviews:view');
   const canScheduleInterviews = permissions.includes('interviews:schedule');
   const canRescheduleInterviews = permissions.includes('interviews:reschedule');
@@ -1934,18 +1932,6 @@ function MissionsPanel({
     });
     await selectMission(selectedMission.id);
     setMessage('Candidate presented to client.');
-  }
-
-  async function confirmIntegration(processId: string): Promise<void> {
-    if (!selectedMission) {
-      return;
-    }
-    await confirmMissionCandidateIntegration(accessToken, selectedMission.id, processId, {
-      reason: 'Manual integration confirmed.',
-    });
-    await selectMission(selectedMission.id);
-    await loadMissions();
-    setMessage('Integration confirmed and placement counted once.');
   }
 
   async function loadOfferPlacement(processId: string): Promise<void> {
@@ -2819,11 +2805,6 @@ function MissionsPanel({
                             Present to client
                           </button>
                         ) : null}
-                        {canConfirmIntegration && process.state === 'INTEGRATED' ? (
-                          <button type="button" onClick={() => void confirmIntegration(process.id)}>
-                            Confirm integration
-                          </button>
-                        ) : null}
                         {canViewOffers || canViewPlacements ? (
                           <section aria-label="Offer and placement controls">
                             <h4>Offer and placement</h4>
@@ -3336,7 +3317,7 @@ function nextProcessStates(state: MissionCandidateState): MissionCandidateState[
     CLIENT_INTERVIEW_1: ['CLIENT_INTERVIEW_2', 'CLIENT_OFFER', 'CLIENT_REJECTED'],
     CLIENT_INTERVIEW_2: ['CLIENT_OFFER', 'CLIENT_REJECTED'],
     CLIENT_OFFER: ['ACCEPTED', 'CANDIDATE_REJECTED', 'WITHDRAWN'],
-    ACCEPTED: ['INTEGRATED'],
+    ACCEPTED: [],
     INTEGRATED: ['PROBATION_COMPLETED'],
     PROBATION_COMPLETED: ['PROCESS_COMPLETED'],
     WAITING: ['CV_TO_REVIEW', 'HR_PRESELECTION', 'PRESENTED_TO_CLIENT', 'WITHDRAWN'],

@@ -7,7 +7,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, #25, and #27 are complete and merged on `main`.
-- Issue #29 is active on branch `feat/offer-placement-lifecycle`.
+- Issue #29 is active in draft PR #30 on branch `feat/offer-placement-lifecycle`.
 - This branch adds the internal offer-to-placement lifecycle only: versioned staff-managed offers, negotiation outcomes, explicit placement confirmation, placement correction, mission fill/closure eligibility, and bounded commercial eligibility for future invoicing.
 - The implementation must not add candidate accounts, public offer acceptance, payroll, invoice/accounting implementation, or unrelated business modules.
 - The approved direction is an authenticated internal Hire Me platform plus a bounded unauthenticated public opportunity/application surface.
@@ -15,7 +15,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Push `feat/offer-placement-lifecycle`, open a draft PR that closes #29, confirm GitHub Actions, and keep it unmerged.
+Finish the PR #30 blocking-review correction, push `feat/offer-placement-lifecycle`, confirm GitHub Actions, and keep the draft PR unmerged.
 
 Check especially:
 
@@ -34,6 +34,7 @@ Check especially:
 - Business records remain structured source-of-truth data; files/documents are uploaded, signed, archived, or generated representations.
 - Public opportunity foundation is merged. Offers/placements are now the active implementation scope. Task management, accounting, training, client portal, and Moroccan payroll implementation remain later separate issues.
 - Offer acceptance must not increment `filledPlacementCount`; placement counts only after explicit authorized confirmation.
+- Placement confirmation is offer-backed through `MissionPlacement`; the retired legacy `confirm-integration` route must return `PLACEMENT_OFFER_CONFIRMATION_REQUIRED` and cannot infer an offer version or count placement independently.
 - Placement confirmation must be idempotent and concurrency-safe.
 - Revised offers create immutable new versions, with one current active version per mission-candidate process.
 - Placement correction requires a reason, preserves original confirmation metadata, decrements at most once, and never makes count negative.
@@ -103,13 +104,14 @@ Completed so far for Issue #29:
 - Permission catalog and seed additions for offer and placement operations.
 - Nested mission-candidate offer and placement endpoints with server-side permission checks, process ownership checks, safe audit metadata, and mission/process/candidate row locking.
 - Minimal protected mission-workspace controls and focused web tests for permission-gated offer and placement actions.
-- Local validation passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 75 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
+- Final blocking-review correction retires the legacy `confirm-integration` counting path, blocks ordinary transitions into `INTEGRATED`, removes the stale web confirm-integration action, adds PostgreSQL regression tests for legacy-route bypass attempts and historical `placementConfirmedAt` compatibility, and updates source-of-truth documentation.
+- Local validation passed after the PR #30 legacy-integration correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
 Still required before handoff completion:
 
 - Review final diff for unrelated changes.
-- Commit, push, open a draft PR with `Closes #29`, and report CI status.
+- Commit, push, update draft PR #30, and report CI status.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

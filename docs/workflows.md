@@ -86,7 +86,7 @@ Candidate pipeline state is tracked on `MissionCandidate`, not on `Candidate`. T
 - `talent_pool`
 - `process_completed`
 
-`accepted`, `integrated`, and `probation_completed` are not terminal by themselves because the confirmed process continues through integration, probation completion, and final process completion. Accepted candidates do not count as placements. Placement count changes only after manual integration confirmation by an authorized user, and recruitment mission closure is never automatic.
+`accepted`, `integrated`, and `probation_completed` are not terminal by themselves because the confirmed process continues through integration, probation completion, and final process completion. Accepted candidates do not count as placements. Placement count changes only after offer-backed placement confirmation from the current accepted offer version by an authorized user, and recruitment mission closure is never automatic.
 
 ### Optional Skips
 
@@ -138,6 +138,7 @@ Placement confirmation is separate from offer acceptance:
 - Repeated or concurrent confirmation is a no-op after the first successful write and must not create duplicate placement, process, or audit history.
 - Placement correction requires a structured reason, preserves the original confirmation timestamp and confirmer, decrements `filledPlacementCount` at most once, removes commercial eligibility when present, and cannot make the count negative.
 - Reaching mission capacity makes the mission eligible for closure but never closes it automatically. Managers can keep recruiting after capacity is reached.
+- The legacy `confirm-integration` route is retired as an independent mutation and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; ordinary pipeline transitions also cannot enter `INTEGRATED`. Historical `MissionCandidate.placementConfirmedAt` rows remain compatibility data until a separate audited reconciliation maps them to canonical `MissionPlacement` rows.
 
 ```mermaid
 stateDiagram-v2
@@ -191,7 +192,7 @@ stateDiagram-v2
     CLIENT_OFFER --> ACCEPTED
     CLIENT_OFFER --> CANDIDATE_REJECTED
     CLIENT_OFFER --> WITHDRAWN
-    ACCEPTED --> INTEGRATED
+    ACCEPTED --> INTEGRATED: offer-backed placement confirmation only
     INTEGRATED --> PROBATION_COMPLETED
     PROBATION_COMPLETED --> PROCESS_COMPLETED
     WAITING --> CV_TO_REVIEW

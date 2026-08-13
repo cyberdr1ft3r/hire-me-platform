@@ -498,6 +498,202 @@ describe('offer and placement lifecycle', () => {
     expect(reloadedMission.state).toBe('DRAFT');
   });
 
+  it('keeps the legacy integration endpoint from bypassing offer-backed placements', async () => {
+    const noOffer = await createMissionWithProcess('Issue29 Legacy No Offer', recruiterUserId);
+    const legacyWithoutOffer = await fetch(
+      `${baseUrl}/v1/missions/${noOffer.mission.id}/candidates/${noOffer.process.id}/confirm-integration`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({ reason: 'Legacy route must not count placement.' }),
+      },
+    );
+    expect(legacyWithoutOffer.status).toBe(409);
+    expect(await readErrorCode(legacyWithoutOffer)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
+    expect(
+      (
+        await prisma.recruitmentMission.findUniqueOrThrow({
+          where: { id: noOffer.mission.id },
+        })
+      ).filledPlacementCount,
+    ).toBe(0);
+    expect(
+      await prisma.missionPlacement.count({
+        where: { missionCandidateId: noOffer.process.id },
+      }),
+    ).toBe(0);
+
+    const oldThenNew = await createMissionWithProcess(
+      'Issue29 Legacy Old Then New',
+      recruiterUserId,
+    );
+    const oldThenNewOffer = await createAcceptedOffer(
+      baseUrl,
+      recruiterToken,
+      oldThenNew.mission.id,
+      oldThenNew.process.id,
+    );
+    const oldThenNewVersionId = oldThenNewOffer.offer.currentVersionId!;
+    const oldFirst = await fetch(
+      `${baseUrl}/v1/missions/${oldThenNew.mission.id}/candidates/${oldThenNew.process.id}/confirm-integration`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({ reason: 'Legacy route first.' }),
+      },
+    );
+    const canonicalAfterOld = await fetch(
+      `${baseUrl}/v1/missions/${oldThenNew.mission.id}/candidates/${oldThenNew.process.id}/offers/${oldThenNewVersionId}/confirm-placement`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({
+          integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
+          eligibleForInvoicing: true,
+        }),
+      },
+    );
+    expect(oldFirst.status).toBe(409);
+    expect(await readErrorCode(oldFirst)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
+    expect(canonicalAfterOld.status).toBe(200);
+
+    const newThenOld = await createMissionWithProcess(
+      'Issue29 Legacy New Then Old',
+      recruiterUserId,
+    );
+    const newThenOldOffer = await createAcceptedOffer(
+      baseUrl,
+      recruiterToken,
+      newThenOld.mission.id,
+      newThenOld.process.id,
+    );
+    const newThenOldVersionId = newThenOldOffer.offer.currentVersionId!;
+    const canonicalFirst = await fetch(
+      `${baseUrl}/v1/missions/${newThenOld.mission.id}/candidates/${newThenOld.process.id}/offers/${newThenOldVersionId}/confirm-placement`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({
+          integrationStartDate: new Date('2026-09-16T00:00:00.000Z').toISOString(),
+          eligibleForInvoicing: false,
+        }),
+      },
+    );
+    const oldAfterNew = await fetch(
+      `${baseUrl}/v1/missions/${newThenOld.mission.id}/candidates/${newThenOld.process.id}/confirm-integration`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({ reason: 'Legacy route after canonical placement.' }),
+      },
+    );
+    expect(canonicalFirst.status).toBe(200);
+    expect(oldAfterNew.status).toBe(409);
+    expect(await readErrorCode(oldAfterNew)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
+
+    const concurrent = await createMissionWithProcess('Issue29 Legacy Concurrent', recruiterUserId);
+    const concurrentOffer = await createAcceptedOffer(
+      baseUrl,
+      recruiterToken,
+      concurrent.mission.id,
+      concurrent.process.id,
+    );
+    const concurrentVersionId = concurrentOffer.offer.currentVersionId!;
+    const [legacyConcurrent, canonicalConcurrent] = await Promise.all([
+      fetch(
+        `${baseUrl}/v1/missions/${concurrent.mission.id}/candidates/${concurrent.process.id}/confirm-integration`,
+        {
+          method: 'POST',
+          headers: authHeaders(recruiterToken),
+          body: JSON.stringify({ reason: 'Legacy concurrent attempt.' }),
+        },
+      ),
+      fetch(
+        `${baseUrl}/v1/missions/${concurrent.mission.id}/candidates/${concurrent.process.id}/offers/${concurrentVersionId}/confirm-placement`,
+        {
+          method: 'POST',
+          headers: authHeaders(recruiterToken),
+          body: JSON.stringify({
+            integrationStartDate: new Date('2026-09-17T00:00:00.000Z').toISOString(),
+            eligibleForInvoicing: true,
+          }),
+        },
+      ),
+    ]);
+    expect(legacyConcurrent.status).toBe(409);
+    expect(await readErrorCode(legacyConcurrent)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
+    expect(canonicalConcurrent.status).toBe(200);
+
+    for (const { mission, process } of [oldThenNew, newThenOld, concurrent]) {
+      expect(
+        (
+          await prisma.recruitmentMission.findUniqueOrThrow({
+            where: { id: mission.id },
+          })
+        ).filledPlacementCount,
+      ).toBe(1);
+      expect(
+        await prisma.missionPlacement.count({
+          where: { missionCandidateId: process.id },
+        }),
+      ).toBe(1);
+      expect(
+        await prisma.missionCandidateEvent.count({
+          where: { missionCandidateId: process.id, action: 'INTEGRATION_CONFIRMED' },
+        }),
+      ).toBe(1);
+    }
+  });
+
+  it('preserves historical placementConfirmedAt rows without silently backfilling placements', async () => {
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Legacy Historical',
+      recruiterUserId,
+    );
+    await prisma.recruitmentMission.update({
+      where: { id: mission.id },
+      data: { filledPlacementCount: 1 },
+    });
+    await prisma.missionCandidate.update({
+      where: { id: process.id },
+      data: {
+        state: MissionCandidateState.INTEGRATED,
+        placementConfirmedAt: new Date('2026-08-01T00:00:00.000Z'),
+        placementConfirmedByUserId: recruiterUserId,
+      },
+    });
+
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/confirm-integration`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({ reason: 'Legacy historical retry.' }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(await readErrorCode(response)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
+    expect(
+      (await prisma.recruitmentMission.findUniqueOrThrow({ where: { id: mission.id } }))
+        .filledPlacementCount,
+    ).toBe(1);
+    expect(
+      await prisma.missionPlacement.count({
+        where: { missionCandidateId: process.id },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'MissionCandidate',
+          entityId: process.id,
+          action: 'mission_candidates.integration.confirmed',
+        },
+      }),
+    ).toBe(0);
+  });
+
   it('corrects placement once without negative counts and removes commercial eligibility', async () => {
     const { mission, process } = await createMissionWithProcess(
       'Issue29 Correction',
