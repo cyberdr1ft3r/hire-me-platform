@@ -86,7 +86,7 @@ Candidate pipeline state is tracked on `MissionCandidate`, not on `Candidate`. T
 - `talent_pool`
 - `process_completed`
 
-`accepted`, `integrated`, and `probation_completed` are not terminal by themselves because the confirmed process continues through integration, probation completion, and final process completion. Accepted candidates do not count as placements. Placement count changes only after manual integration confirmation by an authorized user, and recruitment mission closure is never automatic.
+`accepted`, `integrated`, and `probation_completed` are not terminal by themselves because the confirmed process continues through integration, probation completion, and final process completion. Accepted candidates do not count as placements. Placement count changes only after offer-backed placement confirmation from the current accepted offer version by an authorized user, and recruitment mission closure is never automatic.
 
 ### Optional Skips
 
@@ -102,6 +102,51 @@ All other transitions must follow the standard pipeline or approved exceptional/
 `PRESENTED_TO_CLIENT` is a pipeline state, but it is not reachable through the generic transition endpoint. The dedicated presentation action is the only operation that may enter this state, and it must atomically set client visibility, presentation timestamp, presenter identity, process history, and safe audit history.
 
 Integration confirmation is idempotent. The first successful confirmation records the timestamp, confirmer, process event, safe audit event, and one placement-count increment. Retrying the same confirmation returns the already-confirmed process without changing placement count, confirmation metadata, process-event history, or audit history.
+
+## Offer and Placement Workflow
+
+Offer and placement records are internal staff-controlled business records. Candidates do not have accounts, dashboards, or public offer-acceptance actions in this workflow. Hire Me staff records negotiation outcomes from controlled internal screens.
+
+An offer belongs to exactly one `MissionCandidate`. Revisions create new immutable versions and preserve the prior version history. Only one current active offer version can exist for a process at a time.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SENT: mark sent
+    DRAFT --> WITHDRAWN: withdraw
+    SENT --> NEGOTIATING: record negotiation
+    SENT --> ACCEPTED: record acceptance
+    SENT --> REJECTED: record rejection with reason
+    SENT --> EXPIRED: expire
+    SENT --> WITHDRAWN: withdraw
+    NEGOTIATING --> ACCEPTED: record acceptance
+    NEGOTIATING --> REJECTED: record rejection with reason
+    NEGOTIATING --> EXPIRED: expire
+    NEGOTIATING --> WITHDRAWN: withdraw
+    ACCEPTED --> WITHDRAWN: withdraw before placement
+    REJECTED --> ARCHIVED
+    EXPIRED --> ARCHIVED
+    WITHDRAWN --> ARCHIVED
+    ARCHIVED --> [*]
+```
+
+Placement confirmation is separate from offer acceptance:
+
+- `ACCEPTED` records the candidate or client-side offer outcome but does not increment `filledPlacementCount`.
+- Placement confirmation requires the current accepted offer version and an authorized internal actor.
+- The first confirmation creates `MissionPlacement`, records integration metadata, increments `filledPlacementCount` once, and can mark the placement eligible for future invoicing.
+- Repeated or concurrent confirmation is a no-op after the first successful write and must not create duplicate placement, process, or audit history.
+- Placement correction requires a structured reason, preserves the original confirmation timestamp and confirmer, decrements `filledPlacementCount` at most once, removes commercial eligibility when present, and cannot make the count negative.
+- Reaching mission capacity makes the mission eligible for closure but never closes it automatically. Managers can keep recruiting after capacity is reached.
+- The legacy `confirm-integration` route is retired as an independent mutation and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; ordinary pipeline transitions also cannot enter `INTEGRATED`. Historical `MissionCandidate.placementConfirmedAt` rows remain compatibility data until a separate audited reconciliation maps them to canonical `MissionPlacement` rows.
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_PLACED
+    NOT_PLACED --> CONFIRMED: confirm current accepted offer
+    CONFIRMED --> CORRECTED: correct with reason
+    CORRECTED --> [*]
+```
 
 ### Valid Transitions
 
@@ -147,7 +192,7 @@ stateDiagram-v2
     CLIENT_OFFER --> ACCEPTED
     CLIENT_OFFER --> CANDIDATE_REJECTED
     CLIENT_OFFER --> WITHDRAWN
-    ACCEPTED --> INTEGRATED
+    ACCEPTED --> INTEGRATED: offer-backed placement confirmation only
     INTEGRATED --> PROBATION_COMPLETED
     PROBATION_COMPLETED --> PROCESS_COMPLETED
     WAITING --> CV_TO_REVIEW

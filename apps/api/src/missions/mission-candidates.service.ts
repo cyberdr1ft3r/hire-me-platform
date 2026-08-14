@@ -41,7 +41,6 @@ type MissionCandidateAccess = {
   transition: boolean;
   transfer: boolean;
   present: boolean;
-  integrationConfirm: boolean;
   outcomeManage: boolean;
 };
 
@@ -327,6 +326,12 @@ export class MissionCandidatesService {
             'Candidates must be presented through the dedicated presentation action.',
           );
         }
+        if (input.state === MissionCandidateState.INTEGRATED) {
+          throw conflict(
+            'PLACEMENT_OFFER_CONFIRMATION_REQUIRED',
+            'Candidate integration requires offer-backed placement confirmation.',
+          );
+        }
         this.assertAllowedTransition(existing.state, input.state, input.skip, input.reason);
         if (reasonRequiredStates.has(input.state) && !input.reason) {
           throw conflict(
@@ -476,74 +481,22 @@ export class MissionCandidatesService {
     return { candidateProcess: this.toDetail(process, access) };
   }
 
-  async confirmIntegration(
+  confirmIntegration(
     missionId: string,
     processId: string,
     input: MissionCandidateIntegrationConfirmationRequest,
     actorUserId: string,
     context: RequestContext,
   ): Promise<MissionCandidateDetailResponse> {
-    const access = await this.resolveAccess(actorUserId);
-    const { process, confirmed } = await this.withWritableProcessLock(
-      missionId,
-      processId,
-      async (transaction, existing, mission) => {
-        await this.assertActorCanConfirmIntegration(
-          missionId,
-          existing,
-          actorUserId,
-          access,
-          transaction,
-        );
-        if (existing.state !== MissionCandidateState.INTEGRATED) {
-          throw conflict(
-            'MISSION_CANDIDATE_INTEGRATION_STATE_REQUIRED',
-            'Placement confirmation requires an integrated candidate process.',
-          );
-        }
-        if (existing.placementConfirmedAt) {
-          return { process: existing, confirmed: false };
-        }
-        if (mission.filledPlacementCount + 1 > mission.numberOfPositions) {
-          throw conflict(
-            'MISSION_PLACEMENT_COUNTS_INVALID',
-            'Mission placement count would exceed planned positions.',
-          );
-        }
-        await transaction.recruitmentMission.update({
-          where: { id: missionId },
-          data: { filledPlacementCount: { increment: 1 } },
-        });
-        const updated = await transaction.missionCandidate.update({
-          where: { id: processId },
-          data: {
-            placementConfirmedAt: existing.placementConfirmedAt ?? new Date(),
-            placementConfirmedByUserId: existing.placementConfirmedByUserId ?? actorUserId,
-          },
-          include: missionCandidateInclude,
-        });
-        await this.createEvent(transaction, {
-          missionCandidateId: processId,
-          actorUserId,
-          action: MissionCandidateEventAction.INTEGRATION_CONFIRMED,
-          previousState: existing.state,
-          nextState: existing.state,
-          reason: input.reason,
-        });
-        return { process: updated, confirmed: true };
-      },
+    void missionId;
+    void processId;
+    void input;
+    void actorUserId;
+    void context;
+    throw conflict(
+      'PLACEMENT_OFFER_CONFIRMATION_REQUIRED',
+      'Placement confirmation must use the offer-backed confirmation endpoint.',
     );
-
-    if (confirmed) {
-      await this.audit.record('mission_candidates.integration.confirmed', context, {
-        actorUserId,
-        entityType: 'MissionCandidate',
-        entityId: process.id,
-        metadataSummary: 'Mission candidate integration confirmed manually.',
-      });
-    }
-
-    return { candidateProcess: this.toDetail(process, access) };
   }
 
   private async resolveAccess(actorUserId: string): Promise<MissionCandidateAccess> {
@@ -556,9 +509,6 @@ export class MissionCandidatesService {
       transition: permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSITION),
       transfer: permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
       present: permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_PRESENT),
-      integrationConfirm: permissions.includes(
-        MISSION_PERMISSIONS.MISSION_CANDIDATES_INTEGRATION_CONFIRM,
-      ),
       outcomeManage: permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_OUTCOME_MANAGE),
     };
   }
@@ -763,22 +713,6 @@ export class MissionCandidatesService {
       throw forbidden(
         'MISSION_CANDIDATE_PRESENT_PERMISSION_REQUIRED',
         'Candidate presentation requires mission_candidates:present.',
-      );
-    }
-    await this.assertActorHasProcessControl(missionId, process, actorUserId, access, transaction);
-  }
-
-  private async assertActorCanConfirmIntegration(
-    missionId: string,
-    process: MissionCandidateRecord,
-    actorUserId: string,
-    access: MissionCandidateAccess,
-    transaction: PrismaTransaction,
-  ): Promise<void> {
-    if (!access.integrationConfirm) {
-      throw forbidden(
-        'MISSION_CANDIDATE_INTEGRATION_PERMISSION_REQUIRED',
-        'Integration confirmation requires mission_candidates:integration:confirm.',
       );
     }
     await this.assertActorHasProcessControl(missionId, process, actorUserId, access, transaction);

@@ -16,6 +16,8 @@ export class MissionAuditService {
         | 'RecruitmentMission'
         | 'MissionRecruiter'
         | 'MissionCandidate'
+        | 'RecruitmentOffer'
+        | 'MissionPlacement'
         | 'Interview'
         | 'InterviewParticipant'
         | 'CandidateEvaluation';

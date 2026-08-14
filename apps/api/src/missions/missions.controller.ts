@@ -46,15 +46,26 @@ import {
   MissionLeadRecruiterRequestSchema,
   MissionListQuerySchema,
   MissionListResponseSchema,
+  MissionCreateRequestSchema,
+  OfferCreateRequestSchema,
+  OfferDetailResponseSchema,
+  OfferListResponseSchema,
+  OfferMarkSentRequestSchema,
+  OfferResponseRequestSchema,
+  OfferReviseRequestSchema,
+  OfferWithdrawRequestSchema,
+  PlacementConfirmRequestSchema,
+  PlacementCorrectRequestSchema,
+  PlacementDetailResponseSchema,
   MissionStatusUpdateRequestSchema,
   MissionUpdateRequestSchema,
-  MissionCreateRequestSchema,
 } from '@hire-me/contracts';
 import { z } from 'zod';
 
 import { badRequest } from './mission.errors.js';
 import { MissionCandidatesService } from './mission-candidates.service.js';
 import { MissionInterviewsService } from './mission-interviews.service.js';
+import { MissionOffersService } from './mission-offers.service.js';
 import { MISSION_PERMISSIONS } from './mission-permissions.js';
 import { MissionsService } from './missions.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -72,6 +83,8 @@ export class MissionsController {
     private readonly missionCandidates: MissionCandidatesService,
     @Inject(MissionInterviewsService)
     private readonly missionInterviews: MissionInterviewsService,
+    @Inject(MissionOffersService)
+    private readonly missionOffers: MissionOffersService,
     @Inject(MissionsService) private readonly missions: MissionsService,
   ) {}
 
@@ -374,6 +387,221 @@ export class MissionsController {
 
     return MissionCandidateDetailResponseSchema.parse(
       await this.missionCandidates.confirmIntegration(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId/offers')
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_VIEW)
+  async getMissionCandidateOffer(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return OfferListResponseSchema.parse(
+      await this.missionOffers.getOffer(
+        this.uuid(missionId),
+        this.uuid(processId),
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers')
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_CREATE)
+  async createMissionCandidateOffer(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = OfferCreateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_OFFER_CREATE_REQUEST', 'Invalid offer create request.');
+    }
+    return OfferDetailResponseSchema.parse(
+      await this.missionOffers.createOffer(
+        this.uuid(missionId),
+        this.uuid(processId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers/:offerVersionId/revise')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_UPDATE)
+  async reviseMissionCandidateOffer(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('offerVersionId') offerVersionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = OfferReviseRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_OFFER_REVISE_REQUEST', 'Invalid offer revise request.');
+    }
+    return OfferDetailResponseSchema.parse(
+      await this.missionOffers.reviseOffer(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(offerVersionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers/:offerVersionId/mark-sent')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_SEND_OR_MARK_SENT)
+  async markMissionCandidateOfferSent(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('offerVersionId') offerVersionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = OfferMarkSentRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_OFFER_MARK_SENT_REQUEST', 'Invalid offer mark-sent request.');
+    }
+    return OfferDetailResponseSchema.parse(
+      await this.missionOffers.markSent(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(offerVersionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers/:offerVersionId/response')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_RECORD_RESPONSE)
+  async recordMissionCandidateOfferResponse(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('offerVersionId') offerVersionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = OfferResponseRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_OFFER_RESPONSE_REQUEST', 'Invalid offer response request.');
+    }
+    return OfferDetailResponseSchema.parse(
+      await this.missionOffers.recordResponse(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(offerVersionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers/:offerVersionId/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.OFFERS_WITHDRAW)
+  async withdrawMissionCandidateOffer(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('offerVersionId') offerVersionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = OfferWithdrawRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_OFFER_WITHDRAW_REQUEST', 'Invalid offer withdrawal request.');
+    }
+    return OfferDetailResponseSchema.parse(
+      await this.missionOffers.withdrawOffer(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(offerVersionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Get(':missionId/candidates/:processId/placement')
+  @RequirePermissions(MISSION_PERMISSIONS.PLACEMENTS_VIEW)
+  async getMissionCandidatePlacement(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return PlacementDetailResponseSchema.parse(
+      await this.missionOffers.getPlacement(
+        this.uuid(missionId),
+        this.uuid(processId),
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/offers/:offerVersionId/confirm-placement')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.PLACEMENTS_CONFIRM)
+  async confirmMissionCandidatePlacement(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Param('offerVersionId') offerVersionId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = PlacementConfirmRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_PLACEMENT_CONFIRM_REQUEST',
+        'Invalid placement confirmation request.',
+      );
+    }
+    return PlacementDetailResponseSchema.parse(
+      await this.missionOffers.confirmPlacement(
+        this.uuid(missionId),
+        this.uuid(processId),
+        this.uuid(offerVersionId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':missionId/candidates/:processId/placement/correct')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(MISSION_PERMISSIONS.PLACEMENTS_CORRECT)
+  async correctMissionCandidatePlacement(
+    @Param('missionId') missionId: string,
+    @Param('processId') processId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = PlacementCorrectRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_PLACEMENT_CORRECT_REQUEST',
+        'Invalid placement correction request.',
+      );
+    }
+    return PlacementDetailResponseSchema.parse(
+      await this.missionOffers.correctPlacement(
         this.uuid(missionId),
         this.uuid(processId),
         parsed.data,

@@ -22,6 +22,9 @@ import {
   MissionAssignmentListResponseSchema,
   MissionCandidateDetailResponseSchema,
   MissionCandidateListResponseSchema,
+  OfferDetailResponseSchema,
+  OfferListResponseSchema,
+  PlacementDetailResponseSchema,
   MissionDetailResponseSchema,
   InternalPublicApplicationListResponseSchema,
   InternalPublicOpportunityDetailResponseSchema,
@@ -75,11 +78,20 @@ import {
   type MissionAssignmentUpdateRequest,
   type MissionCandidateCreateRequest,
   type MissionCandidateDetailResponse,
-  type MissionCandidateIntegrationConfirmationRequest,
   type MissionCandidateListResponse,
   type MissionCandidatePresentationRequest,
   type MissionCandidateTransferRequest,
   type MissionCandidateTransitionRequest,
+  type OfferCreateRequest,
+  type OfferDetailResponse,
+  type OfferListResponse,
+  type OfferMarkSentRequest,
+  type OfferResponseRequest,
+  type OfferReviseRequest,
+  type OfferWithdrawRequest,
+  type PlacementConfirmRequest,
+  type PlacementCorrectRequest,
+  type PlacementDetailResponse,
   type InternalPublicApplicationListResponse,
   type InternalPublicOpportunityDetailResponse,
   type InternalPublicOpportunityUpdateRequest,
@@ -1118,20 +1130,151 @@ export async function presentMissionCandidate(
   return MissionCandidateDetailResponseSchema.parse(await response.json());
 }
 
-export async function confirmMissionCandidateIntegration(
+export async function getMissionCandidateOffers(
   accessToken: string,
   missionId: string,
   processId: string,
-  input: MissionCandidateIntegrationConfirmationRequest,
   apiBaseUrl = getApiBaseUrl(),
-): Promise<MissionCandidateDetailResponse> {
+): Promise<OfferListResponse> {
   const response = await missionRequest(
     accessToken,
-    `/${missionId}/candidates/${processId}/confirm-integration`,
+    `/${missionId}/candidates/${processId}/offers`,
+    {},
+    apiBaseUrl,
+  );
+  return OfferListResponseSchema.parse(await response.json());
+}
+
+export async function createMissionCandidateOffer(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: OfferCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OfferDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers`,
     { method: 'POST', body: JSON.stringify(input) },
     apiBaseUrl,
   );
-  return MissionCandidateDetailResponseSchema.parse(await response.json());
+  return OfferDetailResponseSchema.parse(await response.json());
+}
+
+export async function reviseMissionCandidateOffer(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  offerVersionId: string,
+  input: OfferReviseRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OfferDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers/${offerVersionId}/revise`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return OfferDetailResponseSchema.parse(await response.json());
+}
+
+export async function markMissionCandidateOfferSent(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  offerVersionId: string,
+  input: OfferMarkSentRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OfferDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers/${offerVersionId}/mark-sent`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return OfferDetailResponseSchema.parse(await response.json());
+}
+
+export async function recordMissionCandidateOfferResponse(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  offerVersionId: string,
+  input: OfferResponseRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OfferDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers/${offerVersionId}/response`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return OfferDetailResponseSchema.parse(await response.json());
+}
+
+export async function withdrawMissionCandidateOffer(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  offerVersionId: string,
+  input: OfferWithdrawRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OfferDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers/${offerVersionId}/withdraw`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return OfferDetailResponseSchema.parse(await response.json());
+}
+
+export async function getMissionCandidatePlacement(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PlacementDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/placement`,
+    {},
+    apiBaseUrl,
+  );
+  return PlacementDetailResponseSchema.parse(await response.json());
+}
+
+export async function confirmMissionCandidatePlacement(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  offerVersionId: string,
+  input: PlacementConfirmRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PlacementDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/offers/${offerVersionId}/confirm-placement`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PlacementDetailResponseSchema.parse(await response.json());
+}
+
+export async function correctMissionCandidatePlacement(
+  accessToken: string,
+  missionId: string,
+  processId: string,
+  input: PlacementCorrectRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PlacementDetailResponse> {
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates/${processId}/placement/correct`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PlacementDetailResponseSchema.parse(await response.json());
 }
 
 export async function listInterviews(

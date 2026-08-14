@@ -577,7 +577,7 @@ describe('Mission candidate process API', () => {
     ).toBe(1);
   });
 
-  it('keeps linking internal-only until explicit presentation and counts placements only on manual confirmation', async () => {
+  it('keeps linking internal-only until explicit presentation and blocks legacy integration counting', async () => {
     const token = await loginAccessToken(baseUrl, 'mission-candidate-hr@mission-candidates.test');
     const missionId = await createIssue21ClientAndMission('Issue21 Visibility Mission');
     const candidate = await createCandidate('visibility@mission-candidates.test');
@@ -722,7 +722,6 @@ describe('Mission candidate process API', () => {
       MissionCandidateState.CLIENT_INTERVIEW_2,
       MissionCandidateState.CLIENT_OFFER,
       MissionCandidateState.ACCEPTED,
-      MissionCandidateState.INTEGRATED,
     ]) {
       const response = await transitionProcess(
         baseUrl,
@@ -734,52 +733,48 @@ describe('Mission candidate process API', () => {
       );
       expect(response.status).toBe(200);
     }
+    const blockedIntegrationTransition = await transitionProcess(
+      baseUrl,
+      token,
+      missionId,
+      processId,
+      MissionCandidateState.INTEGRATED,
+      'Synthetic legacy integration attempt.',
+    );
     expect(
       (await prisma.recruitmentMission.findUniqueOrThrow({ where: { id: missionId } }))
         .filledPlacementCount,
     ).toBe(0);
 
-    const confirmed = await fetch(
+    const legacyConfirmation = await fetch(
       `${baseUrl}/v1/missions/${missionId}/candidates/${processId}/confirm-integration`,
       {
         method: 'POST',
         headers: authHeaders(token),
-        body: JSON.stringify({ reason: 'Manual integration confirmation.' }),
-      },
-    );
-    const repeated = await fetch(
-      `${baseUrl}/v1/missions/${missionId}/candidates/${processId}/confirm-integration`,
-      {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify({ reason: 'Idempotent integration confirmation.' }),
+        body: JSON.stringify({ reason: 'Legacy integration confirmation.' }),
       },
     );
 
-    expect(confirmed.status).toBe(200);
-    expect(repeated.status).toBe(200);
-    const confirmedProcess = MissionCandidateDetailResponseSchema.parse(
-      await confirmed.json(),
-    ).candidateProcess;
-    const repeatedProcess = MissionCandidateDetailResponseSchema.parse(
-      await repeated.json(),
-    ).candidateProcess;
+    expect(blockedIntegrationTransition.status).toBe(409);
+    expect(await readErrorCode(blockedIntegrationTransition)).toBe(
+      'PLACEMENT_OFFER_CONFIRMATION_REQUIRED',
+    );
+    expect(legacyConfirmation.status).toBe(409);
+    expect(await readErrorCode(legacyConfirmation)).toBe('PLACEMENT_OFFER_CONFIRMATION_REQUIRED');
     const mission = await prisma.recruitmentMission.findUniqueOrThrow({ where: { id: missionId } });
     const storedProcess = await prisma.missionCandidate.findUniqueOrThrow({
       where: { id: processId },
     });
-    expect(mission.filledPlacementCount).toBe(1);
+    expect(mission.filledPlacementCount).toBe(0);
     expect(mission.state).not.toMatch(/CLOSED/);
-    expect(repeatedProcess.placementConfirmedAt).toBe(confirmedProcess.placementConfirmedAt);
-    expect(storedProcess.placementConfirmedAt?.toISOString()).toBe(
-      confirmedProcess.placementConfirmedAt,
-    );
-    expect(storedProcess.placementConfirmedByUserId).toBe(hrUserId);
+    expect(storedProcess.state).toBe(MissionCandidateState.ACCEPTED);
+    expect(storedProcess.placementConfirmedAt).toBeNull();
+    expect(storedProcess.placementConfirmedByUserId).toBeNull();
     expect(
       await prisma.missionCandidateEvent.count({
         where: { missionCandidateId: processId, action: 'INTEGRATION_CONFIRMED' },
       }),
-    ).toBe(1);
+    ).toBe(0);
     expect(
       await prisma.auditLog.count({
         where: {
@@ -788,7 +783,7 @@ describe('Mission candidate process API', () => {
           action: 'mission_candidates.integration.confirmed',
         },
       }),
-    ).toBe(1);
+    ).toBe(0);
   });
 
   it('applies mission scope, nested IDOR, and protected field redaction', async () => {

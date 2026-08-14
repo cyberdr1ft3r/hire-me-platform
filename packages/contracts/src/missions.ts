@@ -74,6 +74,38 @@ export const MissionCandidateEventActionSchema = z.enum([
   'INTEGRATION_CONFIRMED',
   'OUTCOME_RECORDED',
 ]);
+export const OfferStatusSchema = z.enum([
+  'DRAFT',
+  'SENT',
+  'NEGOTIATING',
+  'ACCEPTED',
+  'REJECTED',
+  'EXPIRED',
+  'WITHDRAWN',
+  'ARCHIVED',
+]);
+export const OfferEventActionSchema = z.enum([
+  'CREATED',
+  'REVISED',
+  'MARKED_SENT',
+  'RESPONSE_RECORDED',
+  'WITHDRAWN',
+  'EXPIRED',
+  'ARCHIVED',
+]);
+export const PlacementStatusSchema = z.enum(['CONFIRMED', 'CORRECTED']);
+export const PlacementEventActionSchema = z.enum([
+  'CONFIRMED',
+  'CORRECTED',
+  'COMMERCIAL_ELIGIBILITY_CREATED',
+  'COMMERCIAL_ELIGIBILITY_REMOVED',
+]);
+export const PlacementCorrectionReasonSchema = z.enum([
+  'PROBATION_FAILED',
+  'ADMINISTRATIVE_ERROR',
+  'CANCELED_INTEGRATION',
+  'OTHER',
+]);
 
 export const MissionCommercialFieldsSchema = z.object({
   salaryMinCents: z.number().int().nonnegative().nullable(),
@@ -159,6 +191,99 @@ export const MissionCandidateSummarySchema = z.object({
 
 export const MissionCandidateDetailSchema = MissionCandidateSummarySchema.extend({
   history: z.array(MissionCandidateEventSchema),
+});
+
+export const OfferVersionSchema = z.object({
+  id: z.string().uuid(),
+  offerId: z.string().uuid(),
+  missionId: z.string().uuid(),
+  missionCandidateId: z.string().uuid(),
+  versionNumber: z.number().int().positive(),
+  status: OfferStatusSchema,
+  isCurrent: z.boolean(),
+  offeredSalaryAmountCents: z.number().int().nonnegative().nullable(),
+  offeredSalaryCurrency: z.string().nullable(),
+  contractType: z.string().nullable(),
+  proposedStartDate: z.string().datetime().nullable(),
+  probationPeriod: z.string().nullable(),
+  bonuses: z.string().nullable(),
+  benefits: z.string().nullable(),
+  allowances: z.string().nullable(),
+  compensationNotes: z.string().nullable(),
+  clientFacingRemarks: z.string().nullable(),
+  internalRecruiterRemarks: z.string().nullable(),
+  sentAt: z.string().datetime().nullable(),
+  responseRecordedAt: z.string().datetime().nullable(),
+  responseReason: z.string().nullable(),
+  withdrawnAt: z.string().datetime().nullable(),
+  withdrawalReason: z.string().nullable(),
+  expiresAt: z.string().datetime().nullable(),
+  expiredAt: z.string().datetime().nullable(),
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const OfferEventSchema = z.object({
+  id: z.string().uuid(),
+  offerId: z.string().uuid(),
+  offerVersionId: z.string().uuid().nullable(),
+  actorUserId: z.string().uuid().nullable(),
+  action: OfferEventActionSchema,
+  previousStatus: OfferStatusSchema.nullable(),
+  nextStatus: OfferStatusSchema.nullable(),
+  previousVersionId: z.string().uuid().nullable(),
+  nextVersionId: z.string().uuid().nullable(),
+  reason: z.string().nullable(),
+  safeComment: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export const OfferAggregateSchema = z.object({
+  id: z.string().uuid(),
+  missionId: z.string().uuid(),
+  missionCandidateId: z.string().uuid(),
+  currentVersionId: z.string().uuid().nullable(),
+  versions: z.array(OfferVersionSchema),
+  history: z.array(OfferEventSchema),
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const PlacementEventSchema = z.object({
+  id: z.string().uuid(),
+  placementId: z.string().uuid(),
+  actorUserId: z.string().uuid().nullable(),
+  action: PlacementEventActionSchema,
+  previousStatus: PlacementStatusSchema.nullable(),
+  nextStatus: PlacementStatusSchema.nullable(),
+  reason: z.string().nullable(),
+  safeComment: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export const MissionPlacementSchema = z.object({
+  id: z.string().uuid(),
+  missionId: z.string().uuid(),
+  missionCandidateId: z.string().uuid(),
+  offerVersionId: z.string().uuid(),
+  status: PlacementStatusSchema,
+  integrationStartDate: z.string().datetime(),
+  confirmedAt: z.string().datetime(),
+  confirmedByUserId: z.string().uuid().nullable(),
+  operationalNote: z.string().nullable(),
+  eligibleForInvoicing: z.boolean(),
+  invoicingEligibleAt: z.string().datetime().nullable(),
+  correctedAt: z.string().datetime().nullable(),
+  correctedByUserId: z.string().uuid().nullable(),
+  correctionReason: PlacementCorrectionReasonSchema.nullable(),
+  correctionComment: z.string().nullable(),
+  closureEligible: z.boolean(),
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  history: z.array(PlacementEventSchema),
 });
 
 export const InterviewTypeSchema = z.enum([
@@ -426,8 +551,60 @@ export const MissionCandidatePresentationRequestSchema = z.object({
   comment: z.string().trim().min(1).max(1000).optional(),
 });
 
+/**
+ * @deprecated Legacy compatibility shape for the retired integration-confirmation route.
+ * New placement confirmation must use PlacementConfirmRequestSchema with an accepted offer version.
+ */
 export const MissionCandidateIntegrationConfirmationRequestSchema = z.object({
   reason: z.string().trim().min(1).max(1000),
+});
+
+export const OfferCreateRequestSchema = z.object({
+  offeredSalaryAmountCents: z.number().int().nonnegative().optional(),
+  offeredSalaryCurrency: z.string().trim().length(3).optional(),
+  contractType: z.string().trim().min(1).max(120).optional(),
+  proposedStartDate: z.string().datetime().optional(),
+  probationPeriod: z.string().trim().min(1).max(240).optional(),
+  bonuses: z.string().trim().min(1).max(1000).optional(),
+  benefits: z.string().trim().min(1).max(1000).optional(),
+  allowances: z.string().trim().min(1).max(1000).optional(),
+  compensationNotes: z.string().trim().min(1).max(1500).optional(),
+  clientFacingRemarks: z.string().trim().min(1).max(1500).optional(),
+  internalRecruiterRemarks: z.string().trim().min(1).max(1500).optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export const OfferReviseRequestSchema = OfferCreateRequestSchema.extend({
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const OfferMarkSentRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(1000).optional(),
+});
+
+export const OfferResponseRequestSchema = z
+  .object({
+    status: OfferStatusSchema.extract(['NEGOTIATING', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
+    reason: z.string().trim().min(1).max(1000).optional(),
+    comment: z.string().trim().min(1).max(1000).optional(),
+  })
+  .refine((value) => value.status !== 'REJECTED' || Boolean(value.reason), {
+    message: 'A reason is required when an offer is rejected.',
+  });
+
+export const OfferWithdrawRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const PlacementConfirmRequestSchema = z.object({
+  integrationStartDate: z.string().datetime(),
+  operationalNote: z.string().trim().min(1).max(1000).optional(),
+  eligibleForInvoicing: z.boolean().default(false),
+});
+
+export const PlacementCorrectRequestSchema = z.object({
+  reason: PlacementCorrectionReasonSchema,
+  comment: z.string().trim().min(1).max(1000),
 });
 
 export const InterviewListQuerySchema = z.object({
@@ -582,6 +759,18 @@ export const MissionCandidateDetailResponseSchema = z.object({
   candidateProcess: MissionCandidateDetailSchema,
 });
 
+export const OfferListResponseSchema = z.object({
+  offer: OfferAggregateSchema.nullable(),
+});
+
+export const OfferDetailResponseSchema = z.object({
+  offer: OfferAggregateSchema,
+});
+
+export const PlacementDetailResponseSchema = z.object({
+  placement: MissionPlacementSchema.nullable(),
+});
+
 export const InterviewListResponseSchema = z.object({
   interviews: z.array(InterviewSummarySchema),
   pagination: z.object({
@@ -643,6 +832,11 @@ export type MissionAssignmentRole = z.infer<typeof MissionAssignmentRoleSchema>;
 export type MissionAssignmentStatus = z.infer<typeof MissionAssignmentStatusSchema>;
 export type MissionCandidateState = z.infer<typeof MissionCandidateStateSchema>;
 export type MissionCandidateEventAction = z.infer<typeof MissionCandidateEventActionSchema>;
+export type OfferStatus = z.infer<typeof OfferStatusSchema>;
+export type OfferEventAction = z.infer<typeof OfferEventActionSchema>;
+export type PlacementStatus = z.infer<typeof PlacementStatusSchema>;
+export type PlacementEventAction = z.infer<typeof PlacementEventActionSchema>;
+export type PlacementCorrectionReason = z.infer<typeof PlacementCorrectionReasonSchema>;
 export type InterviewType = z.infer<typeof InterviewTypeSchema>;
 export type InterviewStatus = z.infer<typeof InterviewStatusSchema>;
 export type InterviewFormat = z.infer<typeof InterviewFormatSchema>;
@@ -657,6 +851,11 @@ export type MissionAssignmentSummary = z.infer<typeof MissionAssignmentSummarySc
 export type MissionCandidateEvent = z.infer<typeof MissionCandidateEventSchema>;
 export type MissionCandidateSummary = z.infer<typeof MissionCandidateSummarySchema>;
 export type MissionCandidateDetail = z.infer<typeof MissionCandidateDetailSchema>;
+export type OfferVersion = z.infer<typeof OfferVersionSchema>;
+export type OfferEvent = z.infer<typeof OfferEventSchema>;
+export type OfferAggregate = z.infer<typeof OfferAggregateSchema>;
+export type PlacementEvent = z.infer<typeof PlacementEventSchema>;
+export type MissionPlacement = z.infer<typeof MissionPlacementSchema>;
 export type InterviewParticipant = z.infer<typeof InterviewParticipantSchema>;
 export type InterviewEvent = z.infer<typeof InterviewEventSchema>;
 export type CandidateEvaluation = z.infer<typeof CandidateEvaluationSchema>;
@@ -683,6 +882,13 @@ export type MissionCandidatePresentationRequest = z.infer<
 export type MissionCandidateIntegrationConfirmationRequest = z.infer<
   typeof MissionCandidateIntegrationConfirmationRequestSchema
 >;
+export type OfferCreateRequest = z.infer<typeof OfferCreateRequestSchema>;
+export type OfferReviseRequest = z.infer<typeof OfferReviseRequestSchema>;
+export type OfferMarkSentRequest = z.infer<typeof OfferMarkSentRequestSchema>;
+export type OfferResponseRequest = z.infer<typeof OfferResponseRequestSchema>;
+export type OfferWithdrawRequest = z.infer<typeof OfferWithdrawRequestSchema>;
+export type PlacementConfirmRequest = z.infer<typeof PlacementConfirmRequestSchema>;
+export type PlacementCorrectRequest = z.infer<typeof PlacementCorrectRequestSchema>;
 export type InterviewListQuery = z.infer<typeof InterviewListQuerySchema>;
 export type InterviewScheduleRequest = z.infer<typeof InterviewScheduleRequestSchema>;
 export type InterviewRescheduleRequest = z.infer<typeof InterviewRescheduleRequestSchema>;
@@ -701,6 +907,9 @@ export type MissionAssignmentListResponse = z.infer<typeof MissionAssignmentList
 export type MissionAssignmentDetailResponse = z.infer<typeof MissionAssignmentDetailResponseSchema>;
 export type MissionCandidateListResponse = z.infer<typeof MissionCandidateListResponseSchema>;
 export type MissionCandidateDetailResponse = z.infer<typeof MissionCandidateDetailResponseSchema>;
+export type OfferListResponse = z.infer<typeof OfferListResponseSchema>;
+export type OfferDetailResponse = z.infer<typeof OfferDetailResponseSchema>;
+export type PlacementDetailResponse = z.infer<typeof PlacementDetailResponseSchema>;
 export type InterviewListResponse = z.infer<typeof InterviewListResponseSchema>;
 export type InterviewDetailResponse = z.infer<typeof InterviewDetailResponseSchema>;
 export type EvaluationListResponse = z.infer<typeof EvaluationListResponseSchema>;

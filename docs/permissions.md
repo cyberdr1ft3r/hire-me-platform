@@ -115,6 +115,16 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `mission_assignments:manage`
 - `mission_commercial_data:view`
 - `mission_commercial_data:update`
+- `offers:view`
+- `offers:create`
+- `offers:update`
+- `offers:send_or_mark_sent`
+- `offers:record_response`
+- `offers:withdraw`
+- `placements:view`
+- `placements:confirm`
+- `placements:correct`
+- `placement_commercial_eligibility:view`
 - `interviews:view`
 - `interviews:schedule`
 - `interviews:reschedule`
@@ -143,7 +153,7 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `client_balances:view`
 - `profitability:view`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Administration Permissions
 
@@ -241,7 +251,7 @@ Issue #21 implements these route permissions:
 | `mission_candidates:transition` | Move a mission-candidate process through the approved standard pipeline. |
 | `mission_candidates:transfer` | Transfer responsible recruiter ownership with a required reason. |
 | `mission_candidates:present` | Explicitly present a candidate to the client for that mission. |
-| `mission_candidates:integration:confirm` | Manually confirm integration and count one placement idempotently. |
+| `mission_candidates:integration:confirm` | Deprecated legacy route permission retained only for compatibility; the route returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED` and does not count placements. |
 | `mission_candidates:outcome:manage` | Record rejection, withdrawal, and talent-pool outcomes. |
 | `mission_candidate_notes:view` | Read internal process notes. |
 | `mission_candidate_notes:manage` | Create or update internal process notes. |
@@ -254,9 +264,32 @@ Mission-candidate responses are shaped by the caller's effective permissions. In
 
 `clientVisible` and client-facing wording mean approved for external sharing. They do not imply a current client portal.
 
-Integration confirmation is a first-confirmation write and a retry-safe read thereafter. Repeating confirmation for an already-confirmed process must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
+Placement confirmation is no longer an independent mission-candidate mutation. The authoritative write is `placements:confirm` on the current accepted offer version, which creates `MissionPlacement`, sets integration metadata on `MissionCandidate`, and increments `filledPlacementCount` at most once. Repeating confirmation for an already-confirmed placement must not increment placement count, create another `MissionCandidateEvent`, create another `AuditLog`, or overwrite the original confirmer or timestamp.
 
 Mission-candidate creation and writes use a consistent PostgreSQL lock order: parent `RecruitmentMission`, then `MissionCandidate` when one already exists, then parent `Candidate`. Creation locks the mission and candidate before inserting the process. This prevents candidate archival, mission closure or archival, duplicate process creation, and dependent process writes from committing in an unsafe order. Losing operations receive stable conflict codes such as `MISSION_TERMINAL`, `CANDIDATE_ARCHIVED`, or `MISSION_CANDIDATE_ALREADY_EXISTS`.
+
+## Implemented Offer and Placement Permissions
+
+Issue #29 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `offers:view` | List/read the offer aggregate, immutable versions, and safe offer history for an authorized mission-candidate process. |
+| `offers:create` | Create the first draft offer for a process in the offer stage. |
+| `offers:update` | Revise the current offer into a new immutable version. |
+| `offers:send_or_mark_sent` | Mark the current draft offer version as sent by staff. |
+| `offers:record_response` | Record negotiation, acceptance, rejection, or expiry outcomes from staff-controlled channels. |
+| `offers:withdraw` | Withdraw the current offer version with a required reason. |
+| `placements:view` | Read placement confirmation/correction status for an authorized mission-candidate process. |
+| `placements:confirm` | Confirm placement from the current accepted offer version, create the canonical `MissionPlacement`, and increment mission placement count at most once. |
+| `placements:correct` | Correct a confirmed placement with a structured reason and decrement count at most once. |
+| `placement_commercial_eligibility:view` | View whether a confirmed placement is eligible for later invoicing. |
+
+Development seed mapping gives normal offer and placement lifecycle permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Lower-trust roles receive no broad offer or placement permissions until assignment, team, guest, or optional future client-facing row scopes are implemented. Commercial eligibility visibility is deliberately separate from ordinary placement visibility.
+
+Offer and placement access remains deny-by-default. A caller must have the route permission and active mission-process scope. Frontend hiding is only a usability layer; the API enforces permission codes, nested mission/process ownership, current-version checks, and accepted-offer prerequisites.
+
+Offer and placement writes use the established mission-candidate lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then offer/placement rows where applicable. Audit metadata must not include salary values or confidential negotiation notes.
 
 ## Implemented Interview and Evaluation Permissions
 
@@ -296,7 +329,7 @@ Interview and evaluation access remains deny-by-default. A caller must have the 
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs internal roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, public application safeguards, and optional future client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Exact remaining business record-scope queries, approval workflows, public application protections, optional future client-facing row scopes, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs internal roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, public application safeguards, and optional future client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Issue #29 implements internal offer and placement route permissions while keeping commercial eligibility separate from ordinary placement visibility. Exact remaining business record-scope queries, approval workflows, optional future client-facing row scopes, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 
