@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-13
+Last updated: 2026-08-15
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Internal offer-to-placement lifecycle.
+Internal task management, reminders, comments, and notifications.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -25,7 +25,8 @@ Internal offer-to-placement lifecycle.
 - Issue #23 is complete; PR #24 merged interviews and structured candidate evaluations.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
-- Current executable goal: Issue #29 internal offer-to-placement lifecycle on branch `feat/offer-placement-lifecycle`, using decisions D-004, D-023 through D-044.
+- Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle.
+- Current executable goal: Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-045.
 
 ## Confirmed Product Facts
 
@@ -54,7 +55,8 @@ Internal offer-to-placement lifecycle.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
-- Issue #29 implements internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Task management, accounting, payroll, training, and any future client portal each need their own later issues.
+- Issue #29 implements internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing.
+- Issue #31 implements internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 
 ## Technical Direction
 
@@ -73,6 +75,7 @@ Internal offer-to-placement lifecycle.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
 - Public opportunity and candidate application foundation is merged. It preserves the API-owned Prisma boundary, uses explicit public DTOs, exposes only approved public fields, accepts unauthenticated submissions safely, preserves file-version history, and enforces one candidate process per mission/candidate pair.
 - Offer and placement implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/offers` and placement endpoints, immutable offer versions, safe audit metadata, explicit offer-backed placement confirmation, idempotent correction, closure eligibility without auto-closure, and the established mission-candidate PostgreSQL lock order. The retired legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; historical `MissionCandidate.placementConfirmedAt` rows are not silently backfilled to `MissionPlacement`.
+- Task management implementation uses permission-code guarded `/v1/tasks` and `/v1/notifications` endpoints, one accountable owner, normalized multiple-assignee history, explicit context foreign keys, comments, mentions, durable in-app reminders, task events, own-notification controls, row-locked task mutations, `FOR UPDATE SKIP LOCKED` reminder processing, idempotent task notification keys, and safe audit summaries. `tasks:view` is scoped to ownership, creator, active assignment, or implemented linked-record scope; `tasks:view_all` is the separate broad oversight permission.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

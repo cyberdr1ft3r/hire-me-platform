@@ -302,16 +302,16 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 
 ### Task
 
-- Purpose and owner: assigned follow-up action; owned by the assigning team or user.
-- Important attributes: id, title, description, status, due date, priority, assignee, related entity.
-- Relationships: assigned to a user; may relate to mapped task contexts listed below.
-- Cardinality: one user can have many tasks.
-- Lifecycle: open, in progress, waiting, blocked, completed, canceled, archived.
-- Sensitive fields: task notes may include confidential HR or commercial context.
-- Uniqueness rules: no global uniqueness beyond id.
-- Audit requirements: assignment, completion, sensitive updates, and archival should be audited when linked to confidential records.
+- Purpose and owner: internal follow-up action for implemented business records; owned by one accountable internal user.
+- Important attributes: id, title, description, status, start date, due date, timezone, priority, accountable owner, legacy single-assignee compatibility field, lifecycle metadata, and explicit context foreign keys.
+- Relationships: has many active or historical assignees through `TaskAssignment`; has comments, explicit mentions, reminders, events, and generated notifications; may relate to mapped task contexts listed below.
+- Cardinality: one user can own many tasks; one task can have many assignees over time; one assignee can participate in many tasks.
+- Lifecycle: open, in progress, waiting, blocked, completed, canceled, archived. Completion, cancellation, reopening, and archival preserve actor/reason/timestamp metadata where applicable.
+- Sensitive fields: task descriptions, comments, blocking reasons, and archive/cancel reasons may include confidential HR, candidate, client, salary, or commercial context.
+- Uniqueness rules: no global task uniqueness beyond id; one active `TaskAssignment` per `(taskId, userId)` is enforced while removed/archived history is preserved.
+- Audit requirements: creation, updates, assignment changes, lifecycle transitions, comments, reminders, and notification-affecting actions use safe audit metadata and avoid confidential comment bodies.
 
-Confirmed task contexts should map before persistence design:
+Implemented task contexts use explicit optional foreign keys rather than free-form JSON:
 
 | Confirmed task context | Entity or concept mapping |
 | --- | --- |
@@ -334,6 +334,54 @@ Confirmed task contexts should map before persistence design:
 | events or meetings | `Interview`, `TrainingSession`, or deferred `Event` concept |
 | document approval | `Document`, `DocumentVersion`, `CandidateDocument`, or `CandidateDocumentVersion` |
 | tender or pre-sales work | `Client`, prospect lifecycle, `Quotation`, or deferred `Tender` concept |
+
+### TaskAssignment
+
+- Purpose and owner: normalized assignment history for internal tasks.
+- Important attributes: id, task id, internal user id, assigned/removed actors, status, reason, assigned timestamp, removed timestamp, archival timestamp.
+- Relationships: belongs to one `Task` and one active internal `User`.
+- Cardinality: one task can have many assignments; one user can have many assignments.
+- Lifecycle: active, removed, archived.
+- Sensitive fields: reasons may reveal operational context and should stay concise.
+- Uniqueness rules: at most one active, non-archived assignment for the same task and user.
+- Audit requirements: assignment and removal should create task history and safe audit metadata.
+
+### TaskComment
+
+- Purpose and owner: internal comment on a task.
+- Important attributes: id, task id, author id, body, status, edit/archive metadata, timestamps.
+- Relationships: belongs to one `Task` and one author `User`; has zero or more explicit `TaskMention` records.
+- Cardinality: one task can have many comments.
+- Lifecycle: active, edited, archived.
+- Sensitive fields: bodies may contain confidential candidate, HR, client, or commercial data and must not be copied into audit summaries.
+- Audit requirements: create/edit/archive actions preserve safe audit metadata.
+
+### TaskMention
+
+- Purpose and owner: explicit mention of an internal user inside a task comment.
+- Important attributes: id, task id, comment id, mentioned user id, creator id, optional notification id, timestamp.
+- Relationships: belongs to one task and comment; references one mentioned internal user; may create one notification.
+- Cardinality: one comment can mention many users; a user can be mentioned many times.
+- Visibility rule: mention creation does not grant task access. The mentioned user must already be able to view the task.
+- Uniqueness rules: one mention per `(commentId, mentionedUserId)`.
+
+### TaskReminder
+
+- Purpose and owner: durable in-app reminder for a visible internal task.
+- Important attributes: id, task id, recipient user id, creator id, reminder timestamp, status, idempotency key, processing token, delivery/failure/cancel metadata, attempt count.
+- Relationships: belongs to one task and one recipient user.
+- Cardinality: one task can have many reminders; one user can receive many reminders.
+- Lifecycle: pending, processing, sent, canceled, failed.
+- Processing rule: due reminder workers claim rows with PostgreSQL row locks and `FOR UPDATE SKIP LOCKED`; notification creation uses idempotency keys so concurrent workers create at most one notification.
+- Audit requirements: reminder create/cancel and delivery failure/success use safe metadata only.
+
+### TaskEvent
+
+- Purpose and owner: append-oriented task lifecycle and collaboration history.
+- Important attributes: id, task id, actor id, action, previous/next status, reason, safe summary, timestamp.
+- Relationships: belongs to one task and optionally one actor user.
+- Cardinality: one task has many history events.
+- Audit requirements: task events preserve operational history; audit logs separately record security-relevant actions with safe summaries.
 
 ### TrainingProgram
 
@@ -520,11 +568,17 @@ erDiagram
     Interview ||--o{ CandidateEvaluation : produces
     User ||--o{ CandidateEvaluation : writes
 
-    User ||--o{ Task : assigned
+    User ||--o{ Task : owns
     RecruitmentMission ||--o{ Task : creates
     Candidate ||--o{ Task : relates_to
     Interview ||--o{ Task : creates
     TrainingEnrollment ||--o{ Task : creates
+    Task ||--o{ TaskAssignment : assigns
+    User ||--o{ TaskAssignment : assigned_to
+    Task ||--o{ TaskComment : has
+    TaskComment ||--o{ TaskMention : mentions
+    Task ||--o{ TaskReminder : schedules
+    Task ||--o{ TaskEvent : records
 
     TrainingProgram ||--o{ TrainingSession : contains
     TrainingProgram ||--o{ TrainingEnrollment : enrolls

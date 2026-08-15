@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-13
+Last updated: 2026-08-15
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Internal offer-to-placement lifecycle
-**Health:** Issue #27 / PR #28 is merged. Issue #29 is implemented in draft PR #30 on `feat/offer-placement-lifecycle`; the latest work is addressing a final blocking review on legacy integration confirmation.
-**Current blocker:** PR #30 must prove the retired legacy `confirm-integration` route cannot bypass offer-backed `MissionPlacement` confirmation.
-**Next executable development task:** Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm CI.
+**Phase:** Internal task management
+**Health:** Issue #29 / PR #30 is merged. Issue #31 is being implemented on `feat/task-management`.
+**Current blocker:** No known product blocker; push the branch, open a draft PR, and confirm CI.
+**Next executable development task:** Open the Issue #31 draft PR, confirm CI, and keep it unmerged.
 
 ## Active work
 
@@ -25,7 +25,8 @@ Status owner: repository maintainer
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
-| Issue #29 | In progress | Implement internal offer-to-placement lifecycle | Finish PR #30 blocking-review correction and confirm CI |
+| Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
+| Issue #31 | In progress | Implement internal task management, reminders, comments, mentions, and in-app notifications | Open draft PR and confirm CI |
 
 ## Completed foundation work
 
@@ -181,7 +182,7 @@ Status owner: repository maintainer
 
 ## Issue #29 Verification State
 
-- Issue #29 is implemented in draft PR #30 on branch `feat/offer-placement-lifecycle`.
+- Issue #29 is complete through merged PR #30.
 - Scope is limited to internal staff-managed offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for future invoicing.
 - Offer acceptance alone does not count a placement; `filledPlacementCount` changes only after explicit authorized placement confirmation.
 - Placement confirmation and correction are designed to be idempotent and serialized through the established mission-candidate lock order.
@@ -189,6 +190,17 @@ Status owner: repository maintainer
 - Moroccan payroll is recorded as future product scope only; no payroll, invoice, accounting, or candidate self-service implementation is included in Issue #29.
 - Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
+
+## Issue #31 Verification State
+
+- Issue #31 is being implemented on branch `feat/task-management`.
+- Scope is limited to authenticated internal task management, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware operational UI.
+- The implementation does not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
+- Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
+- `tasks:view` is scoped to task owner, creator, active assignee, or implemented linked-record scope. `tasks:view_all` is the separate broad oversight permission.
+- Reminder processing uses PostgreSQL row claiming with `FOR UPDATE SKIP LOCKED` and notification idempotency keys so concurrent workers create one notification.
+- Local checks passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 82 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 20 web tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 14 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
+- Local PostgreSQL used port `55432` because port `5432` was already allocated. Root `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests still emit existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
 ## Current open technical questions
 
@@ -209,7 +221,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm GitHub Actions.
+1. Push `feat/task-management`, open a draft PR with `Closes #31`, and confirm GitHub Actions.
 
 ## Status Update Rules
 

@@ -36,6 +36,18 @@ import {
   PublicApplicationSubmitResponseSchema,
   PublicOpportunityDetailResponseSchema,
   PublicOpportunityListResponseSchema,
+  NotificationDetailResponseSchema,
+  NotificationListResponseSchema,
+  TaskAssignmentCreateRequestSchema,
+  TaskCommentCreateRequestSchema,
+  TaskCommentDetailResponseSchema,
+  TaskCreateRequestSchema,
+  TaskDetailResponseSchema,
+  TaskListResponseSchema,
+  TaskReminderCreateRequestSchema,
+  TaskReminderDetailResponseSchema,
+  TaskReminderProcessResponseSchema,
+  TaskStatusChangeRequestSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -118,6 +130,18 @@ import {
   type PublicApplicationSubmitResponse,
   type PublicOpportunityDetailResponse,
   type PublicOpportunityListResponse,
+  type NotificationDetailResponse,
+  type NotificationListResponse,
+  type TaskAssignmentCreateRequest,
+  type TaskCommentCreateRequest,
+  type TaskCommentDetailResponse,
+  type TaskCreateRequest,
+  type TaskDetailResponse,
+  type TaskListResponse,
+  type TaskReminderCreateRequest,
+  type TaskReminderDetailResponse,
+  type TaskReminderProcessResponse,
+  type TaskStatusChangeRequest,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -1555,4 +1579,173 @@ export async function listInternalPublicApplications(
     apiBaseUrl,
   );
   return InternalPublicApplicationListResponseSchema.parse(await response.json());
+}
+
+async function taskRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/tasks${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Task request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+async function notificationRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+
+  const response = await fetch(`${apiBaseUrl}/v1/notifications${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Notification request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listTasks(
+  accessToken: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskListResponse> {
+  const response = await taskRequest(accessToken, '', {}, apiBaseUrl);
+  return TaskListResponseSchema.parse(await response.json());
+}
+
+export async function createTask(
+  accessToken: string,
+  input: TaskCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTaskStatus(
+  accessToken: string,
+  taskId: string,
+  input: TaskStatusChangeRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskStatusChangeRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function addTaskAssignment(
+  accessToken: string,
+  taskId: string,
+  input: TaskAssignmentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskAssignmentCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/assignments`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function createTaskComment(
+  accessToken: string,
+  taskId: string,
+  input: TaskCommentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const parsed = TaskCommentCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
+export async function createTaskReminder(
+  accessToken: string,
+  taskId: string,
+  input: TaskReminderCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const parsed = TaskReminderCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function processDueTaskReminders(
+  accessToken: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderProcessResponse> {
+  const response = await taskRequest(
+    accessToken,
+    '/reminders/process-due',
+    { method: 'POST', body: JSON.stringify({ limit: 25 }) },
+    apiBaseUrl,
+  );
+  return TaskReminderProcessResponseSchema.parse(await response.json());
+}
+
+export async function listNotifications(
+  accessToken: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationListResponse> {
+  const response = await notificationRequest(accessToken, '', {}, apiBaseUrl);
+  return NotificationListResponseSchema.parse(await response.json());
+}
+
+export async function markNotificationRead(
+  accessToken: string,
+  notificationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationDetailResponse> {
+  const response = await notificationRequest(
+    accessToken,
+    `/${notificationId}/read`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return NotificationDetailResponseSchema.parse(await response.json());
 }

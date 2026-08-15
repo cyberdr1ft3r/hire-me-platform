@@ -202,6 +202,20 @@ Issue #29 implements the internal offer-to-placement lifecycle under mission-can
 - transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then offer/placement rows where applicable
 - PostgreSQL-backed tests for lifecycle, versioning, idempotency, concurrency, authorization, IDOR, placement counts, and safe audit behavior
 
+Issue #31 implements the authenticated internal task-management layer:
+
+- `/v1/tasks` and `/v1/notifications` endpoints for visible task listing/detail, task creation, assignment changes, lifecycle transitions, comments, explicit mentions, reminders, reminder processing, and own-notification read/archive actions
+- shared Zod contracts in `packages/contracts` with no Prisma imports
+- API-owned Prisma access through the Nest `PrismaService` and explicit generated-client boundary exports for task, reminder, comment, notification, and event enums
+- one accountable task owner plus normalized `TaskAssignment` rows for multiple assignees and assignment history; legacy `Task.assigneeUserId` remains a compatibility field
+- explicit optional task context foreign keys to implemented business records, including clients, candidates, missions, mission candidates, interviews, offers, placements, training placeholders, and documents
+- deny-by-default task visibility where `tasks:view` is scoped to ownership, creator, active assignment, or implemented linked-record scope; `tasks:view_all` is the separate broad oversight permission
+- task row locking for dependent writes so lifecycle, assignment, comments, and reminders cannot mutate stale terminal or archived state
+- durable reminder processing with PostgreSQL `FOR UPDATE SKIP LOCKED`, idempotent notification keys, retry-safe failed reminders, and automatic canceling of irrelevant pending reminders when tasks complete, cancel, or archive
+- safe audit metadata that excludes task comment bodies, salary, confidential HR notes, commercial values, and client/candidate private data
+- focused web controls in the authenticated workspace without a global UI redesign
+- PostgreSQL-backed tests for lifecycle, assignment uniqueness, scoped visibility, mention access, reminder retry/concurrency, notification ownership, idempotent terminal actions, and audit behavior
+
 Training, documents, optional future client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, commercial accounting, payroll implementation, full structured external feedback, and broader business workflow behavior remain later implementation work.
 
 ### Public Opportunity and Application Surface
