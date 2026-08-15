@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Internal task management
-**Health:** Issue #29 / PR #30 is merged. Issue #31 is being implemented on `feat/task-management`.
-**Current blocker:** No known product blocker; push the branch, open a draft PR, and confirm CI.
-**Next executable development task:** Open the Issue #31 draft PR, confirm CI, and keep it unmerged.
+**Health:** Issue #29 / PR #30 is merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`.
+**Current blocker:** No known product blocker; wait for GitHub Actions and final review on PR #32.
+**Next executable development task:** Confirm PR #32 CI, address review if needed, and keep it unmerged until approved.
 
 ## Active work
 
@@ -26,7 +26,7 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | In progress | Implement internal task management, reminders, comments, mentions, and in-app notifications | Open draft PR and confirm CI |
+| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Confirm PR #32 CI and review |
 
 ## Completed foundation work
 
@@ -193,7 +193,7 @@ Status owner: repository maintainer
 
 ## Issue #31 Verification State
 
-- Issue #31 is being implemented on branch `feat/task-management`.
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`.
 - Scope is limited to authenticated internal task management, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware operational UI.
 - The implementation does not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
@@ -221,7 +221,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Push `feat/task-management`, open a draft PR with `Closes #31`, and confirm GitHub Actions.
+1. Confirm GitHub Actions on draft PR #32 and address review feedback if needed.
 
 ## Status Update Rules
 

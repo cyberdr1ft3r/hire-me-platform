@@ -7,14 +7,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, #25, #27, and #29 are complete and merged on `main`.
-- Issue #31 is active on branch `feat/task-management`.
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`.
 - The branch implements authenticated internal task management only: task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, permission-aware UI, safe audit, and domain history.
 - The implementation must not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - The approved direction remains an authenticated internal Hire Me platform plus bounded unauthenticated public opportunity/application links. Candidates do not have accounts or dashboards.
 
 ## Next Action
 
-Push `feat/task-management`, open a draft PR against `main` with `Closes #31`, confirm GitHub Actions, and keep the draft PR unmerged.
+Confirm GitHub Actions on draft PR #32, address review feedback if needed, and keep the draft PR unmerged.
 
 Check especially:
 
@@ -55,9 +55,7 @@ Known local validation note:
 Still required before handoff completion:
 
 - Review final diff for unrelated changes.
-- Commit and push.
-- Open draft PR for Issue #31.
-- Update this file and `docs/project/STATUS.md` with the PR number, final head SHA, full local validation, and GitHub Actions status.
+- Update this file and `docs/project/STATUS.md` with final GitHub Actions status after CI completes.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

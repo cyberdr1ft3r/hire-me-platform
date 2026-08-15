@@ -26,7 +26,7 @@ Internal task management, reminders, comments, and notifications.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle.
-- Current executable goal: Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-045.
+- Current executable goal: review draft PR #32 for Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-045.
 
 ## Confirmed Product Facts
 
@@ -56,7 +56,7 @@ Internal task management, reminders, comments, and notifications.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
 - Issue #29 implements internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing.
-- Issue #31 implements internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
+- Issue #31 is implemented in draft PR #32. It adds internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 
 ## Technical Direction
 
