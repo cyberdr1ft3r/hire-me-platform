@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-13
+Last updated: 2026-08-28
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Internal offer-to-placement lifecycle
-**Health:** Issue #27 / PR #28 is merged. Issue #29 is implemented in draft PR #30 on `feat/offer-placement-lifecycle`; the latest work is addressing a final blocking review on legacy integration confirmation.
-**Current blocker:** PR #30 must prove the retired legacy `confirm-integration` route cannot bypass offer-backed `MissionPlacement` confirmation.
-**Next executable development task:** Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm CI.
+**Phase:** Internal task management, reminders, comments, and notifications
+**Health:** Issue #29 / PR #30 is merged. The final offer-to-placement blocking fix passed CI, and persistent project memory is being reconciled through Issue #33.
+**Current blocker:** None for merged Issue #29. Issue #33 is documentation/project-memory reconciliation only.
+**Next executable development task:** Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
 
 ## Active work
 
@@ -25,7 +25,9 @@ Status owner: repository maintainer
 | Issue #23 | Complete | Implement interviews and structured candidate evaluations under mission-candidate processes | No action |
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
-| Issue #29 | In progress | Implement internal offer-to-placement lifecycle | Finish PR #30 blocking-review correction and confirm CI |
+| Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
+| Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Start scoped implementation after Issue #33 reconciliation is reviewed |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Complete documentation-only reconciliation PR |
 
 ## Completed foundation work
 
@@ -181,11 +183,14 @@ Status owner: repository maintainer
 
 ## Issue #29 Verification State
 
-- Issue #29 is implemented in draft PR #30 on branch `feat/offer-placement-lifecycle`.
+- Issue #29 is complete; PR #30 merged into `main` as merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0`.
+- Final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822` retired the legacy integration-counting path, and final-head GitHub Actions run `31719561145` passed all jobs.
 - Scope is limited to internal staff-managed offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for future invoicing.
 - Offer acceptance alone does not count a placement; `filledPlacementCount` changes only after explicit authorized placement confirmation.
 - Placement confirmation and correction are designed to be idempotent and serialized through the established mission-candidate lock order.
-- Final blocking-review correction retires the legacy `confirm-integration` route as a counting mutation, blocks ordinary transitions into `INTEGRATED`, and keeps historical `MissionCandidate.placementConfirmedAt` rows as compatibility metadata unless a later audited reconciliation creates canonical `MissionPlacement` rows.
+- Final blocking-review correction retired the legacy `confirm-integration` route as a counting mutation, blocked ordinary transitions into `INTEGRATED`, and keeps historical `MissionCandidate.placementConfirmedAt` rows as compatibility metadata unless a later audited reconciliation creates canonical `MissionPlacement` rows.
+- Offer-backed `MissionPlacement` is the authoritative counted-placement record. Offer acceptance alone does not count placement; generic `MissionCandidate` transition into `INTEGRATED` is blocked and requires the dedicated offer-backed placement action.
+- The legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; it must not increment `filledPlacementCount`, create `MissionPlacement`, or infer an offer version.
 - Moroccan payroll is recorded as future product scope only; no payroll, invoice, accounting, or candidate self-service implementation is included in Issue #29.
 - Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
@@ -209,7 +214,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Validate, push the PR #30 blocking-review correction, update the draft PR, and confirm GitHub Actions.
+1. Complete Issue #33 documentation reconciliation, then start Issue #31 unless a newer approved issue supersedes it.
 
 ## Status Update Rules
 

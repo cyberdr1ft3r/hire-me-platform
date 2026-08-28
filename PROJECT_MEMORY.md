@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-13
+Last updated: 2026-08-28
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Internal offer-to-placement lifecycle.
+Internal task management, reminders, comments, and notifications.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -25,7 +25,8 @@ Internal offer-to-placement lifecycle.
 - Issue #23 is complete; PR #24 merged interviews and structured candidate evaluations.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
-- Current executable goal: Issue #29 internal offer-to-placement lifecycle on branch `feat/offer-placement-lifecycle`, using decisions D-004, D-023 through D-044.
+- Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
+- Current executable goal: Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
 
 ## Confirmed Product Facts
 
@@ -54,7 +55,7 @@ Internal offer-to-placement lifecycle.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
-- Issue #29 implements internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Task management, accounting, payroll, training, and any future client portal each need their own later issues.
+- Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Task management, accounting, payroll, training, and any future client portal each need their own later issues.
 
 ## Technical Direction
 
