@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-07-23
+Last updated: 2026-08-28
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -83,11 +83,11 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 
 Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Issue #29 implements the internal offer-to-placement lifecycle. Task management, broader search, accounting, payroll, and document generation remain separate scoped work.
+Issue #29 completed the internal offer-to-placement lifecycle. Task management, broader search, accounting, payroll, and document generation remain separate scoped work.
 
 ## Phase 6 - Offers and placements
 
-**State:** In progress through Issue #29
+**State:** Complete through Issue #29 / merged PR #30
 
 - Versioned internal recruitment offers.
 - Staff-recorded negotiation, acceptance, rejection, expiry, and withdrawal.
@@ -95,7 +95,7 @@ Issue #29 implements the internal offer-to-placement lifecycle. Task management,
 
 ## Phase 6a - Task management
 
-**State:** Planned; issue not yet created
+**State:** Next executable feature through Issue #31
 
 - Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
