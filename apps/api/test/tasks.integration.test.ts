@@ -29,18 +29,14 @@ import {
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
 const testPassword = 'Synthetic-passphrase-123!';
-const taskPermissions = [
-  'tasks:view',
-  'tasks:create',
-  'tasks:update',
-  'tasks:assign',
-  'tasks:transition',
-  'tasks:comment',
-  'tasks:reminders:manage',
-  'tasks:archive',
-  'notifications:view_own',
-  'notifications:update_own',
-] as const;
+type RolePermissionSnapshot = {
+  roleExisted: boolean;
+  permissions: {
+    permissionId: string;
+    grantedAt: Date;
+    archivedAt: Date | null;
+  }[];
+};
 
 async function cleanTaskTestRecords(): Promise<void> {
   await prisma.taskMention.deleteMany({
@@ -167,6 +163,63 @@ async function ensureRoleWithOnlyPermissions(
   await ensureRoleWithPermissions(roleName, permissionCodes);
 }
 
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUnique({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  if (!role) {
+    return { roleExisted: false, permissions: [] };
+  }
+  return {
+    roleExisted: true,
+    permissions: role.permissions.map((rolePermission) => ({
+      permissionId: rolePermission.permissionId,
+      grantedAt: rolePermission.grantedAt,
+      archivedAt: rolePermission.archivedAt,
+    })),
+  };
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  if (!snapshot.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: {
+        notIn: snapshot.permissions.map((rolePermission) => rolePermission.permissionId),
+      },
+    },
+  });
+  for (const rolePermission of snapshot.permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
+      },
+      update: {
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+      create: {
+        roleId: role.id,
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+    });
+  }
+}
+
 async function createUser(email: string, roleName: RoleName): Promise<string> {
   const user = await prisma.user.create({
     data: {
@@ -225,12 +278,15 @@ describe('internal task management, reminders, comments, and notifications', () 
   let contextLimitedToken: string;
   let createOnlyToken: string;
   let broadManagerToken: string;
+  let noViewInternalToken: string;
   let noTaskToken: string;
+  let employeeRoleSnapshot: RolePermissionSnapshot;
+  let guestRoleSnapshot: RolePermissionSnapshot;
 
   beforeAll(async () => {
     await cleanTaskTestRecords();
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, taskPermissions);
-    await ensureRoleWithPermissions(RoleName.TEAM_LEADER, ['tasks:view']);
+    employeeRoleSnapshot = await snapshotRolePermissions(RoleName.EMPLOYEE);
+    guestRoleSnapshot = await snapshotRolePermissions(RoleName.GUEST);
     await ensureRoleWithOnlyPermissions(RoleName.EMPLOYEE, [
       'tasks:view',
       'tasks:create',
@@ -260,11 +316,14 @@ describe('internal task management, reminders, comments, and notifications', () 
     createOnlyToken = await loginAccessToken(baseUrl, 'create-only@tasks.test');
     broadManagerToken = await loginAccessToken(baseUrl, 'broad-manager@tasks.test');
     noTaskToken = await loginAccessToken(baseUrl, 'notasks@tasks.test');
+    noViewInternalToken = await loginAccessToken(baseUrl, 'no-view-internal@tasks.test');
   });
 
   afterAll(async () => {
     await app?.close();
     await cleanTaskTestRecords();
+    await restoreRolePermissions(RoleName.EMPLOYEE, employeeRoleSnapshot);
+    await restoreRolePermissions(RoleName.GUEST, guestRoleSnapshot);
     await prisma.$disconnect();
   });
 
@@ -1021,7 +1080,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       body: JSON.stringify({
         title: 'Issue31 reminder authorization state task',
         ownerUserId,
-        assigneeUserIds: [assigneeUserId],
+        assigneeUserIds: [assigneeUserId, createOnlyUserId],
       }),
     });
     const task = TaskDetailResponseSchema.parse(await created.json()).task;
@@ -1043,7 +1102,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       `${baseUrl}/v1/tasks/${task.id}/reminders/${reminder.id}`,
       {
         method: 'PATCH',
-        headers: authHeaders(limitedToken),
+        headers: authHeaders(createOnlyToken),
         body: JSON.stringify({ remindAt: new Date(Date.now() + 172_800_000).toISOString() }),
       },
     );
@@ -1227,7 +1286,7 @@ describe('internal task management, reminders, comments, and notifications', () 
     });
     const staleRead = await fetch(`${baseUrl}/v1/notifications/${staleNotification.id}/read`, {
       method: 'POST',
-      headers: authHeaders(noTaskToken),
+      headers: authHeaders(noViewInternalToken),
     });
     expect(NotificationDetailResponseSchema.parse(await staleRead.json()).notification.taskId).toBe(
       null,
