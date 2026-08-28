@@ -1,22 +1,29 @@
 # Current Agent Handoff
 
-Last updated: 2026-08-15
+Last updated: 2026-08-28
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
 - Issues #1, #2, #3, #5, #10, #13, #15, #17, #19, #21, #23, #25, #27, and #29 are complete and merged on `main`.
-- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`.
+- Issue #29 / PR #30 implemented the internal offer-to-placement lifecycle. PR #30 merged as commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0`.
+- Final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822` retired the legacy integration-counting path. Final-head GitHub Actions run `31719561145` passed all jobs.
+- Offer-backed `MissionPlacement` is the authoritative counted-placement record. Offer acceptance alone does not count placement.
+- Generic `MissionCandidate` transition into `INTEGRATED` is blocked and requires the dedicated offer-backed placement action.
+- The legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; it must not increment `filledPlacementCount`, create `MissionPlacement`, or infer an offer version.
+- Historical `MissionCandidate.placementConfirmedAt` metadata must not be silently converted into fabricated offer-backed placements. Any future reconciliation must be explicit and audited.
+- Issue #33 / PR #34 reconciled project memory after the Issue #29 / PR #30 merge.
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management` and is under blocking review.
 - The branch implements authenticated internal task management only: task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, permission-aware UI, safe audit, and domain history.
 - The implementation must not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - The approved direction remains an authenticated internal Hire Me platform plus bounded unauthenticated public opportunity/application links. Candidates do not have accounts or dashboards.
 
 ## Next Action
 
-Confirm GitHub Actions on draft PR #32, address review feedback if needed, and keep the draft PR unmerged.
+Resolve every PR #32 blocking-review item, rerun full validation, update the draft PR description with the final head SHA and final CI run, and keep the draft PR unmerged.
 
-Check especially:
+For Issue #31, preserve these boundaries:
 
 - `tasks:view` must not expose all internal tasks. It is scoped to owner, creator, active assignee, or implemented linked-record scope.
 - `tasks:view_all` is the explicit broad oversight permission.
@@ -25,37 +32,17 @@ Check especially:
 - Durable reminder workers must use PostgreSQL row claiming and idempotent notification keys.
 - Completing, canceling, or archiving a task cancels irrelevant pending/failed reminders.
 - `Task.assigneeUserId` is a legacy compatibility field; normalized multi-assignee state lives in `TaskAssignment`.
+- Do not reopen or modify Issue #29 / PR #30 placement behavior.
+- Do not count placements without offer-backed `MissionPlacement` confirmation.
+- Do not add candidate accounts, public offer acceptance, payroll, invoice/accounting implementation, or unrelated business modules.
+- Keep task management scoped to ownership, assignees, priority, due dates, status, context links, reminders, comments, mentions, notifications, and audit history as approved by the issue.
+- Keep the authenticated internal platform and bounded unauthenticated public opportunity/application surface intact.
 
 ## Verification Notes
 
-Completed locally for Issue #31:
+Issue #29 final validation passed before merge: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`. GitHub Actions run `31719561145` passed all jobs on the final PR #30 head.
 
-- PostgreSQL Docker Compose health confirmed on `127.0.0.1:55432` because local port `5432` was already allocated.
-- `pnpm.cmd prisma:validate`
-- `pnpm.cmd prisma:generate`
-- `pnpm.cmd prisma:migrate:deploy`
-- `pnpm.cmd prisma:migrate:reset --force`
-- `pnpm.cmd prisma:seed` twice after reset
-- `pnpm.cmd test:db` with 82 PostgreSQL integration tests passing
-- `pnpm.cmd --filter @hire-me/web test` with 20 web tests passing
-- `pnpm.cmd check:architecture`
-- Mermaid CLI rendering for all 14 documentation diagrams
-- `pnpm.cmd format:check`
-- `pnpm.cmd lint`
-- `pnpm.cmd typecheck`
-- `pnpm.cmd test`
-- `pnpm.cmd build`
-- `git diff --check`
-
-Known local validation note:
-
-- Root `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox.
-- Web tests still emit existing React `act(...)` warnings around asynchronous mission workspace state updates.
-
-Still required before handoff completion:
-
-- Review final diff for unrelated changes.
-- Update this file and `docs/project/STATUS.md` with final GitHub Actions status after CI completes.
+PR #32 previous head `894bef7d0aa172fc59639a5f63a1d4209c97f5f1` had green CI run `31858677312`, but the review identified unresolved blockers. Full validation and final GitHub Actions must be rerun after the blocking fixes.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

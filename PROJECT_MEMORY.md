@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-15
+Last updated: 2026-08-28
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -25,8 +25,9 @@ Internal task management, reminders, comments, and notifications.
 - Issue #23 is complete; PR #24 merged interviews and structured candidate evaluations.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
-- Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle.
-- Current executable goal: review draft PR #32 for Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-045.
+- Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
+- Issue #33 is complete; PR #34 reconciled project memory after the Issue #29 / PR #30 merge.
+- Current executable goal: resolve blocking review on draft PR #32 for Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-045.
 
 ## Confirmed Product Facts
 
@@ -55,8 +56,8 @@ Internal task management, reminders, comments, and notifications.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
-- Issue #29 implements internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing.
-- Issue #31 is implemented in draft PR #32. It adds internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
+- Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Task management, accounting, payroll, training, and any future client portal each need their own later issues.
+- Issue #31 is in draft PR #32. It adds internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 
 ## Technical Direction
 
