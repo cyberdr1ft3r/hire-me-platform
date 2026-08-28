@@ -230,10 +230,13 @@ describe('internal task management, reminders, comments, and notifications', () 
   beforeAll(async () => {
     await cleanTaskTestRecords();
     await ensureRoleWithPermissions(RoleName.HR_MANAGER, taskPermissions);
-    await ensureRoleWithOnlyPermissions(RoleName.TEAM_LEADER, ['tasks:view']);
-    await ensureRoleWithOnlyPermissions(RoleName.EMPLOYEE, ['tasks:view', 'tasks:create']);
-    await ensureRoleWithOnlyPermissions(RoleName.ADMIN, [...taskPermissions, 'tasks:view_all']);
-    await ensureRoleWithOnlyPermissions(RoleName.CLIENT_USER, [
+    await ensureRoleWithPermissions(RoleName.TEAM_LEADER, ['tasks:view']);
+    await ensureRoleWithOnlyPermissions(RoleName.EMPLOYEE, [
+      'tasks:view',
+      'tasks:create',
+      'tasks:comment',
+    ]);
+    await ensureRoleWithPermissions(RoleName.GUEST, [
       'notifications:view_own',
       'notifications:update_own',
     ]);
@@ -242,9 +245,9 @@ describe('internal task management, reminders, comments, and notifications', () 
     limitedUserId = await createUser('limited@tasks.test', RoleName.TEAM_LEADER);
     contextLimitedUserId = await createUser('context-limited@tasks.test', RoleName.MANAGER);
     createOnlyUserId = await createUser('create-only@tasks.test', RoleName.EMPLOYEE);
-    await createUser('broad-manager@tasks.test', RoleName.ADMIN);
-    noViewInternalUserId = await createUser('no-view-internal@tasks.test', RoleName.CLIENT_USER);
-    await createUser('notasks@tasks.test', RoleName.CLIENT_USER);
+    await createUser('broad-manager@tasks.test', RoleName.HR_MANAGER);
+    noViewInternalUserId = await createUser('no-view-internal@tasks.test', RoleName.GUEST);
+    await createUser('notasks@tasks.test', RoleName.GUEST);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.enableCors({ origin: 'http://127.0.0.1:5173', credentials: true });
@@ -785,7 +788,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       body: JSON.stringify({
         title: 'Issue31 comment matrix task',
         ownerUserId,
-        assigneeUserIds: [assigneeUserId],
+        assigneeUserIds: [createOnlyUserId],
       }),
     });
     const task = TaskDetailResponseSchema.parse(await created.json()).task;
@@ -801,7 +804,7 @@ describe('internal task management, reminders, comments, and notifications', () 
 
     const unauthorizedEdit = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}`, {
       method: 'PATCH',
-      headers: authHeaders(assigneeToken),
+      headers: authHeaders(createOnlyToken),
       body: JSON.stringify({ body: 'Synthetic unauthorized edit.' }),
     });
     expect(unauthorizedEdit.status).toBe(403);
@@ -827,7 +830,7 @@ describe('internal task management, reminders, comments, and notifications', () 
 
     const unauthorizedArchive = await fetch(
       `${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}/archive`,
-      { method: 'POST', headers: authHeaders(assigneeToken) },
+      { method: 'POST', headers: authHeaders(createOnlyToken) },
     );
     expect(unauthorizedArchive.status).toBe(403);
     expect(await readErrorCode(unauthorizedArchive)).toBe('TASK_COMMENT_AUTHOR_REQUIRED');
