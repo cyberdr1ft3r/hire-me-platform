@@ -31,12 +31,14 @@ import {
   archiveCandidate,
   archiveClient,
   archiveClientContact,
+  archiveNotification,
   archiveMission,
   archiveMissionAssignment,
   archiveInterview,
   cancelInterview,
   addTaskAssignment,
   assignAdminRole,
+  changeTaskOwner,
   completeInterview,
   createTask as createInternalTask,
   createTaskComment,
@@ -76,6 +78,8 @@ import {
   listAdminUsers,
   login,
   logout,
+  markAllNotificationsRead,
+  markNotificationRead,
   removeAdminRole,
   revokeAdminSession,
   revokeAllAdminSessions,
@@ -436,6 +440,13 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('');
+  const [taskOwnerFilter, setTaskOwnerFilter] = useState('');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState('');
+  const [taskTotal, setTaskTotal] = useState(0);
+  const [notificationStatusFilter, setNotificationStatusFilter] = useState('');
+  const [notificationTotal, setNotificationTotal] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const permissions = new Set(user.permissions);
   const canViewTasks = permissions.has('tasks:view');
@@ -451,21 +462,47 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
     void loadNotifications();
   }, []);
 
-  async function loadTasks(): Promise<void> {
+  async function loadTasks(
+    nextSearch = taskSearch,
+    nextStatus = taskStatusFilter,
+    nextOwner = taskOwnerFilter,
+    nextAssignee = taskAssigneeFilter,
+  ): Promise<void> {
     if (!canViewTasks) {
       return;
     }
-    const response = await listTasks(accessToken);
+    const response = await listTasks(accessToken, {
+      search: nextSearch || undefined,
+      status: nextStatus ? (nextStatus as TaskSummary['status']) : undefined,
+      ownerUserId: nextOwner || undefined,
+      assigneeUserId: nextAssignee || undefined,
+      pageSize: 25,
+    });
     setTasks(response.tasks);
+    setTaskTotal(response.pageInfo.total);
     setSelectedTaskId((current) => current || response.tasks[0]?.id || '');
   }
 
-  async function loadNotifications(): Promise<void> {
+  async function loadNotifications(nextStatus = notificationStatusFilter): Promise<void> {
     if (!canViewNotifications) {
       return;
     }
-    const response = await listNotifications(accessToken);
+    const response = await listNotifications(accessToken, {
+      status: notificationListStatus(nextStatus),
+      pageSize: 25,
+    });
     setNotifications(response.notifications);
+    setNotificationTotal(response.pageInfo.total);
+  }
+
+  async function handleTaskFilters(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadTasks(taskSearch, taskStatusFilter, taskOwnerFilter, taskAssigneeFilter);
+  }
+
+  async function handleNotificationFilters(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadNotifications(notificationStatusFilter);
   }
 
   async function createTask(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -527,6 +564,23 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
     await loadNotifications();
   }
 
+  async function changeOwner(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedTaskId) {
+      return;
+    }
+    const formData = new FormData(form);
+    await changeTaskOwner(accessToken, selectedTaskId, {
+      ownerUserId: formValue(formData, 'ownerUserId'),
+      reason: formValue(formData, 'reason') || null,
+    });
+    setMessage('Task owner changed.');
+    form.reset();
+    await loadTasks();
+    await loadNotifications();
+  }
+
   async function addComment(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
@@ -571,6 +625,26 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
     await loadNotifications();
   }
 
+  async function readNotification(notificationId: string): Promise<void> {
+    await markNotificationRead(accessToken, notificationId);
+    setMessage('Notification marked read.');
+    await loadNotifications();
+  }
+
+  async function readAllNotifications(): Promise<void> {
+    const response = await markAllNotificationsRead(accessToken, {
+      status: notificationListStatus(notificationStatusFilter),
+    });
+    setMessage(`${response.updatedCount} notifications marked read.`);
+    await loadNotifications();
+  }
+
+  async function archiveOneNotification(notificationId: string): Promise<void> {
+    await archiveNotification(accessToken, notificationId);
+    setMessage('Notification archived.');
+    await loadNotifications();
+  }
+
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
 
   return (
@@ -591,6 +665,45 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
         <div className="grid-two">
           <section aria-label="Task list">
             <h3>Visible tasks</h3>
+            <form
+              className="compact-form"
+              aria-label="Filter tasks"
+              onSubmit={(event) => void handleTaskFilters(event)}
+            >
+              <input
+                aria-label="Search tasks"
+                value={taskSearch}
+                onChange={(event) => setTaskSearch(event.target.value)}
+                placeholder="Search tasks"
+              />
+              <select
+                aria-label="Task status"
+                value={taskStatusFilter}
+                onChange={(event) => setTaskStatusFilter(event.target.value)}
+              >
+                <option value="">Any status</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In progress</option>
+                <option value="WAITING">Waiting</option>
+                <option value="BLOCKED">Blocked</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELED">Canceled</option>
+              </select>
+              <input
+                aria-label="Owner user UUID"
+                value={taskOwnerFilter}
+                onChange={(event) => setTaskOwnerFilter(event.target.value)}
+                placeholder="Owner user UUID"
+              />
+              <input
+                aria-label="Assignee user UUID"
+                value={taskAssigneeFilter}
+                onChange={(event) => setTaskAssigneeFilter(event.target.value)}
+                placeholder="Assignee user UUID"
+              />
+              <button type="submit">Filter tasks</button>
+            </form>
+            <p>{taskTotal} visible tasks.</p>
             {tasks.length > 0 ? (
               <ul className="plain-list">
                 {tasks.map((task) => (
@@ -632,12 +745,20 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
                   </div>
                 ) : null}
                 {canAssignTasks ? (
-                  <form className="compact-form" onSubmit={(event) => void addAssignment(event)}>
-                    <h4>Add assignee</h4>
-                    <input name="userId" placeholder="Internal user UUID" required />
-                    <input name="reason" placeholder="Reason" />
-                    <button type="submit">Assign</button>
-                  </form>
+                  <>
+                    <form className="compact-form" onSubmit={(event) => void changeOwner(event)}>
+                      <h4>Change owner</h4>
+                      <input name="ownerUserId" placeholder="New owner user UUID" required />
+                      <input name="reason" placeholder="Reason" />
+                      <button type="submit">Change owner</button>
+                    </form>
+                    <form className="compact-form" onSubmit={(event) => void addAssignment(event)}>
+                      <h4>Add assignee</h4>
+                      <input name="userId" placeholder="Internal user UUID" required />
+                      <input name="reason" placeholder="Reason" />
+                      <button type="submit">Assign</button>
+                    </form>
+                  </>
                 ) : null}
                 {canCommentTasks ? (
                   <form className="compact-form" onSubmit={(event) => void addComment(event)}>
@@ -690,12 +811,43 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
       {canViewNotifications ? (
         <section aria-label="Notifications">
           <h3>Notifications</h3>
+          <form
+            className="compact-form"
+            aria-label="Filter notifications"
+            onSubmit={(event) => void handleNotificationFilters(event)}
+          >
+            <select
+              aria-label="Notification status"
+              value={notificationStatusFilter}
+              onChange={(event) => setNotificationStatusFilter(event.target.value)}
+            >
+              <option value="">Any status</option>
+              <option value="UNREAD">Unread</option>
+              <option value="READ">Read</option>
+            </select>
+            <button type="submit">Filter notifications</button>
+            <button type="button" onClick={() => void readAllNotifications()}>
+              Mark visible read
+            </button>
+          </form>
+          <p>{notificationTotal} visible notifications.</p>
           {notifications.length > 0 ? (
             <ul className="plain-list">
               {notifications.map((notification) => (
                 <li key={notification.id}>
                   <strong>{notification.title}</strong>
                   <span>{notification.status}</span>
+                  {notification.status === 'UNREAD' ? (
+                    <button type="button" onClick={() => void readNotification(notification.id)}>
+                      Mark read
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void archiveOneNotification(notification.id)}
+                  >
+                    Archive
+                  </button>
                 </li>
               ))}
             </ul>
@@ -706,6 +858,10 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
       ) : null}
     </section>
   );
+}
+
+function notificationListStatus(status: string): 'UNREAD' | 'READ' | undefined {
+  return status === 'UNREAD' || status === 'READ' ? status : undefined;
 }
 
 function AdminPanel({ accessToken }: { accessToken: string }) {

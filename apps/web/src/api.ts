@@ -37,13 +37,18 @@ import {
   PublicOpportunityDetailResponseSchema,
   PublicOpportunityListResponseSchema,
   NotificationDetailResponseSchema,
+  NotificationListQuerySchema,
   NotificationListResponseSchema,
+  NotificationReadAllRequestSchema,
+  NotificationReadAllResponseSchema,
   TaskAssignmentCreateRequestSchema,
   TaskCommentCreateRequestSchema,
   TaskCommentDetailResponseSchema,
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
   TaskListResponseSchema,
+  TaskListQuerySchema,
+  TaskOwnerChangeRequestSchema,
   TaskReminderCreateRequestSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
@@ -132,12 +137,17 @@ import {
   type PublicOpportunityListResponse,
   type NotificationDetailResponse,
   type NotificationListResponse,
+  type NotificationListQuery,
+  type NotificationReadAllRequest,
+  type NotificationReadAllResponse,
   type TaskAssignmentCreateRequest,
   type TaskCommentCreateRequest,
   type TaskCommentDetailResponse,
   type TaskCreateRequest,
   type TaskDetailResponse,
   type TaskListResponse,
+  type TaskListQuery,
+  type TaskOwnerChangeRequest,
   type TaskReminderCreateRequest,
   type TaskReminderDetailResponse,
   type TaskReminderProcessResponse,
@@ -1630,9 +1640,12 @@ async function notificationRequest(
 
 export async function listTasks(
   accessToken: string,
+  query: Partial<TaskListQuery> = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<TaskListResponse> {
-  const response = await taskRequest(accessToken, '', {}, apiBaseUrl);
+  const parsed = TaskListQuerySchema.partial().parse(query);
+  const path = queryPath('', parsed);
+  const response = await taskRequest(accessToken, path, {}, apiBaseUrl);
   return TaskListResponseSchema.parse(await response.json());
 }
 
@@ -1661,6 +1674,22 @@ export async function updateTaskStatus(
   const response = await taskRequest(
     accessToken,
     `/${taskId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function changeTaskOwner(
+  accessToken: string,
+  taskId: string,
+  input: TaskOwnerChangeRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskOwnerChangeRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/owner`,
     { method: 'POST', body: JSON.stringify(parsed) },
     apiBaseUrl,
   );
@@ -1730,9 +1759,11 @@ export async function processDueTaskReminders(
 
 export async function listNotifications(
   accessToken: string,
+  query: Partial<NotificationListQuery> = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<NotificationListResponse> {
-  const response = await notificationRequest(accessToken, '', {}, apiBaseUrl);
+  const parsed = NotificationListQuerySchema.partial().parse(query);
+  const response = await notificationRequest(accessToken, queryPath('', parsed), {}, apiBaseUrl);
   return NotificationListResponseSchema.parse(await response.json());
 }
 
@@ -1748,4 +1779,47 @@ export async function markNotificationRead(
     apiBaseUrl,
   );
   return NotificationDetailResponseSchema.parse(await response.json());
+}
+
+export async function markAllNotificationsRead(
+  accessToken: string,
+  input: NotificationReadAllRequest = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationReadAllResponse> {
+  const parsed = NotificationReadAllRequestSchema.parse(input);
+  const response = await notificationRequest(
+    accessToken,
+    '/read-all',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return NotificationReadAllResponseSchema.parse(await response.json());
+}
+
+export async function archiveNotification(
+  accessToken: string,
+  notificationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationDetailResponse> {
+  const response = await notificationRequest(
+    accessToken,
+    `/${notificationId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return NotificationDetailResponseSchema.parse(await response.json());
+}
+
+function queryPath(
+  path: string,
+  query: Partial<Record<string, string | number | boolean | null | undefined>>,
+): string {
+  const parameters = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== '') {
+      parameters.set(key, String(value));
+    }
+  }
+  const serialized = parameters.toString();
+  return serialized ? `${path}?${serialized}` : path;
 }

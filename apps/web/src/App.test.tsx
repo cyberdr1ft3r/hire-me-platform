@@ -222,7 +222,7 @@ describe('App', () => {
   });
 
   it('loads read-only task lists without mutation controls', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = input instanceof Request ? input.url : input.toString();
 
       if (url.endsWith('/health')) {
@@ -261,7 +261,7 @@ describe('App', () => {
         );
       }
 
-      if (url.endsWith('/v1/tasks')) {
+      if (url.includes('/v1/tasks') && init?.method !== 'POST') {
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -302,17 +302,24 @@ describe('App', () => {
                   updatedAt: '2026-07-21T10:00:00.000Z',
                 },
               ],
+              pageInfo: { page: 1, pageSize: 25, total: 1, hasNextPage: false },
             }),
             { headers: { 'Content-Type': 'application/json' } },
           ),
         );
       }
 
-      if (url.endsWith('/v1/notifications')) {
+      if (url.includes('/v1/notifications')) {
         return Promise.resolve(
-          new Response(JSON.stringify({ notifications: [] }), {
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          new Response(
+            JSON.stringify({
+              notifications: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
         );
       }
 
@@ -383,11 +390,17 @@ describe('App', () => {
         );
       }
 
-      if (url.endsWith('/v1/tasks') && init?.method !== 'POST') {
+      if (url.includes('/v1/tasks') && init?.method !== 'POST') {
         return Promise.resolve(
-          new Response(JSON.stringify({ tasks: [] }), {
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          new Response(
+            JSON.stringify({
+              tasks: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
         );
       }
 
@@ -446,11 +459,17 @@ describe('App', () => {
         );
       }
 
-      if (url.endsWith('/v1/notifications')) {
+      if (url.includes('/v1/notifications')) {
         return Promise.resolve(
-          new Response(JSON.stringify({ notifications: [] }), {
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          new Response(
+            JSON.stringify({
+              notifications: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
         );
       }
 

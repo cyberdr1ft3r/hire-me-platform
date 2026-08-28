@@ -1,7 +1,21 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   NotificationDetailResponseSchema,
   NotificationListResponseSchema,
+  NotificationListQuerySchema,
+  NotificationReadAllRequestSchema,
+  NotificationReadAllResponseSchema,
   TaskAssignmentCreateRequestSchema,
   TaskAssignmentRemoveRequestSchema,
   TaskCommentCreateRequestSchema,
@@ -10,6 +24,8 @@ import {
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
   TaskListResponseSchema,
+  TaskListQuerySchema,
+  TaskOwnerChangeRequestSchema,
   TaskReminderCreateRequestSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessRequestSchema,
@@ -37,8 +53,12 @@ export class TasksController {
 
   @Get()
   @RequirePermissions(TASK_PERMISSIONS.TASKS_VIEW)
-  async listTasks(@Req() request: RequestWithUser) {
-    return TaskListResponseSchema.parse(await this.tasks.listTasks(request.user!.id));
+  async listTasks(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = TaskListQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest('INVALID_TASK_LIST_QUERY', 'Invalid task list query.');
+    }
+    return TaskListResponseSchema.parse(await this.tasks.listTasks(request.user!.id, parsed.data));
   }
 
   @Post()
@@ -74,6 +94,27 @@ export class TasksController {
     }
     return TaskDetailResponseSchema.parse(
       await this.tasks.updateTask(
+        this.uuid(taskId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post(':taskId/owner')
+  @RequirePermissions(TASK_PERMISSIONS.TASKS_ASSIGN)
+  async changeOwner(
+    @Param('taskId') taskId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TaskOwnerChangeRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_TASK_OWNER_CHANGE_REQUEST', 'Invalid owner change request.');
+    }
+    return TaskDetailResponseSchema.parse(
+      await this.tasks.changeOwner(
         this.uuid(taskId),
         parsed.data,
         request.user!.id,
@@ -377,9 +418,32 @@ export class NotificationsController {
 
   @Get()
   @RequirePermissions(TASK_PERMISSIONS.NOTIFICATIONS_VIEW_OWN)
-  async listNotifications(@Req() request: RequestWithUser) {
+  async listNotifications(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = NotificationListQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest('INVALID_NOTIFICATION_LIST_QUERY', 'Invalid notification list query.');
+    }
     return NotificationListResponseSchema.parse(
-      await this.tasks.listNotifications(request.user!.id),
+      await this.tasks.listNotifications(request.user!.id, parsed.data),
+    );
+  }
+
+  @Post('read-all')
+  @RequirePermissions(TASK_PERMISSIONS.NOTIFICATIONS_UPDATE_OWN)
+  async markAllRead(@Body() body: unknown, @Req() request: RequestWithUser) {
+    const parsed = NotificationReadAllRequestSchema.safeParse(body ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_NOTIFICATION_READ_ALL_REQUEST',
+        'Invalid notification read-all request.',
+      );
+    }
+    return NotificationReadAllResponseSchema.parse(
+      await this.tasks.markVisibleNotificationsRead(
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
     );
   }
 

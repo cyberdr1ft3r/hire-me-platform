@@ -83,7 +83,7 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 
 Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 implements task management, reminders, comments, mentions, and in-app notifications in draft PR #32. Broader search, accounting, payroll, training, and document generation remain separate scoped work.
+Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 implements task management, reminders, comments, mentions, and in-app notifications in draft PR #32; blocking-review fixes are locally validated and await final PR review/CI. Broader search, accounting, payroll, training, and document generation remain separate scoped work.
 
 ## Phase 6 - Offers and placements
 
@@ -97,7 +97,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 impleme
 
 **State:** In progress through Issue #31
 
-- Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
+- Task management with ownership, owner transfer, assignees, priority, due dates, status, authorized context links, searchable/filterable lists, reminders, own-notification controls, and audit history.
 - Notifications, comments, and mentions.
 
 ## Phase 7 - Documents, reporting, and collaboration

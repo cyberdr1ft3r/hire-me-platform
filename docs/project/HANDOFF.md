@@ -14,14 +14,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - The legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; it must not increment `filledPlacementCount`, create `MissionPlacement`, or infer an offer version.
 - Historical `MissionCandidate.placementConfirmedAt` metadata must not be silently converted into fabricated offer-backed placements. Any future reconciliation must be explicit and audited.
 - Issue #33 / PR #34 reconciled project memory after the Issue #29 / PR #30 merge.
-- Issue #31 is implemented in draft PR #32 on branch `feat/task-management` and is under blocking review.
-- The branch implements authenticated internal task management only: task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, permission-aware UI, safe audit, and domain history.
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`. Blocking-review fixes are locally validated and await final pushed-head CI/review.
+- The branch implements authenticated internal task management only: task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, searchable/filterable task lists, own-notification read/read-all/archive controls, permission-aware UI, safe audit, and domain history.
 - The implementation must not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - The approved direction remains an authenticated internal Hire Me platform plus bounded unauthenticated public opportunity/application links. Candidates do not have accounts or dashboards.
 
 ## Next Action
 
-Resolve every PR #32 blocking-review item, rerun full validation, update the draft PR description with the final head SHA and final CI run, and keep the draft PR unmerged.
+Push the Issue #31 blocking-review fixes to PR #32, update the draft PR description with the final head SHA and final CI run, confirm GitHub Actions on the exact pushed head, and keep the draft PR unmerged until approved.
 
 For Issue #31, preserve these boundaries:
 
@@ -29,7 +29,10 @@ For Issue #31, preserve these boundaries:
 - `tasks:view_all` is the explicit broad oversight permission.
 - Mentions and reminders must not silently grant access; recipients and mentioned users must already be able to view the task.
 - Task comments, audit metadata, notification summaries, and event summaries must not include confidential candidate, HR, salary, client, commercial, internal-note, or comment-body payloads.
-- Durable reminder workers must use PostgreSQL row claiming and idempotent notification keys.
+- Linked task context must be authorized before task creation/update; rejected actions must not leave partial task rows, events, reminders, notifications, or audit logs.
+- Owner changes use the dedicated owner-change action/event/notification path.
+- Moving a task to `IN_PROGRESS` requires at least one active `TaskAssignment`.
+- Durable reminder workers must use PostgreSQL row claiming, composite task/recipient reminder idempotency, and idempotent notification keys.
 - Completing, canceling, or archiving a task cancels irrelevant pending/failed reminders.
 - `Task.assigneeUserId` is a legacy compatibility field; normalized multi-assignee state lives in `TaskAssignment`.
 - Do not reopen or modify Issue #29 / PR #30 placement behavior.
@@ -42,7 +45,7 @@ For Issue #31, preserve these boundaries:
 
 Issue #29 final validation passed before merge: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`. GitHub Actions run `31719561145` passed all jobs on the final PR #30 head.
 
-PR #32 previous head `894bef7d0aa172fc59639a5f63a1d4209c97f5f1` had green CI run `31858677312`, but the review identified unresolved blockers. Full validation and final GitHub Actions must be rerun after the blocking fixes.
+PR #32 previous head `894bef7d0aa172fc59639a5f63a1d4209c97f5f1` had green CI run `31858677312`, but the review identified unresolved blockers. The blocking-review fixes have now passed local validation: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, `pnpm.cmd format:check`, `git diff --check`, focused `tasks.integration.test.ts` with 11 tests passing, `pnpm.cmd --filter @hire-me/web test` with 20 tests passing, and clean-reset full `pnpm.cmd test:db` with 88 PostgreSQL integration tests passing. Final GitHub Actions must still pass on the pushed head.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

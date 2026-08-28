@@ -4,6 +4,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   NotificationDetailResponse,
   NotificationListResponse,
+  NotificationListQuery,
+  NotificationReadAllRequest,
+  NotificationReadAllResponse,
   TaskAssignmentCreateRequest,
   TaskAssignmentRemoveRequest,
   TaskCommentCreateRequest,
@@ -11,7 +14,9 @@ import type {
   TaskCommentUpdateRequest,
   TaskCreateRequest,
   TaskDetailResponse,
+  TaskListQuery,
   TaskListResponse,
+  TaskOwnerChangeRequest,
   TaskReminderCreateRequest,
   TaskReminderDetailResponse,
   TaskReminderProcessRequest,
@@ -43,6 +48,23 @@ type PrismaTransaction = Prisma.TransactionClient;
 type TaskRecord = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 type TaskSummaryRecord = Prisma.TaskGetPayload<{ include: typeof taskSummaryInclude }>;
 type NotificationRecord = Prisma.NotificationGetPayload<Record<string, never>>;
+type NormalizedTaskContext = {
+  candidateId: string | null;
+  clientId: string | null;
+  clientContactId: string | null;
+  recruitmentMissionId: string | null;
+  missionRecruiterId: string | null;
+  missionCandidateId: string | null;
+  interviewId: string | null;
+  recruitmentOfferId: string | null;
+  recruitmentOfferVersionId: string | null;
+  missionPlacementId: string | null;
+  trainingProgramId: string | null;
+  trainingSessionId: string | null;
+  trainingEnrollmentId: string | null;
+  trainingSessionParticipationId: string | null;
+  documentId: string | null;
+};
 
 type TaskAccess = {
   viewAll: boolean;
@@ -122,15 +144,33 @@ export class TasksService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
 
-  async listTasks(actorUserId: string): Promise<TaskListResponse> {
+  async listTasks(actorUserId: string, query: TaskListQuery): Promise<TaskListResponse> {
     const access = await this.resolveAccess(actorUserId);
-    const tasks = await this.prisma.task.findMany({
-      where: this.visibleTaskWhere(actorUserId, access),
-      include: taskSummaryInclude,
-      orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
-      take: 100,
-    });
-    return { tasks: tasks.map((task) => this.toTaskSummary(task)) };
+    const where = {
+      AND: [this.visibleTaskWhere(actorUserId, access), this.taskFilterWhere(query)],
+    };
+    const pageSize = query.pageSize;
+    const skip = (query.page - 1) * pageSize;
+    const orderBy = this.taskOrderBy(query);
+    const [tasks, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        include: taskSummaryInclude,
+        orderBy,
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+    return {
+      tasks: tasks.map((task) => this.toTaskSummary(task)),
+      pageInfo: {
+        page: query.page,
+        pageSize,
+        total,
+        hasNextPage: skip + tasks.length < total,
+      },
+    };
   }
 
   async getTask(taskId: string, actorUserId: string): Promise<TaskDetailResponse> {
@@ -153,6 +193,7 @@ export class TasksService {
       this.assertAccess(access.assign, 'TASKS_ASSIGN_REQUIRED', 'Assign permission is required.');
     }
     const normalizedContext = await this.normalizeContext(input.context ?? {});
+    await this.assertContextAccessible(normalizedContext, actorUserId, access);
     const assigneeUserIds = [...new Set(input.assigneeUserIds)];
     await this.assertActiveInternalUser(input.ownerUserId, 'TASK_OWNER_NOT_ACTIVE');
     for (const userId of assigneeUserIds) {
@@ -249,8 +290,17 @@ export class TasksService {
               input.dueAt === undefined ? undefined : input.dueAt ? new Date(input.dueAt) : null,
             timezone: input.timezone,
             blockingReason: input.blockingReason,
+            ...(input.context
+              ? this.contextUpdateData(
+                  await this.normalizeAndAuthorizeContext(input.context, actorUserId, access),
+                  input.context,
+                )
+              : {}),
           },
         });
+        if (input.dueAt !== undefined) {
+          await this.cancelRemindersAfterDueDate(tx, taskId, actorUserId, input.dueAt);
+        }
         await this.createTaskEvent(tx, {
           taskId,
           actorUserId,
@@ -266,6 +316,68 @@ export class TasksService {
       entityId: task.id,
       metadataSummary: 'Task operational fields updated.',
     });
+    return { task: this.toTaskDetail(task) };
+  }
+
+  async changeOwner(
+    taskId: string,
+    input: TaskOwnerChangeRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TaskDetailResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertAccess(
+      access.assign,
+      'TASKS_ASSIGN_REQUIRED',
+      'Task assignment permission is required.',
+    );
+    await this.assertActiveInternalUser(input.ownerUserId, 'TASK_OWNER_NOT_ACTIVE');
+    const { task, changed } = await this.withLockedVisibleTaskResult(
+      taskId,
+      actorUserId,
+      access,
+      async (tx, current) => {
+        this.assertTaskWritable(current.status);
+        if (current.ownerUserId === input.ownerUserId) {
+          return { task: await this.requireTask(tx, taskId), changed: false };
+        }
+        await tx.task.update({
+          where: { id: taskId },
+          data: { ownerUserId: input.ownerUserId },
+        });
+        await this.createTaskEvent(tx, {
+          taskId,
+          actorUserId,
+          action: TaskEventAction.OWNER_CHANGED,
+          reason: input.reason ?? null,
+          safeSummary: 'Task owner changed.',
+          previousOwnerUserId: current.ownerUserId,
+          nextOwnerUserId: input.ownerUserId,
+        });
+        if (input.ownerUserId !== actorUserId) {
+          await this.createNotification(tx, {
+            idempotencyKey: `task:${taskId}:owner:${input.ownerUserId}`,
+            recipientUserId: input.ownerUserId,
+            actorUserId,
+            type: 'tasks.owner.changed',
+            title: 'Task ownership changed',
+            bodySummary: 'A task was assigned to you as owner.',
+            taskId,
+            recruitmentMissionId: current.recruitmentMissionId,
+            missionCandidateId: current.missionCandidateId,
+          });
+        }
+        return { task: await this.requireTask(tx, taskId), changed: true };
+      },
+    );
+    if (changed) {
+      await this.audit.record('tasks.owner_changed', context, {
+        actorUserId,
+        entityType: 'Task',
+        entityId: taskId,
+        metadataSummary: 'Task owner changed.',
+      });
+    }
     return { task: this.toTaskDetail(task) };
   }
 
@@ -441,6 +553,9 @@ export class TasksService {
         }
         if (!allowedTransitions.get(current.status)?.has(input.status)) {
           throw conflict('TASK_INVALID_TRANSITION', 'Task transition is not allowed.');
+        }
+        if (input.status === TaskStatus.IN_PROGRESS) {
+          this.assertHasActiveAssignee(current);
         }
         if (input.status === TaskStatus.BLOCKED && !input.reason) {
           throw conflict('TASK_BLOCK_REASON_REQUIRED', 'Blocking a task requires a reason.');
@@ -839,23 +954,29 @@ export class TasksService {
     }
     const idempotencyKey =
       input.idempotencyKey ?? `task:${taskId}:reminder:${input.recipientUserId}:${input.remindAt}`;
-    const reminder = await this.prisma.$transaction(async (tx) => {
-      const upserted = await tx.taskReminder.upsert({
-        where: { idempotencyKey },
-        update: {
-          remindAt: new Date(input.remindAt),
-          status: TaskReminderStatus.PENDING,
-          canceledAt: null,
-          canceledByUserId: null,
-          failureReason: null,
+    const { reminder, changed } = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.taskReminder.findUnique({
+        where: {
+          taskId_recipientUserId_idempotencyKey: {
+            taskId,
+            recipientUserId: input.recipientUserId,
+            idempotencyKey,
+          },
         },
-        create: {
+        include: { recipient: true },
+      });
+      if (existing) {
+        return { reminder: existing, changed: false };
+      }
+      const created = await tx.taskReminder.create({
+        data: {
           taskId,
           recipientUserId: input.recipientUserId,
           creatorUserId: actorUserId,
           remindAt: new Date(input.remindAt),
           idempotencyKey,
         },
+        include: { recipient: true },
       });
       await this.createTaskEvent(tx, {
         taskId,
@@ -863,14 +984,16 @@ export class TasksService {
         action: TaskEventAction.REMINDER_CREATED,
         safeSummary: 'Task reminder created.',
       });
-      return this.requireReminder(tx, upserted.id);
+      return { reminder: created, changed: true };
     });
-    await this.audit.record('tasks.reminder_created', context, {
-      actorUserId,
-      entityType: 'TaskReminder',
-      entityId: reminder.id,
-      metadataSummary: 'Task reminder created.',
-    });
+    if (changed) {
+      await this.audit.record('tasks.reminder_created', context, {
+        actorUserId,
+        entityType: 'TaskReminder',
+        entityId: reminder.id,
+        metadataSummary: 'Task reminder created.',
+      });
+    }
     return { reminder: this.toTaskReminder(reminder) };
   }
 
@@ -897,10 +1020,25 @@ export class TasksService {
     if (reminder.status === TaskReminderStatus.SENT) {
       throw conflict('TASK_REMINDER_ALREADY_SENT', 'Sent reminders cannot be rescheduled.');
     }
-    const updated = await this.prisma.taskReminder.update({
-      where: { id: reminderId },
-      data: { remindAt: new Date(input.remindAt), status: TaskReminderStatus.PENDING },
-      include: { recipient: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedReminder = await tx.taskReminder.update({
+        where: { id: reminderId },
+        data: {
+          remindAt: new Date(input.remindAt),
+          status: TaskReminderStatus.PENDING,
+          canceledAt: null,
+          canceledByUserId: null,
+          failureReason: null,
+        },
+        include: { recipient: true },
+      });
+      await this.createTaskEvent(tx, {
+        taskId,
+        actorUserId,
+        action: TaskEventAction.REMINDER_UPDATED,
+        safeSummary: 'Task reminder rescheduled.',
+      });
+      return updatedReminder;
     });
     await this.audit.record('tasks.reminder_updated', context, {
       actorUserId,
@@ -934,14 +1072,23 @@ export class TasksService {
     if (reminder.status === TaskReminderStatus.CANCELED) {
       return { reminder: this.toTaskReminder(reminder) };
     }
-    const updated = await this.prisma.taskReminder.update({
-      where: { id: reminderId },
-      data: {
-        status: TaskReminderStatus.CANCELED,
-        canceledAt: new Date(),
-        canceledByUserId: actorUserId,
-      },
-      include: { recipient: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedReminder = await tx.taskReminder.update({
+        where: { id: reminderId },
+        data: {
+          status: TaskReminderStatus.CANCELED,
+          canceledAt: new Date(),
+          canceledByUserId: actorUserId,
+        },
+        include: { recipient: true },
+      });
+      await this.createTaskEvent(tx, {
+        taskId,
+        actorUserId,
+        action: TaskEventAction.REMINDER_CANCELED,
+        safeSummary: 'Task reminder canceled.',
+      });
+      return updatedReminder;
     });
     await this.audit.record('tasks.reminder_canceled', context, {
       actorUserId,
@@ -1018,15 +1165,60 @@ export class TasksService {
     });
   }
 
-  async listNotifications(actorUserId: string): Promise<NotificationListResponse> {
-    const notifications = await this.prisma.notification.findMany({
-      where: { recipientUserId: actorUserId, archivedAt: null },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+  async listNotifications(
+    actorUserId: string,
+    query: NotificationListQuery,
+  ): Promise<NotificationListResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const where = this.visibleNotificationWhere(actorUserId, access, query);
+    const pageSize = query.pageSize;
+    const skip = (query.page - 1) * pageSize;
+    const [notifications, total] = await this.prisma.$transaction([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.notification.count({ where }),
+    ]);
     return {
-      notifications: notifications.map((notification) => this.toNotification(notification)),
+      notifications: await Promise.all(
+        notifications.map((notification) => this.toNotificationForActor(notification, actorUserId)),
+      ),
+      pageInfo: {
+        page: query.page,
+        pageSize,
+        total,
+        hasNextPage: skip + notifications.length < total,
+      },
     };
+  }
+
+  async markVisibleNotificationsRead(
+    input: NotificationReadAllRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<NotificationReadAllResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const where = this.visibleNotificationWhere(actorUserId, access, {
+      status: input.status ?? NotificationStatus.UNREAD,
+      page: 1,
+      pageSize: 100,
+    });
+    const result = await this.prisma.notification.updateMany({
+      where: { ...where, status: NotificationStatus.UNREAD },
+      data: { status: NotificationStatus.READ, readAt: new Date() },
+    });
+    if (result.count > 0) {
+      await this.audit.record('notifications.read_all', context, {
+        actorUserId,
+        entityType: 'Notification',
+        entityId: actorUserId,
+        metadataSummary: 'Visible notifications marked read.',
+      });
+    }
+    return { updatedCount: result.count };
   }
 
   async markNotificationRead(
@@ -1050,7 +1242,7 @@ export class TasksService {
         metadataSummary: 'Notification marked read.',
       });
     }
-    return { notification: this.toNotification(updated) };
+    return { notification: await this.toNotificationForActor(updated, actorUserId) };
   }
 
   async archiveNotification(
@@ -1078,7 +1270,7 @@ export class TasksService {
         metadataSummary: 'Notification archived.',
       });
     }
-    return { notification: this.toNotification(updated) };
+    return { notification: await this.toNotificationForActor(updated, actorUserId) };
   }
 
   private async completeLockedTask(
@@ -1170,6 +1362,27 @@ export class TasksService {
     });
   }
 
+  private async cancelRemindersAfterDueDate(
+    tx: PrismaTransaction,
+    taskId: string,
+    actorUserId: string,
+    dueAt: string | null,
+  ): Promise<void> {
+    await tx.taskReminder.updateMany({
+      where: {
+        taskId,
+        status: { in: [TaskReminderStatus.PENDING, TaskReminderStatus.FAILED] },
+        archivedAt: null,
+        ...(dueAt ? { remindAt: { gt: new Date(dueAt) } } : {}),
+      },
+      data: {
+        status: TaskReminderStatus.CANCELED,
+        canceledAt: new Date(),
+        canceledByUserId: actorUserId,
+      },
+    });
+  }
+
   private async processOverdueTasks(tx: PrismaTransaction, actorUserId: string): Promise<number> {
     const tasks = await tx.task.findMany({
       where: {
@@ -1193,9 +1406,12 @@ export class TasksService {
           ),
         ),
       ] as string[];
+      let taskNotificationsCreated = 0;
       for (const recipientUserId of recipientIds) {
-        const notification = await this.createNotification(tx, {
-          idempotencyKey: `task-overdue:${task.id}:${recipientUserId}`,
+        const idempotencyKey = `task-overdue:${task.id}:${recipientUserId}`;
+        const existed = await tx.notification.count({ where: { idempotencyKey } });
+        await this.createNotification(tx, {
+          idempotencyKey,
           recipientUserId,
           actorUserId,
           type: 'tasks.overdue',
@@ -1205,11 +1421,12 @@ export class TasksService {
           recruitmentMissionId: task.recruitmentMissionId,
           missionCandidateId: task.missionCandidateId,
         });
-        if (notification.createdAt.getTime() === notification.updatedAt.getTime()) {
+        if (existed === 0) {
           created += 1;
+          taskNotificationsCreated += 1;
         }
       }
-      if (recipientIds.length > 0) {
+      if (taskNotificationsCreated > 0) {
         await this.createTaskEvent(tx, {
           taskId: task.id,
           actorUserId,
@@ -1219,6 +1436,44 @@ export class TasksService {
       }
     }
     return created;
+  }
+
+  private async normalizeAndAuthorizeContext(
+    context: Partial<NormalizedTaskContext>,
+    actorUserId: string,
+    access: TaskAccess,
+  ): Promise<NormalizedTaskContext> {
+    const normalized = await this.normalizeContext(context);
+    await this.assertContextAccessible(normalized, actorUserId, access);
+    return normalized;
+  }
+
+  private contextUpdateData(
+    context: NormalizedTaskContext,
+    requestedContext: Partial<NormalizedTaskContext>,
+  ): Prisma.TaskUpdateInput {
+    const relationUpdate = <T extends keyof NormalizedTaskContext>(field: T, id: string | null) => {
+      if (id) {
+        return { connect: { id } };
+      }
+      return Object.hasOwn(requestedContext, field) ? { disconnect: true } : undefined;
+    };
+    return {
+      candidate: relationUpdate('candidateId', context.candidateId),
+      client: relationUpdate('clientId', context.clientId),
+      clientContact: relationUpdate('clientContactId', context.clientContactId),
+      recruitmentMission: relationUpdate('recruitmentMissionId', context.recruitmentMissionId),
+      missionRecruiter: relationUpdate('missionRecruiterId', context.missionRecruiterId),
+      missionCandidate: relationUpdate('missionCandidateId', context.missionCandidateId),
+      interview: relationUpdate('interviewId', context.interviewId),
+      recruitmentOffer: relationUpdate('recruitmentOfferId', context.recruitmentOfferId),
+      recruitmentOfferVersion: relationUpdate(
+        'recruitmentOfferVersionId',
+        context.recruitmentOfferVersionId,
+      ),
+      missionPlacement: relationUpdate('missionPlacementId', context.missionPlacementId),
+      document: relationUpdate('documentId', context.documentId),
+    };
   }
 
   private async normalizeContext(
@@ -1258,11 +1513,31 @@ export class TasksService {
       documentId: context.documentId ?? null,
     };
 
-    if (normalized.clientContactId && normalized.clientId) {
-      const contact = await this.prisma.clientContact.findFirst({
-        where: { id: normalized.clientContactId, clientId: normalized.clientId },
+    if (normalized.clientId) {
+      const client = await this.prisma.client.findUnique({ where: { id: normalized.clientId } });
+      if (!client || client.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked client was not found.');
+      }
+    }
+
+    if (normalized.candidateId) {
+      const candidate = await this.prisma.candidate.findUnique({
+        where: { id: normalized.candidateId },
       });
-      if (!contact) {
+      if (!candidate || candidate.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked candidate was not found.');
+      }
+    }
+
+    if (normalized.clientContactId) {
+      const contact = await this.prisma.clientContact.findFirst({
+        where: { id: normalized.clientContactId },
+      });
+      if (!contact || contact.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked client contact was not found.');
+      }
+      normalized.clientId ??= contact.clientId;
+      if (normalized.clientId !== contact.clientId) {
         throw conflict(
           'TASK_CONTEXT_CLIENT_CONTACT_MISMATCH',
           'Client contact does not belong to the client.',
@@ -1285,6 +1560,12 @@ export class TasksService {
           'Task context records do not belong together.',
         );
       }
+      if (normalized.candidateId !== process.candidateId) {
+        throw conflict(
+          'TASK_CONTEXT_CANDIDATE_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
     }
 
     if (normalized.interviewId) {
@@ -1297,6 +1578,50 @@ export class TasksService {
       }
       normalized.missionCandidateId ??= interview.missionCandidateId;
       normalized.recruitmentMissionId ??= interview.missionCandidate.missionId;
+      if (normalized.missionCandidateId !== interview.missionCandidateId) {
+        throw conflict(
+          'TASK_CONTEXT_INTERVIEW_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
+      if (normalized.recruitmentMissionId !== interview.missionCandidate.missionId) {
+        throw conflict(
+          'TASK_CONTEXT_MISSION_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
+    }
+
+    if (normalized.recruitmentMissionId) {
+      const mission = await this.prisma.recruitmentMission.findUnique({
+        where: { id: normalized.recruitmentMissionId },
+      });
+      if (!mission || mission.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked recruitment mission was not found.');
+      }
+      normalized.clientId ??= mission.clientId;
+      if (normalized.clientId !== mission.clientId) {
+        throw conflict(
+          'TASK_CONTEXT_CLIENT_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
+    }
+
+    if (normalized.missionRecruiterId) {
+      const assignment = await this.prisma.missionRecruiter.findUnique({
+        where: { id: normalized.missionRecruiterId },
+      });
+      if (!assignment || assignment.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked mission assignment was not found.');
+      }
+      normalized.recruitmentMissionId ??= assignment.missionId;
+      if (normalized.recruitmentMissionId !== assignment.missionId) {
+        throw conflict(
+          'TASK_CONTEXT_MISSION_ASSIGNMENT_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
     }
 
     if (normalized.recruitmentOfferId) {
@@ -1308,6 +1633,15 @@ export class TasksService {
       }
       normalized.recruitmentMissionId ??= offer.missionId;
       normalized.missionCandidateId ??= offer.missionCandidateId;
+      if (
+        normalized.recruitmentMissionId !== offer.missionId ||
+        normalized.missionCandidateId !== offer.missionCandidateId
+      ) {
+        throw conflict(
+          'TASK_CONTEXT_OFFER_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
     }
 
     if (normalized.recruitmentOfferVersionId) {
@@ -1320,6 +1654,16 @@ export class TasksService {
       normalized.recruitmentMissionId ??= version.missionId;
       normalized.missionCandidateId ??= version.missionCandidateId;
       normalized.recruitmentOfferId ??= version.offerId;
+      if (
+        normalized.recruitmentMissionId !== version.missionId ||
+        normalized.missionCandidateId !== version.missionCandidateId ||
+        normalized.recruitmentOfferId !== version.offerId
+      ) {
+        throw conflict(
+          'TASK_CONTEXT_OFFER_VERSION_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
     }
 
     if (normalized.missionPlacementId) {
@@ -1332,9 +1676,88 @@ export class TasksService {
       normalized.recruitmentMissionId ??= placement.missionId;
       normalized.missionCandidateId ??= placement.missionCandidateId;
       normalized.recruitmentOfferVersionId ??= placement.offerVersionId;
+      if (
+        normalized.recruitmentMissionId !== placement.missionId ||
+        normalized.missionCandidateId !== placement.missionCandidateId ||
+        normalized.recruitmentOfferVersionId !== placement.offerVersionId
+      ) {
+        throw conflict(
+          'TASK_CONTEXT_PLACEMENT_MISMATCH',
+          'Task context records do not belong together.',
+        );
+      }
+    }
+
+    if (normalized.documentId) {
+      const document = await this.prisma.document.findUnique({
+        where: { id: normalized.documentId },
+      });
+      if (!document || document.archivedAt) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked document was not found.');
+      }
     }
 
     return normalized;
+  }
+
+  private async assertContextAccessible(
+    context: NormalizedTaskContext,
+    actorUserId: string,
+    access: TaskAccess,
+  ): Promise<void> {
+    const permissions = new Set(await this.permissions.getEffectivePermissionCodes(actorUserId));
+    const requirePermission = (permission: string, code: string) => {
+      if (!access.viewAll && !permissions.has(permission)) {
+        throw forbidden(code, 'Linked task context is not accessible to the actor.');
+      }
+    };
+
+    if (context.clientId) {
+      requirePermission('clients:view', 'TASK_CONTEXT_CLIENT_FORBIDDEN');
+    }
+    if (context.clientContactId) {
+      requirePermission('client_contacts:view', 'TASK_CONTEXT_CLIENT_CONTACT_FORBIDDEN');
+    }
+    if (context.candidateId) {
+      requirePermission('candidates:view', 'TASK_CONTEXT_CANDIDATE_FORBIDDEN');
+    }
+    if (context.recruitmentMissionId) {
+      if (!access.viewAll && !permissions.has('missions:view')) {
+        const assigned = await this.hasActiveMissionScope(
+          context.recruitmentMissionId,
+          actorUserId,
+        );
+        if (!assigned) {
+          throw forbidden(
+            'TASK_CONTEXT_MISSION_FORBIDDEN',
+            'Linked task context is not accessible.',
+          );
+        }
+      }
+    }
+    if (context.missionRecruiterId) {
+      requirePermission('mission_assignments:view', 'TASK_CONTEXT_MISSION_ASSIGNMENT_FORBIDDEN');
+    }
+    if (context.missionCandidateId) {
+      if (!access.viewAll && !permissions.has('mission_candidates:view')) {
+        throw forbidden(
+          'TASK_CONTEXT_MISSION_CANDIDATE_FORBIDDEN',
+          'Linked task context is not accessible.',
+        );
+      }
+    }
+    if (context.interviewId) {
+      requirePermission('interviews:view', 'TASK_CONTEXT_INTERVIEW_FORBIDDEN');
+    }
+    if (context.recruitmentOfferId || context.recruitmentOfferVersionId) {
+      requirePermission('offers:view', 'TASK_CONTEXT_OFFER_FORBIDDEN');
+    }
+    if (context.missionPlacementId) {
+      requirePermission('placements:view', 'TASK_CONTEXT_PLACEMENT_FORBIDDEN');
+    }
+    if (context.documentId) {
+      requirePermission('documents:download', 'TASK_CONTEXT_DOCUMENT_FORBIDDEN');
+    }
   }
 
   private async requireVisibleTask(
@@ -1355,13 +1778,6 @@ export class TasksService {
 
   private async requireTask(tx: PrismaTransaction, taskId: string): Promise<TaskRecord> {
     return tx.task.findUniqueOrThrow({ where: { id: taskId }, include: taskInclude });
-  }
-
-  private async requireReminder(tx: PrismaTransaction, reminderId: string) {
-    return tx.taskReminder.findUniqueOrThrow({
-      where: { id: reminderId },
-      include: { recipient: true },
-    });
   }
 
   private async requireOwnNotification(
@@ -1411,6 +1827,100 @@ export class TasksService {
       where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
     });
     return count > 0;
+  }
+
+  private taskFilterWhere(query: TaskListQuery): Prisma.TaskWhereInput {
+    const filters: Prisma.TaskWhereInput[] = [];
+    if (query.status) {
+      filters.push({ status: query.status });
+    }
+    if (query.priority) {
+      filters.push({ priority: query.priority });
+    }
+    if (query.ownerUserId) {
+      filters.push({ ownerUserId: query.ownerUserId });
+    }
+    if (query.assigneeUserId) {
+      filters.push({
+        assignments: {
+          some: {
+            userId: query.assigneeUserId,
+            status: TaskAssignmentStatus.ACTIVE,
+            archivedAt: null,
+          },
+        },
+      });
+    }
+    if (query.dueFrom || query.dueTo) {
+      filters.push({
+        dueAt: {
+          ...(query.dueFrom ? { gte: new Date(query.dueFrom) } : {}),
+          ...(query.dueTo ? { lte: new Date(query.dueTo) } : {}),
+        },
+      });
+    }
+    const now = new Date();
+    if (query.overdue) {
+      filters.push({
+        dueAt: { lt: now },
+        status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELED, TaskStatus.ARCHIVED] },
+        archivedAt: null,
+      });
+    }
+    if (query.dueSoon) {
+      filters.push({
+        dueAt: { gte: now, lte: new Date(now.getTime() + 7 * 86_400_000) },
+        status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELED, TaskStatus.ARCHIVED] },
+        archivedAt: null,
+      });
+    }
+    if (query.search) {
+      filters.push({
+        OR: [
+          { title: { contains: query.search, mode: Prisma.QueryMode.insensitive } },
+          { description: { contains: query.search, mode: Prisma.QueryMode.insensitive } },
+        ],
+      });
+    }
+    for (const field of [
+      'candidateId',
+      'clientId',
+      'clientContactId',
+      'recruitmentMissionId',
+      'missionRecruiterId',
+      'missionCandidateId',
+      'interviewId',
+      'recruitmentOfferId',
+      'recruitmentOfferVersionId',
+      'missionPlacementId',
+      'documentId',
+    ] as const) {
+      const value = query[field];
+      if (value) {
+        filters.push({ [field]: value });
+      }
+    }
+    return filters.length > 0 ? { AND: filters } : {};
+  }
+
+  private taskOrderBy(query: TaskListQuery): Prisma.TaskOrderByWithRelationInput[] {
+    return [
+      { [query.sortBy]: query.sortDirection },
+      { id: query.sortDirection },
+    ] as Prisma.TaskOrderByWithRelationInput[];
+  }
+
+  private visibleNotificationWhere(
+    actorUserId: string,
+    access: TaskAccess,
+    query: NotificationListQuery,
+  ): Prisma.NotificationWhereInput {
+    return {
+      recipientUserId: actorUserId,
+      archivedAt: null,
+      ...(query.status ? { status: query.status } : {}),
+      OR: [{ taskId: null }, { task: { is: this.visibleTaskWhere(actorUserId, access) } }],
+    };
   }
 
   private visibleTaskWhere(actorUserId: string, access: TaskAccess): Prisma.TaskWhereInput {
@@ -1511,6 +2021,26 @@ export class TasksService {
     }
   }
 
+  private assertHasActiveAssignee(task: TaskRecord): void {
+    if (
+      !task.assignments.some(
+        (assignment) => assignment.status === TaskAssignmentStatus.ACTIVE && !assignment.archivedAt,
+      )
+    ) {
+      throw conflict(
+        'TASK_ACTIVE_ASSIGNEE_REQUIRED',
+        'An active task assignment is required before work can start.',
+      );
+    }
+  }
+
+  private async hasActiveMissionScope(missionId: string, actorUserId: string): Promise<boolean> {
+    const count = await this.prisma.missionRecruiter.count({
+      where: { missionId, userId: actorUserId, status: 'ACTIVE', archivedAt: null },
+    });
+    return count > 0;
+  }
+
   private async assertActiveInternalUser(userId: string, code: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (
@@ -1564,6 +2094,8 @@ export class TasksService {
       nextStatus?: TaskStatus | null;
       reason?: string | null;
       safeSummary?: string | null;
+      previousOwnerUserId?: string | null;
+      nextOwnerUserId?: string | null;
     },
   ): Promise<void> {
     await tx.taskEvent.create({
@@ -1575,6 +2107,8 @@ export class TasksService {
         nextStatus: input.nextStatus ?? null,
         reason: input.reason ?? null,
         safeSummary: input.safeSummary ?? null,
+        previousOwnerUserId: input.previousOwnerUserId ?? null,
+        nextOwnerUserId: input.nextOwnerUserId ?? null,
       },
     });
   }
@@ -1646,6 +2180,8 @@ export class TasksService {
         nextStatus: event.nextStatus,
         reason: event.reason,
         safeSummary: event.safeSummary,
+        previousOwnerUserId: event.previousOwnerUserId,
+        nextOwnerUserId: event.nextOwnerUserId,
         createdAt: event.createdAt.toISOString(),
       })),
     };
@@ -1688,7 +2224,10 @@ export class TasksService {
     };
   }
 
-  private toNotification(notification: NotificationRecord) {
+  private async toNotificationForActor(notification: NotificationRecord, actorUserId: string) {
+    const taskVisible = notification.taskId
+      ? await this.canViewTask(notification.taskId, actorUserId)
+      : false;
     return {
       id: notification.id,
       recipientUserId: notification.recipientUserId,
@@ -1697,11 +2236,11 @@ export class TasksService {
       title: notification.title,
       bodySummary: notification.bodySummary,
       status: notification.status,
-      taskId: notification.taskId,
-      documentId: notification.documentId,
-      interviewId: notification.interviewId,
-      recruitmentMissionId: notification.recruitmentMissionId,
-      missionCandidateId: notification.missionCandidateId,
+      taskId: taskVisible ? notification.taskId : null,
+      documentId: taskVisible ? notification.documentId : null,
+      interviewId: taskVisible ? notification.interviewId : null,
+      recruitmentMissionId: taskVisible ? notification.recruitmentMissionId : null,
+      missionCandidateId: taskVisible ? notification.missionCandidateId : null,
       trainingSessionId: notification.trainingSessionId,
       trainingEnrollmentId: notification.trainingEnrollmentId,
       readAt: notification.readAt?.toISOString() ?? null,

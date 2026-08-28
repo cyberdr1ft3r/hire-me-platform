@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Internal task management, reminders, comments, and notifications
-**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management` and is under blocking review.
-**Current blocker:** PR #32 must resolve reminder idempotency scope, linked-context authorization, owner-change behavior, `IN_PROGRESS` assignee enforcement, task/notification query surfaces, comment authorization, reminder lifecycle coverage, and rejected-action integrity.
-**Next executable development task:** Resolve PR #32 blocking review, rerun full validation, update the draft PR, and keep it unmerged until approved.
+**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`; blocking-review fixes have local validation and await final PR review/CI.
+**Current blocker:** PR #32 must remain draft/open until reviewer approval and final GitHub Actions pass on the pushed head.
+**Next executable development task:** Complete PR #32 review/CI, keep it unmerged until approved, then select the next approved GitHub issue.
 
 ## Active work
 
@@ -26,7 +26,7 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Resolve PR #32 blocking review |
+| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Complete PR #32 review/CI |
 | Issue #33 | Complete | Reconcile project memory after Issue #29 / PR #30 merge | No action |
 
 ## Completed foundation work
@@ -202,9 +202,10 @@ Status owner: repository maintainer
 - The implementation does not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
 - `tasks:view` is scoped to task owner, creator, active assignee, or implemented linked-record scope. `tasks:view_all` is the separate broad oversight permission.
+- Blocking-review fixes make reminder idempotency composite by task, recipient, and key; authorize linked context before task creation/update; add a dedicated owner-change endpoint/event/notification; require an active `TaskAssignment` before `IN_PROGRESS`; expose task search/filter/pagination; expose notification status filtering, read, read-all, and archive; and keep rejected actions from writing partial task rows/events.
 - Reminder processing uses PostgreSQL row claiming with `FOR UPDATE SKIP LOCKED` and notification idempotency keys so concurrent workers create one notification.
-- Local checks passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, `pnpm.cmd test:db` with 82 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/web test` with 20 web tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 14 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
-- Local PostgreSQL used port `55432` because port `5432` was already allocated. Root `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests still emit existing React `act(...)` warnings around asynchronous mission workspace state updates.
+- Local checks passed: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, `pnpm.cmd format:check`, `git diff --check`, focused `tasks.integration.test.ts` with 11 tests passing, `pnpm.cmd --filter @hire-me/web test` with 20 web tests passing, and clean-reset full `pnpm.cmd test:db` with 88 PostgreSQL integration tests passing.
+- Local PostgreSQL used port `55432` because port `5432` was already allocated. DB validation loaded safe example auth/CORS env values in-process because `.env` is intentionally absent. Web tests still emit existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
 ## Current open technical questions
 
@@ -225,7 +226,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Resolve PR #32 blocking review for Issue #31, rerun full validation, update the draft PR description, and confirm final GitHub Actions on the exact head.
+1. Push the Issue #31 blocking-review fixes to PR #32, update the draft PR description with the final head SHA and final CI run, confirm GitHub Actions on the exact head, and keep the PR draft/unmerged until approved.
 
 ## Status Update Rules
 

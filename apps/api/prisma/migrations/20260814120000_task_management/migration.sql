@@ -23,6 +23,7 @@ CREATE TYPE "TaskEventAction" AS ENUM (
   'comment_archived',
   'mentioned',
   'reminder_created',
+  'reminder_updated',
   'reminder_canceled',
   'reminder_delivered',
   'reminder_failed',
@@ -164,6 +165,8 @@ CREATE TABLE "TaskEvent" (
   "nextStatus" "TaskStatus",
   "reason" TEXT,
   "safeSummary" TEXT,
+  "previousOwnerUserId" UUID,
+  "nextOwnerUserId" UUID,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "TaskEvent_pkey" PRIMARY KEY ("id")
@@ -204,14 +207,17 @@ CREATE UNIQUE INDEX "TaskMention_notificationId_key" ON "TaskMention"("notificat
 CREATE INDEX "TaskMention_taskId_idx" ON "TaskMention"("taskId");
 CREATE INDEX "TaskMention_mentionedUserId_idx" ON "TaskMention"("mentionedUserId");
 
-CREATE UNIQUE INDEX "TaskReminder_idempotencyKey_key" ON "TaskReminder"("idempotencyKey");
 CREATE INDEX "TaskReminder_taskId_idx" ON "TaskReminder"("taskId");
 CREATE INDEX "TaskReminder_recipientUserId_idx" ON "TaskReminder"("recipientUserId");
 CREATE INDEX "TaskReminder_status_remindAt_idx" ON "TaskReminder"("status", "remindAt");
 CREATE INDEX "TaskReminder_createdAt_idx" ON "TaskReminder"("createdAt");
+CREATE UNIQUE INDEX "TaskReminder_taskId_recipientUserId_idempotencyKey_key"
+  ON "TaskReminder"("taskId", "recipientUserId", "idempotencyKey");
 
 CREATE INDEX "TaskEvent_taskId_idx" ON "TaskEvent"("taskId");
 CREATE INDEX "TaskEvent_actorUserId_idx" ON "TaskEvent"("actorUserId");
+CREATE INDEX "TaskEvent_previousOwnerUserId_idx" ON "TaskEvent"("previousOwnerUserId");
+CREATE INDEX "TaskEvent_nextOwnerUserId_idx" ON "TaskEvent"("nextOwnerUserId");
 CREATE INDEX "TaskEvent_action_idx" ON "TaskEvent"("action");
 CREATE INDEX "TaskEvent_createdAt_idx" ON "TaskEvent"("createdAt");
 

@@ -368,6 +368,7 @@ enum TaskEventAction {
   COMMENT_ARCHIVED           @map("comment_archived")
   MENTIONED                  @map("mentioned")
   REMINDER_CREATED           @map("reminder_created")
+  REMINDER_UPDATED           @map("reminder_updated")
   REMINDER_CANCELED          @map("reminder_canceled")
   REMINDER_DELIVERED         @map("reminder_delivered")
   REMINDER_FAILED            @map("reminder_failed")
@@ -1620,7 +1621,7 @@ model TaskReminder {
   creatorUserId   String?            @db.Uuid
   remindAt        DateTime
   status          TaskReminderStatus @default(PENDING)
-  idempotencyKey  String             @unique
+  idempotencyKey  String
   processingToken String?
   claimedAt       DateTime?
   deliveredAt     DateTime?
@@ -1641,6 +1642,7 @@ model TaskReminder {
   @@index([recipientUserId])
   @@index([status, remindAt])
   @@index([createdAt])
+  @@unique([taskId, recipientUserId, idempotencyKey])
 }
 
 model TaskEvent {
@@ -1652,6 +1654,8 @@ model TaskEvent {
   nextStatus     TaskStatus?
   reason         String?
   safeSummary    String?
+  previousOwnerUserId String?          @db.Uuid
+  nextOwnerUserId     String?          @db.Uuid
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -1660,6 +1664,8 @@ model TaskEvent {
 
   @@index([taskId])
   @@index([actorUserId])
+  @@index([previousOwnerUserId])
+  @@index([nextOwnerUserId])
   @@index([action])
   @@index([createdAt])
 }

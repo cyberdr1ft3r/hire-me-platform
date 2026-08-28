@@ -21,6 +21,18 @@ export const TaskReminderStatusSchema = z.enum([
   'FAILED',
 ]);
 export const NotificationStatusSchema = z.enum(['UNREAD', 'READ', 'ARCHIVED']);
+export const TaskSortBySchema = z.enum(['dueAt', 'createdAt', 'updatedAt', 'priority', 'status']);
+export const SortDirectionSchema = z.enum(['asc', 'desc']);
+
+const QueryBooleanSchema = z.preprocess((value) => {
+  if (value === 'true' || value === true) {
+    return true;
+  }
+  if (value === 'false' || value === false) {
+    return false;
+  }
+  return value;
+}, z.boolean());
 
 export const TaskContextSchema = z.object({
   candidateId: z.string().uuid().nullable(),
@@ -89,6 +101,8 @@ export const TaskEventSchema = z.object({
   nextStatus: TaskStatusSchema.nullable(),
   reason: z.string().nullable(),
   safeSummary: z.string().nullable(),
+  previousOwnerUserId: z.string().uuid().nullable(),
+  nextOwnerUserId: z.string().uuid().nullable(),
   createdAt: z.string().datetime(),
 });
 
@@ -160,6 +174,39 @@ export const TaskUpdateRequestSchema = z.object({
   dueAt: z.string().datetime().nullable().optional(),
   timezone: z.string().trim().max(80).nullable().optional(),
   blockingReason: z.string().trim().max(1000).nullable().optional(),
+  context: TaskContextSchema.partial().optional(),
+});
+
+export const TaskOwnerChangeRequestSchema = z.object({
+  ownerUserId: z.string().uuid(),
+  reason: z.string().trim().max(1000).nullable().optional(),
+});
+
+export const TaskListQuerySchema = z.object({
+  status: TaskStatusSchema.optional(),
+  priority: TaskPrioritySchema.optional(),
+  ownerUserId: z.string().uuid().optional(),
+  assigneeUserId: z.string().uuid().optional(),
+  dueFrom: z.string().datetime().optional(),
+  dueTo: z.string().datetime().optional(),
+  overdue: QueryBooleanSchema.optional(),
+  dueSoon: QueryBooleanSchema.optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  sortBy: TaskSortBySchema.default('dueAt'),
+  sortDirection: SortDirectionSchema.default('asc'),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+  candidateId: z.string().uuid().optional(),
+  clientId: z.string().uuid().optional(),
+  clientContactId: z.string().uuid().optional(),
+  recruitmentMissionId: z.string().uuid().optional(),
+  missionRecruiterId: z.string().uuid().optional(),
+  missionCandidateId: z.string().uuid().optional(),
+  interviewId: z.string().uuid().optional(),
+  recruitmentOfferId: z.string().uuid().optional(),
+  recruitmentOfferVersionId: z.string().uuid().optional(),
+  missionPlacementId: z.string().uuid().optional(),
+  documentId: z.string().uuid().optional(),
 });
 
 export const TaskAssignmentCreateRequestSchema = z.object({
@@ -205,12 +252,37 @@ export const TaskReminderProcessResponseSchema = z.object({
   overdueNotificationsCreated: z.number().int().nonnegative(),
 });
 
-export const TaskListResponseSchema = z.object({ tasks: z.array(TaskSummarySchema) });
+export const NotificationListQuerySchema = z.object({
+  status: NotificationStatusSchema.exclude(['ARCHIVED']).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+});
+
+export const NotificationReadAllRequestSchema = z.object({
+  status: NotificationStatusSchema.exclude(['ARCHIVED']).optional(),
+});
+
+export const NotificationReadAllResponseSchema = z.object({
+  updatedCount: z.number().int().nonnegative(),
+});
+
+export const PageInfoSchema = z.object({
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+  hasNextPage: z.boolean(),
+});
+
+export const TaskListResponseSchema = z.object({
+  tasks: z.array(TaskSummarySchema),
+  pageInfo: PageInfoSchema,
+});
 export const TaskDetailResponseSchema = z.object({ task: TaskDetailSchema });
 export const TaskCommentDetailResponseSchema = z.object({ comment: TaskCommentSchema });
 export const TaskReminderDetailResponseSchema = z.object({ reminder: TaskReminderSchema });
 export const NotificationListResponseSchema = z.object({
   notifications: z.array(NotificationSchema),
+  pageInfo: PageInfoSchema,
 });
 export const NotificationDetailResponseSchema = z.object({ notification: NotificationSchema });
 
@@ -224,6 +296,8 @@ export type TaskReminder = z.infer<typeof TaskReminderSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
 export type TaskCreateRequest = z.infer<typeof TaskCreateRequestSchema>;
 export type TaskUpdateRequest = z.infer<typeof TaskUpdateRequestSchema>;
+export type TaskOwnerChangeRequest = z.infer<typeof TaskOwnerChangeRequestSchema>;
+export type TaskListQuery = z.infer<typeof TaskListQuerySchema>;
 export type TaskAssignmentCreateRequest = z.infer<typeof TaskAssignmentCreateRequestSchema>;
 export type TaskAssignmentRemoveRequest = z.infer<typeof TaskAssignmentRemoveRequestSchema>;
 export type TaskStatusChangeRequest = z.infer<typeof TaskStatusChangeRequestSchema>;
@@ -239,3 +313,6 @@ export type TaskCommentDetailResponse = z.infer<typeof TaskCommentDetailResponse
 export type TaskReminderDetailResponse = z.infer<typeof TaskReminderDetailResponseSchema>;
 export type NotificationListResponse = z.infer<typeof NotificationListResponseSchema>;
 export type NotificationDetailResponse = z.infer<typeof NotificationDetailResponseSchema>;
+export type NotificationListQuery = z.infer<typeof NotificationListQuerySchema>;
+export type NotificationReadAllRequest = z.infer<typeof NotificationReadAllRequestSchema>;
+export type NotificationReadAllResponse = z.infer<typeof NotificationReadAllResponseSchema>;
