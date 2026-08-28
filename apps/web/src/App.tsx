@@ -632,9 +632,7 @@ function TasksPanel({ accessToken, user }: { accessToken: string; user: Authenti
   }
 
   async function readAllNotifications(): Promise<void> {
-    const response = await markAllNotificationsRead(accessToken, {
-      status: notificationListStatus(notificationStatusFilter),
-    });
+    const response = await markAllNotificationsRead(accessToken);
     setMessage(`${response.updatedCount} notifications marked read.`);
     await loadNotifications();
   }

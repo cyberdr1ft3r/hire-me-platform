@@ -259,7 +259,7 @@ export const NotificationListQuerySchema = z.object({
 });
 
 export const NotificationReadAllRequestSchema = z.object({
-  status: NotificationStatusSchema.exclude(['ARCHIVED']).optional(),
+  status: z.literal('UNREAD').optional(),
 });
 
 export const NotificationReadAllResponseSchema = z.object({

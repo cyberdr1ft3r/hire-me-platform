@@ -19,6 +19,7 @@ import {
   PermissionScopeType,
   PrismaClient,
   RoleName,
+  NotificationStatus,
   TaskAssignmentStatus,
   TaskReminderStatus,
   TaskStatus,
@@ -149,6 +150,23 @@ async function ensureRoleWithPermissions(
   }
 }
 
+async function ensureRoleWithOnlyPermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  const role = await prisma.role.upsert({
+    where: { name: roleName },
+    update: { status: 'ACTIVE', archivedAt: null },
+    create: {
+      name: roleName,
+      description: `Synthetic ${roleName} role for task tests.`,
+      status: 'ACTIVE',
+    },
+  });
+  await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+  await ensureRoleWithPermissions(roleName, permissionCodes);
+}
+
 async function createUser(email: string, roleName: RoleName): Promise<string> {
   const user = await prisma.user.create({
     data: {
@@ -199,20 +217,33 @@ describe('internal task management, reminders, comments, and notifications', () 
   let assigneeUserId: string;
   let limitedUserId: string;
   let contextLimitedUserId: string;
+  let createOnlyUserId: string;
+  let noViewInternalUserId: string;
   let ownerToken: string;
   let assigneeToken: string;
   let limitedToken: string;
   let contextLimitedToken: string;
+  let createOnlyToken: string;
+  let broadManagerToken: string;
   let noTaskToken: string;
 
   beforeAll(async () => {
     await cleanTaskTestRecords();
     await ensureRoleWithPermissions(RoleName.HR_MANAGER, taskPermissions);
-    await ensureRoleWithPermissions(RoleName.TEAM_LEADER, ['tasks:view']);
+    await ensureRoleWithOnlyPermissions(RoleName.TEAM_LEADER, ['tasks:view']);
+    await ensureRoleWithOnlyPermissions(RoleName.EMPLOYEE, ['tasks:view', 'tasks:create']);
+    await ensureRoleWithOnlyPermissions(RoleName.ADMIN, [...taskPermissions, 'tasks:view_all']);
+    await ensureRoleWithOnlyPermissions(RoleName.CLIENT_USER, [
+      'notifications:view_own',
+      'notifications:update_own',
+    ]);
     ownerUserId = await createUser('owner@tasks.test', RoleName.HR_MANAGER);
     assigneeUserId = await createUser('assignee@tasks.test', RoleName.HR_MANAGER);
     limitedUserId = await createUser('limited@tasks.test', RoleName.TEAM_LEADER);
     contextLimitedUserId = await createUser('context-limited@tasks.test', RoleName.MANAGER);
+    createOnlyUserId = await createUser('create-only@tasks.test', RoleName.EMPLOYEE);
+    await createUser('broad-manager@tasks.test', RoleName.ADMIN);
+    noViewInternalUserId = await createUser('no-view-internal@tasks.test', RoleName.CLIENT_USER);
     await createUser('notasks@tasks.test', RoleName.CLIENT_USER);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -223,6 +254,8 @@ describe('internal task management, reminders, comments, and notifications', () 
     assigneeToken = await loginAccessToken(baseUrl, 'assignee@tasks.test');
     limitedToken = await loginAccessToken(baseUrl, 'limited@tasks.test');
     contextLimitedToken = await loginAccessToken(baseUrl, 'context-limited@tasks.test');
+    createOnlyToken = await loginAccessToken(baseUrl, 'create-only@tasks.test');
+    broadManagerToken = await loginAccessToken(baseUrl, 'broad-manager@tasks.test');
     noTaskToken = await loginAccessToken(baseUrl, 'notasks@tasks.test');
   });
 
@@ -293,6 +326,79 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(TaskListResponseSchema.parse(await ownerList.json()).tasks).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: body.task.id })]),
     );
+  });
+
+  it('blocks task creation assignments when the creator lacks tasks:assign', async () => {
+    const blocked = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(createOnlyToken),
+      body: JSON.stringify({
+        title: 'Issue31 create-only assignment bypass task',
+        ownerUserId: createOnlyUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    expect(blocked.status).toBe(403);
+    expect(await readErrorCode(blocked)).toBe('TASKS_ASSIGN_REQUIRED');
+    expect(
+      await prisma.task.count({ where: { title: 'Issue31 create-only assignment bypass task' } }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: {
+          recipientUserId: assigneeUserId,
+          type: 'tasks.assignment.created',
+          task: { title: 'Issue31 create-only assignment bypass task' },
+        },
+      }),
+    ).toBe(0);
+  });
+
+  it('does not treat internal owners or assignees without tasks:view as task-visible', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 no-view assignee task',
+        ownerUserId,
+        assigneeUserIds: [noViewInternalUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+
+    const noViewList = await fetch(`${baseUrl}/v1/tasks`, { headers: authHeaders(noTaskToken) });
+    expect(noViewList.status).toBe(403);
+
+    const mention = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        body: 'Synthetic mention should be blocked.',
+        mentionedUserIds: [noViewInternalUserId],
+      }),
+    });
+    expect(mention.status).toBe(403);
+    expect(await readErrorCode(mention)).toBe('TASK_MENTION_USER_NO_ACCESS');
+
+    const reminder = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        recipientUserId: noViewInternalUserId,
+        remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    });
+    expect(reminder.status).toBe(403);
+    expect(await readErrorCode(reminder)).toBe('TASK_REMINDER_RECIPIENT_NO_ACCESS');
+
+    const notifications = NotificationListResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/notifications?pageSize=100`, {
+          headers: authHeaders(noTaskToken),
+        })
+      ).json(),
+    );
+    expect(notifications.notifications.map((item) => item.taskId)).not.toContain(task.id);
   });
 
   it('filters visible tasks by status, assignee, and search with pagination metadata', async () => {
@@ -386,6 +492,85 @@ describe('internal task management, reminders, comments, and notifications', () 
     ).toBe(1);
   });
 
+  it('sends new assignment and owner notifications for later legitimate business events', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 reassign owner-return notification task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const initialAssignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const initialAssignmentNotification = await prisma.notification.findFirstOrThrow({
+      where: {
+        taskId: task.id,
+        recipientUserId: assigneeUserId,
+        type: 'tasks.assignment.created',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    await prisma.notification.update({
+      where: { id: initialAssignmentNotification.id },
+      data: { status: NotificationStatus.ARCHIVED, archivedAt: new Date() },
+    });
+    await fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${initialAssignment.id}/remove`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ reason: 'Synthetic remove before reassign.' }),
+    });
+    await fetch(`${baseUrl}/v1/tasks/${task.id}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ userId: assigneeUserId, reason: 'Synthetic reassign.' }),
+    });
+    expect(
+      await prisma.notification.count({
+        where: {
+          taskId: task.id,
+          recipientUserId: assigneeUserId,
+          type: 'tasks.assignment.created',
+        },
+      }),
+    ).toBe(2);
+
+    await fetch(`${baseUrl}/v1/tasks/${task.id}/owner`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ ownerUserId: assigneeUserId, reason: 'Synthetic owner handoff.' }),
+    });
+    const firstReturn = await fetch(`${baseUrl}/v1/tasks/${task.id}/owner`, {
+      method: 'POST',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({ ownerUserId, reason: 'Synthetic owner return.' }),
+    });
+    expect(firstReturn.status).toBe(201);
+    await fetch(`${baseUrl}/v1/tasks/${task.id}/owner`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        ownerUserId: assigneeUserId,
+        reason: 'Synthetic owner handoff again.',
+      }),
+    });
+    await fetch(`${baseUrl}/v1/tasks/${task.id}/owner`, {
+      method: 'POST',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({ ownerUserId, reason: 'Synthetic owner return again.' }),
+    });
+    expect(
+      await prisma.notification.count({
+        where: {
+          taskId: task.id,
+          recipientUserId: ownerUserId,
+          type: 'tasks.owner.changed',
+        },
+      }),
+    ).toBe(2);
+  });
+
   it('refuses inaccessible linked task context before creating task records', async () => {
     const candidate = await prisma.candidate.create({
       data: {
@@ -439,6 +624,43 @@ describe('internal task management, reminders, comments, and notifications', () 
       await prisma.taskEvent.count({
         where: { taskId: task.id, nextStatus: 'IN_PROGRESS' },
       }),
+    ).toBe(0);
+  });
+
+  it('rejects inactive assignees inside the assignment write path without side effects', async () => {
+    const inactiveUserId = await createUser('inactive-assignee@tasks.test', RoleName.HR_MANAGER);
+    await prisma.user.update({
+      where: { id: inactiveUserId },
+      data: { status: UserStatus.SUSPENDED },
+    });
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 inactive assignment target task',
+        ownerUserId,
+        assigneeUserIds: [],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+
+    const blocked = await fetch(`${baseUrl}/v1/tasks/${task.id}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ userId: inactiveUserId, reason: 'Synthetic inactive assignment.' }),
+    });
+    expect(blocked.status).toBe(409);
+    expect(await readErrorCode(blocked)).toBe('TASK_ASSIGNEE_NOT_ACTIVE');
+    expect(
+      await prisma.taskAssignment.count({ where: { taskId: task.id, userId: inactiveUserId } }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: { taskId: task.id, recipientUserId: inactiveUserId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.taskEvent.count({ where: { taskId: task.id, action: 'ASSIGNEE_ADDED' } }),
     ).toBe(0);
   });
 
@@ -554,6 +776,69 @@ describe('internal task management, reminders, comments, and notifications', () 
       },
     });
     expect(ownerMentionNotifications).toBe(0);
+  });
+
+  it('enforces author, broad manager, and unauthorized comment edit/archive rules', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 comment matrix task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const comment = TaskCommentDetailResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({ body: 'Synthetic author comment.', mentionedUserIds: [] }),
+        })
+      ).json(),
+    ).comment;
+
+    const unauthorizedEdit = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({ body: 'Synthetic unauthorized edit.' }),
+    });
+    expect(unauthorizedEdit.status).toBe(403);
+    expect(await readErrorCode(unauthorizedEdit)).toBe('TASK_COMMENT_AUTHOR_REQUIRED');
+
+    const authorEdit = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ body: 'Synthetic author edit.' }),
+    });
+    expect(TaskCommentDetailResponseSchema.parse(await authorEdit.json()).comment.status).toBe(
+      'EDITED',
+    );
+
+    const managerEdit = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(broadManagerToken),
+      body: JSON.stringify({ body: 'Synthetic broad manager edit.' }),
+    });
+    expect(TaskCommentDetailResponseSchema.parse(await managerEdit.json()).comment.status).toBe(
+      'EDITED',
+    );
+
+    const unauthorizedArchive = await fetch(
+      `${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}/archive`,
+      { method: 'POST', headers: authHeaders(assigneeToken) },
+    );
+    expect(unauthorizedArchive.status).toBe(403);
+    expect(await readErrorCode(unauthorizedArchive)).toBe('TASK_COMMENT_AUTHOR_REQUIRED');
+
+    const archived = await fetch(`${baseUrl}/v1/tasks/${task.id}/comments/${comment.id}/archive`, {
+      method: 'POST',
+      headers: authHeaders(broadManagerToken),
+    });
+    expect(TaskCommentDetailResponseSchema.parse(await archived.json()).comment.status).toBe(
+      'ARCHIVED',
+    );
   });
 
   it('lists, marks read, reads all, and archives visible notifications', async () => {
@@ -724,6 +1009,241 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(
       (await prisma.taskReminder.findUniqueOrThrow({ where: { id: pendingReminder.id } })).status,
     ).toBe(TaskReminderStatus.CANCELED);
+  });
+
+  it('authorizes reminder update/cancel and rejects sent or canceled reminder mutation', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 reminder authorization state task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const reminder = TaskReminderDetailResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({
+            recipientUserId: assigneeUserId,
+            remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+            idempotencyKey: `issue31:${task.id}:auth-state`,
+          }),
+        })
+      ).json(),
+    ).reminder;
+
+    const unauthorizedUpdate = await fetch(
+      `${baseUrl}/v1/tasks/${task.id}/reminders/${reminder.id}`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(limitedToken),
+        body: JSON.stringify({ remindAt: new Date(Date.now() + 172_800_000).toISOString() }),
+      },
+    );
+    expect(unauthorizedUpdate.status).toBe(403);
+    expect(
+      (
+        await prisma.taskReminder.findUniqueOrThrow({ where: { id: reminder.id } })
+      ).remindAt.toISOString(),
+    ).toBe(reminder.remindAt);
+
+    const rescheduled = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${reminder.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ remindAt: new Date(Date.now() + 172_800_000).toISOString() }),
+    });
+    expect(TaskReminderDetailResponseSchema.parse(await rescheduled.json()).reminder.status).toBe(
+      TaskReminderStatus.PENDING,
+    );
+
+    const canceled = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${reminder.id}/cancel`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+    });
+    expect(TaskReminderDetailResponseSchema.parse(await canceled.json()).reminder.status).toBe(
+      TaskReminderStatus.CANCELED,
+    );
+
+    const updateCanceled = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${reminder.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ remindAt: new Date(Date.now() + 259_200_000).toISOString() }),
+    });
+    expect(updateCanceled.status).toBe(409);
+    expect(await readErrorCode(updateCanceled)).toBe('TASK_REMINDER_NOT_RESCHEDULABLE');
+
+    const sentReminder = TaskReminderDetailResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({
+            recipientUserId: assigneeUserId,
+            remindAt: new Date(Date.now() - 1_000).toISOString(),
+            idempotencyKey: `issue31:${task.id}:sent-state`,
+          }),
+        })
+      ).json(),
+    ).reminder;
+    await fetch(`${baseUrl}/v1/tasks/reminders/process-due`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ limit: 10 }),
+    });
+    const updateSent = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${sentReminder.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ remindAt: new Date(Date.now() + 86_400_000).toISOString() }),
+    });
+    expect(updateSent.status).toBe(409);
+    expect(await readErrorCode(updateSent)).toBe('TASK_REMINDER_NOT_RESCHEDULABLE');
+    const cancelSent = await fetch(
+      `${baseUrl}/v1/tasks/${task.id}/reminders/${sentReminder.id}/cancel`,
+      { method: 'POST', headers: authHeaders(ownerToken) },
+    );
+    expect(cancelSent.status).toBe(409);
+    expect(await readErrorCode(cancelSent)).toBe('TASK_REMINDER_NOT_CANCELABLE');
+    expect(
+      (await prisma.taskReminder.findUniqueOrThrow({ where: { id: sentReminder.id } })).status,
+    ).toBe(TaskReminderStatus.SENT);
+  });
+
+  it('keeps reminder processing serialized against update and cancel requests', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 reminder race task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const makeDueReminder = async (key: string) =>
+      TaskReminderDetailResponseSchema.parse(
+        await (
+          await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
+            method: 'POST',
+            headers: authHeaders(ownerToken),
+            body: JSON.stringify({
+              recipientUserId: assigneeUserId,
+              remindAt: new Date(Date.now() - 1_000).toISOString(),
+              idempotencyKey: `issue31:${task.id}:${key}`,
+            }),
+          })
+        ).json(),
+      ).reminder;
+
+    const updateRace = await makeDueReminder('process-update-race');
+    await Promise.allSettled([
+      fetch(`${baseUrl}/v1/tasks/reminders/process-due`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ limit: 10 }),
+      }),
+      fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${updateRace.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ remindAt: new Date(Date.now() + 86_400_000).toISOString() }),
+      }),
+    ]);
+    const updateRaceRecord = await prisma.taskReminder.findUniqueOrThrow({
+      where: { id: updateRace.id },
+    });
+    expect([TaskReminderStatus.PENDING, TaskReminderStatus.SENT]).toContain(
+      updateRaceRecord.status,
+    );
+    expect(
+      updateRaceRecord.status === TaskReminderStatus.SENT
+        ? updateRaceRecord.deliveredAt !== null
+        : updateRaceRecord.deliveredAt === null && updateRaceRecord.remindAt > new Date(),
+    ).toBe(true);
+
+    const cancelRace = await makeDueReminder('process-cancel-race');
+    await Promise.allSettled([
+      fetch(`${baseUrl}/v1/tasks/reminders/process-due`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ limit: 10 }),
+      }),
+      fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${cancelRace.id}/cancel`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+      }),
+    ]);
+    const cancelRaceRecord = await prisma.taskReminder.findUniqueOrThrow({
+      where: { id: cancelRace.id },
+    });
+    expect([TaskReminderStatus.CANCELED, TaskReminderStatus.SENT]).toContain(
+      cancelRaceRecord.status,
+    );
+    expect(
+      cancelRaceRecord.status === TaskReminderStatus.SENT
+        ? cancelRaceRecord.deliveredAt !== null && cancelRaceRecord.canceledAt === null
+        : cancelRaceRecord.deliveredAt === null && cancelRaceRecord.canceledAt !== null,
+    ).toBe(true);
+  });
+
+  it('keeps notification reads, archives, stale links, and read-all scoped to the owner', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 notification safety task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId, noViewInternalUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const assigneeNotification = await prisma.notification.findFirstOrThrow({
+      where: {
+        taskId: task.id,
+        recipientUserId: assigneeUserId,
+        type: 'tasks.assignment.created',
+      },
+    });
+    const crossRead = await fetch(`${baseUrl}/v1/notifications/${assigneeNotification.id}/read`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+    });
+    expect(crossRead.status).toBe(404);
+    expect(await readErrorCode(crossRead)).toBe('NOTIFICATION_NOT_FOUND');
+    const crossArchive = await fetch(
+      `${baseUrl}/v1/notifications/${assigneeNotification.id}/archive`,
+      { method: 'POST', headers: authHeaders(ownerToken) },
+    );
+    expect(crossArchive.status).toBe(404);
+    expect(await readErrorCode(crossArchive)).toBe('NOTIFICATION_NOT_FOUND');
+
+    const staleNotification = await prisma.notification.findFirstOrThrow({
+      where: { taskId: task.id, recipientUserId: noViewInternalUserId },
+    });
+    const staleRead = await fetch(`${baseUrl}/v1/notifications/${staleNotification.id}/read`, {
+      method: 'POST',
+      headers: authHeaders(noTaskToken),
+    });
+    expect(NotificationDetailResponseSchema.parse(await staleRead.json()).notification.taskId).toBe(
+      null,
+    );
+
+    const unreadBefore = await prisma.notification.count({
+      where: { recipientUserId: assigneeUserId, status: NotificationStatus.UNREAD },
+    });
+    const invalidReadAll = await fetch(`${baseUrl}/v1/notifications/read-all`, {
+      method: 'POST',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({ status: 'READ' }),
+    });
+    expect(invalidReadAll.status).toBe(400);
+    expect(
+      await prisma.notification.count({
+        where: { recipientUserId: assigneeUserId, status: NotificationStatus.UNREAD },
+      }),
+    ).toBe(unreadBefore);
   });
 
   it('keeps task completion and cancellation idempotent without duplicate audit or history', async () => {

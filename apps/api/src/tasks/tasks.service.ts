@@ -67,6 +67,7 @@ type NormalizedTaskContext = {
 };
 
 type TaskAccess = {
+  view: boolean;
   viewAll: boolean;
   create: boolean;
   update: boolean;
@@ -81,6 +82,16 @@ const terminalStatuses = new Set<TaskStatus>([
   TaskStatus.COMPLETED,
   TaskStatus.CANCELED,
   TaskStatus.ARCHIVED,
+]);
+
+const reminderRescheduleSourceStatuses = new Set<TaskReminderStatus>([
+  TaskReminderStatus.PENDING,
+  TaskReminderStatus.FAILED,
+]);
+
+const reminderCancelSourceStatuses = new Set<TaskReminderStatus>([
+  TaskReminderStatus.PENDING,
+  TaskReminderStatus.FAILED,
 ]);
 
 const allowedTransitions = new Map<TaskStatus, Set<TaskStatus>>([
@@ -189,18 +200,22 @@ export class TasksService {
       'TASKS_CREATE_REQUIRED',
       'Task creation permission is required.',
     );
-    if (input.ownerUserId !== actorUserId) {
+    const assigneeUserIds = [...new Set(input.assigneeUserIds)];
+    if (input.ownerUserId !== actorUserId || assigneeUserIds.length > 0) {
       this.assertAccess(access.assign, 'TASKS_ASSIGN_REQUIRED', 'Assign permission is required.');
     }
     const normalizedContext = await this.normalizeContext(input.context ?? {});
     await this.assertContextAccessible(normalizedContext, actorUserId, access);
-    const assigneeUserIds = [...new Set(input.assigneeUserIds)];
-    await this.assertActiveInternalUser(input.ownerUserId, 'TASK_OWNER_NOT_ACTIVE');
-    for (const userId of assigneeUserIds) {
-      await this.assertActiveInternalUser(userId, 'TASK_ASSIGNEE_NOT_ACTIVE');
-    }
 
     const task = await this.prisma.$transaction(async (tx) => {
+      await this.assertActiveInternalUserInTransaction(
+        tx,
+        input.ownerUserId,
+        'TASK_OWNER_NOT_ACTIVE',
+      );
+      for (const userId of assigneeUserIds) {
+        await this.assertActiveInternalUserInTransaction(tx, userId, 'TASK_ASSIGNEE_NOT_ACTIVE');
+      }
       const created = await tx.task.create({
         data: {
           title: input.title,
@@ -215,15 +230,17 @@ export class TasksService {
           ...normalizedContext,
         },
       });
-      if (assigneeUserIds.length > 0) {
-        await tx.taskAssignment.createMany({
-          data: assigneeUserIds.map((userId) => ({
-            taskId: created.id,
-            userId,
-            assignedByUserId: actorUserId,
-          })),
-          skipDuplicates: true,
-        });
+      const assignments = [];
+      for (const userId of assigneeUserIds) {
+        assignments.push(
+          await tx.taskAssignment.create({
+            data: {
+              taskId: created.id,
+              userId,
+              assignedByUserId: actorUserId,
+            },
+          }),
+        );
       }
       await this.createTaskEvent(tx, {
         taskId: created.id,
@@ -232,10 +249,10 @@ export class TasksService {
         nextStatus: TaskStatus.OPEN,
         safeSummary: 'Task created.',
       });
-      for (const userId of assigneeUserIds.filter((id) => id !== actorUserId)) {
+      for (const assignment of assignments.filter((item) => item.userId !== actorUserId)) {
         await this.createNotification(tx, {
-          idempotencyKey: `task:${created.id}:assignment:${userId}`,
-          recipientUserId: userId,
+          idempotencyKey: `task-assignment:${assignment.id}`,
+          recipientUserId: assignment.userId,
           actorUserId,
           type: 'tasks.assignment.created',
           title: 'Task assigned',
@@ -331,13 +348,17 @@ export class TasksService {
       'TASKS_ASSIGN_REQUIRED',
       'Task assignment permission is required.',
     );
-    await this.assertActiveInternalUser(input.ownerUserId, 'TASK_OWNER_NOT_ACTIVE');
     const { task, changed } = await this.withLockedVisibleTaskResult(
       taskId,
       actorUserId,
       access,
       async (tx, current) => {
         this.assertTaskWritable(current.status);
+        await this.assertActiveInternalUserInTransaction(
+          tx,
+          input.ownerUserId,
+          'TASK_OWNER_NOT_ACTIVE',
+        );
         if (current.ownerUserId === input.ownerUserId) {
           return { task: await this.requireTask(tx, taskId), changed: false };
         }
@@ -345,7 +366,7 @@ export class TasksService {
           where: { id: taskId },
           data: { ownerUserId: input.ownerUserId },
         });
-        await this.createTaskEvent(tx, {
+        const event = await this.createTaskEvent(tx, {
           taskId,
           actorUserId,
           action: TaskEventAction.OWNER_CHANGED,
@@ -356,7 +377,7 @@ export class TasksService {
         });
         if (input.ownerUserId !== actorUserId) {
           await this.createNotification(tx, {
-            idempotencyKey: `task:${taskId}:owner:${input.ownerUserId}`,
+            idempotencyKey: `task-owner-change:${event.id}`,
             recipientUserId: input.ownerUserId,
             actorUserId,
             type: 'tasks.owner.changed',
@@ -393,15 +414,20 @@ export class TasksService {
       'TASKS_ASSIGN_REQUIRED',
       'Task assignment permission is required.',
     );
-    await this.assertActiveInternalUser(input.userId, 'TASK_ASSIGNEE_NOT_ACTIVE');
     const task = await this.withLockedVisibleTask(
       taskId,
       actorUserId,
       access,
       async (tx, current) => {
         this.assertTaskWritable(current.status);
+        await this.assertActiveInternalUserInTransaction(
+          tx,
+          input.userId,
+          'TASK_ASSIGNEE_NOT_ACTIVE',
+        );
+        let assignment: Prisma.TaskAssignmentGetPayload<Record<string, never>>;
         try {
-          await tx.taskAssignment.create({
+          assignment = await tx.taskAssignment.create({
             data: {
               taskId,
               userId: input.userId,
@@ -426,7 +452,7 @@ export class TasksService {
         });
         if (input.userId !== actorUserId) {
           await this.createNotification(tx, {
-            idempotencyKey: `task:${taskId}:assignment:${input.userId}`,
+            idempotencyKey: `task-assignment:${assignment.id}`,
             recipientUserId: input.userId,
             actorUserId,
             type: 'tasks.assignment.created',
@@ -944,7 +970,6 @@ export class TasksService {
       'TASKS_REMINDERS_MANAGE_REQUIRED',
       'Task reminder permission is required.',
     );
-    await this.requireVisibleTask(taskId, actorUserId, access);
     const recipientCanSeeTask = await this.canViewTask(taskId, input.recipientUserId);
     if (!recipientCanSeeTask) {
       throw forbidden(
@@ -955,6 +980,7 @@ export class TasksService {
     const idempotencyKey =
       input.idempotencyKey ?? `task:${taskId}:reminder:${input.recipientUserId}:${input.remindAt}`;
     const { reminder, changed } = await this.prisma.$transaction(async (tx) => {
+      await this.lockVisibleTask(tx, taskId, actorUserId, access);
       const existing = await tx.taskReminder.findUnique({
         where: {
           taskId_recipientUserId_idempotencyKey: {
@@ -1010,17 +1036,15 @@ export class TasksService {
       'TASKS_REMINDERS_MANAGE_REQUIRED',
       'Task reminder permission is required.',
     );
-    await this.requireVisibleTask(taskId, actorUserId, access);
-    const reminder = await this.prisma.taskReminder.findFirst({
-      where: { id: reminderId, taskId },
-    });
-    if (!reminder) {
-      throw notFound('TASK_REMINDER_NOT_FOUND', 'Task reminder was not found.');
-    }
-    if (reminder.status === TaskReminderStatus.SENT) {
-      throw conflict('TASK_REMINDER_ALREADY_SENT', 'Sent reminders cannot be rescheduled.');
-    }
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockVisibleTask(tx, taskId, actorUserId, access);
+      const reminder = await this.lockTaskReminder(tx, taskId, reminderId);
+      if (!reminderRescheduleSourceStatuses.has(reminder.status)) {
+        throw conflict(
+          'TASK_REMINDER_NOT_RESCHEDULABLE',
+          'Only pending or failed reminders can be rescheduled.',
+        );
+      }
       const updatedReminder = await tx.taskReminder.update({
         where: { id: reminderId },
         data: {
@@ -1061,18 +1085,18 @@ export class TasksService {
       'TASKS_REMINDERS_MANAGE_REQUIRED',
       'Task reminder permission is required.',
     );
-    await this.requireVisibleTask(taskId, actorUserId, access);
-    const reminder = await this.prisma.taskReminder.findFirst({
-      where: { id: reminderId, taskId },
-      include: { recipient: true },
-    });
-    if (!reminder) {
-      throw notFound('TASK_REMINDER_NOT_FOUND', 'Task reminder was not found.');
-    }
-    if (reminder.status === TaskReminderStatus.CANCELED) {
-      return { reminder: this.toTaskReminder(reminder) };
-    }
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockVisibleTask(tx, taskId, actorUserId, access);
+      const reminder = await this.lockTaskReminder(tx, taskId, reminderId);
+      if (reminder.status === TaskReminderStatus.CANCELED) {
+        return reminder;
+      }
+      if (!reminderCancelSourceStatuses.has(reminder.status)) {
+        throw conflict(
+          'TASK_REMINDER_NOT_CANCELABLE',
+          'Only pending or failed reminders can be canceled.',
+        );
+      }
       const updatedReminder = await tx.taskReminder.update({
         where: { id: reminderId },
         data: {
@@ -1104,23 +1128,39 @@ export class TasksService {
     actorUserId: string,
   ): Promise<TaskReminderProcessResponse> {
     return this.prisma.$transaction(async (tx) => {
-      const dueRows = await tx.$queryRaw<{ id: string }[]>`
+      const dueRows = await tx.$queryRaw<{ id: string; taskId: string }[]>`
         SELECT "id"
+             , "taskId"
         FROM "TaskReminder"
         WHERE "status" IN ('pending', 'failed')
           AND "remindAt" <= NOW()
           AND "archivedAt" IS NULL
         ORDER BY "remindAt" ASC
         LIMIT ${input.limit}
-        FOR UPDATE SKIP LOCKED
       `;
       let remindersDelivered = 0;
       const remindersFailed = 0;
       for (const row of dueRows) {
-        const reminder = await tx.taskReminder.findUniqueOrThrow({
-          where: { id: row.id },
-          include: { task: true },
-        });
+        await this.lockTask(tx, row.taskId);
+        const reminder = await this.lockTaskReminder(tx, row.taskId, row.id);
+        if (
+          !reminderRescheduleSourceStatuses.has(reminder.status) ||
+          reminder.remindAt > new Date() ||
+          reminder.archivedAt
+        ) {
+          continue;
+        }
+        if (terminalStatuses.has(reminder.task.status) || reminder.task.archivedAt) {
+          await tx.taskReminder.update({
+            where: { id: reminder.id },
+            data: {
+              status: TaskReminderStatus.CANCELED,
+              canceledAt: new Date(),
+              canceledByUserId: actorUserId,
+            },
+          });
+          continue;
+        }
         const token = randomUUID();
         await tx.taskReminder.update({
           where: { id: reminder.id },
@@ -1200,9 +1240,10 @@ export class TasksService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<NotificationReadAllResponse> {
+    void input;
     const access = await this.resolveAccess(actorUserId);
     const where = this.visibleNotificationWhere(actorUserId, access, {
-      status: input.status ?? NotificationStatus.UNREAD,
+      status: NotificationStatus.UNREAD,
       page: 1,
       pageSize: 100,
     });
@@ -1780,6 +1821,49 @@ export class TasksService {
     return tx.task.findUniqueOrThrow({ where: { id: taskId }, include: taskInclude });
   }
 
+  private async lockTask(tx: PrismaTransaction, taskId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM "Task" WHERE id = ${taskId}::uuid FOR UPDATE`;
+  }
+
+  private async lockVisibleTask(
+    tx: PrismaTransaction,
+    taskId: string,
+    actorUserId: string,
+    access: TaskAccess,
+  ): Promise<TaskRecord> {
+    await this.lockTask(tx, taskId);
+    const task = await tx.task.findFirst({
+      where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
+      include: taskInclude,
+    });
+    if (!task) {
+      throw notFound('TASK_NOT_FOUND', 'Task was not found.');
+    }
+    return task;
+  }
+
+  private async lockTaskReminder(
+    tx: PrismaTransaction,
+    taskId: string,
+    reminderId: string,
+  ): Promise<Prisma.TaskReminderGetPayload<{ include: { recipient: true; task: true } }>> {
+    await tx.$queryRaw`
+      SELECT id
+      FROM "TaskReminder"
+      WHERE id = ${reminderId}::uuid
+        AND "taskId" = ${taskId}::uuid
+      FOR UPDATE
+    `;
+    const reminder = await tx.taskReminder.findFirst({
+      where: { id: reminderId, taskId },
+      include: { recipient: true, task: true },
+    });
+    if (!reminder) {
+      throw notFound('TASK_REMINDER_NOT_FOUND', 'Task reminder was not found.');
+    }
+    return reminder;
+  }
+
   private async requireOwnNotification(
     notificationId: string,
     actorUserId: string,
@@ -1800,14 +1884,7 @@ export class TasksService {
     callback: (tx: PrismaTransaction, task: TaskRecord) => Promise<T>,
   ): Promise<T> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "Task" WHERE id = ${taskId}::uuid FOR UPDATE`;
-      const task = await tx.task.findFirst({
-        where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
-        include: taskInclude,
-      });
-      if (!task) {
-        throw notFound('TASK_NOT_FOUND', 'Task was not found.');
-      }
+      const task = await this.lockVisibleTask(tx, taskId, actorUserId, access);
       return callback(tx, task);
     });
   }
@@ -1927,6 +2004,9 @@ export class TasksService {
     if (access.viewAll) {
       return {};
     }
+    if (!access.view) {
+      return { id: '00000000-0000-0000-0000-000000000000' };
+    }
     return {
       archivedAt: null,
       OR: [
@@ -1998,6 +2078,7 @@ export class TasksService {
   private async resolveAccess(userId: string): Promise<TaskAccess> {
     const permissions = new Set(await this.permissions.getEffectivePermissionCodes(userId));
     return {
+      view: permissions.has(TASK_PERMISSIONS.TASKS_VIEW),
       viewAll: permissions.has(TASK_PERMISSIONS.TASKS_VIEW_ALL),
       create: permissions.has(TASK_PERMISSIONS.TASKS_CREATE),
       update: permissions.has(TASK_PERMISSIONS.TASKS_UPDATE),
@@ -2053,6 +2134,22 @@ export class TasksService {
     }
   }
 
+  private async assertActiveInternalUserInTransaction(
+    tx: PrismaTransaction,
+    userId: string,
+    code: string,
+  ): Promise<void> {
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (
+      !user ||
+      user.status !== UserStatus.ACTIVE ||
+      user.userType !== UserType.INTERNAL ||
+      user.archivedAt
+    ) {
+      throw conflict(code, 'User must be active, internal, and non-archived.');
+    }
+  }
+
   private async createNotification(
     tx: PrismaTransaction,
     input: {
@@ -2097,8 +2194,8 @@ export class TasksService {
       previousOwnerUserId?: string | null;
       nextOwnerUserId?: string | null;
     },
-  ): Promise<void> {
-    await tx.taskEvent.create({
+  ): Promise<Prisma.TaskEventGetPayload<Record<string, never>>> {
+    return tx.taskEvent.create({
       data: {
         taskId: input.taskId,
         actorUserId: input.actorUserId ?? null,
