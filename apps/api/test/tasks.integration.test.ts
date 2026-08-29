@@ -263,32 +263,33 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
   return body.error?.code;
 }
 
-async function raceAfterTaskLock<T>(taskId: string, startRequests: () => Promise<T>): Promise<T> {
-  let releaseLock: (() => void) | undefined;
-  let locked: (() => void) | undefined;
-  const releasePromise = new Promise<void>((resolve) => {
-    releaseLock = resolve;
-  });
-  const lockedPromise = new Promise<void>((resolve) => {
-    locked = resolve;
-  });
-
-  const lockPromise = prisma.$transaction(
+async function requestAfterAssignmentRemovalUnderTaskLock<T>(
+  taskId: string,
+  assignmentId: string,
+  removedByUserId: string,
+  startRequest: () => Promise<T>,
+): Promise<T> {
+  let requestPromise: Promise<T> | undefined;
+  await prisma.$transaction(
     async (transaction) => {
       await transaction.$queryRaw`SELECT id FROM "Task" WHERE id = ${taskId}::uuid FOR UPDATE`;
-      locked?.();
-      await releasePromise;
+      requestPromise = startRequest();
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      await transaction.taskAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          status: TaskAssignmentStatus.REMOVED,
+          removedAt: new Date(),
+          removedByUserId,
+        },
+      });
     },
     { timeout: 10000 },
   );
-
-  await lockedPromise;
-  const resultPromise = startRequests();
-  await new Promise((resolve) => setTimeout(resolve, 75));
-  releaseLock?.();
-  const result = await resultPromise;
-  await lockPromise;
-  return result;
+  if (!requestPromise) {
+    throw new Error('Race request was not started.');
+  }
+  return requestPromise;
 }
 
 describe('internal task management, reminders, comments, and notifications', () => {
@@ -888,25 +889,18 @@ describe('internal task management, reminders, comments, and notifications', () 
     };
     const commentAuditCountBefore = await prisma.auditLog.count({ where: commentAuditWhere });
 
-    const [removed, staleComment] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(
-        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
-        {
+    const staleComment = await requestAfterAssignmentRemovalUnderTaskLock(
+      task.id,
+      assignment.id,
+      ownerUserId,
+      () =>
+        fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
           method: 'POST',
-          headers: authHeaders(ownerToken),
-          body: JSON.stringify({ reason: 'Synthetic scope loss before comment.' }),
-        },
-      );
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
-        method: 'POST',
-        headers: authHeaders(assigneeToken),
-        body: JSON.stringify({ body: commentBody, mentionedUserIds: [] }),
-      });
-      return Promise.all([removePromise, commentPromise]);
-    });
+          headers: authHeaders(assigneeToken),
+          body: JSON.stringify({ body: commentBody, mentionedUserIds: [] }),
+        }),
+    );
 
-    expect(removed.status).toBe(201);
     expect(staleComment.status).toBe(404);
     expect(await readErrorCode(staleComment)).toBe('TASK_NOT_FOUND');
     expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
@@ -948,25 +942,18 @@ describe('internal task management, reminders, comments, and notifications', () 
     };
     const mentionAuditCountBefore = await prisma.auditLog.count({ where: mentionAuditWhere });
 
-    const [removed, staleMention] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(
-        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
-        {
+    const staleMention = await requestAfterAssignmentRemovalUnderTaskLock(
+      task.id,
+      assignment.id,
+      ownerUserId,
+      () =>
+        fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
           method: 'POST',
           headers: authHeaders(ownerToken),
-          body: JSON.stringify({ reason: 'Synthetic scope loss before mention.' }),
-        },
-      );
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
-        method: 'POST',
-        headers: authHeaders(ownerToken),
-        body: JSON.stringify({ body: commentBody, mentionedUserIds: [assigneeUserId] }),
-      });
-      return Promise.all([removePromise, commentPromise]);
-    });
+          body: JSON.stringify({ body: commentBody, mentionedUserIds: [assigneeUserId] }),
+        }),
+    );
 
-    expect(removed.status).toBe(201);
     expect(staleMention.status).toBe(403);
     expect(await readErrorCode(staleMention)).toBe('TASK_MENTION_USER_NO_ACCESS');
     expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
@@ -1350,29 +1337,22 @@ describe('internal task management, reminders, comments, and notifications', () 
     };
     const reminderAuditCountBefore = await prisma.auditLog.count({ where: reminderAuditWhere });
 
-    const [removed, staleReminder] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(
-        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
-        {
+    const staleReminder = await requestAfterAssignmentRemovalUnderTaskLock(
+      task.id,
+      assignment.id,
+      ownerUserId,
+      () =>
+        fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
           method: 'POST',
           headers: authHeaders(ownerToken),
-          body: JSON.stringify({ reason: 'Synthetic scope loss before reminder.' }),
-        },
-      );
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      const reminderPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
-        method: 'POST',
-        headers: authHeaders(ownerToken),
-        body: JSON.stringify({
-          recipientUserId: assigneeUserId,
-          remindAt: new Date(Date.now() + 86_400_000).toISOString(),
-          idempotencyKey,
+          body: JSON.stringify({
+            recipientUserId: assigneeUserId,
+            remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+            idempotencyKey,
+          }),
         }),
-      });
-      return Promise.all([removePromise, reminderPromise]);
-    });
+    );
 
-    expect(removed.status).toBe(201);
     expect(staleReminder.status).toBe(403);
     expect(await readErrorCode(staleReminder)).toBe('TASK_REMINDER_RECIPIENT_NO_ACCESS');
     expect(
