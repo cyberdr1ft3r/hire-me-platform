@@ -906,7 +906,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       return Promise.all([removePromise, commentPromise]);
     });
 
-    expect(removed.status).toBe(200);
+    expect(removed.status).toBe(201);
     expect(staleComment.status).toBe(404);
     expect(await readErrorCode(staleComment)).toBe('TASK_NOT_FOUND');
     expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
@@ -966,7 +966,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       return Promise.all([removePromise, commentPromise]);
     });
 
-    expect(removed.status).toBe(200);
+    expect(removed.status).toBe(201);
     expect(staleMention.status).toBe(403);
     expect(await readErrorCode(staleMention)).toBe('TASK_MENTION_USER_NO_ACCESS');
     expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
@@ -1372,7 +1372,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       return Promise.all([removePromise, reminderPromise]);
     });
 
-    expect(removed.status).toBe(200);
+    expect(removed.status).toBe(201);
     expect(staleReminder.status).toBe(403);
     expect(await readErrorCode(staleReminder)).toBe('TASK_REMINDER_RECIPIENT_NO_ACCESS');
     expect(
