@@ -889,11 +889,14 @@ describe('internal task management, reminders, comments, and notifications', () 
     const commentAuditCountBefore = await prisma.auditLog.count({ where: commentAuditWhere });
 
     const [removed, staleComment] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
-        method: 'DELETE',
-        headers: authHeaders(ownerToken),
-        body: JSON.stringify({ reason: 'Synthetic scope loss before comment.' }),
-      });
+      const removePromise = fetch(
+        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
+        {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({ reason: 'Synthetic scope loss before comment.' }),
+        },
+      );
       await new Promise((resolve) => setTimeout(resolve, 25));
       const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
         method: 'POST',
@@ -946,11 +949,14 @@ describe('internal task management, reminders, comments, and notifications', () 
     const mentionAuditCountBefore = await prisma.auditLog.count({ where: mentionAuditWhere });
 
     const [removed, staleMention] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
-        method: 'DELETE',
-        headers: authHeaders(ownerToken),
-        body: JSON.stringify({ reason: 'Synthetic scope loss before mention.' }),
-      });
+      const removePromise = fetch(
+        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
+        {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({ reason: 'Synthetic scope loss before mention.' }),
+        },
+      );
       await new Promise((resolve) => setTimeout(resolve, 25));
       const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
         method: 'POST',
@@ -1345,11 +1351,14 @@ describe('internal task management, reminders, comments, and notifications', () 
     const reminderAuditCountBefore = await prisma.auditLog.count({ where: reminderAuditWhere });
 
     const [removed, staleReminder] = await raceAfterTaskLock(task.id, async () => {
-      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
-        method: 'DELETE',
-        headers: authHeaders(ownerToken),
-        body: JSON.stringify({ reason: 'Synthetic scope loss before reminder.' }),
-      });
+      const removePromise = fetch(
+        `${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}/remove`,
+        {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({ reason: 'Synthetic scope loss before reminder.' }),
+        },
+      );
       await new Promise((resolve) => setTimeout(resolve, 25));
       const reminderPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
         method: 'POST',
