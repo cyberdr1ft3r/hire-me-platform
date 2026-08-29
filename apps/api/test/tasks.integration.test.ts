@@ -876,15 +876,15 @@ describe('internal task management, reminders, comments, and notifications', () 
       body: JSON.stringify({
         title: 'Issue31 comment actor visibility race task',
         ownerUserId,
-        assigneeUserIds: [assigneeUserId],
+        assigneeUserIds: [createOnlyUserId],
       }),
     });
     const task = TaskDetailResponseSchema.parse(await created.json()).task;
-    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const assignment = task.assignments.find((item) => item.userId === createOnlyUserId)!;
     const commentBody = 'Synthetic actor visibility race comment.';
     const commentAuditWhere = {
       action: 'tasks.comment_created',
-      actorUserId: assigneeUserId,
+      actorUserId: createOnlyUserId,
       metadataSummary: 'Task comment created.',
     };
     const commentAuditCountBefore = await prisma.auditLog.count({ where: commentAuditWhere });
@@ -896,7 +896,7 @@ describe('internal task management, reminders, comments, and notifications', () 
       () =>
         fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
           method: 'POST',
-          headers: authHeaders(assigneeToken),
+          headers: authHeaders(createOnlyToken),
           body: JSON.stringify({ body: commentBody, mentionedUserIds: [] }),
         }),
     );
@@ -929,11 +929,11 @@ describe('internal task management, reminders, comments, and notifications', () 
       body: JSON.stringify({
         title: 'Issue31 comment mention visibility race task',
         ownerUserId,
-        assigneeUserIds: [assigneeUserId],
+        assigneeUserIds: [createOnlyUserId],
       }),
     });
     const task = TaskDetailResponseSchema.parse(await created.json()).task;
-    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const assignment = task.assignments.find((item) => item.userId === createOnlyUserId)!;
     const commentBody = 'Synthetic mentioned-user visibility race comment.';
     const mentionAuditWhere = {
       action: 'tasks.comment_created',
@@ -950,7 +950,7 @@ describe('internal task management, reminders, comments, and notifications', () 
         fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
           method: 'POST',
           headers: authHeaders(ownerToken),
-          body: JSON.stringify({ body: commentBody, mentionedUserIds: [assigneeUserId] }),
+          body: JSON.stringify({ body: commentBody, mentionedUserIds: [createOnlyUserId] }),
         }),
     );
 
@@ -961,14 +961,14 @@ describe('internal task management, reminders, comments, and notifications', () 
     );
     expect(
       await prisma.taskMention.count({
-        where: { taskId: task.id, mentionedUserId: assigneeUserId },
+        where: { taskId: task.id, mentionedUserId: createOnlyUserId },
       }),
     ).toBe(0);
     expect(
       await prisma.notification.count({
         where: {
           taskId: task.id,
-          recipientUserId: assigneeUserId,
+          recipientUserId: createOnlyUserId,
           type: 'tasks.comment.mention',
         },
       }),
@@ -1324,11 +1324,11 @@ describe('internal task management, reminders, comments, and notifications', () 
       body: JSON.stringify({
         title: 'Issue31 reminder recipient visibility race task',
         ownerUserId,
-        assigneeUserIds: [assigneeUserId],
+        assigneeUserIds: [createOnlyUserId],
       }),
     });
     const task = TaskDetailResponseSchema.parse(await created.json()).task;
-    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const assignment = task.assignments.find((item) => item.userId === createOnlyUserId)!;
     const idempotencyKey = `issue31:${task.id}:recipient-visibility-race`;
     const reminderAuditWhere = {
       action: 'tasks.reminder_created',
@@ -1346,7 +1346,7 @@ describe('internal task management, reminders, comments, and notifications', () 
           method: 'POST',
           headers: authHeaders(ownerToken),
           body: JSON.stringify({
-            recipientUserId: assigneeUserId,
+            recipientUserId: createOnlyUserId,
             remindAt: new Date(Date.now() + 86_400_000).toISOString(),
             idempotencyKey,
           }),
@@ -1357,7 +1357,7 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(await readErrorCode(staleReminder)).toBe('TASK_REMINDER_RECIPIENT_NO_ACCESS');
     expect(
       await prisma.taskReminder.count({
-        where: { taskId: task.id, recipientUserId: assigneeUserId, idempotencyKey },
+        where: { taskId: task.id, recipientUserId: createOnlyUserId, idempotencyKey },
       }),
     ).toBe(0);
     expect(
