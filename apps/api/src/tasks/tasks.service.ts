@@ -790,17 +790,30 @@ export class TasksService {
       'TASKS_COMMENT_REQUIRED',
       'Task comment permission is required.',
     );
-    const task = await this.requireVisibleTask(taskId, actorUserId, access);
-    this.assertTaskWritable(task.status);
     const mentionIds = [...new Set(input.mentionedUserIds)];
-    for (const mentionedUserId of mentionIds) {
-      await this.assertActiveInternalUser(mentionedUserId, 'TASK_MENTION_USER_NOT_ACTIVE');
-      const mentionCanSeeTask = await this.canViewTask(taskId, mentionedUserId);
-      if (!mentionCanSeeTask) {
-        throw forbidden('TASK_MENTION_USER_NO_ACCESS', 'Mentioned user cannot access this task.');
-      }
-    }
     const comment = await this.prisma.$transaction(async (tx) => {
+      const { task, access: lockedAccess } = await this.lockVisibleTaskWithFreshAccess(
+        tx,
+        taskId,
+        actorUserId,
+      );
+      this.assertAccess(
+        lockedAccess.comment,
+        'TASKS_COMMENT_REQUIRED',
+        'Task comment permission is required.',
+      );
+      this.assertTaskWritable(task.status);
+      for (const mentionedUserId of mentionIds) {
+        await this.assertActiveInternalUserInTransaction(
+          tx,
+          mentionedUserId,
+          'TASK_MENTION_USER_NOT_ACTIVE',
+        );
+        const mentionCanSeeTask = await this.canViewTaskInTransaction(tx, taskId, mentionedUserId);
+        if (!mentionCanSeeTask) {
+          throw forbidden('TASK_MENTION_USER_NO_ACCESS', 'Mentioned user cannot access this task.');
+        }
+      }
       const created = await tx.taskComment.create({
         data: { taskId, authorUserId: actorUserId, body: input.body },
       });
@@ -863,17 +876,27 @@ export class TasksService {
       'TASKS_COMMENT_REQUIRED',
       'Task comment permission is required.',
     );
-    await this.requireVisibleTask(taskId, actorUserId, access);
-    const existing = await this.prisma.taskComment.findFirst({
-      where: { id: commentId, taskId, archivedAt: null },
-    });
-    if (!existing) {
-      throw notFound('TASK_COMMENT_NOT_FOUND', 'Task comment was not found.');
-    }
-    if (existing.authorUserId !== actorUserId && !access.viewAll) {
-      throw forbidden('TASK_COMMENT_AUTHOR_REQUIRED', 'Only the author can edit this comment.');
-    }
     const comment = await this.prisma.$transaction(async (tx) => {
+      const { task, access: lockedAccess } = await this.lockVisibleTaskWithFreshAccess(
+        tx,
+        taskId,
+        actorUserId,
+      );
+      this.assertAccess(
+        lockedAccess.comment,
+        'TASKS_COMMENT_REQUIRED',
+        'Task comment permission is required.',
+      );
+      this.assertTaskWritable(task.status);
+      const existing = await tx.taskComment.findFirst({
+        where: { id: commentId, taskId, archivedAt: null },
+      });
+      if (!existing) {
+        throw notFound('TASK_COMMENT_NOT_FOUND', 'Task comment was not found.');
+      }
+      if (existing.authorUserId !== actorUserId && !lockedAccess.viewAll) {
+        throw forbidden('TASK_COMMENT_AUTHOR_REQUIRED', 'Only the author can edit this comment.');
+      }
       await tx.taskComment.update({
         where: { id: commentId },
         data: {
@@ -915,21 +938,34 @@ export class TasksService {
       'TASKS_COMMENT_REQUIRED',
       'Task comment permission is required.',
     );
-    await this.requireVisibleTask(taskId, actorUserId, access);
-    const existing = await this.prisma.taskComment.findFirst({
-      where: { id: commentId, taskId },
-      include: { author: true, mentions: true },
-    });
-    if (!existing) {
-      throw notFound('TASK_COMMENT_NOT_FOUND', 'Task comment was not found.');
-    }
-    if (existing.authorUserId !== actorUserId && !access.viewAll) {
-      throw forbidden('TASK_COMMENT_AUTHOR_REQUIRED', 'Only the author can archive this comment.');
-    }
-    if (existing.status === TaskCommentStatus.ARCHIVED) {
-      return { comment: this.toTaskComment(existing) };
-    }
     const comment = await this.prisma.$transaction(async (tx) => {
+      const { task, access: lockedAccess } = await this.lockVisibleTaskWithFreshAccess(
+        tx,
+        taskId,
+        actorUserId,
+      );
+      this.assertAccess(
+        lockedAccess.comment,
+        'TASKS_COMMENT_REQUIRED',
+        'Task comment permission is required.',
+      );
+      this.assertTaskWritable(task.status);
+      const existing = await tx.taskComment.findFirst({
+        where: { id: commentId, taskId },
+        include: { author: true, mentions: true },
+      });
+      if (!existing) {
+        throw notFound('TASK_COMMENT_NOT_FOUND', 'Task comment was not found.');
+      }
+      if (existing.authorUserId !== actorUserId && !lockedAccess.viewAll) {
+        throw forbidden(
+          'TASK_COMMENT_AUTHOR_REQUIRED',
+          'Only the author can archive this comment.',
+        );
+      }
+      if (existing.status === TaskCommentStatus.ARCHIVED) {
+        return existing;
+      }
       await tx.taskComment.update({
         where: { id: commentId },
         data: {
@@ -970,17 +1006,35 @@ export class TasksService {
       'TASKS_REMINDERS_MANAGE_REQUIRED',
       'Task reminder permission is required.',
     );
-    const recipientCanSeeTask = await this.canViewTask(taskId, input.recipientUserId);
-    if (!recipientCanSeeTask) {
-      throw forbidden(
-        'TASK_REMINDER_RECIPIENT_NO_ACCESS',
-        'Reminder recipient cannot access this task.',
-      );
-    }
     const idempotencyKey =
       input.idempotencyKey ?? `task:${taskId}:reminder:${input.recipientUserId}:${input.remindAt}`;
     const { reminder, changed } = await this.prisma.$transaction(async (tx) => {
-      await this.lockVisibleTask(tx, taskId, actorUserId, access);
+      const { access: lockedAccess } = await this.lockVisibleTaskWithFreshAccess(
+        tx,
+        taskId,
+        actorUserId,
+      );
+      this.assertAccess(
+        lockedAccess.remindersManage,
+        'TASKS_REMINDERS_MANAGE_REQUIRED',
+        'Task reminder permission is required.',
+      );
+      await this.assertActiveInternalUserInTransaction(
+        tx,
+        input.recipientUserId,
+        'TASK_REMINDER_RECIPIENT_NOT_ACTIVE',
+      );
+      const recipientCanSeeTask = await this.canViewTaskInTransaction(
+        tx,
+        taskId,
+        input.recipientUserId,
+      );
+      if (!recipientCanSeeTask) {
+        throw forbidden(
+          'TASK_REMINDER_RECIPIENT_NO_ACCESS',
+          'Reminder recipient cannot access this task.',
+        );
+      }
       const existing = await tx.taskReminder.findUnique({
         where: {
           taskId_recipientUserId_idempotencyKey: {
@@ -1842,6 +1896,23 @@ export class TasksService {
     return task;
   }
 
+  private async lockVisibleTaskWithFreshAccess(
+    tx: PrismaTransaction,
+    taskId: string,
+    actorUserId: string,
+  ): Promise<{ task: TaskRecord; access: TaskAccess }> {
+    await this.lockTask(tx, taskId);
+    const access = await this.resolveAccessInTransaction(tx, actorUserId);
+    const task = await tx.task.findFirst({
+      where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
+      include: taskInclude,
+    });
+    if (!task) {
+      throw notFound('TASK_NOT_FOUND', 'Task was not found.');
+    }
+    return { task, access };
+  }
+
   private async lockTaskReminder(
     tx: PrismaTransaction,
     taskId: string,
@@ -1901,6 +1972,18 @@ export class TasksService {
   private async canViewTask(taskId: string, actorUserId: string): Promise<boolean> {
     const access = await this.resolveAccess(actorUserId);
     const count = await this.prisma.task.count({
+      where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
+    });
+    return count > 0;
+  }
+
+  private async canViewTaskInTransaction(
+    tx: PrismaTransaction,
+    taskId: string,
+    actorUserId: string,
+  ): Promise<boolean> {
+    const access = await this.resolveAccessInTransaction(tx, actorUserId);
+    const count = await tx.task.count({
       where: { id: taskId, ...this.visibleTaskWhere(actorUserId, access) },
     });
     return count > 0;
@@ -2077,6 +2160,42 @@ export class TasksService {
 
   private async resolveAccess(userId: string): Promise<TaskAccess> {
     const permissions = new Set(await this.permissions.getEffectivePermissionCodes(userId));
+    return this.accessFromPermissions(permissions);
+  }
+
+  private async resolveAccessInTransaction(
+    tx: PrismaTransaction,
+    userId: string,
+  ): Promise<TaskAccess> {
+    const userRoles = await tx.userRole.findMany({
+      where: {
+        userId,
+        archivedAt: null,
+        role: { status: 'ACTIVE' },
+      },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              where: {
+                archivedAt: null,
+                permission: { status: 'ACTIVE' },
+              },
+              include: { permission: true },
+            },
+          },
+        },
+      },
+    });
+    const permissions = new Set(
+      userRoles.flatMap((userRole) =>
+        userRole.role.permissions.map((rolePermission) => rolePermission.permission.code),
+      ),
+    );
+    return this.accessFromPermissions(permissions);
+  }
+
+  private accessFromPermissions(permissions: ReadonlySet<string>): TaskAccess {
     return {
       view: permissions.has(TASK_PERMISSIONS.TASKS_VIEW),
       viewAll: permissions.has(TASK_PERMISSIONS.TASKS_VIEW_ALL),
@@ -2120,18 +2239,6 @@ export class TasksService {
       where: { missionId, userId: actorUserId, status: 'ACTIVE', archivedAt: null },
     });
     return count > 0;
-  }
-
-  private async assertActiveInternalUser(userId: string, code: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (
-      !user ||
-      user.status !== UserStatus.ACTIVE ||
-      user.userType !== UserType.INTERNAL ||
-      user.archivedAt
-    ) {
-      throw conflict(code, 'User must be active, internal, and non-archived.');
-    }
   }
 
   private async assertActiveInternalUserInTransaction(

@@ -372,7 +372,7 @@ Implemented task contexts use explicit optional foreign keys rather than free-fo
 - Relationships: belongs to one task and one recipient user.
 - Cardinality: one task can have many reminders; one user can receive many reminders.
 - Lifecycle: pending, processing, sent, canceled, failed.
-- Processing rule: due reminder workers claim rows with PostgreSQL row locks and `FOR UPDATE SKIP LOCKED`; notification creation uses idempotency keys so concurrent workers create at most one notification.
+- Processing rule: due reminder workers discover due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks; notification creation uses idempotency keys so concurrent workers create at most one notification.
 - Audit requirements: reminder create/cancel and delivery failure/success use safe metadata only.
 
 ### TaskEvent

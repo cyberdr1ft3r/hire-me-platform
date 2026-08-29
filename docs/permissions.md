@@ -348,7 +348,7 @@ Development seed mapping gives `tasks:view_all` to `SUPER_ADMIN`, `ADMIN`, and `
 
 Task visibility remains deny-by-default. A route permission must be effective, and task responses are additionally scoped to ownership, creator, active assignment, active mission assignment for implemented mission-linked contexts, or explicit `tasks:view_all`. Mentions and reminders do not grant access; they require the recipient or mentioned user to already be able to view the task. Notification endpoints are own-user only.
 
-Reminder workers claim due reminders with PostgreSQL row locking and `FOR UPDATE SKIP LOCKED`; notifications use idempotency keys to prevent duplicate delivery under concurrent workers or retries. Task-generated notification summaries must not contain confidential candidate, salary, commercial, HR, client, comment, or internal-note payloads.
+Reminder workers discover due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks; notifications use idempotency keys to prevent duplicate delivery under concurrent workers or retries. Task-generated notification summaries must not contain confidential candidate, salary, commercial, HR, client, comment, or internal-note payloads.
 
 ## Security and Audit Requirements
 

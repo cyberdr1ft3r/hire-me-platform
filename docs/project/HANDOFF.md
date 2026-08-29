@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
@@ -14,25 +14,26 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - The legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; it must not increment `filledPlacementCount`, create `MissionPlacement`, or infer an offer version.
 - Historical `MissionCandidate.placementConfirmedAt` metadata must not be silently converted into fabricated offer-backed placements. Any future reconciliation must be explicit and audited.
 - Issue #33 / PR #34 reconciled project memory after the Issue #29 / PR #30 merge.
-- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`. Latest follow-up review fixes are in progress and require final pushed-head CI/review.
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`. Final follow-up fixes are being pushed after review of head `34f8c874fc2d472d2b0c0538f7aab2796429d1d7` and require exact-head CI/review.
 - The branch implements authenticated internal task management only: task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, searchable/filterable task lists, own-notification read/read-all/archive controls, permission-aware UI, safe audit, and domain history.
 - The implementation must not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
 - The approved direction remains an authenticated internal Hire Me platform plus bounded unauthenticated public opportunity/application links. Candidates do not have accounts or dashboards.
 
 ## Next Action
 
-Push the latest Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact pushed head, and keep the draft PR unmerged until approved.
+Push the final Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact pushed head, and keep the draft PR unmerged until approved.
 
 For Issue #31, preserve these boundaries:
 
 - `tasks:view` must not expose all internal tasks. Internal task visibility requires base `tasks:view` or explicit `tasks:view_all` plus owner, creator, active assignee, or implemented linked-record scope.
 - `tasks:view_all` is the explicit broad oversight permission.
 - Mentions and reminders must not silently grant access; recipients and mentioned users must already have task-view permission and record-level task visibility.
+- Comment authorization, mention visibility, and reminder recipient eligibility must be revalidated inside the locked Task transaction before comment, mention, reminder, notification, history, or audit side effects are written.
 - Task comments, audit metadata, notification summaries, and event summaries must not include confidential candidate, HR, salary, client, commercial, internal-note, or comment-body payloads.
 - Linked task context must be authorized before task creation/update; rejected actions must not leave partial task rows, events, reminders, notifications, or audit logs.
 - Owner changes use the dedicated owner-change action/event/notification path.
 - Moving a task to `IN_PROGRESS` requires at least one active `TaskAssignment`.
-- Durable reminder workers must use a consistent task-then-reminder lock order, composite task/recipient reminder idempotency, event-scoped notification idempotency, and explicit reminder state transitions.
+- Durable reminder workers must discover due reminder IDs first, then use a consistent task-then-reminder lock order, composite task/recipient reminder idempotency, event-scoped notification idempotency, and explicit reminder state transitions.
 - Sent reminders must not become pending or canceled through stale update/cancel requests.
 - Notification read-all is unread-only by contract.
 - Completing, canceling, or archiving a task cancels irrelevant pending/failed reminders.
@@ -47,7 +48,7 @@ For Issue #31, preserve these boundaries:
 
 Issue #29 final validation passed before merge: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`. GitHub Actions run `31719561145` passed all jobs on the final PR #30 head.
 
-PR #32 head `18437526ea00bec67072de0ec4535d8eb5628bf0` had green CI run `33211577299`, but a follow-up review identified additional authorization, notification idempotency, and reminder concurrency blockers. Latest local non-DB checks passed: `pnpm.cmd prisma:validate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `pnpm.cmd format:check`. Local PostgreSQL integration validation is blocked because Docker Desktop service is stopped and this session cannot start it. The new pushed head must pass GitHub Actions database migration/seed/integration tests and quality checks.
+PR #32 head `34f8c874fc2d472d2b0c0538f7aab2796429d1d7` had green CI run `33219490315`, but the final follow-up review identified transactional comment/mention authorization and reminder-recipient visibility race blockers plus stale reminder-processing documentation. Local PostgreSQL integration validation is blocked because Docker Desktop service is stopped and this session cannot start it. The new pushed head must pass GitHub Actions database migration/seed/integration tests and quality checks.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

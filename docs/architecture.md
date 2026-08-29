@@ -211,7 +211,7 @@ Issue #31 implements the authenticated internal task-management layer:
 - explicit optional task context foreign keys to implemented business records, including clients, candidates, missions, mission candidates, interviews, offers, placements, training placeholders, and documents
 - deny-by-default task visibility where `tasks:view` is scoped to ownership, creator, active assignment, or implemented linked-record scope; `tasks:view_all` is the separate broad oversight permission
 - task row locking for dependent writes so lifecycle, assignment, comments, and reminders cannot mutate stale terminal or archived state
-- durable reminder processing with PostgreSQL `FOR UPDATE SKIP LOCKED`, idempotent notification keys, retry-safe failed reminders, and automatic canceling of irrelevant pending reminders when tasks complete, cancel, or archive
+- durable reminder processing by discovering due reminder IDs, then serializing each delivery through parent `Task` and `TaskReminder` row locks with state rechecks, idempotent notification keys, retry-safe failed reminders, and automatic canceling of irrelevant pending reminders when tasks complete, cancel, or archive
 - safe audit metadata that excludes task comment bodies, salary, confidential HR notes, commercial values, and client/candidate private data
 - focused web controls in the authenticated workspace without a global UI redesign
 - PostgreSQL-backed tests for lifecycle, assignment uniqueness, scoped visibility, mention access, reminder retry/concurrency, notification ownership, idempotent terminal actions, and audit behavior

@@ -554,7 +554,7 @@ Task lifecycle rules:
 - Retrying a completion, cancellation, or archive after the first successful terminal write returns the existing state without duplicate history or audit entries.
 - Task comments are internal business records. Explicit mentions identify user IDs and do not grant access; a mentioned user must already be able to view the task.
 - Task reminders are durable in-app reminders only. Issue #31 does not implement email, WhatsApp, calendar, browser, mobile-push, or external notification delivery.
-- Due reminder workers must claim pending or failed reminders with PostgreSQL `FOR UPDATE SKIP LOCKED` and create task notifications through idempotency keys so concurrent workers create at most one notification.
+- Due reminder workers discover pending or failed due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks, and create task notifications through idempotency keys so concurrent workers create at most one notification.
 - Overdue task notifications are task-generated in-app notifications and must not include confidential candidate, salary, client, commercial, HR note, or comment-body payloads.
 
 ## Transition Rules

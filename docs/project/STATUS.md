@@ -1,13 +1,13 @@
 # Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Internal task management, reminders, comments, and notifications
-**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`; latest follow-up review fixes are in progress and require final PR review/CI on the new pushed head.
-**Current blocker:** PR #32 must remain draft/open until reviewer approval and GitHub Actions pass on the new pushed head.
+**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`; final follow-up fixes are being pushed and require exact-head GitHub Actions plus reviewer approval.
+**Current blocker:** PR #32 must remain draft/open until reviewer approval and GitHub Actions pass on the pushed head that includes the final follow-up fixes.
 **Next executable development task:** Complete PR #32 review/CI, keep it unmerged until approved, then select the next approved GitHub issue.
 
 ## Active work
@@ -26,7 +26,7 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Complete PR #32 review/CI |
+| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Push final follow-up fixes and complete exact-head PR #32 review/CI |
 | Issue #33 | Complete | Reconcile project memory after Issue #29 / PR #30 merge | No action |
 
 ## Completed foundation work
@@ -203,7 +203,8 @@ Status owner: repository maintainer
 - Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
 - Internal task visibility requires base `tasks:view` or explicit `tasks:view_all` plus task owner, creator, active assignee, or implemented linked-record scope. `tasks:view_all` is the separate broad oversight permission.
 - Blocking-review fixes make reminder idempotency composite by task, recipient, and key; authorize linked context before task creation/update; require `tasks:assign` for task creation with assignees; re-check owner/assignee eligibility inside locked write transactions; add a dedicated owner-change endpoint/event/notification; require an active `TaskAssignment` before `IN_PROGRESS`; expose task search/filter/pagination; expose notification status filtering, read, unread-only read-all, and archive; and keep rejected actions from writing partial task rows/events.
-- Reminder processing uses a consistent task-then-reminder lock order and allowed state transitions so sent reminders cannot be resurrected to pending or canceled by stale requests.
+- Final follow-up fixes revalidate comment authorization, mention visibility, and reminder recipient eligibility inside locked Task transactions before writing comments, mentions, reminders, notifications, history, or audit entries.
+- Reminder processing discovers due reminder IDs first, then locks and rechecks the parent `Task` and `TaskReminder` rows with a consistent task-then-reminder order and allowed state transitions so sent reminders cannot be resurrected to pending or canceled by stale requests.
 - Local checks for the latest follow-up pass: `pnpm.cmd prisma:validate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `pnpm.cmd format:check`. Local PostgreSQL integration validation is blocked because Docker Desktop service is stopped and this session cannot start it; the new pushed head must pass GitHub Actions database migration/seed/integration tests.
 
 ## Current open technical questions
@@ -225,7 +226,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Push the latest Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact new head, and keep the PR draft/unmerged until approved.
+1. Push the final Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact new head, and keep the PR draft/unmerged until approved.
 
 ## Status Update Rules
 

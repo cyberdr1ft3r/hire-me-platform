@@ -263,6 +263,34 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
   return body.error?.code;
 }
 
+async function raceAfterTaskLock<T>(taskId: string, startRequests: () => Promise<T>): Promise<T> {
+  let releaseLock: (() => void) | undefined;
+  let locked: (() => void) | undefined;
+  const releasePromise = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+  const lockedPromise = new Promise<void>((resolve) => {
+    locked = resolve;
+  });
+
+  const lockPromise = prisma.$transaction(
+    async (transaction) => {
+      await transaction.$queryRaw`SELECT id FROM "Task" WHERE id = ${taskId}::uuid FOR UPDATE`;
+      locked?.();
+      await releasePromise;
+    },
+    { timeout: 10000 },
+  );
+
+  await lockedPromise;
+  const resultPromise = startRequests();
+  await new Promise((resolve) => setTimeout(resolve, 75));
+  releaseLock?.();
+  const result = await resultPromise;
+  await lockPromise;
+  return result;
+}
+
 describe('internal task management, reminders, comments, and notifications', () => {
   let app: INestApplication;
   let baseUrl: string;
@@ -840,6 +868,128 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(ownerMentionNotifications).toBe(0);
   });
 
+  it('rejects comment creation when concurrent assignment removal removes actor visibility', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 comment actor visibility race task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const commentBody = 'Synthetic actor visibility race comment.';
+    const commentAuditWhere = {
+      action: 'tasks.comment_created',
+      actorUserId: assigneeUserId,
+      metadataSummary: 'Task comment created.',
+    };
+    const commentAuditCountBefore = await prisma.auditLog.count({ where: commentAuditWhere });
+
+    const [removed, staleComment] = await raceAfterTaskLock(task.id, async () => {
+      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ reason: 'Synthetic scope loss before comment.' }),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
+        method: 'POST',
+        headers: authHeaders(assigneeToken),
+        body: JSON.stringify({ body: commentBody, mentionedUserIds: [] }),
+      });
+      return Promise.all([removePromise, commentPromise]);
+    });
+
+    expect(removed.status).toBe(200);
+    expect(staleComment.status).toBe(404);
+    expect(await readErrorCode(staleComment)).toBe('TASK_NOT_FOUND');
+    expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
+      0,
+    );
+    expect(await prisma.taskMention.count({ where: { taskId: task.id } })).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: { taskId: task.id, type: 'tasks.comment.mention' },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.taskEvent.count({ where: { taskId: task.id, action: 'COMMENT_CREATED' } }),
+    ).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: commentAuditWhere,
+      }),
+    ).toBe(commentAuditCountBefore);
+  });
+
+  it('rejects mention creation when concurrent assignment removal removes mentioned-user visibility', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 comment mention visibility race task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const commentBody = 'Synthetic mentioned-user visibility race comment.';
+    const mentionAuditWhere = {
+      action: 'tasks.comment_created',
+      actorUserId: ownerUserId,
+      metadataSummary: 'Task comment created.',
+    };
+    const mentionAuditCountBefore = await prisma.auditLog.count({ where: mentionAuditWhere });
+
+    const [removed, staleMention] = await raceAfterTaskLock(task.id, async () => {
+      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ reason: 'Synthetic scope loss before mention.' }),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const commentPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/comments`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ body: commentBody, mentionedUserIds: [assigneeUserId] }),
+      });
+      return Promise.all([removePromise, commentPromise]);
+    });
+
+    expect(removed.status).toBe(200);
+    expect(staleMention.status).toBe(403);
+    expect(await readErrorCode(staleMention)).toBe('TASK_MENTION_USER_NO_ACCESS');
+    expect(await prisma.taskComment.count({ where: { taskId: task.id, body: commentBody } })).toBe(
+      0,
+    );
+    expect(
+      await prisma.taskMention.count({
+        where: { taskId: task.id, mentionedUserId: assigneeUserId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: {
+          taskId: task.id,
+          recipientUserId: assigneeUserId,
+          type: 'tasks.comment.mention',
+        },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.taskEvent.count({ where: { taskId: task.id, action: 'COMMENT_CREATED' } }),
+    ).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: mentionAuditWhere,
+      }),
+    ).toBe(mentionAuditCountBefore);
+  });
+
   it('enforces author, broad manager, and unauthorized comment edit/archive rules', async () => {
     const created = await fetch(`${baseUrl}/v1/tasks`, {
       method: 'POST',
@@ -1172,6 +1322,68 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(
       (await prisma.taskReminder.findUniqueOrThrow({ where: { id: sentReminder.id } })).status,
     ).toBe(TaskReminderStatus.SENT);
+  });
+
+  it('rejects reminder creation when concurrent assignment removal removes recipient visibility', async () => {
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 reminder recipient visibility race task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const assignment = task.assignments.find((item) => item.userId === assigneeUserId)!;
+    const idempotencyKey = `issue31:${task.id}:recipient-visibility-race`;
+    const reminderAuditWhere = {
+      action: 'tasks.reminder_created',
+      actorUserId: ownerUserId,
+      metadataSummary: 'Task reminder created.',
+    };
+    const reminderAuditCountBefore = await prisma.auditLog.count({ where: reminderAuditWhere });
+
+    const [removed, staleReminder] = await raceAfterTaskLock(task.id, async () => {
+      const removePromise = fetch(`${baseUrl}/v1/tasks/${task.id}/assignments/${assignment.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ reason: 'Synthetic scope loss before reminder.' }),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const reminderPromise = fetch(`${baseUrl}/v1/tasks/${task.id}/reminders`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({
+          recipientUserId: assigneeUserId,
+          remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+          idempotencyKey,
+        }),
+      });
+      return Promise.all([removePromise, reminderPromise]);
+    });
+
+    expect(removed.status).toBe(200);
+    expect(staleReminder.status).toBe(403);
+    expect(await readErrorCode(staleReminder)).toBe('TASK_REMINDER_RECIPIENT_NO_ACCESS');
+    expect(
+      await prisma.taskReminder.count({
+        where: { taskId: task.id, recipientUserId: assigneeUserId, idempotencyKey },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: { taskId: task.id, type: 'tasks.reminder.due' },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.taskEvent.count({ where: { taskId: task.id, action: 'REMINDER_CREATED' } }),
+    ).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: reminderAuditWhere,
+      }),
+    ).toBe(reminderAuditCountBefore);
   });
 
   it('keeps reminder processing serialized against update and cancel requests', async () => {
