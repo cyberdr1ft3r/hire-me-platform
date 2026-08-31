@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Internal task management, reminders, comments, and notifications
-**Health:** Issue #29 / PR #30 is merged. The final offer-to-placement blocking fix passed CI, and persistent project memory is being reconciled through Issue #33.
-**Current blocker:** None for merged Issue #29. Issue #33 is documentation/project-memory reconciliation only.
-**Next executable development task:** Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
+**Phase:** Document management foundation and contract taxonomy
+**Health:** Issue #35 is in implementation on a dedicated draft PR branch from current `main`.
+**Current blocker:** Local Docker Desktop is not running, so local PostgreSQL validation must be completed in GitHub Actions or after starting Docker locally.
+**Next executable development task:** Complete Issue #35 review/validation. Issue #35 incorporates Issue #12 and is independent of unmerged Issue #31 / PR #32.
 
 ## Active work
 
@@ -26,8 +26,9 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Start scoped implementation after Issue #33 reconciliation is reviewed |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Complete documentation-only reconciliation PR |
+| Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Continue only on its existing branch/PR; do not mix into Issue #35 |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
+| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Finish validation, open draft PR, and keep unmerged |
 
 ## Completed foundation work
 
@@ -195,6 +196,15 @@ Status owner: repository maintainer
 - Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
+## Issue #35 Implementation State
+
+- Issue #35 implements the internal document-management foundation without depending on unmerged Issue #31 / PR #32.
+- Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
+- The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
+- Document authorization combines document capability with linked business-context permission. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; training contract taxonomy is distinct but training operations/rendering remain future work.
+- Uploads use server-generated protected storage keys, sanitized filenames, bounded MIME/size/signature checks, checksums, and safe DTOs that omit storage keys, filesystem paths, and document contents. Version numbers are assigned while holding a PostgreSQL `Document` row lock.
+- Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -214,7 +224,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete Issue #33 documentation reconciliation, then start Issue #31 unless a newer approved issue supersedes it.
+1. Finish Issue #35 validation and draft PR review; keep the PR open, draft, and unmerged.
 
 ## Status Update Rules
 

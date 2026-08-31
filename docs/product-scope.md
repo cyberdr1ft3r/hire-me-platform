@@ -94,7 +94,7 @@ Invoice document generation and operational payment tracking are in scope. A com
 
 Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output where applicable.
 
-Generated document types include quotations, purchase orders, contracts, invoice documents, HR document templates, candidate summaries, interview reports, training documents, PDF exports, Word-compatible documents, and Excel-compatible reports. Uploaded or stored-only document types include candidate CV files, candidate attachments, external HR files, client-provided documents, signed documents, and imported legacy files; these may later receive generated summaries or converted export copies.
+Generated document types include quotations, purchase orders, distinct recruitment contracts, distinct training contracts, invoice documents, HR document templates, candidate summaries, interview reports, training documents, PDF exports, Word-compatible documents, and Excel-compatible reports. Uploaded or stored-only document types include candidate CV files, candidate attachments, external HR files, client-provided documents, signed documents, and imported legacy files; these may later receive generated summaries or converted export copies.
 
 ### Confirmed Integration Requirements
 
@@ -196,6 +196,7 @@ Candidate data, HR notes, salary expectations, CVs, client records, commercial t
 - Recruitment mission staffing belongs to `MissionAssignment`, not a single owner field.
 - Generated and centralized documents use `Document`; candidate-specific uploaded files use `CandidateDocument`.
 - Logical document history uses `DocumentVersion`; candidate-specific CV or attachment history uses `CandidateDocumentVersion`.
+- Issue #12 requires recruitment and training contract document taxonomy to remain distinct as `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`.
 - Training participant-specific registration, approval, payment, certificate, satisfaction, coaching, and follow-up data belongs to `TrainingEnrollment`; participants do not require accounts by default.
 - Per-session attendance and session-level participant outcome data belongs to `TrainingSessionParticipation`.
 - External integrations are confirmed requirements but can be implemented after core data, security, and workflow foundations.

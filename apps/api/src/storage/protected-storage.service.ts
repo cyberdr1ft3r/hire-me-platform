@@ -1,5 +1,5 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, normalize } from 'node:path';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, join, normalize } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
 
@@ -15,13 +15,21 @@ export class ProtectedStorageService {
     await writeFile(path, content, { flag: 'wx' });
   }
 
+  async get(storageKey: string): Promise<Buffer> {
+    return readFile(this.resolve(storageKey));
+  }
+
   async delete(storageKey: string): Promise<void> {
     await rm(this.resolve(storageKey), { force: true });
   }
 
   private resolve(storageKey: string): string {
     const normalizedKey = normalize(storageKey);
-    if (normalizedKey.startsWith('..')) {
+    if (
+      isAbsolute(normalizedKey) ||
+      /^[A-Za-z]:[\\/]/.test(normalizedKey) ||
+      normalizedKey.startsWith('..')
+    ) {
       throw new Error('Invalid storage key.');
     }
     return join(this.root, normalizedKey);

@@ -800,6 +800,79 @@ describe('App', () => {
     ).toBe(true);
     expect(await screen.findByText('Placement correction recorded.')).toBeVisible();
   });
+
+  it('loads document management and gates write controls by document permissions', async () => {
+    const document = syntheticDocument();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          jsonResponse({
+            status: 'ok',
+            service: 'hire-me-api',
+            timestamp: '2026-07-21T10:00:00.000Z',
+            uptimeSeconds: 1,
+          }),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          jsonResponse({
+            accessToken: 'synthetic-access-token',
+            accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+            user: {
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              displayName: 'Document Operator',
+              email: 'document-operator@example.test',
+              permissions: ['documents:view'],
+            },
+          }),
+        );
+      }
+
+      if (url.includes('/v1/documents?')) {
+        return Promise.resolve(
+          jsonResponse({
+            documents: [document],
+            pagination: { page: 1, pageSize: 20, total: 1 },
+          }),
+        );
+      }
+
+      if (url.endsWith(`/v1/documents/${document.id}`)) {
+        return Promise.resolve(jsonResponse({ document: { ...document, versions: [] } }));
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'document-operator@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /documents/i }));
+
+    expect(await screen.findByRole('heading', { name: /documents/i })).toBeVisible();
+    expect(await screen.findByText('Issue35 Contract')).toBeVisible();
+    expect(screen.queryByRole('form', { name: /register document/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /issue35 contract/i }));
+    expect(await screen.findByText(/CONTRAT_RECRUTEMENT - ACTIVE/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /archive document/i })).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/documents?'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
 });
 
 function mockMissionWorkspace(permissions: string[]) {
@@ -1159,6 +1232,27 @@ function syntheticPlacement() {
     createdAt: '2026-07-21T10:00:00.000Z',
     updatedAt: '2026-07-21T10:00:00.000Z',
     history: [],
+  };
+}
+
+function syntheticDocument() {
+  return {
+    id: '12121212-1212-4121-8121-121212121212',
+    title: 'Issue35 Contract',
+    documentType: 'CONTRAT_RECRUTEMENT',
+    visibility: 'INTERNAL_ONLY',
+    status: 'ACTIVE',
+    outputFamily: 'PDF',
+    ownerUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    createdByUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    context: {
+      clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      recruitmentMissionId: syntheticMissionId,
+    },
+    currentVersionId: '34343434-3434-4343-8343-343434343434',
+    archivedAt: null,
+    createdAt: '2026-07-21T10:00:00.000Z',
+    updatedAt: '2026-07-21T10:00:00.000Z',
   };
 }
 

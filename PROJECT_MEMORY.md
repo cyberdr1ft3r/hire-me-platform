@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Internal task management, reminders, comments, and notifications.
+Document management foundation and contract taxonomy.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -26,7 +26,7 @@ Internal task management, reminders, comments, and notifications.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
-- Current executable goal: Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
+- Current executable goal: Issue #35, "Implement document management foundation and contract taxonomy." Issue #35 incorporates Issue #12 and does not depend on unmerged Issue #31 / PR #32.
 
 ## Confirmed Product Facts
 
@@ -47,6 +47,7 @@ Internal task management, reminders, comments, and notifications.
 - Training and coaching require programs, sessions, enrollments, per-session attendance, evaluation, certification, and follow-up.
 - Business objects and structured records are the source of truth. Public opportunities, candidate applications, commercial records, candidate summaries, interview/evaluation records, client feedback, candidate presentation, job-description content, placement confirmation, and mission closure are not documents by default.
 - A document exists only when there is an actual uploaded or generated file requiring storage, download, versioning, approval, signature, or archival. Uploaded CVs, certifications, diplomas, certificates, signed contracts, generated quotation/purchase order/invoice files, and client-supplied files are examples. Generated PDF/Word/Excel representations are outputs derived from business data.
+- Issue #12 requires `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` to remain distinct document taxonomy values. They must not be collapsed into a generic contract type.
 - Public CV submission must preserve file-version and opportunity-submission history rather than silently overwrite older files.
 - Trainers and internal training operators require internal accounts. Training participants are records and do not require accounts by default.
 - Commercial and operational accounting is in scope for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, client balances, and mission/training revenue and profitability. Complete Moroccan payroll is a confirmed future requirement. Full legal accounting, general ledger, tax declarations, bank reconciliation, and payroll implementation details remain unresolved.
@@ -74,6 +75,7 @@ Internal task management, reminders, comments, and notifications.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
 - Public opportunity and candidate application foundation is merged. It preserves the API-owned Prisma boundary, uses explicit public DTOs, exposes only approved public fields, accepts unauthenticated submissions safely, preserves file-version history, and enforces one candidate process per mission/candidate pair.
 - Offer and placement implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/offers` and placement endpoints, immutable offer versions, safe audit metadata, explicit offer-backed placement confirmation, idempotent correction, closure eligibility without auto-closure, and the established mission-candidate PostgreSQL lock order. The retired legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; historical `MissionCandidate.placementConfirmedAt` rows are not silently backfilled to `MissionPlacement`.
+- Issue #35 adds the internal `Document` / `DocumentVersion` foundation for centralized managed files: explicit document taxonomy, protected server-generated storage keys, immutable uploaded versions, authorized version download, safe metadata responses, document lifecycle/archive, and permission plus linked-business-context authorization. Candidate CV/application uploads continue to use `CandidateDocument` / `CandidateDocumentVersion`.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

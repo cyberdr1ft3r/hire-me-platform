@@ -268,6 +268,22 @@ stateDiagram-v2
     ARCHIVED --> [*]
 ```
 
+## Document Lifecycle
+
+Centralized managed documents are created only when an uploaded, imported, or future generated file needs protected storage, download, versioning, approval, signature, or archival. A business record is not automatically a document.
+
+Issue #35 implements document registration, immutable uploaded versions, safe detail/version reads, authorized download, metadata updates, and archive. Version content is never overwritten; new uploaded or future generated output must append a `DocumentVersion`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> ACTIVE: add first version
+    ACTIVE --> ACTIVE: add immutable version
+    ACTIVE --> ARCHIVED
+    DRAFT --> ARCHIVED
+    ARCHIVED --> [*]
+```
+
 ## Recruitment Mission Pipeline
 
 Recruitment mission state is tracked on `RecruitmentMission`. Candidate-specific progress is tracked on `MissionCandidate`, but the mission state should reflect the overall recruitment process.

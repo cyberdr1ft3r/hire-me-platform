@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -95,16 +95,17 @@ Issue #29 completed the internal offer-to-placement lifecycle. Task management, 
 
 ## Phase 6a - Task management
 
-**State:** Next executable feature through Issue #31
+**State:** Open through Issue #31; independent draft work exists and must not be mixed into Issue #35
 
 - Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
 
 ## Phase 7 - Documents, reporting, and collaboration
 
-**State:** Planned; issues not yet created
+**State:** Document foundation in progress through Issue #35
 
-- Document templates, versions, and generation for confirmed commercial and HR files.
+- Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, and authorized downloads.
+- Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
 - Customizable dashboard indicators, reports, and exports.
 - Private messages and discussion groups.
 - Protected document access and sharing.

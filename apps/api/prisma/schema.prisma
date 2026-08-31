@@ -346,7 +346,9 @@ enum DocumentType {
   CANDIDATE_SUMMARY     @map("candidate_summary")
   QUOTATION             @map("quotation")
   PURCHASE_ORDER        @map("purchase_order")
-  CONTRACT              @map("contract")
+  LEGACY_CONTRACT       @map("contract")
+  CONTRAT_RECRUTEMENT   @map("contrat_recrutement")
+  CONTRAT_FORMATION     @map("contrat_formation")
   INVOICE               @map("invoice")
   HR_DOCUMENT           @map("hr_document")
   TECHNICAL_TEST_REPORT @map("technical_test_report")
@@ -1611,20 +1613,22 @@ model Document {
 }
 
 model DocumentVersion {
-  id              String                @id @default(uuid()) @db.Uuid
-  documentId      String                @db.Uuid
-  versionNumber   Int
-  filename        String
-  storageKey      String                @unique
-  mimeType        String
-  sizeBytes       BigInt
-  outputFamily    OutputFamily?
-  createdByUserId String?               @db.Uuid
-  source          DocumentVersionSource
-  status          DocumentStatus        @default(ACTIVE)
-  archivedAt      DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id               String                @id @default(uuid()) @db.Uuid
+  documentId       String                @db.Uuid
+  versionNumber    Int
+  filename         String
+  originalFilename String?
+  storageKey       String                @unique
+  mimeType         String
+  sizeBytes        BigInt
+  checksumSha256   String?
+  outputFamily     OutputFamily?
+  createdByUserId  String?               @db.Uuid
+  source           DocumentVersionSource
+  status           DocumentStatus        @default(ACTIVE)
+  archivedAt       DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   document   Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
   currentFor Document? @relation("CurrentDocumentVersion")

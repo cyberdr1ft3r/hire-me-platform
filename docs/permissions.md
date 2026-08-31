@@ -67,6 +67,11 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `records:delete`
 - `records:export`
 - `documents:download`
+- `documents:view`
+- `documents:create`
+- `documents:versions:create`
+- `documents:update`
+- `documents:archive`
 - `users:admin`
 - `users:view`
 - `users:create`
@@ -153,7 +158,22 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `client_balances:view`
 - `profitability:view`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #35 adds centralized document permissions while retaining `documents:download` compatibility. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+
+Document access requires the document capability and linked business-context scope. Current implemented context scopes use the existing client, candidate, recruitment mission, mission-candidate, and interview permissions. Frontend gating is only usability.
+
+## Implemented Document Permissions
+
+| Permission | Implemented use |
+| --- | --- |
+| `documents:view` | List/read safe document metadata and version history within authorized business context. |
+| `documents:create` | Register a document, optionally with an initial uploaded immutable version. |
+| `documents:versions:create` | Add an uploaded immutable version to an existing writable document. |
+| `documents:update` | Update approved document metadata such as title, visibility, and owner. |
+| `documents:archive` | Archive a document without deleting historical versions. |
+| `documents:download` | Download an authorized document version through the protected API/storage boundary. |
+
+Development seed mapping gives normal document permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; lower-trust roles retain no broad document metadata permissions by default. API responses never expose storage keys, filesystem paths, public file URLs, or document contents in metadata responses.
 
 ## Implemented Administration Permissions
 

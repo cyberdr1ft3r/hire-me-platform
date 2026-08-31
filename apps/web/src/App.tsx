@@ -9,6 +9,10 @@ import type {
   AuthenticatedUser,
   CandidateDetail,
   CandidateSummary,
+  DocumentDetail,
+  DocumentSummary,
+  DocumentType,
+  DocumentVersion,
   CandidateEvaluation,
   ClientContactSummary,
   ClientSummary,
@@ -30,6 +34,7 @@ import {
   archiveClient,
   archiveClientContact,
   archiveMission,
+  archiveDocument,
   archiveMissionAssignment,
   archiveInterview,
   cancelInterview,
@@ -43,6 +48,7 @@ import {
   createClient,
   createClientContact,
   createMission,
+  createDocument,
   createMissionAssignment,
   createEvaluation,
   createAdminUser,
@@ -52,6 +58,7 @@ import {
   getClient,
   getCandidate,
   getMission,
+  getDocument,
   getInternalPublicOpportunity,
   getAdminUser,
   listCandidates,
@@ -59,6 +66,8 @@ import {
   listClients,
   listMissionAssignments,
   listMissions,
+  listDocuments,
+  listDocumentVersions,
   listInternalPublicApplications,
   listPublicOpportunities,
   listEvaluations,
@@ -80,6 +89,7 @@ import {
   updateClientContactStatus,
   updateClientStatus,
   updateMission,
+  updateDocument,
   updateMissionAssignment,
   updateMissionStatus,
   updateInternalPublicOpportunity,
@@ -105,6 +115,8 @@ import {
   recordMissionCandidateOfferResponse,
   reviseMissionCandidateOffer,
   withdrawMissionCandidateOffer,
+  addDocumentVersion,
+  downloadDocumentVersion,
 } from './api.js';
 
 type ApiState =
@@ -112,12 +124,14 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions';
+type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'documents';
+type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
 const CLIENTS_ROUTE_PERMISSION = 'clients:view';
 const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 const MISSIONS_ROUTE_PERMISSION = 'missions:view';
+const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -133,7 +147,9 @@ export function App() {
           ? 'candidates'
           : window.location.pathname === '/missions'
             ? 'missions'
-            : 'home',
+            : window.location.pathname === '/documents'
+              ? 'documents'
+              : 'home',
   );
 
   useEffect(() => {
@@ -240,7 +256,9 @@ export function App() {
             ? '/candidates'
             : nextRoute === 'missions'
               ? '/missions'
-              : '/',
+              : nextRoute === 'documents'
+                ? '/documents'
+                : '/',
     );
   }
 
@@ -256,6 +274,7 @@ export function App() {
   const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
   const canOpenCandidates = Boolean(user?.permissions.includes(CANDIDATES_ROUTE_PERMISSION));
   const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
+  const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -325,6 +344,14 @@ export function App() {
             <button
               type="button"
               onClick={() => {
+                navigate('documents');
+              }}
+            >
+              Documents
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 void handleLogout();
               }}
             >
@@ -390,6 +417,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Missions">
             <h2>Missions</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'documents' && user && accessToken ? (
+        canOpenDocuments ? (
+          <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Documents">
+            <h2>Documents</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -3380,6 +3417,326 @@ function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[
   return transitions[state] ?? [];
 }
 
+const documentTypes: DocumentType[] = [
+  'CONTRAT_RECRUTEMENT',
+  'CONTRAT_FORMATION',
+  'JOB_DESCRIPTION',
+  'INTERVIEW_REPORT',
+  'CANDIDATE_SUMMARY',
+  'HR_DOCUMENT',
+  'CLIENT_FILE',
+  'OTHER',
+];
+const creatableDocumentTypes = documentTypes.filter(
+  (type): type is CreatableDocumentType => type !== 'LEGACY_CONTRACT',
+);
+
+function DocumentsPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const canCreate = permissions.includes('documents:create');
+  const canAddVersion = permissions.includes('documents:versions:create');
+  const canUpdate = permissions.includes('documents:update');
+  const canArchive = permissions.includes('documents:archive');
+  const canDownload = permissions.includes('documents:download');
+
+  useEffect(() => {
+    void loadDocuments();
+  }, []);
+
+  async function loadDocuments(nextSearch = search, nextType = typeFilter): Promise<void> {
+    const response = await listDocuments({
+      accessToken,
+      search: nextSearch,
+      documentType: nextType || undefined,
+      pageSize: 20,
+    });
+    setDocuments(response.documents);
+  }
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadDocuments(search, typeFilter);
+  }
+
+  async function selectDocument(documentId: string): Promise<void> {
+    const response = await getDocument(accessToken, documentId);
+    setSelectedDocument(response.document);
+    setVersions(response.document.versions);
+    setMessage(null);
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const file = firstFile(formData, 'versionFile');
+    const created = await createDocument(accessToken, {
+      title: formValue(formData, 'title'),
+      documentType: formValue(formData, 'documentType') as CreatableDocumentType,
+      visibility: 'INTERNAL_ONLY',
+      ownerUserId: optionalFormValue(formData, 'ownerUserId'),
+      context: {
+        clientId: optionalFormValue(formData, 'clientId'),
+        candidateId: optionalFormValue(formData, 'candidateId'),
+        recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
+        missionCandidateId: optionalFormValue(formData, 'missionCandidateId'),
+        interviewId: optionalFormValue(formData, 'interviewId'),
+      },
+      version: file ? await documentFileInput(file) : undefined,
+    });
+    form.reset();
+    setSelectedDocument(created.document);
+    setVersions(created.document.versions);
+    setMessage('Document registered.');
+    await loadDocuments();
+  }
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedDocument) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const updated = await updateDocument(accessToken, selectedDocument.id, {
+      title: formValue(formData, 'title', selectedDocument.title),
+      visibility: formValue(formData, 'visibility', selectedDocument.visibility) as
+        'INTERNAL_ONLY' | 'ASSIGNED_ONLY' | 'CLIENT_SHARED' | 'PRIVATE',
+      ownerUserId: nullableFormValue(formData, 'ownerUserId'),
+    });
+    setSelectedDocument(updated.document);
+    setVersions(updated.document.versions);
+    setMessage('Document metadata updated.');
+    await loadDocuments();
+  }
+
+  async function handleAddVersion(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedDocument) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const file = firstFile(formData, 'versionFile');
+    if (!file) {
+      setMessage('Choose a file to add.');
+      return;
+    }
+    const updated = await addDocumentVersion(
+      accessToken,
+      selectedDocument.id,
+      await documentFileInput(file),
+    );
+    form.reset();
+    setSelectedDocument(updated.document);
+    setVersions(updated.document.versions);
+    setMessage('Document version added.');
+    await loadDocuments();
+  }
+
+  async function refreshVersions(): Promise<void> {
+    if (!selectedDocument) {
+      return;
+    }
+    const response = await listDocumentVersions(accessToken, selectedDocument.id);
+    setVersions(response.versions);
+  }
+
+  async function archiveSelected(): Promise<void> {
+    if (!selectedDocument || !window.confirm('Archive this document?')) {
+      return;
+    }
+    const archived = await archiveDocument(accessToken, selectedDocument.id);
+    setSelectedDocument(archived.document);
+    setVersions(archived.document.versions);
+    setMessage('Document archived.');
+    await loadDocuments();
+  }
+
+  async function downloadVersion(versionId: string): Promise<void> {
+    if (!selectedDocument) {
+      return;
+    }
+    await downloadDocumentVersion(accessToken, selectedDocument.id, versionId);
+    setMessage('Download requested.');
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Documents">
+      <div className="admin-grid">
+        <section aria-label="Document list">
+          <h2>Documents</h2>
+          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
+            <label>
+              Search
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                name="search"
+              />
+            </label>
+            <label>
+              Type
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.currentTarget.value)}
+                name="documentType"
+              >
+                <option value="">Any</option>
+                {creatableDocumentTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Search documents</button>
+          </form>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Version</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((document) => (
+                <tr key={document.id}>
+                  <td>
+                    <button type="button" onClick={() => void selectDocument(document.id)}>
+                      {document.title}
+                    </button>
+                  </td>
+                  <td>{document.documentType}</td>
+                  <td>{document.status}</td>
+                  <td>{document.currentVersionId ? 'Current file' : 'No file'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {canCreate ? (
+            <form
+              className="stacked-form"
+              aria-label="Register document"
+              onSubmit={(event) => void handleCreate(event)}
+            >
+              <h3>Register document</h3>
+              <input name="title" placeholder="Document title" required />
+              <select name="documentType" defaultValue="CONTRAT_RECRUTEMENT">
+                {documentTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+              <input name="ownerUserId" placeholder="Owner user id" />
+              <input name="clientId" placeholder="Client id" />
+              <input name="candidateId" placeholder="Candidate id" />
+              <input name="recruitmentMissionId" placeholder="Recruitment mission id" />
+              <input name="missionCandidateId" placeholder="Mission candidate id" />
+              <input name="interviewId" placeholder="Interview id" />
+              <input name="versionFile" type="file" />
+              <button type="submit">Register document</button>
+            </form>
+          ) : null}
+        </section>
+
+        <section aria-label="Document detail">
+          {selectedDocument ? (
+            <>
+              <h2>{selectedDocument.title}</h2>
+              <p>
+                {selectedDocument.documentType} - {selectedDocument.status}
+              </p>
+              <dl>
+                <dt>Client</dt>
+                <dd>{selectedDocument.context.clientId ?? 'None'}</dd>
+                <dt>Candidate</dt>
+                <dd>{selectedDocument.context.candidateId ?? 'None'}</dd>
+                <dt>Mission</dt>
+                <dd>{selectedDocument.context.recruitmentMissionId ?? 'None'}</dd>
+              </dl>
+
+              {canUpdate ? (
+                <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
+                  <h3>Metadata</h3>
+                  <input name="title" defaultValue={selectedDocument.title} />
+                  <select name="visibility" defaultValue={selectedDocument.visibility}>
+                    <option value="INTERNAL_ONLY">Internal only</option>
+                    <option value="ASSIGNED_ONLY">Assigned only</option>
+                    <option value="CLIENT_SHARED">Client shared</option>
+                    <option value="PRIVATE">Private</option>
+                  </select>
+                  <input
+                    name="ownerUserId"
+                    placeholder="Owner user id"
+                    defaultValue={selectedDocument.ownerUserId ?? ''}
+                  />
+                  <button type="submit">Update metadata</button>
+                </form>
+              ) : null}
+
+              <section aria-label="Document versions">
+                <h3>Versions</h3>
+                <button type="button" onClick={() => void refreshVersions()}>
+                  Refresh versions
+                </button>
+                <ul>
+                  {versions.map((version) => (
+                    <li key={version.id}>
+                      v{version.versionNumber} - {version.filename} - {version.mimeType}
+                      {canDownload ? (
+                        <button type="button" onClick={() => void downloadVersion(version.id)}>
+                          Download
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {canAddVersion ? (
+                <form
+                  className="stacked-form"
+                  aria-label="Add document version"
+                  onSubmit={(event) => void handleAddVersion(event)}
+                >
+                  <h3>Add version</h3>
+                  <input name="versionFile" type="file" required />
+                  <button type="submit">Add version</button>
+                </form>
+              ) : null}
+
+              {canArchive ? (
+                <button type="button" onClick={() => void archiveSelected()}>
+                  Archive document
+                </button>
+              ) : null}
+              {message ? <p role="status">{message}</p> : null}
+            </>
+          ) : (
+            <p>Select a document.</p>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
 function PublicOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([]);
   const [status, setStatus] = useState('Loading opportunities...');
@@ -3682,6 +4039,20 @@ async function fileInput(category: 'CV' | 'CERTIFICATION' | 'DIPLOMA' | 'ADDITIO
   }
   return {
     category,
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    base64Content: btoa(binary),
+  };
+}
+
+async function documentFileInput(file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return {
     filename: file.name,
     contentType: file.type || 'application/octet-stream',
     base64Content: btoa(binary),

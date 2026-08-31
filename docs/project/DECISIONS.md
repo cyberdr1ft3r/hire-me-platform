@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-08-13
+Last updated: 2026-08-31
 
 Use this log for accepted project-level decisions. Detailed architectural decisions may later be promoted into individual ADR files. Do not record unresolved ideas as accepted decisions.
 
@@ -50,6 +50,7 @@ Use this log for accepted project-level decisions. Detailed architectural decisi
 | D-042 | 2026-07-23 | Accepted | Public submissions match candidates deterministically by normalized email only. Matching reuses active candidates, never silently merges by phone, never silently reactivates archived candidates, and still relies on the permanent `(missionId, candidateId)` mission-candidate uniqueness rule. | Required by issue #27 candidate matching requirements. |
 | D-043 | 2026-07-23 | Accepted | The first public upload transport accepts file input through shared JSON DTOs with base64 content, server-side size and MIME/signature validation, private storage keys, and a malware-scanning extension boundary. Production storage provider and malware scanner selection remain unresolved technical choices. | Required by issue #27 while preserving the API-owned storage boundary. |
 | D-044 | 2026-08-13 | Accepted | Internal offer acceptance, placement confirmation, placement correction, and commercial eligibility are separate staff-controlled actions. Offer acceptance does not increment mission placement count; explicit placement confirmation increments at most once; correction decrements at most once without overwriting original confirmation; capacity only makes closure eligible. | Required by issue #29 offer-to-placement lifecycle and protects later invoicing/payroll/accounting sequencing. |
+| D-045 | 2026-08-31 | Accepted | Centralized managed documents use distinct `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` taxonomy values, immutable `DocumentVersion` history, server-generated protected storage keys, and authorization that combines document capability with linked business-context scope. Business records remain separate from documents until an uploaded or generated file exists. | Required by issues #12 and #35. |
 
 ## Decision protocol
 

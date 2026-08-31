@@ -13,6 +13,9 @@ import {
   ClientDetailResponseSchema,
   ClientListResponseSchema,
   CandidateDetailResponseSchema,
+  DocumentDetailResponseSchema,
+  DocumentListResponseSchema,
+  DocumentVersionListResponseSchema,
   CandidateEducationDetailResponseSchema,
   CandidateLanguageDetailResponseSchema,
   CandidateListResponseSchema,
@@ -60,6 +63,12 @@ import {
   type ClientStatusUpdateRequest,
   type ClientUpdateRequest,
   type CandidateCreateRequest,
+  type DocumentCreateRequest,
+  type DocumentDetailResponse,
+  type DocumentListResponse,
+  type DocumentUpdateRequest,
+  type DocumentVersionCreateRequest,
+  type DocumentVersionListResponse,
   type CandidateDetailResponse,
   type CandidateEducationCreateRequest,
   type CandidateEducationDetailResponse,
@@ -660,6 +669,156 @@ type CandidateListOptions = {
   source?: string;
   apiBaseUrl?: string;
 };
+
+type DocumentListOptions = {
+  accessToken: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  documentType?: string;
+  status?: string;
+  apiBaseUrl?: string;
+};
+
+async function documentRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/documents${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listDocuments(options: DocumentListOptions): Promise<DocumentListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.documentType) {
+    parameters.set('documentType', options.documentType);
+  }
+  if (options.status) {
+    parameters.set('status', options.status);
+  }
+
+  const response = await documentRequest(
+    options.accessToken,
+    `?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return DocumentListResponseSchema.parse(await response.json());
+}
+
+export async function getDocument(
+  accessToken: string,
+  documentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentDetailResponse> {
+  const response = await documentRequest(accessToken, `/${documentId}`, {}, apiBaseUrl);
+  return DocumentDetailResponseSchema.parse(await response.json());
+}
+
+export async function createDocument(
+  accessToken: string,
+  input: DocumentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentDetailResponse> {
+  const response = await documentRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return DocumentDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateDocument(
+  accessToken: string,
+  documentId: string,
+  input: DocumentUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentDetailResponse> {
+  const response = await documentRequest(
+    accessToken,
+    `/${documentId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return DocumentDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveDocument(
+  accessToken: string,
+  documentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentDetailResponse> {
+  const response = await documentRequest(
+    accessToken,
+    `/${documentId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return DocumentDetailResponseSchema.parse(await response.json());
+}
+
+export async function addDocumentVersion(
+  accessToken: string,
+  documentId: string,
+  input: DocumentVersionCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentDetailResponse> {
+  const response = await documentRequest(
+    accessToken,
+    `/${documentId}/versions`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return DocumentDetailResponseSchema.parse(await response.json());
+}
+
+export async function listDocumentVersions(
+  accessToken: string,
+  documentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentVersionListResponse> {
+  const response = await documentRequest(accessToken, `/${documentId}/versions`, {}, apiBaseUrl);
+  return DocumentVersionListResponseSchema.parse(await response.json());
+}
+
+export async function downloadDocumentVersion(
+  accessToken: string,
+  documentId: string,
+  versionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Blob> {
+  const response = await documentRequest(
+    accessToken,
+    `/${documentId}/versions/${versionId}/download`,
+    {},
+    apiBaseUrl,
+  );
+  return response.blob();
+}
 
 async function candidateRequest(
   accessToken: string,

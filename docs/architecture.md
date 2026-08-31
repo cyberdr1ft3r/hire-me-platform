@@ -255,9 +255,13 @@ Confirmed dashboard metrics are active missions, candidates presented to clients
 
 Centralized files should use a logical `Document` record with one or more `DocumentVersion` records. Candidate-specific CVs and attachments should use `CandidateDocument` with one or more `CandidateDocumentVersion` records. A new version represents a new stored file, generated output, public application upload, or imported revision while preserving the logical document relationship and submission history.
 
+Issue #35 implements the first centralized document foundation for internal users. New managed documents use explicit taxonomy values, including `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` from Issue #12. The legacy generic contract database value is compatibility-only and must not be used for new recruitment or training contracts.
+
 Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output. Generated outputs may include quotation files, purchase order files, contract files, invoice files, HR document templates, candidate summaries, interview reports, training documents, dashboards, and reports. Uploaded or stored-only files include raw CVs, candidate attachments, certifications, diplomas, signed documents, client-provided files, external HR files, and imported legacy documents.
 
 Commercial records remain structured source-of-truth data. Quotation, contract, purchase order, invoice, payment, partial payment, overdue balance, expense, VAT/tax, client balance, revenue, and profitability concepts are not `Document` records merely because they can later be generated as PDF, Word, or Excel outputs. Full legal accounting, general ledger, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
+
+Document version writes assign version numbers while holding a PostgreSQL `Document` row lock and preserve older version rows. API responses expose safe metadata only; storage keys, filesystem paths, file contents, and public file URLs are not returned. Downloads stream through an authorized API endpoint that rechecks document permission and linked business-context scope at request time.
 
 ### Data Migration
 
