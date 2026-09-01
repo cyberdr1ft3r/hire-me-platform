@@ -965,6 +965,9 @@ export class DocumentsService {
     if (!isStrictBase64(input.base64Content)) {
       throw badRequest('DOCUMENT_FILE_BASE64_INVALID', 'File content must be strict base64.');
     }
+    if (decodedBase64Size(input.base64Content) > maxDocumentFileSizeBytes) {
+      throw badRequest('DOCUMENT_FILE_SIZE_REJECTED', 'File size is not allowed.');
+    }
     const buffer = Buffer.from(input.base64Content, 'base64');
     const filename = sanitizeFilename(input.filename);
     this.assertFileIsSafe(input.filename, input.contentType, buffer);
@@ -1189,10 +1192,48 @@ function safeOriginalFilename(filename: string): string {
 }
 
 function isStrictBase64(value: string): boolean {
+  if (value.length === 0 || value.length % 4 !== 0) {
+    return false;
+  }
+  let padding = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '=') {
+      padding += 1;
+      if (index < value.length - 2 || padding > 2) {
+        return false;
+      }
+      continue;
+    }
+    if (padding > 0 || !isBase64Character(character)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isBase64Character(character: string | undefined): boolean {
+  if (!character) {
+    return false;
+  }
+  const code = character.charCodeAt(0);
   return (
-    value.length % 4 === 0 &&
-    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    (code >= 48 && code <= 57) ||
+    character === '+' ||
+    character === '/'
   );
+}
+
+function decodedBase64Size(value: string): number {
+  let padding = 0;
+  if (value.endsWith('==')) {
+    padding = 2;
+  } else if (value.endsWith('=')) {
+    padding = 1;
+  }
+  return (value.length / 4) * 3 - padding;
 }
 
 function looksLikeOoxml(buffer: Buffer, requiredDirectory: 'word/' | 'xl/'): boolean {
