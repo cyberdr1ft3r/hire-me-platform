@@ -26,6 +26,7 @@ export const DocumentVisibilitySchema = z.enum([
 ]);
 export const DocumentVersionSourceSchema = z.enum(['UPLOADED', 'GENERATED', 'IMPORTED']);
 export const OutputFamilySchema = z.enum(['PDF', 'WORD', 'EXCEL', 'OTHER']);
+export const DocumentBase64ContentMaxLength = 5_400_000;
 
 export const DocumentContextSchema = z
   .object({
@@ -40,7 +41,13 @@ export const DocumentContextSchema = z
 export const DocumentVersionInputSchema = z.object({
   filename: z.string().trim().min(1).max(180),
   contentType: z.string().trim().min(1).max(120),
-  base64Content: z.string().min(1),
+  base64Content: z
+    .string()
+    .min(1)
+    .max(DocumentBase64ContentMaxLength)
+    .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/, {
+      message: 'File content must be strict base64.',
+    }),
   outputFamily: OutputFamilySchema.optional(),
 });
 

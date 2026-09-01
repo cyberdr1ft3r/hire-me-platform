@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -26,7 +26,7 @@ Document management foundation and contract taxonomy.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
-- Current executable goal: Issue #35, "Implement document management foundation and contract taxonomy." Issue #35 incorporates Issue #12 and does not depend on unmerged Issue #31 / PR #32.
+- Current executable goal: complete the blocking-review fix for Issue #35 on existing draft PR #40 / branch `feat/document-management`. Issue #35 incorporates Issue #12 and does not depend on unmerged Issue #31 / PR #32.
 
 ## Confirmed Product Facts
 
@@ -75,7 +75,7 @@ Document management foundation and contract taxonomy.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
 - Public opportunity and candidate application foundation is merged. It preserves the API-owned Prisma boundary, uses explicit public DTOs, exposes only approved public fields, accepts unauthenticated submissions safely, preserves file-version history, and enforces one candidate process per mission/candidate pair.
 - Offer and placement implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/offers` and placement endpoints, immutable offer versions, safe audit metadata, explicit offer-backed placement confirmation, idempotent correction, closure eligibility without auto-closure, and the established mission-candidate PostgreSQL lock order. The retired legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; historical `MissionCandidate.placementConfirmedAt` rows are not silently backfilled to `MissionPlacement`.
-- Issue #35 adds the internal `Document` / `DocumentVersion` foundation for centralized managed files: explicit document taxonomy, protected server-generated storage keys, immutable uploaded versions, authorized version download, safe metadata responses, document lifecycle/archive, and permission plus linked-business-context authorization. Candidate CV/application uploads continue to use `CandidateDocument` / `CandidateDocumentVersion`.
+- Issue #35 adds the internal `Document` / `DocumentVersion` foundation for centralized managed files: explicit document taxonomy, protected server-generated storage keys, immutable uploaded versions, authorized version download, safe metadata responses, document lifecycle/archive, exact operation permission checks, and permission plus linked-business-context authorization. List visibility is enforced in the database predicate and detail/version/download/mutation paths re-check access in service code. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; a null owner does not broaden private access. `CLIENT_SHARED` is internal sharing metadata and does not grant external/client access. Metadata update/archive audit is atomic with the mutation. JSON base64 uploads are strictly validated, capped before decoding, limited to 4 MB raw bytes, and keep safe original filename metadata separate from sanitized download filenames. Candidate CV/application uploads continue to use `CandidateDocument` / `CandidateDocumentVersion`.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

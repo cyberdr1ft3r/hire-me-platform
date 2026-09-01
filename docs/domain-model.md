@@ -399,6 +399,7 @@ Training participants are records by default. A participant portal or learning p
 - Relationships: may reference a candidate, client, recruitment mission, mission candidate, interview, training session, training enrollment, conversation, message, or creator user. Issue #35 currently implements validated client, candidate, recruitment mission, mission-candidate, and interview contexts.
 - Cardinality: many documents can reference one business entity; one document can have many document versions.
 - Lifecycle: draft, active, superseded, archived.
+- Visibility rules: Issue #35 visibility is internal-only. `INTERNAL_ONLY` and `CLIENT_SHARED` require document permission plus linked-context scope. `PRIVATE` and `ASSIGNED_ONLY` require the current owner until a separate document-assignment model exists; null owner grants no private access. `CLIENT_SHARED` does not grant external or client-account access.
 - Sensitive fields: quotations, purchase orders, contracts, invoices, HR documents, reports, client files, storage metadata.
 - Uniqueness rules: current version id should reference one version in the document history.
 - Audit requirements: generation, upload, version creation, download, sharing, visibility change, and archival should be audited.
@@ -421,7 +422,7 @@ Included MVP commercial concepts are quotations, recruitment contracts, training
 ### DocumentVersion
 
 - Purpose and owner: version record for one logical `Document`; owned by the module that owns the document.
-- Important attributes: id, document id, version number, sanitized filename, original filename metadata, server-generated storage key, MIME type, size, checksum, output family, created by, created date, source.
+- Important attributes: id, document id, version number, sanitized download filename, safe original filename metadata, server-generated storage key, MIME type, size, checksum, output family, created by, created date, source.
 - Relationships: belongs to one `Document`.
 - Cardinality: one document can have many versions.
 - Lifecycle: active, superseded, archived.

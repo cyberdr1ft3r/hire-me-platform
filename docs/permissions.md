@@ -160,7 +160,7 @@ The main application is authenticated and internal. Candidate applicants do not 
 
 Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #35 adds centralized document permissions while retaining `documents:download` compatibility. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
-Document access requires the document capability and linked business-context scope. Current implemented context scopes use the existing client, candidate, recruitment mission, mission-candidate, and interview permissions. Frontend gating is only usability.
+Document access requires the exact document capability and linked business-context scope. Current implemented context scopes use the existing client, candidate, recruitment mission, mission-candidate, and interview permissions. Frontend gating is only usability.
 
 ## Implemented Document Permissions
 
@@ -174,6 +174,10 @@ Document access requires the document capability and linked business-context sco
 | `documents:download` | Download an authorized document version through the protected API/storage boundary. |
 
 Development seed mapping gives normal document permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; lower-trust roles retain no broad document metadata permissions by default. API responses never expose storage keys, filesystem paths, public file URLs, or document contents in metadata responses.
+
+Implemented document visibility is internal-only. `INTERNAL_ONLY` is visible to authenticated internal users with `documents:view` plus linked-context scope. `PRIVATE` is visible only to the current owner with `documents:view` plus linked-context scope; setting owner to null grants no private access. `ASSIGNED_ONLY` is treated as owner-only until a separate document-assignment model exists. `CLIENT_SHARED` records that a file may be approved for later sharing workflows, but it does not grant external/client account access in Issue #35 and currently follows the same internal access requirements as `INTERNAL_ONLY`.
+
+Document list endpoints use the database query predicate for document visibility, context scope, archive rules, and inaccessible linked contexts. Detail, version list, download, update, archive, and version-create paths re-check the same access requirements in service code and also require their exact operation permission.
 
 ## Implemented Administration Permissions
 

@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 is in implementation on a dedicated draft PR branch from current `main`.
-**Current blocker:** Local Docker Desktop is not running, so local PostgreSQL validation must be completed in GitHub Actions or after starting Docker locally.
-**Next executable development task:** Complete Issue #35 review/validation. Issue #35 incorporates Issue #12 and is independent of unmerged Issue #31 / PR #32.
+**Health:** Issue #35 is active on existing draft PR #40 / branch `feat/document-management`; the current task is the blocking-review correction for head `36f06dcd83297ba10db70e0b3e08c1b76f6df8f6`.
+**Current blocker:** Blocking review findings on PR #40 require a new corrective commit and a new GitHub Actions run before human review can resume.
+**Next executable development task:** Complete the PR #40 blocking-review fix for Issue #35, push it, update the draft PR, and keep it open/unmerged. Issue #35 incorporates Issue #12 and is independent of unmerged Issue #31 / PR #32.
 
 ## Active work
 
@@ -28,7 +28,7 @@ Status owner: repository maintainer
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Continue only on its existing branch/PR; do not mix into Issue #35 |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Finish validation, open draft PR, and keep unmerged |
+| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Finish the PR #40 blocking-review fix, push a new head, wait for CI, and keep the draft PR unmerged |
 
 ## Completed foundation work
 
@@ -201,8 +201,10 @@ Status owner: repository maintainer
 - Issue #35 implements the internal document-management foundation without depending on unmerged Issue #31 / PR #32.
 - Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
 - The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
-- Document authorization combines document capability with linked business-context permission. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; training contract taxonomy is distinct but training operations/rendering remain future work.
-- Uploads use server-generated protected storage keys, sanitized filenames, bounded MIME/size/signature checks, checksums, and safe DTOs that omit storage keys, filesystem paths, and document contents. Version numbers are assigned while holding a PostgreSQL `Document` row lock.
+- Document authorization combines exact document capability with linked business-context permission. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; training contract taxonomy is distinct but training operations/rendering remain future work.
+- Document visibility is enforced consistently across list, detail, version list, download, and mutation paths. List visibility is enforced by the database query predicate. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; null owner does not broaden private access. `CLIENT_SHARED` does not grant external/client access.
+- Uploads use server-generated protected storage keys, separate safe original filename metadata and sanitized download filenames, bounded strict base64/content size checks, MIME/extension/signature validation including DOCX/XLSX OOXML checks, checksums, and safe DTOs that omit storage keys, filesystem paths, and document contents. Version numbers are assigned while holding a PostgreSQL `Document` row lock.
+- Metadata update and document archive audit records are written atomically with their mutations.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
 ## Current open technical questions
@@ -224,7 +226,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Finish Issue #35 validation and draft PR review; keep the PR open, draft, and unmerged.
+1. Finish the Issue #35 / PR #40 blocking-review correction, push the new `feat/document-management` head, update the draft PR, wait for GitHub Actions on the new head, and keep PR #40 open, draft, and unmerged.
 
 ## Status Update Rules
 

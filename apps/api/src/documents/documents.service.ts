@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { extname } from 'node:path';
 
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -16,13 +17,18 @@ import { DOCUMENT_PERMISSIONS } from './document-permissions.js';
 import { badRequest, conflict, forbidden, notFound } from './document.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
+import { CANDIDATE_PERMISSIONS } from '../candidates/candidate-permissions.js';
+import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
+import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
   CandidateStatus,
   ClientStatus,
   DocumentStatus,
   DocumentType,
   DocumentVersionSource,
+  DocumentVisibility,
   InterviewStatus,
+  AssignmentStatus,
   Prisma,
   RecruitmentMissionState,
   UserStatus,
@@ -44,17 +50,79 @@ type PreparedVersion = {
   checksumSha256: string;
   outputFamily: DocumentVersionCreateRequest['outputFamily'] | undefined;
 };
+type DocumentPermission = (typeof DOCUMENT_PERMISSIONS)[keyof typeof DOCUMENT_PERMISSIONS];
+type FilePolicy = {
+  extensions: readonly string[];
+  signatures: readonly ((buffer: Buffer) => boolean)[];
+  outputFamily: DocumentVersionCreateRequest['outputFamily'] | undefined;
+};
 
-const maxDocumentFileSizeBytes = 5_000_000;
-const allowedMimeTypes = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/jpeg',
-  'image/png',
-  'text/plain',
-] as const;
+const maxDocumentFileSizeBytes = 4_000_000;
+const dangerousExtensionPattern = /\.(exe|bat|cmd|com|scr|js|jar|zip|rar|7z|tar|gz)$/i;
+const ooxmlDocxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ooxmlXlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const filePolicies = new Map<string, FilePolicy>([
+  [
+    'application/pdf',
+    {
+      extensions: ['.pdf'],
+      signatures: [(buffer) => buffer.subarray(0, 4).toString() === '%PDF'],
+      outputFamily: 'PDF',
+    },
+  ],
+  [
+    'image/jpeg',
+    {
+      extensions: ['.jpg', '.jpeg'],
+      signatures: [(buffer) => buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff],
+      outputFamily: 'OTHER',
+    },
+  ],
+  [
+    'image/png',
+    {
+      extensions: ['.png'],
+      signatures: [
+        (buffer) => buffer.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')),
+      ],
+      outputFamily: 'OTHER',
+    },
+  ],
+  [
+    'application/msword',
+    {
+      extensions: ['.doc'],
+      signatures: [
+        (buffer) => buffer.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex')),
+      ],
+      outputFamily: 'WORD',
+    },
+  ],
+  [
+    ooxmlDocxMime,
+    {
+      extensions: ['.docx'],
+      signatures: [(buffer) => looksLikeOoxml(buffer, 'word/')],
+      outputFamily: 'WORD',
+    },
+  ],
+  [
+    ooxmlXlsxMime,
+    {
+      extensions: ['.xlsx'],
+      signatures: [(buffer) => looksLikeOoxml(buffer, 'xl/')],
+      outputFamily: 'EXCEL',
+    },
+  ],
+  [
+    'text/plain',
+    {
+      extensions: ['.txt'],
+      signatures: [(buffer) => !buffer.includes(0) && buffer.toString('utf8').length > 0],
+      outputFamily: 'OTHER',
+    },
+  ],
+]);
 
 const writableMissionStates = new Set<RecruitmentMissionState>([
   RecruitmentMissionState.DRAFT,
@@ -89,41 +157,56 @@ export class DocumentsService {
     actorUserId: string,
   ): Promise<DocumentListResponse> {
     const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW);
     const where: Prisma.DocumentWhereInput = {
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.documentType ? { documentType: query.documentType } : {}),
-      ...(query.clientId ? { clientId: query.clientId } : {}),
-      ...(query.candidateId ? { candidateId: query.candidateId } : {}),
-      ...(query.recruitmentMissionId ? { recruitmentMissionId: query.recruitmentMissionId } : {}),
-      ...(query.missionCandidateId ? { missionCandidateId: query.missionCandidateId } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { title: { contains: query.search, mode: 'insensitive' } },
-              { versions: { some: { filename: { contains: query.search, mode: 'insensitive' } } } },
-            ],
-          }
-        : {}),
+      AND: [
+        this.visibleDocumentWhere(actorUserId, permissions),
+        {
+          ...(query.status ? { status: query.status } : {}),
+          ...(query.documentType ? { documentType: query.documentType } : {}),
+          ...(query.clientId ? { clientId: query.clientId } : {}),
+          ...(query.candidateId ? { candidateId: query.candidateId } : {}),
+          ...(query.recruitmentMissionId
+            ? { recruitmentMissionId: query.recruitmentMissionId }
+            : {}),
+          ...(query.missionCandidateId ? { missionCandidateId: query.missionCandidateId } : {}),
+          ...(query.search
+            ? {
+                OR: [
+                  { title: { contains: query.search, mode: 'insensitive' } },
+                  {
+                    versions: {
+                      some: { filename: { contains: query.search, mode: 'insensitive' } },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
+      ],
     };
-    const documents = await this.prisma.document.findMany({
-      where,
-      include: documentInclude,
-      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-    });
-    const visible = documents.filter((document) => this.hasDocumentAccess(document, permissions));
-    const pageStart = (query.page - 1) * query.pageSize;
-    const pageDocuments = visible.slice(pageStart, pageStart + query.pageSize);
+    const [total, documents] = await this.prisma.$transaction([
+      this.prisma.document.count({ where }),
+      this.prisma.document.findMany({
+        where,
+        include: documentInclude,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+    ]);
 
     return {
-      documents: pageDocuments.map((document) => this.toDocumentSummary(document)),
-      pagination: { page: query.page, pageSize: query.pageSize, total: visible.length },
+      documents: documents.map((document) => this.toDocumentSummary(document)),
+      pagination: { page: query.page, pageSize: query.pageSize, total },
     };
   }
 
   async getDocument(documentId: string, actorUserId: string): Promise<DocumentDetailResponse> {
     const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW);
     const document = await this.findDocument(documentId);
-    this.assertDocumentAccess(document, permissions);
+    await this.assertDocumentAccess(document, actorUserId, permissions);
     await this.assertReadableContext(document, this.prisma);
     return { document: this.toDocumentDetail(document) };
   }
@@ -146,7 +229,8 @@ export class DocumentsService {
 
       const document = await this.prisma.$transaction(async (transaction) => {
         const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
-        await this.assertWritableContext(input, permissions, transaction);
+        this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_CREATE);
+        await this.assertWritableContext(input, actorUserId, permissions, transaction);
         await this.assertOwnerIsEligible(input.ownerUserId ?? actorUserId, transaction);
         const created = await transaction.document.create({
           data: {
@@ -218,16 +302,21 @@ export class DocumentsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<DocumentDetailResponse> {
-    const document = await this.withWritableDocumentLock(documentId, actorUserId, (transaction) =>
-      this.updateDocumentMetadata(documentId, input, transaction),
-    );
-
-    await this.audit.record('documents.document.metadata_updated', context, {
+    const document = await this.withWritableDocumentLock(
+      documentId,
       actorUserId,
-      entityType: 'Document',
-      entityId: document.id,
-      metadataSummary: 'Approved document metadata updated.',
-    });
+      DOCUMENT_PERMISSIONS.DOCUMENTS_UPDATE,
+      async (transaction) => {
+        const updated = await this.updateDocumentMetadata(documentId, input, transaction);
+        await this.createAuditLog(transaction, 'documents.document.metadata_updated', context, {
+          actorUserId,
+          entityType: 'Document',
+          entityId: updated.id,
+          metadataSummary: 'Approved document metadata updated.',
+        });
+        return updated;
+      },
+    );
 
     return { document: this.toDocumentDetail(document) };
   }
@@ -237,20 +326,25 @@ export class DocumentsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<DocumentDetailResponse> {
-    const document = await this.withWritableDocumentLock(documentId, actorUserId, (transaction) =>
-      transaction.document.update({
-        where: { id: documentId },
-        data: { status: DocumentStatus.ARCHIVED, archivedAt: new Date() },
-        include: documentInclude,
-      }),
-    );
-
-    await this.audit.record('documents.document.archived', context, {
+    const document = await this.withWritableDocumentLock(
+      documentId,
       actorUserId,
-      entityType: 'Document',
-      entityId: document.id,
-      metadataSummary: 'Document archived; historical versions preserved.',
-    });
+      DOCUMENT_PERMISSIONS.DOCUMENTS_ARCHIVE,
+      async (transaction) => {
+        const archived = await transaction.document.update({
+          where: { id: documentId },
+          data: { status: DocumentStatus.ARCHIVED, archivedAt: new Date() },
+          include: documentInclude,
+        });
+        await this.createAuditLog(transaction, 'documents.document.archived', context, {
+          actorUserId,
+          entityType: 'Document',
+          entityId: archived.id,
+          metadataSummary: 'Document archived; historical versions preserved.',
+        });
+        return archived;
+      },
+    );
 
     return { document: this.toDocumentDetail(document) };
   }
@@ -260,8 +354,9 @@ export class DocumentsService {
     actorUserId: string,
   ): Promise<DocumentVersionListResponse> {
     const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW);
     const document = await this.findDocument(documentId);
-    this.assertDocumentAccess(document, permissions);
+    await this.assertDocumentAccess(document, actorUserId, permissions);
     await this.assertReadableContext(document, this.prisma);
     return { versions: document.versions.map((version) => this.toDocumentVersion(version)) };
   }
@@ -282,6 +377,7 @@ export class DocumentsService {
       const document = await this.withWritableDocumentLock(
         documentId,
         actorUserId,
+        DOCUMENT_PERMISSIONS.DOCUMENTS_VERSION_CREATE,
         async (transaction) => {
           const version = await this.createVersionRecord(
             transaction,
@@ -322,11 +418,9 @@ export class DocumentsService {
     context: RequestContext,
   ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
     const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
-    if (!permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_DOWNLOAD)) {
-      throw forbidden('DOCUMENT_DOWNLOAD_PERMISSION_REQUIRED', 'Document download is not allowed.');
-    }
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_DOWNLOAD);
     const document = await this.findDocument(documentId);
-    this.assertDocumentAccess(document, permissions);
+    await this.assertDocumentAccess(document, actorUserId, permissions);
     await this.assertReadableContext(document, this.prisma);
     const version = document.versions.find((item) => item.id === versionId);
     if (!version) {
@@ -358,22 +452,14 @@ export class DocumentsService {
   private async withWritableDocumentLock<T>(
     documentId: string,
     actorUserId: string,
+    requiredPermission: DocumentPermission,
     callback: (transaction: PrismaTransaction, document: DocumentRecord) => Promise<T>,
   ): Promise<T> {
     return this.prisma.$transaction(async (transaction) => {
       const document = await this.lockDocument(documentId, transaction);
       const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
-      this.assertDocumentAccess(document, permissions);
-      if (
-        !permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_UPDATE) &&
-        !permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_VERSION_CREATE) &&
-        !permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_ARCHIVE)
-      ) {
-        throw forbidden(
-          'DOCUMENT_MUTATION_PERMISSION_REQUIRED',
-          'Document mutation is not allowed.',
-        );
-      }
+      this.assertHasPermission(permissions, requiredPermission);
+      await this.assertDocumentAccess(document, actorUserId, permissions, transaction);
       if (document.status === DocumentStatus.ARCHIVED || document.archivedAt) {
         throw conflict('DOCUMENT_ARCHIVED', 'Archived documents cannot be changed.');
       }
@@ -382,6 +468,7 @@ export class DocumentsService {
           documentType: document.documentType,
           context: this.toContext(document),
         } satisfies DocumentContextInput,
+        actorUserId,
         permissions,
         transaction,
       );
@@ -470,10 +557,11 @@ export class DocumentsService {
 
   private async assertWritableContext(
     input: DocumentContextInput,
+    actorUserId: string,
     permissions: string[],
     transaction: PrismaTransaction,
   ): Promise<void> {
-    this.assertDocumentContextPermission(input.context, permissions);
+    await this.assertDocumentContextScope(input.context, actorUserId, permissions, transaction);
     const client = input.context.clientId
       ? await transaction.client.findUnique({ where: { id: input.context.clientId } })
       : null;
@@ -515,9 +603,18 @@ export class DocumentsService {
     const process = input.context.missionCandidateId
       ? await transaction.missionCandidate.findUnique({
           where: { id: input.context.missionCandidateId },
+          include: { candidate: true, mission: true },
         })
       : null;
-    if (input.context.missionCandidateId && (!process || process.archivedAt)) {
+    if (
+      input.context.missionCandidateId &&
+      (!process ||
+        process.archivedAt ||
+        process.candidate.status === CandidateStatus.ARCHIVED ||
+        process.candidate.archivedAt ||
+        process.mission.archivedAt ||
+        !writableMissionStates.has(process.mission.state))
+    ) {
       throw conflict(
         'DOCUMENT_PROCESS_CONTEXT_INVALID',
         'Document process context is not writable.',
@@ -543,6 +640,25 @@ export class DocumentsService {
     }
     if (interview && process && interview.missionCandidateId !== process.id) {
       throw conflict('DOCUMENT_CONTEXT_MISMATCH', 'Document interview does not belong to process.');
+    }
+    if (interview && !process) {
+      const interviewProcess = await transaction.missionCandidate.findUnique({
+        where: { id: interview.missionCandidateId },
+        include: { candidate: true, mission: true },
+      });
+      if (
+        !interviewProcess ||
+        interviewProcess.archivedAt ||
+        interviewProcess.candidate.status === CandidateStatus.ARCHIVED ||
+        interviewProcess.candidate.archivedAt ||
+        interviewProcess.mission.archivedAt ||
+        !writableMissionStates.has(interviewProcess.mission.state)
+      ) {
+        throw conflict(
+          'DOCUMENT_INTERVIEW_CONTEXT_INVALID',
+          'Document interview context is not writable.',
+        );
+      }
     }
     if (input.documentType === DocumentType.CONTRAT_RECRUTEMENT && !mission) {
       throw conflict(
@@ -590,8 +706,15 @@ export class DocumentsService {
     if (document.missionCandidateId) {
       const process = await transaction.missionCandidate.findUnique({
         where: { id: document.missionCandidateId },
+        include: { candidate: true, mission: true },
       });
-      if (!process || process.archivedAt) {
+      if (
+        !process ||
+        process.archivedAt ||
+        process.candidate.status === CandidateStatus.ARCHIVED ||
+        process.candidate.archivedAt ||
+        process.mission.archivedAt
+      ) {
         throw notFound('DOCUMENT_NOT_FOUND', 'Document was not found.');
       }
     }
@@ -602,49 +725,220 @@ export class DocumentsService {
       if (!interview || interview.status === InterviewStatus.ARCHIVED || interview.archivedAt) {
         throw notFound('DOCUMENT_NOT_FOUND', 'Document was not found.');
       }
+      const process = await transaction.missionCandidate.findUnique({
+        where: { id: interview.missionCandidateId },
+        include: { candidate: true, mission: true },
+      });
+      if (
+        !process ||
+        process.archivedAt ||
+        process.candidate.status === CandidateStatus.ARCHIVED ||
+        process.candidate.archivedAt ||
+        process.mission.archivedAt
+      ) {
+        throw notFound('DOCUMENT_NOT_FOUND', 'Document was not found.');
+      }
     }
   }
 
-  private assertDocumentContextPermission(
+  private async assertDocumentContextScope(
     context: DocumentCreateRequest['context'],
+    actorUserId: string,
     permissions: string[],
-  ): void {
-    if (context.clientId && !permissions.includes('clients:view')) {
+    transaction: PrismaService | PrismaTransaction,
+  ): Promise<void> {
+    if (context.clientId && !permissions.includes(CLIENT_PERMISSIONS.CLIENTS_VIEW)) {
       throw forbidden('DOCUMENT_CLIENT_SCOPE_REQUIRED', 'Client scope is required.');
     }
-    if (context.candidateId && !permissions.includes('candidates:view')) {
+    if (context.candidateId && !permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATES_VIEW)) {
       throw forbidden('DOCUMENT_CANDIDATE_SCOPE_REQUIRED', 'Candidate scope is required.');
     }
-    if (context.recruitmentMissionId && !permissions.includes('missions:view')) {
+    const missionId =
+      context.recruitmentMissionId ??
+      (context.missionCandidateId
+        ? await this.findMissionIdForProcess(context.missionCandidateId, transaction)
+        : context.interviewId
+          ? await this.findMissionIdForInterview(context.interviewId, transaction)
+          : undefined);
+    if (missionId) {
+      await this.assertMissionContextScope(missionId, actorUserId, permissions, transaction);
+    }
+    if (context.recruitmentMissionId && !permissions.includes(MISSION_PERMISSIONS.MISSIONS_VIEW)) {
       throw forbidden('DOCUMENT_MISSION_SCOPE_REQUIRED', 'Mission scope is required.');
     }
-    if (context.missionCandidateId && !permissions.includes('mission_candidates:view')) {
+    if (
+      context.missionCandidateId &&
+      !permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)
+    ) {
       throw forbidden('DOCUMENT_PROCESS_SCOPE_REQUIRED', 'Mission-candidate scope is required.');
     }
-    if (context.interviewId && !permissions.includes('interviews:view')) {
+    if (context.interviewId && !permissions.includes(MISSION_PERMISSIONS.INTERVIEWS_VIEW)) {
       throw forbidden('DOCUMENT_INTERVIEW_SCOPE_REQUIRED', 'Interview scope is required.');
     }
   }
 
-  private hasDocumentAccess(document: DocumentRecord, permissions: string[]): boolean {
-    if (!permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW)) {
+  private async hasDocumentAccess(
+    document: DocumentRecord,
+    actorUserId: string,
+    permissions: string[],
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<boolean> {
+    if (!this.hasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW)) {
       return false;
     }
     if (document.status === DocumentStatus.ARCHIVED || document.archivedAt) {
-      return permissions.includes(DOCUMENT_PERMISSIONS.DOCUMENTS_ARCHIVE);
+      if (!this.hasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_ARCHIVE)) {
+        return false;
+      }
+    }
+    if (!this.visibilityAllowsActor(document, actorUserId)) {
+      return false;
     }
     try {
-      this.assertDocumentContextPermission(this.toContext(document), permissions);
+      await this.assertDocumentContextScope(
+        this.toContext(document),
+        actorUserId,
+        permissions,
+        transaction,
+      );
       return true;
     } catch {
       return false;
     }
   }
 
-  private assertDocumentAccess(document: DocumentRecord, permissions: string[]): void {
-    if (!this.hasDocumentAccess(document, permissions)) {
+  private async assertDocumentAccess(
+    document: DocumentRecord,
+    actorUserId: string,
+    permissions: string[],
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<void> {
+    if (!(await this.hasDocumentAccess(document, actorUserId, permissions, transaction))) {
       throw notFound('DOCUMENT_NOT_FOUND', 'Document was not found.');
     }
+  }
+
+  private visibleDocumentWhere(
+    actorUserId: string,
+    permissions: string[],
+  ): Prisma.DocumentWhereInput {
+    if (!this.hasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW)) {
+      return { id: '00000000-0000-0000-0000-000000000000' };
+    }
+
+    const contextPredicates = this.readableContextWhere(actorUserId, permissions);
+    return {
+      AND: [
+        {
+          OR: [
+            { status: { not: DocumentStatus.ARCHIVED }, archivedAt: null },
+            this.hasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_ARCHIVE)
+              ? { status: DocumentStatus.ARCHIVED }
+              : { id: '00000000-0000-0000-0000-000000000000' },
+          ],
+        },
+        {
+          OR: [
+            { visibility: DocumentVisibility.INTERNAL_ONLY },
+            { visibility: DocumentVisibility.CLIENT_SHARED },
+            {
+              visibility: { in: [DocumentVisibility.PRIVATE, DocumentVisibility.ASSIGNED_ONLY] },
+              ownerUserId: actorUserId,
+            },
+          ],
+        },
+        contextPredicates,
+      ],
+    };
+  }
+
+  private readableContextWhere(
+    actorUserId: string,
+    permissions: string[],
+  ): Prisma.DocumentWhereInput {
+    const missionScope = this.hasMissionOverride(permissions)
+      ? {}
+      : {
+          recruiters: {
+            some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+          },
+        };
+    const canViewMissionScope = this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW);
+    const canViewProcessScope =
+      canViewMissionScope &&
+      this.hasPermission(permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW);
+    const canViewInterviewScope =
+      canViewMissionScope && this.hasPermission(permissions, MISSION_PERMISSIONS.INTERVIEWS_VIEW);
+    return {
+      AND: [
+        this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW)
+          ? {
+              OR: [
+                { clientId: null },
+                { client: { status: { not: ClientStatus.ARCHIVED }, archivedAt: null } },
+              ],
+            }
+          : { clientId: null },
+        this.hasPermission(permissions, CANDIDATE_PERMISSIONS.CANDIDATES_VIEW)
+          ? {
+              OR: [
+                { candidateId: null },
+                { candidate: { status: { not: CandidateStatus.ARCHIVED }, archivedAt: null } },
+              ],
+            }
+          : { candidateId: null },
+        canViewMissionScope
+          ? {
+              OR: [
+                { recruitmentMissionId: null },
+                { recruitmentMission: { archivedAt: null, ...missionScope } },
+              ],
+            }
+          : { recruitmentMissionId: null },
+        canViewProcessScope
+          ? {
+              OR: [
+                { missionCandidateId: null },
+                {
+                  missionCandidate: {
+                    archivedAt: null,
+                    mission: { archivedAt: null, ...missionScope },
+                    candidate: { status: { not: CandidateStatus.ARCHIVED }, archivedAt: null },
+                  },
+                },
+              ],
+            }
+          : { missionCandidateId: null },
+        canViewInterviewScope
+          ? {
+              OR: [
+                { interviewId: null },
+                {
+                  interview: {
+                    status: { not: InterviewStatus.ARCHIVED },
+                    archivedAt: null,
+                    missionCandidate: {
+                      archivedAt: null,
+                      mission: { archivedAt: null, ...missionScope },
+                      candidate: { status: { not: CandidateStatus.ARCHIVED }, archivedAt: null },
+                    },
+                  },
+                },
+              ],
+            }
+          : { interviewId: null },
+      ],
+    };
+  }
+
+  private visibilityAllowsActor(document: DocumentRecord, actorUserId: string): boolean {
+    if (
+      document.visibility === DocumentVisibility.PRIVATE ||
+      document.visibility === DocumentVisibility.ASSIGNED_ONLY
+    ) {
+      return document.ownerUserId === actorUserId;
+    }
+    return true;
   }
 
   private assertSupportedDocumentType(documentType: DocumentType): void {
@@ -668,13 +962,16 @@ export class DocumentsService {
   }
 
   private prepareVersion(documentId: string, input: DocumentVersionCreateRequest): PreparedVersion {
+    if (!isStrictBase64(input.base64Content)) {
+      throw badRequest('DOCUMENT_FILE_BASE64_INVALID', 'File content must be strict base64.');
+    }
     const buffer = Buffer.from(input.base64Content, 'base64');
     const filename = sanitizeFilename(input.filename);
     this.assertFileIsSafe(input.filename, input.contentType, buffer);
     return {
       buffer,
       filename,
-      originalFilename: sanitizeFilename(input.filename),
+      originalFilename: safeOriginalFilename(input.filename),
       storageKey: `documents/${documentId}/${randomUUID()}-${filename}`,
       mimeType: input.contentType,
       sizeBytes: buffer.byteLength,
@@ -684,24 +981,111 @@ export class DocumentsService {
   }
 
   private assertFileIsSafe(filename: string, contentType: string, buffer: Buffer): void {
-    if (!allowedMimeTypes.includes(contentType as (typeof allowedMimeTypes)[number])) {
+    const policy = filePolicies.get(contentType);
+    const extension = extname(safeOriginalFilename(filename)).toLowerCase();
+    if (!policy) {
       throw badRequest('DOCUMENT_FILE_TYPE_REJECTED', 'File type is not allowed.');
     }
     if (buffer.byteLength === 0 || buffer.byteLength > maxDocumentFileSizeBytes) {
       throw badRequest('DOCUMENT_FILE_SIZE_REJECTED', 'File size is not allowed.');
     }
-    if (/\.(exe|bat|cmd|com|scr|js|jar|zip|rar|7z|tar|gz)$/i.test(filename)) {
+    if (dangerousExtensionPattern.test(filename) || !policy.extensions.includes(extension)) {
       throw badRequest('DOCUMENT_FILE_TYPE_REJECTED', 'File type is not allowed.');
     }
-    if (
-      buffer.subarray(0, 2).toString('hex') === '4d5a' ||
-      buffer.subarray(0, 2).toString() === 'PK'
-    ) {
+    if (buffer.subarray(0, 2).toString('hex') === '4d5a') {
       throw badRequest('DOCUMENT_FILE_TYPE_REJECTED', 'File type is not allowed.');
     }
-    if (contentType === 'application/pdf' && buffer.subarray(0, 4).toString() !== '%PDF') {
+    if (!policy.signatures.some((signature) => signature(buffer))) {
       throw badRequest('DOCUMENT_FILE_SIGNATURE_REJECTED', 'File content does not match type.');
     }
+  }
+
+  private async assertMissionContextScope(
+    missionId: string,
+    actorUserId: string,
+    permissions: string[],
+    transaction: PrismaService | PrismaTransaction,
+  ): Promise<void> {
+    if (!permissions.includes(MISSION_PERMISSIONS.MISSIONS_VIEW)) {
+      throw forbidden('DOCUMENT_MISSION_SCOPE_REQUIRED', 'Mission scope is required.');
+    }
+    if (this.hasMissionOverride(permissions)) {
+      return;
+    }
+    const assignment = await transaction.missionRecruiter.findFirst({
+      where: { missionId, userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+    });
+    if (!assignment) {
+      throw forbidden(
+        'DOCUMENT_MISSION_SCOPE_DENIED',
+        'Document access requires linked mission assignment scope.',
+      );
+    }
+  }
+
+  private async findMissionIdForProcess(
+    processId: string,
+    transaction: PrismaService | PrismaTransaction,
+  ): Promise<string | undefined> {
+    const process = await transaction.missionCandidate.findUnique({
+      where: { id: processId },
+      select: { missionId: true },
+    });
+    return process?.missionId;
+  }
+
+  private async findMissionIdForInterview(
+    interviewId: string,
+    transaction: PrismaService | PrismaTransaction,
+  ): Promise<string | undefined> {
+    const interview = await transaction.interview.findUnique({
+      where: { id: interviewId },
+      select: { missionCandidate: { select: { missionId: true } } },
+    });
+    return interview?.missionCandidate.missionId;
+  }
+
+  private hasMissionOverride(permissions: string[]): boolean {
+    return (
+      permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER) ||
+      permissions.includes(MISSION_PERMISSIONS.INTERVIEWS_ARCHIVE) ||
+      permissions.includes(MISSION_PERMISSIONS.EVALUATIONS_INTERNAL_VIEW) ||
+      permissions.includes(MISSION_PERMISSIONS.MISSION_ASSIGNMENTS_MANAGE)
+    );
+  }
+
+  private assertHasPermission(permissions: string[], permission: DocumentPermission): void {
+    if (!this.hasPermission(permissions, permission)) {
+      throw forbidden('DOCUMENT_PERMISSION_REQUIRED', `Document action requires ${permission}.`);
+    }
+  }
+
+  private hasPermission(permissions: string[], permission: string): boolean {
+    return permissions.includes(permission);
+  }
+
+  private async createAuditLog(
+    transaction: PrismaTransaction,
+    action: string,
+    context: RequestContext,
+    options: {
+      actorUserId: string;
+      entityType: 'Document' | 'DocumentVersion';
+      entityId?: string;
+      metadataSummary: string;
+    },
+  ): Promise<void> {
+    await transaction.auditLog.create({
+      data: {
+        action,
+        entityType: options.entityType,
+        entityId: options.entityId,
+        actorUserId: options.actorUserId,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        metadataSummary: options.metadataSummary,
+      },
+    });
   }
 
   private async deleteStoredFiles(keys: string[]): Promise<void> {
@@ -782,11 +1166,41 @@ const documentInclude = {
 } satisfies Prisma.DocumentInclude;
 
 function sanitizeFilename(filename: string): string {
-  const sanitized = filename
+  const sanitized = safeOriginalFilename(filename)
     .trim()
     .replace(/[^A-Za-z0-9._-]/g, '_')
     .replace(/_+/g, '_');
   return sanitized.length > 0 ? sanitized.slice(0, 180) : 'document';
+}
+
+function safeOriginalFilename(filename: string): string {
+  const basename = filename.split(/[\\/]/).filter(Boolean).at(-1) ?? 'document';
+  const cleaned = basename
+    .normalize('NFC')
+    .split('')
+    .filter((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint !== undefined && codePoint > 31 && codePoint !== 127;
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 180) : 'document';
+}
+
+function isStrictBase64(value: string): boolean {
+  return (
+    value.length % 4 === 0 &&
+    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
+  );
+}
+
+function looksLikeOoxml(buffer: Buffer, requiredDirectory: 'word/' | 'xl/'): boolean {
+  if (buffer.subarray(0, 4).toString('binary') !== 'PK\u0003\u0004') {
+    return false;
+  }
+  const sample = buffer.subarray(0, Math.min(buffer.length, 64_000)).toString('utf8');
+  return sample.includes('[Content_Types].xml') && sample.includes(requiredDirectory);
 }
 
 function isoOrNull(value: Date | null): string | null {

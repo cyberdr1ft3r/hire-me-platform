@@ -102,9 +102,9 @@ Issue #29 completed the internal offer-to-placement lifecycle. Task management, 
 
 ## Phase 7 - Documents, reporting, and collaboration
 
-**State:** Document foundation in progress through Issue #35
+**State:** Document foundation in review through Issue #35 / draft PR #40
 
-- Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, and authorized downloads.
+- Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
 - Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
 - Customizable dashboard indicators, reports, and exports.
 - Private messages and discussion groups.
