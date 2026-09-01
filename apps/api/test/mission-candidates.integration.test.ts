@@ -890,6 +890,7 @@ describe('Mission candidate process API', () => {
           where: { id: candidateRace.id },
           data: { status: CandidateStatus.ARCHIVED, archivedAt: new Date() },
         });
+        await new Promise((resolve) => setTimeout(resolve, 25));
         const createPromise = createProcess(
           baseUrl,
           token,

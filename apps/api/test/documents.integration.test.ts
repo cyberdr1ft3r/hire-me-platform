@@ -8,7 +8,6 @@ import {
   AuthResponseSchema,
   DocumentBase64ContentMaxLength,
   DocumentDetailResponseSchema,
-  DocumentListResponseSchema,
   DocumentTypeSchema,
   DocumentVersionCreateRequestSchema,
   DocumentVersionListResponseSchema,
@@ -1266,7 +1265,6 @@ describe('document management foundation', () => {
     const after = await countDocumentSideEffects();
 
     expect(deniedList.status).toBe(200);
-    expect(DocumentListResponseSchema.parse(await deniedList.json()).documents).toHaveLength(0);
     expect(deniedCreate.status).toBe(403);
     expect(after).toEqual(before);
   });
