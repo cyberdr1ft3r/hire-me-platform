@@ -356,6 +356,7 @@ export type {
   PublicOpportunityListResponse,
 } from './public-applications.js';
 export {
+  DocumentBase64ContentMaxLength,
   DocumentCreateRequestSchema,
   DocumentDetailResponseSchema,
   DocumentDetailSchema,

@@ -6,8 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   AuthResponseSchema,
+  DocumentBase64ContentMaxLength,
   DocumentDetailResponseSchema,
   DocumentTypeSchema,
+  DocumentVersionCreateRequestSchema,
   DocumentVersionListResponseSchema,
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
@@ -985,22 +987,28 @@ describe('document management foundation', () => {
       method: 'POST',
       headers: authHeaders(accessToken),
       body: JSON.stringify({
-        title: 'Issue35 Max Text Payload',
+        title: 'Issue35 Strict Text Payload',
         documentType: 'HR_DOCUMENT',
         context: {},
-        version: textVersionInput('max.txt', 4_000_000),
+        version: textVersionInput('strict.txt', 1024),
       }),
     });
-    const tooLarge = await fetch(`${baseUrl}/v1/documents`, {
-      method: 'POST',
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({
-        title: 'Issue35 Too Large Text Payload',
-        documentType: 'HR_DOCUMENT',
-        context: {},
-        version: textVersionInput('too-large.txt', 4_000_001),
-      }),
-    });
+    let tooLargeError: unknown;
+    try {
+      await documentsService.createDocument(
+        {
+          title: 'Issue35 Too Large Text Payload',
+          documentType: 'HR_DOCUMENT',
+          visibility: 'INTERNAL_ONLY',
+          context: {},
+          version: textVersionInput('too-large.txt', 4_000_001),
+        },
+        actorUserId,
+        { ipAddress: '127.0.0.1', userAgent: 'vitest' },
+      );
+    } catch (error) {
+      tooLargeError = error;
+    }
     const invalidBase64 = await fetch(`${baseUrl}/v1/documents`, {
       method: 'POST',
       headers: authHeaders(accessToken),
@@ -1031,11 +1039,20 @@ describe('document management foundation', () => {
         },
       }),
     });
+    const encodedTooLarge = DocumentVersionCreateRequestSchema.safeParse({
+      filename: 'encoded-too-large.txt',
+      contentType: 'text/plain',
+      base64Content: 'A'.repeat(DocumentBase64ContentMaxLength + 4),
+      outputFamily: 'OTHER',
+    });
 
     expect(accepted.status).toBe(201);
-    expect(tooLarge.status).toBe(400);
+    expect((tooLargeError as { getResponse: () => unknown }).getResponse()).toMatchObject({
+      error: { code: 'DOCUMENT_FILE_TOO_LARGE' },
+    });
     expect(invalidBase64.status).toBe(400);
     expect(empty.status).toBe(400);
+    expect(encodedTooLarge.success).toBe(false);
   });
 
   it('rejects archived context downloads while preserving document history', async () => {
