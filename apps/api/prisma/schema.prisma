@@ -333,6 +333,49 @@ enum TaskPriority {
   URGENT @map("urgent")
 }
 
+enum TaskAssignmentStatus {
+  ACTIVE   @map("active")
+  REMOVED  @map("removed")
+  ARCHIVED @map("archived")
+}
+
+enum TaskCommentStatus {
+  ACTIVE   @map("active")
+  EDITED   @map("edited")
+  ARCHIVED @map("archived")
+}
+
+enum TaskReminderStatus {
+  PENDING    @map("pending")
+  PROCESSING @map("processing")
+  SENT       @map("sent")
+  CANCELED   @map("canceled")
+  FAILED     @map("failed")
+}
+
+enum TaskEventAction {
+  CREATED                    @map("created")
+  UPDATED                    @map("updated")
+  OWNER_CHANGED              @map("owner_changed")
+  ASSIGNEE_ADDED             @map("assignee_added")
+  ASSIGNEE_REMOVED           @map("assignee_removed")
+  STATUS_CHANGED             @map("status_changed")
+  COMPLETED                  @map("completed")
+  CANCELED                   @map("canceled")
+  REOPENED                   @map("reopened")
+  COMMENT_CREATED            @map("comment_created")
+  COMMENT_EDITED             @map("comment_edited")
+  COMMENT_ARCHIVED           @map("comment_archived")
+  MENTIONED                  @map("mentioned")
+  REMINDER_CREATED           @map("reminder_created")
+  REMINDER_UPDATED           @map("reminder_updated")
+  REMINDER_CANCELED          @map("reminder_canceled")
+  REMINDER_DELIVERED         @map("reminder_delivered")
+  REMINDER_FAILED            @map("reminder_failed")
+  OVERDUE_NOTIFICATION_SENT  @map("overdue_notification_sent")
+  ARCHIVED                   @map("archived")
+}
+
 enum DocumentStatus {
   DRAFT      @map("draft")
   ACTIVE     @map("active")
@@ -496,6 +539,23 @@ model User {
   candidateEvaluations                CandidateEvaluation[]      @relation("EvaluationAuthor")
   assignedTasks                       Task[]                     @relation("TaskAssignee")
   createdTasks                        Task[]                     @relation("TaskCreator")
+  ownedTasks                          Task[]                     @relation("TaskOwner")
+  completedTasks                      Task[]                     @relation("TaskCompleter")
+  canceledTasks                       Task[]                     @relation("TaskCanceler")
+  reopenedTasks                       Task[]                     @relation("TaskReopener")
+  archivedTasks                       Task[]                     @relation("TaskArchiver")
+  taskAssignments                     TaskAssignment[]           @relation("TaskAssignmentUser")
+  createdTaskAssignments              TaskAssignment[]           @relation("TaskAssignmentCreator")
+  removedTaskAssignments              TaskAssignment[]           @relation("TaskAssignmentRemover")
+  authoredTaskComments                TaskComment[]              @relation("TaskCommentAuthor")
+  editedTaskComments                  TaskComment[]              @relation("TaskCommentEditor")
+  archivedTaskComments                TaskComment[]              @relation("TaskCommentArchiver")
+  receivedTaskMentions                TaskMention[]              @relation("TaskMentionUser")
+  createdTaskMentions                 TaskMention[]              @relation("TaskMentionCreator")
+  receivedTaskReminders               TaskReminder[]             @relation("TaskReminderRecipient")
+  createdTaskReminders                TaskReminder[]             @relation("TaskReminderCreator")
+  canceledTaskReminders               TaskReminder[]             @relation("TaskReminderCanceler")
+  taskEvents                          TaskEvent[]                @relation("TaskEventActor")
   ownedDocuments                      Document[]                 @relation("DocumentOwner")
   createdDocuments                    Document[]                 @relation("DocumentCreator")
   createdDocumentVersions             DocumentVersion[]          @relation("DocumentVersionCreator")
@@ -503,6 +563,7 @@ model User {
   createdCandidateDocumentVersions    CandidateDocumentVersion[] @relation("CandidateDocumentVersionCreator")
   notifications                       Notification[]             @relation("NotificationRecipient")
   authoredNotifications               Notification[]             @relation("NotificationActor")
+  archivedNotifications               Notification[]             @relation("NotificationArchiver")
   authoredMessages                    Message[]                  @relation("MessageAuthor")
   conversationMemberships             ConversationMember[]
   trainingEnrollments                 TrainingEnrollment[]       @relation("UserTrainingEnrollment")
@@ -1088,6 +1149,7 @@ model RecruitmentOffer {
   updatedBy        User?                     @relation("RecruitmentOfferUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   versions         RecruitmentOfferVersion[]
   events           OfferEvent[]
+  tasks            Task[]
 
   @@unique([missionCandidateId])
   @@index([missionId])
@@ -1141,6 +1203,7 @@ model RecruitmentOfferVersion {
   withdrawnBy        User?              @relation("RecruitmentOfferVersionWithdrawer", fields: [withdrawnByUserId], references: [id], onDelete: SetNull)
   placement          MissionPlacement?
   events             OfferEvent[]
+  tasks              Task[]
 
   @@unique([offerId, versionNumber])
   @@index([offerId])
@@ -1207,6 +1270,7 @@ model MissionPlacement {
   confirmedBy      User?                   @relation("MissionPlacementConfirmer", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
   correctedBy      User?                   @relation("MissionPlacementCorrector", fields: [correctedByUserId], references: [id], onDelete: SetNull)
   events           PlacementEvent[]
+  tasks            Task[]
 
   @@index([missionId])
   @@index([status])
@@ -1391,10 +1455,17 @@ model Task {
   title                          String
   description                    String?
   status                         TaskStatus   @default(OPEN)
+  startAt                        DateTime?
   dueAt                          DateTime?
+  timezone                       String?
   priority                       TaskPriority @default(NORMAL)
+  ownerUserId                    String?      @db.Uuid
   assigneeUserId                 String?      @db.Uuid
   createdByUserId                String?      @db.Uuid
+  completedByUserId              String?      @db.Uuid
+  canceledByUserId               String?      @db.Uuid
+  reopenedByUserId               String?      @db.Uuid
+  archivedByUserId               String?      @db.Uuid
   candidateId                    String?      @db.Uuid
   clientId                       String?      @db.Uuid
   clientContactId                String?      @db.Uuid
@@ -1402,17 +1473,33 @@ model Task {
   missionRecruiterId             String?      @db.Uuid
   missionCandidateId             String?      @db.Uuid
   interviewId                    String?      @db.Uuid
+  recruitmentOfferId             String?      @db.Uuid
+  recruitmentOfferVersionId      String?      @db.Uuid
+  missionPlacementId             String?      @db.Uuid
   trainingProgramId              String?      @db.Uuid
   trainingSessionId              String?      @db.Uuid
   trainingEnrollmentId           String?      @db.Uuid
   trainingSessionParticipationId String?      @db.Uuid
   documentId                     String?      @db.Uuid
+  completedAt                    DateTime?
+  completionNote                 String?
+  canceledAt                     DateTime?
+  cancellationReason             String?
+  reopenedAt                     DateTime?
+  reopenReason                   String?
+  blockingReason                 String?
   archivedAt                     DateTime?
+  archiveReason                  String?
   createdAt                      DateTime     @default(now())
   updatedAt                      DateTime     @updatedAt
 
   assignee                     User?                         @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   createdBy                    User?                         @relation("TaskCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  owner                        User?                         @relation("TaskOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  completedBy                  User?                         @relation("TaskCompleter", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  canceledBy                   User?                         @relation("TaskCanceler", fields: [canceledByUserId], references: [id], onDelete: SetNull)
+  reopenedBy                   User?                         @relation("TaskReopener", fields: [reopenedByUserId], references: [id], onDelete: SetNull)
+  archivedBy                   User?                         @relation("TaskArchiver", fields: [archivedByUserId], references: [id], onDelete: SetNull)
   candidate                    Candidate?                    @relation(fields: [candidateId], references: [id], onDelete: SetNull)
   client                       Client?                       @relation(fields: [clientId], references: [id], onDelete: SetNull)
   clientContact                ClientContact?                @relation(fields: [clientContactId], references: [id], onDelete: SetNull)
@@ -1420,22 +1507,167 @@ model Task {
   missionRecruiter             MissionRecruiter?             @relation(fields: [missionRecruiterId], references: [id], onDelete: SetNull)
   missionCandidate             MissionCandidate?             @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
   interview                    Interview?                    @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  recruitmentOffer             RecruitmentOffer?             @relation(fields: [recruitmentOfferId], references: [id], onDelete: SetNull)
+  recruitmentOfferVersion      RecruitmentOfferVersion?      @relation(fields: [recruitmentOfferVersionId], references: [id], onDelete: SetNull)
+  missionPlacement             MissionPlacement?             @relation(fields: [missionPlacementId], references: [id], onDelete: SetNull)
   trainingProgram              TrainingProgram?              @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
   trainingSession              TrainingSession?              @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
   trainingEnrollment           TrainingEnrollment?           @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
   trainingSessionParticipation TrainingSessionParticipation? @relation(fields: [trainingSessionParticipationId], references: [id], onDelete: SetNull)
   document                     Document?                     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  assignments                  TaskAssignment[]
+  comments                     TaskComment[]
+  mentions                     TaskMention[]
+  reminders                    TaskReminder[]
+  events                       TaskEvent[]
   notifications                Notification[]
 
+  @@index([ownerUserId])
   @@index([assigneeUserId])
+  @@index([createdByUserId])
   @@index([status])
+  @@index([priority])
+  @@index([startAt])
   @@index([dueAt])
   @@index([candidateId])
   @@index([clientId])
+  @@index([clientContactId])
   @@index([recruitmentMissionId])
+  @@index([missionRecruiterId])
   @@index([missionCandidateId])
+  @@index([interviewId])
+  @@index([recruitmentOfferId])
+  @@index([recruitmentOfferVersionId])
+  @@index([missionPlacementId])
   @@index([trainingEnrollmentId])
   @@index([documentId])
+  @@index([archivedAt])
+}
+
+model TaskAssignment {
+  id               String               @id @default(uuid()) @db.Uuid
+  taskId           String               @db.Uuid
+  userId           String               @db.Uuid
+  assignedByUserId String?              @db.Uuid
+  removedByUserId  String?              @db.Uuid
+  status           TaskAssignmentStatus @default(ACTIVE)
+  reason           String?
+  assignedAt       DateTime             @default(now())
+  removedAt        DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  user       User  @relation("TaskAssignmentUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("TaskAssignmentCreator", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  removedBy  User? @relation("TaskAssignmentRemover", fields: [removedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([assignedByUserId])
+  @@index([status])
+}
+
+model TaskComment {
+  id               String            @id @default(uuid()) @db.Uuid
+  taskId           String            @db.Uuid
+  authorUserId     String            @db.Uuid
+  body             String
+  status           TaskCommentStatus @default(ACTIVE)
+  editedAt         DateTime?
+  editedByUserId   String?           @db.Uuid
+  archivedAt       DateTime?
+  archivedByUserId String?           @db.Uuid
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  task       Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  author     User          @relation("TaskCommentAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  editedBy   User?         @relation("TaskCommentEditor", fields: [editedByUserId], references: [id], onDelete: SetNull)
+  archivedBy User?         @relation("TaskCommentArchiver", fields: [archivedByUserId], references: [id], onDelete: SetNull)
+  mentions   TaskMention[]
+
+  @@index([taskId])
+  @@index([authorUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TaskMention {
+  id              String   @id @default(uuid()) @db.Uuid
+  taskId          String   @db.Uuid
+  commentId       String   @db.Uuid
+  mentionedUserId String   @db.Uuid
+  createdByUserId String?  @db.Uuid
+  notificationId  String?  @unique @db.Uuid
+  createdAt       DateTime @default(now())
+
+  task          Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  comment       TaskComment   @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  mentionedUser User          @relation("TaskMentionUser", fields: [mentionedUserId], references: [id], onDelete: Restrict)
+  createdBy     User?         @relation("TaskMentionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  notification  Notification? @relation("TaskMentionNotification", fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@unique([commentId, mentionedUserId])
+  @@index([taskId])
+  @@index([mentionedUserId])
+}
+
+model TaskReminder {
+  id              String             @id @default(uuid()) @db.Uuid
+  taskId          String             @db.Uuid
+  recipientUserId String             @db.Uuid
+  creatorUserId   String?            @db.Uuid
+  remindAt        DateTime
+  status          TaskReminderStatus @default(PENDING)
+  idempotencyKey  String
+  processingToken String?
+  claimedAt       DateTime?
+  deliveredAt     DateTime?
+  canceledAt      DateTime?
+  canceledByUserId String?           @db.Uuid
+  failureReason   String?
+  attemptCount    Int                @default(0)
+  archivedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  recipient  User  @relation("TaskReminderRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  creator    User? @relation("TaskReminderCreator", fields: [creatorUserId], references: [id], onDelete: SetNull)
+  canceledBy User? @relation("TaskReminderCanceler", fields: [canceledByUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([recipientUserId])
+  @@index([status, remindAt])
+  @@index([createdAt])
+  @@unique([taskId, recipientUserId, idempotencyKey])
+}
+
+model TaskEvent {
+  id             String           @id @default(uuid()) @db.Uuid
+  taskId         String           @db.Uuid
+  actorUserId    String?          @db.Uuid
+  action         TaskEventAction
+  previousStatus TaskStatus?
+  nextStatus     TaskStatus?
+  reason         String?
+  safeSummary    String?
+  previousOwnerUserId String?          @db.Uuid
+  nextOwnerUserId     String?          @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  actor User? @relation("TaskEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([actorUserId])
+  @@index([previousOwnerUserId])
+  @@index([nextOwnerUserId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model TrainingProgram {
@@ -1637,12 +1869,14 @@ model DocumentVersion {
 
 model Notification {
   id                   String             @id @default(uuid()) @db.Uuid
+  idempotencyKey       String?            @unique
   recipientUserId      String             @db.Uuid
   actorUserId          String?            @db.Uuid
   type                 String
   title                String
   bodySummary          String?
   status               NotificationStatus @default(UNREAD)
+  readAt               DateTime?
   taskId               String?            @db.Uuid
   documentId           String?            @db.Uuid
   interviewId          String?            @db.Uuid
@@ -1650,12 +1884,14 @@ model Notification {
   missionCandidateId   String?            @db.Uuid
   trainingSessionId    String?            @db.Uuid
   trainingEnrollmentId String?            @db.Uuid
+  archivedByUserId     String?            @db.Uuid
   archivedAt           DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
   recipient          User                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
   actor              User?               @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  archivedBy         User?               @relation("NotificationArchiver", fields: [archivedByUserId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
   document           Document?           @relation(fields: [documentId], references: [id], onDelete: SetNull)
   interview          Interview?          @relation(fields: [interviewId], references: [id], onDelete: SetNull)
@@ -1663,12 +1899,15 @@ model Notification {
   missionCandidate   MissionCandidate?   @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
   trainingSession    TrainingSession?    @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
   trainingEnrollment TrainingEnrollment? @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
+  taskMentions       TaskMention[]       @relation("TaskMentionNotification")
 
   @@index([recipientUserId])
   @@index([actorUserId])
   @@index([status])
+  @@index([readAt])
   @@index([taskId])
   @@index([documentId])
+  @@index([archivedAt])
 }
 
 model Conversation {

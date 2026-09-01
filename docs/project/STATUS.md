@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Internal task management, reminders, comments, and notifications
-**Health:** Issue #29 / PR #30 is merged. The final offer-to-placement blocking fix passed CI, and persistent project memory is being reconciled through Issue #33.
-**Current blocker:** None for merged Issue #29. Issue #33 is documentation/project-memory reconciliation only.
-**Next executable development task:** Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
+**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`; final follow-up fixes are being pushed and require exact-head GitHub Actions plus reviewer approval.
+**Current blocker:** PR #32 must remain draft/open until reviewer approval and GitHub Actions pass on the pushed head that includes the final follow-up fixes.
+**Next executable development task:** Complete PR #32 review/CI, keep it unmerged until approved, then select the next approved GitHub issue.
 
 ## Active work
 
@@ -26,8 +26,8 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Start scoped implementation after Issue #33 reconciliation is reviewed |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Complete documentation-only reconciliation PR |
+| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Push final follow-up fixes and complete exact-head PR #32 review/CI |
+| Issue #33 | Complete | Reconcile project memory after Issue #29 / PR #30 merge | No action |
 
 ## Completed foundation work
 
@@ -195,6 +195,18 @@ Status owner: repository maintainer
 - Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
+## Issue #31 Verification State
+
+- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`.
+- Scope is limited to authenticated internal task management, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware operational UI.
+- The implementation does not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
+- Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
+- Internal task visibility requires base `tasks:view` or explicit `tasks:view_all` plus task owner, creator, active assignee, or implemented linked-record scope. `tasks:view_all` is the separate broad oversight permission.
+- Blocking-review fixes make reminder idempotency composite by task, recipient, and key; authorize linked context before task creation/update; require `tasks:assign` for task creation with assignees; re-check owner/assignee eligibility inside locked write transactions; add a dedicated owner-change endpoint/event/notification; require an active `TaskAssignment` before `IN_PROGRESS`; expose task search/filter/pagination; expose notification status filtering, read, unread-only read-all, and archive; and keep rejected actions from writing partial task rows/events.
+- Final follow-up fixes revalidate comment authorization, mention visibility, and reminder recipient eligibility inside locked Task transactions before writing comments, mentions, reminders, notifications, history, or audit entries.
+- Reminder processing discovers due reminder IDs first, then locks and rechecks the parent `Task` and `TaskReminder` rows with a consistent task-then-reminder order and allowed state transitions so sent reminders cannot be resurrected to pending or canceled by stale requests.
+- Local checks for the latest follow-up pass: `pnpm.cmd prisma:validate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `pnpm.cmd format:check`. Local PostgreSQL integration validation is blocked because Docker Desktop service is stopped and this session cannot start it; the new pushed head must pass GitHub Actions database migration/seed/integration tests.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -214,7 +226,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete Issue #33 documentation reconciliation, then start Issue #31 unless a newer approved issue supersedes it.
+1. Push the final Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact new head, and keep the PR draft/unmerged until approved.
 
 ## Status Update Rules
 

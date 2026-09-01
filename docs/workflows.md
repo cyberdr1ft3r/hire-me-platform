@@ -516,6 +516,47 @@ stateDiagram-v2
     participation_archived --> [*]
 ```
 
+### Valid Task Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> open
+    open --> in_progress
+    open --> waiting
+    open --> blocked
+    open --> completed
+    open --> canceled
+    in_progress --> waiting
+    in_progress --> blocked
+    in_progress --> completed
+    in_progress --> canceled
+    waiting --> open
+    waiting --> in_progress
+    waiting --> blocked
+    waiting --> canceled
+    blocked --> open
+    blocked --> in_progress
+    blocked --> waiting
+    blocked --> canceled
+    completed --> open: reopen with reason
+    canceled --> open: reopen with reason
+    completed --> archived
+    canceled --> archived
+    archived --> [*]
+```
+
+Task lifecycle rules:
+
+- Every task has one accountable internal owner and can have multiple active assignees through normalized assignment records.
+- Assignment removal preserves history instead of deleting prior responsibility.
+- Blocking, cancellation, reopening, and archival require safe reason metadata.
+- Completion, cancellation, and archival cancel pending or failed reminders that are no longer relevant.
+- Retrying a completion, cancellation, or archive after the first successful terminal write returns the existing state without duplicate history or audit entries.
+- Task comments are internal business records. Explicit mentions identify user IDs and do not grant access; a mentioned user must already be able to view the task.
+- Task reminders are durable in-app reminders only. Issue #31 does not implement email, WhatsApp, calendar, browser, mobile-push, or external notification delivery.
+- Due reminder workers discover pending or failed due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks, and create task notifications through idempotency keys so concurrent workers create at most one notification.
+- Overdue task notifications are task-generated in-app notifications and must not include confidential candidate, salary, client, commercial, HR note, or comment-body payloads.
+
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.
@@ -540,6 +581,7 @@ stateDiagram-v2
 - Production public opportunity URL/token strategy beyond opaque slugs, CAPTCHA provider, malware scanner, retention schedule, and applicant duplicate-review workflow.
 - How `TrainingEnrollment` payment status integrates with the later commercial-accounting module.
 - Commercial accounting workflows for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, balances, and profitability.
+- Whether future task automation can create tasks from client feedback, documents, imports, integrations, or accounting events.
 - Whether workflow state names become database enums or shared constants.
 
 ## Risks

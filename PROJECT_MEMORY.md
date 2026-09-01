@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -26,7 +26,8 @@ Internal task management, reminders, comments, and notifications.
 - Issue #25 is complete; PR #26 merged product realignment around internal operations, public applications, client portal boundaries, training identities, and commercial accounting.
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
-- Current executable goal: Issue #31, "Implement internal task management, reminders, comments, and notifications," unless a newer approved issue supersedes it.
+- Issue #33 is complete; PR #34 reconciled project memory after the Issue #29 / PR #30 merge.
+- Current executable goal: finish the final follow-up review/CI cycle for draft PR #32 for Issue #31 internal task management, reminders, comments, and notifications on branch `feat/task-management`, using decisions D-004, D-023 through D-046.
 
 ## Confirmed Product Facts
 
@@ -56,6 +57,7 @@ Internal task management, reminders, comments, and notifications.
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
 - Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Task management, accounting, payroll, training, and any future client portal each need their own later issues.
+- Issue #31 is in draft PR #32. It adds internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 
 ## Technical Direction
 
@@ -74,6 +76,7 @@ Internal task management, reminders, comments, and notifications.
 - Interview and structured-evaluation implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/interviews` endpoints, explicit interview participants and lifecycle history, presentation-gated client interviews, idempotent completion and evaluation finalization, bounded structured evaluation fields, confidential evaluation redaction, and the established mission-candidate PostgreSQL lock order extended to the interview row.
 - Public opportunity and candidate application foundation is merged. It preserves the API-owned Prisma boundary, uses explicit public DTOs, exposes only approved public fields, accepts unauthenticated submissions safely, preserves file-version history, and enforces one candidate process per mission/candidate pair.
 - Offer and placement implementation uses permission-code guarded nested `/v1/missions/:missionId/candidates/:processId/offers` and placement endpoints, immutable offer versions, safe audit metadata, explicit offer-backed placement confirmation, idempotent correction, closure eligibility without auto-closure, and the established mission-candidate PostgreSQL lock order. The retired legacy `confirm-integration` route is compatibility-only and returns `PLACEMENT_OFFER_CONFIRMATION_REQUIRED`; historical `MissionCandidate.placementConfirmedAt` rows are not silently backfilled to `MissionPlacement`.
+- Task management implementation uses permission-code guarded `/v1/tasks` and `/v1/notifications` endpoints, one accountable owner with a dedicated owner-change action, normalized multiple-assignee history, explicit authorized context foreign keys, comments, mentions, durable in-app reminders, task events, own-notification controls, row-locked task mutations, locked reminder processing, composite task/recipient reminder idempotency, event-scoped task notification idempotency, and safe audit summaries. Internal task visibility requires `tasks:view` or `tasks:view_all` plus record scope; `tasks:view_all` is the separate broad oversight permission. Comment and reminder recipient eligibility is revalidated inside the locked Task transaction before side effects. Moving a task to `IN_PROGRESS` requires at least one active `TaskAssignment`; `Task.assigneeUserId` remains compatibility-only.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

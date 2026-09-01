@@ -22,19 +22,27 @@ import type {
   OfferAggregate,
   InternalPublicApplicationSummary,
   InternalPublicOpportunity,
+  Notification,
   PublicOpportunity,
+  TaskSummary,
 } from '@hire-me/contracts';
 
 import {
   archiveCandidate,
   archiveClient,
   archiveClientContact,
+  archiveNotification,
   archiveMission,
   archiveMissionAssignment,
   archiveInterview,
   cancelInterview,
+  addTaskAssignment,
   assignAdminRole,
+  changeTaskOwner,
   completeInterview,
+  createTask as createInternalTask,
+  createTaskComment,
+  createTaskReminder,
   createCandidate,
   createCandidateEducation,
   createCandidateLanguage,
@@ -59,6 +67,8 @@ import {
   listClients,
   listMissionAssignments,
   listMissions,
+  listNotifications,
+  listTasks,
   listInternalPublicApplications,
   listPublicOpportunities,
   listEvaluations,
@@ -68,6 +78,8 @@ import {
   listAdminUsers,
   login,
   logout,
+  markAllNotificationsRead,
+  markNotificationRead,
   removeAdminRole,
   revokeAdminSession,
   revokeAllAdminSessions,
@@ -97,6 +109,7 @@ import {
   listMissionCandidates,
   presentMissionCandidate,
   postponeInterview,
+  processDueTaskReminders,
   refresh,
   rescheduleInterview,
   transferMissionCandidate,
@@ -105,6 +118,7 @@ import {
   recordMissionCandidateOfferResponse,
   reviseMissionCandidateOffer,
   withdrawMissionCandidateOffer,
+  updateTaskStatus,
 } from './api.js';
 
 type ApiState =
@@ -112,12 +126,13 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions';
+type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks';
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
 const CLIENTS_ROUTE_PERMISSION = 'clients:view';
 const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 const MISSIONS_ROUTE_PERMISSION = 'missions:view';
+const TASKS_ROUTE_PERMISSION = 'tasks:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -133,7 +148,9 @@ export function App() {
           ? 'candidates'
           : window.location.pathname === '/missions'
             ? 'missions'
-            : 'home',
+            : window.location.pathname === '/tasks'
+              ? 'tasks'
+              : 'home',
   );
 
   useEffect(() => {
@@ -240,7 +257,9 @@ export function App() {
             ? '/candidates'
             : nextRoute === 'missions'
               ? '/missions'
-              : '/',
+              : nextRoute === 'tasks'
+                ? '/tasks'
+                : '/',
     );
   }
 
@@ -256,6 +275,7 @@ export function App() {
   const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
   const canOpenCandidates = Boolean(user?.permissions.includes(CANDIDATES_ROUTE_PERMISSION));
   const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
+  const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -321,6 +341,14 @@ export function App() {
               }}
             >
               Missions
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigate('tasks');
+              }}
+            >
+              Tasks
             </button>
             <button
               type="button"
@@ -394,8 +422,444 @@ export function App() {
           </section>
         )
       ) : null}
+      {route === 'tasks' && user && accessToken ? (
+        canOpenTasks ? (
+          <TasksPanel accessToken={accessToken} user={user} />
+        ) : (
+          <section className="admin-panel" aria-label="Tasks">
+            <h2>Tasks</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
     </main>
   );
+}
+
+function TasksPanel({ accessToken, user }: { accessToken: string; user: AuthenticatedUser }) {
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('');
+  const [taskOwnerFilter, setTaskOwnerFilter] = useState('');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState('');
+  const [taskTotal, setTaskTotal] = useState(0);
+  const [notificationStatusFilter, setNotificationStatusFilter] = useState('');
+  const [notificationTotal, setNotificationTotal] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+  const permissions = new Set(user.permissions);
+  const canViewTasks = permissions.has('tasks:view');
+  const canCreateTasks = permissions.has('tasks:create');
+  const canAssignTasks = permissions.has('tasks:assign');
+  const canTransitionTasks = permissions.has('tasks:transition');
+  const canCommentTasks = permissions.has('tasks:comment');
+  const canManageReminders = permissions.has('tasks:reminders:manage');
+  const canViewNotifications = permissions.has('notifications:view_own');
+
+  useEffect(() => {
+    void loadTasks();
+    void loadNotifications();
+  }, []);
+
+  async function loadTasks(
+    nextSearch = taskSearch,
+    nextStatus = taskStatusFilter,
+    nextOwner = taskOwnerFilter,
+    nextAssignee = taskAssigneeFilter,
+  ): Promise<void> {
+    if (!canViewTasks) {
+      return;
+    }
+    const response = await listTasks(accessToken, {
+      search: nextSearch || undefined,
+      status: nextStatus ? (nextStatus as TaskSummary['status']) : undefined,
+      ownerUserId: nextOwner || undefined,
+      assigneeUserId: nextAssignee || undefined,
+      pageSize: 25,
+    });
+    setTasks(response.tasks);
+    setTaskTotal(response.pageInfo.total);
+    setSelectedTaskId((current) => current || response.tasks[0]?.id || '');
+  }
+
+  async function loadNotifications(nextStatus = notificationStatusFilter): Promise<void> {
+    if (!canViewNotifications) {
+      return;
+    }
+    const response = await listNotifications(accessToken, {
+      status: notificationListStatus(nextStatus),
+      pageSize: 25,
+    });
+    setNotifications(response.notifications);
+    setNotificationTotal(response.pageInfo.total);
+  }
+
+  async function handleTaskFilters(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadTasks(taskSearch, taskStatusFilter, taskOwnerFilter, taskAssigneeFilter);
+  }
+
+  async function handleNotificationFilters(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadNotifications(notificationStatusFilter);
+  }
+
+  async function createTask(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const assigneeUserId = formValue(formData, 'assigneeUserId');
+    const created = await createInternalTask(accessToken, {
+      title: formValue(formData, 'title'),
+      description: formValue(formData, 'description') || null,
+      priority: formValue(formData, 'priority', 'NORMAL') as TaskSummary['priority'],
+      ownerUserId: user.id,
+      assigneeUserIds: assigneeUserId ? [assigneeUserId] : [],
+      dueAt: localDateTimeToIso(formValue(formData, 'dueAt')),
+      context: {
+        recruitmentMissionId: formValue(formData, 'recruitmentMissionId') || null,
+        missionCandidateId: formValue(formData, 'missionCandidateId') || null,
+      },
+    });
+    setSelectedTaskId(created.task.id);
+    setMessage('Task created.');
+    form.reset();
+    await loadTasks();
+    await loadNotifications();
+  }
+
+  async function transitionTask(status: TaskSummary['status']): Promise<void> {
+    if (!selectedTaskId) {
+      return;
+    }
+    await updateTaskStatus(accessToken, selectedTaskId, {
+      status,
+      reason:
+        status === 'CANCELED'
+          ? 'Canceled from the internal task workspace.'
+          : status === 'BLOCKED'
+            ? 'Blocked from the internal task workspace.'
+            : null,
+    });
+    setMessage(`Task moved to ${status}.`);
+    await loadTasks();
+    await loadNotifications();
+  }
+
+  async function addAssignment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedTaskId) {
+      return;
+    }
+    const formData = new FormData(form);
+    await addTaskAssignment(accessToken, selectedTaskId, {
+      userId: formValue(formData, 'userId'),
+      reason: formValue(formData, 'reason') || null,
+    });
+    setMessage('Task assignee added.');
+    form.reset();
+    await loadTasks();
+    await loadNotifications();
+  }
+
+  async function changeOwner(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedTaskId) {
+      return;
+    }
+    const formData = new FormData(form);
+    await changeTaskOwner(accessToken, selectedTaskId, {
+      ownerUserId: formValue(formData, 'ownerUserId'),
+      reason: formValue(formData, 'reason') || null,
+    });
+    setMessage('Task owner changed.');
+    form.reset();
+    await loadTasks();
+    await loadNotifications();
+  }
+
+  async function addComment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedTaskId) {
+      return;
+    }
+    const formData = new FormData(form);
+    const mentionedUserIds = formValue(formData, 'mentionedUserIds')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    await createTaskComment(accessToken, selectedTaskId, {
+      body: formValue(formData, 'body'),
+      mentionedUserIds,
+    });
+    setMessage('Task comment added.');
+    form.reset();
+    await loadNotifications();
+  }
+
+  async function addReminder(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedTaskId) {
+      return;
+    }
+    const formData = new FormData(form);
+    await createTaskReminder(accessToken, selectedTaskId, {
+      recipientUserId: formValue(formData, 'recipientUserId'),
+      remindAt: localDateTimeToIso(formValue(formData, 'remindAt')) ?? new Date().toISOString(),
+    });
+    setMessage('Task reminder created.');
+    form.reset();
+    await loadTasks();
+  }
+
+  async function processReminders(): Promise<void> {
+    const response = await processDueTaskReminders(accessToken);
+    setMessage(
+      `Processed ${response.remindersDelivered} reminders and ${response.overdueNotificationsCreated} overdue notices.`,
+    );
+    await loadNotifications();
+  }
+
+  async function readNotification(notificationId: string): Promise<void> {
+    await markNotificationRead(accessToken, notificationId);
+    setMessage('Notification marked read.');
+    await loadNotifications();
+  }
+
+  async function readAllNotifications(): Promise<void> {
+    const response = await markAllNotificationsRead(accessToken);
+    setMessage(`${response.updatedCount} notifications marked read.`);
+    await loadNotifications();
+  }
+
+  async function archiveOneNotification(notificationId: string): Promise<void> {
+    await archiveNotification(accessToken, notificationId);
+    setMessage('Notification archived.');
+    await loadNotifications();
+  }
+
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  return (
+    <section className="admin-panel" aria-label="Tasks">
+      <div className="panel-heading">
+        <div>
+          <h2>Tasks</h2>
+          <p>Internal operational tasks, reminders, comments, and in-app notifications.</p>
+        </div>
+        {canManageReminders ? (
+          <button type="button" onClick={() => void processReminders()}>
+            Process reminders
+          </button>
+        ) : null}
+      </div>
+      {message ? <p role="status">{message}</p> : null}
+      {canViewTasks ? (
+        <div className="grid-two">
+          <section aria-label="Task list">
+            <h3>Visible tasks</h3>
+            <form
+              className="compact-form"
+              aria-label="Filter tasks"
+              onSubmit={(event) => void handleTaskFilters(event)}
+            >
+              <input
+                aria-label="Search tasks"
+                value={taskSearch}
+                onChange={(event) => setTaskSearch(event.target.value)}
+                placeholder="Search tasks"
+              />
+              <select
+                aria-label="Task status"
+                value={taskStatusFilter}
+                onChange={(event) => setTaskStatusFilter(event.target.value)}
+              >
+                <option value="">Any status</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In progress</option>
+                <option value="WAITING">Waiting</option>
+                <option value="BLOCKED">Blocked</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELED">Canceled</option>
+              </select>
+              <input
+                aria-label="Owner user UUID"
+                value={taskOwnerFilter}
+                onChange={(event) => setTaskOwnerFilter(event.target.value)}
+                placeholder="Owner user UUID"
+              />
+              <input
+                aria-label="Assignee user UUID"
+                value={taskAssigneeFilter}
+                onChange={(event) => setTaskAssigneeFilter(event.target.value)}
+                placeholder="Assignee user UUID"
+              />
+              <button type="submit">Filter tasks</button>
+            </form>
+            <p>{taskTotal} visible tasks.</p>
+            {tasks.length > 0 ? (
+              <ul className="plain-list">
+                {tasks.map((task) => (
+                  <li key={task.id}>
+                    <button type="button" onClick={() => setSelectedTaskId(task.id)}>
+                      {task.title}
+                    </button>
+                    <span>
+                      {task.status} - {task.priority}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No visible tasks.</p>
+            )}
+          </section>
+          <section aria-label="Selected task">
+            <h3>{selectedTask?.title ?? 'Select a task'}</h3>
+            {selectedTask ? (
+              <>
+                <p>
+                  {selectedTask.status} - owner {selectedTask.ownerDisplayName ?? 'Unassigned'}
+                </p>
+                {canTransitionTasks ? (
+                  <div className="action-row" aria-label="Task lifecycle actions">
+                    <button type="button" onClick={() => void transitionTask('IN_PROGRESS')}>
+                      Start
+                    </button>
+                    <button type="button" onClick={() => void transitionTask('BLOCKED')}>
+                      Block
+                    </button>
+                    <button type="button" onClick={() => void transitionTask('COMPLETED')}>
+                      Complete
+                    </button>
+                    <button type="button" onClick={() => void transitionTask('CANCELED')}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : null}
+                {canAssignTasks ? (
+                  <>
+                    <form className="compact-form" onSubmit={(event) => void changeOwner(event)}>
+                      <h4>Change owner</h4>
+                      <input name="ownerUserId" placeholder="New owner user UUID" required />
+                      <input name="reason" placeholder="Reason" />
+                      <button type="submit">Change owner</button>
+                    </form>
+                    <form className="compact-form" onSubmit={(event) => void addAssignment(event)}>
+                      <h4>Add assignee</h4>
+                      <input name="userId" placeholder="Internal user UUID" required />
+                      <input name="reason" placeholder="Reason" />
+                      <button type="submit">Assign</button>
+                    </form>
+                  </>
+                ) : null}
+                {canCommentTasks ? (
+                  <form className="compact-form" onSubmit={(event) => void addComment(event)}>
+                    <h4>Add comment</h4>
+                    <textarea name="body" placeholder="Internal comment" required />
+                    <input
+                      name="mentionedUserIds"
+                      placeholder="Mention user UUIDs, comma-separated"
+                    />
+                    <button type="submit">Comment</button>
+                  </form>
+                ) : null}
+                {canManageReminders ? (
+                  <form className="compact-form" onSubmit={(event) => void addReminder(event)}>
+                    <h4>Add reminder</h4>
+                    <input name="recipientUserId" placeholder="Recipient user UUID" required />
+                    <input name="remindAt" type="datetime-local" required />
+                    <button type="submit">Remind</button>
+                  </form>
+                ) : null}
+              </>
+            ) : null}
+          </section>
+        </div>
+      ) : (
+        <p role="alert">Permission denied.</p>
+      )}
+      {canCreateTasks ? (
+        <form
+          className="admin-form"
+          aria-label="Create task"
+          onSubmit={(event) => void createTask(event)}
+        >
+          <h3>Create task</h3>
+          <input name="title" placeholder="Task title" required />
+          <textarea name="description" placeholder="Description" />
+          <select name="priority" defaultValue="NORMAL">
+            <option value="LOW">Low</option>
+            <option value="NORMAL">Normal</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+          <input name="dueAt" type="datetime-local" />
+          <input name="assigneeUserId" placeholder="Initial assignee UUID" />
+          <input name="recruitmentMissionId" placeholder="Mission UUID" />
+          <input name="missionCandidateId" placeholder="Mission candidate UUID" />
+          <button type="submit">Create task</button>
+        </form>
+      ) : null}
+      {canViewNotifications ? (
+        <section aria-label="Notifications">
+          <h3>Notifications</h3>
+          <form
+            className="compact-form"
+            aria-label="Filter notifications"
+            onSubmit={(event) => void handleNotificationFilters(event)}
+          >
+            <select
+              aria-label="Notification status"
+              value={notificationStatusFilter}
+              onChange={(event) => setNotificationStatusFilter(event.target.value)}
+            >
+              <option value="">Any status</option>
+              <option value="UNREAD">Unread</option>
+              <option value="READ">Read</option>
+            </select>
+            <button type="submit">Filter notifications</button>
+            <button type="button" onClick={() => void readAllNotifications()}>
+              Mark visible read
+            </button>
+          </form>
+          <p>{notificationTotal} visible notifications.</p>
+          {notifications.length > 0 ? (
+            <ul className="plain-list">
+              {notifications.map((notification) => (
+                <li key={notification.id}>
+                  <strong>{notification.title}</strong>
+                  <span>{notification.status}</span>
+                  {notification.status === 'UNREAD' ? (
+                    <button type="button" onClick={() => void readNotification(notification.id)}>
+                      Mark read
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void archiveOneNotification(notification.id)}
+                  >
+                    Archive
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No notifications.</p>
+          )}
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
+function notificationListStatus(status: string): 'UNREAD' | 'READ' | undefined {
+  return status === 'UNREAD' || status === 'READ' ? status : undefined;
 }
 
 function AdminPanel({ accessToken }: { accessToken: string }) {
@@ -3631,6 +4095,10 @@ function PublicOpportunityDetailPage({ publicSlug }: { publicSlug: string }) {
 function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : fallback;
+}
+
+function localDateTimeToIso(value: string): string | null {
+  return value ? new Date(value).toISOString() : null;
 }
 
 function optionalFormValue(formData: FormData, name: string): string | undefined {
