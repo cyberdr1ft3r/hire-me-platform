@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -102,7 +103,7 @@ const filePolicies = new Map<string, FilePolicy>([
     ooxmlDocxMime,
     {
       extensions: ['.docx'],
-      signatures: [(buffer) => looksLikeOoxml(buffer, 'word/')],
+      signatures: [(buffer) => looksLikeOoxml(buffer, 'docx')],
       outputFamily: 'WORD',
     },
   ],
@@ -110,7 +111,7 @@ const filePolicies = new Map<string, FilePolicy>([
     ooxmlXlsxMime,
     {
       extensions: ['.xlsx'],
-      signatures: [(buffer) => looksLikeOoxml(buffer, 'xl/')],
+      signatures: [(buffer) => looksLikeOoxml(buffer, 'xlsx')],
       outputFamily: 'EXCEL',
     },
   ],
@@ -753,27 +754,44 @@ export class DocumentsService {
     if (context.candidateId && !permissions.includes(CANDIDATE_PERMISSIONS.CANDIDATES_VIEW)) {
       throw forbidden('DOCUMENT_CANDIDATE_SCOPE_REQUIRED', 'Candidate scope is required.');
     }
-    const missionId =
-      context.recruitmentMissionId ??
-      (context.missionCandidateId
-        ? await this.findMissionIdForProcess(context.missionCandidateId, transaction)
-        : context.interviewId
-          ? await this.findMissionIdForInterview(context.interviewId, transaction)
-          : undefined);
-    if (missionId) {
-      await this.assertMissionContextScope(missionId, actorUserId, permissions, transaction);
+    if (context.recruitmentMissionId) {
+      await this.assertMissionContextScope(
+        context.recruitmentMissionId,
+        actorUserId,
+        permissions,
+        transaction,
+        'mission',
+      );
     }
-    if (context.recruitmentMissionId && !permissions.includes(MISSION_PERMISSIONS.MISSIONS_VIEW)) {
-      throw forbidden('DOCUMENT_MISSION_SCOPE_REQUIRED', 'Mission scope is required.');
+    if (context.missionCandidateId) {
+      if (!permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)) {
+        throw forbidden('DOCUMENT_PROCESS_SCOPE_REQUIRED', 'Mission-candidate scope is required.');
+      }
+      const missionId = await this.findMissionIdForProcess(context.missionCandidateId, transaction);
+      if (missionId) {
+        await this.assertMissionContextScope(
+          missionId,
+          actorUserId,
+          permissions,
+          transaction,
+          'process',
+        );
+      }
     }
-    if (
-      context.missionCandidateId &&
-      !permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)
-    ) {
-      throw forbidden('DOCUMENT_PROCESS_SCOPE_REQUIRED', 'Mission-candidate scope is required.');
-    }
-    if (context.interviewId && !permissions.includes(MISSION_PERMISSIONS.INTERVIEWS_VIEW)) {
-      throw forbidden('DOCUMENT_INTERVIEW_SCOPE_REQUIRED', 'Interview scope is required.');
+    if (context.interviewId) {
+      if (!permissions.includes(MISSION_PERMISSIONS.INTERVIEWS_VIEW)) {
+        throw forbidden('DOCUMENT_INTERVIEW_SCOPE_REQUIRED', 'Interview scope is required.');
+      }
+      const missionId = await this.findMissionIdForInterview(context.interviewId, transaction);
+      if (missionId) {
+        await this.assertMissionContextScope(
+          missionId,
+          actorUserId,
+          permissions,
+          transaction,
+          'interview',
+        );
+      }
     }
   }
 
@@ -856,13 +874,13 @@ export class DocumentsService {
     actorUserId: string,
     permissions: string[],
   ): Prisma.DocumentWhereInput {
-    const missionScope = this.hasMissionOverride(permissions)
+    const assignedMissionScope = this.assignedMissionWhere(actorUserId);
+    const processMissionScope = this.hasProcessScopeOverride(permissions)
       ? {}
-      : {
-          recruiters: {
-            some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
-          },
-        };
+      : assignedMissionScope;
+    const interviewMissionScope = this.hasInterviewScopeOverride(permissions)
+      ? {}
+      : assignedMissionScope;
     const canViewMissionScope = this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW);
     const canViewProcessScope =
       canViewMissionScope &&
@@ -891,7 +909,7 @@ export class DocumentsService {
           ? {
               OR: [
                 { recruitmentMissionId: null },
-                { recruitmentMission: { archivedAt: null, ...missionScope } },
+                { recruitmentMission: { archivedAt: null, ...assignedMissionScope } },
               ],
             }
           : { recruitmentMissionId: null },
@@ -902,7 +920,7 @@ export class DocumentsService {
                 {
                   missionCandidate: {
                     archivedAt: null,
-                    mission: { archivedAt: null, ...missionScope },
+                    mission: { archivedAt: null, ...processMissionScope },
                     candidate: { status: { not: CandidateStatus.ARCHIVED }, archivedAt: null },
                   },
                 },
@@ -919,7 +937,7 @@ export class DocumentsService {
                     archivedAt: null,
                     missionCandidate: {
                       archivedAt: null,
-                      mission: { archivedAt: null, ...missionScope },
+                      mission: { archivedAt: null, ...interviewMissionScope },
                       candidate: { status: { not: CandidateStatus.ARCHIVED }, archivedAt: null },
                     },
                   },
@@ -1008,11 +1026,15 @@ export class DocumentsService {
     actorUserId: string,
     permissions: string[],
     transaction: PrismaService | PrismaTransaction,
+    contextKind: 'mission' | 'process' | 'interview',
   ): Promise<void> {
     if (!permissions.includes(MISSION_PERMISSIONS.MISSIONS_VIEW)) {
       throw forbidden('DOCUMENT_MISSION_SCOPE_REQUIRED', 'Mission scope is required.');
     }
-    if (this.hasMissionOverride(permissions)) {
+    if (
+      (contextKind === 'process' && this.hasProcessScopeOverride(permissions)) ||
+      (contextKind === 'interview' && this.hasInterviewScopeOverride(permissions))
+    ) {
       return;
     }
     const assignment = await transaction.missionRecruiter.findFirst({
@@ -1048,12 +1070,22 @@ export class DocumentsService {
     return interview?.missionCandidate.missionId;
   }
 
-  private hasMissionOverride(permissions: string[]): boolean {
+  private assignedMissionWhere(actorUserId: string): Prisma.RecruitmentMissionWhereInput {
+    return {
+      recruiters: {
+        some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+      },
+    };
+  }
+
+  private hasProcessScopeOverride(permissions: string[]): boolean {
+    return permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER);
+  }
+
+  private hasInterviewScopeOverride(permissions: string[]): boolean {
     return (
-      permissions.includes(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER) ||
       permissions.includes(MISSION_PERMISSIONS.INTERVIEWS_ARCHIVE) ||
-      permissions.includes(MISSION_PERMISSIONS.EVALUATIONS_INTERNAL_VIEW) ||
-      permissions.includes(MISSION_PERMISSIONS.MISSION_ASSIGNMENTS_MANAGE)
+      permissions.includes(MISSION_PERMISSIONS.EVALUATIONS_INTERNAL_VIEW)
     );
   }
 
@@ -1236,12 +1268,160 @@ function decodedBase64Size(value: string): number {
   return (value.length / 4) * 3 - padding;
 }
 
-function looksLikeOoxml(buffer: Buffer, requiredDirectory: 'word/' | 'xl/'): boolean {
-  if (buffer.subarray(0, 4).toString('binary') !== 'PK\u0003\u0004') {
+type OoxmlPackageKind = 'docx' | 'xlsx';
+type ZipEntry = {
+  name: string;
+  compressionMethod: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  localHeaderOffset: number;
+};
+
+const maxOoxmlEntryCount = 256;
+const maxOoxmlManifestBytes = 64_000;
+
+function looksLikeOoxml(buffer: Buffer, packageKind: OoxmlPackageKind): boolean {
+  const entries = parseZipEntries(buffer);
+  if (!entries) {
     return false;
   }
-  const sample = buffer.subarray(0, Math.min(buffer.length, 64_000)).toString('utf8');
-  return sample.includes('[Content_Types].xml') && sample.includes(requiredDirectory);
+  const entryNames = new Set(entries.map((entry) => entry.name));
+  const requiredMainEntry = packageKind === 'docx' ? 'word/document.xml' : 'xl/workbook.xml';
+  const requiredContentType =
+    packageKind === 'docx'
+      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml';
+  if (!entryNames.has('[Content_Types].xml') || !entryNames.has(requiredMainEntry)) {
+    return false;
+  }
+  const manifest = readStoredOrDeflatedEntry(buffer, entries, '[Content_Types].xml');
+  return manifest?.includes(requiredContentType) ?? false;
+}
+
+function parseZipEntries(buffer: Buffer): ZipEntry[] | null {
+  const eocdOffset = findEndOfCentralDirectory(buffer);
+  if (eocdOffset === -1) {
+    return null;
+  }
+  const diskNumber = buffer.readUInt16LE(eocdOffset + 4);
+  const centralDirectoryDisk = buffer.readUInt16LE(eocdOffset + 6);
+  const entryCount = buffer.readUInt16LE(eocdOffset + 10);
+  const centralDirectorySize = buffer.readUInt32LE(eocdOffset + 12);
+  const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
+  const commentLength = buffer.readUInt16LE(eocdOffset + 20);
+  if (
+    diskNumber !== 0 ||
+    centralDirectoryDisk !== 0 ||
+    entryCount === 0 ||
+    entryCount > maxOoxmlEntryCount ||
+    eocdOffset + 22 + commentLength !== buffer.length ||
+    centralDirectoryOffset + centralDirectorySize > eocdOffset
+  ) {
+    return null;
+  }
+
+  const entries: ZipEntry[] = [];
+  let offset = centralDirectoryOffset;
+  for (let index = 0; index < entryCount; index += 1) {
+    if (offset + 46 > buffer.length || buffer.readUInt32LE(offset) !== 0x02014b50) {
+      return null;
+    }
+    const generalPurposeFlag = buffer.readUInt16LE(offset + 8);
+    const compressionMethod = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const uncompressedSize = buffer.readUInt32LE(offset + 24);
+    const filenameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const localHeaderOffset = buffer.readUInt32LE(offset + 42);
+    const nextOffset = offset + 46 + filenameLength + extraLength + commentLength;
+    if (
+      nextOffset > buffer.length ||
+      (generalPurposeFlag & 0x0001) !== 0 ||
+      ![0, 8].includes(compressionMethod) ||
+      compressedSize > maxDocumentFileSizeBytes ||
+      uncompressedSize > maxDocumentFileSizeBytes
+    ) {
+      return null;
+    }
+    const name = buffer.subarray(offset + 46, offset + 46 + filenameLength).toString('utf8');
+    if (!isSafeZipEntryName(name) || !localHeaderMatches(buffer, name, localHeaderOffset)) {
+      return null;
+    }
+    entries.push({ name, compressionMethod, compressedSize, uncompressedSize, localHeaderOffset });
+    offset = nextOffset;
+  }
+  return offset === centralDirectoryOffset + centralDirectorySize ? entries : null;
+}
+
+function findEndOfCentralDirectory(buffer: Buffer): number {
+  const minimumOffset = Math.max(0, buffer.length - 65_557);
+  for (let offset = buffer.length - 22; offset >= minimumOffset; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) {
+      return offset;
+    }
+  }
+  return -1;
+}
+
+function isSafeZipEntryName(name: string): boolean {
+  return (
+    name.length > 0 &&
+    !name.startsWith('/') &&
+    !name.startsWith('\\') &&
+    !name.includes('\\') &&
+    !name.split('/').includes('..') &&
+    !name.includes('\u0000')
+  );
+}
+
+function localHeaderMatches(buffer: Buffer, name: string, localHeaderOffset: number): boolean {
+  if (
+    localHeaderOffset + 30 > buffer.length ||
+    buffer.readUInt32LE(localHeaderOffset) !== 0x04034b50
+  ) {
+    return false;
+  }
+  const filenameLength = buffer.readUInt16LE(localHeaderOffset + 26);
+  const extraLength = buffer.readUInt16LE(localHeaderOffset + 28);
+  const localName = buffer
+    .subarray(localHeaderOffset + 30, localHeaderOffset + 30 + filenameLength)
+    .toString('utf8');
+  return (
+    localHeaderOffset + 30 + filenameLength + extraLength <= buffer.length && localName === name
+  );
+}
+
+function readStoredOrDeflatedEntry(
+  buffer: Buffer,
+  entries: ZipEntry[],
+  name: string,
+): string | null {
+  const entry = entries.find((candidate) => candidate.name === name);
+  if (!entry || entry.uncompressedSize > maxOoxmlManifestBytes) {
+    return null;
+  }
+  const filenameLength = buffer.readUInt16LE(entry.localHeaderOffset + 26);
+  const extraLength = buffer.readUInt16LE(entry.localHeaderOffset + 28);
+  const contentOffset = entry.localHeaderOffset + 30 + filenameLength + extraLength;
+  const contentEnd = contentOffset + entry.compressedSize;
+  if (contentEnd > buffer.length) {
+    return null;
+  }
+  const compressed = buffer.subarray(contentOffset, contentEnd);
+  let content: Buffer;
+  try {
+    content =
+      entry.compressionMethod === 0
+        ? compressed
+        : inflateRawSync(compressed, { maxOutputLength: maxOoxmlManifestBytes });
+  } catch {
+    return null;
+  }
+  if (content.length !== entry.uncompressedSize || content.length > maxOoxmlManifestBytes) {
+    return null;
+  }
+  return content.toString('utf8');
 }
 
 function isoOrNull(value: Date | null): string | null {

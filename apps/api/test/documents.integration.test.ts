@@ -303,6 +303,12 @@ function arbitraryZip(): Buffer {
   return createZipBuffer({ 'payload.txt': 'not an Office document' });
 }
 
+function fakePkOoxmlStrings(): Buffer {
+  return Buffer.from(
+    'PK\x03\x04 [Content_Types].xml word/document.xml application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',
+  );
+}
+
 function createZipBuffer(files: Record<string, string>): Buffer {
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
@@ -616,6 +622,106 @@ describe('document management foundation', () => {
     expect(detail.status).toBe(404);
     expect(download.status).toBe(404);
     expect(update.status).toBe(404);
+  });
+
+  it('keeps mission, process, and interview document scope overrides context-specific', async () => {
+    const context = await createRecruitmentContext(actorUserId);
+    const interview = await prisma.interview.create({
+      data: {
+        missionCandidateId: context.process.id,
+        type: InterviewType.HR,
+        scheduledStartAt: new Date('2030-01-01T10:00:00.000Z'),
+        scheduledEndAt: new Date('2030-01-01T11:00:00.000Z'),
+        timezone: 'UTC',
+        format: InterviewFormat.VIDEO,
+        organizerUserId: actorUserId,
+        status: InterviewStatus.SCHEDULED,
+      },
+    });
+    const missionDocument = await createDocumentThroughApi(baseUrl, accessToken, {
+      title: 'Issue35 Scope Override Mission',
+      context: { recruitmentMissionId: context.mission.id },
+      version: versionInput('scope-mission.pdf'),
+    });
+    const processDocument = await createDocumentThroughApi(baseUrl, accessToken, {
+      title: 'Issue35 Scope Override Process',
+      context: { missionCandidateId: context.process.id },
+      version: versionInput('scope-process.pdf'),
+    });
+    const interviewDocument = await createDocumentThroughApi(baseUrl, accessToken, {
+      title: 'Issue35 Scope Override Interview',
+      context: { interviewId: interview.id },
+      version: versionInput('scope-interview.pdf'),
+    });
+
+    await setRolePermissions(RoleName.MANAGER, [
+      'documents:view',
+      'documents:download',
+      'missions:view',
+      'interviews:archive',
+    ]);
+    await createUser('interview-archive-not-mission@documents.test', RoleName.MANAGER);
+    const unrelatedHighPermissionToken = await loginAccessToken(
+      baseUrl,
+      'interview-archive-not-mission@documents.test',
+    );
+
+    await setRolePermissions(RoleName.TEAM_LEADER, [
+      'documents:view',
+      'documents:download',
+      'missions:view',
+      'mission_candidates:view',
+      'mission_candidates:transfer',
+    ]);
+    await createUser('process-transfer@documents.test', RoleName.TEAM_LEADER);
+    const processOverrideToken = await loginAccessToken(baseUrl, 'process-transfer@documents.test');
+
+    await setRolePermissions(RoleName.GUEST, [
+      'documents:view',
+      'documents:download',
+      'missions:view',
+      'interviews:view',
+      'interviews:archive',
+    ]);
+    await createUser('interview-archive@documents.test', RoleName.GUEST);
+    const interviewOverrideToken = await loginAccessToken(
+      baseUrl,
+      'interview-archive@documents.test',
+    );
+
+    const unrelatedMissionDetail = await fetch(`${baseUrl}/v1/documents/${missionDocument.id}`, {
+      headers: authHeaders(unrelatedHighPermissionToken),
+    });
+    const unrelatedMissionList = await fetch(
+      `${baseUrl}/v1/documents?search=Issue35%20Scope%20Override%20Mission`,
+      { headers: authHeaders(unrelatedHighPermissionToken) },
+    );
+    const processDetail = await fetch(`${baseUrl}/v1/documents/${processDocument.id}`, {
+      headers: authHeaders(processOverrideToken),
+    });
+    const processCannotReadPlainMission = await fetch(
+      `${baseUrl}/v1/documents/${missionDocument.id}`,
+      { headers: authHeaders(processOverrideToken) },
+    );
+    const interviewDetail = await fetch(`${baseUrl}/v1/documents/${interviewDocument.id}`, {
+      headers: authHeaders(interviewOverrideToken),
+    });
+    const interviewCannotReadPlainMission = await fetch(
+      `${baseUrl}/v1/documents/${missionDocument.id}`,
+      { headers: authHeaders(interviewOverrideToken) },
+    );
+    const unrelatedMissionListBody = (await unrelatedMissionList.json()) as {
+      documents: unknown[];
+      pagination: { total: number };
+    };
+
+    expect(unrelatedMissionDetail.status).toBe(404);
+    expect(unrelatedMissionListBody.pagination.total).toBe(0);
+    expect(unrelatedMissionListBody.documents).toHaveLength(0);
+    expect(processDetail.status).toBe(200);
+    expect(processCannotReadPlainMission.status).toBe(404);
+    expect(interviewDetail.status).toBe(200);
+    expect(interviewCannotReadPlainMission.status).toBe(404);
   });
 
   it('enforces document visibility across list, detail, versions, download, and mutation paths', async () => {
@@ -956,6 +1062,16 @@ describe('document management foundation', () => {
         version: versionPayload('spoof.docx', docxContentType, arbitraryZip()),
       }),
     });
+    const fakePkStringsAsDocx = await fetch(`${baseUrl}/v1/documents`, {
+      method: 'POST',
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({
+        title: 'Issue35 Fake PK DOCX',
+        documentType: 'HR_DOCUMENT',
+        context: {},
+        version: versionPayload('fake.docx', docxContentType, fakePkOoxmlStrings()),
+      }),
+    });
     const exeAsPdf = await fetch(`${baseUrl}/v1/documents`, {
       method: 'POST',
       headers: authHeaders(accessToken),
@@ -990,6 +1106,7 @@ describe('document management foundation', () => {
     expect(docx.versions[0]?.mimeType).toBe(docxContentType);
     expect(xlsx.versions[0]?.mimeType).toBe(xlsxContentType);
     expect(spoofedZipAsDocx.status).toBe(400);
+    expect(fakePkStringsAsDocx.status).toBe(400);
     expect(exeAsPdf.status).toBe(400);
     expect(pngMismatch.status).toBe(400);
   });

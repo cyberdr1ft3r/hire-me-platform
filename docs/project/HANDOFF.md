@@ -6,17 +6,17 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #35 is the active implementation task on branch `feat/document-management` in existing draft PR #40.
+- Issue #35 is active on branch `feat/document-management` in existing draft PR #40.
 - Issue #35 incorporates Issue #12: `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` are distinct document taxonomy values and must not be collapsed into a generic contract type.
-- The branch implements the internal centralized `Document` / `DocumentVersion` foundation with permission-code guarded API endpoints, shared contracts, minimal internal web controls, safe audit metadata, server-generated protected storage keys, immutable uploaded versions, and authorized download.
-- Current implemented document contexts are client, candidate, recruitment mission, mission-candidate process, and interview. Context IDs are validated server-side for existence, archival state, and relationship consistency.
-- The active blocking-review correction enforces document visibility consistently across list, detail, version, download, and mutation paths; moves list visibility into the database predicate; re-checks exact service operation permissions; makes metadata/archive audit atomic with mutations; repairs DOCX/XLSX file validation; preserves safe original filename metadata separately from sanitized download filenames; and applies strict base64/raw-size upload bounds.
+- The branch implements the internal centralized `Document` / `DocumentVersion` foundation with permission-code guarded API endpoints, shared contracts, minimal internal web controls, safe audit metadata, server-generated protected storage keys, immutable uploaded versions, authorized download, and database-level document list visibility.
+- Current implemented document contexts are client, candidate, recruitment mission, mission-candidate process, and interview. Context IDs are validated server-side for existence, archival state, relationship consistency, and linked record scope.
+- The final PR #40 follow-up corrects the remaining head `6457bdabb9e77914fdc56003a78e93a644a45bab` blockers by making mission, process, and interview document scope overrides context-specific and by validating DOCX/XLSX as bounded OOXML ZIP packages instead of accepting string-spoofed `PK` payloads.
 - Candidate CV and public-application upload behavior remains on `CandidateDocument` / `CandidateDocumentVersion`.
 - Template rendering, e-signature, external portals, accounting/commercial records, training operations, and Issue #31 task-management features remain out of scope.
 
 ## Next Action
 
-Finish validation for the PR #40 blocking-review correction, push a new commit whose head differs from `36f06dcd83297ba10db70e0b3e08c1b76f6df8f6`, update the existing draft PR #40 with the new head/test/Actions details, and keep it draft/open/unmerged.
+Keep PR #40 open, draft, and unmerged for human review once the latest exact-head validation evidence is recorded in the draft PR.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
