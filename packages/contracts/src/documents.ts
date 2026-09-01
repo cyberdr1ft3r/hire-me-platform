@@ -28,6 +28,41 @@ export const DocumentVersionSourceSchema = z.enum(['UPLOADED', 'GENERATED', 'IMP
 export const OutputFamilySchema = z.enum(['PDF', 'WORD', 'EXCEL', 'OTHER']);
 export const DocumentBase64ContentMaxLength = 5_400_000;
 
+function isStrictBase64Content(value: string): boolean {
+  if (value.length === 0 || value.length % 4 !== 0) {
+    return false;
+  }
+  const firstPaddingIndex = value.indexOf('=');
+  if (firstPaddingIndex !== -1) {
+    const padding = value.length - firstPaddingIndex;
+    if (padding > 2 || firstPaddingIndex < value.length - padding) {
+      return false;
+    }
+    for (let index = firstPaddingIndex; index < value.length; index += 1) {
+      if (value[index] !== '=') {
+        return false;
+      }
+    }
+  }
+  const contentLength = firstPaddingIndex === -1 ? value.length : firstPaddingIndex;
+  for (let index = 0; index < contentLength; index += 1) {
+    const code = value.charCodeAt(index);
+    const isAlphaUpper = code >= 65 && code <= 90;
+    const isAlphaLower = code >= 97 && code <= 122;
+    const isDigit = code >= 48 && code <= 57;
+    if (
+      !isAlphaUpper &&
+      !isAlphaLower &&
+      !isDigit &&
+      value[index] !== '+' &&
+      value[index] !== '/'
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const DocumentContextSchema = z
   .object({
     clientId: z.string().uuid().optional(),
@@ -45,7 +80,7 @@ export const DocumentVersionInputSchema = z.object({
     .string()
     .min(1)
     .max(DocumentBase64ContentMaxLength)
-    .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/, {
+    .refine(isStrictBase64Content, {
       message: 'File content must be strict base64.',
     }),
   outputFamily: OutputFamilySchema.optional(),

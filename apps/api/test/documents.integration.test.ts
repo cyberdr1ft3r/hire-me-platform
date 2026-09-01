@@ -79,6 +79,30 @@ async function cleanDocumentTestRecords(): Promise<void> {
     where: { document: { title: { contains: 'Issue35' } } },
   });
   await prisma.document.deleteMany({ where: { title: { contains: 'Issue35' } } });
+  await prisma.candidateEvaluation.deleteMany({
+    where: {
+      missionCandidate: { candidate: { normalizedEmail: { endsWith: '@documents.test' } } },
+    },
+  });
+  await prisma.interviewEvent.deleteMany({
+    where: {
+      interview: {
+        missionCandidate: { candidate: { normalizedEmail: { endsWith: '@documents.test' } } },
+      },
+    },
+  });
+  await prisma.interviewParticipant.deleteMany({
+    where: {
+      interview: {
+        missionCandidate: { candidate: { normalizedEmail: { endsWith: '@documents.test' } } },
+      },
+    },
+  });
+  await prisma.interview.deleteMany({
+    where: {
+      missionCandidate: { candidate: { normalizedEmail: { endsWith: '@documents.test' } } },
+    },
+  });
   await prisma.missionCandidate.deleteMany({
     where: { candidate: { normalizedEmail: { endsWith: '@documents.test' } } },
   });
