@@ -95,14 +95,14 @@ Issue #29 completed the internal offer-to-placement lifecycle. Task management, 
 
 ## Phase 6a - Task management
 
-**State:** Open through Issue #31; independent draft work exists and must not be mixed into Issue #35
+**State:** Complete through Issue #31 / merged PR #32
 
 - Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
 
 ## Phase 7 - Documents, reporting, and collaboration
 
-**State:** Document foundation in review through Issue #35 / draft PR #40
+**State:** Document foundation in post-`main` integration review through Issue #35 / PR #40
 
 - Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
 - Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.

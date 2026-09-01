@@ -6,17 +6,18 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #35 is active on branch `feat/document-management` in existing draft PR #40.
+- Issue #31 is complete; PR #32 merged task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
+- Issue #35 is active on branch `feat/document-management` in existing PR #40.
 - Issue #35 incorporates Issue #12: `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` are distinct document taxonomy values and must not be collapsed into a generic contract type.
-- The branch implements the internal centralized `Document` / `DocumentVersion` foundation with permission-code guarded API endpoints, shared contracts, minimal internal web controls, safe audit metadata, server-generated protected storage keys, immutable uploaded versions, authorized download, and database-level document list visibility.
+- PR #40 now needs post-`main` integration validation so the final branch contains both the merged Issue #31 task-management functionality and the Issue #35 centralized `Document` / `DocumentVersion` foundation.
 - Current implemented document contexts are client, candidate, recruitment mission, mission-candidate process, and interview. Context IDs are validated server-side for existence, archival state, relationship consistency, and linked record scope.
-- The final PR #40 follow-up corrects the remaining head `6457bdabb9e77914fdc56003a78e93a644a45bab` blockers by making mission, process, and interview document scope overrides context-specific and by validating DOCX/XLSX as bounded OOXML ZIP packages instead of accepting string-spoofed `PK` payloads.
+- Mission, process, and interview document scope overrides are context-specific. DOCX/XLSX validation uses bounded OOXML ZIP-package validation rather than string-spoofable `PK` checks.
 - Candidate CV and public-application upload behavior remains on `CandidateDocument` / `CandidateDocumentVersion`.
-- Template rendering, e-signature, external portals, accounting/commercial records, training operations, and Issue #31 task-management features remain out of scope.
+- Template rendering, e-signature, external portals, accounting/commercial records, training operations, external notifications, private messages/groups, email, WhatsApp, and calendar delivery remain out of scope.
 
 ## Next Action
 
-Keep PR #40 open, draft, and unmerged for human review once the latest exact-head validation evidence is recorded in the draft PR.
+Finish resolving and validating PR #40 against latest `main`, update the PR body with the integrated head SHA and CI evidence, and keep PR #40 open and unmerged for human review.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

@@ -39,6 +39,23 @@ import {
   PublicApplicationSubmitResponseSchema,
   PublicOpportunityDetailResponseSchema,
   PublicOpportunityListResponseSchema,
+  NotificationDetailResponseSchema,
+  NotificationListQuerySchema,
+  NotificationListResponseSchema,
+  NotificationReadAllRequestSchema,
+  NotificationReadAllResponseSchema,
+  TaskAssignmentCreateRequestSchema,
+  TaskCommentCreateRequestSchema,
+  TaskCommentDetailResponseSchema,
+  TaskCreateRequestSchema,
+  TaskDetailResponseSchema,
+  TaskListResponseSchema,
+  TaskListQuerySchema,
+  TaskOwnerChangeRequestSchema,
+  TaskReminderCreateRequestSchema,
+  TaskReminderDetailResponseSchema,
+  TaskReminderProcessResponseSchema,
+  TaskStatusChangeRequestSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -127,6 +144,23 @@ import {
   type PublicApplicationSubmitResponse,
   type PublicOpportunityDetailResponse,
   type PublicOpportunityListResponse,
+  type NotificationDetailResponse,
+  type NotificationListResponse,
+  type NotificationListQuery,
+  type NotificationReadAllRequest,
+  type NotificationReadAllResponse,
+  type TaskAssignmentCreateRequest,
+  type TaskCommentCreateRequest,
+  type TaskCommentDetailResponse,
+  type TaskCreateRequest,
+  type TaskDetailResponse,
+  type TaskListResponse,
+  type TaskListQuery,
+  type TaskOwnerChangeRequest,
+  type TaskReminderCreateRequest,
+  type TaskReminderDetailResponse,
+  type TaskReminderProcessResponse,
+  type TaskStatusChangeRequest,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -1714,4 +1748,237 @@ export async function listInternalPublicApplications(
     apiBaseUrl,
   );
   return InternalPublicApplicationListResponseSchema.parse(await response.json());
+}
+
+async function taskRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/tasks${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Task request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+async function notificationRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+
+  const response = await fetch(`${apiBaseUrl}/v1/notifications${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Notification request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listTasks(
+  accessToken: string,
+  query: Partial<TaskListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskListResponse> {
+  const parsed = TaskListQuerySchema.partial().parse(query);
+  const path = queryPath('', parsed);
+  const response = await taskRequest(accessToken, path, {}, apiBaseUrl);
+  return TaskListResponseSchema.parse(await response.json());
+}
+
+export async function createTask(
+  accessToken: string,
+  input: TaskCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    '',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTaskStatus(
+  accessToken: string,
+  taskId: string,
+  input: TaskStatusChangeRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskStatusChangeRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function changeTaskOwner(
+  accessToken: string,
+  taskId: string,
+  input: TaskOwnerChangeRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskOwnerChangeRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/owner`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function addTaskAssignment(
+  accessToken: string,
+  taskId: string,
+  input: TaskAssignmentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskAssignmentCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/assignments`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function createTaskComment(
+  accessToken: string,
+  taskId: string,
+  input: TaskCommentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const parsed = TaskCommentCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
+export async function createTaskReminder(
+  accessToken: string,
+  taskId: string,
+  input: TaskReminderCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const parsed = TaskReminderCreateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function processDueTaskReminders(
+  accessToken: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderProcessResponse> {
+  const response = await taskRequest(
+    accessToken,
+    '/reminders/process-due',
+    { method: 'POST', body: JSON.stringify({ limit: 25 }) },
+    apiBaseUrl,
+  );
+  return TaskReminderProcessResponseSchema.parse(await response.json());
+}
+
+export async function listNotifications(
+  accessToken: string,
+  query: Partial<NotificationListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationListResponse> {
+  const parsed = NotificationListQuerySchema.partial().parse(query);
+  const response = await notificationRequest(accessToken, queryPath('', parsed), {}, apiBaseUrl);
+  return NotificationListResponseSchema.parse(await response.json());
+}
+
+export async function markNotificationRead(
+  accessToken: string,
+  notificationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationDetailResponse> {
+  const response = await notificationRequest(
+    accessToken,
+    `/${notificationId}/read`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return NotificationDetailResponseSchema.parse(await response.json());
+}
+
+export async function markAllNotificationsRead(
+  accessToken: string,
+  input: NotificationReadAllRequest = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationReadAllResponse> {
+  const parsed = NotificationReadAllRequestSchema.parse(input);
+  const response = await notificationRequest(
+    accessToken,
+    '/read-all',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return NotificationReadAllResponseSchema.parse(await response.json());
+}
+
+export async function archiveNotification(
+  accessToken: string,
+  notificationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<NotificationDetailResponse> {
+  const response = await notificationRequest(
+    accessToken,
+    `/${notificationId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return NotificationDetailResponseSchema.parse(await response.json());
+}
+
+function queryPath(
+  path: string,
+  query: Partial<Record<string, string | number | boolean | null | undefined>>,
+): string {
+  const parameters = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== '') {
+      parameters.set(key, String(value));
+    }
+  }
+  const serialized = parameters.toString();
+  return serialized ? `${path}?${serialized}` : path;
 }

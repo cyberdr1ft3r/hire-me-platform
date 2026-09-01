@@ -163,6 +163,341 @@ describe('App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
   });
 
+  it('does not expose task controls to users without task permissions', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: 'ok',
+              service: 'hire-me-api',
+              timestamp: '2026-07-21T10:00:00.000Z',
+              uptimeSeconds: 1,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              accessToken: 'synthetic-access-token',
+              accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+              user: {
+                id: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                displayName: 'No Task User',
+                email: 'no-task@example.test',
+                permissions: ['records:view'],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'no-task@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
+    expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
+  });
+
+  it('loads read-only task lists without mutation controls', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: 'ok',
+              service: 'hire-me-api',
+              timestamp: '2026-07-21T10:00:00.000Z',
+              uptimeSeconds: 1,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              accessToken: 'synthetic-access-token',
+              accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+              user: {
+                id: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                displayName: 'Read Only Task User',
+                email: 'readonly@example.test',
+                permissions: ['tasks:view', 'notifications:view_own'],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.includes('/v1/tasks') && init?.method !== 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              tasks: [
+                {
+                  id: '11111111-1111-4111-8111-111111111111',
+                  title: 'Review candidate follow-up',
+                  description: null,
+                  status: 'OPEN',
+                  priority: 'NORMAL',
+                  startAt: null,
+                  dueAt: null,
+                  timezone: null,
+                  ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                  ownerDisplayName: 'Read Only Task User',
+                  assigneeUserIds: [],
+                  context: {
+                    candidateId: null,
+                    clientId: null,
+                    clientContactId: null,
+                    recruitmentMissionId: null,
+                    missionRecruiterId: null,
+                    missionCandidateId: null,
+                    interviewId: null,
+                    recruitmentOfferId: null,
+                    recruitmentOfferVersionId: null,
+                    missionPlacementId: null,
+                    trainingProgramId: null,
+                    trainingSessionId: null,
+                    trainingEnrollmentId: null,
+                    trainingSessionParticipationId: null,
+                    documentId: null,
+                  },
+                  completedAt: null,
+                  canceledAt: null,
+                  archivedAt: null,
+                  createdAt: '2026-07-21T10:00:00.000Z',
+                  updatedAt: '2026-07-21T10:00:00.000Z',
+                },
+              ],
+              pageInfo: { page: 1, pageSize: 25, total: 1, hasNextPage: false },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.includes('/v1/notifications')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              notifications: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'readonly@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
+
+    expect(await screen.findByRole('button', { name: 'Review candidate follow-up' })).toBeVisible();
+    expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /process reminders/i })).not.toBeInTheDocument();
+  });
+
+  it('lets authorized staff create tasks through environment-configured API calls', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: 'ok',
+              service: 'hire-me-api',
+              timestamp: '2026-07-21T10:00:00.000Z',
+              uptimeSeconds: 1,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              accessToken: 'synthetic-access-token',
+              accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+              user: {
+                id: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                displayName: 'Task Manager',
+                email: 'tasks@example.test',
+                permissions: [
+                  'tasks:view',
+                  'tasks:create',
+                  'tasks:assign',
+                  'tasks:transition',
+                  'tasks:comment',
+                  'tasks:reminders:manage',
+                  'notifications:view_own',
+                ],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.includes('/v1/tasks') && init?.method !== 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              tasks: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      if (url.endsWith('/v1/tasks') && init?.method === 'POST') {
+        expect(JSON.parse(init.body as string)).toEqual(
+          expect.objectContaining({
+            title: 'Call client after interview',
+            ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+          }),
+        );
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              task: {
+                id: '22222222-2222-4222-8222-222222222222',
+                title: 'Call client after interview',
+                description: null,
+                status: 'OPEN',
+                priority: 'NORMAL',
+                startAt: null,
+                dueAt: null,
+                timezone: null,
+                ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                ownerDisplayName: 'Task Manager',
+                assigneeUserIds: [],
+                context: {
+                  candidateId: null,
+                  clientId: null,
+                  clientContactId: null,
+                  recruitmentMissionId: null,
+                  missionRecruiterId: null,
+                  missionCandidateId: null,
+                  interviewId: null,
+                  recruitmentOfferId: null,
+                  recruitmentOfferVersionId: null,
+                  missionPlacementId: null,
+                  trainingProgramId: null,
+                  trainingSessionId: null,
+                  trainingEnrollmentId: null,
+                  trainingSessionParticipationId: null,
+                  documentId: null,
+                },
+                completedAt: null,
+                canceledAt: null,
+                archivedAt: null,
+                createdAt: '2026-07-21T10:00:00.000Z',
+                updatedAt: '2026-07-21T10:00:00.000Z',
+                assignments: [],
+                comments: [],
+                reminders: [],
+                history: [],
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.includes('/v1/notifications')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              notifications: [],
+              pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'tasks@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
+    fireEvent.change(await screen.findByPlaceholderText(/task title/i), {
+      target: { value: 'Call client after interview' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create task/i }));
+
+    expect(await screen.findByText('Task created.')).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/v1/tasks',
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+  });
+
   it('loads administration data and creates an internal user through contracts', async () => {
     const userId = '57baf24e-8837-4378-aa0d-e98f0473f665';
     const roleId = 'f135c142-f840-4e29-a10c-e2f1851ec4a1';

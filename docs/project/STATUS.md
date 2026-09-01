@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 remains active on existing draft PR #40 / branch `feat/document-management`; final blocking-follow-up corrections target head `6457bdabb9e77914fdc56003a78e93a644a45bab`.
-**Current blocker:** PR #40 must stay draft/open/unmerged until final exact-head CI validates the context-specific document-scope and bounded OOXML corrections.
-**Next executable development task:** Human review/merge gate for PR #40 after the latest exact-head validation is recorded in the draft PR. Issue #35 incorporates Issue #12 and is independent of unmerged Issue #31 / PR #32.
+**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch is integrating latest `main` after PR #32 / Issue #31 merged.
+**Current blocker:** PR #40 must stay open/unmerged until the integrated task-management plus document-management branch validates against the updated `main`.
+**Next executable development task:** Human review/merge gate for PR #40 after the post-integration exact-head validation is recorded in the PR.
 
 ## Active work
 
@@ -26,9 +26,9 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | Open | Implement internal task management, reminders, comments, and notifications | Continue only on its existing branch/PR; do not mix into Issue #35 |
+| Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Keep draft PR #40 open/unmerged for human review after latest exact-head validation evidence is recorded |
+| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Integrate merged Issue #31 from latest `main`, validate the combined branch, update PR #40, and keep it open/unmerged |
 
 ## Completed foundation work
 
@@ -196,9 +196,16 @@ Status owner: repository maintainer
 - Local checks passed after the PR #30 legacy-integration blocking-review correction: PostgreSQL Docker Compose health on `127.0.0.1:55432`, `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, `pnpm.cmd prisma:seed` twice after reset, focused affected PostgreSQL tests with 13 tests passing, full `pnpm.cmd test:db` with 77 PostgreSQL integration tests passing, `pnpm.cmd check:architecture`, Mermaid CLI rendering for all 13 documentation diagrams, `pnpm.cmd format:check`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `git diff --check`.
 - Local root `pnpm.cmd test` and `pnpm.cmd build` initially hit the known Windows sandbox/esbuild access issue and passed when rerun outside the sandbox. Web tests pass with existing React `act(...)` warnings around asynchronous mission workspace state updates.
 
+## Issue #31 Verification State
+
+- Issue #31 is complete; PR #32 merged into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
+- The merged implementation adds authenticated internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, own-notification controls, searchable/filterable task lists, and permission-aware task visibility.
+- Task visibility requires base `tasks:view` or explicit `tasks:view_all` plus record scope. Mentions, reminder recipients, and notification link shaping do not treat users without task-view permission as task viewers.
+- Reminder processing uses due-row discovery followed by Task and TaskReminder row locking/rechecking with explicit state transitions, not `FOR UPDATE SKIP LOCKED`.
+
 ## Issue #35 Implementation State
 
-- Issue #35 implements the internal document-management foundation without depending on unmerged Issue #31 / PR #32.
+- Issue #35 implements the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
 - Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
 - The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
 - Document authorization combines exact document capability with linked business-context permission and scope. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; mission, process, and interview contexts use context-specific scope override rules rather than one blended mission-document bypass. Training contract taxonomy is distinct but training operations/rendering remain future work.
@@ -226,7 +233,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Keep PR #40 open, draft, and unmerged for human review once latest exact-head validation evidence is recorded in the draft PR.
+1. Finish PR #40 post-`main` integration validation, update the PR with the new head SHA and CI evidence, and keep PR #40 open/unmerged for human review.
 
 ## Status Update Rules
 

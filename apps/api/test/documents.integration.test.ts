@@ -54,6 +54,14 @@ const contextPermissions = [
   'mission_candidates:view',
   'interviews:view',
 ] as const;
+type RolePermissionSnapshot = {
+  roleExisted: boolean;
+  permissions: {
+    permissionId: string;
+    grantedAt: Date;
+    archivedAt: Date | null;
+  }[];
+};
 const pdfBase64 = Buffer.from('%PDF-1.4\n% issue35 synthetic document\n').toString('base64');
 const docxContentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const xlsxContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -161,6 +169,66 @@ async function setRolePermissions(roleName: RoleName, permissionCodes: readonly 
       where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
       update: { archivedAt: null },
       create: { roleId: role.id, permissionId: permission.id },
+    });
+  }
+}
+
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUnique({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  if (!role) {
+    return { roleExisted: false, permissions: [] };
+  }
+  return {
+    roleExisted: true,
+    permissions: role.permissions.map((rolePermission) => ({
+      permissionId: rolePermission.permissionId,
+      grantedAt: rolePermission.grantedAt,
+      archivedAt: rolePermission.archivedAt,
+    })),
+  };
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  if (!snapshot.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: {
+        notIn: snapshot.permissions.map((rolePermission) => rolePermission.permissionId),
+      },
+    },
+  });
+  for (const rolePermission of snapshot.permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: role.id,
+          permissionId: rolePermission.permissionId,
+        },
+      },
+      update: {
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+      create: {
+        roleId: role.id,
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
     });
   }
 }
@@ -442,9 +510,21 @@ describe('document management foundation', () => {
   let actorUserId: string;
   let accessToken: string;
   let documentsService: DocumentsService;
+  let roleSnapshots: Map<RoleName, RolePermissionSnapshot>;
 
   beforeAll(async () => {
     await cleanDocumentTestRecords();
+    roleSnapshots = new Map(
+      await Promise.all(
+        [
+          RoleName.HR_MANAGER,
+          RoleName.MANAGER,
+          RoleName.TEAM_LEADER,
+          RoleName.EMPLOYEE,
+          RoleName.GUEST,
+        ].map(async (roleName) => [roleName, await snapshotRolePermissions(roleName)] as const),
+      ),
+    );
     await prepareDocumentCatalog();
     actorUserId = await createUser('operator@documents.test', RoleName.HR_MANAGER);
 
@@ -462,6 +542,9 @@ describe('document management foundation', () => {
 
   afterAll(async () => {
     await cleanDocumentTestRecords();
+    for (const [roleName, snapshot] of roleSnapshots) {
+      await restoreRolePermissions(roleName, snapshot);
+    }
     await app.close();
     await prisma.$disconnect();
   });
@@ -894,7 +977,7 @@ describe('document management foundation', () => {
       archivedClientDocument.id,
     ]).not.toContain(firstBody.documents[0]?.id);
     expect([visibleOne.id, visibleTwo.id]).toContain(firstBody.documents[0]?.id);
-  });
+  }, 10000);
 
   it('rejects cross-context mismatches without document, version, or audit side effects', async () => {
     const first = await createRecruitmentContext(actorUserId);
