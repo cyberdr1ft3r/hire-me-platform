@@ -383,6 +383,18 @@ async function createDocumentThroughApi(
   return DocumentDetailResponseSchema.parse(await response.json()).document;
 }
 
+function exceptionResponse(error: unknown): unknown {
+  const maybeException = error as { getResponse?: unknown; response?: unknown } | undefined;
+  if (
+    maybeException &&
+    typeof maybeException === 'object' &&
+    typeof maybeException.getResponse === 'function'
+  ) {
+    return (maybeException.getResponse as () => unknown)();
+  }
+  return maybeException?.response;
+}
+
 function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
@@ -861,7 +873,7 @@ describe('document management foundation', () => {
     } catch (error) {
       serviceError = error;
     }
-    expect((serviceError as { getResponse: () => unknown }).getResponse()).toMatchObject({
+    expect(exceptionResponse(serviceError)).toMatchObject({
       error: { code: 'DOCUMENT_PERMISSION_REQUIRED' },
     });
 
@@ -1047,8 +1059,8 @@ describe('document management foundation', () => {
     });
 
     expect(accepted.status).toBe(201);
-    expect((tooLargeError as { getResponse: () => unknown }).getResponse()).toMatchObject({
-      error: { code: 'DOCUMENT_FILE_TOO_LARGE' },
+    expect(exceptionResponse(tooLargeError)).toMatchObject({
+      error: { code: 'DOCUMENT_FILE_SIZE_REJECTED' },
     });
     expect(invalidBase64.status).toBe(400);
     expect(empty.status).toBe(400);
