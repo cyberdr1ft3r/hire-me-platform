@@ -1,6 +1,6 @@
 # Risk Register
 
-Last updated: 2026-07-23
+Last updated: 2026-09-01
 
 | ID | Risk | Impact | Current mitigation | State |
 | --- | --- | --- | --- | --- |
@@ -29,6 +29,7 @@ Last updated: 2026-07-23
 | R-023 | Commercial operational accounting is overbuilt into full statutory accounting or under-modeled as files only. | Delivery could stall, or revenue, balances, profitability, and payment tracking could become unreliable. | Issue #25 scopes commercial accounting to operational records and explicitly excludes full legal accounting, general ledger, tax declarations, bank reconciliation, and balance-sheet behavior until separately approved. | Active |
 | R-024 | Offer acceptance, placement confirmation, correction, or commercial eligibility could be conflated. | Mission placement counts, closure eligibility, future invoicing, and future payroll/accounting records could become inaccurate. | Issue #29 separates offer acceptance from placement confirmation, makes confirmation/correction idempotent under PostgreSQL locking, preserves original confirmation metadata, and documents Moroccan payroll as future scope only. | Active |
 | R-025 | Internal task visibility, mentions, reminders, or notification summaries could expose confidential candidate, HR, salary, client, or commercial data. | Staff could see unrelated sensitive work, or duplicate reminder workers could create confusing or repeated notifications. | Issue #31 requires base `tasks:view` or `tasks:view_all` plus record scope for internal task visibility, keeps `tasks:view_all` explicit, authorizes linked context before task writes, rejects mentions/reminders for users without task access, redacts inaccessible task links in notification shaping, uses safe notification/audit summaries, and processes reminders with locked state transitions plus composite reminder and event-scoped notification idempotency. | Active |
+| R-026 | Document UUID, version IDs, storage keys, archived context records, misleading visibility values, or unsafe file metadata could bypass document authorization. | CVs, contracts, HR documents, and client files could be exposed through IDOR, unsafe download paths, external access leakage, or spoofed uploads. | Issue #35 adds exact document operation permissions, reusable database-level list visibility, service-level detail/version/download/mutation access re-checks, context-specific linked-record scope checks, owner-only private/assigned visibility semantics, no external/client access from `CLIENT_SHARED`, server-generated storage keys, safe DTOs that omit storage identities, authorized download endpoints, atomic mutation/audit writes, strict base64 and raw-size bounds, MIME/extension/signature validation including bounded DOCX/XLSX OOXML ZIP-package validation, separate safe original filename metadata and sanitized download filenames, and PostgreSQL-backed regression coverage. | Active |
 
 ## Risk protocol
 

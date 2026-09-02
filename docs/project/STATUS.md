@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-29
+Last updated: 2026-09-02
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Internal task management, reminders, comments, and notifications
-**Health:** Issue #29 / PR #30 and Issue #33 / PR #34 are merged. Issue #31 is implemented in draft PR #32 on `feat/task-management`; final follow-up fixes are being pushed and require exact-head GitHub Actions plus reviewer approval.
-**Current blocker:** PR #32 must remain draft/open until reviewer approval and GitHub Actions pass on the pushed head that includes the final follow-up fixes.
-**Next executable development task:** Complete PR #32 review/CI, keep it unmerged until approved, then select the next approved GitHub issue.
+**Phase:** Document management foundation and contract taxonomy
+**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch includes merged Issue #31 task-management behavior plus the Issue #35 document-management foundation.
+**Current blocker:** PR #40 post-integration review identified a Task-to-Document authorization gap; the branch now requires exact-head CI evidence for the document-link policy fix.
+**Next executable development task:** Human review/merge gate for PR #40 after the new exact-head validation is recorded in the PR.
 
 ## Active work
 
@@ -26,8 +26,9 @@ Status owner: repository maintainer
 | Issue #25 | Complete | Realign product documentation around internal operations, public applications, training identities, and commercial accounting | No action |
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
-| Issue #31 | In review | Implement internal task management, reminders, comments, mentions, and in-app notifications | Push final follow-up fixes and complete exact-head PR #32 review/CI |
-| Issue #33 | Complete | Reconcile project memory after Issue #29 / PR #30 merge | No action |
+| Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
+| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
 
 ## Completed foundation work
 
@@ -197,15 +198,22 @@ Status owner: repository maintainer
 
 ## Issue #31 Verification State
 
-- Issue #31 is implemented in draft PR #32 on branch `feat/task-management`.
-- Scope is limited to authenticated internal task management, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, and permission-aware operational UI.
-- The implementation does not add candidate accounts, public task access, private messages/groups, email, WhatsApp, calendar, browser/mobile push, recurring templates, AI, accounting, payroll, training, document generation, or a global UI redesign.
-- Task persistence builds on the existing placeholder `Task` and `Notification` models. `Task.assigneeUserId` remains a legacy compatibility field, while `TaskAssignment` is the normalized source for multiple assignees and assignment history.
-- Internal task visibility requires base `tasks:view` or explicit `tasks:view_all` plus task owner, creator, active assignee, or implemented linked-record scope. `tasks:view_all` is the separate broad oversight permission.
-- Blocking-review fixes make reminder idempotency composite by task, recipient, and key; authorize linked context before task creation/update; require `tasks:assign` for task creation with assignees; re-check owner/assignee eligibility inside locked write transactions; add a dedicated owner-change endpoint/event/notification; require an active `TaskAssignment` before `IN_PROGRESS`; expose task search/filter/pagination; expose notification status filtering, read, unread-only read-all, and archive; and keep rejected actions from writing partial task rows/events.
-- Final follow-up fixes revalidate comment authorization, mention visibility, and reminder recipient eligibility inside locked Task transactions before writing comments, mentions, reminders, notifications, history, or audit entries.
-- Reminder processing discovers due reminder IDs first, then locks and rechecks the parent `Task` and `TaskReminder` rows with a consistent task-then-reminder order and allowed state transitions so sent reminders cannot be resurrected to pending or canceled by stale requests.
-- Local checks for the latest follow-up pass: `pnpm.cmd prisma:validate`, `pnpm.cmd check:architecture`, `pnpm.cmd lint`, `pnpm.cmd typecheck`, `pnpm.cmd test`, `pnpm.cmd build`, and `pnpm.cmd format:check`. Local PostgreSQL integration validation is blocked because Docker Desktop service is stopped and this session cannot start it; the new pushed head must pass GitHub Actions database migration/seed/integration tests.
+- Issue #31 is complete; PR #32 merged into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
+- The merged implementation adds authenticated internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, own-notification controls, searchable/filterable task lists, and permission-aware task visibility.
+- Task visibility requires base `tasks:view` or explicit `tasks:view_all` plus record scope. Mentions, reminder recipients, and notification link shaping do not treat users without task-view permission as task viewers.
+- Reminder processing uses due-row discovery followed by Task and TaskReminder row locking/rechecking with explicit state transitions, not `FOR UPDATE SKIP LOCKED`.
+
+## Issue #35 Implementation State
+
+- Issue #35 implements the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
+- Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
+- The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
+- Document authorization combines exact document capability with linked business-context permission and scope. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; mission, process, and interview contexts use context-specific scope override rules rather than one blended mission-document bypass. Training contract taxonomy is distinct but training operations/rendering remain future work.
+- Document visibility is enforced consistently across list, detail, version list, download, and mutation paths. List visibility is enforced by the database query predicate. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; null owner does not broaden private access. `CLIENT_SHARED` does not grant external/client access.
+- Uploads use server-generated protected storage keys, separate safe original filename metadata and sanitized download filenames, bounded strict base64/content size checks, MIME/extension/signature validation including bounded DOCX/XLSX OOXML ZIP-package validation, checksums, and safe DTOs that omit storage keys, filesystem paths, and document contents. Version numbers are assigned while holding a PostgreSQL `Document` row lock.
+- Metadata update and document archive audit records are written atomically with their mutations.
+- Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
+- Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
 ## Current open technical questions
 
@@ -226,7 +234,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Push the final Issue #31 follow-up review fixes to PR #32, update the draft PR description with the new head SHA and final CI run, confirm GitHub Actions on the exact new head, and keep the PR draft/unmerged until approved.
+1. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
 
 ## Status Update Rules
 

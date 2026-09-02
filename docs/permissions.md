@@ -67,6 +67,11 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `records:delete`
 - `records:export`
 - `documents:download`
+- `documents:view`
+- `documents:create`
+- `documents:versions:create`
+- `documents:update`
+- `documents:archive`
 - `users:admin`
 - `users:view`
 - `users:create`
@@ -138,17 +143,6 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `evaluations:update`
 - `evaluations:finalize`
 - `client_feedback:view`
-- `tasks:view`
-- `tasks:view_all`
-- `tasks:create`
-- `tasks:update`
-- `tasks:assign`
-- `tasks:transition`
-- `tasks:comment`
-- `tasks:reminders:manage`
-- `tasks:archive`
-- `notifications:view_own`
-- `notifications:update_own`
 - `quotations:view`
 - `quotations:manage`
 - `contracts:view`
@@ -164,7 +158,50 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `client_balances:view`
 - `profitability:view`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #31 adds explicit task, reminder, comment, and own-notification permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #31 adds explicit task, reminder, comment, and own-notification permissions. Issue #35 adds centralized document permissions while retaining `documents:download` compatibility. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+
+## Implemented Task and Notification Permissions
+
+Issue #31 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `tasks:view` | List/read tasks the caller owns, created, is actively assigned to, or can reach through an implemented linked-record scope. It is not all-internal-task access. |
+| `tasks:view_all` | Explicit manager-wide all-task visibility for authorized oversight roles. |
+| `tasks:create` | Create internal tasks with one accountable owner and optional approved context links. |
+| `tasks:update` | Update visible writable task operational fields. |
+| `tasks:assign` | Add or remove active internal assignees while preserving assignment history. |
+| `tasks:transition` | Move visible tasks through the approved lifecycle, including idempotent completion/cancellation and reasoned blocking/reopening. |
+| `tasks:comment` | Create, edit, and archive internal task comments; explicit mentions require the mentioned user to already have task visibility. |
+| `tasks:reminders:manage` | Create, reschedule, cancel, and process durable in-app task reminders. |
+| `tasks:archive` | Archive visible tasks with a required reason. |
+| `notifications:view_own` | View only in-app notifications addressed to the current user. |
+| `notifications:update_own` | Mark own notifications read or archived. |
+
+Development seed mapping gives `tasks:view_all` to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Normal internal roles can receive own/context task operations and own notifications, but lower-trust and optional future client-facing roles do not receive broad task visibility by default.
+
+Task visibility remains deny-by-default. A route permission must be effective, and task responses are additionally scoped to ownership, creator, active assignment, active mission assignment for implemented mission-linked contexts, or explicit `tasks:view_all`. Mentions and reminders do not grant access; they require the recipient or mentioned user to already be able to view the task. Notification endpoints are own-user only.
+
+Reminder workers discover due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks; notifications use idempotency keys to prevent duplicate delivery under concurrent workers or retries. Task-generated notification summaries must not contain confidential candidate, salary, commercial, HR, client, comment, or internal-note payloads.
+
+Document access requires the exact document capability and linked business-context scope. Current implemented context scopes use the existing client, candidate, recruitment mission, mission-candidate, and interview permissions. Mission-linked documents require active mission assignment scope; mission-candidate process documents may use the existing process transfer override; interview documents may use the existing interview archive/internal-evaluation visibility overrides. These overrides are context-specific and do not grant a universal mission-document bypass. Frontend gating is only usability.
+
+## Implemented Document Permissions
+
+| Permission | Implemented use |
+| --- | --- |
+| `documents:view` | List/read safe document metadata and version history within authorized business context. |
+| `documents:create` | Register a document, optionally with an initial uploaded immutable version. |
+| `documents:versions:create` | Add an uploaded immutable version to an existing writable document. |
+| `documents:update` | Update approved document metadata such as title, visibility, and owner. |
+| `documents:archive` | Archive a document without deleting historical versions. |
+| `documents:download` | Download an authorized document version through the protected API/storage boundary. |
+
+Development seed mapping gives normal document permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`; lower-trust roles retain no broad document metadata permissions by default. API responses never expose storage keys, filesystem paths, public file URLs, or document contents in metadata responses.
+
+Implemented document visibility is internal-only. `INTERNAL_ONLY` is visible to authenticated internal users with `documents:view` plus linked-context scope. `PRIVATE` is visible only to the current owner with `documents:view` plus linked-context scope; setting owner to null grants no private access. `ASSIGNED_ONLY` is treated as owner-only until a separate document-assignment model exists. `CLIENT_SHARED` records that a file may be approved for later sharing workflows, but it does not grant external/client account access in Issue #35 and currently follows the same internal access requirements as `INTERNAL_ONLY`.
+
+Document list endpoints use the database query predicate for document visibility, context scope, archive rules, and inaccessible linked contexts. Detail, version list, download, update, archive, and version-create paths re-check the same access requirements in service code and also require their exact operation permission.
 
 ## Implemented Administration Permissions
 
@@ -326,30 +363,6 @@ Development seed mapping gives normal interview and evaluation permissions to `S
 
 Interview and evaluation access remains deny-by-default. A caller must have the route permission and either authorized override scope or an active mission assignment, depending on the operation. Interview and evaluation writes use the established mission-candidate lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then the `Interview` row where applicable. Internal evaluations are redacted unless `evaluations:internal:view` is effective. Client feedback records are redacted unless `client_feedback:view` is effective. Candidate salary values are not returned through evaluation responses or audit metadata.
 
-## Implemented Task and Notification Permissions
-
-Issue #31 implements these route permissions:
-
-| Permission | Implemented use |
-| --- | --- |
-| `tasks:view` | List/read tasks the caller owns, created, is actively assigned to, or can reach through an implemented linked-record scope. It is not all-internal-task access. |
-| `tasks:view_all` | Explicit manager-wide all-task visibility for authorized oversight roles. |
-| `tasks:create` | Create internal tasks with one accountable owner and optional approved context links. |
-| `tasks:update` | Update visible writable task operational fields. |
-| `tasks:assign` | Add or remove active internal assignees while preserving assignment history. |
-| `tasks:transition` | Move visible tasks through the approved lifecycle, including idempotent completion/cancellation and reasoned blocking/reopening. |
-| `tasks:comment` | Create, edit, and archive internal task comments; explicit mentions require the mentioned user to already have task visibility. |
-| `tasks:reminders:manage` | Create, reschedule, cancel, and process durable in-app task reminders. |
-| `tasks:archive` | Archive visible tasks with a required reason. |
-| `notifications:view_own` | View only in-app notifications addressed to the current user. |
-| `notifications:update_own` | Mark own notifications read or archived. |
-
-Development seed mapping gives `tasks:view_all` to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Normal internal roles can receive own/context task operations and own notifications, but lower-trust and optional future client-facing roles do not receive broad task visibility by default.
-
-Task visibility remains deny-by-default. A route permission must be effective, and task responses are additionally scoped to ownership, creator, active assignment, active mission assignment for implemented mission-linked contexts, or explicit `tasks:view_all`. Mentions and reminders do not grant access; they require the recipient or mentioned user to already be able to view the task. Notification endpoints are own-user only.
-
-Reminder workers discover due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks; notifications use idempotency keys to prevent duplicate delivery under concurrent workers or retries. Task-generated notification summaries must not contain confidential candidate, salary, commercial, HR, client, comment, or internal-note payloads.
-
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
@@ -364,7 +377,7 @@ Reminder workers discover due reminder IDs, then serialize each delivery through
 
 ## Confirmed Requirement Versus Implementation Sequence
 
-The matrix is a provisional least-privilege default for V1. It confirms that the platform needs internal roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, public application safeguards, task accountability, and optional future client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Issue #29 implements internal offer and placement route permissions while keeping commercial eligibility separate from ordinary placement visibility. Issue #31 implements task and notification route permissions while keeping all-task visibility separate from own/context task visibility. Exact remaining business record-scope queries, approval workflows, optional future client-facing row scopes, and per-module route permissions remain future scoped work.
+The matrix is a provisional least-privilege default for V1. It confirms that the platform needs internal roles, permissions, confidential-data protection, exports, document downloads, commercial-data controls, user administration, public application safeguards, task accountability, and optional future client-scoped access. Issue #10 implements the normalized permission-resolution foundation and deny-by-default route guard. Issue #13 implements the first internal user-administration route permissions. Issue #15 implements the first client organization and contact route permissions while denying unresolved team, assigned-record, and client-user scopes. Issue #17 implements the first candidate master/profile permissions while denying unresolved mission-assigned, team, guest, and client-user scopes. Issue #19 implements the first recruitment mission and assignment permissions while denying unresolved assignment/team/client-user scopes for lower-trust roles by default. Issue #21 implements mission-candidate process permissions, responsible-recruiter scope, protected live candidate-field redaction, and explicit client presentation. Issue #29 implements internal offer and placement route permissions while keeping commercial eligibility separate from ordinary placement visibility. Issue #31 implements task and notification route permissions while keeping all-task visibility separate from own/context task visibility. Issue #35 implements centralized document permissions, internal-only document visibility semantics, linked-context document scopes, and protected authorized downloads. Exact remaining business record-scope queries, approval workflows, optional future client-facing row scopes, and per-module route permissions remain future scoped work.
 
 ## Assumptions
 

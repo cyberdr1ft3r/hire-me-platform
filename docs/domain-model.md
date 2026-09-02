@@ -442,16 +442,17 @@ Training participants are records by default. A participant portal or learning p
 
 ### Document
 
-- Purpose and owner: general stored, versioned, or generated document; owned by the module that creates it.
-- Important attributes: id, title, document type, current version id, visibility, generated status, output family, owner.
-- Relationships: may reference a candidate, client, recruitment mission, mission candidate, interview, training session, training enrollment, conversation, message, or creator user.
+- Purpose and owner: centralized managed file record for stored, uploaded, imported, or future generated output; owned by the module that creates it.
+- Important attributes: id, title, explicit document taxonomy, current version id, visibility, generated status, output family, owner, creator, lifecycle status, and archival timestamp.
+- Relationships: may reference a candidate, client, recruitment mission, mission candidate, interview, training session, training enrollment, conversation, message, or creator user. Issue #35 currently implements validated client, candidate, recruitment mission, mission-candidate, and interview contexts.
 - Cardinality: many documents can reference one business entity; one document can have many document versions.
 - Lifecycle: draft, active, superseded, archived.
+- Visibility rules: Issue #35 visibility is internal-only. `INTERNAL_ONLY` and `CLIENT_SHARED` require document permission plus linked-context scope. `PRIVATE` and `ASSIGNED_ONLY` require the current owner until a separate document-assignment model exists; null owner grants no private access. `CLIENT_SHARED` does not grant external or client-account access.
 - Sensitive fields: quotations, purchase orders, contracts, invoices, HR documents, reports, client files, storage metadata.
 - Uniqueness rules: current version id should reference one version in the document history.
 - Audit requirements: generation, upload, version creation, download, sharing, visibility change, and archival should be audited.
 
-Commercial records, public opportunities, applications, evaluations, client feedback, placement confirmations, and task state are structured business records. They are not `Document` records merely because they can later be exported to PDF, Word, or Excel.
+Issue #12 / Issue #35 require `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` to remain distinct taxonomy values. They are not collapsed into a generic contract type. Commercial records, recruitment/training contract business records, public opportunities, applications, evaluations, client feedback, placement confirmations, and task state are structured business records. They are not `Document` records merely because they can later be exported to PDF, Word, or Excel.
 
 ### CommercialRecord
 
@@ -469,12 +470,12 @@ Included MVP commercial concepts are quotations, recruitment contracts, training
 ### DocumentVersion
 
 - Purpose and owner: version record for one logical `Document`; owned by the module that owns the document.
-- Important attributes: id, document id, version number, filename, storage key, MIME type, size, output family, created by, created date, source.
+- Important attributes: id, document id, version number, sanitized download filename, safe original filename metadata, server-generated storage key, MIME type, size, checksum, output family, created by, created date, source.
 - Relationships: belongs to one `Document`.
 - Cardinality: one document can have many versions.
 - Lifecycle: active, superseded, archived.
 - Sensitive fields: storage key, document contents, generated output metadata.
-- Uniqueness rules: storage key must be unique; version number should be unique within one document.
+- Uniqueness rules: storage key must be unique; version number is unique within one document and assigned under a document row lock.
 - Audit requirements: version creation, download, supersession, sharing, and archival should be audited.
 
 ### Notification
@@ -642,7 +643,7 @@ Issue #3 implements the foundational Prisma schema as the first physical persist
 - The physical schema uses `MissionRecruiter` for the mission-assignment join. Issue #19 exposes this through shared mission assignment contracts and `/v1/missions/:missionId/assignments` endpoints, preserving the conceptual `MissionAssignment` relationship for multiple recruiters and contributors on one `RecruitmentMission`.
 - Business records use status enums and nullable `archivedAt` timestamps for archival. Physical deletes are restricted for history-preserving relationships such as clients with missions, mission candidates, interviews, documents, training records, conversations, and messages.
 - Normalized email fields are stored separately as `normalizedEmail` and are indexed or unique where the approved model calls for case-insensitive uniqueness.
-- `CandidateDocumentVersion` and `DocumentVersion` store protected storage metadata and version numbers. Actual file storage, malware scanning, download authorization, and generated-file production remain later implementation work.
+- `CandidateDocumentVersion` and `DocumentVersion` store protected storage metadata and version numbers. Issue #35 implements centralized `Document` file storage and authorized download through the protected storage abstraction. Malware scanning and generated-file production remain later implementation work.
 - `AuditLog` includes actor and target-user references plus safe summary metadata. Application services must treat audit records as append-only and must not store raw CV contents, confidential document contents, message bodies, secrets, or full sensitive payloads in audit metadata.
 - Task and notification context is represented through explicit optional foreign keys to approved entities rather than free-form JSON.
 - Prisma is owned by `apps/api`. The generated Prisma client uses Prisma 6 `prisma-client-js` with explicit output at `apps/api/prisma/generated/client`, which is ignored and regenerated rather than committed. API persistence code, the development seed, and database integration tests import through `apps/api/src/persistence/prisma/generated-client.ts` so the web app and contracts package remain ORM-independent.

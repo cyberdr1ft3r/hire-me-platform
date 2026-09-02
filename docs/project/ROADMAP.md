@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -83,7 +83,7 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 
 Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 implements task management, reminders, comments, mentions, and in-app notifications in draft PR #32; final follow-up fixes require exact-head PR review/CI. Broader search, accounting, payroll, training, and document generation remain separate scoped work.
+Issue #29 completed the internal offer-to-placement lifecycle. Task management, broader search, accounting, payroll, and document generation remain separate scoped work.
 
 ## Phase 6 - Offers and placements
 
@@ -95,16 +95,17 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 impleme
 
 ## Phase 6a - Task management
 
-**State:** In progress through Issue #31
+**State:** Complete through Issue #31 / merged PR #32
 
-- Task management with ownership, owner transfer, assignees, priority, due dates, status, authorized context links, searchable/filterable lists, reminders, own-notification controls, and audit history.
+- Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
 
 ## Phase 7 - Documents, reporting, and collaboration
 
-**State:** Planned; issues not yet created
+**State:** Document foundation in post-`main` integration review through Issue #35 / PR #40
 
-- Document templates, versions, and generation for confirmed commercial and HR files.
+- Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
+- Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
 - Customizable dashboard indicators, reports, and exports.
 - Private messages and discussion groups.
 - Protected document access and sharing.

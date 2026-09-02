@@ -19,6 +19,9 @@ import {
   PermissionScopeType,
   PrismaClient,
   RoleName,
+  DocumentStatus,
+  DocumentType,
+  DocumentVisibility,
   NotificationStatus,
   TaskAssignmentStatus,
   TaskReminderStatus,
@@ -63,6 +66,7 @@ async function cleanTaskTestRecords(): Promise<void> {
     where: { task: { title: { contains: 'Issue31' } } },
   });
   await prisma.task.deleteMany({ where: { title: { contains: 'Issue31' } } });
+  await prisma.document.deleteMany({ where: { title: { contains: 'Issue31' } } });
   await prisma.missionRecruiter.deleteMany({
     where: {
       OR: [
@@ -261,6 +265,24 @@ function authHeaders(accessToken: string): Record<string, string> {
 async function readErrorCode(response: Response): Promise<string | undefined> {
   const body = (await response.json()) as { error?: { code?: string } };
   return body.error?.code;
+}
+
+async function createTaskDocument(input: {
+  title: string;
+  visibility?: DocumentVisibility;
+  ownerUserId?: string | null;
+  createdByUserId?: string | null;
+}) {
+  return prisma.document.create({
+    data: {
+      title: input.title,
+      documentType: DocumentType.OTHER,
+      status: DocumentStatus.ACTIVE,
+      visibility: input.visibility ?? DocumentVisibility.INTERNAL_ONLY,
+      ownerUserId: input.ownerUserId ?? null,
+      createdByUserId: input.createdByUserId ?? input.ownerUserId ?? null,
+    },
+  });
 }
 
 async function requestAfterAssignmentRemovalUnderTaskLock<T>(
@@ -690,6 +712,243 @@ describe('internal task management, reminders, comments, and notifications', () 
         where: { title: 'Issue31 forbidden candidate context task' },
       }),
     ).toBe(0);
+  });
+
+  it('requires authoritative document visibility before linking task context', async () => {
+    const employeeSnapshot = await snapshotRolePermissions(RoleName.EMPLOYEE);
+    const privateDocument = await createTaskDocument({
+      title: 'Issue31 private document link target',
+      visibility: DocumentVisibility.PRIVATE,
+      ownerUserId,
+    });
+    const publicDocument = await createTaskDocument({
+      title: 'Issue31 visible document link target',
+      visibility: DocumentVisibility.INTERNAL_ONLY,
+      ownerUserId,
+    });
+
+    try {
+      await ensureRoleWithOnlyPermissions(RoleName.EMPLOYEE, [
+        'tasks:view',
+        'tasks:create',
+        'documents:download',
+      ]);
+      const noViewTitle = 'Issue31 document download without view task';
+      const noViewTaskCountBefore = await prisma.task.count({ where: { title: noViewTitle } });
+      const noViewAuditCountBefore = await prisma.auditLog.count({
+        where: { entityType: 'Task', action: 'tasks.created' },
+      });
+      const noViewLink = await fetch(`${baseUrl}/v1/tasks`, {
+        method: 'POST',
+        headers: authHeaders(createOnlyToken),
+        body: JSON.stringify({
+          title: noViewTitle,
+          ownerUserId: createOnlyUserId,
+          assigneeUserIds: [],
+          context: { documentId: publicDocument.id },
+        }),
+      });
+      expect(noViewLink.status).toBe(404);
+      expect(await readErrorCode(noViewLink)).toBe('TASK_CONTEXT_NOT_FOUND');
+      expect(await prisma.task.count({ where: { title: noViewTitle } })).toBe(
+        noViewTaskCountBefore,
+      );
+      expect(await prisma.taskEvent.count({ where: { task: { title: noViewTitle } } })).toBe(0);
+      expect(await prisma.notification.count({ where: { task: { title: noViewTitle } } })).toBe(0);
+      expect(
+        await prisma.auditLog.count({ where: { entityType: 'Task', action: 'tasks.created' } }),
+      ).toBe(noViewAuditCountBefore);
+    } finally {
+      await restoreRolePermissions(RoleName.EMPLOYEE, employeeSnapshot);
+    }
+
+    const privateBlocked = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({
+        title: 'Issue31 private document owner-only rejected task',
+        ownerUserId: assigneeUserId,
+        assigneeUserIds: [],
+        context: { documentId: privateDocument.id },
+      }),
+    });
+    expect(privateBlocked.status).toBe(404);
+    expect(await readErrorCode(privateBlocked)).toBe('TASK_CONTEXT_NOT_FOUND');
+    expect(
+      await prisma.task.count({
+        where: { title: 'Issue31 private document owner-only rejected task' },
+      }),
+    ).toBe(0);
+
+    const allowed = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 authoritative document link task',
+        ownerUserId,
+        assigneeUserIds: [],
+        context: { documentId: privateDocument.id },
+      }),
+    });
+    expect(allowed.status).toBe(201);
+    expect(TaskDetailResponseSchema.parse(await allowed.json()).task.context.documentId).toBe(
+      privateDocument.id,
+    );
+
+    const updateTarget = TaskDetailResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({
+            title: 'Issue31 rejected document update task',
+            ownerUserId,
+            assigneeUserIds: [assigneeUserId],
+          }),
+        })
+      ).json(),
+    ).task;
+    const eventCountBefore = await prisma.taskEvent.count({ where: { taskId: updateTarget.id } });
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { entityType: 'Task', entityId: updateTarget.id },
+    });
+    const rejectedUpdate = await fetch(`${baseUrl}/v1/tasks/${updateTarget.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(assigneeToken),
+      body: JSON.stringify({ context: { documentId: privateDocument.id } }),
+    });
+    expect(rejectedUpdate.status).toBe(404);
+    expect(await readErrorCode(rejectedUpdate)).toBe('TASK_CONTEXT_NOT_FOUND');
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: updateTarget.id } })).documentId,
+    ).toBeNull();
+    expect(await prisma.taskEvent.count({ where: { taskId: updateTarget.id } })).toBe(
+      eventCountBefore,
+    );
+    expect(
+      await prisma.auditLog.count({ where: { entityType: 'Task', entityId: updateTarget.id } }),
+    ).toBe(auditCountBefore);
+  });
+
+  it('redacts inaccessible linked document IDs from task and notification responses', async () => {
+    const document = await createTaskDocument({
+      title: 'Issue31 task response redaction document',
+      visibility: DocumentVisibility.INTERNAL_ONLY,
+      ownerUserId,
+    });
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 task response document redaction task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+        context: { documentId: document.id },
+      }),
+    });
+    expect(created.status).toBe(201);
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    expect(task.context.documentId).toBe(document.id);
+
+    const visibleToAssignee = await fetch(`${baseUrl}/v1/tasks/${task.id}`, {
+      headers: authHeaders(assigneeToken),
+    });
+    expect(
+      TaskDetailResponseSchema.parse(await visibleToAssignee.json()).task.context.documentId,
+    ).toBe(document.id);
+
+    await prisma.document.update({
+      where: { id: document.id },
+      data: { visibility: DocumentVisibility.PRIVATE, ownerUserId },
+    });
+    const redactedToAssignee = await fetch(`${baseUrl}/v1/tasks/${task.id}`, {
+      headers: authHeaders(assigneeToken),
+    });
+    expect(redactedToAssignee.status).toBe(200);
+    expect(
+      TaskDetailResponseSchema.parse(await redactedToAssignee.json()).task.context.documentId,
+    ).toBeNull();
+    const ownerStillSees = await fetch(`${baseUrl}/v1/tasks/${task.id}`, {
+      headers: authHeaders(ownerToken),
+    });
+    expect(
+      TaskDetailResponseSchema.parse(await ownerStillSees.json()).task.context.documentId,
+    ).toBe(document.id);
+
+    await prisma.document.update({ where: { id: document.id }, data: { ownerUserId: null } });
+    const ownerless = await fetch(`${baseUrl}/v1/tasks/${task.id}`, {
+      headers: authHeaders(ownerToken),
+    });
+    expect(
+      TaskDetailResponseSchema.parse(await ownerless.json()).task.context.documentId,
+    ).toBeNull();
+
+    await prisma.document.update({
+      where: { id: document.id },
+      data: {
+        status: DocumentStatus.ARCHIVED,
+        archivedAt: new Date(),
+        visibility: DocumentVisibility.INTERNAL_ONLY,
+      },
+    });
+    const archived = await fetch(`${baseUrl}/v1/tasks/${task.id}`, {
+      headers: authHeaders(assigneeToken),
+    });
+    expect(
+      TaskDetailResponseSchema.parse(await archived.json()).task.context.documentId,
+    ).toBeNull();
+
+    const privateNotificationDocument = await createTaskDocument({
+      title: 'Issue31 notification document redaction target',
+      visibility: DocumentVisibility.PRIVATE,
+      ownerUserId,
+    });
+    const assigneeNotification = await prisma.notification.create({
+      data: {
+        recipientUserId: assigneeUserId,
+        actorUserId: ownerUserId,
+        type: 'tasks.document.linked',
+        title: 'Task document linked',
+        bodySummary: 'A task document was linked.',
+        taskId: task.id,
+        documentId: privateNotificationDocument.id,
+      },
+    });
+    const ownerNotification = await prisma.notification.create({
+      data: {
+        recipientUserId: ownerUserId,
+        actorUserId: ownerUserId,
+        type: 'tasks.document.linked',
+        title: 'Task document linked',
+        bodySummary: 'A task document was linked.',
+        taskId: task.id,
+        documentId: privateNotificationDocument.id,
+      },
+    });
+
+    const assigneeRead = await fetch(
+      `${baseUrl}/v1/notifications/${assigneeNotification.id}/read`,
+      {
+        method: 'POST',
+        headers: authHeaders(assigneeToken),
+      },
+    );
+    expect(
+      NotificationDetailResponseSchema.parse(await assigneeRead.json()).notification,
+    ).toMatchObject({
+      taskId: task.id,
+      documentId: null,
+    });
+    const ownerRead = await fetch(`${baseUrl}/v1/notifications/${ownerNotification.id}/read`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+    });
+    expect(
+      NotificationDetailResponseSchema.parse(await ownerRead.json()).notification,
+    ).toMatchObject({
+      taskId: task.id,
+      documentId: privateNotificationDocument.id,
+    });
   });
 
   it('requires an active assignee before moving a task to in progress', async () => {

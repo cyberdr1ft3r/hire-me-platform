@@ -31,6 +31,7 @@ import { TASK_PERMISSIONS } from './task-permissions.js';
 import { conflict, forbidden, notFound } from './task.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
+import { DocumentsService } from '../documents/documents.service.js';
 import {
   NotificationStatus,
   Prisma,
@@ -151,6 +152,7 @@ const taskInclude = {
 export class TasksService {
   constructor(
     @Inject(TaskAuditService) private readonly audit: TaskAuditService,
+    @Inject(DocumentsService) private readonly documents: DocumentsService,
     @Inject(PermissionsService) private readonly permissions: PermissionsService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
@@ -174,7 +176,7 @@ export class TasksService {
       this.prisma.task.count({ where }),
     ]);
     return {
-      tasks: tasks.map((task) => this.toTaskSummary(task)),
+      tasks: await Promise.all(tasks.map((task) => this.toTaskSummary(task, actorUserId))),
       pageInfo: {
         page: query.page,
         pageSize,
@@ -186,7 +188,7 @@ export class TasksService {
 
   async getTask(taskId: string, actorUserId: string): Promise<TaskDetailResponse> {
     const task = await this.requireVisibleTask(taskId, actorUserId);
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async createTask(
@@ -204,10 +206,9 @@ export class TasksService {
     if (input.ownerUserId !== actorUserId || assigneeUserIds.length > 0) {
       this.assertAccess(access.assign, 'TASKS_ASSIGN_REQUIRED', 'Assign permission is required.');
     }
-    const normalizedContext = await this.normalizeContext(input.context ?? {});
-    await this.assertContextAccessible(normalizedContext, actorUserId, access);
-
     const task = await this.prisma.$transaction(async (tx) => {
+      const normalizedContext = await this.normalizeContext(input.context ?? {}, tx);
+      await this.assertContextAccessible(normalizedContext, actorUserId, access, tx);
       await this.assertActiveInternalUserInTransaction(
         tx,
         input.ownerUserId,
@@ -270,7 +271,7 @@ export class TasksService {
       entityId: task.id,
       metadataSummary: 'Task created with safe operational metadata.',
     });
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async updateTask(
@@ -309,7 +310,7 @@ export class TasksService {
             blockingReason: input.blockingReason,
             ...(input.context
               ? this.contextUpdateData(
-                  await this.normalizeAndAuthorizeContext(input.context, actorUserId, access),
+                  await this.normalizeAndAuthorizeContext(input.context, actorUserId, access, tx),
                   input.context,
                 )
               : {}),
@@ -333,7 +334,7 @@ export class TasksService {
       entityId: task.id,
       metadataSummary: 'Task operational fields updated.',
     });
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async changeOwner(
@@ -399,7 +400,7 @@ export class TasksService {
         metadataSummary: 'Task owner changed.',
       });
     }
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async addAssignment(
@@ -472,7 +473,7 @@ export class TasksService {
       entityId: taskId,
       metadataSummary: 'Task assignment added.',
     });
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async removeAssignment(
@@ -526,7 +527,7 @@ export class TasksService {
       entityId: taskId,
       metadataSummary: 'Task assignment removed.',
     });
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async transitionTask(
@@ -633,7 +634,7 @@ export class TasksService {
       entityId: taskId,
       metadataSummary: 'Task status changed.',
     });
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async completeTask(
@@ -676,7 +677,7 @@ export class TasksService {
         metadataSummary: 'Task completed.',
       });
     }
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async cancelTask(
@@ -719,7 +720,7 @@ export class TasksService {
         metadataSummary: 'Task canceled.',
       });
     }
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async archiveTask(
@@ -775,7 +776,7 @@ export class TasksService {
         metadataSummary: 'Task archived.',
       });
     }
-    return { task: this.toTaskDetail(task) };
+    return { task: await this.toTaskDetail(task, actorUserId) };
   }
 
   async createComment(
@@ -1537,9 +1538,10 @@ export class TasksService {
     context: Partial<NormalizedTaskContext>,
     actorUserId: string,
     access: TaskAccess,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
   ): Promise<NormalizedTaskContext> {
-    const normalized = await this.normalizeContext(context);
-    await this.assertContextAccessible(normalized, actorUserId, access);
+    const normalized = await this.normalizeContext(context, transaction);
+    await this.assertContextAccessible(normalized, actorUserId, access, transaction);
     return normalized;
   }
 
@@ -1589,6 +1591,7 @@ export class TasksService {
       trainingSessionParticipationId: string | null;
       documentId: string | null;
     }>,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
   ) {
     const normalized = {
       candidateId: context.candidateId ?? null,
@@ -1609,14 +1612,14 @@ export class TasksService {
     };
 
     if (normalized.clientId) {
-      const client = await this.prisma.client.findUnique({ where: { id: normalized.clientId } });
+      const client = await transaction.client.findUnique({ where: { id: normalized.clientId } });
       if (!client || client.archivedAt) {
         throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked client was not found.');
       }
     }
 
     if (normalized.candidateId) {
-      const candidate = await this.prisma.candidate.findUnique({
+      const candidate = await transaction.candidate.findUnique({
         where: { id: normalized.candidateId },
       });
       if (!candidate || candidate.archivedAt) {
@@ -1625,7 +1628,7 @@ export class TasksService {
     }
 
     if (normalized.clientContactId) {
-      const contact = await this.prisma.clientContact.findFirst({
+      const contact = await transaction.clientContact.findFirst({
         where: { id: normalized.clientContactId },
       });
       if (!contact || contact.archivedAt) {
@@ -1641,7 +1644,7 @@ export class TasksService {
     }
 
     if (normalized.missionCandidateId) {
-      const process = await this.prisma.missionCandidate.findUnique({
+      const process = await transaction.missionCandidate.findUnique({
         where: { id: normalized.missionCandidateId },
       });
       if (!process) {
@@ -1664,7 +1667,7 @@ export class TasksService {
     }
 
     if (normalized.interviewId) {
-      const interview = await this.prisma.interview.findUnique({
+      const interview = await transaction.interview.findUnique({
         where: { id: normalized.interviewId },
         include: { missionCandidate: true },
       });
@@ -1688,7 +1691,7 @@ export class TasksService {
     }
 
     if (normalized.recruitmentMissionId) {
-      const mission = await this.prisma.recruitmentMission.findUnique({
+      const mission = await transaction.recruitmentMission.findUnique({
         where: { id: normalized.recruitmentMissionId },
       });
       if (!mission || mission.archivedAt) {
@@ -1704,7 +1707,7 @@ export class TasksService {
     }
 
     if (normalized.missionRecruiterId) {
-      const assignment = await this.prisma.missionRecruiter.findUnique({
+      const assignment = await transaction.missionRecruiter.findUnique({
         where: { id: normalized.missionRecruiterId },
       });
       if (!assignment || assignment.archivedAt) {
@@ -1720,7 +1723,7 @@ export class TasksService {
     }
 
     if (normalized.recruitmentOfferId) {
-      const offer = await this.prisma.recruitmentOffer.findUnique({
+      const offer = await transaction.recruitmentOffer.findUnique({
         where: { id: normalized.recruitmentOfferId },
       });
       if (!offer) {
@@ -1740,7 +1743,7 @@ export class TasksService {
     }
 
     if (normalized.recruitmentOfferVersionId) {
-      const version = await this.prisma.recruitmentOfferVersion.findUnique({
+      const version = await transaction.recruitmentOfferVersion.findUnique({
         where: { id: normalized.recruitmentOfferVersionId },
       });
       if (!version) {
@@ -1762,7 +1765,7 @@ export class TasksService {
     }
 
     if (normalized.missionPlacementId) {
-      const placement = await this.prisma.missionPlacement.findUnique({
+      const placement = await transaction.missionPlacement.findUnique({
         where: { id: normalized.missionPlacementId },
       });
       if (!placement) {
@@ -1784,7 +1787,7 @@ export class TasksService {
     }
 
     if (normalized.documentId) {
-      const document = await this.prisma.document.findUnique({
+      const document = await transaction.document.findUnique({
         where: { id: normalized.documentId },
       });
       if (!document || document.archivedAt) {
@@ -1799,6 +1802,7 @@ export class TasksService {
     context: NormalizedTaskContext,
     actorUserId: string,
     access: TaskAccess,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
   ): Promise<void> {
     const permissions = new Set(await this.permissions.getEffectivePermissionCodes(actorUserId));
     const requirePermission = (permission: string, code: string) => {
@@ -1851,7 +1855,15 @@ export class TasksService {
       requirePermission('placements:view', 'TASK_CONTEXT_PLACEMENT_FORBIDDEN');
     }
     if (context.documentId) {
-      requirePermission('documents:download', 'TASK_CONTEXT_DOCUMENT_FORBIDDEN');
+      if (
+        !(await this.documents.canViewDocumentReference(
+          context.documentId,
+          actorUserId,
+          transaction,
+        ))
+      ) {
+        throw notFound('TASK_CONTEXT_NOT_FOUND', 'Linked document was not found.');
+      }
     }
   }
 
@@ -2317,7 +2329,7 @@ export class TasksService {
     });
   }
 
-  private toTaskSummary(task: TaskSummaryRecord) {
+  private async toTaskSummary(task: TaskSummaryRecord, actorUserId: string) {
     return {
       id: task.id,
       title: task.title,
@@ -2350,7 +2362,7 @@ export class TasksService {
         trainingSessionId: task.trainingSessionId,
         trainingEnrollmentId: task.trainingEnrollmentId,
         trainingSessionParticipationId: task.trainingSessionParticipationId,
-        documentId: task.documentId,
+        documentId: await this.visibleDocumentIdForActor(task.documentId, actorUserId),
       },
       completedAt: task.completedAt?.toISOString() ?? null,
       canceledAt: task.canceledAt?.toISOString() ?? null,
@@ -2360,9 +2372,9 @@ export class TasksService {
     };
   }
 
-  private toTaskDetail(task: TaskRecord) {
+  private async toTaskDetail(task: TaskRecord, actorUserId: string) {
     return {
-      ...this.toTaskSummary(task),
+      ...(await this.toTaskSummary(task, actorUserId)),
       assignments: task.assignments.map((assignment) => ({
         id: assignment.id,
         taskId: assignment.taskId,
@@ -2432,6 +2444,10 @@ export class TasksService {
     const taskVisible = notification.taskId
       ? await this.canViewTask(notification.taskId, actorUserId)
       : false;
+    const documentVisible =
+      taskVisible && notification.documentId
+        ? await this.documents.canViewDocumentReference(notification.documentId, actorUserId)
+        : false;
     return {
       id: notification.id,
       recipientUserId: notification.recipientUserId,
@@ -2441,7 +2457,7 @@ export class TasksService {
       bodySummary: notification.bodySummary,
       status: notification.status,
       taskId: taskVisible ? notification.taskId : null,
-      documentId: taskVisible ? notification.documentId : null,
+      documentId: documentVisible ? notification.documentId : null,
       interviewId: taskVisible ? notification.interviewId : null,
       recruitmentMissionId: taskVisible ? notification.recruitmentMissionId : null,
       missionCandidateId: taskVisible ? notification.missionCandidateId : null,
@@ -2452,5 +2468,17 @@ export class TasksService {
       createdAt: notification.createdAt.toISOString(),
       updatedAt: notification.updatedAt.toISOString(),
     };
+  }
+
+  private async visibleDocumentIdForActor(
+    documentId: string | null,
+    actorUserId: string,
+  ): Promise<string | null> {
+    if (!documentId) {
+      return null;
+    }
+    return (await this.documents.canViewDocumentReference(documentId, actorUserId))
+      ? documentId
+      : null;
   }
 }
