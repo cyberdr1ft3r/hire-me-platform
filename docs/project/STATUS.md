@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch is integrating latest `main` after PR #32 / Issue #31 merged.
-**Current blocker:** PR #40 must stay open/unmerged until the integrated task-management plus document-management branch validates against the updated `main`.
-**Next executable development task:** Human review/merge gate for PR #40 after the post-integration exact-head validation is recorded in the PR.
+**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch includes merged Issue #31 task-management behavior plus the Issue #35 document-management foundation.
+**Current blocker:** PR #40 post-integration review identified a Task-to-Document authorization gap; the branch now requires exact-head CI evidence for the document-link policy fix.
+**Next executable development task:** Human review/merge gate for PR #40 after the new exact-head validation is recorded in the PR.
 
 ## Active work
 
@@ -28,7 +28,7 @@ Status owner: repository maintainer
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Integrate merged Issue #31 from latest `main`, validate the combined branch, update PR #40, and keep it open/unmerged |
+| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
 
 ## Completed foundation work
 
@@ -212,6 +212,7 @@ Status owner: repository maintainer
 - Document visibility is enforced consistently across list, detail, version list, download, and mutation paths. List visibility is enforced by the database query predicate. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; null owner does not broaden private access. `CLIENT_SHARED` does not grant external/client access.
 - Uploads use server-generated protected storage keys, separate safe original filename metadata and sanitized download filenames, bounded strict base64/content size checks, MIME/extension/signature validation including bounded DOCX/XLSX OOXML ZIP-package validation, checksums, and safe DTOs that omit storage keys, filesystem paths, and document contents. Version numbers are assigned while holding a PostgreSQL `Document` row lock.
 - Metadata update and document archive audit records are written atomically with their mutations.
+- Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
 ## Current open technical questions
@@ -233,7 +234,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Finish PR #40 post-`main` integration validation, update the PR with the new head SHA and CI evidence, and keep PR #40 open/unmerged for human review.
+1. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
 
 ## Status Update Rules
 

@@ -212,6 +212,33 @@ export class DocumentsService {
     return { document: this.toDocumentDetail(document) };
   }
 
+  async canViewDocumentReference(
+    documentId: string,
+    actorUserId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<boolean> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    const document = await transaction.document.findUnique({
+      where: { id: documentId },
+      include: documentInclude,
+    });
+    if (!document) {
+      return false;
+    }
+    if (document.status === DocumentStatus.ARCHIVED || document.archivedAt) {
+      return false;
+    }
+    if (!(await this.hasDocumentAccess(document, actorUserId, permissions, transaction))) {
+      return false;
+    }
+    try {
+      await this.assertReadableContext(document, transaction);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async createDocument(
     input: DocumentCreateRequest,
     actorUserId: string,

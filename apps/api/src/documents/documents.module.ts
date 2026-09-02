@@ -11,5 +11,6 @@ import { StorageModule } from '../storage/storage.module.js';
   imports: [AuthModule, PrismaModule, StorageModule],
   controllers: [DocumentsController],
   providers: [DocumentAuditService, DocumentsService],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}
