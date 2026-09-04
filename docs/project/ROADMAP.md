@@ -139,7 +139,7 @@ Full legal accounting, general ledger, statutory tax declarations, bank reconcil
 
 ## Phase 9 - Training and coaching
 
-**State:** Training operations foundation in review through Issue #37 / PR #45
+**State:** Training operations foundation in review through Issue #37 on branch `feat/training-operations`
 
 - Implemented: training programs, sessions, enrollment, per-session attendance, deterministic
   lifecycles, client-linked record scope, and the durable certificate-readiness boundary.
