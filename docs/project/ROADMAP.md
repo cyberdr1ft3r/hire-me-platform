@@ -106,7 +106,8 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 - Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
 - Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
-- Customizable dashboard indicators, reports, and exports.
+- Issue #36 (draft PR on `feat/recruitment-reporting`) adds the first authenticated internal recruitment reporting layer: scoped KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export, all record-scope enforced and computed from existing data with no schema change. Accounting/revenue, training, and task-productivity analytics remain out of scope.
+- Customizable dashboard indicators, reports, and exports (broader dashboards beyond Issue #36 recruitment reporting).
 - Private messages and discussion groups.
 - Protected document access and sharing.
 

@@ -6,8 +6,8 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Commercial workflow foundation
-**Health:** Issue #38 is active on branch `feat/commercial-workflow`, started from latest `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`.
-**Current blocker:** none known locally; final repository validation, push, draft PR creation, and exact-head CI evidence remain.
+**Health:** Issue #38 is active on branch `feat/commercial-workflow`; latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` is incorporated.
+**Current blocker:** none known locally; post-merge repository validation, push, draft PR creation, and exact-head CI evidence remain.
 **Next executable development task:** Finish Issue #38 validation, open one draft PR linked with `Closes #38`, and keep it open/unmerged for human review.
 
 ## Active work
@@ -27,9 +27,10 @@ Status owner: repository maintainer
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | No action in Issue #38 branch |
-| Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | No action |
-| Issue #38 | Active | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Complete final validation, push `feat/commercial-workflow`, open one draft PR, and wait for CI |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
+| Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
+| Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged into `main` via PR #43 |
+| Issue #38 | Active | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Complete post-merge validation, push `feat/commercial-workflow`, open one draft PR, and wait for CI |
 
 ## Completed foundation work
 
@@ -216,15 +217,23 @@ Status owner: repository maintainer
 - Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
+## Issue #36 Implementation State
+
+- Issue #36 implements the first authenticated internal recruitment reporting layer and is merged into `main` through PR #43.
+- New API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`.
+- New Prisma-independent shared contracts live in `packages/contracts/src/reporting.ts`; web and contracts remain ORM-independent. No Prisma schema change and no migration were required.
+- Authorization enforces both capability and record scope. Every reporting endpoint requires the reporting capability plus the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`), so reporting cannot bypass operational read permissions; denials use the generic `PERMISSION_DENIED`. Record scope reuses the mission-candidate oversight model: broad scope requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment.
+- Reporting never exposes candidate salary/compensation, client/placement commercial values, confidential evaluation bodies, internal notes, document storage metadata, secrets, or tokens. KPI definitions and filter applicability are documented in `docs/reporting.md`.
+
 ## Issue #38 Implementation State
 
-- Issue #38 is active on branch `feat/commercial-workflow`, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`.
+- Issue #38 is active on branch `feat/commercial-workflow`, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` and incorporates latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
 - Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, and contract terms without commercial-data access.
 - Linked commercial records are checked server-side for same-client relationships. Placement-backed invoices require authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices.
 - PostgreSQL-backed regressions cover commercial redaction and write denial, quotation lifecycle and terminal mutation blocking, cross-client link rejection, distinct recruitment/training contracts, invoice snapshots, placement-backed invoicing, duplicate references, and concurrent invoice issue idempotency.
-- Local validation passed so far: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, second `pnpm.cmd prisma:seed`, focused commercial PostgreSQL integration tests with 7 tests passing, full `pnpm.cmd test:db` with 125 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/api typecheck`, `pnpm.cmd --filter @hire-me/web typecheck`, and `pnpm.cmd --filter @hire-me/web test -- App.test.tsx` with 24 web tests passing.
+- Local merged validation includes `pnpm.cmd test:db` with 147 PostgreSQL integration tests passing across 14 files.
 
 ## Current open technical questions
 
@@ -245,7 +254,8 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Finish Issue #38 final validation, push `feat/commercial-workflow`, open one draft PR with `Closes #38`, wait for exact-head GitHub Actions, and keep the PR open/unmerged for human review.
+1. Finish Issue #38 post-merge validation, push `feat/commercial-workflow`, open one draft PR with `Closes #38`, wait for exact-head GitHub Actions, and keep the PR open/unmerged for human review.
+2. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Status Update Rules
 

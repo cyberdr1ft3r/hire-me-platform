@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Commercial workflow foundation after merged task and document management.
+Commercial workflow foundation after merged task, document-management, and recruitment-reporting foundations.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -28,6 +28,7 @@ Commercial workflow foundation after merged task and document management.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
 - Issue #31 is complete; PR #32 merged internal task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
 - Issue #35 is complete; PR #40 merged the centralized document-management foundation into `main` as merge commit `b40e39b`.
+- Issue #36 is complete; PR #43 merged authenticated recruitment reporting, KPI dashboards, and safe CSV exports into `main` as merge commit `6ff19ad`.
 - Current executable goal: finish Issue #38 on branch `feat/commercial-workflow`, implementing structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
 
 ## Confirmed Product Facts
@@ -60,6 +61,7 @@ Commercial workflow foundation after merged task and document management.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
 - Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Accounting, payroll, training, and any future client portal each need their own later issues.
 - Issue #31 implemented internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
+- Issue #36 implements the first authenticated internal recruitment reporting layer (KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export) computed from existing authoritative records with no second data source and no schema change. Every metric, drilldown, and export applies server-side record scope: broad reporting requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment; filters only narrow scope and never disclose hidden-record existence. Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. It does not implement revenue/accounting/profitability, training, or task-productivity analytics. KPI definitions are in `docs/reporting.md`.
 - Issue #38 implements commercial records as structured business data, not documents: quotations, recruitment/training commercial contracts, purchase orders, and invoices with server-calculated totals, lifecycle/history records, audit summaries, cross-client IDOR protection, commercial-data redaction, and invoice snapshots. Placement-backed invoices use authoritative `MissionPlacement`; accepted offers or legacy integration metadata do not create invoice authority.
 
 ## Technical Direction

@@ -6,8 +6,9 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #38 is active on branch `feat/commercial-workflow`, started from latest `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`.
-- Issue #31 and Issue #35 are merged into `main`; task management and centralized document management are baseline behavior.
+- Issue #38 is active on branch `feat/commercial-workflow`.
+- The branch started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, then incorporated latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` after Issue #36 / PR #43 merged.
+- Issue #31, Issue #35, and Issue #36 are merged into `main`; task management, centralized document management, and recruitment reporting are baseline behavior.
 - The branch implements structured quotations, commercial contracts, purchase orders, and invoices as business records, not `Document` records.
 - Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, and contract terms without `commercial_data:access`.
 - Totals are calculated server-side. Issued invoice totals and lines are immutable snapshots.
@@ -18,7 +19,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Finish final validation, fetch latest `main` and incorporate it if it advanced, push `feat/commercial-workflow`, open exactly one draft PR with `Closes #38`, wait for the exact-head GitHub Actions run, and keep the PR open and unmerged for human review.
+Finish post-merge validation, push `feat/commercial-workflow`, open exactly one draft PR with `Closes #38`, wait for the exact-head GitHub Actions run, and keep the PR open and unmerged for human review.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

@@ -1305,6 +1305,54 @@ describe('App', () => {
       ),
     ).toBe(true);
   });
+
+  it('hides the reporting navigation from users without reporting permission', async () => {
+    mockReportingSession(['records:view']);
+
+    render(<App />);
+    await loginAs('no-report@example.test');
+
+    expect(await screen.findByRole('button', { name: /^missions$/i })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^reporting$/i })).toBeNull();
+  });
+
+  it('renders reporting KPIs and filters and hides export without export permission', async () => {
+    mockReportingSession(['reporting:recruitment:view']);
+
+    render(<App />);
+    await loginAs('viewonly-report@example.test');
+    fireEvent.click(await screen.findByRole('button', { name: /^reporting$/i }));
+
+    expect(await screen.findByRole('heading', { name: /recruitment reporting/i })).toBeVisible();
+    expect(await screen.findByText('Open missions')).toBeVisible();
+    expect(screen.getByLabelText(/client filter/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/mission filter/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/recruiter filter/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /export csv/i })).toBeNull();
+  });
+
+  it('exposes the export action and triggers a CSV download when permitted', async () => {
+    const fetchMock = mockReportingSession([
+      'reporting:recruitment:view',
+      'reporting:recruitment:export',
+    ]);
+    const createObjectURL = vi.fn(() => 'blob:reporting');
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+
+    render(<App />);
+    await loginAs('full-report@example.test');
+    fireEvent.click(await screen.findByRole('button', { name: /^reporting$/i }));
+
+    const exportButton = await screen.findByRole('button', { name: /export csv/i });
+    fireEvent.click(exportButton);
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/Exported/i);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/reporting/recruitment/export.csv'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
 });
 
 function mockCommercialWorkspace(permissions: string[]) {
@@ -1863,6 +1911,188 @@ function syntheticPublicOpportunity() {
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+async function loginAs(email: string): Promise<void> {
+  fireEvent.change(await screen.findByLabelText(/email/i), { target: { value: email } });
+  fireEvent.change(screen.getByLabelText(/password/i), {
+    target: { value: 'Synthetic-password-123!' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /login/i }));
+}
+
+function reportingWindowBody() {
+  return { start: '2026-06-01T00:00:00.000Z', end: '2026-09-01T00:00:00.000Z' };
+}
+
+function reportingScopeBody() {
+  return { kind: 'assigned' as const, authorizedMissionCount: 1 };
+}
+
+function reportingFiltersBody() {
+  return {
+    clientId: null,
+    missionId: null,
+    recruiterUserId: null,
+    pipelineState: null,
+    offerStatus: null,
+    placementStatus: null,
+    source: null,
+  };
+}
+
+function reportingSummaryBody() {
+  return {
+    summary: {
+      window: reportingWindowBody(),
+      scope: reportingScopeBody(),
+      filters: reportingFiltersBody(),
+      missions: {
+        total: 2,
+        open: 1,
+        closureEligible: 1,
+        closed: 1,
+        requestedPositions: 4,
+        byState: [],
+      },
+      pipeline: {
+        totalProcesses: 3,
+        presentedToClient: 1,
+        byState: [{ key: 'HR_PRESELECTION', count: 2 }],
+      },
+      applications: { newInWindow: 1 },
+      interviews: { scheduled: 1, completed: 1, canceled: 0, byStatus: [], byType: [] },
+      offers: { total: 1, accepted: 1, rejected: 0, withdrawn: 0, byCurrentStatus: [] },
+      placements: { confirmed: 1, corrected: 0, requestedPositions: 4, byStatus: [] },
+      aging: { overdueMissions: 0, stalePipelineProcesses: 0 },
+    },
+  };
+}
+
+function reportingPipelineBody() {
+  return {
+    window: reportingWindowBody(),
+    scope: reportingScopeBody(),
+    filters: reportingFiltersBody(),
+    distributions: {
+      missionsByState: [],
+      processesByState: [{ key: 'HR_PRESELECTION', count: 2 }],
+      interviewsByStatus: [],
+      interviewsByType: [],
+      offersByCurrentStatus: [],
+      placementsByStatus: [],
+    },
+  };
+}
+
+function reportingBreakdownsBody() {
+  return {
+    window: reportingWindowBody(),
+    scope: reportingScopeBody(),
+    filters: reportingFiltersBody(),
+    byClient: [
+      {
+        clientId: '11111111-1111-4111-8111-111111111111',
+        clientName: 'Reporting Client',
+        openMissions: 1,
+        totalProcesses: 3,
+        confirmedPlacements: 1,
+      },
+    ],
+    byMission: [],
+    byRecruiter: [],
+  };
+}
+
+function reportingTrendsBody() {
+  return {
+    window: reportingWindowBody(),
+    scope: reportingScopeBody(),
+    filters: reportingFiltersBody(),
+    interval: 'week' as const,
+    series: [
+      {
+        metric: 'processesCreated',
+        points: [{ bucketStart: reportingWindowBody().start, count: 3 }],
+      },
+      { metric: 'publicApplications', points: [] },
+      { metric: 'interviewsScheduled', points: [] },
+      { metric: 'offersCreated', points: [] },
+      { metric: 'placementsConfirmed', points: [] },
+    ],
+  };
+}
+
+function reportingDrilldownBody() {
+  return {
+    window: reportingWindowBody(),
+    scope: reportingScopeBody(),
+    filters: reportingFiltersBody(),
+    rows: [],
+    pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+  };
+}
+
+function mockReportingSession(permissions: string[]) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const url = requestUrl(input);
+
+    if (url.endsWith('/health')) {
+      return Promise.resolve(
+        jsonResponse({
+          status: 'ok',
+          service: 'hire-me-api',
+          timestamp: '2026-07-21T10:00:00.000Z',
+          uptimeSeconds: 1,
+        }),
+      );
+    }
+    if (url.endsWith('/auth/refresh')) {
+      return Promise.resolve(new Response('{}', { status: 401 }));
+    }
+    if (url.endsWith('/auth/login')) {
+      return Promise.resolve(
+        jsonResponse({
+          accessToken: 'synthetic-access-token',
+          accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+          user: {
+            id: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+            displayName: 'Reporting User',
+            email: 'reporting@example.test',
+            permissions,
+          },
+        }),
+      );
+    }
+    if (url.includes('/v1/reporting/recruitment/export.csv')) {
+      return Promise.resolve(
+        new Response('processId\r\nrow', {
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': 'attachment; filename="recruitment-report-20260901.csv"',
+          },
+        }),
+      );
+    }
+    if (url.includes('/v1/reporting/recruitment/summary')) {
+      return Promise.resolve(jsonResponse(reportingSummaryBody()));
+    }
+    if (url.includes('/v1/reporting/recruitment/pipeline')) {
+      return Promise.resolve(jsonResponse(reportingPipelineBody()));
+    }
+    if (url.includes('/v1/reporting/recruitment/breakdowns')) {
+      return Promise.resolve(jsonResponse(reportingBreakdownsBody()));
+    }
+    if (url.includes('/v1/reporting/recruitment/trends')) {
+      return Promise.resolve(jsonResponse(reportingTrendsBody()));
+    }
+    if (url.includes('/v1/reporting/recruitment/drilldown')) {
+      return Promise.resolve(jsonResponse(reportingDrilldownBody()));
+    }
+
+    void init;
+    return Promise.reject(new Error(`Unexpected request ${url}`));
   });
 }
 

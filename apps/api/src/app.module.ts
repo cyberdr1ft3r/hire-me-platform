@@ -9,6 +9,7 @@ import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
 import { MissionsModule } from './missions/missions.module.js';
 import { PublicApplicationsModule } from './public-applications/public-applications.module.js';
+import { ReportingModule } from './reporting/reporting.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 
 @Module({
@@ -21,6 +22,7 @@ import { TasksModule } from './tasks/tasks.module.js';
     DocumentsModule,
     MissionsModule,
     PublicApplicationsModule,
+    ReportingModule,
     TasksModule,
   ],
   controllers: [HealthController],
