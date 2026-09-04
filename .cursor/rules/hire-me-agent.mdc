@@ -1,0 +1,156 @@
+---
+description: Hire-Me repository engineering and agent execution rules
+alwaysApply: true
+---
+
+# Hire-Me Agent Rules
+
+Before changing code:
+
+1. Read `AGENTS.md`.
+2. Read `PROJECT_MEMORY.md`.
+3. Read:
+   - `docs/project/STATUS.md`
+   - `docs/project/HANDOFF.md`
+   - `docs/project/DECISIONS.md`
+   - `docs/project/RISKS.md`
+   - `docs/project/ROADMAP.md`
+4. Read the GitHub issue being implemented completely.
+5. Inspect current `main` and relevant merged implementation before making assumptions.
+6. Use repository skills referenced by `AGENTS.md` when applicable.
+
+## Git discipline
+
+- One GitHub issue per feature branch.
+- Start from the latest `origin/main`.
+- Never develop directly on `main`.
+- Never merge a PR automatically.
+- Never deploy.
+- Never force-push shared history unless explicitly approved.
+- Never discard unrelated user/developer changes.
+- Keep the PR open for human/ChatGPT review.
+- Prefer a draft PR for implementation work.
+
+## Architecture
+
+- Prisma belongs only to the API workspace.
+- Shared contracts and the web app must remain Prisma-independent.
+- Reuse existing modules, authorization policies, storage abstractions, audit infrastructure, and domain models.
+- Do not introduce a second source of truth.
+- Do not create parallel models for concepts already represented in the repository.
+- Business records and managed `Document` files are separate concepts unless the product explicitly links them.
+
+## Database
+
+- Additive migrations only.
+- Never modify a migration already merged to `main`.
+- Use PostgreSQL constraints/transactions/locking for important integrity and concurrency rules.
+- Do not rely only on application-level checks when database integrity can enforce the invariant.
+- Test concurrency-sensitive behavior against real PostgreSQL.
+
+## Security
+
+Treat these as merge blockers:
+
+- IDOR / record-scope bypasses
+- permission bypasses
+- aggregate/count side-channel leakage
+- sensitive data exposure
+- cross-client or cross-context linkage
+- unsafe file/storage access
+- non-atomic sensitive mutations
+- stale authorization races
+- insecure exports
+
+Authorization must be server-authoritative.
+
+UI permission gating is never sufficient by itself.
+
+Prefer failing closed when authorization is ambiguous.
+
+## Product boundaries
+
+Do not silently expand issue scope.
+
+Preserve existing product decisions and merged behavior.
+
+Do not implement future modules merely because the schema contains placeholders.
+
+When product behavior is genuinely ambiguous:
+- stop that specific decision;
+- document the question;
+- do not invent business rules.
+
+## Tests
+
+Every meaningful security/business rule should have regression coverage.
+
+For database work, cover:
+- happy path
+- unauthorized path
+- cross-record mismatch / IDOR
+- archived/stale context
+- rejected writes leaving no side effects
+- concurrency/retry behavior where relevant
+
+Do not delete or weaken existing tests just to make CI pass.
+
+## Validation
+
+Before declaring completion, run the repository-required checks, including applicable equivalents of:
+
+- format check
+- `git diff --check`
+- Prisma validate
+- Prisma generate
+- architecture boundary check
+- lint
+- typecheck
+- unit tests
+- build
+- PostgreSQL migrations from clean state
+- seed twice
+- PostgreSQL integration tests
+- Mermaid validation for changed Mermaid diagrams
+
+If something cannot run locally, say exactly why and rely on GitHub Actions for that portion.
+
+## Pull request
+
+The PR body must contain:
+
+- `Closes #<issue>`
+- implementation summary
+- security/authorization design
+- schema/migration changes, if any
+- test coverage
+- local validation
+- exact-head GitHub Actions evidence when available
+- known limitations / explicitly out-of-scope work
+
+Never claim checks passed unless they actually ran successfully.
+
+## Completion report
+
+Report:
+
+- issue
+- branch
+- base `main` SHA
+- commits
+- PR number/link
+- final head SHA
+- files changed
+- architecture/design decisions
+- security decisions
+- migrations, if any
+- tests added
+- PostgreSQL test total
+- validation results
+- CI run/jobs
+- blockers/questions
+- confirmation PR is open and unmerged
+
+End with:
+
+`Ready for ChatGPT review: YES/NO`
