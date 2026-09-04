@@ -79,3 +79,12 @@ Every task summary must include:
 - Assumptions and unresolved decisions
 - Scope intentionally not implemented
 - Current blockers and the next recommended action
+
+## Cursor Cloud specific instructions
+
+The Cloud Agent VM provisions Node.js 24 (NodeSource, at `/usr/bin/node`) and a native PostgreSQL 16 cluster. Two environment facts are non-obvious:
+
+- The cloud daemon injects its own Node (v22.14) first on `PATH`, so a bare `node`/`pnpm` resolves to Node 22 and the `apps/web` Vitest suite fails on a leaked `fetch` (`ECONNREFUSED 127.0.0.1:3000`). Prepend Node 24 for repository commands: `export PATH=/usr/bin:$PATH`. Under Node 24 the full suite passes (`pnpm test`, `pnpm test:db`).
+- PostgreSQL runs as the system cluster, not via Docker Compose. Start it with `sudo pg_ctlcluster 16 main start` and confirm readiness with `pg_isready -h 127.0.0.1 -p 5432`. The `hire_me` role, `hire_me_dev` database, and the `.env` file (copied from `.env.example`) already match `DATABASE_URL`.
+
+The saved environment encodes this: `install` refreshes dependencies and the Prisma client under Node 24, and `start` brings up PostgreSQL, applies migrations, runs the idempotent seed, and launches `pnpm dev` (API on `127.0.0.1:3000`, web on `127.0.0.1:5173`). Everything else follows the root `README.md`.
