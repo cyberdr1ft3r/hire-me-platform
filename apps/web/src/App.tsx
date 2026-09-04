@@ -28,6 +28,12 @@ import type {
   InternalPublicOpportunity,
   Notification,
   PublicOpportunity,
+  ReportingBreakdownsResponse,
+  ReportingDistributionEntry,
+  ReportingDrilldownResponse,
+  ReportingPipelineResponse,
+  ReportingSummary,
+  ReportingTrendsResponse,
   TaskSummary,
 } from '@hire-me/contracts';
 
@@ -131,6 +137,12 @@ import {
   addDocumentVersion,
   downloadDocumentVersion,
   updateTaskStatus,
+  getReportingSummary,
+  getReportingPipeline,
+  getReportingBreakdowns,
+  getReportingDrilldown,
+  getReportingTrends,
+  exportReportingCsv,
 } from './api.js';
 
 type ApiState =
@@ -138,7 +150,8 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks' | 'documents';
+type Route =
+  'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks' | 'documents' | 'reporting';
 type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
@@ -147,6 +160,8 @@ const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 const MISSIONS_ROUTE_PERMISSION = 'missions:view';
 const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
 const TASKS_ROUTE_PERMISSION = 'tasks:view';
+const REPORTING_ROUTE_PERMISSION = 'reporting:recruitment:view';
+const REPORTING_EXPORT_PERMISSION = 'reporting:recruitment:export';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -166,7 +181,9 @@ export function App() {
               ? 'documents'
               : window.location.pathname === '/tasks'
                 ? 'tasks'
-                : 'home',
+                : window.location.pathname === '/reporting'
+                  ? 'reporting'
+                  : 'home',
   );
 
   useEffect(() => {
@@ -277,7 +294,9 @@ export function App() {
                 ? '/documents'
                 : nextRoute === 'tasks'
                   ? '/tasks'
-                  : '/',
+                  : nextRoute === 'reporting'
+                    ? '/reporting'
+                    : '/',
     );
   }
 
@@ -295,6 +314,7 @@ export function App() {
   const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
   const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
   const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
+  const canOpenReporting = Boolean(user?.permissions.includes(REPORTING_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -377,6 +397,16 @@ export function App() {
             >
               Tasks
             </button>
+            {canOpenReporting ? (
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('reporting');
+                }}
+              >
+                Reporting
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -469,7 +499,323 @@ export function App() {
           </section>
         )
       ) : null}
+      {route === 'reporting' && user && accessToken ? (
+        canOpenReporting ? (
+          <ReportingPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Recruitment reporting">
+            <h2>Recruitment reporting</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
     </main>
+  );
+}
+
+function ReportingPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const canExport = permissions.includes(REPORTING_EXPORT_PERMISSION);
+  const [summary, setSummary] = useState<ReportingSummary | null>(null);
+  const [pipeline, setPipeline] = useState<ReportingPipelineResponse | null>(null);
+  const [breakdowns, setBreakdowns] = useState<ReportingBreakdownsResponse | null>(null);
+  const [trends, setTrends] = useState<ReportingTrendsResponse | null>(null);
+  const [drilldown, setDrilldown] = useState<ReportingDrilldownResponse | null>(null);
+  const [start, setStart] = useState<string>('');
+  const [end, setEnd] = useState<string>('');
+  const [clientId, setClientId] = useState<string>('');
+  const [missionId, setMissionId] = useState<string>('');
+  const [recruiterUserId, setRecruiterUserId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  function buildQuery() {
+    const toIso = (value: string): string | undefined =>
+      value ? new Date(value).toISOString() : undefined;
+    return {
+      start: toIso(start),
+      end: toIso(end),
+      clientId: clientId || undefined,
+      missionId: missionId || undefined,
+      recruiterUserId: recruiterUserId || undefined,
+    };
+  }
+
+  async function loadReport(): Promise<void> {
+    setError(null);
+    setStatus(null);
+    try {
+      const query = buildQuery();
+      const [
+        summaryResponse,
+        pipelineResponse,
+        breakdownsResponse,
+        trendsResponse,
+        drilldownResponse,
+      ] = await Promise.all([
+        getReportingSummary(accessToken, query),
+        getReportingPipeline(accessToken, query),
+        getReportingBreakdowns(accessToken, query),
+        getReportingTrends(accessToken, { ...query, interval: 'week' }),
+        getReportingDrilldown(accessToken, { ...query, page: 1, pageSize: 25 }),
+      ]);
+      setSummary(summaryResponse.summary);
+      setPipeline(pipelineResponse);
+      setBreakdowns(breakdownsResponse);
+      setTrends(trendsResponse);
+      setDrilldown(drilldownResponse);
+    } catch {
+      setError('Unable to load recruitment reporting.');
+    }
+  }
+
+  useEffect(() => {
+    void loadReport();
+  }, [accessToken]);
+
+  async function handleExport(): Promise<void> {
+    setError(null);
+    setStatus(null);
+    try {
+      const { filename, content } = await exportReportingCsv(accessToken, buildQuery());
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus(`Exported ${filename}.`);
+    } catch {
+      setError('Unable to export recruitment reporting CSV.');
+    }
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Recruitment reporting">
+      <h2>Recruitment reporting</h2>
+      <form
+        aria-label="Reporting filters"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void loadReport();
+        }}
+      >
+        <label>
+          Start date
+          <input
+            type="date"
+            value={start}
+            onChange={(event) => {
+              setStart(event.target.value);
+            }}
+          />
+        </label>
+        <label>
+          End date
+          <input
+            type="date"
+            value={end}
+            onChange={(event) => {
+              setEnd(event.target.value);
+            }}
+          />
+        </label>
+        <label>
+          Client
+          <select
+            aria-label="Client filter"
+            value={clientId}
+            onChange={(event) => {
+              setClientId(event.target.value);
+            }}
+          >
+            <option value="">All authorized clients</option>
+            {breakdowns?.byClient.map((entry) => (
+              <option key={entry.clientId} value={entry.clientId}>
+                {entry.clientName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Mission
+          <select
+            aria-label="Mission filter"
+            value={missionId}
+            onChange={(event) => {
+              setMissionId(event.target.value);
+            }}
+          >
+            <option value="">All authorized missions</option>
+            {breakdowns?.byMission.map((entry) => (
+              <option key={entry.missionId} value={entry.missionId}>
+                {entry.missionTitle}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Recruiter
+          <select
+            aria-label="Recruiter filter"
+            value={recruiterUserId}
+            onChange={(event) => {
+              setRecruiterUserId(event.target.value);
+            }}
+          >
+            <option value="">All authorized recruiters</option>
+            {breakdowns?.byRecruiter.map((entry) => (
+              <option key={entry.recruiterUserId} value={entry.recruiterUserId}>
+                {entry.recruiterDisplayName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit">Apply filters</button>
+        {canExport ? (
+          <button
+            type="button"
+            onClick={() => {
+              void handleExport();
+            }}
+          >
+            Export CSV
+          </button>
+        ) : null}
+      </form>
+
+      {error ? <p role="alert">{error}</p> : null}
+      {status ? <p role="status">{status}</p> : null}
+
+      {summary ? (
+        <div className="reporting-kpis" aria-label="Recruitment KPIs">
+          <ReportingKpiCard label="Open missions" value={summary.missions.open} />
+          <ReportingKpiCard label="Total missions" value={summary.missions.total} />
+          <ReportingKpiCard
+            label="Closure-eligible missions"
+            value={summary.missions.closureEligible}
+          />
+          <ReportingKpiCard
+            label="Requested positions"
+            value={summary.missions.requestedPositions}
+          />
+          <ReportingKpiCard label="Candidate processes" value={summary.pipeline.totalProcesses} />
+          <ReportingKpiCard
+            label="Presented to client"
+            value={summary.pipeline.presentedToClient}
+          />
+          <ReportingKpiCard label="Interviews scheduled" value={summary.interviews.scheduled} />
+          <ReportingKpiCard label="Interviews completed" value={summary.interviews.completed} />
+          <ReportingKpiCard label="Offers accepted" value={summary.offers.accepted} />
+          <ReportingKpiCard label="Confirmed placements" value={summary.placements.confirmed} />
+          <ReportingKpiCard
+            label="New applications (window)"
+            value={summary.applications.newInWindow}
+          />
+          <ReportingKpiCard label="Overdue missions" value={summary.aging.overdueMissions} />
+        </div>
+      ) : null}
+
+      {pipeline ? (
+        <ReportingDistributionTable
+          title="Pipeline by state"
+          entries={pipeline.distributions.processesByState}
+        />
+      ) : null}
+
+      {trends ? (
+        <div aria-label="Reporting trends">
+          <h3>Trends (weekly)</h3>
+          <p>
+            {trends.series
+              .map((series) => {
+                const total = series.points.reduce((sum, point) => sum + point.count, 0);
+                return `${series.metric}: ${total}`;
+              })
+              .join(' · ')}
+          </p>
+        </div>
+      ) : null}
+
+      {drilldown ? (
+        <div aria-label="Reporting drilldown">
+          <h3>Drilldown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Mission</th>
+                <th>Client</th>
+                <th>Candidate</th>
+                <th>State</th>
+                <th>Recruiter</th>
+              </tr>
+            </thead>
+            <tbody>
+              {drilldown.rows.map((row) => (
+                <tr key={row.processId}>
+                  <td>{row.missionTitle}</td>
+                  <td>{row.clientName}</td>
+                  <td>{row.candidateDisplayName}</td>
+                  <td>{row.pipelineState}</td>
+                  <td>{row.responsibleRecruiterDisplayName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ReportingKpiCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="reporting-kpi">
+      <span className="reporting-kpi__label">{label}</span>
+      <strong className="reporting-kpi__value">{value}</strong>
+    </div>
+  );
+}
+
+function ReportingDistributionTable({
+  title,
+  entries,
+}: {
+  title: string;
+  entries: ReportingDistributionEntry[];
+}) {
+  return (
+    <div>
+      <h3>{title}</h3>
+      {entries.length === 0 ? (
+        <p>No data in scope.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry) => (
+              <tr key={entry.key}>
+                <td>{entry.key}</td>
+                <td>{entry.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

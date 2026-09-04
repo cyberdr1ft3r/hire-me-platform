@@ -1,14 +1,15 @@
 # Project Status
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch includes merged Issue #31 task-management behavior plus the Issue #35 document-management foundation.
-**Current blocker:** PR #40 post-integration review identified a Task-to-Document authorization gap; the branch now requires exact-head CI evidence for the document-link policy fix.
-**Next executable development task:** Human review/merge gate for PR #40 after the new exact-head validation is recorded in the PR.
+**Phase:** Recruitment reporting foundation (Phase 7) after merged task-management and document-management foundations.
+**Health:** Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`. The Issue #36 correction pass is complete on branch `feat/recruitment-reporting` (draft PR #43): the application/security review is resolved and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved.
+**Current final head after integration:** `feat/recruitment-reporting` tip that merges `origin/main` `cebd87f…` on top of the reviewed reporting head `5b9ac92…`; exact-head GitHub Actions is green (Quality checks; PostgreSQL Docker Compose health; Database migration, seed, and integration tests).
+**Parallelization:** Issue #38 may proceed in parallel; Issue #36 does not touch commercial/accounting code or schema. Issue #39 remains blocked by Issue #38.
+**Next executable development task:** Human/ChatGPT merge gate for the Issue #36 draft PR #43 (kept draft/open/unmerged).
 
 ## Active work
 
@@ -27,8 +28,9 @@ Status owner: repository maintainer
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
+| Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
+| Issue #36 | In review | Implement recruitment reporting, KPI dashboards, and safe exports | Correction pass complete and latest `main` (PR #44) integrated on `feat/recruitment-reporting`; exact-head CI green; awaiting human/ChatGPT merge gate |
 
 ## Completed foundation work
 
@@ -215,6 +217,20 @@ Status owner: repository maintainer
 - Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
+## Issue #36 Implementation State
+
+- Issue #36 implements the first authenticated internal recruitment reporting layer on branch `feat/recruitment-reporting` (draft PR), built on merged Issue #31 and Issue #35.
+- New API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`.
+- New Prisma-independent shared contracts live in `packages/contracts/src/reporting.ts`; web and contracts remain ORM-independent (`pnpm check:architecture` passes). No Prisma schema change and no migration were required.
+- Authorization enforces both capability and record scope. Every reporting endpoint requires the reporting capability plus the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`), so reporting cannot bypass operational read permissions; denials use the generic `PERMISSION_DENIED`. Record scope then reuses the mission-candidate oversight model: broad scope requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment. Filters only narrow scope; out-of-scope or unknown `clientId`/`missionId`/`recruiterUserId` return identical empty results and status codes with no existence disclosure.
+- `offerStatus` and `placementStatus` filters compose on all process-derived datasets (drilldown, export, pipeline, interviews, offers, placements, trends), constraining by the authoritative current offer version and `MissionPlacement`; interactive drilldown and CSV export return identical scoped rows.
+- Reporting never exposes candidate salary/compensation, client/placement commercial values, confidential evaluation bodies, internal notes, document storage metadata, secrets, or tokens.
+- CSV export requires `reporting:recruitment:export`, applies the same scope/filters, uses deterministic ordering, RFC 4180 quoting, and code-point-based spreadsheet-formula-injection neutralization (including actual tab/CR), never silently truncates (rejects over-large exports with `REPORTING_EXPORT_TOO_LARGE`, no CSV and no audit), and audits successful exports with safe metadata only. Interactive reads are not audited.
+- Two seed permissions were added (`reporting:recruitment:view`, `reporting:recruitment:export`) mapped to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. KPI definitions and filter applicability are documented in `docs/reporting.md`.
+- A minimal authenticated reporting dashboard was added to `apps/web` (KPI cards, pipeline distribution, authorized client/mission/recruiter filters, date filters, trends summary, drilldown table, permission-gated CSV export).
+- Local validation under Node 24: `pnpm format:check`, `git diff --check`, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm prisma:migrate:deploy`, `pnpm prisma:seed` twice, and `pnpm test:db` all pass. `pnpm test:db` totals 140 PostgreSQL integration tests across 13 files (118 prior baseline + 22 reporting). CSV escaping/formula-injection also has dedicated unit coverage in `pnpm test`.
+- No Mermaid diagrams changed, so no diagram rendering was required.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -234,7 +250,8 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
+1. Human/ChatGPT merge gate for Issue #36 draft PR #43: the correction pass is complete, latest `main` (PR #44) is integrated, and exact-head CI is green. Keep the PR draft/open/unmerged until merge review.
+2. Issue #38 may proceed in parallel (commercial/accounting); Issue #39 remains blocked by Issue #38.
 
 ## Status Update Rules
 
