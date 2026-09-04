@@ -5,11 +5,11 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Recruitment reporting foundation (Phase 7) after merged task-management and document-management foundations.
-**Health:** Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`. The Issue #36 correction pass is complete on branch `feat/recruitment-reporting` (draft PR #43): the application/security review is resolved and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved.
-**Current final head after integration:** `feat/recruitment-reporting` tip that merges `origin/main` `cebd87f…` on top of the reviewed reporting head `5b9ac92…`; exact-head GitHub Actions is green (Quality checks; PostgreSQL Docker Compose health; Database migration, seed, and integration tests).
-**Parallelization:** Issue #38 may proceed in parallel; Issue #36 does not touch commercial/accounting code or schema. Issue #39 remains blocked by Issue #38.
-**Next executable development task:** Human/ChatGPT merge gate for the Issue #36 draft PR #43 (kept draft/open/unmerged).
+**Phase:** Training operations foundation (Phase 9) after merged task-management, document-management, and recruitment-reporting foundations.
+**Health:** Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`. Issue #37 is implemented on branch `feat/training-operations` as a draft PR. The branch was started from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules) and then integrated latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting). Both the merged reporting behavior and the Issue #37 training behavior are preserved.
+**Parallelization:** Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior.
+**Current blocker:** Issue #37 draft PR #45 has completed one blocking ChatGPT review correction pass and awaits final review plus exact-head GitHub Actions.
+**Next executable development task:** Human/ChatGPT review gate for the Issue #37 draft PR, kept open and unmerged.
 
 ## Active work
 
@@ -30,7 +30,8 @@ Status owner: repository maintainer
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
-| Issue #36 | In review | Implement recruitment reporting, KPI dashboards, and safe exports | Correction pass complete and latest `main` (PR #44) integrated on `feat/recruitment-reporting`; exact-head CI green; awaiting human/ChatGPT merge gate |
+| Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
+| Issue #37 | Open | Implement training operations foundation: programs, sessions, enrollment, and attendance | Await ChatGPT review and exact-head CI on the draft PR from branch `feat/training-operations`; keep it open/unmerged |
 
 ## Completed foundation work
 
@@ -219,17 +220,26 @@ Status owner: repository maintainer
 
 ## Issue #36 Implementation State
 
-- Issue #36 implements the first authenticated internal recruitment reporting layer on branch `feat/recruitment-reporting` (draft PR), built on merged Issue #31 and Issue #35.
-- New API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`.
-- New Prisma-independent shared contracts live in `packages/contracts/src/reporting.ts`; web and contracts remain ORM-independent (`pnpm check:architecture` passes). No Prisma schema change and no migration were required.
-- Authorization enforces both capability and record scope. Every reporting endpoint requires the reporting capability plus the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`), so reporting cannot bypass operational read permissions; denials use the generic `PERMISSION_DENIED`. Record scope then reuses the mission-candidate oversight model: broad scope requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment. Filters only narrow scope; out-of-scope or unknown `clientId`/`missionId`/`recruiterUserId` return identical empty results and status codes with no existence disclosure.
-- `offerStatus` and `placementStatus` filters compose on all process-derived datasets (drilldown, export, pipeline, interviews, offers, placements, trends), constraining by the authoritative current offer version and `MissionPlacement`; interactive drilldown and CSV export return identical scoped rows.
-- Reporting never exposes candidate salary/compensation, client/placement commercial values, confidential evaluation bodies, internal notes, document storage metadata, secrets, or tokens.
-- CSV export requires `reporting:recruitment:export`, applies the same scope/filters, uses deterministic ordering, RFC 4180 quoting, and code-point-based spreadsheet-formula-injection neutralization (including actual tab/CR), never silently truncates (rejects over-large exports with `REPORTING_EXPORT_TOO_LARGE`, no CSV and no audit), and audits successful exports with safe metadata only. Interactive reads are not audited.
-- Two seed permissions were added (`reporting:recruitment:view`, `reporting:recruitment:export`) mapped to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. KPI definitions and filter applicability are documented in `docs/reporting.md`.
-- A minimal authenticated reporting dashboard was added to `apps/web` (KPI cards, pipeline distribution, authorized client/mission/recruiter filters, date filters, trends summary, drilldown table, permission-gated CSV export).
-- Local validation under Node 24: `pnpm format:check`, `git diff --check`, `pnpm prisma:validate`, `pnpm prisma:generate`, `pnpm check:architecture`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm prisma:migrate:deploy`, `pnpm prisma:seed` twice, and `pnpm test:db` all pass. `pnpm test:db` totals 140 PostgreSQL integration tests across 13 files (118 prior baseline + 22 reporting). CSV escaping/formula-injection also has dedicated unit coverage in `pnpm test`.
-- No Mermaid diagrams changed, so no diagram rendering was required.
+- Issue #36 merged the first authenticated internal recruitment reporting layer through PR #43.
+- API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`. Shared contracts live in `packages/contracts/src/reporting.ts`. No Prisma schema change or migration was required.
+- Reporting requires the reporting capability plus the underlying operational reads, so it cannot bypass operational read permissions. Record scope reuses the mission-candidate oversight model. Reporting never exposes salary/compensation, commercial values, confidential evaluation bodies, internal notes, storage metadata, or secrets.
+- CSV export requires `reporting:recruitment:export`, neutralizes spreadsheet formula injection, rejects over-large exports instead of truncating, and audits only successful exports with safe metadata.
+
+## Issue #37 Implementation State
+
+- Issue #37 implements the internal training-operations module on the existing training records. No parallel training model was introduced.
+- Schema work is additive only, in migration `20260904143000_training_operations_foundation`: program reference/normalized reference, optional client context and planned window; session title, sequence, scheduled end, delivery mode, reschedule and cancellation metadata; enrollment actor, lifecycle timestamps, withdrawal reason, and active-participant key; participation actor, attendance timestamp, and correction metadata.
+- The API adds permission-guarded `/v1/training` endpoints. Sessions, enrollments, and participation are nested under their training program so the full parent chain is verified server-side.
+- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment additionally supports an explicit authorized withdrawal to `canceled` from any active state, with a recorded reason and preserved history.
+- Active enrollment uniqueness and session participation uniqueness are enforced by PostgreSQL unique constraints, so concurrent duplicate attempts resolve deterministically to a single record.
+- Concurrent reschedule, cancel, lifecycle, and attendance writes serialize through row locks taken in the order program, session, enrollment, participation.
+- Authorization combines an explicit training capability with server-side record scope. `training_programs:view_all` is the separate broad oversight capability. Client-linked programs additionally require `clients:view` and are otherwise excluded from both the list predicate and the detail path.
+- Attendance correction is a separate capability from recording attendance and always records a reason, a correction count, and audit history. Trainer notes are redacted from actors who may not manage participation.
+- Certificate readiness is a derived durable boundary over `completedAt`, withdrawal, archival, and certificate status. No certificate or contract file is generated, and no `Document` records are created for training records.
+- Training commercial data is deliberately absent. `TrainingEnrollment.paymentStatus` remains an untouched pre-existing column and is not exposed. The stable identifiers a later commercial feature can consume are the training program id/reference, training session id, and training enrollment id.
+- Validation ran against a dedicated local PostgreSQL database because a concurrent agent reset the shared development database mid-task.
+- PR #45 review corrections (decision D-050): participant linking now requires the source domain's own read authorization and fails closed indistinguishably; enrollment reads redact source identifiers; the migration backfills and validates legacy active enrollments and adds a keyless-active check constraint; `PARTICIPATION_ARCHIVED` is reachable through an explicit audited idempotent archive action; attendance is gated by session state and can no longer be rewritten through the ordinary action; training query booleans are parsed explicitly; the reschedule reason is persisted; and certificate readiness requires an explicit `PENDING` status.
+- After integrating latest `main` (PR #43 recruitment reporting), the full suite was rerun from a clean database. `pnpm test:db` totals 173 PostgreSQL integration tests across 14 files (140 merged baseline + 33 training).
 
 ## Current open technical questions
 
@@ -250,8 +260,9 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Human/ChatGPT merge gate for Issue #36 draft PR #43: the correction pass is complete, latest `main` (PR #44) is integrated, and exact-head CI is green. Keep the PR draft/open/unmerged until merge review.
-2. Issue #38 may proceed in parallel (commercial/accounting); Issue #39 remains blocked by Issue #38.
+1. Review the Issue #37 draft PR on branch `feat/training-operations` and keep it open/unmerged until review completes.
+2. Issue #38 may proceed in parallel (commercial/accounting, including training commercial records); Issue #39 remains blocked by Issue #38.
+3. Require latest-`main` incorporation plus a clean-database migration, double seed, and full integration run from whichever of the remaining Prisma-heavy branches merges after Issue #37.
 
 ## Status Update Rules
 

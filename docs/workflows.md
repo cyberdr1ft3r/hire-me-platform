@@ -515,6 +515,10 @@ stateDiagram-v2
     rejected --> [*]
     canceled --> [*]
     closed --> [*]
+    note right of canceled
+        Authorized withdrawal moves any
+        active enrollment to canceled.
+    end note
 ```
 
 ### Valid Session Participation Transitions
@@ -531,6 +535,107 @@ stateDiagram-v2
     session_outcome_recorded --> participation_archived
     participation_archived --> [*]
 ```
+
+### Training Lifecycle Rules
+
+Issue #37 implements the internal training-operations module on the existing
+`TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and
+`TrainingSessionParticipation` records. The rules below are enforced server-side.
+
+- Training programs carry a unique normalized reference, an optional internal owner,
+  an optional client context, and an optional planned start/end window.
+- Program lifecycle follows the diagram above exactly. `program_archived` is reachable
+  only from `program_closed`, and an archived program is terminal: it accepts no
+  further updates, sessions, enrollments, or attendance.
+- A `program_closed` program still exposes its history but no longer accepts new
+  training operations.
+- A training session belongs to exactly one training program. Nested routes verify the
+  full parent chain, so a session identifier from another program resolves to
+  not-found instead of leaking or mutating that program's records.
+- Session scheduling stores an explicit start and end as timezone-safe ISO instants;
+  the end must be after the start.
+- Rescheduling is allowed from `session_planned`, `session_scheduled`, and
+  `session_postponed`. It preserves `previousScheduledAt`, increments
+  `rescheduleCount`, records `lastRescheduledAt`, stores the bounded
+  `lastRescheduleReason` when one is supplied, and returns the session to
+  `session_scheduled`. A supplied reschedule reason is durable history; it is never
+  accepted and discarded.
+- Cancellation requires a reason and records `canceledAt`. Only completed or canceled
+  sessions can be archived.
+- Concurrent reschedule, cancel, and lifecycle writes serialize through PostgreSQL row
+  locks taken in the order program, session, enrollment, participation, so they cannot
+  produce contradictory terminal state.
+- Enrollment uses only the already-approved participant identities: `Candidate`,
+  `User`, `ClientContact`, and `ExternalTrainingParticipant`. No candidate, client, or
+  learner account is created.
+- Linking a participant additionally requires that source domain's own read
+  authorization, so training permissions never become an alternate way to discover a
+  confidential record. A `Candidate` participant requires `candidates:view`; a
+  `ClientContact` participant requires `clients:view` plus `client_contacts:view`. A
+  `User` participant follows the merged mission-assignment rule of referencing active
+  internal users without a separate read capability, and an
+  `ExternalTrainingParticipant` is owned by training itself, so no other domain is
+  disclosed. Without the required source capability the request fails closed with a
+  single identical response, so a caller cannot tell a nonexistent identifier from an
+  archived, inactive, or out-of-context one.
+- Enrollment reads redact source identifiers the caller is not authorized to see. The
+  training record stays visible and `participantType` remains, but the candidate or
+  client-contact identifier is null unless the caller independently satisfies that
+  domain's read authorization.
+- A participant may hold only one active enrollment per program. This is enforced by a
+  database unique constraint on the program and an active-participant key, so
+  concurrent duplicate attempts resolve deterministically to a single enrollment. A
+  database check constraint additionally prevents an active enrollment from ever
+  holding a null key, so an active row cannot escape the uniqueness index. Terminal and
+  archived history is explicitly allowed to release the key.
+- Withdrawal is an explicit authorized action with a recorded reason. It moves an
+  active enrollment to `canceled`, records `withdrawnAt`, and releases the active slot
+  so the participant can be re-enrolled later. Enrollment history is never physically
+  deleted.
+- Archived or otherwise ineligible participants are rejected. A client-linked program
+  only accepts client contacts belonging to that same client.
+- A session participation record links exactly one session to one enrollment of the
+  same training program. A session/enrollment pair from different programs is rejected.
+- Attendance may only be recorded or corrected while the session is
+  `session_scheduled`, `session_in_progress`, or `session_completed`. A planned session
+  has no confirmed schedule and a postponed session is not being delivered, so neither
+  accepts attendance. Canceled and archived sessions fail closed: their attendance
+  history is frozen.
+- Post-completion corrections are deliberately supported, because trainers routinely
+  reconcile a sign-in sheet after delivery. They are available only through the
+  correction action, require the correction capability and a reason, and update the
+  correction history atomically.
+- Attendance follows the participation diagram. Changing an already-recorded attendance
+  value requires an explicit correction, which carries a mandatory reason, increments
+  `correctionCount`, and records `lastCorrectedAt` and `lastCorrectionReason`.
+- Recording attendance and correcting attendance are separate capabilities, because a
+  correction rewrites already-recorded training history. Resubmitting the current
+  attendance state through the ordinary action never rewrites history: it is a
+  side-effect-free no-op when nothing would change, and is rejected when it would
+  change recorded detail.
+- `participation_archived` is reached through an explicit audited archive action from
+  `session_outcome_recorded`. It sets `archivedAt`, preserves all recorded attendance,
+  outcome, and correction history, and is idempotent once applied. Archived
+  participation accepts no further attendance changes.
+- Trainer notes are bounded internal context and are redacted from actors who may read
+  attendance but may not manage participation.
+
+### Training Certificate-Readiness Boundary
+
+Issue #37 records only the durable completion boundary. It does not implement an LMS,
+an exam engine, certificate rendering, or certificate distribution.
+
+- Reaching `evaluated` records `completedAt` once. Later transitions never clear it.
+- Certificate applicability is explicit. `not_applicable` means this enrollment is not
+  meant to receive a certificate at all, `pending` means one is expected, and `issued`
+  means one already exists. Applicability is set through a dedicated audited action,
+  because not every training program awards a certificate.
+- An enrollment is certificate-ready when it has a `completedAt`, is not withdrawn, is
+  not archived, and its certificate status is `pending`. A `not_applicable` enrollment
+  is never certificate-ready.
+- Readiness is derived server-side and exposed as a read-only field plus a list filter,
+  so a later document-generation feature can find the enrollments that qualify for a
+  `CONTRAT_FORMATION`-adjacent certificate without this module producing any file.
 
 ### Valid Task Transitions
 

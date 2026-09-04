@@ -6,20 +6,33 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`.
-- Issue #36 recruitment reporting is implemented on branch `feat/recruitment-reporting` as a draft PR. It is read-only, computed from existing authoritative records, and adds no schema migration.
-- New API module: `apps/api/src/reporting` with permission-guarded `GET /v1/reporting/recruitment` endpoints (`summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, `export.csv`). Shared contracts in `packages/contracts/src/reporting.ts`.
-- Authorization requires the reporting capability AND the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`); reporting cannot bypass operational read permissions and denials are generic. Record scope then reuses the mission-candidate oversight model: broad requires `mission_candidates:transfer`, otherwise active `MissionRecruiter` assignment. Filters only narrow; `offerStatus`/`placementStatus` constrain process rows by current offer version and `MissionPlacement`; out-of-scope/unknown IDs return identical empty results and status (no existence disclosure).
-- Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. CSV export requires `reporting:recruitment:export`, is deterministic, neutralizes formula injection (incl. actual tab/CR), rejects over-large exports with `REPORTING_EXPORT_TOO_LARGE` (never silently truncates), and audits only successful exports with safe metadata.
-- PR #43 blocking-review correction pass addressed: underlying-read enforcement, offerStatus/placementStatus filter composition, truthful trend filters, CSV tab/CR fix, export overflow rejection, and the missing acceptance coverage. Reporting suite is 22 tests; full `test:db` is 140 (118 prior baseline + 22).
-- Latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`, adding the `Concurrent multi-agent development` section to `AGENTS.md` and a new `CLAUDE.md`) has been merged into `feat/recruitment-reporting` with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved; follow the `Concurrent multi-agent development` rules in `AGENTS.md` for parallel work.
-- Two seed permissions added (`reporting:recruitment:view`, `reporting:recruitment:export`) for `SUPER_ADMIN`/`ADMIN`/`HR_MANAGER`. KPI definitions documented in `docs/reporting.md`.
-- Issue #38 (commercial/accounting) may proceed in parallel; Issue #36 avoids commercial/accounting code and schema. Issue #39 remains blocked by Issue #38.
-- Reporting explicitly excludes revenue/accounting/profitability, training analytics, and task-productivity analytics. Those must not reuse the recruitment KPI names with different semantics.
+- Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`.
+- Issue #37 is implemented on branch `feat/training-operations` and opened as a draft PR. The branch base was `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules). Latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting) has been merged into the branch; both the merged reporting behavior and the Issue #37 training behavior are preserved.
+- Issue #37 builds the internal training-operations module on the existing `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation` records. No parallel training model exists.
+- The only schema change is the additive migration `20260904143000_training_operations_foundation`. No existing migration was edited, renamed, or reordered.
+- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment adds one documented extension: an explicit authorized withdrawal to `canceled` from any active state, required by Issue #37 and recorded in decision D-049.
+- Training authorization combines capability plus server-side record scope. `training_programs:view_all` is the separate broad oversight capability, and client-linked programs additionally require `clients:view` in both the list predicate and the detail path.
+- Attendance correction is a separate capability from recording attendance, always carries a reason, and is audited.
+- Certificate readiness is a derived durable boundary only. Issue #37 generates no certificate, no contract file, and no `Document` records for training.
+- Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior. The stable training identifiers a later commercial feature can consume are the training program id and reference, the training session id, and the training enrollment id.
+- Local validation for Issue #37 used a dedicated PostgreSQL database because a concurrent agent reset the shared development database during the task. See risk R-028.
+- One blocking ChatGPT review pass on PR #45 has been resolved on the same branch (decision D-050, risk R-029): source-domain authorization and redaction for training participants, a legacy-safe active-enrollment migration backfill plus keyless-active check constraint, an explicit audited participation archive action, session-state gating and no-rewrite semantics for attendance, explicit query-boolean parsing, a persisted reschedule reason, and certificate readiness that requires an explicit `PENDING` status.
 
 ## Next Action
 
-Issue #36 is ready for merge review. The correction pass is complete, the application/security review is resolved, and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated into `feat/recruitment-reporting` with no conflicts. Once the new exact-head GitHub Actions succeeds, hand the draft PR #43 to the human/ChatGPT merge gate; keep it draft/open/unmerged until then. Do not touch Issue #38 commercial/accounting scope.
+Complete the final ChatGPT review of the Issue #37 draft PR #45 after the correction pass, confirm exact-head GitHub Actions, and keep the PR open and unmerged. Then require whichever remaining Prisma-heavy branch merges after Issue #37 to incorporate latest `main` and rerun a clean-database migration, double seed, and full integration suite before merge.
+
+## Known Follow-Up Work For Training
+
+Not implemented by Issue #37 and still requiring their own approved issues:
+
+- Detailed assessment, exam, or lesson content and any LMS behavior.
+- Certificate or training-contract file generation, rendering, templates, and distribution.
+- Training pricing, quotations, invoicing, payments, revenue, and profitability (Issue #38 / Phase 8).
+- Training analytics and reporting KPIs. Issue #36 deliberately excludes training analytics, and training KPI names must not reuse recruitment KPI names with different semantics.
+- Satisfaction and follow-up workflows beyond their existing lifecycle states.
+- Calendar, email, or WhatsApp delivery for training sessions.
+- Any learner or client-facing training portal.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
