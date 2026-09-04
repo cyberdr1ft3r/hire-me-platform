@@ -15,7 +15,7 @@ must not reuse the KPI names below with different semantics.
 
 All endpoints are under `GET /v1/reporting/recruitment` and require authentication.
 
-| Endpoint | Purpose | Permission |
+| Endpoint | Purpose | Reporting capability |
 | --- | --- | --- |
 | `/summary` | KPI summary (missions, pipeline, applications, interviews, offers, placements, aging) | `reporting:recruitment:view` |
 | `/pipeline` | Status/distribution datasets for charts | `reporting:recruitment:view` |
@@ -26,6 +26,22 @@ All endpoints are under `GET /v1/reporting/recruitment` and require authenticati
 
 Responses are Prisma-independent shared contracts (`packages/contracts/src/reporting.ts`);
 Prisma models are never exposed.
+
+## Underlying operational read capabilities
+
+Reporting must never become a side channel around the operational recruitment APIs.
+In addition to the reporting capability above, every reporting endpoint requires the
+exact underlying operational read capabilities that guard the aggregated data:
+
+`missions:view`, `mission_candidates:view`, `public_applications:view`,
+`interviews:view`, `offers:view`, and `placements:view`.
+
+These are enforced by the route permission guard alongside the reporting capability,
+so an actor holding only `reporting:recruitment:view` (or only the operational reads
+without the reporting capability) is denied with the repository's generic
+`PERMISSION_DENIED` error, which does not reveal which specific capability was
+missing. This is authorization in addition to — not a replacement for — the record
+scope below.
 
 ## Record scope and side-channel protection
 
@@ -47,6 +63,31 @@ or `recruiterUserId` returns the same empty/zero result as any other empty filte
 never returns a different status code, so it cannot reveal that a hidden record
 exists or shift a total as a side channel. Malformed identifiers are rejected with a
 generic `400` before scoping.
+
+## Filter applicability
+
+Filters compose (all supplied filters apply together; none broadens scope). They fall
+into two groups:
+
+- **Identity/scope filters** — `clientId`, `missionId`, `recruiterUserId`, and the
+  date window — constrain both mission-level and process-level datasets.
+  `recruiterUserId` matches active `MissionRecruiter` assignment at the mission level
+  and the responsible recruiter at the process level.
+- **Process-scope filters** — `pipelineState`, `offerStatus`, `placementStatus`, and
+  `source` — constrain process-derived datasets (pipeline distribution,
+  presented-to-client, total processes, interviews, offers, placements, public
+  applications, trends, breakdown process/placement counts, drilldown, and CSV
+  export). `offerStatus` matches the process's authoritative **current** offer
+  version (`isCurrent = true`); `placementStatus` matches the process's
+  `MissionPlacement`. They do not narrow the mission-lifecycle snapshot counts
+  (`missions.*` and `missionsByState`), which are mission-level metrics.
+
+Interactive `/drilldown` and `/export.csv` apply exactly the same scope and filters,
+so an export always contains the same rows the drilldown shows for the same query.
+Every trend series applies the process-scope filters relevant to its dataset (for
+example `offersCreated` includes only offers whose current version satisfies
+`offerStatus`), so the echoed applied-filters never claim a filter that a dataset
+ignored.
 
 ## Protected fields never exposed
 
@@ -156,13 +197,18 @@ filtered rows with:
 - deterministic column order and row order;
 - UTF-8 output with RFC 4180 quoting (commas, quotes, and newlines are quoted, inner
   quotes doubled);
-- spreadsheet-formula-injection neutralization: cells beginning with `=`, `+`, `-`,
-  `@`, tab, or carriage return are prefixed with a single quote;
-- a bounded maximum of 5000 rows;
+- spreadsheet-formula-injection neutralization: cells whose first character is `=`,
+  `+`, `-`, `@`, an actual tab (U+0009), or an actual carriage return (U+000D) are
+  prefixed with a single quote (matched by code point to avoid escape-text ambiguity);
 - a server-generated safe filename and `Content-Disposition: attachment`.
 
-Exports are audited with safe metadata only (actor, report type, and a bounded filter
-summary). Interactive dashboard reads are not audited.
+The export never silently truncates. It is bounded to 5000 rows: the query fetches
+one row beyond the bound, and when more rows match, the request is rejected with a
+stable `REPORTING_EXPORT_TOO_LARGE` error instructing the caller to narrow the
+filters. No CSV is produced and no audit record is written in that case.
+
+Successful exports are audited with safe metadata only (actor, report type, and a
+bounded filter summary). Interactive dashboard reads are not audited.
 
 ## Performance and schema
 
