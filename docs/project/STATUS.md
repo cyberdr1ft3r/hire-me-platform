@@ -1,14 +1,15 @@
 # Project Status
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Recruitment reporting foundation (Phase 7) after merged task-management and document-management foundations.
-**Health:** Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`. Issue #36 recruitment reporting is implemented on branch `feat/recruitment-reporting` as a draft PR, computed from existing data with no schema change.
+**Health:** Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`. The Issue #36 correction pass is complete on branch `feat/recruitment-reporting` (draft PR #43): the application/security review is resolved and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved.
+**Current final head after integration:** `feat/recruitment-reporting` tip that merges `origin/main` `cebd87f…` on top of the reviewed reporting head `5b9ac92…`; exact-head GitHub Actions is green (Quality checks; PostgreSQL Docker Compose health; Database migration, seed, and integration tests).
 **Parallelization:** Issue #38 may proceed in parallel; Issue #36 does not touch commercial/accounting code or schema. Issue #39 remains blocked by Issue #38.
-**Next executable development task:** Human/ChatGPT review of the Issue #36 draft PR after exact-head CI is green.
+**Next executable development task:** Human/ChatGPT merge gate for the Issue #36 draft PR #43 (kept draft/open/unmerged).
 
 ## Active work
 
@@ -29,7 +30,7 @@ Status owner: repository maintainer
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
-| Issue #36 | In review | Implement recruitment reporting, KPI dashboards, and safe exports | Draft PR on `feat/recruitment-reporting`; await exact-head CI and human/ChatGPT review |
+| Issue #36 | In review | Implement recruitment reporting, KPI dashboards, and safe exports | Correction pass complete and latest `main` (PR #44) integrated on `feat/recruitment-reporting`; exact-head CI green; awaiting human/ChatGPT merge gate |
 
 ## Completed foundation work
 
@@ -249,7 +250,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Record the Issue #36 exact-head GitHub Actions result on the draft PR, keep it open/unmerged for human/ChatGPT review, and address any review findings.
+1. Human/ChatGPT merge gate for Issue #36 draft PR #43: the correction pass is complete, latest `main` (PR #44) is integrated, and exact-head CI is green. Keep the PR draft/open/unmerged until merge review.
 2. Issue #38 may proceed in parallel (commercial/accounting); Issue #39 remains blocked by Issue #38.
 
 ## Status Update Rules

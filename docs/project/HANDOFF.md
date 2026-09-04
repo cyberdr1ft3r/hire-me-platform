@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
@@ -12,13 +12,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Authorization requires the reporting capability AND the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`); reporting cannot bypass operational read permissions and denials are generic. Record scope then reuses the mission-candidate oversight model: broad requires `mission_candidates:transfer`, otherwise active `MissionRecruiter` assignment. Filters only narrow; `offerStatus`/`placementStatus` constrain process rows by current offer version and `MissionPlacement`; out-of-scope/unknown IDs return identical empty results and status (no existence disclosure).
 - Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. CSV export requires `reporting:recruitment:export`, is deterministic, neutralizes formula injection (incl. actual tab/CR), rejects over-large exports with `REPORTING_EXPORT_TOO_LARGE` (never silently truncates), and audits only successful exports with safe metadata.
 - PR #43 blocking-review correction pass addressed: underlying-read enforcement, offerStatus/placementStatus filter composition, truthful trend filters, CSV tab/CR fix, export overflow rejection, and the missing acceptance coverage. Reporting suite is 22 tests; full `test:db` is 140 (118 prior baseline + 22).
+- Latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`, adding the `Concurrent multi-agent development` section to `AGENTS.md` and a new `CLAUDE.md`) has been merged into `feat/recruitment-reporting` with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved; follow the `Concurrent multi-agent development` rules in `AGENTS.md` for parallel work.
 - Two seed permissions added (`reporting:recruitment:view`, `reporting:recruitment:export`) for `SUPER_ADMIN`/`ADMIN`/`HR_MANAGER`. KPI definitions documented in `docs/reporting.md`.
 - Issue #38 (commercial/accounting) may proceed in parallel; Issue #36 avoids commercial/accounting code and schema. Issue #39 remains blocked by Issue #38.
 - Reporting explicitly excludes revenue/accounting/profitability, training analytics, and task-productivity analytics. Those must not reuse the recruitment KPI names with different semantics.
 
 ## Next Action
 
-Record the exact-head GitHub Actions result for the Issue #36 draft PR (`feat/recruitment-reporting`), keep it open and unmerged for human/ChatGPT review, and address review findings. Do not touch Issue #38 commercial/accounting scope.
+Issue #36 is ready for merge review. The correction pass is complete, the application/security review is resolved, and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated into `feat/recruitment-reporting` with no conflicts. Once the new exact-head GitHub Actions succeeds, hand the draft PR #43 to the human/ChatGPT merge gate; keep it draft/open/unmerged until then. Do not touch Issue #38 commercial/accounting scope.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
