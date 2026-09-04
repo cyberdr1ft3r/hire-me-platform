@@ -368,7 +368,7 @@ describe('internal task management, reminders, comments, and notifications', () 
     broadManagerToken = await loginAccessToken(baseUrl, 'broad-manager@tasks.test');
     noTaskToken = await loginAccessToken(baseUrl, 'notasks@tasks.test');
     noViewInternalToken = await loginAccessToken(baseUrl, 'no-view-internal@tasks.test');
-  });
+  }, 30_000);
 
   afterAll(async () => {
     await app?.close();

@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-08-31
+Last updated: 2026-09-04
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -83,7 +83,7 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 
 Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Issue #29 completed the internal offer-to-placement lifecycle. Task management, broader search, accounting, payroll, and document generation remain separate scoped work.
+Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 completed task management. Issue #35 completed the centralized document foundation. Broader search, payments, payroll, profitability, and document generation remain separate scoped work.
 
 ## Phase 6 - Offers and placements
 
@@ -102,7 +102,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Task management, 
 
 ## Phase 7 - Documents, reporting, and collaboration
 
-**State:** Document foundation in post-`main` integration review through Issue #35 / PR #40
+**State:** Document foundation complete through Issue #35 / merged PR #40
 
 - Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
 - Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
@@ -113,17 +113,12 @@ Issue #29 completed the internal offer-to-placement lifecycle. Task management, 
 
 ## Phase 8 - Commercial and operational accounting
 
-**State:** Planned; issues not yet created
+**State:** Commercial record foundation active through Issue #38 / branch `feat/commercial-workflow`
 
-- Quotations.
-- Recruitment contracts.
-- Training contracts.
-- Purchase orders.
-- Invoices.
+- Issue #38 implements structured quotations, recruitment and training commercial contracts, purchase orders, invoices, server-calculated VAT/tax totals, lifecycle/history records, permission-aware minimal UI, cross-client relationship validation, and placement-backed invoice eligibility.
 - Payments and partial payments.
 - Overdue balances.
 - Expenses.
-- VAT/tax fields.
 - Client balances.
 - Mission and training revenue and profitability.
 

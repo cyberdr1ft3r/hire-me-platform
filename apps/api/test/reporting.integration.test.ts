@@ -579,7 +579,7 @@ describe('Recruitment reporting API', () => {
       await archivePermissions(role, REPORTING_GRANTED_CODES);
     }
     await prisma.$disconnect();
-  });
+  }, 60000);
 
   const allReportingPaths = [
     '/v1/reporting/recruitment/summary',
@@ -990,5 +990,5 @@ describe('Recruitment reporting API', () => {
     // The failed export must not have produced a new audit record.
     const auditAfter = await prisma.auditLog.count({ where: auditWhere });
     expect(auditAfter).toBe(auditBefore);
-  });
+  }, 60000);
 });

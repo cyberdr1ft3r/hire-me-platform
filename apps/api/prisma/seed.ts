@@ -485,6 +485,46 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'quotations:view',
+    description: 'View quotation business records within an explicitly authorized scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'quotations:manage',
+    description: 'Create and manage quotation business records and lifecycle.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'contracts:view',
+    description: 'View commercial contract business records within an explicit scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'contracts:manage',
+    description: 'Create and manage commercial contract business records and lifecycle.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'purchase_orders:view',
+    description: 'View client purchase-order business records within an explicit scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'purchase_orders:manage',
+    description: 'Create and manage client purchase-order business records and lifecycle.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'invoices:view',
+    description: 'View invoice business records within an explicitly authorized scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'invoices:manage',
+    description: 'Create and manage invoice business records and lifecycle.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'tasks:view',
     description:
       'View tasks owned, created, assigned, or reachable through authorized record scope.',
@@ -686,6 +726,10 @@ async function main(): Promise<void> {
       'evaluations:update',
       'evaluations:finalize',
       'client_feedback:view',
+      'quotations:view',
+      'contracts:view',
+      'purchase_orders:view',
+      'invoices:view',
       'tasks:view',
       'tasks:view_all',
       'tasks:create',
@@ -776,6 +820,10 @@ async function main(): Promise<void> {
       'evaluations:update',
       'evaluations:finalize',
       'client_feedback:view',
+      'quotations:view',
+      'contracts:view',
+      'purchase_orders:view',
+      'invoices:view',
       'tasks:view',
       'tasks:view_all',
       'tasks:create',

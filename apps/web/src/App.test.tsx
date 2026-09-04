@@ -1209,6 +1209,103 @@ describe('App', () => {
     );
   });
 
+  it('does not expose commercial records to users without quotation visibility', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          jsonResponse({
+            status: 'ok',
+            service: 'hire-me-api',
+            timestamp: '2026-07-21T10:00:00.000Z',
+            uptimeSeconds: 1,
+          }),
+        );
+      }
+
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }));
+      }
+
+      if (url.endsWith('/auth/login')) {
+        return Promise.resolve(
+          jsonResponse({
+            accessToken: 'synthetic-access-token',
+            accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+            user: {
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              displayName: 'No Commercial User',
+              email: 'no-commercial@example.test',
+              permissions: ['records:view'],
+            },
+          }),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'no-commercial@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /commercial/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
+    expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
+  });
+
+  it('loads read-only commercial records without write controls or client-side totals', async () => {
+    const fetchMock = mockCommercialWorkspace(['quotations:view']);
+
+    await openCommercialWorkspace('Commercial Viewer');
+
+    expect(await screen.findByRole('heading', { name: /commercial/i })).toBeVisible();
+    expect(await screen.findByText('Q38-WEB')).toBeVisible();
+    expect(await screen.findByText('Hidden')).toBeVisible();
+    expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /issue/i })).toBeNull();
+    expect(
+      fetchMock.mock.calls.some((call) => requestUrl(call[0]).includes('/v1/commercial')),
+    ).toBe(true);
+  });
+
+  it('lets authorized commercial users create quotations through shared contracts', async () => {
+    const fetchMock = mockCommercialWorkspace([
+      'commercial_data:access',
+      'quotations:view',
+      'quotations:manage',
+    ]);
+
+    await openCommercialWorkspace('Commercial Operator');
+    fireEvent.change(await screen.findByPlaceholderText('Reference'), {
+      target: { value: 'Q38-WEB-CREATE' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Client id'), {
+      target: { value: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Line description'), {
+      target: { value: 'Recruitment fee' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Unit price cents'), {
+      target: { value: '50000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^create quotation$/i }));
+
+    expect(await screen.findByText('Quotation created.')).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(
+        (call) =>
+          requestUrl(call[0]).endsWith('/v1/commercial/quotations') && call[1]?.method === 'POST',
+      ),
+    ).toBe(true);
+  });
+
   it('hides the reporting navigation from users without reporting permission', async () => {
     mockReportingSession(['records:view']);
 
@@ -1257,6 +1354,103 @@ describe('App', () => {
     );
   });
 });
+
+function mockCommercialWorkspace(permissions: string[]) {
+  const quotation = syntheticQuotation();
+  const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const url = requestUrl(input);
+
+    if (url.endsWith('/health')) {
+      return Promise.resolve(
+        jsonResponse({
+          status: 'ok',
+          service: 'hire-me-api',
+          timestamp: '2026-07-21T10:00:00.000Z',
+          uptimeSeconds: 1,
+        }),
+      );
+    }
+
+    if (url.endsWith('/auth/refresh')) {
+      return Promise.resolve(new Response('{}', { status: 401 }));
+    }
+
+    if (url.endsWith('/auth/login')) {
+      return Promise.resolve(
+        jsonResponse({
+          accessToken: 'synthetic-access-token',
+          accessTokenExpiresAt: '2026-07-21T10:05:00.000Z',
+          user: {
+            id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            displayName: 'Commercial Operator',
+            email: 'commercial-operator@example.test',
+            permissions,
+          },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/commercial/quotations') && init?.method === 'POST') {
+      return Promise.resolve(
+        jsonResponse({
+          quotation: {
+            ...quotation,
+            reference: 'Q38-WEB-CREATE',
+            lines: [syntheticCommercialLine()],
+            history: [],
+          },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/commercial/quotations')) {
+      return Promise.resolve(
+        jsonResponse({
+          quotations: [
+            permissions.includes('commercial_data:access')
+              ? quotation
+              : { ...quotation, amounts: null },
+          ],
+          pagination: { page: 1, pageSize: 10, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/commercial/contracts')) {
+      return Promise.resolve(
+        jsonResponse({ contracts: [], pagination: { page: 1, pageSize: 10, total: 0 } }),
+      );
+    }
+
+    if (url.includes('/v1/commercial/purchase-orders')) {
+      return Promise.resolve(
+        jsonResponse({ purchaseOrders: [], pagination: { page: 1, pageSize: 10, total: 0 } }),
+      );
+    }
+
+    if (url.includes('/v1/commercial/invoices')) {
+      return Promise.resolve(
+        jsonResponse({ invoices: [], pagination: { page: 1, pageSize: 10, total: 0 } }),
+      );
+    }
+
+    return Promise.reject(new Error(`Unexpected request ${url}`));
+  });
+
+  return fetchMock;
+}
+
+async function openCommercialWorkspace(displayName: string): Promise<void> {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText(/email/i), {
+    target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
+  });
+  fireEvent.change(screen.getByLabelText(/password/i), {
+    target: { value: 'Synthetic-password-123!' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /commercial/i }));
+}
 
 function mockMissionWorkspace(permissions: string[]) {
   const mission = syntheticMission();
@@ -1636,6 +1830,41 @@ function syntheticDocument() {
     archivedAt: null,
     createdAt: '2026-07-21T10:00:00.000Z',
     updatedAt: '2026-07-21T10:00:00.000Z',
+  };
+}
+
+function syntheticQuotation() {
+  return {
+    id: '56565656-5656-4565-8565-565656565656',
+    reference: 'Q38-WEB',
+    clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    recruitmentMissionId: syntheticMissionId,
+    status: 'DRAFT',
+    issueDate: null,
+    validUntil: null,
+    amounts: {
+      currency: 'MAD',
+      subtotalCents: 50000,
+      taxCents: 10000,
+      totalCents: 60000,
+    },
+    archivedAt: null,
+    createdAt: '2026-07-21T10:00:00.000Z',
+    updatedAt: '2026-07-21T10:00:00.000Z',
+  };
+}
+
+function syntheticCommercialLine() {
+  return {
+    id: '67676767-6767-4676-8676-676767676767',
+    description: 'Recruitment fee',
+    quantity: 1,
+    unitPriceCents: 50000,
+    taxRateBps: 2000,
+    sortOrder: 0,
+    lineSubtotalCents: 50000,
+    lineTaxCents: 10000,
+    lineTotalCents: 60000,
   };
 }
 

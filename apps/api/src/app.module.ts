@@ -4,6 +4,7 @@ import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CandidatesModule } from './candidates/candidates.module.js';
 import { ClientsModule } from './clients/clients.module.js';
+import { CommercialModule } from './commercial/commercial.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
 import { MissionsModule } from './missions/missions.module.js';
@@ -17,6 +18,7 @@ import { TasksModule } from './tasks/tasks.module.js';
     AuthModule,
     CandidatesModule,
     ClientsModule,
+    CommercialModule,
     DocumentsModule,
     MissionsModule,
     PublicApplicationsModule,

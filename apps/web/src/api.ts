@@ -12,10 +12,21 @@ import {
   ClientContactListResponseSchema,
   ClientDetailResponseSchema,
   ClientListResponseSchema,
+  CommercialContractCreateRequestSchema,
+  CommercialContractDetailResponseSchema,
+  CommercialContractListQuerySchema,
+  CommercialContractListResponseSchema,
+  CommercialContractStatusActionRequestSchema,
   CandidateDetailResponseSchema,
   DocumentDetailResponseSchema,
   DocumentListResponseSchema,
   DocumentVersionListResponseSchema,
+  InvoiceCancelRequestSchema,
+  InvoiceCreateRequestSchema,
+  InvoiceDetailResponseSchema,
+  InvoiceIssueRequestSchema,
+  InvoiceListQuerySchema,
+  InvoiceListResponseSchema,
   CandidateEducationDetailResponseSchema,
   CandidateLanguageDetailResponseSchema,
   CandidateListResponseSchema,
@@ -28,6 +39,16 @@ import {
   OfferDetailResponseSchema,
   OfferListResponseSchema,
   PlacementDetailResponseSchema,
+  PurchaseOrderCreateRequestSchema,
+  PurchaseOrderDetailResponseSchema,
+  PurchaseOrderListQuerySchema,
+  PurchaseOrderListResponseSchema,
+  PurchaseOrderStatusActionRequestSchema,
+  QuotationCreateRequestSchema,
+  QuotationDetailResponseSchema,
+  QuotationListQuerySchema,
+  QuotationListResponseSchema,
+  QuotationStatusActionRequestSchema,
   MissionDetailResponseSchema,
   InternalPublicApplicationListResponseSchema,
   InternalPublicOpportunityDetailResponseSchema,
@@ -84,6 +105,11 @@ import {
   type ClientListResponse,
   type ClientStatusUpdateRequest,
   type ClientUpdateRequest,
+  type CommercialContractCreateRequest,
+  type CommercialContractDetailResponse,
+  type CommercialContractListQuery,
+  type CommercialContractListResponse,
+  type CommercialContractStatusActionRequest,
   type CandidateCreateRequest,
   type DocumentCreateRequest,
   type DocumentDetailResponse,
@@ -91,6 +117,12 @@ import {
   type DocumentUpdateRequest,
   type DocumentVersionCreateRequest,
   type DocumentVersionListResponse,
+  type InvoiceCancelRequest,
+  type InvoiceCreateRequest,
+  type InvoiceDetailResponse,
+  type InvoiceIssueRequest,
+  type InvoiceListQuery,
+  type InvoiceListResponse,
   type CandidateDetailResponse,
   type CandidateEducationCreateRequest,
   type CandidateEducationDetailResponse,
@@ -123,6 +155,16 @@ import {
   type PlacementConfirmRequest,
   type PlacementCorrectRequest,
   type PlacementDetailResponse,
+  type PurchaseOrderCreateRequest,
+  type PurchaseOrderDetailResponse,
+  type PurchaseOrderListQuery,
+  type PurchaseOrderListResponse,
+  type PurchaseOrderStatusActionRequest,
+  type QuotationCreateRequest,
+  type QuotationDetailResponse,
+  type QuotationListQuery,
+  type QuotationListResponse,
+  type QuotationStatusActionRequest,
   type InternalPublicApplicationListResponse,
   type InternalPublicOpportunityDetailResponse,
   type InternalPublicOpportunityUpdateRequest,
@@ -724,6 +766,287 @@ type DocumentListOptions = {
   status?: string;
   apiBaseUrl?: string;
 };
+
+async function commercialRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/commercial${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Commercial request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listQuotations(
+  accessToken: string,
+  query: Partial<QuotationListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<QuotationListResponse> {
+  const parsed = QuotationListQuerySchema.partial().parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/quotations', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return QuotationListResponseSchema.parse(await response.json());
+}
+
+export async function createQuotation(
+  accessToken: string,
+  input: QuotationCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<QuotationDetailResponse> {
+  const parsed = QuotationCreateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    '/quotations',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return QuotationDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateQuotationStatus(
+  accessToken: string,
+  quotationId: string,
+  input: QuotationStatusActionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<QuotationDetailResponse> {
+  const parsed = QuotationStatusActionRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/quotations/${quotationId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return QuotationDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveQuotation(
+  accessToken: string,
+  quotationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<QuotationDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/quotations/${quotationId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return QuotationDetailResponseSchema.parse(await response.json());
+}
+
+export async function listCommercialContracts(
+  accessToken: string,
+  query: Partial<CommercialContractListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialContractListResponse> {
+  const parsed = CommercialContractListQuerySchema.partial().parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/contracts', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return CommercialContractListResponseSchema.parse(await response.json());
+}
+
+export async function createCommercialContract(
+  accessToken: string,
+  input: CommercialContractCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialContractDetailResponse> {
+  const parsed = CommercialContractCreateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    '/contracts',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return CommercialContractDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCommercialContractStatus(
+  accessToken: string,
+  contractId: string,
+  input: CommercialContractStatusActionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialContractDetailResponse> {
+  const parsed = CommercialContractStatusActionRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/contracts/${contractId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return CommercialContractDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCommercialContract(
+  accessToken: string,
+  contractId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialContractDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/contracts/${contractId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return CommercialContractDetailResponseSchema.parse(await response.json());
+}
+
+export async function listPurchaseOrders(
+  accessToken: string,
+  query: Partial<PurchaseOrderListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PurchaseOrderListResponse> {
+  const parsed = PurchaseOrderListQuerySchema.partial().parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/purchase-orders', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return PurchaseOrderListResponseSchema.parse(await response.json());
+}
+
+export async function createPurchaseOrder(
+  accessToken: string,
+  input: PurchaseOrderCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PurchaseOrderDetailResponse> {
+  const parsed = PurchaseOrderCreateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    '/purchase-orders',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return PurchaseOrderDetailResponseSchema.parse(await response.json());
+}
+
+export async function updatePurchaseOrderStatus(
+  accessToken: string,
+  purchaseOrderId: string,
+  input: PurchaseOrderStatusActionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PurchaseOrderDetailResponse> {
+  const parsed = PurchaseOrderStatusActionRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/purchase-orders/${purchaseOrderId}/status`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return PurchaseOrderDetailResponseSchema.parse(await response.json());
+}
+
+export async function archivePurchaseOrder(
+  accessToken: string,
+  purchaseOrderId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PurchaseOrderDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/purchase-orders/${purchaseOrderId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return PurchaseOrderDetailResponseSchema.parse(await response.json());
+}
+
+export async function listInvoices(
+  accessToken: string,
+  query: Partial<InvoiceListQuery> = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceListResponse> {
+  const parsed = InvoiceListQuerySchema.partial().parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/invoices', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return InvoiceListResponseSchema.parse(await response.json());
+}
+
+export async function createInvoice(
+  accessToken: string,
+  input: InvoiceCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceCreateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    '/invoices',
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function issueInvoice(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceIssueRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceIssueRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}/issue`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function cancelInvoice(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceCancelRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceCancelRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}/cancel`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveInvoice(
+  accessToken: string,
+  invoiceId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
 
 async function documentRequest(
   accessToken: string,

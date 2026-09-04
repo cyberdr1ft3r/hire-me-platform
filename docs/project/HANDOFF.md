@@ -6,20 +6,20 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #31 (PR #32) and Issue #35 (PR #40) are merged into `main`.
-- Issue #36 recruitment reporting is implemented on branch `feat/recruitment-reporting` as a draft PR. It is read-only, computed from existing authoritative records, and adds no schema migration.
-- New API module: `apps/api/src/reporting` with permission-guarded `GET /v1/reporting/recruitment` endpoints (`summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, `export.csv`). Shared contracts in `packages/contracts/src/reporting.ts`.
-- Authorization requires the reporting capability AND the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`); reporting cannot bypass operational read permissions and denials are generic. Record scope then reuses the mission-candidate oversight model: broad requires `mission_candidates:transfer`, otherwise active `MissionRecruiter` assignment. Filters only narrow; `offerStatus`/`placementStatus` constrain process rows by current offer version and `MissionPlacement`; out-of-scope/unknown IDs return identical empty results and status (no existence disclosure).
-- Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. CSV export requires `reporting:recruitment:export`, is deterministic, neutralizes formula injection (incl. actual tab/CR), rejects over-large exports with `REPORTING_EXPORT_TOO_LARGE` (never silently truncates), and audits only successful exports with safe metadata.
-- PR #43 blocking-review correction pass addressed: underlying-read enforcement, offerStatus/placementStatus filter composition, truthful trend filters, CSV tab/CR fix, export overflow rejection, and the missing acceptance coverage. Reporting suite is 22 tests; full `test:db` is 140 (118 prior baseline + 22).
-- Latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`, adding the `Concurrent multi-agent development` section to `AGENTS.md` and a new `CLAUDE.md`) has been merged into `feat/recruitment-reporting` with no conflicts. Both the Issue #36 reporting implementation and the PR #44 coordination rules are preserved; follow the `Concurrent multi-agent development` rules in `AGENTS.md` for parallel work.
-- Two seed permissions added (`reporting:recruitment:view`, `reporting:recruitment:export`) for `SUPER_ADMIN`/`ADMIN`/`HR_MANAGER`. KPI definitions documented in `docs/reporting.md`.
-- Issue #38 (commercial/accounting) may proceed in parallel; Issue #36 avoids commercial/accounting code and schema. Issue #39 remains blocked by Issue #38.
-- Reporting explicitly excludes revenue/accounting/profitability, training analytics, and task-productivity analytics. Those must not reuse the recruitment KPI names with different semantics.
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46.
+- The branch started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, then incorporated latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` after Issue #36 / PR #43 merged.
+- Issue #31, Issue #35, and Issue #36 are merged into `main`; task management, centralized document management, and recruitment reporting are baseline behavior.
+- The branch implements structured quotations, commercial contracts, purchase orders, and invoices as business records, not `Document` records.
+- Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, and contract terms without `commercial_data:access`.
+- Totals are calculated server-side. Issued invoice totals and lines are immutable snapshots.
+- Cross-client links between clients, missions, quotations, contracts, purchase orders, placements, and correction invoices are rejected server-side.
+- Placement-backed invoicing uses authoritative confirmed `MissionPlacement` eligibility. Accepted offers and historical legacy integration metadata do not authorize invoices.
+- Payments, partial payments, overdue balances, expenses, client balances, revenue/profitability, settlement behavior, generated files, e-signature, external portals, training operations, private messages/groups, email, WhatsApp, and calendar delivery remain out of scope.
+- Local PostgreSQL validation used Docker Compose PostgreSQL on `127.0.0.1:55442`; `.env` is local ignored runtime config.
 
 ## Next Action
 
-Issue #36 is ready for merge review. The correction pass is complete, the application/security review is resolved, and latest `main` (PR #44 multi-agent coordination rules, `cebd87ffa0f3686418e2244570a1b1d40f995541`) has been integrated into `feat/recruitment-reporting` with no conflicts. Once the new exact-head GitHub Actions succeeds, hand the draft PR #43 to the human/ChatGPT merge gate; keep it draft/open/unmerged until then. Do not touch Issue #38 commercial/accounting scope.
+Hand draft PR #46 to the human/ChatGPT review gate. Keep it draft/open/unmerged until approved. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

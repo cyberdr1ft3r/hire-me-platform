@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Recruitment reporting foundation (Phase 7) after merged task-management and document-management foundations.
+Commercial workflow foundation after merged task, document-management, and recruitment-reporting foundations.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -27,7 +27,9 @@ Recruitment reporting foundation (Phase 7) after merged task-management and docu
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
 - Issue #31 is complete; PR #32 merged internal task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
-- Current executable goal: finish Issue #35 PR #40 on branch `feat/document-management`, preserve both merged task-management and document-management behavior, revalidate the combined system, and keep PR #40 open/unmerged for final review.
+- Issue #35 is complete; PR #40 merged the centralized document-management foundation into `main` as merge commit `b40e39b`.
+- Issue #36 is complete; PR #43 merged authenticated recruitment reporting, KPI dashboards, and safe CSV exports into `main` as merge commit `6ff19ad`.
+- Current executable goal: review Issue #38 draft PR #46 on branch `feat/commercial-workflow`, which implements structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
 
 ## Confirmed Product Facts
 
@@ -51,7 +53,7 @@ Recruitment reporting foundation (Phase 7) after merged task-management and docu
 - Issue #12 requires `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` to remain distinct document taxonomy values. They must not be collapsed into a generic contract type.
 - Public CV submission must preserve file-version and opportunity-submission history rather than silently overwrite older files.
 - Trainers and internal training operators require internal accounts. Training participants are records and do not require accounts by default.
-- Commercial and operational accounting is in scope for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, client balances, and mission/training revenue and profitability. Complete Moroccan payroll is a confirmed future requirement. Full legal accounting, general ledger, tax declarations, bank reconciliation, and payroll implementation details remain unresolved.
+- Commercial and operational accounting is in scope across scoped issues. Issue #38 covers structured quotations, recruitment/training commercial contracts, purchase orders, invoices, VAT/tax fields on those records, and placement-backed invoicing eligibility. Payments, partial payments, overdue balances, expenses, client balances, revenue/profitability, and settlement behavior remain Issue #39/future scope. Complete Moroccan payroll is a confirmed future requirement. Full legal accounting, general ledger, tax declarations, bank reconciliation, and payroll implementation details remain unresolved.
 - Portfolio is normally represented as a professional link such as GitHub, Behance, or a personal website; it becomes a document only when an actual file is uploaded.
 - Principal dashboard indicators are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
@@ -60,6 +62,7 @@ Recruitment reporting foundation (Phase 7) after merged task-management and docu
 - Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Accounting, payroll, training, and any future client portal each need their own later issues.
 - Issue #31 implemented internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 - Issue #36 implements the first authenticated internal recruitment reporting layer (KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export) computed from existing authoritative records with no second data source and no schema change. Every metric, drilldown, and export applies server-side record scope: broad reporting requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment; filters only narrow scope and never disclose hidden-record existence. Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. It does not implement revenue/accounting/profitability, training, or task-productivity analytics. KPI definitions are in `docs/reporting.md`.
+- Issue #38 implements commercial records as structured business data, not documents: quotations, recruitment/training commercial contracts, purchase orders, and invoices with server-calculated totals, lifecycle/history records, audit summaries, cross-client IDOR protection, commercial-data redaction, and invoice snapshots. Placement-backed invoices use authoritative `MissionPlacement`; accepted offers or legacy integration metadata do not create invoice authority.
 
 ## Technical Direction
 
@@ -81,6 +84,7 @@ Recruitment reporting foundation (Phase 7) after merged task-management and docu
 - Task management implementation uses permission-code guarded `/v1/tasks` and `/v1/notifications` endpoints, one accountable owner with a dedicated owner-change action, normalized multiple-assignee history, explicit authorized context foreign keys, comments, mentions, durable in-app reminders, task events, own-notification controls, row-locked task mutations, locked reminder processing, composite task/recipient reminder idempotency, event-scoped task notification idempotency, and safe audit summaries. Internal task visibility requires `tasks:view` or `tasks:view_all` plus record scope; `tasks:view_all` is the separate broad oversight permission. Comment and reminder recipient eligibility is revalidated inside the locked Task transaction before side effects. Moving a task to `IN_PROGRESS` requires at least one active `TaskAssignment`; `Task.assigneeUserId` remains compatibility-only.
 - Task document links reuse the centralized document access policy. Task create/update may reference a `Document` only when the actor currently satisfies `documents:view`, document visibility/owner rules, and linked document context scope. Task reads keep visible tasks visible but redact `context.documentId` when the linked document later becomes inaccessible, ownerless-private, archived, or out of scope. Task notification shaping also redacts `documentId` independently of task visibility.
 - Issue #35 adds the internal `Document` / `DocumentVersion` foundation for centralized managed files: explicit document taxonomy, protected server-generated storage keys, immutable uploaded versions, authorized version download, safe metadata responses, document lifecycle/archive, exact operation permission checks, and permission plus linked-business-context authorization. List visibility is enforced in the database predicate and detail/version/download/mutation paths re-check access in service code. Mission, mission-candidate process, and interview document scopes follow their linked entity's current scope rules instead of one blended mission override. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; a null owner does not broaden private access. `CLIENT_SHARED` is internal sharing metadata and does not grant external/client access. Metadata update/archive audit is atomic with the mutation. JSON base64 uploads are strictly validated, capped before decoding, limited to 4 MB raw bytes, validate DOCX/XLSX as bounded OOXML ZIP packages, and keep safe original filename metadata separate from sanitized download filenames. Candidate CV/application uploads continue to use `CandidateDocument` / `CandidateDocumentVersion`.
+- Issue #38 adds permission-code guarded `/v1/commercial` endpoints and shared contracts for quotations, commercial contracts, purchase orders, and invoices. Commercial writes require the relevant `*:manage` permission and `commercial_data:access`; view endpoints require the relevant `*:view` permission and redact amounts, lines, and terms without `commercial_data:access`. Linked client, mission, quotation, contract, purchase-order, placement, and correction-invoice relationships are rechecked server-side to prevent cross-client linking. Totals are calculated server-side, quotation/invoice line snapshots are stored, issued invoice totals remain immutable, accepted or terminal quotations require later replacement/correction instead of silent mutation, and placement-backed invoicing requires an eligible confirmed `MissionPlacement`.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.
