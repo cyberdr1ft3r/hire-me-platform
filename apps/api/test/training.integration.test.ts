@@ -255,7 +255,10 @@ function futureIso(hoursFromNow: number): string {
   return new Date(Date.now() + hoursFromNow * 3_600_000).toISOString();
 }
 
-describe('training operations foundation', () => {
+// Each case drives several authenticated HTTP round trips against real PostgreSQL,
+// so the suite uses an explicit timeout rather than the 5s vitest default. Assertions
+// are unchanged; only the time budget differs.
+describe('training operations foundation', { timeout: 30_000 }, () => {
   let app: NestExpressApplication;
   let baseUrl: string;
   let operatorUserId: string;
