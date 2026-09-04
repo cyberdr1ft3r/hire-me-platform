@@ -13,7 +13,10 @@ import {
 
 import { badRequest } from './reporting.errors.js';
 import { ReportingAuditService } from './reporting-audit.service.js';
-import { REPORTING_PERMISSIONS } from './reporting-permissions.js';
+import {
+  REPORTING_EXPORT_REQUIRED_PERMISSIONS,
+  REPORTING_VIEW_REQUIRED_PERMISSIONS,
+} from './reporting-permissions.js';
 import { buildReportingCsv, buildReportingCsvFilename } from './reporting-csv.js';
 import { ReportingService } from './reporting.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -34,7 +37,7 @@ export class ReportingController {
   ) {}
 
   @Get('summary')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_VIEW)
+  @RequirePermissions(...REPORTING_VIEW_REQUIRED_PERMISSIONS)
   async getSummary(@Query() query: unknown, @Req() request: RequestWithUser) {
     const parsed = ReportingFilterQuerySchema.safeParse(query);
     if (!parsed.success) {
@@ -46,7 +49,7 @@ export class ReportingController {
   }
 
   @Get('pipeline')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_VIEW)
+  @RequirePermissions(...REPORTING_VIEW_REQUIRED_PERMISSIONS)
   async getPipeline(@Query() query: unknown, @Req() request: RequestWithUser) {
     const parsed = ReportingFilterQuerySchema.safeParse(query);
     if (!parsed.success) {
@@ -58,7 +61,7 @@ export class ReportingController {
   }
 
   @Get('trends')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_VIEW)
+  @RequirePermissions(...REPORTING_VIEW_REQUIRED_PERMISSIONS)
   async getTrends(@Query() query: unknown, @Req() request: RequestWithUser) {
     const parsed = ReportingTrendsQuerySchema.safeParse(query);
     if (!parsed.success) {
@@ -70,7 +73,7 @@ export class ReportingController {
   }
 
   @Get('breakdowns')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_VIEW)
+  @RequirePermissions(...REPORTING_VIEW_REQUIRED_PERMISSIONS)
   async getBreakdowns(@Query() query: unknown, @Req() request: RequestWithUser) {
     const parsed = ReportingFilterQuerySchema.safeParse(query);
     if (!parsed.success) {
@@ -82,7 +85,7 @@ export class ReportingController {
   }
 
   @Get('drilldown')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_VIEW)
+  @RequirePermissions(...REPORTING_VIEW_REQUIRED_PERMISSIONS)
   async getDrilldown(@Query() query: unknown, @Req() request: RequestWithUser) {
     const parsed = ReportingDrilldownQuerySchema.safeParse(query);
     if (!parsed.success) {
@@ -94,7 +97,7 @@ export class ReportingController {
   }
 
   @Get('export.csv')
-  @RequirePermissions(REPORTING_PERMISSIONS.RECRUITMENT_EXPORT)
+  @RequirePermissions(...REPORTING_EXPORT_REQUIRED_PERMISSIONS)
   @Header('Content-Type', 'text/csv; charset=utf-8')
   async exportCsv(
     @Query() query: unknown,

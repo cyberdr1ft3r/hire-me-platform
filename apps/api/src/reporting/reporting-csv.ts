@@ -24,13 +24,26 @@ const CSV_COLUMNS: { header: string; value: (row: ReportingDrilldownRow) => stri
   { header: 'updatedAt', value: (row) => row.updatedAt },
 ];
 
-const FORMULA_PREFIXES = new Set(['=', '+', '-', '@', '\t', '\r']);
+// Dangerous leading symbols that can start a spreadsheet formula.
+const FORMULA_PREFIX_SYMBOLS = new Set(['=', '+', '-', '@']);
+// Dangerous leading control-character code points: TAB (9) and CR (13). These are
+// matched by code point to avoid any ambiguity between real control characters and
+// their escape-sequence text.
+const FORMULA_PREFIX_CODES = new Set([9, 13]);
+
+function startsWithFormulaPrefix(value: string): boolean {
+  if (value.length === 0) {
+    return false;
+  }
+  const first = value[0]!;
+  return FORMULA_PREFIX_SYMBOLS.has(first) || FORMULA_PREFIX_CODES.has(value.charCodeAt(0));
+}
 
 // Neutralizes spreadsheet formula injection by prefixing dangerous leading
 // characters with a single quote, then applies RFC 4180 quoting.
 export function encodeCsvCell(value: string): string {
   let safe = value;
-  if (safe.length > 0 && FORMULA_PREFIXES.has(safe[0]!)) {
+  if (startsWithFormulaPrefix(safe)) {
     safe = `'${safe}`;
   }
   if (/[",\r\n]/.test(safe)) {

@@ -156,7 +156,7 @@ export class ReportingService {
 
     const newApplications = await this.prisma.publicCandidateApplication.count({
       where: {
-        mission: this.missionWhere(scope, filters),
+        missionCandidate: this.processWhere(scope, filters),
         submittedAt: { gte: window.start, lte: window.end },
       },
     });
@@ -345,7 +345,7 @@ export class ReportingService {
       }),
       this.prisma.publicCandidateApplication.findMany({
         where: {
-          mission: this.missionWhere(scope, filters),
+          missionCandidate: this.processWhere(scope, filters),
           submittedAt: { gte: window.start, lte: window.end },
         },
         select: { submittedAt: true },
@@ -357,9 +357,11 @@ export class ReportingService {
         },
         select: { scheduledStartAt: true },
       }),
+      // offersCreated: offers whose current version satisfies every accepted filter
+      // (including offerStatus), routed through the canonical process filter.
       this.prisma.recruitmentOffer.findMany({
         where: {
-          mission: this.missionWhere(scope, filters),
+          missionCandidate: this.processWhere(scope, filters),
           createdAt: { gte: window.start, lte: window.end },
         },
         select: { createdAt: true },
@@ -619,7 +621,9 @@ export class ReportingService {
     };
   }
 
-  // Returns the ordered drilldown rows for CSV export, bounded to maxRows.
+  // Returns the ordered drilldown rows for CSV export. Never silently truncates: it
+  // fetches one row beyond maxRows and rejects the whole export when more rows match,
+  // so the caller can never receive an apparently complete but incomplete CSV.
   async getDrilldownRowsForExport(
     query: ReportingFilterQuery,
     actorUserId: string,
@@ -635,8 +639,14 @@ export class ReportingService {
       },
       select: drilldownSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-      take: maxRows,
+      take: maxRows + 1,
     });
+    if (rows.length > maxRows) {
+      throw badRequest(
+        'REPORTING_EXPORT_TOO_LARGE',
+        `Reporting export matches more than ${maxRows} rows. Narrow the reporting filters (date range, client, mission, recruiter, or status) and try again.`,
+      );
+    }
     return { rows: rows.map((row) => this.toDrilldownRow(row)), window: this.toWindow(window) };
   }
 
@@ -724,15 +734,27 @@ export class ReportingService {
     return this.missionWhere(scope, { clientId: filters.clientId, missionId: filters.missionId });
   }
 
+  // Canonical process-level filter. It encodes mission scope plus every accepted
+  // process-scope filter so that all process-derived datasets (pipeline, drilldown,
+  // export, interviews, offers, placements, applications, and trends) compose the
+  // same filters. `offerStatus` constrains by the process's authoritative CURRENT
+  // offer version; `placementStatus` constrains by the process's MissionPlacement.
   private processWhere(
     scope: ResolvedScope,
     filters: ResolvedFilters,
+    options: { skipOfferStatus?: boolean; skipPlacementStatus?: boolean } = {},
   ): Prisma.MissionCandidateWhereInput {
     return {
       mission: this.missionScopeWhere(scope, filters),
       ...(filters.recruiterUserId ? { responsibleRecruiterUserId: filters.recruiterUserId } : {}),
       ...(filters.pipelineState ? { state: filters.pipelineState } : {}),
       ...(filters.source ? { source: filters.source } : {}),
+      ...(filters.offerStatus && !options.skipOfferStatus
+        ? { offerVersions: { some: { isCurrent: true, status: filters.offerStatus } } }
+        : {}),
+      ...(filters.placementStatus && !options.skipPlacementStatus
+        ? { placement: { status: filters.placementStatus } }
+        : {}),
     };
   }
 
@@ -743,17 +765,16 @@ export class ReportingService {
     return { missionCandidate: this.processWhere(scope, filters) };
   }
 
+  // Offer distribution counts each process's current offer version. Routing through
+  // processWhere applies every accepted filter (including offerStatus via the current
+  // version) so the distribution narrows truthfully.
   private offerWhere(
     scope: ResolvedScope,
     filters: ResolvedFilters,
   ): Prisma.RecruitmentOfferVersionWhereInput {
     return {
       isCurrent: true,
-      mission: this.missionScopeWhere(scope, filters),
-      ...(filters.offerStatus ? { status: filters.offerStatus } : {}),
-      ...(filters.recruiterUserId || filters.pipelineState || filters.source
-        ? { missionCandidate: this.processConstraint(filters) }
-        : {}),
+      missionCandidate: this.processWhere(scope, filters),
     };
   }
 
@@ -762,24 +783,13 @@ export class ReportingService {
     filters: ResolvedFilters,
     forceStatus?: PlacementStatus,
   ): Prisma.MissionPlacementWhereInput {
+    // When a status is forced (e.g. breakdown "confirmed placements"), the fixed
+    // status governs and the placementStatus filter is skipped to avoid conflicts.
     return {
-      mission: this.missionScopeWhere(scope, filters),
-      ...(forceStatus
-        ? { status: forceStatus }
-        : filters.placementStatus
-          ? { status: filters.placementStatus }
-          : {}),
-      ...(filters.recruiterUserId || filters.pipelineState || filters.source
-        ? { missionCandidate: this.processConstraint(filters) }
-        : {}),
-    };
-  }
-
-  private processConstraint(filters: ResolvedFilters): Prisma.MissionCandidateWhereInput {
-    return {
-      ...(filters.recruiterUserId ? { responsibleRecruiterUserId: filters.recruiterUserId } : {}),
-      ...(filters.pipelineState ? { state: filters.pipelineState } : {}),
-      ...(filters.source ? { source: filters.source } : {}),
+      missionCandidate: this.processWhere(scope, filters, {
+        skipPlacementStatus: forceStatus !== undefined,
+      }),
+      ...(forceStatus ? { status: forceStatus } : {}),
     };
   }
 
