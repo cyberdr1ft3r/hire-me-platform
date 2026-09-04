@@ -386,34 +386,37 @@ Implemented task contexts use explicit optional foreign keys rather than free-fo
 ### TrainingProgram
 
 - Purpose and owner: structured training or coaching offer; owned by training operations.
-- Important attributes: id, name, description, target audience, status, owner.
-- Relationships: contains many training sessions; has many training enrollments.
+- Important attributes: id, reference, normalized reference, name, description, target audience, status, internal owner, optional client context, planned start date, planned end date, archival timestamp.
+- Relationships: contains many training sessions; has many training enrollments; may reference one `Client` for client-linked training.
 - Cardinality: one training program can contain many sessions and enroll many participants.
-- Lifecycle: draft, active, closed, archived.
-- Sensitive fields: participant targeting may reveal HR or client context.
-- Uniqueness rules: program name uniqueness is unresolved.
-- Audit requirements: creation, publication, retirement, archival, and sensitive updates should be audited.
+- Lifecycle: draft, active, closed, archived. Archival is reachable only from the closed state and is terminal.
+- Sensitive fields: participant targeting and client context may reveal HR or client information.
+- Uniqueness rules: the normalized program reference is globally unique. Program name uniqueness remains unresolved.
+- Audit requirements: creation, update, status change, and archival are audited with safe operational summaries.
+
+Client context is disclosed only to actors who may read client records, so a training
+identifier cannot be used as a path to unrelated client data.
 
 ### TrainingSession
 
 - Purpose and owner: scheduled training or coaching event; owned by training operations.
-- Important attributes: id, training program id, scheduled time, status, trainer, location or meeting link, outcome.
+- Important attributes: id, training program id, title, optional sequence, scheduled start, scheduled end, delivery mode, status, trainer, location or meeting link, outcome, reschedule count, previous scheduled start, last reschedule timestamp, cancellation timestamp and reason, archival timestamp.
 - Relationships: belongs to a training program; has per-participant attendance through `TrainingSessionParticipation`; can create tasks, documents, and notifications.
 - Cardinality: one program can have many sessions.
 - Lifecycle: follows the training session workflow in `docs/workflows.md`.
 - Sensitive fields: coaching notes, outcomes, HR context.
-- Uniqueness rules: no global uniqueness beyond id.
+- Uniqueness rules: a session sequence is unique inside its own training program when present. A session belongs to exactly one program and cannot be reached through a mismatched program route.
 - Audit requirements: scheduling, postponement, cancellation, completion, and archival should be audited.
 
 ### TrainingEnrollment
 
 - Purpose and owner: participant-specific program-level registration and outcome record for training; owned by training operations.
-- Important attributes: id, training program id, participant type, approval status, payment status, evaluation result, certificate status, satisfaction score, coaching status, follow-up status.
+- Important attributes: id, training program id, participant type, approval status, active participant key, creator user, enrollment timestamp, withdrawal timestamp and reason, completion timestamp, payment status, evaluation result, certificate status, satisfaction score, coaching status, follow-up status.
 - Relationships: belongs to a `TrainingProgram`; may link to a `Candidate`, `User`, `ClientContact`, or `ExternalTrainingParticipant`; has session attendance records through `TrainingSessionParticipation`.
 - Cardinality: one program can have many enrollments; one participant can have many enrollments.
 - Lifecycle: registered, approved, rejected, payment pending, enrolled, evaluated, individual coaching, certified, satisfaction recorded, follow-up, closed, canceled.
 - Sensitive fields: payment status, evaluation, coaching notes, satisfaction, certificate outcome.
-- Uniqueness rules: active duplicate enrollment rules are unresolved and may depend on participant type.
+- Uniqueness rules: a participant may hold only one active enrollment per training program, enforced by a database unique constraint on the program and the active participant key. Withdrawn, rejected, closed, and archived enrollments release the key so history is preserved and re-enrollment stays possible.
 - Audit requirements: registration, approval, payment status, evaluation, certificate, satisfaction, coaching, follow-up, cancellation, and closure should be audited.
 
 Training participants are records by default. A participant portal or learning portal would require a separate approved decision.
@@ -421,13 +424,13 @@ Training participants are records by default. A participant portal or learning p
 ### TrainingSessionParticipation
 
 - Purpose and owner: per-session participant attendance and session-level outcome record; owned by training operations.
-- Important attributes: id, training session id, training enrollment id, attendance status, session outcome, trainer notes, completion status.
-- Relationships: belongs to one `TrainingSession` and one `TrainingEnrollment`.
+- Important attributes: id, training session id, training enrollment id, attendance status, session outcome, trainer notes, completion status, recording actor, attendance timestamp, correction count, last correction timestamp and reason.
+- Relationships: belongs to one `TrainingSession` and one `TrainingEnrollment`. The enrollment must belong to the same training program as the session.
 - Cardinality: one training session can have many session participations; one training enrollment can have many session participations across program sessions.
 - Lifecycle: expected, attended, absent, excused, session outcome recorded, archived.
 - Sensitive fields: attendance, trainer notes, session-level outcome.
-- Uniqueness rules: one participation record per enrollment per session.
-- Audit requirements: attendance, outcome, absence, trainer-note changes, and archival should be audited.
+- Uniqueness rules: one participation record per enrollment per session, enforced by a database unique constraint so concurrent creation resolves deterministically.
+- Audit requirements: participation creation, attendance changes, and explicit corrections are audited inside the same transaction as the mutation.
 
 ### ExternalTrainingParticipant
 

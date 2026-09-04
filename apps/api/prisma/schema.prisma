@@ -421,6 +421,12 @@ enum TrainingProgramStatus {
   PROGRAM_ARCHIVED @map("program_archived")
 }
 
+enum TrainingDeliveryMode {
+  ONSITE @map("onsite")
+  REMOTE @map("remote")
+  HYBRID @map("hybrid")
+}
+
 enum TrainingSessionStatus {
   SESSION_PLANNED     @map("session_planned")
   SESSION_SCHEDULED   @map("session_scheduled")
@@ -569,6 +575,8 @@ model User {
   authoredMessages                    Message[]                  @relation("MessageAuthor")
   conversationMemberships             ConversationMember[]
   trainingEnrollments                 TrainingEnrollment[]       @relation("UserTrainingEnrollment")
+  trainingEnrollmentsCreated          TrainingEnrollment[]       @relation("TrainingEnrollmentCreator")
+  trainingParticipationsRecorded      TrainingSessionParticipation[] @relation("TrainingParticipationRecorder")
   trainingProgramsOwned               TrainingProgram[]          @relation("TrainingProgramOwner")
   trainingSessionsTrained             TrainingSession[]          @relation("TrainingSessionTrainer")
   auditLogs                           AuditLog[]                 @relation("AuditActor")
@@ -695,10 +703,11 @@ model Client {
   updatedAt             DateTime     @updatedAt
 
   commercialOwner User?                @relation("ClientCommercialOwner", fields: [commercialOwnerUserId], references: [id], onDelete: SetNull)
-  contacts        ClientContact[]
-  missions        RecruitmentMission[]
-  documents       Document[]
-  tasks           Task[]
+  contacts         ClientContact[]
+  missions         RecruitmentMission[]
+  documents        Document[]
+  tasks            Task[]
+  trainingPrograms TrainingProgram[]    @relation("ClientTrainingProgram")
 
   @@index([normalizedName])
   @@index([status])
@@ -1673,37 +1682,54 @@ model TaskEvent {
 }
 
 model TrainingProgram {
-  id             String                @id @default(uuid()) @db.Uuid
-  name           String
-  description    String?
-  targetAudience String?
-  status         TrainingProgramStatus @default(PROGRAM_DRAFT)
-  ownerUserId    String?               @db.Uuid
-  archivedAt     DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id                  String                @id @default(uuid()) @db.Uuid
+  reference           String
+  normalizedReference String
+  name                String
+  description         String?
+  targetAudience      String?
+  status              TrainingProgramStatus @default(PROGRAM_DRAFT)
+  ownerUserId         String?               @db.Uuid
+  clientId            String?               @db.Uuid
+  plannedStartDate    DateTime?
+  plannedEndDate      DateTime?
+  archivedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   owner       User?                @relation("TrainingProgramOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  client      Client?              @relation("ClientTrainingProgram", fields: [clientId], references: [id], onDelete: Restrict)
   sessions    TrainingSession[]
   enrollments TrainingEnrollment[]
   tasks       Task[]
 
+  @@unique([normalizedReference])
   @@index([status])
   @@index([ownerUserId])
+  @@index([clientId])
 }
 
 model TrainingSession {
-  id                String                @id @default(uuid()) @db.Uuid
-  trainingProgramId String                @db.Uuid
-  trainerUserId     String?               @db.Uuid
-  scheduledAt       DateTime
-  status            TrainingSessionStatus @default(SESSION_PLANNED)
-  location          String?
-  meetingUrl        String?
-  outcome           String?
-  archivedAt        DateTime?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  id                  String                @id @default(uuid()) @db.Uuid
+  trainingProgramId   String                @db.Uuid
+  trainerUserId       String?               @db.Uuid
+  title               String
+  sequence            Int?
+  scheduledAt         DateTime
+  scheduledEndAt      DateTime
+  deliveryMode        TrainingDeliveryMode  @default(ONSITE)
+  status              TrainingSessionStatus @default(SESSION_PLANNED)
+  location            String?
+  meetingUrl          String?
+  outcome             String?
+  rescheduleCount     Int                   @default(0)
+  previousScheduledAt DateTime?
+  lastRescheduledAt   DateTime?
+  canceledAt          DateTime?
+  cancellationReason  String?
+  archivedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   program        TrainingProgram                @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
   trainer        User?                          @relation("TrainingSessionTrainer", fields: [trainerUserId], references: [id], onDelete: SetNull)
@@ -1712,6 +1738,7 @@ model TrainingSession {
   tasks          Task[]
   notifications  Notification[]
 
+  @@unique([trainingProgramId, sequence])
   @@index([trainingProgramId])
   @@index([trainerUserId])
   @@index([scheduledAt])
@@ -1727,6 +1754,12 @@ model TrainingEnrollment {
   clientContactId               String?                  @db.Uuid
   externalTrainingParticipantId String?                  @db.Uuid
   status                        TrainingEnrollmentStatus @default(REGISTERED)
+  activeParticipantKey          String?
+  createdByUserId               String?                  @db.Uuid
+  enrolledAt                    DateTime?
+  withdrawnAt                   DateTime?
+  withdrawalReason              String?
+  completedAt                   DateTime?
   paymentStatus                 PaymentStatus            @default(NOT_REQUIRED)
   evaluationResult              String?
   certificateStatus             CertificateStatus        @default(NOT_APPLICABLE)
@@ -1742,12 +1775,15 @@ model TrainingEnrollment {
   user                        User?                          @relation("UserTrainingEnrollment", fields: [userId], references: [id], onDelete: SetNull)
   clientContact               ClientContact?                 @relation("ClientContactTrainingEnrollment", fields: [clientContactId], references: [id], onDelete: SetNull)
   externalTrainingParticipant ExternalTrainingParticipant?   @relation(fields: [externalTrainingParticipantId], references: [id], onDelete: SetNull)
+  createdBy                   User?                          @relation("TrainingEnrollmentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   participations              TrainingSessionParticipation[]
   documents                   Document[]
   tasks                       Task[]
   notifications               Notification[]
 
+  @@unique([trainingProgramId, activeParticipantKey])
   @@index([trainingProgramId])
+  @@index([createdByUserId])
   @@index([participantType])
   @@index([candidateId])
   @@index([userId])
@@ -1764,16 +1800,23 @@ model TrainingSessionParticipation {
   sessionOutcome       String?
   trainerNotes         String?
   completionStatus     String?
+  recordedByUserId     String?                            @db.Uuid
+  attendanceRecordedAt DateTime?
+  correctionCount      Int                                @default(0)
+  lastCorrectedAt      DateTime?
+  lastCorrectionReason String?
   archivedAt           DateTime?
   createdAt            DateTime                           @default(now())
   updatedAt            DateTime                           @updatedAt
 
   session    TrainingSession    @relation(fields: [trainingSessionId], references: [id], onDelete: Restrict)
   enrollment TrainingEnrollment @relation(fields: [trainingEnrollmentId], references: [id], onDelete: Restrict)
+  recordedBy User?              @relation("TrainingParticipationRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)
   tasks      Task[]
 
   @@unique([trainingSessionId, trainingEnrollmentId])
   @@index([trainingEnrollmentId])
+  @@index([recordedByUserId])
   @@index([status])
 }
 

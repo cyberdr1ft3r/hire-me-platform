@@ -116,7 +116,19 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `mission_assignments:view`
 - `messages:view`
 - `messages:create`
+- `training_programs:view`
+- `training_programs:view_all`
+- `training_programs:manage`
+- `training_programs:status:manage`
+- `training_programs:archive`
+- `training_sessions:view`
+- `training_sessions:manage`
+- `training_sessions:archive`
+- `training_enrollments:view`
 - `training_enrollments:manage`
+- `training_participation:view`
+- `training_participation:manage`
+- `training_participation:correct`
 - `mission_assignments:manage`
 - `mission_commercial_data:view`
 - `mission_commercial_data:update`
@@ -362,6 +374,55 @@ Issue #23 implements these route permissions:
 Development seed mapping gives normal interview and evaluation permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, `GUEST`, and `CLIENT_USER` receive no broad interview or evaluation permissions until assignment, team, guest, or optional future client-portal row scopes are implemented.
 
 Interview and evaluation access remains deny-by-default. A caller must have the route permission and either authorized override scope or an active mission assignment, depending on the operation. Interview and evaluation writes use the established mission-candidate lock order: parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then the `Interview` row where applicable. Internal evaluations are redacted unless `evaluations:internal:view` is effective. Client feedback records are redacted unless `client_feedback:view` is effective. Candidate salary values are not returned through evaluation responses or audit metadata.
+
+## Implemented Training Operations Permissions
+
+| Permission | Implemented use |
+| --- | --- |
+| `training_programs:view` | Read training programs within the assigned training scope. |
+| `training_programs:view_all` | Broad training oversight across all internal training programs. |
+| `training_programs:manage` | Create and update training programs. |
+| `training_programs:status:manage` | Apply approved training program lifecycle transitions. |
+| `training_programs:archive` | Archive a closed training program without deleting training history. |
+| `training_sessions:view` | Read training sessions under an authorized training program. |
+| `training_sessions:manage` | Schedule, update, reschedule, cancel, and transition training sessions. |
+| `training_sessions:archive` | Archive a completed or canceled training session. |
+| `training_enrollments:view` | Read training enrollments under an authorized training program. |
+| `training_enrollments:manage` | Create enrollments, apply enrollment lifecycle transitions, withdraw, and archive. |
+| `training_participation:view` | Read training session participation and attendance records. |
+| `training_participation:manage` | Create participation records and record session attendance. |
+| `training_participation:correct` | Apply an audited correction to already-recorded attendance. |
+
+Training authorization always combines a capability with server-side record scope.
+
+`training_programs:view` alone grants only assigned scope: the actor must be the
+program owner or the trainer of one of its sessions. `training_programs:view_all` is
+the separate broad oversight capability and is never implied by the base view
+capability.
+
+Client-linked training programs additionally require `clients:view`. Without it, a
+client-linked program is excluded from the list predicate and its detail route returns
+not-found, so a training identifier cannot become a path to unrelated client records.
+Linking a program to a client also requires `clients:view` and a live, non-archived
+client.
+
+Nested session, enrollment, and participation routes re-verify the whole parent chain
+server-side. Web gating is a convenience only; the API re-checks capability and record
+scope on every request.
+
+Recording attendance and correcting attendance are deliberately separate capabilities,
+because a correction rewrites already-recorded training history. Trainer notes are
+redacted for actors who may read attendance but may not manage participation.
+
+Development seed mapping gives the full training operations set to `SUPER_ADMIN`,
+`ADMIN`, and `HR_MANAGER`. `MANAGER` receives scoped read capabilities only.
+`TEAM_LEADER` may additionally record attendance but never correct it. `EMPLOYEE`,
+`GUEST`, and `CLIENT_USER` receive no training permissions by default.
+
+Training operations expose no pricing, quotation, invoicing, payment, revenue, or
+profitability data. `TrainingEnrollment.paymentStatus` remains an untouched
+pre-existing column and is not exposed by the training API or contracts; commercial
+training records belong to the separate commercial issue.
 
 ## Security and Audit Requirements
 

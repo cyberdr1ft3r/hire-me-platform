@@ -1,24 +1,36 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- Issue #31 is complete; PR #32 merged task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
-- Issue #35 is active on branch `feat/document-management` in existing PR #40.
-- Issue #35 incorporates Issue #12: `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` are distinct document taxonomy values and must not be collapsed into a generic contract type.
-- PR #40 post-integration review identified a Task-to-Document authorization gap after Issue #31 and Issue #35 were combined.
-- Current implemented document contexts are client, candidate, recruitment mission, mission-candidate process, and interview. Context IDs are validated server-side for existence, archival state, relationship consistency, and linked record scope.
-- Mission, process, and interview document scope overrides are context-specific. DOCX/XLSX validation uses bounded OOXML ZIP-package validation rather than string-spoofable `PK` checks.
-- Task create/update document context links must use the centralized document policy: `documents:view`, visibility/owner rules, and linked-context scope. Task and notification responses may keep the task visible but must redact `documentId` unless the actor can independently view that document at read time.
-- Candidate CV and public-application upload behavior remains on `CandidateDocument` / `CandidateDocumentVersion`.
-- Template rendering, e-signature, external portals, accounting/commercial records, training operations, external notifications, private messages/groups, email, WhatsApp, and calendar delivery remain out of scope.
+- Issue #37 is implemented on branch `feat/training-operations` and opened as a draft PR. The branch base is `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, which includes PR #44.
+- Issue #37 builds the internal training-operations module on the existing `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation` records. No parallel training model exists.
+- The only schema change is the additive migration `20260904143000_training_operations_foundation`.
+- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment adds one documented extension: an explicit authorized withdrawal to `canceled` from any active state, required by Issue #37.
+- Training authorization combines capability plus server-side record scope. `training_programs:view_all` is the separate broad oversight capability, and client-linked programs additionally require `clients:view`.
+- Attendance correction is a separate capability from recording attendance, always carries a reason, and is audited.
+- Certificate readiness is a derived durable boundary only. Issue #37 generates no certificate, no contract file, and no `Document` records for training.
+- Issue #35 remains open on PR #40 / branch `feat/document-management`.
+- Issue #38 (training commercial records) and Issue #36 (reporting) are being implemented concurrently by other agents. Issue #37 does not depend on either branch.
+- Local validation for Issue #37 used a dedicated PostgreSQL database because a concurrent agent reset the shared development database during the task.
 
 ## Next Action
 
-Record the new exact-head CI run for PR #40, update the PR body with the new head SHA and PostgreSQL integration test count, and keep PR #40 open and unmerged for human review.
+Review the Issue #37 draft PR, confirm exact-head GitHub Actions, and keep the PR open and unmerged. Then decide merge ordering across the concurrent Prisma-heavy branches for Issues #35, #37, and #38, and require the second and third branches to incorporate latest `main` and rerun a clean-database migration, double seed, and full integration suite before merge.
+
+## Known Follow-Up Work For Training
+
+Not implemented by Issue #37 and still requiring their own approved issues:
+
+- Detailed assessment, exam, or lesson content and any LMS behavior.
+- Certificate or training-contract file generation, rendering, templates, and distribution.
+- Training pricing, quotations, invoicing, payments, revenue, and profitability (Issue #38 / Phase 8).
+- Satisfaction and follow-up workflows beyond their existing lifecycle states.
+- Calendar, email, or WhatsApp delivery for training sessions.
+- Any learner or client-facing training portal.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

@@ -161,6 +161,35 @@ import {
   type TaskReminderDetailResponse,
   type TaskReminderProcessResponse,
   type TaskStatusChangeRequest,
+  TrainingEnrollmentDetailResponseSchema,
+  TrainingEnrollmentListResponseSchema,
+  TrainingParticipationDetailResponseSchema,
+  TrainingParticipationListResponseSchema,
+  TrainingProgramDetailResponseSchema,
+  TrainingProgramListResponseSchema,
+  TrainingSessionDetailResponseSchema,
+  TrainingSessionListResponseSchema,
+  type TrainingAttendanceCorrectionRequest,
+  type TrainingAttendanceUpdateRequest,
+  type TrainingEnrollmentCreateRequest,
+  type TrainingEnrollmentDetailResponse,
+  type TrainingEnrollmentListResponse,
+  type TrainingEnrollmentStatusUpdateRequest,
+  type TrainingEnrollmentWithdrawRequest,
+  type TrainingParticipationCreateRequest,
+  type TrainingParticipationDetailResponse,
+  type TrainingParticipationListResponse,
+  type TrainingProgramCreateRequest,
+  type TrainingProgramDetailResponse,
+  type TrainingProgramListResponse,
+  type TrainingProgramStatusUpdateRequest,
+  type TrainingProgramUpdateRequest,
+  type TrainingSessionCancelRequest,
+  type TrainingSessionCreateRequest,
+  type TrainingSessionDetailResponse,
+  type TrainingSessionListResponse,
+  type TrainingSessionRescheduleRequest,
+  type TrainingSessionStatusUpdateRequest,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -1981,4 +2010,395 @@ function queryPath(
   }
   const serialized = parameters.toString();
   return serialized ? `${path}?${serialized}` : path;
+}
+
+async function trainingRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/training${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Training request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export type TrainingProgramListOptions = {
+  accessToken: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  clientId?: string;
+  ownerUserId?: string;
+  includeArchived?: boolean;
+  sortBy?: string;
+  sortDirection?: string;
+  apiBaseUrl?: string;
+};
+
+export async function listTrainingPrograms(
+  options: TrainingProgramListOptions,
+): Promise<TrainingProgramListResponse> {
+  const response = await trainingRequest(
+    options.accessToken,
+    queryPath('/programs', {
+      page: options.page ?? 1,
+      pageSize: options.pageSize ?? 20,
+      search: options.search,
+      status: options.status,
+      clientId: options.clientId,
+      ownerUserId: options.ownerUserId,
+      includeArchived: options.includeArchived,
+      sortBy: options.sortBy,
+      sortDirection: options.sortDirection,
+    }),
+    {},
+    options.apiBaseUrl,
+  );
+  return TrainingProgramListResponseSchema.parse(await response.json());
+}
+
+export async function getTrainingProgram(
+  accessToken: string,
+  programId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingProgramDetailResponse> {
+  const response = await trainingRequest(accessToken, `/programs/${programId}`, {}, apiBaseUrl);
+  return TrainingProgramDetailResponseSchema.parse(await response.json());
+}
+
+export async function createTrainingProgram(
+  accessToken: string,
+  input: TrainingProgramCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingProgramDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    '/programs',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingProgramDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingProgram(
+  accessToken: string,
+  programId: string,
+  input: TrainingProgramUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingProgramDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingProgramDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingProgramStatus(
+  accessToken: string,
+  programId: string,
+  input: TrainingProgramStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingProgramDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/status`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingProgramDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTrainingProgram(
+  accessToken: string,
+  programId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingProgramDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return TrainingProgramDetailResponseSchema.parse(await response.json());
+}
+
+export type TrainingSessionListOptions = {
+  accessToken: string;
+  programId: string;
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  search?: string;
+  includeArchived?: boolean;
+  apiBaseUrl?: string;
+};
+
+export async function listTrainingSessions(
+  options: TrainingSessionListOptions,
+): Promise<TrainingSessionListResponse> {
+  const response = await trainingRequest(
+    options.accessToken,
+    queryPath(`/programs/${options.programId}/sessions`, {
+      page: options.page ?? 1,
+      pageSize: options.pageSize ?? 20,
+      status: options.status,
+      search: options.search,
+      includeArchived: options.includeArchived,
+    }),
+    {},
+    options.apiBaseUrl,
+  );
+  return TrainingSessionListResponseSchema.parse(await response.json());
+}
+
+export async function createTrainingSession(
+  accessToken: string,
+  programId: string,
+  input: TrainingSessionCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
+}
+
+export async function rescheduleTrainingSession(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  input: TrainingSessionRescheduleRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/reschedule`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingSessionStatus(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  input: TrainingSessionStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/status`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
+}
+
+export async function cancelTrainingSession(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  input: TrainingSessionCancelRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/cancel`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTrainingSession(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
+}
+
+export type TrainingEnrollmentListOptions = {
+  accessToken: string;
+  programId: string;
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  participantType?: string;
+  certificateReadyOnly?: boolean;
+  includeArchived?: boolean;
+  apiBaseUrl?: string;
+};
+
+export async function listTrainingEnrollments(
+  options: TrainingEnrollmentListOptions,
+): Promise<TrainingEnrollmentListResponse> {
+  const response = await trainingRequest(
+    options.accessToken,
+    queryPath(`/programs/${options.programId}/enrollments`, {
+      page: options.page ?? 1,
+      pageSize: options.pageSize ?? 20,
+      status: options.status,
+      participantType: options.participantType,
+      certificateReadyOnly: options.certificateReadyOnly,
+      includeArchived: options.includeArchived,
+    }),
+    {},
+    options.apiBaseUrl,
+  );
+  return TrainingEnrollmentListResponseSchema.parse(await response.json());
+}
+
+export async function createTrainingEnrollment(
+  accessToken: string,
+  programId: string,
+  input: TrainingEnrollmentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/enrollments`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingEnrollmentStatus(
+  accessToken: string,
+  programId: string,
+  enrollmentId: string,
+  input: TrainingEnrollmentStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/enrollments/${enrollmentId}/status`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function withdrawTrainingEnrollment(
+  accessToken: string,
+  programId: string,
+  enrollmentId: string,
+  input: TrainingEnrollmentWithdrawRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/enrollments/${enrollmentId}/withdraw`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentDetailResponseSchema.parse(await response.json());
+}
+
+export type TrainingParticipationListOptions = {
+  accessToken: string;
+  programId: string;
+  sessionId: string;
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  includeArchived?: boolean;
+  apiBaseUrl?: string;
+};
+
+export async function listTrainingParticipations(
+  options: TrainingParticipationListOptions,
+): Promise<TrainingParticipationListResponse> {
+  const response = await trainingRequest(
+    options.accessToken,
+    queryPath(`/programs/${options.programId}/sessions/${options.sessionId}/participations`, {
+      page: options.page ?? 1,
+      pageSize: options.pageSize ?? 20,
+      status: options.status,
+      includeArchived: options.includeArchived,
+    }),
+    {},
+    options.apiBaseUrl,
+  );
+  return TrainingParticipationListResponseSchema.parse(await response.json());
+}
+
+export async function createTrainingParticipation(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  input: TrainingParticipationCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingParticipationDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/participations`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingParticipationDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingAttendance(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  participationId: string,
+  input: TrainingAttendanceUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingParticipationDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingParticipationDetailResponseSchema.parse(await response.json());
+}
+
+export async function correctTrainingAttendance(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  participationId: string,
+  input: TrainingAttendanceCorrectionRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingParticipationDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/correction`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingParticipationDetailResponseSchema.parse(await response.json());
 }

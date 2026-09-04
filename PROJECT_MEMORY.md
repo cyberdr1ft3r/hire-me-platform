@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Document management foundation and contract taxonomy after task-management integration.
+Training operations foundation, alongside the in-review document management foundation.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -27,7 +27,8 @@ Document management foundation and contract taxonomy after task-management integ
 - Issue #27 is complete; PR #28 merged the public opportunity and unauthenticated candidate application foundation.
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
 - Issue #31 is complete; PR #32 merged internal task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
-- Current executable goal: finish Issue #35 PR #40 on branch `feat/document-management`, preserve both merged task-management and document-management behavior, revalidate the combined system, and keep PR #40 open/unmerged for final review.
+- Issue #37 is implemented on branch `feat/training-operations` as a draft PR. It adds the internal training-operations module on the existing training records.
+- Current executable goal: review the Issue #37 draft PR and the Issue #35 PR #40, then decide merge ordering across the concurrent Prisma-heavy branches for Issues #35, #37, and #38.
 
 ## Confirmed Product Facts
 
@@ -58,6 +59,9 @@ Document management foundation and contract taxonomy after task-management integ
 - Expected migration scale includes thousands of candidates and CV files, hundreds of clients or prospects, and existing mission, interview, commercial, HR, training, and user data.
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
 - Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Accounting, payroll, training, and any future client portal each need their own later issues.
+- Issue #37 implemented internal training operations on the existing training records: training programs with a unique reference, optional client context and planned window; sessions with title, ordering, timezone-safe start/end, delivery mode, reschedule and cancellation metadata; enrollment with approved participant identities, lifecycle timestamps, actor history, and audited withdrawal; and per-session attendance with explicit audited corrections. It does not implement an LMS, exam engine, certificate or contract file generation, training billing, calendar delivery, or any learner portal.
+- Training operations expose a durable certificate-readiness boundary derived from enrollment completion, withdrawal, archival, and certificate status. A later document-generation feature consumes it; the training module produces no file and creates no `Document` records for programs, sessions, or enrollments.
+- Training commercial records remain outside training operations. `TrainingEnrollment.paymentStatus` is a pre-existing column that the training API and contracts deliberately do not expose. The stable training identifiers a later commercial feature can consume are the training program id and reference, the training session id, and the training enrollment id.
 - Issue #31 implemented internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
 
 ## Technical Direction
@@ -80,6 +84,7 @@ Document management foundation and contract taxonomy after task-management integ
 - Task management implementation uses permission-code guarded `/v1/tasks` and `/v1/notifications` endpoints, one accountable owner with a dedicated owner-change action, normalized multiple-assignee history, explicit authorized context foreign keys, comments, mentions, durable in-app reminders, task events, own-notification controls, row-locked task mutations, locked reminder processing, composite task/recipient reminder idempotency, event-scoped task notification idempotency, and safe audit summaries. Internal task visibility requires `tasks:view` or `tasks:view_all` plus record scope; `tasks:view_all` is the separate broad oversight permission. Comment and reminder recipient eligibility is revalidated inside the locked Task transaction before side effects. Moving a task to `IN_PROGRESS` requires at least one active `TaskAssignment`; `Task.assigneeUserId` remains compatibility-only.
 - Task document links reuse the centralized document access policy. Task create/update may reference a `Document` only when the actor currently satisfies `documents:view`, document visibility/owner rules, and linked document context scope. Task reads keep visible tasks visible but redact `context.documentId` when the linked document later becomes inaccessible, ownerless-private, archived, or out of scope. Task notification shaping also redacts `documentId` independently of task visibility.
 - Issue #35 adds the internal `Document` / `DocumentVersion` foundation for centralized managed files: explicit document taxonomy, protected server-generated storage keys, immutable uploaded versions, authorized version download, safe metadata responses, document lifecycle/archive, exact operation permission checks, and permission plus linked-business-context authorization. List visibility is enforced in the database predicate and detail/version/download/mutation paths re-check access in service code. Mission, mission-candidate process, and interview document scopes follow their linked entity's current scope rules instead of one blended mission override. `PRIVATE` and `ASSIGNED_ONLY` are owner-only until a separate assignment model exists; a null owner does not broaden private access. `CLIENT_SHARED` is internal sharing metadata and does not grant external/client access. Metadata update/archive audit is atomic with the mutation. JSON base64 uploads are strictly validated, capped before decoding, limited to 4 MB raw bytes, validate DOCX/XLSX as bounded OOXML ZIP packages, and keep safe original filename metadata separate from sanitized download filenames. Candidate CV/application uploads continue to use `CandidateDocument` / `CandidateDocumentVersion`.
+- Training operations implementation uses permission-code guarded `/v1/training` endpoints with sessions, enrollments, and participation nested under their training program, shared Prisma-independent training contracts, the documented program/session/participation state machines plus an explicit audited enrollment withdrawal, active-enrollment and session-participation uniqueness enforced by PostgreSQL constraints, a fixed program/session/enrollment/participation row-lock order, capability plus record-scope authorization with `training_programs:view_all` as the separate broad oversight capability, `clients:view` required for client-linked programs in both the list predicate and the detail path, a separate attendance-correction capability, trainer-note redaction, and audit entries written inside the mutating transaction.
 - Shared contracts and validation.
 - Docker Compose for local services.
 - Protected file-storage abstraction.

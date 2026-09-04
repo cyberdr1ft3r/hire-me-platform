@@ -515,6 +515,10 @@ stateDiagram-v2
     rejected --> [*]
     canceled --> [*]
     closed --> [*]
+    note right of canceled
+        Authorized withdrawal moves any
+        active enrollment to canceled.
+    end note
 ```
 
 ### Valid Session Participation Transitions
@@ -531,6 +535,67 @@ stateDiagram-v2
     session_outcome_recorded --> participation_archived
     participation_archived --> [*]
 ```
+
+### Training Lifecycle Rules
+
+Issue #37 implements the internal training-operations module on the existing
+`TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and
+`TrainingSessionParticipation` records. The rules below are enforced server-side.
+
+- Training programs carry a unique normalized reference, an optional internal owner,
+  an optional client context, and an optional planned start/end window.
+- Program lifecycle follows the diagram above exactly. `program_archived` is reachable
+  only from `program_closed`, and an archived program is terminal: it accepts no
+  further updates, sessions, enrollments, or attendance.
+- A `program_closed` program still exposes its history but no longer accepts new
+  training operations.
+- A training session belongs to exactly one training program. Nested routes verify the
+  full parent chain, so a session identifier from another program resolves to
+  not-found instead of leaking or mutating that program's records.
+- Session scheduling stores an explicit start and end as timezone-safe ISO instants;
+  the end must be after the start.
+- Rescheduling is allowed from `session_planned`, `session_scheduled`, and
+  `session_postponed`. It preserves `previousScheduledAt`, increments
+  `rescheduleCount`, records `lastRescheduledAt`, and returns the session to
+  `session_scheduled`.
+- Cancellation requires a reason and records `canceledAt`. Only completed or canceled
+  sessions can be archived.
+- Concurrent reschedule, cancel, and lifecycle writes serialize through PostgreSQL row
+  locks taken in the order program, session, enrollment, participation, so they cannot
+  produce contradictory terminal state.
+- Enrollment uses only the already-approved participant identities: `Candidate`,
+  `User`, `ClientContact`, and `ExternalTrainingParticipant`. No candidate, client, or
+  learner account is created.
+- A participant may hold only one active enrollment per program. This is enforced by a
+  database unique constraint on the program and an active-participant key, so
+  concurrent duplicate attempts resolve deterministically to a single enrollment.
+- Withdrawal is an explicit authorized action with a recorded reason. It moves an
+  active enrollment to `canceled`, records `withdrawnAt`, and releases the active slot
+  so the participant can be re-enrolled later. Enrollment history is never physically
+  deleted.
+- Archived or otherwise ineligible participants are rejected. A client-linked program
+  only accepts client contacts belonging to that same client.
+- A session participation record links exactly one session to one enrollment of the
+  same training program. A session/enrollment pair from different programs is rejected.
+- Attendance follows the participation diagram. Changing an already-recorded attendance
+  value requires an explicit correction, which carries a mandatory reason, increments
+  `correctionCount`, and records `lastCorrectedAt` and `lastCorrectionReason`.
+- Recording attendance and correcting attendance are separate capabilities, because a
+  correction rewrites already-recorded training history.
+- Trainer notes are bounded internal context and are redacted from actors who may read
+  attendance but may not manage participation.
+
+### Training Certificate-Readiness Boundary
+
+Issue #37 records only the durable completion boundary. It does not implement an LMS,
+an exam engine, certificate rendering, or certificate distribution.
+
+- Reaching `evaluated` records `completedAt` once. Later transitions never clear it.
+- An enrollment is certificate-ready when it has a `completedAt`, is not withdrawn, is
+  not archived, and its certificate status is not yet `issued`.
+- Readiness is derived server-side and exposed as a read-only field plus a list filter,
+  so a later document-generation feature can find the enrollments that qualify for a
+  `CONTRAT_FORMATION`-adjacent certificate without this module producing any file.
 
 ### Valid Task Transitions
 

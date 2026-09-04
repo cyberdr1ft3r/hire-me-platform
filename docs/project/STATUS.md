@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch includes merged Issue #31 task-management behavior plus the Issue #35 document-management foundation.
-**Current blocker:** PR #40 post-integration review identified a Task-to-Document authorization gap; the branch now requires exact-head CI evidence for the document-link policy fix.
-**Next executable development task:** Human review/merge gate for PR #40 after the new exact-head validation is recorded in the PR.
+**Phase:** Training operations foundation, alongside the in-review document management foundation
+**Health:** Issue #37 is implemented on branch `feat/training-operations` as a draft PR built from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (includes PR #44). Issue #35 remains in review on PR #40. Issue #38 (training commercial) and Issue #36 (reporting) are being implemented concurrently by other agents and are not dependencies of Issue #37.
+**Current blocker:** Issue #37 awaits ChatGPT review and exact-head CI on its draft PR. Issue #35 still awaits its own human review/merge gate.
+**Next executable development task:** Review the Issue #37 draft PR, then resolve merge ordering between the concurrent Prisma-heavy branches (#35, #37, #38).
 
 ## Active work
 
@@ -29,6 +29,7 @@ Status owner: repository maintainer
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
 | Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
+| Issue #37 | Open | Implement training operations foundation: programs, sessions, enrollment, and attendance | Await ChatGPT review and exact-head CI on the draft PR from branch `feat/training-operations`; keep it open/unmerged |
 
 ## Completed foundation work
 
@@ -215,6 +216,20 @@ Status owner: repository maintainer
 - Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
+## Issue #37 Implementation State
+
+- Issue #37 implements the internal training-operations module on the existing training records. No parallel training model was introduced.
+- Schema work is additive only, in migration `20260904143000_training_operations_foundation`: program reference/normalized reference, optional client context and planned window; session title, sequence, scheduled end, delivery mode, reschedule and cancellation metadata; enrollment actor, lifecycle timestamps, withdrawal reason, and active-participant key; participation actor, attendance timestamp, and correction metadata.
+- The API adds permission-guarded `/v1/training` endpoints. Sessions, enrollments, and participation are nested under their training program so the full parent chain is verified server-side.
+- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment additionally supports an explicit authorized withdrawal to `canceled` from any active state, with a recorded reason and preserved history.
+- Active enrollment uniqueness and session participation uniqueness are enforced by PostgreSQL unique constraints, so concurrent duplicate attempts resolve deterministically to a single record.
+- Concurrent reschedule, cancel, lifecycle, and attendance writes serialize through row locks taken in the order program, session, enrollment, participation.
+- Authorization combines an explicit training capability with server-side record scope. `training_programs:view_all` is the separate broad oversight capability. Client-linked programs additionally require `clients:view` and are otherwise excluded from both the list predicate and the detail path.
+- Attendance correction is a separate capability from recording attendance and always records a reason, a correction count, and audit history. Trainer notes are redacted from actors who may not manage participation.
+- Certificate readiness is a derived durable boundary over `completedAt`, withdrawal, archival, and certificate status. No certificate or contract file is generated, and no `Document` records are created for training records.
+- Training commercial data is deliberately absent. `TrainingEnrollment.paymentStatus` remains an untouched pre-existing column and is not exposed. The stable identifiers a later commercial feature can consume are the training program id/reference, training session id, and training enrollment id.
+- Validation ran against a dedicated local PostgreSQL database because a concurrent agent reset the shared development database mid-task.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -234,7 +249,9 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
+1. Review the Issue #37 draft PR on branch `feat/training-operations` and keep it open/unmerged until review completes.
+2. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
+3. Decide merge ordering between the concurrent Prisma-heavy branches for Issues #35, #37, and #38, and require latest-main incorporation plus a clean-database migration run from whichever branch merges second and third.
 
 ## Status Update Rules
 
