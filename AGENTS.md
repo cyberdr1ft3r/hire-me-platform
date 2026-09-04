@@ -54,6 +54,69 @@ Record unresolved conflicts instead of silently choosing a convenient interpreta
 - Record assumptions, unresolved decisions, and deviations from approved documentation.
 - Open a draft pull request linked to the issue; do not merge automatically.
 
+## Concurrent multi-agent development
+
+Assume another agent may be modifying this repository concurrently unless the task explicitly says otherwise.
+
+### Branch ownership
+
+- One issue or independently reviewable task per branch.
+- Never develop directly on `main`.
+- Never commit to, rewrite, force-push, delete, or otherwise modify another agent's branch.
+- Never use another agent's unmerged branch as an implementation dependency unless the user explicitly approves that dependency.
+- Do not copy partially implemented code from another open PR merely to avoid waiting for merge order.
+
+### Scope isolation
+
+- Stay within the files and domain surface required by the assigned issue.
+- Before editing high-conflict shared files such as `schema.prisma`, seeds, shared contracts, app navigation, or project-memory/docs, inspect current `origin/main` and keep the delta as narrow as possible.
+- Do not make opportunistic cleanups in shared files while parallel work is active.
+- If another open feature appears to overlap materially with the assigned issue, document the overlap instead of silently absorbing that feature.
+
+### Main can move while you work
+
+Your branch may become stale while another reviewed feature is merged.
+
+Before declaring the task ready for final review:
+
+1. fetch the latest `origin/main`;
+2. determine whether `main` advanced since the branch base;
+3. incorporate latest `main` when needed;
+4. resolve conflicts semantically, preserving both already-merged behavior and the assigned issue's intended behavior;
+5. never resolve a conflict by dropping unfamiliar code just to make Git clean;
+6. rerun the complete applicable validation suite after integration;
+7. push the new exact head and wait for exact-head GitHub Actions again.
+
+For Prisma/schema-heavy work, latest-main integration and a clean PostgreSQL migration/test run are mandatory before final review whenever `main` changed during implementation.
+
+### Migrations under parallel development
+
+- Additive migrations only.
+- Never edit or rename a migration already present on `main`.
+- A migration created on an older branch base must be revalidated after newer migrations land on `main`.
+- Resolve migration ordering/name collisions explicitly; never delete another feature's migration to make your branch pass.
+- Validate the full migration chain from a clean database before final review.
+
+### Pull requests and merge authority
+
+- Open a draft PR for the assigned issue and keep it open/unmerged for review.
+- Never merge your own PR, another agent's PR, or `main` automatically.
+- Never deploy from an implementation task.
+- Do not mark the PR ready merely because local tests pass; exact-head CI and human/ChatGPT review are still required.
+- Treat review comments as part of the task source of truth and resolve blockers on the same branch/PR unless explicitly told otherwise.
+
+### Completion report for parallel work
+
+In addition to the normal completion report, state:
+
+- original base `main` SHA;
+- whether `main` advanced while the task was in progress;
+- latest `main` SHA incorporated before final review, if applicable;
+- conflicts encountered and how they were resolved;
+- shared/high-conflict files changed;
+- final exact head SHA after latest-main integration;
+- confirmation that the PR remains open and unmerged.
+
 ## Persistent memory updates
 
 At the end of every meaningful task:
