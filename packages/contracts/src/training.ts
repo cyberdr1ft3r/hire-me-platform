@@ -69,6 +69,15 @@ export const TrainingCertificateStatusSchema = z.enum(['NOT_APPLICABLE', 'PENDIN
 
 export const TrainingSortDirectionSchema = z.enum(['asc', 'desc']);
 
+/**
+ * HTTP query values arrive as strings, and `Boolean('false')` is `true`, so query
+ * booleans are parsed explicitly. Omitted means false, `"true"`/`"false"` map to the
+ * matching boolean, and anything else is rejected instead of silently coerced.
+ */
+export const TrainingQueryBooleanSchema = z
+  .union([z.boolean(), z.literal('true'), z.literal('false')])
+  .transform((value) => value === true || value === 'true');
+
 export const TrainingProgramSortBySchema = z.enum([
   'createdAt',
   'name',
@@ -125,6 +134,7 @@ export const TrainingSessionSummarySchema = z.object({
   rescheduleCount: z.number().int().nonnegative(),
   previousScheduledAt: z.string().datetime().nullable(),
   lastRescheduledAt: z.string().datetime().nullable(),
+  lastRescheduleReason: z.string().nullable(),
   canceledAt: z.string().datetime().nullable(),
   cancellationReason: z.string().nullable(),
   archivedAt: z.string().datetime().nullable(),
@@ -132,6 +142,14 @@ export const TrainingSessionSummarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/**
+ * Source-record identifiers for the enrolled participant.
+ *
+ * Each identifier is redacted to null unless the caller independently satisfies the
+ * source domain's own read authorization (for example `candidates:view` for a
+ * candidate participant). Training permissions alone must never disclose a
+ * confidential CRM identifier.
+ */
 export const TrainingEnrollmentParticipantSchema = z.object({
   candidateId: z.string().uuid().nullable(),
   userId: z.string().uuid().nullable(),
@@ -142,7 +160,11 @@ export const TrainingEnrollmentParticipantSchema = z.object({
 /**
  * `certificateReady` is the durable completion boundary a later document-generation
  * feature can consume. It is derived server-side and is never a client input.
- * This module records readiness only; it does not render or distribute certificates.
+ *
+ * Readiness requires an explicit `PENDING` certificate status: `NOT_APPLICABLE` means
+ * this enrollment is not meant to receive a certificate at all, and `ISSUED` means one
+ * already exists. This module records readiness only; it never renders or distributes
+ * a certificate.
  */
 export const TrainingEnrollmentSummarySchema = z.object({
   id: z.string().uuid(),
@@ -191,7 +213,7 @@ export const TrainingProgramListQuerySchema = z.object({
   status: TrainingProgramStatusSchema.optional(),
   clientId: z.string().uuid().optional(),
   ownerUserId: z.string().uuid().optional(),
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: TrainingQueryBooleanSchema.default(false),
   sortBy: TrainingProgramSortBySchema.default('createdAt'),
   sortDirection: TrainingSortDirectionSchema.default('desc'),
 });
@@ -241,7 +263,7 @@ export const TrainingSessionListQuerySchema = z.object({
   deliveryMode: TrainingDeliveryModeSchema.optional(),
   scheduledFrom: z.string().datetime({ offset: true }).optional(),
   scheduledTo: z.string().datetime({ offset: true }).optional(),
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: TrainingQueryBooleanSchema.default(false),
   sortBy: TrainingSessionSortBySchema.default('scheduledAt'),
   sortDirection: TrainingSortDirectionSchema.default('asc'),
 });
@@ -275,6 +297,7 @@ export const TrainingSessionUpdateRequestSchema = z
     message: 'At least one editable training session field is required.',
   });
 
+/** `reason` is preserved as bounded durable reschedule history on the session. */
 export const TrainingSessionRescheduleRequestSchema = z
   .object({
     scheduledAt: z.string().datetime({ offset: true }),
@@ -298,8 +321,8 @@ export const TrainingEnrollmentListQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   status: TrainingEnrollmentStatusSchema.optional(),
   participantType: TrainingParticipantTypeSchema.optional(),
-  certificateReadyOnly: z.coerce.boolean().default(false),
-  includeArchived: z.coerce.boolean().default(false),
+  certificateReadyOnly: TrainingQueryBooleanSchema.default(false),
+  includeArchived: TrainingQueryBooleanSchema.default(false),
   sortBy: TrainingEnrollmentSortBySchema.default('createdAt'),
   sortDirection: TrainingSortDirectionSchema.default('desc'),
 });
@@ -356,11 +379,19 @@ export const TrainingEnrollmentWithdrawRequestSchema = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 
+/**
+ * Declares whether this enrollment is meant to receive a certificate at all.
+ * `ISSUED` is not settable here: it is reached through the enrollment lifecycle.
+ */
+export const TrainingEnrollmentCertificateStatusUpdateRequestSchema = z.object({
+  certificateStatus: TrainingCertificateStatusSchema.exclude(['ISSUED']),
+});
+
 export const TrainingParticipationListQuerySchema = z.object({
   page: z.coerce.number().int().positive().max(500).default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   status: TrainingSessionParticipationStatusSchema.optional(),
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: TrainingQueryBooleanSchema.default(false),
   sortBy: TrainingParticipationSortBySchema.default('createdAt'),
   sortDirection: TrainingSortDirectionSchema.default('asc'),
 });
@@ -461,6 +492,10 @@ export type TrainingEnrollmentStatusUpdateRequest = z.infer<
 export type TrainingEnrollmentWithdrawRequest = z.infer<
   typeof TrainingEnrollmentWithdrawRequestSchema
 >;
+export type TrainingEnrollmentCertificateStatusUpdateRequest = z.infer<
+  typeof TrainingEnrollmentCertificateStatusUpdateRequestSchema
+>;
+export type TrainingQueryBoolean = z.infer<typeof TrainingQueryBooleanSchema>;
 export type TrainingParticipationListQuery = z.infer<typeof TrainingParticipationListQuerySchema>;
 export type TrainingParticipationCreateRequest = z.infer<
   typeof TrainingParticipationCreateRequestSchema

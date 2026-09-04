@@ -1251,6 +1251,8 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /create training program/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /set program_active/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /archive training program/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /archive participation/i })).toBeNull();
+    expect(screen.queryByLabelText(/set certificate applicability/i)).toBeNull();
   });
 
   it('exposes training lifecycle, enrollment, and attendance controls to an authorized operator', async () => {
@@ -1267,6 +1269,7 @@ describe('App', () => {
       'training_participation:view',
       'training_participation:manage',
       'training_participation:correct',
+      'training_participation:archive',
     ]);
 
     render(<App />);
@@ -1290,6 +1293,7 @@ describe('App', () => {
     expect(
       await screen.findByRole('button', { name: /create training enrollment/i }),
     ).toBeVisible();
+    expect(screen.getByLabelText(/set certificate applicability/i)).toBeVisible();
 
     fireEvent.click(await screen.findByRole('button', { name: /Day one induction/i }));
 
@@ -1300,6 +1304,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /archive training session/i })).toBeVisible();
     expect(await screen.findByLabelText(/record attendance/i)).toBeVisible();
     expect(screen.getByLabelText(/correct attendance/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /archive participation/i })).toBeVisible();
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/v1/training/programs?'),
@@ -1391,6 +1396,7 @@ function syntheticTrainingSession(trainingProgramId: string) {
     rescheduleCount: 0,
     previousScheduledAt: null,
     lastRescheduledAt: null,
+    lastRescheduleReason: null,
     canceledAt: null,
     cancellationReason: null,
     archivedAt: null,

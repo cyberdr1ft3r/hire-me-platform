@@ -16,10 +16,11 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Certificate readiness is a derived durable boundary only. Issue #37 generates no certificate, no contract file, and no `Document` records for training.
 - Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior. The stable training identifiers a later commercial feature can consume are the training program id and reference, the training session id, and the training enrollment id.
 - Local validation for Issue #37 used a dedicated PostgreSQL database because a concurrent agent reset the shared development database during the task. See risk R-028.
+- One blocking ChatGPT review pass on PR #45 has been resolved on the same branch (decision D-050, risk R-029): source-domain authorization and redaction for training participants, a legacy-safe active-enrollment migration backfill plus keyless-active check constraint, an explicit audited participation archive action, session-state gating and no-rewrite semantics for attendance, explicit query-boolean parsing, a persisted reschedule reason, and certificate readiness that requires an explicit `PENDING` status.
 
 ## Next Action
 
-Review the Issue #37 draft PR, confirm exact-head GitHub Actions, and keep the PR open and unmerged. Then require whichever remaining Prisma-heavy branch merges after Issue #37 to incorporate latest `main` and rerun a clean-database migration, double seed, and full integration suite before merge.
+Complete the final ChatGPT review of the Issue #37 draft PR #45 after the correction pass, confirm exact-head GitHub Actions, and keep the PR open and unmerged. Then require whichever remaining Prisma-heavy branch merges after Issue #37 to incorporate latest `main` and rerun a clean-database migration, double seed, and full integration suite before merge.
 
 ## Known Follow-Up Work For Training
 

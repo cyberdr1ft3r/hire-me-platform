@@ -116,6 +116,21 @@ export const RESCHEDULABLE_SESSION_STATUSES: readonly TrainingSessionStatus[] = 
   TrainingSessionStatus.SESSION_POSTPONED,
 ];
 
+/**
+ * Session states in which ordinary attendance may be recorded.
+ *
+ * A planned session has no confirmed schedule yet and a postponed session is not
+ * being delivered, so neither accepts attendance. Canceled and archived sessions fail
+ * closed: their attendance history is frozen. A completed session still accepts
+ * attendance because trainers routinely record or correct a sign-in sheet after
+ * delivery.
+ */
+export const ATTENDANCE_RECORDING_SESSION_STATUSES: readonly TrainingSessionStatus[] = [
+  TrainingSessionStatus.SESSION_SCHEDULED,
+  TrainingSessionStatus.SESSION_IN_PROGRESS,
+  TrainingSessionStatus.SESSION_COMPLETED,
+];
+
 /** Attendance states that a correction may set. */
 export const CORRECTABLE_PARTICIPATION_STATUSES: readonly TrainingSessionParticipationStatus[] = [
   TrainingSessionParticipationStatus.EXPECTED,

@@ -8,7 +8,7 @@ Status owner: repository maintainer
 **Phase:** Training operations foundation (Phase 9) after merged task-management, document-management, and recruitment-reporting foundations.
 **Health:** Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`. Issue #37 is implemented on branch `feat/training-operations` as a draft PR. The branch was started from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules) and then integrated latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting). Both the merged reporting behavior and the Issue #37 training behavior are preserved.
 **Parallelization:** Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior.
-**Current blocker:** Issue #37 awaits ChatGPT review and exact-head GitHub Actions on its draft PR.
+**Current blocker:** Issue #37 draft PR #45 has completed one blocking ChatGPT review correction pass and awaits final review plus exact-head GitHub Actions.
 **Next executable development task:** Human/ChatGPT review gate for the Issue #37 draft PR, kept open and unmerged.
 
 ## Active work
@@ -238,6 +238,7 @@ Status owner: repository maintainer
 - Certificate readiness is a derived durable boundary over `completedAt`, withdrawal, archival, and certificate status. No certificate or contract file is generated, and no `Document` records are created for training records.
 - Training commercial data is deliberately absent. `TrainingEnrollment.paymentStatus` remains an untouched pre-existing column and is not exposed. The stable identifiers a later commercial feature can consume are the training program id/reference, training session id, and training enrollment id.
 - Validation ran against a dedicated local PostgreSQL database because a concurrent agent reset the shared development database mid-task.
+- PR #45 review corrections (decision D-050): participant linking now requires the source domain's own read authorization and fails closed indistinguishably; enrollment reads redact source identifiers; the migration backfills and validates legacy active enrollments and adds a keyless-active check constraint; `PARTICIPATION_ARCHIVED` is reachable through an explicit audited idempotent archive action; attendance is gated by session state and can no longer be rewritten through the ordinary action; training query booleans are parsed explicitly; the reschedule reason is persisted; and certificate readiness requires an explicit `PENDING` status.
 - After integrating latest `main` (PR #43 recruitment reporting), the full suite was rerun from a clean database. `pnpm test:db` totals 173 PostgreSQL integration tests across 14 files (140 merged baseline + 33 training).
 
 ## Current open technical questions

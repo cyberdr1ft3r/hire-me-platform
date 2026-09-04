@@ -13,6 +13,7 @@ import {
 import {
   TrainingAttendanceCorrectionRequestSchema,
   TrainingAttendanceUpdateRequestSchema,
+  TrainingEnrollmentCertificateStatusUpdateRequestSchema,
   TrainingEnrollmentCreateRequestSchema,
   TrainingEnrollmentDetailResponseSchema,
   TrainingEnrollmentListQuerySchema,
@@ -501,6 +502,40 @@ export class TrainingController {
     );
   }
 
+  /**
+   * Declares whether the enrollment is meant to receive a certificate at all, which is
+   * what makes certificate readiness meaningful. No certificate file is produced.
+   */
+  @Post('programs/:programId/enrollments/:enrollmentId/certificate-status')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async updateEnrollmentCertificateStatus(
+    @Param('programId') programId: string,
+    @Param('enrollmentId') enrollmentId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingEnrollmentCertificateStatusUpdateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_CERTIFICATE_STATUS_REQUEST',
+        'Invalid training certificate status request.',
+      );
+    }
+
+    return TrainingEnrollmentDetailResponseSchema.parse(
+      await this.training.updateEnrollmentCertificateStatus(
+        this.uuid(programId),
+        this.uuid(enrollmentId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
   @Post('programs/:programId/enrollments/:enrollmentId/archive')
   @RequirePermissions(
     TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
@@ -646,6 +681,32 @@ export class TrainingController {
         this.uuid(sessionId),
         this.uuid(participationId),
         parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  /**
+   * Completes the documented participation lifecycle. Archiving preserves the recorded
+   * attendance history and is idempotent once applied.
+   */
+  @Post('programs/:programId/sessions/:sessionId/participations/:participationId/archive')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_PARTICIPATION_ARCHIVE,
+  )
+  async archiveParticipation(
+    @Param('programId') programId: string,
+    @Param('sessionId') sessionId: string,
+    @Param('participationId') participationId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return TrainingParticipationDetailResponseSchema.parse(
+      await this.training.archiveParticipation(
+        this.uuid(programId),
+        this.uuid(sessionId),
+        this.uuid(participationId),
         request.user!.id,
         this.getContext(request),
       ),

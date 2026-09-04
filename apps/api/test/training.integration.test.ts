@@ -34,7 +34,11 @@ const testPassword = 'Synthetic-passphrase-123!';
  * verified against the database rather than mocks.
  */
 
-/** Full training operator: every training capability plus client read scope. */
+/**
+ * Full training operator: every training capability PLUS the source-domain read
+ * capabilities that the participant types require. The source capabilities are listed
+ * explicitly so the fixture cannot silently mask the cross-domain boundary.
+ */
 const operatorPermissions = [
   'training_programs:view',
   'training_programs:view_all',
@@ -49,7 +53,39 @@ const operatorPermissions = [
   'training_participation:view',
   'training_participation:manage',
   'training_participation:correct',
+  'training_participation:archive',
   'clients:view',
+  'client_contacts:view',
+  'candidates:view',
+] as const;
+
+/**
+ * Full training write capability but NO source-domain read capability. This actor
+ * proves that training permissions alone cannot discover or link a candidate or a
+ * client contact.
+ */
+const trainingOnlyPermissions = [
+  'training_programs:view',
+  'training_programs:view_all',
+  'training_sessions:view',
+  'training_sessions:manage',
+  'training_enrollments:view',
+  'training_enrollments:manage',
+  'training_participation:view',
+  'training_participation:manage',
+] as const;
+
+/**
+ * Source-domain read capability but NO training write capability. This actor proves
+ * that CRM visibility alone cannot create a training enrollment.
+ */
+const sourceReadOnlyPermissions = [
+  'training_programs:view',
+  'training_programs:view_all',
+  'training_enrollments:view',
+  'clients:view',
+  'client_contacts:view',
+  'candidates:view',
 ] as const;
 
 /** Broad training oversight WITHOUT client read scope. */
@@ -61,7 +97,7 @@ const clientBlindPermissions = [
   'training_participation:view',
 ] as const;
 
-/** May record attendance but may never correct recorded attendance. */
+/** May record attendance but may never correct or archive recorded attendance. */
 const attendanceOnlyPermissions = [
   'training_programs:view',
   'training_programs:view_all',
@@ -266,6 +302,8 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
   let operatorToken: string;
   let clientBlindToken: string;
   let attendanceOnlyToken: string;
+  let trainingOnlyToken: string;
+  let sourceReadOnlyToken: string;
   let roleSnapshots: Map<RoleName, RolePermissionSnapshot>;
 
   // --- Helpers bound to the running application -------------------------------
@@ -337,6 +375,19 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     return (created.body as { session: Record<string, unknown> }).session;
   }
 
+  /** Moves a session into a state where attendance may legitimately be recorded. */
+  async function scheduleSession(programId: string, sessionId: string): Promise<void> {
+    const response = await api(
+      operatorToken,
+      `/programs/${programId}/sessions/${sessionId}/status`,
+      {
+        method: 'POST',
+        body: { status: 'SESSION_SCHEDULED' },
+      },
+    );
+    expect(response.status).toBe(201);
+  }
+
   async function createCandidate(status: CandidateStatus = CandidateStatus.ACTIVE) {
     const email = `candidate-${randomUUID()}@training.test`;
     return prisma.candidate.create({
@@ -370,9 +421,14 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     await cleanTrainingTestRecords();
     roleSnapshots = new Map(
       await Promise.all(
-        [RoleName.HR_MANAGER, RoleName.MANAGER, RoleName.TEAM_LEADER, RoleName.EMPLOYEE].map(
-          async (roleName) => [roleName, await snapshotRolePermissions(roleName)] as const,
-        ),
+        [
+          RoleName.HR_MANAGER,
+          RoleName.MANAGER,
+          RoleName.TEAM_LEADER,
+          RoleName.EMPLOYEE,
+          RoleName.GUEST,
+          RoleName.ADMIN,
+        ].map(async (roleName) => [roleName, await snapshotRolePermissions(roleName)] as const),
       ),
     );
 
@@ -380,11 +436,15 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     await setRolePermissions(RoleName.MANAGER, clientBlindPermissions);
     await setRolePermissions(RoleName.TEAM_LEADER, attendanceOnlyPermissions);
     await setRolePermissions(RoleName.EMPLOYEE, scopedPermissions);
+    await setRolePermissions(RoleName.ADMIN, trainingOnlyPermissions);
+    await setRolePermissions(RoleName.GUEST, sourceReadOnlyPermissions);
 
     operatorUserId = await createUser('operator@training.test', RoleName.HR_MANAGER);
     await createUser('client-blind@training.test', RoleName.MANAGER);
     await createUser('attendance@training.test', RoleName.TEAM_LEADER);
     scopedUserId = await createUser('scoped@training.test', RoleName.EMPLOYEE);
+    await createUser('training-only@training.test', RoleName.ADMIN);
+    await createUser('source-only@training.test', RoleName.GUEST);
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>();
@@ -394,6 +454,8 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     operatorToken = await loginAccessToken('operator@training.test');
     clientBlindToken = await loginAccessToken('client-blind@training.test');
     attendanceOnlyToken = await loginAccessToken('attendance@training.test');
+    trainingOnlyToken = await loginAccessToken('training-only@training.test');
+    sourceReadOnlyToken = await loginAccessToken('source-only@training.test');
   }, 120_000);
 
   afterAll(async () => {
@@ -717,12 +779,19 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
           status: string;
           rescheduleCount: number;
           previousScheduledAt: string | null;
+          lastRescheduleReason: string | null;
         };
       }
     ).session;
     expect(payload.status).toBe(TrainingSessionStatus.SESSION_SCHEDULED);
     expect(payload.rescheduleCount).toBe(1);
     expect(payload.previousScheduledAt).toBe(originalStart);
+    // The accepted reason must be preserved, not silently discarded.
+    expect(payload.lastRescheduleReason).toBe('Issue37 trainer unavailable');
+    const storedSession = await prisma.trainingSession.findUniqueOrThrow({
+      where: { id: String(session.id) },
+    });
+    expect(storedSession.lastRescheduleReason).toBe('Issue37 trainer unavailable');
   });
 
   it('cancels a scheduled session with a recorded reason and blocks later reschedule', async () => {
@@ -986,11 +1055,33 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     const evaluated = await api(operatorToken, enrollmentPath);
     const enrollment = (
       evaluated.body as {
-        enrollment: { completedAt: string | null; certificateReady: boolean };
+        enrollment: {
+          completedAt: string | null;
+          certificateReady: boolean;
+          certificateStatus: string;
+        };
       }
     ).enrollment;
     expect(enrollment.completedAt).not.toBeNull();
-    expect(enrollment.certificateReady).toBe(true);
+    // NOT_APPLICABLE means no certificate is expected, so completion alone is not ready.
+    expect(enrollment.certificateStatus).toBe('NOT_APPLICABLE');
+    expect(enrollment.certificateReady).toBe(false);
+
+    const applicable = await api(operatorToken, `${enrollmentPath}/certificate-status`, {
+      method: 'POST',
+      body: { certificateStatus: 'PENDING' },
+    });
+    expect(applicable.status).toBe(201);
+    expect(
+      (applicable.body as { enrollment: { certificateReady: boolean } }).enrollment
+        .certificateReady,
+    ).toBe(true);
+
+    const readyFiltered = await api(
+      operatorToken,
+      `/programs/${String(program.id)}/enrollments?certificateReadyOnly=true`,
+    );
+    expect((readyFiltered.body as { enrollments: unknown[] }).enrollments.length).toBe(1);
 
     // Once a certificate is recorded as issued the enrollment is no longer "ready".
     await api(operatorToken, `${enrollmentPath}/status`, {
@@ -1070,15 +1161,34 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
   // Session participation and attendance
   // ---------------------------------------------------------------------------
 
-  async function participationFixture() {
+  async function participationFixture({ schedule = true }: { schedule?: boolean } = {}) {
     const program = await createProgram();
     const programId = String(program.id);
     await activateProgram(programId);
     const session = await createSession(programId);
+    const sessionId = String(session.id);
+    if (schedule) {
+      await scheduleSession(programId, sessionId);
+    }
     const candidate = await createCandidate();
     const created = await enrollCandidate(programId, candidate.id);
     const enrollmentId = String((created.body as { enrollment: { id: string } }).enrollment.id);
-    return { programId, sessionId: String(session.id), enrollmentId };
+    return { programId, sessionId, enrollmentId };
+  }
+
+  /** Creates a participation record and returns its id. */
+  async function addParticipation(
+    programId: string,
+    sessionId: string,
+    enrollmentId: string,
+  ): Promise<string> {
+    const created = await api(
+      operatorToken,
+      `/programs/${programId}/sessions/${sessionId}/participations`,
+      { method: 'POST', body: { trainingEnrollmentId: enrollmentId } },
+    );
+    expect(created.status).toBe(201);
+    return String((created.body as { participation: { id: string } }).participation.id);
   }
 
   it('links participation for a matching session and enrollment pair', async () => {
@@ -1160,14 +1270,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
 
   it('records attendance and rejects a non-sequential attendance transition', async () => {
     const { programId, sessionId, enrollmentId } = await participationFixture();
-    const created = await api(
-      operatorToken,
-      `/programs/${programId}/sessions/${sessionId}/participations`,
-      { method: 'POST', body: { trainingEnrollmentId: enrollmentId } },
-    );
-    const participationId = String(
-      (created.body as { participation: { id: string } }).participation.id,
-    );
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
     const attendancePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`;
 
     const attended = await api(operatorToken, attendancePath, {
@@ -1200,14 +1303,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
 
   it('applies an auditable attendance correction and denies unauthorized correction', async () => {
     const { programId, sessionId, enrollmentId } = await participationFixture();
-    const created = await api(
-      operatorToken,
-      `/programs/${programId}/sessions/${sessionId}/participations`,
-      { method: 'POST', body: { trainingEnrollmentId: enrollmentId } },
-    );
-    const participationId = String(
-      (created.body as { participation: { id: string } }).participation.id,
-    );
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
     const basePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}`;
 
     await api(operatorToken, `${basePath}/attendance`, {
@@ -1250,14 +1346,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
 
   it('redacts trainer notes from actors who may not manage participation', async () => {
     const { programId, sessionId, enrollmentId } = await participationFixture();
-    const created = await api(
-      operatorToken,
-      `/programs/${programId}/sessions/${sessionId}/participations`,
-      { method: 'POST', body: { trainingEnrollmentId: enrollmentId } },
-    );
-    const participationId = String(
-      (created.body as { participation: { id: string } }).participation.id,
-    );
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
     await api(
       operatorToken,
       `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`,
@@ -1284,20 +1373,9 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
 
   it('blocks attendance on an archived session and leaves recorded history unchanged', async () => {
     const { programId, sessionId, enrollmentId } = await participationFixture();
-    const created = await api(
-      operatorToken,
-      `/programs/${programId}/sessions/${sessionId}/participations`,
-      { method: 'POST', body: { trainingEnrollmentId: enrollmentId } },
-    );
-    const participationId = String(
-      (created.body as { participation: { id: string } }).participation.id,
-    );
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
     const sessionPath = `/programs/${programId}/sessions/${sessionId}`;
 
-    await api(operatorToken, `${sessionPath}/status`, {
-      method: 'POST',
-      body: { status: 'SESSION_SCHEDULED' },
-    });
     await api(operatorToken, `${sessionPath}/cancel`, {
       method: 'POST',
       body: { reason: 'Issue37 canceled session' },
@@ -1311,7 +1389,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     );
     expect(blocked.status).toBe(409);
     expect((blocked.body as { error: { code: string } }).error.code).toBe(
-      'TRAINING_SESSION_NOT_MUTABLE',
+      'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
     );
 
     const stored = await prisma.trainingSessionParticipation.findUniqueOrThrow({
@@ -1320,6 +1398,582 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     expect(stored.status).toBe(TrainingSessionParticipationStatus.EXPECTED);
     expect(stored.attendanceRecordedAt).toBeNull();
     expect(await countAudit('training.participation.attendance_updated', participationId)).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Participant source-record authorization
+  // ---------------------------------------------------------------------------
+
+  it('refuses candidate enrollment to a training operator without candidate read scope', async () => {
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+    const candidate = await createCandidate();
+
+    const denied = await api(trainingOnlyToken, `/programs/${String(program.id)}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'CANDIDATE', candidateId: candidate.id },
+    });
+    expect(denied.status).toBe(403);
+    expect((denied.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_PARTICIPANT_SOURCE_SCOPE_REQUIRED',
+    );
+
+    // The rejected write leaves no enrollment and no misleading audit history.
+    expect(
+      await prisma.trainingEnrollment.count({ where: { trainingProgramId: String(program.id) } }),
+    ).toBe(0);
+    expect(await countAudit('training.enrollment.created')).toBe(
+      await prisma.trainingEnrollment.count(),
+    );
+  });
+
+  it('does not let an actor without candidate scope distinguish candidate ids', async () => {
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+    const active = await createCandidate();
+    const archived = await createCandidate(CandidateStatus.ARCHIVED);
+    const inactive = await createCandidate(CandidateStatus.INACTIVE);
+    const missing = randomUUID();
+
+    const responses = await Promise.all(
+      [active.id, archived.id, inactive.id, missing].map((candidateId) =>
+        api(trainingOnlyToken, `/programs/${String(program.id)}/enrollments`, {
+          method: 'POST',
+          body: { participantType: 'CANDIDATE', candidateId },
+        }),
+      ),
+    );
+
+    // Existent, archived, inactive, and nonexistent must be indistinguishable.
+    const shapes = responses.map((response) => JSON.stringify([response.status, response.body]));
+    expect(new Set(shapes).size).toBe(1);
+    expect(responses[0]?.status).toBe(403);
+  });
+
+  it('refuses enrollment to an actor with candidate read but no training write capability', async () => {
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+    const candidate = await createCandidate();
+
+    const denied = await api(sourceReadOnlyToken, `/programs/${String(program.id)}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'CANDIDATE', candidateId: candidate.id },
+    });
+    expect(denied.status).toBe(403);
+    expect((denied.body as { error: { code: string } }).error.code).toBe('PERMISSION_DENIED');
+    expect(
+      await prisma.trainingEnrollment.count({ where: { trainingProgramId: String(program.id) } }),
+    ).toBe(0);
+  });
+
+  it('allows candidate enrollment when both candidate read and training write are held', async () => {
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+    const candidate = await createCandidate();
+
+    const created = await enrollCandidate(String(program.id), candidate.id);
+    expect(created.status).toBe(201);
+    expect(
+      (created.body as { enrollment: { participant: { candidateId: string | null } } }).enrollment
+        .participant.candidateId,
+    ).toBe(candidate.id);
+  });
+
+  it('does not let an actor without contact scope distinguish client contact ids', async () => {
+    const client = await prisma.client.create({
+      data: {
+        name: `Issue37 Contact Client ${randomUUID().slice(0, 8)}`,
+        normalizedName: `issue37 contact client ${randomUUID().slice(0, 8)}`,
+        status: ClientStatus.ACTIVE,
+      },
+    });
+    const email = `contact-${randomUUID()}@training.test`;
+    const contact = await prisma.clientContact.create({
+      data: {
+        clientId: client.id,
+        displayName: 'Issue37 Contact',
+        email,
+        normalizedEmail: email,
+        status: ClientContactStatus.ACTIVE,
+      },
+    });
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+
+    const responses = await Promise.all(
+      [contact.id, randomUUID()].map((clientContactId) =>
+        api(trainingOnlyToken, `/programs/${String(program.id)}/enrollments`, {
+          method: 'POST',
+          body: { participantType: 'CLIENT_CONTACT', clientContactId },
+        }),
+      ),
+    );
+
+    const shapes = responses.map((response) => JSON.stringify([response.status, response.body]));
+    expect(new Set(shapes).size).toBe(1);
+    expect(responses[0]?.status).toBe(403);
+    expect((responses[0]?.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_PARTICIPANT_SOURCE_SCOPE_REQUIRED',
+    );
+    expect(
+      await prisma.trainingEnrollment.count({ where: { trainingProgramId: String(program.id) } }),
+    ).toBe(0);
+  });
+
+  it('allows client contact enrollment with client and contact read scope in matching context', async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const client = await prisma.client.create({
+      data: {
+        name: `Issue37 Own Client ${suffix}`,
+        normalizedName: `issue37 own client ${suffix}`,
+        status: ClientStatus.ACTIVE,
+      },
+    });
+    const email = `own-contact-${randomUUID()}@training.test`;
+    const contact = await prisma.clientContact.create({
+      data: {
+        clientId: client.id,
+        displayName: 'Issue37 Own Contact',
+        email,
+        normalizedEmail: email,
+        status: ClientContactStatus.ACTIVE,
+      },
+    });
+    const program = await createProgram({ clientId: client.id });
+    await activateProgram(String(program.id));
+
+    const created = await api(operatorToken, `/programs/${String(program.id)}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'CLIENT_CONTACT', clientContactId: contact.id },
+    });
+    expect(created.status).toBe(201);
+    expect(
+      (created.body as { enrollment: { participant: { clientContactId: string | null } } })
+        .enrollment.participant.clientContactId,
+    ).toBe(contact.id);
+  });
+
+  it('redacts source identifiers from enrollment reads without source visibility', async () => {
+    const program = await createProgram();
+    await activateProgram(String(program.id));
+    const candidate = await createCandidate();
+    await enrollCandidate(String(program.id), candidate.id);
+    const listPath = `/programs/${String(program.id)}/enrollments`;
+
+    const authorized = await api(operatorToken, listPath);
+    expect(
+      (authorized.body as { enrollments: { participant: { candidateId: string | null } }[] })
+        .enrollments[0]?.participant.candidateId,
+    ).toBe(candidate.id);
+
+    // The same training record stays visible, but the CRM identifier is redacted.
+    const redacted = await api(trainingOnlyToken, listPath);
+    const redactedEnrollments = (
+      redacted.body as {
+        enrollments: { participantType: string; participant: { candidateId: string | null } }[];
+      }
+    ).enrollments;
+    expect(redactedEnrollments.length).toBe(1);
+    expect(redactedEnrollments[0]?.participantType).toBe('CANDIDATE');
+    expect(redactedEnrollments[0]?.participant.candidateId).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Legacy active-enrollment uniqueness
+  // ---------------------------------------------------------------------------
+
+  it('keeps a migrated legacy active enrollment unique and rejects keyless active rows', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const candidate = await createCandidate();
+
+    // Represents a pre-existing active enrollment as the migration backfill leaves it.
+    const legacy = await prisma.trainingEnrollment.create({
+      data: {
+        trainingProgramId: programId,
+        participantType: 'CANDIDATE',
+        candidateId: candidate.id,
+        status: TrainingEnrollmentStatus.ENROLLED,
+        activeParticipantKey: `CANDIDATE:${candidate.id}`,
+      },
+    });
+    expect(legacy.activeParticipantKey).toBe(`CANDIDATE:${candidate.id}`);
+
+    // A post-migration duplicate for the same participant must be refused.
+    const duplicate = await enrollCandidate(programId, candidate.id);
+    expect(duplicate.status).toBe(409);
+    expect((duplicate.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_ENROLLMENT_ALREADY_ACTIVE',
+    );
+    expect(
+      await prisma.trainingEnrollment.count({
+        where: { trainingProgramId: programId, candidateId: candidate.id },
+      }),
+    ).toBe(1);
+
+    // The database invariant also refuses an active enrollment with no key at all,
+    // so an active row can never escape the uniqueness index by holding NULL.
+    await expect(
+      prisma.trainingEnrollment.create({
+        data: {
+          trainingProgramId: programId,
+          participantType: 'CANDIDATE',
+          candidateId: candidate.id,
+          status: TrainingEnrollmentStatus.REGISTERED,
+        },
+      }),
+    ).rejects.toThrow(/TrainingEnrollment_active_participant_key_required/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Participation archival
+  // ---------------------------------------------------------------------------
+
+  it('archives participation from a recorded outcome, idempotently and auditably', async () => {
+    const { programId, sessionId, enrollmentId } = await participationFixture();
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
+    const basePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}`;
+
+    const tooEarly = await api(operatorToken, `${basePath}/archive`, { method: 'POST' });
+    expect(tooEarly.status).toBe(409);
+    expect((tooEarly.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_PARTICIPATION_ARCHIVE_BLOCKED',
+    );
+    expect(await countAudit('training.participation.archived', participationId)).toBe(0);
+
+    await api(operatorToken, `${basePath}/attendance`, {
+      method: 'POST',
+      body: { status: 'ATTENDED' },
+    });
+    await api(operatorToken, `${basePath}/attendance`, {
+      method: 'POST',
+      body: { status: 'SESSION_OUTCOME_RECORDED' },
+    });
+
+    const archived = await api(operatorToken, `${basePath}/archive`, { method: 'POST' });
+    expect(archived.status).toBe(201);
+    const payload = (
+      archived.body as { participation: { status: string; archivedAt: string | null } }
+    ).participation;
+    expect(payload.status).toBe(TrainingSessionParticipationStatus.PARTICIPATION_ARCHIVED);
+    expect(payload.archivedAt).not.toBeNull();
+
+    // Retrying returns the same state without duplicating history or audit entries.
+    const retried = await api(operatorToken, `${basePath}/archive`, { method: 'POST' });
+    expect(retried.status).toBe(201);
+    expect(await countAudit('training.participation.archived', participationId)).toBe(1);
+
+    const stored = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+    // History is preserved rather than deleted.
+    expect(stored.attendanceRecordedAt).not.toBeNull();
+    expect(stored.recordedByUserId).toBe(operatorUserId);
+
+    const blocked = await api(operatorToken, `${basePath}/attendance`, {
+      method: 'POST',
+      body: { status: 'ATTENDED' },
+    });
+    expect(blocked.status).toBe(409);
+    expect((blocked.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_PARTICIPATION_NOT_MUTABLE',
+    );
+  });
+
+  it('denies participation archive without the archive capability', async () => {
+    const { programId, sessionId, enrollmentId } = await participationFixture();
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
+    const basePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}`;
+
+    await api(operatorToken, `${basePath}/attendance`, {
+      method: 'POST',
+      body: { status: 'ATTENDED' },
+    });
+    await api(operatorToken, `${basePath}/attendance`, {
+      method: 'POST',
+      body: { status: 'SESSION_OUTCOME_RECORDED' },
+    });
+
+    const denied = await api(attendanceOnlyToken, `${basePath}/archive`, { method: 'POST' });
+    expect(denied.status).toBe(403);
+
+    const stored = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+    expect(stored.status).toBe(TrainingSessionParticipationStatus.SESSION_OUTCOME_RECORDED);
+    expect(stored.archivedAt).toBeNull();
+    expect(await countAudit('training.participation.archived', participationId)).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Attendance lifecycle and correction bypass
+  // ---------------------------------------------------------------------------
+
+  it('refuses a same-status attendance rewrite without the correction capability', async () => {
+    const { programId, sessionId, enrollmentId } = await participationFixture();
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
+    const attendancePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`;
+
+    const recorded = await api(attendanceOnlyToken, attendancePath, {
+      method: 'POST',
+      body: { status: 'ATTENDED', trainerNotes: 'Issue37 original note' },
+    });
+    expect(recorded.status).toBe(201);
+    const original = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+
+    // Resubmitting the same status with different detail is a historical rewrite.
+    const rewrite = await api(attendanceOnlyToken, attendancePath, {
+      method: 'POST',
+      body: { status: 'ATTENDED', trainerNotes: 'Issue37 rewritten note' },
+    });
+    expect(rewrite.status).toBe(409);
+    expect((rewrite.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_ATTENDANCE_ALREADY_RECORDED',
+    );
+
+    const stored = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+    expect(stored.trainerNotes).toBe('Issue37 original note');
+    expect(stored.attendanceRecordedAt?.toISOString()).toBe(
+      original.attendanceRecordedAt?.toISOString(),
+    );
+    expect(stored.correctionCount).toBe(0);
+    expect(await countAudit('training.participation.attendance_updated', participationId)).toBe(1);
+
+    // The correction capability is the only way to rewrite it.
+    const corrected = await api(
+      operatorToken,
+      `${attendancePath.replace('/attendance', '')}/correction`,
+      {
+        method: 'POST',
+        body: {
+          status: 'ATTENDED',
+          correctionReason: 'Issue37 authorized rewrite',
+          trainerNotes: 'Issue37 rewritten note',
+        },
+      },
+    );
+    expect(corrected.status).toBe(201);
+    const afterCorrection = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+    expect(afterCorrection.trainerNotes).toBe('Issue37 rewritten note');
+    expect(afterCorrection.correctionCount).toBe(1);
+  });
+
+  it('treats a repeated identical attendance request as a side-effect-free no-op', async () => {
+    const { programId, sessionId, enrollmentId } = await participationFixture();
+    const participationId = await addParticipation(programId, sessionId, enrollmentId);
+    const attendancePath = `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`;
+
+    await api(attendanceOnlyToken, attendancePath, {
+      method: 'POST',
+      body: { status: 'ATTENDED' },
+    });
+    const first = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+
+    const repeated = await api(attendanceOnlyToken, attendancePath, {
+      method: 'POST',
+      body: { status: 'ATTENDED' },
+    });
+    expect(repeated.status).toBe(201);
+
+    const second = await prisma.trainingSessionParticipation.findUniqueOrThrow({
+      where: { id: participationId },
+    });
+    expect(second.attendanceRecordedAt?.toISOString()).toBe(
+      first.attendanceRecordedAt?.toISOString(),
+    );
+    expect(second.updatedAt.toISOString()).toBe(first.updatedAt.toISOString());
+    expect(await countAudit('training.participation.attendance_updated', participationId)).toBe(1);
+  });
+
+  it('refuses attendance while the training session is planned or postponed', async () => {
+    const planned = await participationFixture({ schedule: false });
+    const plannedParticipation = await addParticipation(
+      planned.programId,
+      planned.sessionId,
+      planned.enrollmentId,
+    );
+    const plannedResponse = await api(
+      operatorToken,
+      `/programs/${planned.programId}/sessions/${planned.sessionId}/participations/${plannedParticipation}/attendance`,
+      { method: 'POST', body: { status: 'ATTENDED' } },
+    );
+    expect(plannedResponse.status).toBe(409);
+    expect((plannedResponse.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
+    );
+    expect(
+      await countAudit('training.participation.attendance_updated', plannedParticipation),
+    ).toBe(0);
+
+    const postponed = await participationFixture();
+    const postponedParticipation = await addParticipation(
+      postponed.programId,
+      postponed.sessionId,
+      postponed.enrollmentId,
+    );
+    await api(
+      operatorToken,
+      `/programs/${postponed.programId}/sessions/${postponed.sessionId}/status`,
+      { method: 'POST', body: { status: 'SESSION_POSTPONED' } },
+    );
+    const postponedResponse = await api(
+      operatorToken,
+      `/programs/${postponed.programId}/sessions/${postponed.sessionId}/participations/${postponedParticipation}/attendance`,
+      { method: 'POST', body: { status: 'ATTENDED' } },
+    );
+    expect(postponedResponse.status).toBe(409);
+    expect((postponedResponse.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
+    );
+  });
+
+  it('allows attendance and correction on a completed session but not a canceled one', async () => {
+    const completed = await participationFixture();
+    const completedParticipation = await addParticipation(
+      completed.programId,
+      completed.sessionId,
+      completed.enrollmentId,
+    );
+    const completedSessionPath = `/programs/${completed.programId}/sessions/${completed.sessionId}`;
+    await api(operatorToken, `${completedSessionPath}/status`, {
+      method: 'POST',
+      body: { status: 'SESSION_IN_PROGRESS' },
+    });
+    await api(operatorToken, `${completedSessionPath}/status`, {
+      method: 'POST',
+      body: { status: 'SESSION_COMPLETED' },
+    });
+
+    // Post-completion recording and correction are deliberately supported: trainers
+    // routinely reconcile a sign-in sheet after delivery.
+    const recorded = await api(
+      operatorToken,
+      `${completedSessionPath}/participations/${completedParticipation}/attendance`,
+      { method: 'POST', body: { status: 'ATTENDED' } },
+    );
+    expect(recorded.status).toBe(201);
+
+    const corrected = await api(
+      operatorToken,
+      `${completedSessionPath}/participations/${completedParticipation}/correction`,
+      {
+        method: 'POST',
+        body: { status: 'ABSENT', correctionReason: 'Issue37 post-completion fix' },
+      },
+    );
+    expect(corrected.status).toBe(201);
+
+    const canceled = await participationFixture();
+    const canceledParticipation = await addParticipation(
+      canceled.programId,
+      canceled.sessionId,
+      canceled.enrollmentId,
+    );
+    const canceledSessionPath = `/programs/${canceled.programId}/sessions/${canceled.sessionId}`;
+    await api(operatorToken, `${canceledSessionPath}/cancel`, {
+      method: 'POST',
+      body: { reason: 'Issue37 canceled before delivery' },
+    });
+
+    const blockedAttendance = await api(
+      operatorToken,
+      `${canceledSessionPath}/participations/${canceledParticipation}/attendance`,
+      { method: 'POST', body: { status: 'ATTENDED' } },
+    );
+    expect(blockedAttendance.status).toBe(409);
+    expect((blockedAttendance.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
+    );
+
+    const blockedCorrection = await api(
+      operatorToken,
+      `${canceledSessionPath}/participations/${canceledParticipation}/correction`,
+      { method: 'POST', body: { status: 'ABSENT', correctionReason: 'Issue37 should fail' } },
+    );
+    expect(blockedCorrection.status).toBe(409);
+    expect(
+      await countAudit('training.participation.attendance_corrected', canceledParticipation),
+    ).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Query boolean parsing
+  // ---------------------------------------------------------------------------
+
+  it('parses training query booleans explicitly instead of coercing strings', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    await api(operatorToken, `/programs/${programId}/status`, {
+      method: 'POST',
+      body: { status: 'PROGRAM_CLOSED' },
+    });
+    await api(operatorToken, `/programs/${programId}/archive`, { method: 'POST' });
+
+    const omitted = await api(operatorToken, `/programs?search=${String(program.reference)}`);
+    expect((omitted.body as { programs: unknown[] }).programs.length).toBe(0);
+
+    const explicitFalse = await api(
+      operatorToken,
+      `/programs?search=${String(program.reference)}&includeArchived=false`,
+    );
+    expect(explicitFalse.status).toBe(200);
+    expect((explicitFalse.body as { programs: unknown[] }).programs.length).toBe(0);
+
+    const explicitTrue = await api(
+      operatorToken,
+      `/programs?search=${String(program.reference)}&includeArchived=true`,
+    );
+    expect(explicitTrue.status).toBe(200);
+    expect((explicitTrue.body as { programs: unknown[] }).programs.length).toBe(1);
+
+    for (const invalid of ['1', 'yes', 'TRUE', '']) {
+      const rejected = await api(
+        operatorToken,
+        `/programs?includeArchived=${encodeURIComponent(invalid)}`,
+      );
+      expect(rejected.status).toBe(400);
+      expect((rejected.body as { error: { code: string } }).error.code).toBe(
+        'INVALID_TRAINING_PROGRAM_LIST_QUERY',
+      );
+    }
+  });
+
+  it('applies certificateReadyOnly=false without dropping the filter', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const candidate = await createCandidate();
+    await enrollCandidate(programId, candidate.id);
+
+    // The enrollment is not certificate-ready, so an explicit false must still list it.
+    const explicitFalse = await api(
+      operatorToken,
+      `/programs/${programId}/enrollments?certificateReadyOnly=false`,
+    );
+    expect(explicitFalse.status).toBe(200);
+    expect((explicitFalse.body as { enrollments: unknown[] }).enrollments.length).toBe(1);
+
+    const explicitTrue = await api(
+      operatorToken,
+      `/programs/${programId}/enrollments?certificateReadyOnly=true`,
+    );
+    expect((explicitTrue.body as { enrollments: unknown[] }).enrollments.length).toBe(0);
+
+    const rejected = await api(
+      operatorToken,
+      `/programs/${programId}/enrollments?certificateReadyOnly=maybe`,
+    );
+    expect(rejected.status).toBe(400);
   });
 
   it('denies training endpoints to an actor without the required capability', async () => {

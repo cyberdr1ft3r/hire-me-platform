@@ -1722,9 +1722,10 @@ model TrainingSession {
   location            String?
   meetingUrl          String?
   outcome             String?
-  rescheduleCount     Int                   @default(0)
-  previousScheduledAt DateTime?
-  lastRescheduledAt   DateTime?
+  rescheduleCount      Int                  @default(0)
+  previousScheduledAt  DateTime?
+  lastRescheduledAt    DateTime?
+  lastRescheduleReason String?
   canceledAt          DateTime?
   cancellationReason  String?
   archivedAt          DateTime?

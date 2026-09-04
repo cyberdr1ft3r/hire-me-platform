@@ -400,7 +400,7 @@ identifier cannot be used as a path to unrelated client data.
 ### TrainingSession
 
 - Purpose and owner: scheduled training or coaching event; owned by training operations.
-- Important attributes: id, training program id, title, optional sequence, scheduled start, scheduled end, delivery mode, status, trainer, location or meeting link, outcome, reschedule count, previous scheduled start, last reschedule timestamp, cancellation timestamp and reason, archival timestamp.
+- Important attributes: id, training program id, title, optional sequence, scheduled start, scheduled end, delivery mode, status, trainer, location or meeting link, outcome, reschedule count, previous scheduled start, last reschedule timestamp and reason, cancellation timestamp and reason, archival timestamp.
 - Relationships: belongs to a training program; has per-participant attendance through `TrainingSessionParticipation`; can create tasks, documents, and notifications.
 - Cardinality: one program can have many sessions.
 - Lifecycle: follows the training session workflow in `docs/workflows.md`.
@@ -416,7 +416,9 @@ identifier cannot be used as a path to unrelated client data.
 - Cardinality: one program can have many enrollments; one participant can have many enrollments.
 - Lifecycle: registered, approved, rejected, payment pending, enrolled, evaluated, individual coaching, certified, satisfaction recorded, follow-up, closed, canceled.
 - Sensitive fields: payment status, evaluation, coaching notes, satisfaction, certificate outcome.
-- Uniqueness rules: a participant may hold only one active enrollment per training program, enforced by a database unique constraint on the program and the active participant key. Withdrawn, rejected, closed, and archived enrollments release the key so history is preserved and re-enrollment stays possible.
+- Uniqueness rules: a participant may hold only one active enrollment per training program, enforced by a database unique constraint on the program and the active participant key, plus a check constraint that prevents an active enrollment from holding a null key. Withdrawn, rejected, closed, and archived enrollments release the key so history is preserved and re-enrollment stays possible.
+- Certificate semantics: `not_applicable` means no certificate is expected for this enrollment, `pending` means one is expected and not yet issued, and `issued` means one exists. Only a `pending` enrollment with a recorded completion, no withdrawal, and no archival is certificate-ready.
+- Access: linking a candidate or client-contact participant additionally requires that source domain's own read authorization, and enrollment reads redact source identifiers the caller is not authorized to see.
 - Audit requirements: registration, approval, payment status, evaluation, certificate, satisfaction, coaching, follow-up, cancellation, and closure should be audited.
 
 Training participants are records by default. A participant portal or learning portal would require a separate approved decision.
@@ -427,7 +429,7 @@ Training participants are records by default. A participant portal or learning p
 - Important attributes: id, training session id, training enrollment id, attendance status, session outcome, trainer notes, completion status, recording actor, attendance timestamp, correction count, last correction timestamp and reason.
 - Relationships: belongs to one `TrainingSession` and one `TrainingEnrollment`. The enrollment must belong to the same training program as the session.
 - Cardinality: one training session can have many session participations; one training enrollment can have many session participations across program sessions.
-- Lifecycle: expected, attended, absent, excused, session outcome recorded, archived.
+- Lifecycle: expected, attended, absent, excused, session outcome recorded, archived. Archival is reached through an explicit audited action from the recorded-outcome state and preserves all attendance history.
 - Sensitive fields: attendance, trainer notes, session-level outcome.
 - Uniqueness rules: one participation record per enrollment per session, enforced by a database unique constraint so concurrent creation resolves deterministically.
 - Audit requirements: participation creation, attendance changes, and explicit corrections are audited inside the same transaction as the mutation.

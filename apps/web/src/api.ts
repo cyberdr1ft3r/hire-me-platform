@@ -182,6 +182,7 @@ import {
   TrainingSessionListResponseSchema,
   type TrainingAttendanceCorrectionRequest,
   type TrainingAttendanceUpdateRequest,
+  type TrainingEnrollmentCertificateStatusUpdateRequest,
   type TrainingEnrollmentCreateRequest,
   type TrainingEnrollmentDetailResponse,
   type TrainingEnrollmentListResponse,
@@ -2392,6 +2393,38 @@ export async function updateTrainingAttendance(
     accessToken,
     `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/attendance`,
     { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingParticipationDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingEnrollmentCertificateStatus(
+  accessToken: string,
+  programId: string,
+  enrollmentId: string,
+  input: TrainingEnrollmentCertificateStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/enrollments/${enrollmentId}/certificate-status`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTrainingParticipation(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  participationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingParticipationDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}/participations/${participationId}/archive`,
+    { method: 'POST' },
     apiBaseUrl,
   );
   return TrainingParticipationDetailResponseSchema.parse(await response.json());

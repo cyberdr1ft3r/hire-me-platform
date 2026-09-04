@@ -335,6 +335,11 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'training_participation:archive',
+    description: 'Archive training session participation without deleting attendance history.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'missions:view',
     description: 'View recruitment missions within an explicitly authorized scope.',
     scopeType: PermissionScopeType.EXPLICIT,
@@ -718,6 +723,7 @@ async function main(): Promise<void> {
       'training_participation:view',
       'training_participation:manage',
       'training_participation:correct',
+      'training_participation:archive',
       'missions:view',
       'missions:create',
       'missions:update',
@@ -820,6 +826,7 @@ async function main(): Promise<void> {
       'training_participation:view',
       'training_participation:manage',
       'training_participation:correct',
+      'training_participation:archive',
       'missions:view',
       'missions:create',
       'missions:update',

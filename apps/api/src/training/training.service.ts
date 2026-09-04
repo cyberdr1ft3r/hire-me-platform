@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   TrainingAttendanceCorrectionRequest,
   TrainingAttendanceUpdateRequest,
+  TrainingEnrollmentCertificateStatusUpdateRequest,
   TrainingEnrollmentCreateRequest,
   TrainingEnrollmentDetailResponse,
   TrainingEnrollmentListQuery,
@@ -36,6 +37,7 @@ import { TrainingAuditService } from './training-audit.service.js';
 import { TRAINING_PERMISSIONS } from './training-permissions.js';
 import { badRequest, conflict, forbidden, notFound } from './training.errors.js';
 import {
+  ATTENDANCE_RECORDING_SESSION_STATUSES,
   CORRECTABLE_PARTICIPATION_STATUSES,
   RESCHEDULABLE_SESSION_STATUSES,
   isAllowedEnrollmentTransition,
@@ -59,6 +61,7 @@ import {
   TrainingSessionParticipationStatus,
   TrainingSessionStatus,
   UserStatus,
+  UserType,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
 
@@ -73,6 +76,8 @@ type TrainingAccess = {
   programView: boolean;
   programViewAll: boolean;
   clientsView: boolean;
+  candidatesView: boolean;
+  clientContactsView: boolean;
 };
 
 const UNMATCHABLE_ID = '00000000-0000-0000-0000-000000000000';
@@ -575,6 +580,8 @@ export class TrainingService {
         }
 
         const now = new Date();
+        // The reason is bounded operational history, kept on the session alongside the
+        // rest of the reschedule metadata rather than accepted and discarded.
         const updated = await transaction.trainingSession.update({
           where: { id: sessionId },
           data: {
@@ -584,6 +591,7 @@ export class TrainingService {
             status: TrainingSessionStatus.SESSION_SCHEDULED,
             rescheduleCount: { increment: 1 },
             lastRescheduledAt: now,
+            lastRescheduleReason: input.reason ?? null,
           },
         });
 
@@ -782,7 +790,7 @@ export class TrainingService {
             completedAt: { not: null },
             withdrawnAt: null,
             archivedAt: null,
-            certificateStatus: { not: CertificateStatus.ISSUED },
+            certificateStatus: CertificateStatus.PENDING,
           }
         : {}),
     };
@@ -803,7 +811,7 @@ export class TrainingService {
     ]);
 
     return {
-      enrollments: enrollments.map((enrollment) => toEnrollmentSummary(enrollment)),
+      enrollments: enrollments.map((enrollment) => toEnrollmentSummary(enrollment, access)),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
   }
@@ -816,7 +824,7 @@ export class TrainingService {
     const access = await this.resolveAccess(actorUserId);
     await this.findVisibleProgram(programId, actorUserId, access);
     const enrollment = await this.findEnrollmentForProgram(programId, enrollmentId);
-    return { enrollment: toEnrollmentSummary(enrollment) };
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
   async createEnrollment(
@@ -832,7 +840,7 @@ export class TrainingService {
       access,
       async (transaction, program) => {
         this.assertProgramAcceptsOperations(program);
-        await this.assertParticipantEligible(input, program, transaction);
+        await this.assertParticipantEligible(input, program, access, transaction);
 
         const participantId = participantIdentifier(input);
         const created = await transaction.trainingEnrollment
@@ -872,7 +880,7 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment) };
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
   async updateEnrollmentStatus(
@@ -938,7 +946,7 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment) };
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
   async withdrawEnrollment(
@@ -994,7 +1002,70 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment) };
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
+  }
+
+  /**
+   * Declares whether this enrollment is meant to receive a certificate at all.
+   *
+   * Applicability is explicit rather than assumed, because NOT_APPLICABLE is a real
+   * domain state: not every training program awards a certificate. ISSUED is not
+   * settable here; it is reached through the enrollment lifecycle.
+   */
+  async updateEnrollmentCertificateStatus(
+    programId: string,
+    enrollmentId: string,
+    input: TrainingEnrollmentCertificateStatusUpdateRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingEnrollmentDetailResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const nextStatus = input.certificateStatus as CertificateStatus;
+    const enrollment = await this.withEnrollmentLock(
+      programId,
+      enrollmentId,
+      actorUserId,
+      access,
+      async (transaction, program, current) => {
+        this.assertProgramAcceptsOperations(program);
+        if (current.archivedAt || isTerminalEnrollmentStatus(current.status)) {
+          throw conflict(
+            'TRAINING_ENROLLMENT_NOT_MUTABLE',
+            'A terminal or archived training enrollment cannot change certificate applicability.',
+          );
+        }
+        if (current.certificateStatus === CertificateStatus.ISSUED) {
+          throw conflict(
+            'TRAINING_CERTIFICATE_ALREADY_ISSUED',
+            'An issued training certificate cannot be reverted here.',
+          );
+        }
+        if (current.certificateStatus === nextStatus) {
+          return current;
+        }
+
+        const updated = await transaction.trainingEnrollment.update({
+          where: { id: enrollmentId },
+          data: { certificateStatus: nextStatus },
+        });
+
+        await this.audit.record(
+          'training.enrollment.certificate_status_updated',
+          context,
+          {
+            actorUserId,
+            entityType: 'TrainingEnrollment',
+            entityId: updated.id,
+            metadataSummary: `Training certificate applicability set to ${nextStatus}.`,
+          },
+          transaction,
+        );
+
+        return updated;
+      },
+    );
+
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
   async archiveEnrollment(
@@ -1042,7 +1113,7 @@ export class TrainingService {
       { allowArchivedProgram: true },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment) };
+    return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
   // ----------------------------------------------------------------------------
@@ -1183,22 +1254,24 @@ export class TrainingService {
       access,
       async (transaction, program, session, current) => {
         this.assertProgramAcceptsOperations(program);
-        if (session.archivedAt || session.status === TrainingSessionStatus.SESSION_ARCHIVED) {
-          throw conflict(
-            'TRAINING_SESSION_NOT_MUTABLE',
-            'Archived training sessions cannot record attendance.',
-          );
+        this.assertSessionAcceptsAttendance(session);
+        this.assertParticipationMutable(current);
+
+        // Resubmitting the current attendance state must not rewrite history. It is a
+        // no-op when nothing would change, and otherwise requires the explicit
+        // correction action, which carries its own capability and a recorded reason.
+        if (current.status === nextStatus) {
+          if (this.attendanceDetailsWouldChange(current, input)) {
+            throw conflict(
+              'TRAINING_ATTENDANCE_ALREADY_RECORDED',
+              'Attendance is already recorded in this state. Use an explicit correction to change it.',
+            );
+          }
+
+          return current;
         }
-        if (current.archivedAt) {
-          throw conflict(
-            'TRAINING_PARTICIPATION_NOT_MUTABLE',
-            'Archived training participation cannot be changed.',
-          );
-        }
-        if (
-          current.status !== nextStatus &&
-          !isAllowedParticipationTransition(current.status, nextStatus)
-        ) {
+
+        if (!isAllowedParticipationTransition(current.status, nextStatus)) {
           throw conflict(
             'TRAINING_ATTENDANCE_TRANSITION_BLOCKED',
             'Training attendance transition is not allowed. Use an explicit correction instead.',
@@ -1256,18 +1329,11 @@ export class TrainingService {
       access,
       async (transaction, program, session, current) => {
         this.assertProgramAcceptsOperations(program);
-        if (session.archivedAt || session.status === TrainingSessionStatus.SESSION_ARCHIVED) {
-          throw conflict(
-            'TRAINING_SESSION_NOT_MUTABLE',
-            'Archived training sessions cannot record attendance corrections.',
-          );
-        }
-        if (current.archivedAt) {
-          throw conflict(
-            'TRAINING_PARTICIPATION_NOT_MUTABLE',
-            'Archived training participation cannot be corrected.',
-          );
-        }
+        // Corrections use the same session-state policy as ordinary recording, so a
+        // completed session may still be corrected but a canceled or archived one
+        // fails closed.
+        this.assertSessionAcceptsAttendance(session);
+        this.assertParticipationMutable(current);
         if (!CORRECTABLE_PARTICIPATION_STATUSES.includes(current.status)) {
           throw conflict(
             'TRAINING_ATTENDANCE_CORRECTION_BLOCKED',
@@ -1312,6 +1378,77 @@ export class TrainingService {
     return { participation: toParticipationSummary(participation, true) };
   }
 
+  /**
+   * Completes the documented participation lifecycle by reaching
+   * PARTICIPATION_ARCHIVED from SESSION_OUTCOME_RECORDED.
+   *
+   * History is preserved: the row is never deleted, and the recorded attendance,
+   * outcome, and correction metadata all remain. Retrying after the first successful
+   * archive returns the existing state without duplicate history or audit entries,
+   * matching the terminal-write convention used elsewhere in this repository.
+   */
+  async archiveParticipation(
+    programId: string,
+    sessionId: string,
+    participationId: string,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingParticipationDetailResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const includeNotes = access.permissions.has(TRAINING_PERMISSIONS.TRAINING_PARTICIPATION_MANAGE);
+    const participation = await this.withParticipationLock(
+      programId,
+      sessionId,
+      participationId,
+      actorUserId,
+      access,
+      async (transaction, _program, _session, current) => {
+        if (
+          current.status === TrainingSessionParticipationStatus.PARTICIPATION_ARCHIVED &&
+          current.archivedAt
+        ) {
+          return current;
+        }
+        if (
+          !isAllowedParticipationTransition(
+            current.status,
+            TrainingSessionParticipationStatus.PARTICIPATION_ARCHIVED,
+          )
+        ) {
+          throw conflict(
+            'TRAINING_PARTICIPATION_ARCHIVE_BLOCKED',
+            'Only participation with a recorded session outcome can be archived.',
+          );
+        }
+
+        const updated = await transaction.trainingSessionParticipation.update({
+          where: { id: participationId },
+          data: {
+            status: TrainingSessionParticipationStatus.PARTICIPATION_ARCHIVED,
+            archivedAt: new Date(),
+          },
+        });
+
+        await this.audit.record(
+          'training.participation.archived',
+          context,
+          {
+            actorUserId,
+            entityType: 'TrainingSessionParticipation',
+            entityId: updated.id,
+            metadataSummary: 'Training session participation archived without deleting history.',
+          },
+          transaction,
+        );
+
+        return updated;
+      },
+      { allowArchivedProgram: true },
+    );
+
+    return { participation: toParticipationSummary(participation, includeNotes) };
+  }
+
   // ----------------------------------------------------------------------------
   // Access resolution and record scope
   // ----------------------------------------------------------------------------
@@ -1323,6 +1460,8 @@ export class TrainingService {
       programView: permissions.has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW),
       programViewAll: permissions.has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW_ALL),
       clientsView: permissions.has(TRAINING_PERMISSIONS.CLIENTS_VIEW),
+      candidatesView: permissions.has(TRAINING_PERMISSIONS.CANDIDATES_VIEW),
+      clientContactsView: permissions.has(TRAINING_PERMISSIONS.CLIENT_CONTACTS_VIEW),
     };
   }
 
@@ -1534,6 +1673,7 @@ export class TrainingService {
       session: SessionRecord,
       participation: ParticipationRecord,
     ) => Promise<T>,
+    options: { allowArchivedProgram?: boolean } = {},
   ): Promise<T> {
     return this.withSessionLock(
       programId,
@@ -1549,6 +1689,7 @@ export class TrainingService {
         );
         return callback(transaction, program, session, participation);
       },
+      { allowArchivedProgram: options.allowArchivedProgram },
     );
   }
 
@@ -1560,6 +1701,45 @@ export class TrainingService {
     if (program.status === TrainingProgramStatus.PROGRAM_ARCHIVED || program.archivedAt) {
       throw conflict('TRAINING_PROGRAM_ARCHIVED', 'Archived training programs cannot be changed.');
     }
+  }
+
+  /**
+   * Attendance may only be recorded or corrected while the session is scheduled, in
+   * progress, or completed. Planned and postponed sessions are not being delivered,
+   * and canceled or archived sessions have frozen history, so both fail closed.
+   */
+  private assertSessionAcceptsAttendance(session: SessionRecord): void {
+    if (session.archivedAt || !ATTENDANCE_RECORDING_SESSION_STATUSES.includes(session.status)) {
+      throw conflict(
+        'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
+        'This training session does not accept attendance changes in its current state.',
+      );
+    }
+  }
+
+  private assertParticipationMutable(participation: ParticipationRecord): void {
+    if (
+      participation.archivedAt ||
+      participation.status === TrainingSessionParticipationStatus.PARTICIPATION_ARCHIVED
+    ) {
+      throw conflict(
+        'TRAINING_PARTICIPATION_NOT_MUTABLE',
+        'Archived training participation cannot be changed.',
+      );
+    }
+  }
+
+  /** True when an ordinary same-status request would rewrite recorded attendance detail. */
+  private attendanceDetailsWouldChange(
+    current: ParticipationRecord,
+    input: TrainingAttendanceUpdateRequest,
+  ): boolean {
+    return (
+      (input.sessionOutcome !== undefined && input.sessionOutcome !== current.sessionOutcome) ||
+      (input.completionStatus !== undefined &&
+        input.completionStatus !== current.completionStatus) ||
+      (input.trainerNotes !== undefined && input.trainerNotes !== current.trainerNotes)
+    );
   }
 
   private assertProgramAcceptsOperations(program: ProgramRecord): void {
@@ -1598,24 +1778,50 @@ export class TrainingService {
     transaction: PrismaService | PrismaTransaction,
   ): Promise<void> {
     const user = await transaction.user.findUnique({ where: { id: userId } });
-    if (!user || user.status !== UserStatus.ACTIVE || user.archivedAt) {
+    if (
+      !user ||
+      user.status !== UserStatus.ACTIVE ||
+      user.archivedAt ||
+      user.userType !== UserType.INTERNAL
+    ) {
       throw badRequest(code, 'The selected internal user is not an active platform user.');
     }
   }
 
   /**
-   * Participant eligibility. Participant identity is limited to the types already
-   * approved in the repository domain model; no candidate, client, or learner
-   * account is created here. Archived or inactive participants are rejected, and a
-   * client contact must belong to the program's own client context.
+   * Participant eligibility.
+   *
+   * Training permissions must never become an alternate way to discover or link a
+   * confidential source record, so each participant type first requires that source
+   * domain's own authoritative read authorization:
+   *
+   * - `CANDIDATE` requires `candidates:view`, the capability the merged candidate
+   *   module uses for candidate reads.
+   * - `CLIENT_CONTACT` requires `clients:view` plus `client_contacts:view`, matching
+   *   the merged nested client-contact read route, and the contact must still belong
+   *   to a client-linked program's own client.
+   * - `USER` follows the merged mission-assignment precedent, which references active
+   *   internal users by id without requiring `users:view`. Inventing a broader
+   *   permission here would diverge from that merged model.
+   * - `EXTERNAL` participants are owned by training itself. No other module owns
+   *   `ExternalTrainingParticipant`, so the training capability is authoritative and
+   *   there is no cross-domain disclosure.
+   *
+   * When the actor lacks the source capability the request fails closed with one
+   * identical response, so a caller can never distinguish a nonexistent id from an
+   * archived, inactive, or out-of-context one. When the actor does hold the source
+   * capability, specific reasons are returned because that actor can already read the
+   * record directly.
    */
   private async assertParticipantEligible(
     input: TrainingEnrollmentCreateRequest,
     program: ProgramRecord,
+    access: TrainingAccess,
     transaction: PrismaTransaction,
   ): Promise<void> {
     switch (input.participantType) {
       case 'CANDIDATE': {
+        this.assertSourceRecordAccess(access.candidatesView);
         const candidate = await transaction.candidate.findUnique({
           where: { id: input.candidateId! },
         });
@@ -1648,6 +1854,7 @@ export class TrainingService {
         return;
       }
       case 'CLIENT_CONTACT': {
+        this.assertSourceRecordAccess(access.clientsView && access.clientContactsView);
         const contact = await transaction.clientContact.findUnique({
           where: { id: input.clientContactId! },
         });
@@ -1712,6 +1919,19 @@ export class TrainingService {
     }
   }
 
+  /**
+   * Fails closed before any source-record lookup, so the response is identical whether
+   * or not the referenced record exists.
+   */
+  private assertSourceRecordAccess(hasSourceAccess: boolean): void {
+    if (!hasSourceAccess) {
+      throw forbidden(
+        'TRAINING_PARTICIPANT_SOURCE_SCOPE_REQUIRED',
+        'Source-record read access is required for this participant type.',
+      );
+    }
+  }
+
   private mapUniqueViolation(error: unknown, code: string, message: string): unknown {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) {
       return conflict(code, message);
@@ -1756,6 +1976,7 @@ function toSessionSummary(session: SessionRecord): TrainingSessionSummary {
     rescheduleCount: session.rescheduleCount,
     previousScheduledAt: isoOrNull(session.previousScheduledAt),
     lastRescheduledAt: isoOrNull(session.lastRescheduledAt),
+    lastRescheduleReason: session.lastRescheduleReason,
     canceledAt: isoOrNull(session.canceledAt),
     cancellationReason: session.cancellationReason,
     archivedAt: isoOrNull(session.archivedAt),
@@ -1764,15 +1985,28 @@ function toSessionSummary(session: SessionRecord): TrainingSessionSummary {
   };
 }
 
-function toEnrollmentSummary(enrollment: EnrollmentRecord): TrainingEnrollmentSummary {
+/**
+ * Shapes an enrollment for the caller.
+ *
+ * Source-record identifiers are redacted unless the caller independently satisfies the
+ * owning domain's read authorization, so a training read can never disclose a
+ * confidential CRM identifier that the caller could not obtain directly.
+ * `participantType` stays visible because it is training metadata and identifies no
+ * source record.
+ */
+function toEnrollmentSummary(
+  enrollment: EnrollmentRecord,
+  access: TrainingAccess,
+): TrainingEnrollmentSummary {
   return {
     id: enrollment.id,
     trainingProgramId: enrollment.trainingProgramId,
     participantType: enrollment.participantType,
     participant: {
-      candidateId: enrollment.candidateId,
+      candidateId: access.candidatesView ? enrollment.candidateId : null,
       userId: enrollment.userId,
-      clientContactId: enrollment.clientContactId,
+      clientContactId:
+        access.clientsView && access.clientContactsView ? enrollment.clientContactId : null,
       externalTrainingParticipantId: enrollment.externalTrainingParticipantId,
     },
     status: enrollment.status,
@@ -1816,16 +2050,20 @@ function toParticipationSummary(
  * The durable certificate-readiness boundary.
  *
  * True means the enrollment recorded its required training and evaluation criteria,
- * is still a live record, and no certificate has been issued yet. A later
- * document-generation feature consumes this; this module never renders or
- * distributes a certificate file.
+ * is still a live record, and a certificate is actually expected but not yet issued.
+ *
+ * `NOT_APPLICABLE` is the domain's way of saying this enrollment is not meant to
+ * receive a certificate at all, so it is never certificate-ready. Applicability is set
+ * explicitly through the certificate-status action rather than assumed, because not
+ * every training program awards a certificate. A later document-generation feature
+ * consumes this flag; this module never renders or distributes a certificate file.
  */
 function isCertificateReady(enrollment: EnrollmentRecord): boolean {
   return (
     enrollment.completedAt !== null &&
     enrollment.archivedAt === null &&
     enrollment.withdrawnAt === null &&
-    enrollment.certificateStatus !== CertificateStatus.ISSUED
+    enrollment.certificateStatus === CertificateStatus.PENDING
   );
 }
 

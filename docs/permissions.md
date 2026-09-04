@@ -129,6 +129,7 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `training_participation:view`
 - `training_participation:manage`
 - `training_participation:correct`
+- `training_participation:archive`
 - `mission_assignments:manage`
 - `mission_commercial_data:view`
 - `mission_commercial_data:update`
@@ -407,6 +408,7 @@ Interview and evaluation access remains deny-by-default. A caller must have the 
 | `training_participation:view` | Read training session participation and attendance records. |
 | `training_participation:manage` | Create participation records and record session attendance. |
 | `training_participation:correct` | Apply an audited correction to already-recorded attendance. |
+| `training_participation:archive` | Archive session participation without deleting attendance history. |
 
 Training authorization always combines a capability with server-side record scope.
 
@@ -426,8 +428,28 @@ server-side. Web gating is a convenience only; the API re-checks capability and 
 scope on every request.
 
 Recording attendance and correcting attendance are deliberately separate capabilities,
-because a correction rewrites already-recorded training history. Trainer notes are
-redacted for actors who may read attendance but may not manage participation.
+because a correction rewrites already-recorded training history. Resubmitting the
+current attendance state through the ordinary action cannot rewrite history: it is a
+no-op when nothing changes and is otherwise rejected in favour of the correction
+action. Trainer notes are redacted for actors who may read attendance but may not
+manage participation.
+
+Linking a training participant additionally requires the source domain's own read
+authorization, so training capabilities never become an alternate way to discover
+confidential records:
+
+| Participant type | Additional required capability |
+| --- | --- |
+| `CANDIDATE` | `candidates:view` |
+| `CLIENT_CONTACT` | `clients:view` plus `client_contacts:view` |
+| `USER` | none beyond training, matching the merged mission-assignment rule for referencing active internal users |
+| `EXTERNAL` | none; `ExternalTrainingParticipant` is owned by training itself |
+
+Without the required source capability the request fails closed with one identical
+response, so a caller cannot distinguish a nonexistent identifier from an archived,
+inactive, or out-of-context one. Enrollment reads redact candidate and client-contact
+identifiers unless the caller independently satisfies that domain's read
+authorization.
 
 Development seed mapping gives the full training operations set to `SUPER_ADMIN`,
 `ADMIN`, and `HR_MANAGER`. `MANAGER` receives scoped read capabilities only.

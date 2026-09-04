@@ -33,6 +33,7 @@ ADD COLUMN     "deliveryMode" "TrainingDeliveryMode" NOT NULL DEFAULT 'onsite',
 ADD COLUMN     "rescheduleCount" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "previousScheduledAt" TIMESTAMP(3),
 ADD COLUMN     "lastRescheduledAt" TIMESTAMP(3),
+ADD COLUMN     "lastRescheduleReason" TEXT,
 ADD COLUMN     "canceledAt" TIMESTAMP(3),
 ADD COLUMN     "cancellationReason" TEXT;
 
@@ -63,6 +64,55 @@ ADD COLUMN     "correctionCount" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "lastCorrectedAt" TIMESTAMP(3),
 ADD COLUMN     "lastCorrectionReason" TEXT;
 
+-- Backfill the active-participant key for every pre-existing enrollment that is
+-- still active (non-terminal status and not archived). Without this, legacy active
+-- rows would keep a NULL key, and because PostgreSQL treats NULLs as distinct they
+-- would silently coexist with a new active enrollment for the same participant.
+--
+-- The key format must match the application exactly: "<PARTICIPANT_TYPE>:<uuid>",
+-- using the uppercase participant-type name rather than the mapped column value.
+UPDATE "TrainingEnrollment"
+SET "activeParticipantKey" =
+  CASE "participantType"
+    WHEN 'candidate' THEN 'CANDIDATE:' || "candidateId"::text
+    WHEN 'user' THEN 'USER:' || "userId"::text
+    WHEN 'client_contact' THEN 'CLIENT_CONTACT:' || "clientContactId"::text
+    WHEN 'external' THEN 'EXTERNAL:' || "externalTrainingParticipantId"::text
+  END
+WHERE "activeParticipantKey" IS NULL
+  AND "archivedAt" IS NULL
+  AND "status" NOT IN ('closed', 'rejected', 'canceled');
+
+-- Fail the migration loudly if any legacy active enrollment does not carry exactly
+-- one participant identity matching its declared participant type. Such a row cannot
+-- be assigned a correct key, and silently leaving it keyless would defeat the
+-- uniqueness invariant.
+DO $$
+DECLARE
+  malformed_count BIGINT;
+BEGIN
+  SELECT count(*) INTO malformed_count
+  FROM "TrainingEnrollment"
+  WHERE "archivedAt" IS NULL
+    AND "status" NOT IN ('closed', 'rejected', 'canceled')
+    AND (
+      "activeParticipantKey" IS NULL
+      OR (
+        ("candidateId" IS NOT NULL)::int
+        + ("userId" IS NOT NULL)::int
+        + ("clientContactId" IS NOT NULL)::int
+        + ("externalTrainingParticipantId" IS NOT NULL)::int
+      ) <> 1
+    );
+
+  IF malformed_count > 0 THEN
+    RAISE EXCEPTION
+      'Cannot enforce active training enrollment uniqueness: % active enrollment row(s) do not have exactly one participant identity matching their participant type. Repair this data before applying migration 20260904143000_training_operations_foundation.',
+      malformed_count;
+  END IF;
+END
+$$;
+
 -- CreateIndex
 CREATE UNIQUE INDEX "TrainingProgram_normalizedReference_key" ON "TrainingProgram"("normalizedReference");
 
@@ -77,6 +127,17 @@ CREATE UNIQUE INDEX "TrainingSession_trainingProgramId_sequence_key" ON "Trainin
 -- enrollment is active, and PostgreSQL treats NULLs as distinct, so withdrawn or
 -- otherwise terminal enrollment history is preserved without blocking re-enrollment.
 CREATE UNIQUE INDEX "TrainingEnrollment_trainingProgramId_activeParticipantKey_key" ON "TrainingEnrollment"("trainingProgramId", "activeParticipantKey");
+
+-- An active enrollment must always carry its active-participant key, so it can never
+-- escape the uniqueness index by holding a NULL key. Terminal and archived history is
+-- explicitly allowed to release the key.
+ALTER TABLE "TrainingEnrollment"
+ADD CONSTRAINT "TrainingEnrollment_active_participant_key_required"
+CHECK (
+  "archivedAt" IS NOT NULL
+  OR "status" IN ('closed', 'rejected', 'canceled')
+  OR "activeParticipantKey" IS NOT NULL
+);
 
 -- CreateIndex
 CREATE INDEX "TrainingEnrollment_createdByUserId_idx" ON "TrainingEnrollment"("createdByUserId");

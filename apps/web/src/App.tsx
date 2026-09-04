@@ -141,6 +141,7 @@ import {
   addDocumentVersion,
   downloadDocumentVersion,
   updateTaskStatus,
+  archiveTrainingParticipation,
   archiveTrainingProgram,
   archiveTrainingSession,
   cancelTrainingSession,
@@ -155,6 +156,7 @@ import {
   listTrainingSessions,
   rescheduleTrainingSession,
   updateTrainingAttendance,
+  updateTrainingEnrollmentCertificateStatus,
   updateTrainingEnrollmentStatus,
   updateTrainingProgramStatus,
   updateTrainingSessionStatus,
@@ -5007,6 +5009,7 @@ function TrainingPanel({
   const canViewParticipation = permissions.includes('training_participation:view');
   const canManageParticipation = permissions.includes('training_participation:manage');
   const canCorrectAttendance = permissions.includes('training_participation:correct');
+  const canArchiveParticipation = permissions.includes('training_participation:archive');
 
   useEffect(() => {
     void loadPrograms();
@@ -5332,6 +5335,34 @@ function TrainingPanel({
     await refreshParticipations();
   }
 
+  async function setCertificateApplicability(
+    enrollmentId: string,
+    certificateStatus: 'NOT_APPLICABLE' | 'PENDING',
+  ): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    await updateTrainingEnrollmentCertificateStatus(accessToken, selectedProgram.id, enrollmentId, {
+      certificateStatus,
+    });
+    setMessage(`Certificate applicability set to ${certificateStatus}.`);
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function archiveParticipation(participationId: string): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    await archiveTrainingParticipation(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      participationId,
+    );
+    setMessage('Participation archived.');
+    await refreshParticipations();
+  }
+
   return (
     <section className="admin-panel" aria-label="Training">
       <div className="admin-grid">
@@ -5529,6 +5560,23 @@ function TrainingPanel({
                             >
                               Withdraw
                             </button>
+                            <select
+                              aria-label={`Set certificate applicability ${enrollment.id}`}
+                              defaultValue=""
+                              onChange={(event) => {
+                                const next = event.currentTarget.value;
+                                if (next) {
+                                  void setCertificateApplicability(
+                                    enrollment.id,
+                                    next as 'NOT_APPLICABLE' | 'PENDING',
+                                  );
+                                }
+                              }}
+                            >
+                              <option value="">Certificate applicability</option>
+                              <option value="PENDING">PENDING</option>
+                              <option value="NOT_APPLICABLE">NOT_APPLICABLE</option>
+                            </select>
                           </span>
                         ) : null}
                       </li>
@@ -5643,6 +5691,14 @@ function TrainingPanel({
                               </option>
                             ))}
                           </select>
+                        ) : null}
+                        {canArchiveParticipation ? (
+                          <button
+                            type="button"
+                            onClick={() => void archiveParticipation(participation.id)}
+                          >
+                            Archive participation
+                          </button>
                         ) : null}
                         {canCorrectAttendance ? (
                           <select
