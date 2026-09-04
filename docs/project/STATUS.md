@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Commercial workflow foundation
-**Health:** Issue #38 is active on branch `feat/commercial-workflow`; latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` is incorporated.
-**Current blocker:** none known locally; post-merge repository validation, push, draft PR creation, and exact-head CI evidence remain.
-**Next executable development task:** Finish Issue #38 validation, open one draft PR linked with `Closes #38`, and keep it open/unmerged for human review.
+**Health:** Issue #38 is implemented on branch `feat/commercial-workflow`; latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` is incorporated.
+**Current blocker:** none known locally; draft PR #46 is open for human/ChatGPT review and must remain draft/open/unmerged until approved.
+**Next executable development task:** Human/ChatGPT review of Issue #38 draft PR #46; keep it open/unmerged.
 
 ## Active work
 
@@ -30,7 +30,7 @@ Status owner: repository maintainer
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged into `main` via PR #43 |
-| Issue #38 | Active | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Complete post-merge validation, push `feat/commercial-workflow`, open one draft PR, and wait for CI |
+| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT review of draft PR #46; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -227,7 +227,7 @@ Status owner: repository maintainer
 
 ## Issue #38 Implementation State
 
-- Issue #38 is active on branch `feat/commercial-workflow`, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` and incorporates latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` and incorporates latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
 - Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, and contract terms without commercial-data access.
@@ -254,7 +254,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Finish Issue #38 post-merge validation, push `feat/commercial-workflow`, open one draft PR with `Closes #38`, wait for exact-head GitHub Actions, and keep the PR open/unmerged for human review.
+1. Human/ChatGPT review of Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
 2. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Status Update Rules

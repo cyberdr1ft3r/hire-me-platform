@@ -29,7 +29,7 @@ Commercial workflow foundation after merged task, document-management, and recru
 - Issue #31 is complete; PR #32 merged internal task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
 - Issue #35 is complete; PR #40 merged the centralized document-management foundation into `main` as merge commit `b40e39b`.
 - Issue #36 is complete; PR #43 merged authenticated recruitment reporting, KPI dashboards, and safe CSV exports into `main` as merge commit `6ff19ad`.
-- Current executable goal: finish Issue #38 on branch `feat/commercial-workflow`, implementing structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
+- Current executable goal: review Issue #38 draft PR #46 on branch `feat/commercial-workflow`, which implements structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
 
 ## Confirmed Product Facts
 

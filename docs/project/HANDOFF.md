@@ -6,7 +6,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #38 is active on branch `feat/commercial-workflow`.
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46.
 - The branch started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, then incorporated latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` after Issue #36 / PR #43 merged.
 - Issue #31, Issue #35, and Issue #36 are merged into `main`; task management, centralized document management, and recruitment reporting are baseline behavior.
 - The branch implements structured quotations, commercial contracts, purchase orders, and invoices as business records, not `Document` records.
@@ -19,7 +19,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Finish post-merge validation, push `feat/commercial-workflow`, open exactly one draft PR with `Closes #38`, wait for the exact-head GitHub Actions run, and keep the PR open and unmerged for human review.
+Hand draft PR #46 to the human/ChatGPT review gate. Keep it draft/open/unmerged until approved. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
