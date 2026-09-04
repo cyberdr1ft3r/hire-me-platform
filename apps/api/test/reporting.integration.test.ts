@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -43,6 +45,23 @@ const CLIENT_TAG = 'issue36';
 const REPORTING_VIEW = 'reporting:recruitment:view';
 const REPORTING_EXPORT = 'reporting:recruitment:export';
 const BROAD_SCOPE = 'mission_candidates:transfer';
+// Underlying operational read capabilities the reporting surface aggregates.
+const OPERATIONAL_READS = [
+  'missions:view',
+  'mission_candidates:view',
+  'public_applications:view',
+  'interviews:view',
+  'offers:view',
+  'placements:view',
+] as const;
+// Every permission this suite grants to shared roles; archived in afterAll to restore
+// the seeded baseline for later suites in the run.
+const REPORTING_GRANTED_CODES = [
+  REPORTING_VIEW,
+  REPORTING_EXPORT,
+  BROAD_SCOPE,
+  ...OPERATIONAL_READS,
+] as const;
 
 const ids: Record<string, string> = {};
 
@@ -328,22 +347,38 @@ const now = new Date();
 const daysAgo = (days: number): Date => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
 async function seedFixture(): Promise<void> {
-  // Broad reporter: SUPER_ADMIN already carries every seeded permission, including the
-  // broad cross-mission scope signal. Grant idempotently to be explicit.
-  await grantPermissions(RoleName.SUPER_ADMIN, [REPORTING_VIEW, REPORTING_EXPORT, BROAD_SCOPE]);
-  // Assigned reporter: MANAGER lacks the broad scope signal by seed. Add view+export.
-  await grantPermissions(RoleName.MANAGER, [REPORTING_VIEW, REPORTING_EXPORT]);
+  // Broad reporter: reporting view+export, the broad cross-mission scope signal, and
+  // every underlying operational read. Granted explicitly so the suite is independent
+  // of the shared SUPER_ADMIN baseline.
+  await grantPermissions(RoleName.SUPER_ADMIN, [
+    REPORTING_VIEW,
+    REPORTING_EXPORT,
+    BROAD_SCOPE,
+    ...OPERATIONAL_READS,
+  ]);
+  // Assigned reporter: holds reporting view+export AND the underlying operational read
+  // capabilities, but NOT the broad transfer override -> assigned mission scope.
+  await grantPermissions(RoleName.MANAGER, [
+    REPORTING_VIEW,
+    REPORTING_EXPORT,
+    ...OPERATIONAL_READS,
+  ]);
   await archivePermissions(RoleName.MANAGER, [BROAD_SCOPE]);
-  // View-only reporter: TEAM_LEADER gets view without export or broad scope.
-  await grantPermissions(RoleName.TEAM_LEADER, [REPORTING_VIEW]);
+  // View-only reporter: reporting view + underlying reads, no export, no broad scope.
+  await grantPermissions(RoleName.TEAM_LEADER, [REPORTING_VIEW, ...OPERATIONAL_READS]);
   await archivePermissions(RoleName.TEAM_LEADER, [REPORTING_EXPORT, BROAD_SCOPE]);
-  // No reporting access: GUEST must not hold reporting:recruitment:view.
-  await archivePermissions(RoleName.GUEST, [REPORTING_VIEW, REPORTING_EXPORT, BROAD_SCOPE]);
+  // Reporting permission WITHOUT underlying operational reads -> must be denied.
+  await grantPermissions(RoleName.GUEST, [REPORTING_VIEW, REPORTING_EXPORT]);
+  await archivePermissions(RoleName.GUEST, [...OPERATIONAL_READS, BROAD_SCOPE]);
+  // Underlying operational reads WITHOUT reporting permission -> must be denied.
+  await grantPermissions(RoleName.EMPLOYEE, [...OPERATIONAL_READS]);
+  await archivePermissions(RoleName.EMPLOYEE, [REPORTING_VIEW, REPORTING_EXPORT, BROAD_SCOPE]);
 
   ids.broad = await createUser(`broad${EMAIL_SUFFIX}`, RoleName.SUPER_ADMIN);
   ids.assigned = await createUser(`assigned${EMAIL_SUFFIX}`, RoleName.MANAGER);
   ids.viewOnly = await createUser(`viewonly${EMAIL_SUFFIX}`, RoleName.TEAM_LEADER);
-  ids.none = await createUser(`none${EMAIL_SUFFIX}`, RoleName.GUEST);
+  ids.noUnderlying = await createUser(`no-underlying${EMAIL_SUFFIX}`, RoleName.GUEST);
+  ids.noReporting = await createUser(`no-reporting${EMAIL_SUFFIX}`, RoleName.EMPLOYEE);
 
   ids.clientA = await createClient(`${CLIENT_TAG} Client A`);
   ids.clientB = await createClient(`${CLIENT_TAG} Client B`);
@@ -382,6 +417,8 @@ async function seedFixture(): Promise<void> {
   ids.candA3 = await createCandidate('Carol A', `carol${EMAIL_SUFFIX}`);
   ids.candA4 = await createCandidate('Dan A', `dan${EMAIL_SUFFIX}`);
   ids.candFormula = await createCandidate('=cmd()|calc', `formula${EMAIL_SUFFIX}`);
+  // Candidate whose display name begins with an actual TAB control character.
+  ids.candTab = await createCandidate(`${String.fromCharCode(9)}TabEvil`, `tab${EMAIL_SUFFIX}`);
   ids.candB1 = await createCandidate('Eve B', `eve${EMAIL_SUFFIX}`);
   ids.candB2 = await createCandidate('Frank B', `frank${EMAIL_SUFFIX}`);
 
@@ -406,6 +443,7 @@ async function seedFixture(): Promise<void> {
     candidateId: ids.candA3,
     responsibleRecruiterUserId: ids.assigned,
     state: MissionCandidateState.ACCEPTED,
+    source: 'REFERRAL',
   });
   ids.pA4 = await createProcess({
     missionId: ids.missionA,
@@ -421,6 +459,13 @@ async function seedFixture(): Promise<void> {
     responsibleRecruiterUserId: ids.assigned,
     state: MissionCandidateState.NEW,
     source: '=SUM(A1:A2)',
+  });
+  // Process whose candidate display name begins with an actual TAB control character.
+  ids.pATab = await createProcess({
+    missionId: ids.missionA,
+    candidateId: ids.candTab,
+    responsibleRecruiterUserId: ids.assigned,
+    state: MissionCandidateState.NEW,
   });
 
   await createInterview(ids.pA1, ids.assigned, InterviewType.HR, InterviewStatus.SCHEDULED, now);
@@ -497,6 +542,11 @@ describe('Recruitment reporting API', () => {
     return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   }
 
+  async function readErrorCode(response: Response): Promise<string | undefined> {
+    const body = (await response.json()) as { error?: { code?: string } };
+    return body.error?.code;
+  }
+
   async function fetchReporting(token: string, path: string): Promise<Response> {
     return fetch(`${baseUrl}${path}`, { headers: headers(token) });
   }
@@ -519,22 +569,39 @@ describe('Recruitment reporting API', () => {
   afterAll(async () => {
     await app.close();
     await cleanReportingRecords();
-    // Restore the seeded baseline: MANAGER and TEAM_LEADER hold no reporting permissions.
-    await archivePermissions(RoleName.MANAGER, [REPORTING_VIEW, REPORTING_EXPORT]);
-    await archivePermissions(RoleName.TEAM_LEADER, [REPORTING_VIEW, REPORTING_EXPORT]);
+    // Restore the seeded baseline: these shared roles hold none of the granted codes.
+    for (const role of [
+      RoleName.MANAGER,
+      RoleName.TEAM_LEADER,
+      RoleName.GUEST,
+      RoleName.EMPLOYEE,
+    ]) {
+      await archivePermissions(role, REPORTING_GRANTED_CODES);
+    }
     await prisma.$disconnect();
   });
 
-  it('requires reporting:recruitment:view for every reporting endpoint', async () => {
-    const token = await login(`none${EMAIL_SUFFIX}`);
-    for (const path of [
-      '/v1/reporting/recruitment/summary',
-      '/v1/reporting/recruitment/pipeline',
-      '/v1/reporting/recruitment/trends',
-      '/v1/reporting/recruitment/breakdowns',
-      '/v1/reporting/recruitment/drilldown',
-      '/v1/reporting/recruitment/export.csv',
-    ]) {
+  const allReportingPaths = [
+    '/v1/reporting/recruitment/summary',
+    '/v1/reporting/recruitment/pipeline',
+    '/v1/reporting/recruitment/trends',
+    '/v1/reporting/recruitment/breakdowns',
+    '/v1/reporting/recruitment/drilldown',
+    '/v1/reporting/recruitment/export.csv',
+  ];
+
+  it('denies an actor with reporting permission but no underlying operational reads', async () => {
+    const token = await login(`no-underlying${EMAIL_SUFFIX}`);
+    for (const path of allReportingPaths) {
+      const response = await fetch(`${baseUrl}${path}`, { headers: headers(token) });
+      // Generic permission denial; does not reveal which underlying read was missing.
+      expect(response.status).toBe(403);
+    }
+  });
+
+  it('denies an actor with underlying operational reads but no reporting permission', async () => {
+    const token = await login(`no-reporting${EMAIL_SUFFIX}`);
+    for (const path of allReportingPaths) {
       const response = await fetch(`${baseUrl}${path}`, { headers: headers(token) });
       expect(response.status).toBe(403);
     }
@@ -550,8 +617,8 @@ describe('Recruitment reporting API', () => {
     expect(summary.missions.closed).toBe(1); // B.
     expect(summary.missions.closureEligible).toBe(1); // A2 filled==positions and open.
     expect(summary.missions.requestedPositions).toBe(6); // 3 + 1 + 2.
-    // Pipeline: A has 5 processes, B has 2 => 7 total.
-    expect(summary.pipeline.totalProcesses).toBe(7);
+    // Pipeline: A has 6 processes, B has 2 => 8 total.
+    expect(summary.pipeline.totalProcesses).toBe(8);
     expect(summary.pipeline.presentedToClient).toBe(1); // pA2.
     // Interviews: 2 scheduled (pA1, pB1), 1 completed (pA2).
     expect(summary.interviews.scheduled).toBe(2);
@@ -576,7 +643,7 @@ describe('Recruitment reporting API', () => {
     // Only missions A and A2 are visible; B is excluded.
     expect(summary.missions.total).toBe(2);
     expect(summary.missions.requestedPositions).toBe(4); // 3 + 1.
-    expect(summary.pipeline.totalProcesses).toBe(5); // A's 5 processes only.
+    expect(summary.pipeline.totalProcesses).toBe(6); // A's 6 processes only.
     expect(summary.placements.confirmed).toBe(1); // only missionA pA3.
     expect(summary.offers.accepted).toBe(1); // only pA3.
     expect(summary.applications.newInWindow).toBe(1); // only alice (missionA).
@@ -668,7 +735,7 @@ describe('Recruitment reporting API', () => {
     expect(states[MissionCandidateState.PRESENTED_TO_CLIENT]).toBe(1);
     expect(states[MissionCandidateState.ACCEPTED]).toBe(1);
     expect(states[MissionCandidateState.CANDIDATE_REJECTED]).toBe(1);
-    expect(states[MissionCandidateState.NEW]).toBe(1);
+    expect(states[MissionCandidateState.NEW]).toBe(2); // pAFormula + pATab.
     // Mission B state (ACCEPTED count) must not include B's process for assigned scope.
     expect(states[MissionCandidateState.ACCEPTED]).toBe(1);
   });
@@ -700,7 +767,7 @@ describe('Recruitment reporting API', () => {
     const token = await login(`assigned${EMAIL_SUFFIX}`);
     const response = await fetchReporting(token, '/v1/reporting/recruitment/drilldown?pageSize=50');
     const body = ReportingDrilldownResponseSchema.parse(await response.json());
-    expect(body.rows.length).toBe(5); // Mission A's 5 processes only.
+    expect(body.rows.length).toBe(6); // Mission A's 6 processes only.
     for (const row of body.rows) {
       expect(row.missionId).toBe(ids.missionA);
       // Protected fields must never appear in drilldown rows.
@@ -740,13 +807,15 @@ describe('Recruitment reporting API', () => {
     );
     const csv = await response.text();
     const lines = csv.split('\r\n');
-    // Header + 5 Mission A rows (Mission B excluded by scope).
+    // Header + 6 Mission A rows (Mission B excluded by scope).
     expect(lines[0]).toContain('candidateDisplayName');
-    expect(lines.length).toBe(6);
+    expect(lines.length).toBe(7);
     // Formula-injection neutralization: the '=cmd()|calc' candidate name is prefixed with '.
     expect(csv).toContain("'=cmd()|calc");
     // The '=SUM(A1:A2)' source is neutralized as well.
     expect(csv).toContain("'=SUM(A1:A2)");
+    // A candidate name beginning with an actual TAB is neutralized end-to-end.
+    expect(csv).toContain(`'${String.fromCharCode(9)}TabEvil`);
     // No protected fields present in the header row.
     expect(lines[0]).not.toContain('salary');
     expect(lines[0]).not.toContain('commercial');
@@ -755,25 +824,171 @@ describe('Recruitment reporting API', () => {
     expect(csv).not.toContain('Eve B');
   });
 
-  it('escapes quotes, commas, and newlines in CSV cells', async () => {
+  it('escapes quotes, commas, and actual newlines in CSV cells', async () => {
     const token = await login(`broad${EMAIL_SUFFIX}`);
-    // Rename a client to include a comma and quote, then export broad scope.
-    await prisma.client.update({
-      where: { id: ids.clientB },
-      data: { name: 'Comma, "Quote" Co' },
-    });
+    // Rename a client to include a comma, a quote, and an actual newline, then export.
+    const trickyName = `Line1\nLine2, "Quote" Co`;
+    await prisma.client.update({ where: { id: ids.clientB }, data: { name: trickyName } });
     try {
       const response = await fetch(`${baseUrl}/v1/reporting/recruitment/export.csv`, {
         headers: headers(token),
       });
       const csv = await response.text();
-      // The comma/quote client name must be wrapped in quotes with doubled inner quotes.
-      expect(csv).toContain('"Comma, ""Quote"" Co"');
+      // The cell must be wrapped in quotes, preserve the embedded newline, and double
+      // the inner quotes.
+      expect(csv).toContain(`"Line1\nLine2, ""Quote"" Co"`);
     } finally {
       await prisma.client.update({
         where: { id: ids.clientB },
         data: { name: `${CLIENT_TAG} Client B` },
       });
     }
+  });
+
+  it('composes offerStatus and placementStatus filters on drilldown and export', async () => {
+    const token = await login(`assigned${EMAIL_SUFFIX}`);
+
+    // Only pA3 has a CURRENT ACCEPTED offer version.
+    const accepted = ReportingDrilldownResponseSchema.parse(
+      await (
+        await fetchReporting(
+          token,
+          '/v1/reporting/recruitment/drilldown?offerStatus=ACCEPTED&pageSize=50',
+        )
+      ).json(),
+    );
+    expect(accepted.rows.map((row) => row.processId)).toEqual([ids.pA3]);
+
+    // No process has a REJECTED current offer version in scope.
+    const rejected = ReportingDrilldownResponseSchema.parse(
+      await (
+        await fetchReporting(
+          token,
+          '/v1/reporting/recruitment/drilldown?offerStatus=REJECTED&pageSize=50',
+        )
+      ).json(),
+    );
+    expect(rejected.rows).toHaveLength(0);
+
+    // Only pA3 has a CONFIRMED placement.
+    const confirmed = ReportingDrilldownResponseSchema.parse(
+      await (
+        await fetchReporting(
+          token,
+          '/v1/reporting/recruitment/drilldown?placementStatus=CONFIRMED&pageSize=50',
+        )
+      ).json(),
+    );
+    expect(confirmed.rows.map((row) => row.processId)).toEqual([ids.pA3]);
+
+    // Export must return exactly the same scoped rows as the interactive drilldown.
+    const exportResponse = await fetch(
+      `${baseUrl}/v1/reporting/recruitment/export.csv?offerStatus=ACCEPTED`,
+      { headers: headers(token) },
+    );
+    const exportLines = (await exportResponse.text()).split('\r\n');
+    expect(exportLines.length).toBe(2); // header + pA3 only.
+    expect(exportLines[1]).toContain(ids.pA3);
+  });
+
+  it('composes all accepted filters together without broadening scope', async () => {
+    const token = await login(`assigned${EMAIL_SUFFIX}`);
+    const query =
+      `/v1/reporting/recruitment/drilldown?clientId=${ids.clientA}&missionId=${ids.missionA}` +
+      `&recruiterUserId=${ids.assigned}&pipelineState=ACCEPTED&offerStatus=ACCEPTED` +
+      `&placementStatus=CONFIRMED&source=REFERRAL&pageSize=50`;
+    const body = ReportingDrilldownResponseSchema.parse(
+      await (await fetchReporting(token, query)).json(),
+    );
+    expect(body.rows.map((row) => row.processId)).toEqual([ids.pA3]);
+  });
+
+  it('treats the start and end date bounds as inclusive', async () => {
+    const token = await login(`broad${EMAIL_SUFFIX}`);
+
+    // start exactly at bob's 200-day-old submission includes all three applications.
+    const startInclusive = await summaryOf(
+      token,
+      `/v1/reporting/recruitment/summary?start=${encodeURIComponent(
+        daysAgo(200).toISOString(),
+      )}&end=${encodeURIComponent(now.toISOString())}`,
+    );
+    expect(startInclusive.applications.newInWindow).toBe(3);
+
+    // end exactly at the now-submissions includes them and excludes the 200-day-old one.
+    const endInclusive = await summaryOf(
+      token,
+      `/v1/reporting/recruitment/summary?start=${encodeURIComponent(
+        daysAgo(10).toISOString(),
+      )}&end=${encodeURIComponent(now.toISOString())}`,
+    );
+    expect(endInclusive.applications.newInWindow).toBe(2);
+  });
+
+  it('paginates the drilldown deterministically without overlap or duplicates', async () => {
+    const token = await login(`assigned${EMAIL_SUFFIX}`);
+    const seen: string[] = [];
+    let total = 0;
+    for (let page = 1; page <= 3; page += 1) {
+      const body = ReportingDrilldownResponseSchema.parse(
+        await (
+          await fetchReporting(token, `/v1/reporting/recruitment/drilldown?page=${page}&pageSize=2`)
+        ).json(),
+      );
+      total = body.pageInfo.total;
+      expect(body.rows.length).toBeLessThanOrEqual(2);
+      seen.push(...body.rows.map((row) => row.processId));
+    }
+    expect(total).toBe(6);
+    expect(seen).toHaveLength(6);
+    expect(new Set(seen).size).toBe(6); // no duplicates across pages.
+  });
+
+  it('rejects an over-large CSV export instead of silently truncating', async () => {
+    const token = await login(`broad${EMAIL_SUFFIX}`);
+    const bulkClientId = await createClient(`${CLIENT_TAG} Bulk Client`);
+    const bulkMissionId = await createMission(
+      bulkClientId,
+      `${MISSION_TAG} Mission Bulk`,
+      RecruitmentMissionState.ACTIVE,
+      1,
+      0,
+    );
+    // ReportingMaxExportRows is 5000; create one more matching row than the bound.
+    const overflow = 5001;
+    const candidateRows = Array.from({ length: overflow }, (_unused, index) => ({
+      id: randomUUID(),
+      displayName: `Bulk ${index}`,
+      email: `bulk-${index}${EMAIL_SUFFIX}`,
+      normalizedEmail: `bulk-${index}${EMAIL_SUFFIX}`,
+      status: CandidateStatus.ACTIVE,
+    }));
+    await prisma.candidate.createMany({ data: candidateRows });
+    const bulkRecruiterId = ids.broad!;
+    await prisma.missionCandidate.createMany({
+      data: candidateRows.map((candidate) => ({
+        id: randomUUID(),
+        missionId: bulkMissionId,
+        candidateId: candidate.id,
+        responsibleRecruiterUserId: bulkRecruiterId,
+        state: MissionCandidateState.NEW,
+      })),
+    });
+
+    const auditWhere = {
+      action: 'reporting.recruitment.exported',
+      actorUserId: ids.broad,
+    };
+    const auditBefore = await prisma.auditLog.count({ where: auditWhere });
+
+    const response = await fetch(
+      `${baseUrl}/v1/reporting/recruitment/export.csv?missionId=${bulkMissionId}`,
+      { headers: headers(token) },
+    );
+    expect(response.status).toBe(400);
+    expect(await readErrorCode(response)).toBe('REPORTING_EXPORT_TOO_LARGE');
+    // The failed export must not have produced a new audit record.
+    const auditAfter = await prisma.auditLog.count({ where: auditWhere });
+    expect(auditAfter).toBe(auditBefore);
   });
 });
