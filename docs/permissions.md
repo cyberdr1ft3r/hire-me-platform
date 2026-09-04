@@ -203,6 +203,19 @@ Implemented document visibility is internal-only. `INTERNAL_ONLY` is visible to 
 
 Document list endpoints use the database query predicate for document visibility, context scope, archive rules, and inaccessible linked contexts. Detail, version list, download, update, archive, and version-create paths re-check the same access requirements in service code and also require their exact operation permission.
 
+## Implemented Recruitment Reporting Permissions
+
+Issue #36 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `reporting:recruitment:view` | Read recruitment KPIs, distributions, trends, breakdowns, and bounded drilldowns within authorized mission scope. |
+| `reporting:recruitment:export` | Export the scoped, filtered reporting datasets as safe CSV. |
+
+Development seed mapping gives both reporting permissions to `SUPER_ADMIN`, `ADMIN`, and `HR_MANAGER`. Lower-trust roles receive no reporting permissions by default.
+
+Reporting authorization is not `reporting:recruitment:view` alone. Every count, distribution, trend, breakdown, drilldown row, and exported row is additionally constrained to the actor's authorized recruitment missions. Broad cross-mission reporting is granted only to actors holding `mission_candidates:transfer` (the same oversight signal enforced by the mission-candidate process module); everyone else is limited to missions where they hold an active `MissionRecruiter` assignment. Filters can only narrow that authorized set, never broaden it, and a well-formed but out-of-scope or non-existent `clientId`, `missionId`, or `recruiterUserId` returns the same empty result and status code as any other empty filter, so hidden-record existence is never disclosed. Reporting responses and CSV exports never include candidate salary/compensation, client or placement commercial values, confidential evaluation bodies, internal notes, document storage metadata, secrets, or tokens. CSV export requires `reporting:recruitment:export`, neutralizes spreadsheet-formula injection, is bounded, and is audited with safe metadata only. See `docs/reporting.md` for the exact KPI definitions.
+
 ## Implemented Administration Permissions
 
 | Permission | Implemented use |

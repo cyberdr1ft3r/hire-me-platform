@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Document management foundation and contract taxonomy after task-management integration.
+Recruitment reporting foundation (Phase 7) after merged task-management and document-management foundations.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -59,6 +59,7 @@ Document management foundation and contract taxonomy after task-management integ
 - Confirmed integration priorities include Microsoft 365 authentication and email/contact capabilities, Outlook and Google calendars, automated email, WhatsApp Business reminders, Excel import/export, PDF generation, Word-compatible output, protected document storage, and internal notifications.
 - Issue #29 implemented internal offer versions, offer negotiation outcomes, explicit placement confirmation, placement correction, closure eligibility, and bounded commercial eligibility for later invoicing. Accounting, payroll, training, and any future client portal each need their own later issues.
 - Issue #31 implemented internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
+- Issue #36 implements the first authenticated internal recruitment reporting layer (KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export) computed from existing authoritative records with no second data source and no schema change. Every metric, drilldown, and export applies server-side record scope: broad reporting requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment; filters only narrow scope and never disclose hidden-record existence. Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. It does not implement revenue/accounting/profitability, training, or task-productivity analytics. KPI definitions are in `docs/reporting.md`.
 
 ## Technical Direction
 
