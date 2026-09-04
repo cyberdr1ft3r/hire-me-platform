@@ -63,7 +63,7 @@ The first implementation phase should provide a single-developer MVP foundation 
 - Support training participation for candidates, employees or users, client contacts, and external participants through `TrainingEnrollment`.
 - Require authenticated internal accounts for trainers and internal training operators.
 - Treat training participants as business records that do not require accounts by default.
-- Manage commercial operational records including quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and mission or training revenue/profitability.
+- Manage commercial operational records in scoped increments. Issue #38 implements quotations, recruitment and training commercial contracts, purchase orders, invoices, and VAT or tax fields on those records. Payments, partial payments, overdue balances, expenses, client balances, and mission or training revenue/profitability remain later scope.
 - Provide customizable dashboards with confirmed first metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - Provide advanced multi-criteria search, customizable reporting views, and exportable reports.
 - Support French and English interface requirements.
@@ -88,7 +88,7 @@ Centralized and versioned storage and generation are in scope for:
 - candidate CVs and candidate attachments
 - related client, mission, and operational files
 
-Commercial records such as quotations, contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and profitability records are structured business data first. They become documents only when there is an uploaded, signed, archived, or generated file representation requiring storage, download, versioning, approval, signature, or archival.
+Commercial records such as quotations, contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and profitability records are structured business data first. Issue #38 implements the quotation, commercial contract, purchase-order, and invoice subset as structured records with server-calculated totals. They become documents only when there is an uploaded, signed, archived, or generated file representation requiring storage, download, versioning, approval, signature, or archival.
 
 Invoice document generation and operational payment tracking are in scope. A complete Moroccan payroll requirement is confirmed for future product planning, including country-specific payroll calculations and statutory outputs, but it is not part of Issue #29. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, balance sheet, payroll-calculation engine, and subscription billing engine remain unresolved implementation scopes and must not be assumed until separately approved.
 

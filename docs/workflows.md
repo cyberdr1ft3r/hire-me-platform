@@ -572,13 +572,14 @@ Task lifecycle rules:
 - Task reminders are durable in-app reminders only. Issue #31 does not implement email, WhatsApp, calendar, browser, mobile-push, or external notification delivery.
 - Due reminder workers discover pending or failed due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks, and create task notifications through idempotency keys so concurrent workers create at most one notification.
 - Overdue task notifications are task-generated in-app notifications and must not include confidential candidate, salary, client, commercial, HR note, or comment-body payloads.
+- Issue #38 commercial workflows keep quotations, recruitment/training commercial contracts, purchase orders, and invoices as structured records. Totals are calculated server-side; linked records must belong to the same client; accepted or terminal quotations are not silently mutated; issued invoice lines and totals are immutable snapshots; placement-backed invoices require an eligible confirmed `MissionPlacement`.
 
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.
 - Candidate applicants do not transition internal workflow states through public application links.
 - Client users are optional future actors; in the MVP, Hire Me staff records client feedback and decisions internally.
-- State transitions involving client presentation, rejection, withdrawal, talent pool, document sharing, offer, integration, probation, mission closure reason, archival, cancellation, enrollment approval, payment status, session attendance, certificate, and commercial data should be audited.
+- State transitions involving client presentation, rejection, withdrawal, talent pool, document sharing, offer, integration, probation, mission closure reason, archival, cancellation, enrollment approval, payment status, session attendance, certificate, and commercial data should be audited. Issue #38 audits commercial record creation, lifecycle/status changes, cancellation, and archival with safe summaries.
 - Reopening terminal states is not supported in the MVP unless a later issue defines recovery rules.
 
 ## Assumptions
@@ -596,7 +597,7 @@ Task lifecycle rules:
 - Exact enum names for mission `closureReason`; structured closure reasons are confirmed.
 - Production public opportunity URL/token strategy beyond opaque slugs, CAPTCHA provider, malware scanner, retention schedule, and applicant duplicate-review workflow.
 - How `TrainingEnrollment` payment status integrates with the later commercial-accounting module.
-- Commercial accounting workflows for quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT/tax fields, balances, and profitability.
+- Detailed payment, partial-payment, overdue-balance, expense, client-balance, revenue/profitability, settlement, and export workflows after the Issue #38 quotation/contract/purchase-order/invoice foundation.
 - Whether future task automation can create tasks from client feedback, documents, imports, integrations, or accounting events.
 - Whether workflow state names become database enums or shared constants.
 

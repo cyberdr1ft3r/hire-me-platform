@@ -20,7 +20,7 @@ This structure is simple enough for a single-developer MVP while preserving boun
 - Confidential-data protection for candidate, HR, salary, CV, client, commercial, message, document, export, and audit data.
 - Module-by-module validation and UAT.
 - Confirmed dashboard metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
-- Commercial and operational accounting for quotations, contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and mission or training profitability.
+- Commercial and operational accounting in scoped modules. Issue #38 implements quotations, recruitment/training commercial contracts, purchase orders, invoices, and VAT or tax fields on those records. Payments, partial payments, overdue balances, expenses, client balances, revenue/profitability, and settlement behavior remain later scope.
 - Confirmed integration and output requirements for Microsoft 365 authentication, Outlook/Microsoft email and contacts, Outlook Calendar, Google Calendar, SMTP or Outlook email, WhatsApp Business reminders, LinkedIn-assisted candidate creation/profile links, Excel import/export, PDF generation, Word-compatible output, protected document storage, and real-time internal notifications.
 
 ## Architecture Principles
@@ -198,7 +198,7 @@ Issue #29 implements the internal offer-to-placement lifecycle under mission-can
 - retired legacy integration confirmation route returns a stable `PLACEMENT_OFFER_CONFIRMATION_REQUIRED` error instead of inferring an offer version or counting placement independently
 - placement correction that preserves original confirmation metadata, decrements at most once, and cannot make placement count negative
 - mission closure eligibility returned from placement state without automatic mission closure
-- bounded commercial eligibility for later invoicing without implementing invoices, accounting, or payroll
+- bounded commercial eligibility used by Issue #38 invoices without implementing payments, broader accounting, or payroll
 - transaction-scoped lock order of parent `RecruitmentMission`, existing `MissionCandidate`, parent `Candidate`, then offer/placement rows where applicable
 - PostgreSQL-backed tests for lifecycle, versioning, idempotency, concurrency, authorization, IDOR, placement counts, and safe audit behavior
 
@@ -216,7 +216,7 @@ Issue #31 implements the authenticated internal task-management layer:
 - focused web controls in the authenticated workspace without a global UI redesign
 - PostgreSQL-backed tests for lifecycle, assignment uniqueness, scoped visibility, mention access, reminder retry/concurrency, notification ownership, idempotent terminal actions, and audit behavior
 
-Training, documents, optional future client portal activation, messaging, dashboards, exports, integrations, uploads, physical deletion, commercial accounting, payroll implementation, full structured external feedback, and broader business workflow behavior remain later implementation work.
+Training, optional future client portal activation, messaging, dashboards, exports, integrations, physical deletion, payments and broader accounting, payroll implementation, full structured external feedback, and broader business workflow behavior remain later implementation work.
 
 ### Public Opportunity and Application Surface
 
@@ -273,7 +273,7 @@ Issue #35 implements the first centralized document foundation for internal user
 
 Confirmed output families are PDF, Word-compatible document output, and Excel-compatible tabular or report output. Generated outputs may include quotation files, purchase order files, contract files, invoice files, HR document templates, candidate summaries, interview reports, training documents, dashboards, and reports. Uploaded or stored-only files include raw CVs, candidate attachments, certifications, diplomas, signed documents, client-provided files, external HR files, and imported legacy documents.
 
-Commercial records remain structured source-of-truth data. Quotation, contract, purchase order, invoice, payment, partial payment, overdue balance, expense, VAT/tax, client balance, revenue, and profitability concepts are not `Document` records merely because they can later be generated as PDF, Word, or Excel outputs. Full legal accounting, general ledger, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
+Commercial records remain structured source-of-truth data. Issue #38 implements quotations, recruitment/training commercial contracts, purchase orders, and invoices as API-owned structured records with server-calculated totals, same-client link validation, lifecycle history, audit summaries, and commercial-data redaction. Issued invoices keep immutable line and amount snapshots, and placement-backed invoices require an eligible confirmed `MissionPlacement`. Payment, partial-payment, overdue-balance, expense, client-balance, revenue, and profitability concepts are not `Document` records merely because they can later be generated as PDF, Word, or Excel outputs, and they remain later scope. Full legal accounting, general ledger, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
 
 Document list queries apply document visibility, linked-context scope, archive rules, and inaccessible-context filtering in the database predicate. Detail, version-list, download, and mutation paths re-check access in service code and require the exact operation permission. Mission, mission-candidate process, and interview document contexts use their linked entity's current scope rules instead of one generic mission-document override. `PRIVATE` and `ASSIGNED_ONLY` documents are owner-only until a separate assignment model exists; null owner grants no private access.
 

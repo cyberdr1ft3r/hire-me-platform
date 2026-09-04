@@ -151,14 +151,8 @@ The main application is authenticated and internal. Candidate applicants do not 
 - `purchase_orders:manage`
 - `invoices:view`
 - `invoices:manage`
-- `payments:view`
-- `payments:manage`
-- `expenses:view`
-- `expenses:manage`
-- `client_balances:view`
-- `profitability:view`
 
-Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #31 adds explicit task, reminder, comment, and own-notification permissions. Issue #35 adds centralized document permissions while retaining `documents:download` compatibility. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
+Issue #10 seeds the initial authentication and synthetic product permission names. Issue #13 adds the explicit internal administration permissions listed above. Issue #15 adds explicit client organization and client-contact permissions. Issue #17 adds explicit candidate master/profile, candidate compensation, and candidate consent permissions. Issue #19 adds explicit recruitment mission, assignment, and mission commercial-data permissions. Issue #23 adds explicit interview, interview-participant, evaluation, and client-feedback visibility permissions. Issue #29 adds explicit offer and placement lifecycle permissions. Issue #31 adds explicit task, reminder, comment, and own-notification permissions. Issue #35 adds centralized document permissions while retaining `documents:download` compatibility. Issue #38 adds quotation, commercial contract, purchase-order, and invoice permissions. Permissions resolve through normalized `UserRole`, `RolePermission`, and `Permission` records. They remain the initial permission-code vocabulary and should be expanded only by future scoped module work.
 
 ## Implemented Task and Notification Permissions
 
@@ -185,6 +179,23 @@ Task visibility remains deny-by-default. A route permission must be effective, a
 Reminder workers discover due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks; notifications use idempotency keys to prevent duplicate delivery under concurrent workers or retries. Task-generated notification summaries must not contain confidential candidate, salary, commercial, HR, client, comment, or internal-note payloads.
 
 Document access requires the exact document capability and linked business-context scope. Current implemented context scopes use the existing client, candidate, recruitment mission, mission-candidate, and interview permissions. Mission-linked documents require active mission assignment scope; mission-candidate process documents may use the existing process transfer override; interview documents may use the existing interview archive/internal-evaluation visibility overrides. These overrides are context-specific and do not grant a universal mission-document bypass. Frontend gating is only usability.
+
+## Implemented Commercial Permissions
+
+Issue #38 implements these route permissions:
+
+| Permission | Implemented use |
+| --- | --- |
+| `quotations:view` | View quotation metadata and lifecycle state. Amounts and lines also require `commercial_data:access`. |
+| `quotations:manage` | Create/update/archive quotations and move them through the allowed lifecycle. Writes also require `commercial_data:access`. |
+| `contracts:view` | View commercial contract metadata and lifecycle state. Amounts and terms also require `commercial_data:access`. |
+| `contracts:manage` | Create/update/archive recruitment or training commercial contracts and manage their lifecycle. Writes also require `commercial_data:access`. |
+| `purchase_orders:view` | View purchase-order metadata and lifecycle state. Amounts also require `commercial_data:access`. |
+| `purchase_orders:manage` | Create/update/archive purchase orders and manage their lifecycle. Writes also require `commercial_data:access`. |
+| `invoices:view` | View invoice metadata and lifecycle state. Amounts and lines also require `commercial_data:access`. |
+| `invoices:manage` | Create/update/issue/cancel/archive invoices. Writes also require `commercial_data:access`. |
+
+Commercial record APIs enforce same-client relationship checks for linked clients, missions, quotations, contracts, purchase orders, correction invoices, and placements. Placement-backed invoice creation requires `placement_commercial_eligibility:view` and an eligible confirmed `MissionPlacement`.
 
 ## Implemented Document Permissions
 
@@ -395,15 +406,15 @@ The matrix is a provisional least-privilege default for V1. It confirms that the
 ## Unresolved Technical Choices
 
 - Whether employee exports require manager approval or a technical approval workflow.
-- Whether commercial-data access should be split into pricing, salary, revenue, margin, contract, quotation, purchase order, and invoice permissions.
+- Whether commercial-data access should be split further beyond Issue #38's record-family view/manage permissions and shared `commercial_data:access` amount/terms gate.
 - Whether guest access should expire automatically and how expiration is enforced.
 - Whether future client users can upload documents.
 - Whether a future client portal exists in the MVP at all; Issue #25 classifies it as optional future scope.
 - Public opportunity management currently uses `public_opportunities:manage` for approved public fields and `public_opportunities:publish` for publishing/listing authority. `public_applications:view` covers internal review of received public submissions; unauthenticated applicants do not receive permissions.
-- Commercial-accounting permission split for quotation, contract, purchase order, invoice, payment, expense, tax, balance, revenue, and profitability actions.
+- Future commercial-accounting permission split for payment, expense, tax, balance, revenue, profitability, settlement, and export actions.
 - Whether permission scopes need regional, office, department, or recruiter-assignment restrictions.
 - Whether commercial-data access should require step-up authentication.
-- Final business-module permission-code catalog and route-to-permission map beyond administration, client CRM, and candidate profile CRM.
+- Final business-module permission-code catalog and route-to-permission map beyond implemented administration, client CRM, candidate profile, mission, interview/evaluation, offer/placement, task, document, and Issue #38 commercial foundations.
 - Whether candidate compensation and consent permissions should be further split by salary expectation, offer compensation, consent history, privacy preference, and retention action.
 
 ## Risks

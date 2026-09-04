@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Document management foundation and contract taxonomy
-**Health:** Issue #35 remains active on existing PR #40 / branch `feat/document-management`; the branch includes merged Issue #31 task-management behavior plus the Issue #35 document-management foundation.
-**Current blocker:** PR #40 post-integration review identified a Task-to-Document authorization gap; the branch now requires exact-head CI evidence for the document-link policy fix.
-**Next executable development task:** Human review/merge gate for PR #40 after the new exact-head validation is recorded in the PR.
+**Phase:** Commercial workflow foundation
+**Health:** Issue #38 is active on branch `feat/commercial-workflow`, started from latest `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`.
+**Current blocker:** none known locally; final repository validation, push, draft PR creation, and exact-head CI evidence remain.
+**Next executable development task:** Finish Issue #38 validation, open one draft PR linked with `Closes #38`, and keep it open/unmerged for human review.
 
 ## Active work
 
@@ -27,8 +27,9 @@ Status owner: repository maintainer
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | No action in Issue #38 branch |
+| Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | No action |
+| Issue #38 | Active | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Complete final validation, push `feat/commercial-workflow`, open one draft PR, and wait for CI |
 
 ## Completed foundation work
 
@@ -205,7 +206,7 @@ Status owner: repository maintainer
 
 ## Issue #35 Implementation State
 
-- Issue #35 implements the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
+- Issue #35 is complete; PR #40 merged the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
 - Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
 - The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
 - Document authorization combines exact document capability with linked business-context permission and scope. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; mission, process, and interview contexts use context-specific scope override rules rather than one blended mission-document bypass. Training contract taxonomy is distinct but training operations/rendering remain future work.
@@ -214,6 +215,16 @@ Status owner: repository maintainer
 - Metadata update and document archive audit records are written atomically with their mutations.
 - Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
+
+## Issue #38 Implementation State
+
+- Issue #38 is active on branch `feat/commercial-workflow`, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`.
+- The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
+- Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
+- Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, and contract terms without commercial-data access.
+- Linked commercial records are checked server-side for same-client relationships. Placement-backed invoices require authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices.
+- PostgreSQL-backed regressions cover commercial redaction and write denial, quotation lifecycle and terminal mutation blocking, cross-client link rejection, distinct recruitment/training contracts, invoice snapshots, placement-backed invoicing, duplicate references, and concurrent invoice issue idempotency.
+- Local validation passed so far: `pnpm.cmd prisma:validate`, `pnpm.cmd prisma:generate`, `pnpm.cmd prisma:migrate:deploy`, `pnpm.cmd prisma:migrate:reset --force`, second `pnpm.cmd prisma:seed`, focused commercial PostgreSQL integration tests with 7 tests passing, full `pnpm.cmd test:db` with 125 PostgreSQL integration tests passing, `pnpm.cmd --filter @hire-me/api typecheck`, `pnpm.cmd --filter @hire-me/web typecheck`, and `pnpm.cmd --filter @hire-me/web test -- App.test.tsx` with 24 web tests passing.
 
 ## Current open technical questions
 
@@ -229,12 +240,12 @@ Status owner: repository maintainer
 - Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
 - Production public opportunity URL strategy beyond opaque slugs, CAPTCHA provider, production malware scanner, production storage provider, public upload retention schedule, and applicant duplicate-review workflow.
-- Commercial accounting numbering, correction, VAT/tax, partial-payment allocation, and profitability rules.
+- Commercial numbering/correction policy beyond unique caller-supplied references, payment allocation, overdue handling, expenses, client balances, revenue/profitability, and settlement rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
+1. Finish Issue #38 final validation, push `feat/commercial-workflow`, open one draft PR with `Closes #38`, wait for exact-head GitHub Actions, and keep the PR open/unmerged for human review.
 
 ## Status Update Rules
 

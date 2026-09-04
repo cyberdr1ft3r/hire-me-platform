@@ -230,7 +230,7 @@ Confirmed `closureReason` values must cover client closed or canceled the missio
 - Counting rules: offer acceptance alone does not increment `filledPlacementCount`. The first authorized confirmation increments placement count once. Repeated confirmation returns the existing placement without another count, event, audit entry, or metadata overwrite. Correction decrements at most once and cannot take the count below zero.
 - Compatibility rules: legacy `MissionCandidate.placementConfirmedAt` metadata is not a canonical placement by itself. Existing historical rows remain visible as legacy process metadata until a separate audited reconciliation can attach a verified accepted offer version and create a `MissionPlacement`; the retired legacy route must not silently backfill or increment counts.
 - Closure rules: reaching `numberOfPositions` makes the mission eligible for closure but never closes it automatically. Managers can keep recruiting after capacity is reached.
-- Commercial rules: confirmed placements can be marked eligible for later invoicing, but invoices, accounting, and payroll are separate future modules.
+- Commercial rules: confirmed placements can be marked eligible for Issue #38 invoicing. Accepted offers and historical legacy integration metadata do not authorize invoices; invoice creation uses confirmed `MissionPlacement` eligibility. Payments, broader accounting, and payroll are separate future modules.
 - Audit requirements: confirmation, correction, and commercial-eligibility changes must be audited without salary or confidential notes in audit metadata.
 
 ### PublicOpportunity
@@ -456,16 +456,16 @@ Issue #12 / Issue #35 require `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` to r
 
 ### CommercialRecord
 
-- Purpose and owner: conceptual family of commercial and operational accounting records owned by commercial/accounting operations.
-- Important attributes: record type, client id, related mission or training activity, amount, currency, VAT or tax fields, status, due date, paid amount, balance, profitability allocation, and archival timestamp.
-- Relationships: may belong to a `Client`, `RecruitmentMission`, `TrainingProgram`, `TrainingSession`, or `TrainingEnrollment`; may have generated or signed file representations through `Document` and `DocumentVersion`.
-- Cardinality: one client, mission, or training activity can have many commercial records.
-- Lifecycle: draft, issued or approved, partially paid where applicable, paid, overdue, canceled, archived.
+- Purpose and owner: family of commercial and operational accounting records owned by commercial/accounting operations.
+- Important attributes: record type, client id, related mission or training activity, amount, currency, VAT or tax fields, status, due date, and archival timestamp. Paid amount, balance, and profitability allocation remain future attributes.
+- Relationships: may belong to a `Client`, `RecruitmentMission`, quotation, commercial contract, purchase order, invoice, correction invoice, or confirmed placement; may have generated or signed file representations through `Document` and `DocumentVersion`. Training, payment, and expense relationships remain future scope.
+- Cardinality: one client, mission, quotation, commercial contract, or purchase order can have many commercial records where the record type allows it; one placement can have at most one Issue #38 invoice source link.
+- Lifecycle: quotations move from draft to issued and then accepted, rejected, expired, or canceled; accepted or terminal quotations require later replacement or correction instead of silent mutation. Commercial contracts move from draft to active and then completed or canceled. Purchase orders move from draft to received or canceled. Invoices move from draft to issued or canceled; issued invoice lines and totals are immutable snapshots.
 - Sensitive fields: pricing, margin, revenue, payment status, expenses, tax details, client balance, and profitability.
-- Uniqueness rules: numbering rules for quotations, contracts, purchase orders, invoices, and payments are unresolved.
-- Audit requirements: creation, issue/approval, correction, payment allocation, overdue status changes, expense approval, commercial-data access, export, and archival should be audited.
+- Uniqueness rules: Issue #38 enforces unique caller-supplied references for quotations, commercial contracts, purchase orders, and invoices. Broader numbering policy and payment numbering remain unresolved.
+- Audit requirements: creation, issue/approval/status changes, cancellation, correction references, commercial-data access, export, and archival should be audited. Payment allocation, overdue status changes, and expense approval are future audit events.
 
-Included MVP commercial concepts are quotations, recruitment contracts, training contracts, purchase orders, invoices, payments, partial payments, overdue balances, expenses, VAT or tax fields, client balances, and mission or training revenue/profitability. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
+Issue #38 physically implements quotations, recruitment/training commercial contracts, purchase orders, invoices, and VAT/tax totals on those records. Payments, partial payments, overdue balances, expenses, client balances, and mission/training revenue or profitability remain later scope. Full legal accounting, general ledger, chart of accounts, statutory journal entries, tax declarations, bank reconciliation, and balance-sheet behavior remain unresolved.
 
 ### DocumentVersion
 
@@ -632,7 +632,7 @@ erDiagram
 - `Document` represents logical centralized and generated documents; `DocumentVersion` stores each version and file output.
 - `CandidateDocument` represents logical candidate-specific files such as CVs; `CandidateDocumentVersion` stores each candidate-file version.
 - `PublicOpportunity` and `PublicCandidateApplication` model the unauthenticated public application surface without creating candidate accounts.
-- `CommercialRecord` is conceptual shorthand for structured quotations, contracts, purchase orders, invoices, payments, expenses, balances, tax fields, revenue, and profitability until future implementation issues decide concrete physical entities.
+- `CommercialRecord` is shorthand for the commercial family. Issue #38 adds physical structured entities for quotations, recruitment/training commercial contracts, purchase orders, and invoices; payments, expenses, balances, revenue, and profitability remain conceptual until later issues decide concrete entities.
 - `Conversation`, `ConversationMember`, and `Message` represent confirmed private messaging and discussion groups.
 - `AuditLog` should be append-only and protected from ordinary update or delete operations.
 

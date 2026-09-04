@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import type {
   AdminPermission,
   AdminRole,
@@ -9,10 +9,12 @@ import type {
   AuthenticatedUser,
   CandidateDetail,
   CandidateSummary,
+  CommercialContractSummary,
   DocumentDetail,
   DocumentSummary,
   DocumentType,
   DocumentVersion,
+  InvoiceSummary,
   CandidateEvaluation,
   ClientContactSummary,
   ClientSummary,
@@ -27,7 +29,9 @@ import type {
   InternalPublicApplicationSummary,
   InternalPublicOpportunity,
   Notification,
+  PurchaseOrderSummary,
   PublicOpportunity,
+  QuotationSummary,
   TaskSummary,
 } from '@hire-me/contracts';
 
@@ -35,12 +39,17 @@ import {
   archiveCandidate,
   archiveClient,
   archiveClientContact,
+  archiveCommercialContract,
+  archiveInvoice,
   archiveNotification,
   archiveMission,
   archiveDocument,
   archiveMissionAssignment,
   archiveInterview,
+  archivePurchaseOrder,
+  archiveQuotation,
   cancelInterview,
+  cancelInvoice,
   addTaskAssignment,
   assignAdminRole,
   changeTaskOwner,
@@ -55,11 +64,15 @@ import {
   createCandidateWorkExperience,
   createClient,
   createClientContact,
+  createCommercialContract,
+  createInvoice,
   createMission,
   createDocument,
   createMissionAssignment,
   createEvaluation,
   createAdminUser,
+  createPurchaseOrder,
+  createQuotation,
   fetchHealthStatus,
   fetchMeWithRefresh,
   finalizeEvaluation,
@@ -69,9 +82,12 @@ import {
   getDocument,
   getInternalPublicOpportunity,
   getAdminUser,
+  issueInvoice,
   listCandidates,
   listClientContacts,
   listClients,
+  listCommercialContracts,
+  listInvoices,
   listMissionAssignments,
   listMissions,
   listDocuments,
@@ -85,6 +101,8 @@ import {
   listAdminPermissions,
   listAdminRoles,
   listAdminUsers,
+  listPurchaseOrders,
+  listQuotations,
   login,
   logout,
   markAllNotificationsRead,
@@ -100,11 +118,14 @@ import {
   updateClientContact,
   updateClientContactStatus,
   updateClientStatus,
+  updateCommercialContractStatus,
   updateMission,
   updateDocument,
   updateMissionAssignment,
   updateMissionStatus,
   updateInternalPublicOpportunity,
+  updatePurchaseOrderStatus,
+  updateQuotationStatus,
   closeMission,
   confirmMissionCandidatePlacement,
   correctMissionCandidatePlacement,
@@ -138,7 +159,8 @@ type ApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route = 'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks' | 'documents';
+type Route =
+  'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks' | 'documents' | 'commercial';
 type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
@@ -147,6 +169,7 @@ const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 const MISSIONS_ROUTE_PERMISSION = 'missions:view';
 const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
 const TASKS_ROUTE_PERMISSION = 'tasks:view';
+const COMMERCIAL_ROUTE_PERMISSION = 'quotations:view';
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
@@ -166,7 +189,9 @@ export function App() {
               ? 'documents'
               : window.location.pathname === '/tasks'
                 ? 'tasks'
-                : 'home',
+                : window.location.pathname === '/commercial'
+                  ? 'commercial'
+                  : 'home',
   );
 
   useEffect(() => {
@@ -277,7 +302,9 @@ export function App() {
                 ? '/documents'
                 : nextRoute === 'tasks'
                   ? '/tasks'
-                  : '/',
+                  : nextRoute === 'commercial'
+                    ? '/commercial'
+                    : '/',
     );
   }
 
@@ -295,6 +322,7 @@ export function App() {
   const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
   const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
   const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
+  const canOpenCommercial = Boolean(user?.permissions.includes(COMMERCIAL_ROUTE_PERMISSION));
 
   return (
     <main className="shell">
@@ -376,6 +404,14 @@ export function App() {
               }}
             >
               Tasks
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigate('commercial');
+              }}
+            >
+              Commercial
             </button>
             <button
               type="button"
@@ -465,6 +501,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Tasks">
             <h2>Tasks</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'commercial' && user && accessToken ? (
+        canOpenCommercial ? (
+          <CommercialPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Commercial">
+            <h2>Commercial</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -3879,6 +3925,548 @@ function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[
     PAUSED: ['INTERNAL_VALIDATION', 'ACTIVE', 'CANDIDATE_SOURCING', 'HR_PRESELECTION'],
   };
   return transitions[state] ?? [];
+}
+
+function CommercialPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [quotations, setQuotations] = useState<QuotationSummary[]>([]);
+  const [contracts, setContracts] = useState<CommercialContractSummary[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderSummary[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const canSeeCommercialAmounts = permissions.includes('commercial_data:access');
+  const canManageQuotations = canSeeCommercialAmounts && permissions.includes('quotations:manage');
+  const canManageContracts = canSeeCommercialAmounts && permissions.includes('contracts:manage');
+  const canManagePurchaseOrders =
+    canSeeCommercialAmounts && permissions.includes('purchase_orders:manage');
+  const canManageInvoices = canSeeCommercialAmounts && permissions.includes('invoices:manage');
+
+  useEffect(() => {
+    void loadCommercialRecords();
+  }, []);
+
+  async function loadCommercialRecords(): Promise<void> {
+    const [quotationList, contractList, purchaseOrderList, invoiceList] = await Promise.all([
+      listQuotations(accessToken, { pageSize: 10 }),
+      listCommercialContracts(accessToken, { pageSize: 10 }),
+      listPurchaseOrders(accessToken, { pageSize: 10 }),
+      listInvoices(accessToken, { pageSize: 10 }),
+    ]);
+    setQuotations(quotationList.quotations);
+    setContracts(contractList.contracts);
+    setPurchaseOrders(purchaseOrderList.purchaseOrders);
+    setInvoices(invoiceList.invoices);
+  }
+
+  async function handleQuotationCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createQuotation(accessToken, {
+      reference: formValue(formData, 'reference'),
+      clientId: formValue(formData, 'clientId'),
+      recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
+      currency: formValue(formData, 'currency', 'MAD'),
+      lines: [
+        {
+          description: formValue(formData, 'description'),
+          quantity: optionalNumber(formData, 'quantity') ?? 1,
+          unitPriceCents: optionalNumber(formData, 'unitPriceCents') ?? 0,
+          taxRateBps: optionalNumber(formData, 'taxRateBps') ?? 0,
+        },
+      ],
+    });
+    form.reset();
+    setMessage('Quotation created.');
+    await loadCommercialRecords();
+  }
+
+  async function handleContractCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createCommercialContract(accessToken, {
+      reference: formValue(formData, 'reference'),
+      businessType: formValue(formData, 'businessType') as 'RECRUITMENT' | 'TRAINING',
+      clientId: formValue(formData, 'clientId'),
+      recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
+      sourceQuotationId: optionalFormValue(formData, 'sourceQuotationId'),
+      currency: formValue(formData, 'currency', 'MAD'),
+      contractValueCents: optionalNumber(formData, 'contractValueCents') ?? 0,
+      taxCents: optionalNumber(formData, 'taxCents') ?? 0,
+      termsSummary: optionalFormValue(formData, 'termsSummary'),
+    });
+    form.reset();
+    setMessage('Contract created.');
+    await loadCommercialRecords();
+  }
+
+  async function handlePurchaseOrderCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createPurchaseOrder(accessToken, {
+      reference: formValue(formData, 'reference'),
+      clientId: formValue(formData, 'clientId'),
+      recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
+      quotationId: optionalFormValue(formData, 'quotationId'),
+      contractId: optionalFormValue(formData, 'contractId'),
+      currency: formValue(formData, 'currency', 'MAD'),
+      amountCents: optionalNumber(formData, 'amountCents') ?? 0,
+      taxCents: optionalNumber(formData, 'taxCents') ?? 0,
+    });
+    form.reset();
+    setMessage('Purchase order created.');
+    await loadCommercialRecords();
+  }
+
+  async function handleInvoiceCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const description = optionalFormValue(formData, 'description');
+    await createInvoice(accessToken, {
+      reference: formValue(formData, 'reference'),
+      clientId: formValue(formData, 'clientId'),
+      recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
+      missionPlacementId: optionalFormValue(formData, 'missionPlacementId'),
+      quotationId: optionalFormValue(formData, 'quotationId'),
+      contractId: optionalFormValue(formData, 'contractId'),
+      purchaseOrderId: optionalFormValue(formData, 'purchaseOrderId'),
+      currency: formValue(formData, 'currency', 'MAD'),
+      dueDate: optionalDateTimeFormValue(formData, 'dueDate'),
+      lines: description
+        ? [
+            {
+              description,
+              quantity: optionalNumber(formData, 'quantity') ?? 1,
+              unitPriceCents: optionalNumber(formData, 'unitPriceCents') ?? 0,
+              taxRateBps: optionalNumber(formData, 'taxRateBps') ?? 0,
+            },
+          ]
+        : undefined,
+    });
+    form.reset();
+    setMessage('Invoice created.');
+    await loadCommercialRecords();
+  }
+
+  async function setQuotationStatus(
+    id: string,
+    status: 'ISSUED' | 'ACCEPTED' | 'REJECTED' | 'CANCELED',
+  ): Promise<void> {
+    await updateQuotationStatus(accessToken, id, { status });
+    setMessage(`Quotation ${status.toLowerCase()}.`);
+    await loadCommercialRecords();
+  }
+
+  async function setContractStatus(
+    id: string,
+    status: 'ACTIVE' | 'COMPLETED' | 'CANCELED',
+  ): Promise<void> {
+    await updateCommercialContractStatus(accessToken, id, { status });
+    setMessage(`Contract ${status.toLowerCase()}.`);
+    await loadCommercialRecords();
+  }
+
+  async function setPurchaseOrderStatus(
+    id: string,
+    status: 'RECEIVED' | 'CANCELED',
+  ): Promise<void> {
+    await updatePurchaseOrderStatus(accessToken, id, { status });
+    setMessage(`Purchase order ${status.toLowerCase()}.`);
+    await loadCommercialRecords();
+  }
+
+  async function archiveCommercialRecord(
+    archiveAction: () => Promise<unknown>,
+    successMessage: string,
+  ): Promise<void> {
+    await archiveAction();
+    setMessage(successMessage);
+    await loadCommercialRecords();
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Commercial">
+      <div className="admin-grid">
+        <section aria-label="Commercial records">
+          <h2>Commercial</h2>
+          <button type="button" onClick={() => void loadCommercialRecords()}>
+            Refresh commercial records
+          </button>
+          {message ? <p role="status">{message}</p> : null}
+          <CommercialTable
+            title="Quotations"
+            records={quotations.map((record) => ({
+              id: record.id,
+              reference: record.reference,
+              status: record.status,
+              amount: commercialAmount(record),
+              actions: canManageQuotations ? (
+                <>
+                  {record.status === 'DRAFT' ? (
+                    <button
+                      type="button"
+                      onClick={() => void setQuotationStatus(record.id, 'ISSUED')}
+                    >
+                      Issue
+                    </button>
+                  ) : null}
+                  {record.status === 'ISSUED' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void setQuotationStatus(record.id, 'ACCEPTED')}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void setQuotationStatus(record.id, 'REJECTED')}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : null}
+                  {record.status !== 'ISSUED' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void archiveCommercialRecord(
+                          () => archiveQuotation(accessToken, record.id),
+                          'Quotation archived.',
+                        )
+                      }
+                    >
+                      Archive
+                    </button>
+                  ) : null}
+                </>
+              ) : null,
+            }))}
+          />
+          <CommercialTable
+            title="Contracts"
+            records={contracts.map((record) => ({
+              id: record.id,
+              reference: `${record.reference} (${record.businessType})`,
+              status: record.status,
+              amount: commercialAmount(record),
+              actions: canManageContracts ? (
+                <>
+                  {record.status === 'DRAFT' ? (
+                    <button
+                      type="button"
+                      onClick={() => void setContractStatus(record.id, 'ACTIVE')}
+                    >
+                      Activate
+                    </button>
+                  ) : null}
+                  {record.status === 'ACTIVE' ? (
+                    <button
+                      type="button"
+                      onClick={() => void setContractStatus(record.id, 'COMPLETED')}
+                    >
+                      Complete
+                    </button>
+                  ) : null}
+                  {record.status !== 'ACTIVE' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void archiveCommercialRecord(
+                          () => archiveCommercialContract(accessToken, record.id),
+                          'Contract archived.',
+                        )
+                      }
+                    >
+                      Archive
+                    </button>
+                  ) : null}
+                </>
+              ) : null,
+            }))}
+          />
+          <CommercialTable
+            title="Purchase orders"
+            records={purchaseOrders.map((record) => ({
+              id: record.id,
+              reference: record.reference,
+              status: record.status,
+              amount: commercialAmount(record),
+              actions: canManagePurchaseOrders ? (
+                <>
+                  {record.status === 'DRAFT' ? (
+                    <button
+                      type="button"
+                      onClick={() => void setPurchaseOrderStatus(record.id, 'RECEIVED')}
+                    >
+                      Receive
+                    </button>
+                  ) : null}
+                  {record.status !== 'RECEIVED' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void archiveCommercialRecord(
+                          () => archivePurchaseOrder(accessToken, record.id),
+                          'Purchase order archived.',
+                        )
+                      }
+                    >
+                      Archive
+                    </button>
+                  ) : null}
+                </>
+              ) : null,
+            }))}
+          />
+          <CommercialTable
+            title="Invoices"
+            records={invoices.map((record) => ({
+              id: record.id,
+              reference: record.reference,
+              status: record.status,
+              amount: commercialAmount(record),
+              actions: canManageInvoices ? (
+                <>
+                  {record.status === 'DRAFT' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void issueInvoice(accessToken, record.id, {}).then(() =>
+                          loadCommercialRecords(),
+                        )
+                      }
+                    >
+                      Issue
+                    </button>
+                  ) : null}
+                  {record.status !== 'CANCELED' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void cancelInvoice(accessToken, record.id, {
+                          reason: 'Canceled from internal workspace.',
+                        }).then(() => loadCommercialRecords())
+                      }
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
+                  {record.status !== 'ISSUED' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void archiveCommercialRecord(
+                          () => archiveInvoice(accessToken, record.id),
+                          'Invoice archived.',
+                        )
+                      }
+                    >
+                      Archive
+                    </button>
+                  ) : null}
+                </>
+              ) : null,
+            }))}
+          />
+        </section>
+
+        <section aria-label="Commercial create forms">
+          {canManageQuotations ? (
+            <form
+              className="stacked-form"
+              aria-label="Create quotation"
+              onSubmit={(event) => void handleQuotationCreate(event)}
+            >
+              <h3>Create quotation</h3>
+              <input name="reference" placeholder="Reference" required />
+              <input name="clientId" placeholder="Client id" required />
+              <input name="recruitmentMissionId" placeholder="Mission id" />
+              <input name="currency" placeholder="MAD" defaultValue="MAD" required />
+              <input name="description" placeholder="Line description" required />
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                placeholder="Quantity"
+                defaultValue="1"
+              />
+              <input
+                name="unitPriceCents"
+                type="number"
+                min="0"
+                placeholder="Unit price cents"
+                required
+              />
+              <input
+                name="taxRateBps"
+                type="number"
+                min="0"
+                placeholder="Tax bps"
+                defaultValue="0"
+              />
+              <button type="submit">Create quotation</button>
+            </form>
+          ) : null}
+
+          {canManageContracts ? (
+            <form
+              className="stacked-form"
+              aria-label="Create contract"
+              onSubmit={(event) => void handleContractCreate(event)}
+            >
+              <h3>Create contract</h3>
+              <input name="reference" placeholder="Reference" required />
+              <select name="businessType" defaultValue="RECRUITMENT">
+                <option value="RECRUITMENT">Recruitment</option>
+                <option value="TRAINING">Training</option>
+              </select>
+              <input name="clientId" placeholder="Client id" required />
+              <input name="recruitmentMissionId" placeholder="Mission id" />
+              <input name="sourceQuotationId" placeholder="Accepted quotation id" />
+              <input name="currency" placeholder="MAD" defaultValue="MAD" required />
+              <input
+                name="contractValueCents"
+                type="number"
+                min="0"
+                placeholder="Contract value cents"
+                required
+              />
+              <input
+                name="taxCents"
+                type="number"
+                min="0"
+                placeholder="Tax cents"
+                defaultValue="0"
+              />
+              <textarea name="termsSummary" placeholder="Terms summary" />
+              <button type="submit">Create contract</button>
+            </form>
+          ) : null}
+
+          {canManagePurchaseOrders ? (
+            <form
+              className="stacked-form"
+              aria-label="Create purchase order"
+              onSubmit={(event) => void handlePurchaseOrderCreate(event)}
+            >
+              <h3>Create purchase order</h3>
+              <input name="reference" placeholder="Reference" required />
+              <input name="clientId" placeholder="Client id" required />
+              <input name="recruitmentMissionId" placeholder="Mission id" />
+              <input name="quotationId" placeholder="Quotation id" />
+              <input name="contractId" placeholder="Contract id" />
+              <input name="currency" placeholder="MAD" defaultValue="MAD" required />
+              <input name="amountCents" type="number" min="0" placeholder="Amount cents" required />
+              <input
+                name="taxCents"
+                type="number"
+                min="0"
+                placeholder="Tax cents"
+                defaultValue="0"
+              />
+              <button type="submit">Create purchase order</button>
+            </form>
+          ) : null}
+
+          {canManageInvoices ? (
+            <form
+              className="stacked-form"
+              aria-label="Create invoice"
+              onSubmit={(event) => void handleInvoiceCreate(event)}
+            >
+              <h3>Create invoice</h3>
+              <input name="reference" placeholder="Reference" required />
+              <input name="clientId" placeholder="Client id" required />
+              <input name="recruitmentMissionId" placeholder="Mission id" />
+              <input name="missionPlacementId" placeholder="Placement id" />
+              <input name="quotationId" placeholder="Quotation id" />
+              <input name="contractId" placeholder="Contract id" />
+              <input name="purchaseOrderId" placeholder="Purchase order id" />
+              <input name="currency" placeholder="MAD" defaultValue="MAD" required />
+              <input name="dueDate" type="datetime-local" />
+              <input name="description" placeholder="Fallback line description" />
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                placeholder="Quantity"
+                defaultValue="1"
+              />
+              <input name="unitPriceCents" type="number" min="0" placeholder="Unit price cents" />
+              <input
+                name="taxRateBps"
+                type="number"
+                min="0"
+                placeholder="Tax bps"
+                defaultValue="0"
+              />
+              <button type="submit">Create invoice</button>
+            </form>
+          ) : null}
+
+          {!canSeeCommercialAmounts ? <p>Commercial amounts are hidden for this account.</p> : null}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function CommercialTable({
+  title,
+  records,
+}: {
+  title: string;
+  records: Array<{
+    id: string;
+    reference: string;
+    status: string;
+    amount: string;
+    actions: ReactNode;
+  }>;
+}) {
+  return (
+    <section aria-label={title}>
+      <h3>{title}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id}>
+              <td>{record.reference}</td>
+              <td>{record.status}</td>
+              <td>{record.amount}</td>
+              <td>{record.actions}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {records.length === 0 ? <p>No records.</p> : null}
+    </section>
+  );
+}
+
+function commercialAmount(
+  record: QuotationSummary | CommercialContractSummary | PurchaseOrderSummary | InvoiceSummary,
+): string {
+  return record.amounts
+    ? `${record.amounts.currency} ${(record.amounts.totalCents / 100).toFixed(2)}`
+    : 'Hidden';
 }
 
 const documentTypes: DocumentType[] = [

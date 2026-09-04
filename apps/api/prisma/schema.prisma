@@ -354,26 +354,26 @@ enum TaskReminderStatus {
 }
 
 enum TaskEventAction {
-  CREATED                    @map("created")
-  UPDATED                    @map("updated")
-  OWNER_CHANGED              @map("owner_changed")
-  ASSIGNEE_ADDED             @map("assignee_added")
-  ASSIGNEE_REMOVED           @map("assignee_removed")
-  STATUS_CHANGED             @map("status_changed")
-  COMPLETED                  @map("completed")
-  CANCELED                   @map("canceled")
-  REOPENED                   @map("reopened")
-  COMMENT_CREATED            @map("comment_created")
-  COMMENT_EDITED             @map("comment_edited")
-  COMMENT_ARCHIVED           @map("comment_archived")
-  MENTIONED                  @map("mentioned")
-  REMINDER_CREATED           @map("reminder_created")
-  REMINDER_UPDATED           @map("reminder_updated")
-  REMINDER_CANCELED          @map("reminder_canceled")
-  REMINDER_DELIVERED         @map("reminder_delivered")
-  REMINDER_FAILED            @map("reminder_failed")
-  OVERDUE_NOTIFICATION_SENT  @map("overdue_notification_sent")
-  ARCHIVED                   @map("archived")
+  CREATED                   @map("created")
+  UPDATED                   @map("updated")
+  OWNER_CHANGED             @map("owner_changed")
+  ASSIGNEE_ADDED            @map("assignee_added")
+  ASSIGNEE_REMOVED          @map("assignee_removed")
+  STATUS_CHANGED            @map("status_changed")
+  COMPLETED                 @map("completed")
+  CANCELED                  @map("canceled")
+  REOPENED                  @map("reopened")
+  COMMENT_CREATED           @map("comment_created")
+  COMMENT_EDITED            @map("comment_edited")
+  COMMENT_ARCHIVED          @map("comment_archived")
+  MENTIONED                 @map("mentioned")
+  REMINDER_CREATED          @map("reminder_created")
+  REMINDER_UPDATED          @map("reminder_updated")
+  REMINDER_CANCELED         @map("reminder_canceled")
+  REMINDER_DELIVERED        @map("reminder_delivered")
+  REMINDER_FAILED           @map("reminder_failed")
+  OVERDUE_NOTIFICATION_SENT @map("overdue_notification_sent")
+  ARCHIVED                  @map("archived")
 }
 
 enum DocumentStatus {
@@ -503,6 +503,43 @@ enum MessageStatus {
   ARCHIVED @map("archived")
 }
 
+enum QuotationStatus {
+  DRAFT    @map("draft")
+  ISSUED   @map("issued")
+  ACCEPTED @map("accepted")
+  REJECTED @map("rejected")
+  EXPIRED  @map("expired")
+  CANCELED @map("canceled")
+  ARCHIVED @map("archived")
+}
+
+enum CommercialContractBusinessType {
+  RECRUITMENT @map("recruitment")
+  TRAINING    @map("training")
+}
+
+enum CommercialContractStatus {
+  DRAFT     @map("draft")
+  ACTIVE    @map("active")
+  COMPLETED @map("completed")
+  CANCELED  @map("canceled")
+  ARCHIVED  @map("archived")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT    @map("draft")
+  RECEIVED @map("received")
+  CANCELED @map("canceled")
+  ARCHIVED @map("archived")
+}
+
+enum InvoiceStatus {
+  DRAFT    @map("draft")
+  ISSUED   @map("issued")
+  CANCELED @map("canceled")
+  ARCHIVED @map("archived")
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   displayName     String
@@ -571,6 +608,19 @@ model User {
   trainingEnrollments                 TrainingEnrollment[]       @relation("UserTrainingEnrollment")
   trainingProgramsOwned               TrainingProgram[]          @relation("TrainingProgramOwner")
   trainingSessionsTrained             TrainingSession[]          @relation("TrainingSessionTrainer")
+  createdCommercialQuotations         CommercialQuotation[]      @relation("CommercialQuotationCreator")
+  updatedCommercialQuotations         CommercialQuotation[]      @relation("CommercialQuotationUpdater")
+  commercialQuotationEvents           CommercialQuotationEvent[] @relation("CommercialQuotationEventActor")
+  createdCommercialContracts          CommercialContract[]       @relation("CommercialContractCreator")
+  updatedCommercialContracts          CommercialContract[]       @relation("CommercialContractUpdater")
+  commercialContractEvents            CommercialContractEvent[]  @relation("CommercialContractEventActor")
+  createdPurchaseOrders               PurchaseOrder[]            @relation("PurchaseOrderCreator")
+  updatedPurchaseOrders               PurchaseOrder[]            @relation("PurchaseOrderUpdater")
+  purchaseOrderEvents                 PurchaseOrderEvent[]       @relation("PurchaseOrderEventActor")
+  createdInvoices                     Invoice[]                  @relation("InvoiceCreator")
+  updatedInvoices                     Invoice[]                  @relation("InvoiceUpdater")
+  canceledInvoices                    Invoice[]                  @relation("InvoiceCanceler")
+  invoiceEvents                       InvoiceEvent[]             @relation("InvoiceEventActor")
   auditLogs                           AuditLog[]                 @relation("AuditActor")
   targetedAuditLogs                   AuditLog[]                 @relation("AuditTargetUser")
   passwordCredential                  PasswordCredential?
@@ -694,11 +744,15 @@ model Client {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  commercialOwner User?                @relation("ClientCommercialOwner", fields: [commercialOwnerUserId], references: [id], onDelete: SetNull)
-  contacts        ClientContact[]
-  missions        RecruitmentMission[]
-  documents       Document[]
-  tasks           Task[]
+  commercialOwner      User?                 @relation("ClientCommercialOwner", fields: [commercialOwnerUserId], references: [id], onDelete: SetNull)
+  contacts             ClientContact[]
+  missions             RecruitmentMission[]
+  documents            Document[]
+  tasks                Task[]
+  commercialQuotations CommercialQuotation[]
+  commercialContracts  CommercialContract[]
+  purchaseOrders       PurchaseOrder[]
+  invoices             Invoice[]
 
   @@index([normalizedName])
   @@index([status])
@@ -1058,6 +1112,10 @@ model RecruitmentMission {
   documents              Document[]
   tasks                  Task[]
   notifications          Notification[]
+  commercialQuotations   CommercialQuotation[]
+  commercialContracts    CommercialContract[]
+  purchaseOrders         PurchaseOrder[]
+  invoices               Invoice[]
 
   @@index([clientId])
   @@index([state])
@@ -1273,6 +1331,7 @@ model MissionPlacement {
   correctedBy      User?                   @relation("MissionPlacementCorrector", fields: [correctedByUserId], references: [id], onDelete: SetNull)
   events           PlacementEvent[]
   tasks            Task[]
+  invoices         Invoice[]
 
   @@index([missionId])
   @@index([status])
@@ -1617,49 +1676,49 @@ model TaskMention {
 }
 
 model TaskReminder {
-  id              String             @id @default(uuid()) @db.Uuid
-  taskId          String             @db.Uuid
-  recipientUserId String             @db.Uuid
-  creatorUserId   String?            @db.Uuid
-  remindAt        DateTime
-  status          TaskReminderStatus @default(PENDING)
-  idempotencyKey  String
-  processingToken String?
-  claimedAt       DateTime?
-  deliveredAt     DateTime?
-  canceledAt      DateTime?
-  canceledByUserId String?           @db.Uuid
-  failureReason   String?
-  attemptCount    Int                @default(0)
-  archivedAt      DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id               String             @id @default(uuid()) @db.Uuid
+  taskId           String             @db.Uuid
+  recipientUserId  String             @db.Uuid
+  creatorUserId    String?            @db.Uuid
+  remindAt         DateTime
+  status           TaskReminderStatus @default(PENDING)
+  idempotencyKey   String
+  processingToken  String?
+  claimedAt        DateTime?
+  deliveredAt      DateTime?
+  canceledAt       DateTime?
+  canceledByUserId String?            @db.Uuid
+  failureReason    String?
+  attemptCount     Int                @default(0)
+  archivedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   task       Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
   recipient  User  @relation("TaskReminderRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
   creator    User? @relation("TaskReminderCreator", fields: [creatorUserId], references: [id], onDelete: SetNull)
   canceledBy User? @relation("TaskReminderCanceler", fields: [canceledByUserId], references: [id], onDelete: SetNull)
 
+  @@unique([taskId, recipientUserId, idempotencyKey])
   @@index([taskId])
   @@index([recipientUserId])
   @@index([status, remindAt])
   @@index([createdAt])
-  @@unique([taskId, recipientUserId, idempotencyKey])
 }
 
 model TaskEvent {
-  id             String           @id @default(uuid()) @db.Uuid
-  taskId         String           @db.Uuid
-  actorUserId    String?          @db.Uuid
-  action         TaskEventAction
-  previousStatus TaskStatus?
-  nextStatus     TaskStatus?
-  reason         String?
-  safeSummary    String?
-  previousOwnerUserId String?          @db.Uuid
-  nextOwnerUserId     String?          @db.Uuid
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id                  String          @id @default(uuid()) @db.Uuid
+  taskId              String          @db.Uuid
+  actorUserId         String?         @db.Uuid
+  action              TaskEventAction
+  previousStatus      TaskStatus?
+  nextStatus          TaskStatus?
+  reason              String?
+  safeSummary         String?
+  previousOwnerUserId String?         @db.Uuid
+  nextOwnerUserId     String?         @db.Uuid
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   task  Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
   actor User? @relation("TaskEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
@@ -1842,6 +1901,294 @@ model Document {
   @@index([recruitmentMissionId])
   @@index([missionCandidateId])
   @@index([messageId])
+}
+
+model CommercialQuotation {
+  id                   String          @id @default(uuid()) @db.Uuid
+  reference            String          @unique
+  clientId             String          @db.Uuid
+  recruitmentMissionId String?         @db.Uuid
+  currency             String
+  status               QuotationStatus @default(DRAFT)
+  issueDate            DateTime?
+  validUntil           DateTime?
+  subtotalCents        Int             @default(0)
+  taxCents             Int             @default(0)
+  totalCents           Int             @default(0)
+  createdByUserId      String?         @db.Uuid
+  updatedByUserId      String?         @db.Uuid
+  archivedAt           DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  client             Client                     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruitmentMission RecruitmentMission?        @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
+  createdBy          User?                      @relation("CommercialQuotationCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?                      @relation("CommercialQuotationUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  lines              CommercialQuotationLine[]
+  events             CommercialQuotationEvent[]
+  contracts          CommercialContract[]
+  purchaseOrders     PurchaseOrder[]
+  invoices           Invoice[]
+
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([status])
+  @@index([issueDate])
+  @@index([validUntil])
+  @@index([archivedAt])
+}
+
+model CommercialQuotationLine {
+  id                String   @id @default(uuid()) @db.Uuid
+  quotationId       String   @db.Uuid
+  sortOrder         Int
+  description       String
+  quantity          Int
+  unitPriceCents    Int
+  taxRateBps        Int
+  lineSubtotalCents Int
+  lineTaxCents      Int
+  lineTotalCents    Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  quotation CommercialQuotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+
+  @@unique([quotationId, sortOrder])
+  @@index([quotationId])
+}
+
+model CommercialQuotationEvent {
+  id             String           @id @default(uuid()) @db.Uuid
+  quotationId    String           @db.Uuid
+  actorUserId    String?          @db.Uuid
+  action         String
+  previousStatus QuotationStatus?
+  nextStatus     QuotationStatus?
+  reason         String?
+  safeSummary    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  quotation CommercialQuotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  actor     User?               @relation("CommercialQuotationEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([quotationId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model CommercialContract {
+  id                   String                         @id @default(uuid()) @db.Uuid
+  reference            String                         @unique
+  businessType         CommercialContractBusinessType
+  clientId             String                         @db.Uuid
+  recruitmentMissionId String?                        @db.Uuid
+  sourceQuotationId    String?                        @db.Uuid
+  currency             String
+  contractValueCents   Int
+  taxCents             Int                            @default(0)
+  totalCents           Int
+  termsSummary         String?
+  status               CommercialContractStatus       @default(DRAFT)
+  effectiveDate        DateTime?
+  startDate            DateTime?
+  endDate              DateTime?
+  createdByUserId      String?                        @db.Uuid
+  updatedByUserId      String?                        @db.Uuid
+  archivedAt           DateTime?
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+
+  client             Client                    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruitmentMission RecruitmentMission?       @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
+  sourceQuotation    CommercialQuotation?      @relation(fields: [sourceQuotationId], references: [id], onDelete: Restrict)
+  createdBy          User?                     @relation("CommercialContractCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?                     @relation("CommercialContractUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  events             CommercialContractEvent[]
+  purchaseOrders     PurchaseOrder[]
+  invoices           Invoice[]
+
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([sourceQuotationId])
+  @@index([businessType])
+  @@index([status])
+  @@index([archivedAt])
+}
+
+model CommercialContractEvent {
+  id             String                    @id @default(uuid()) @db.Uuid
+  contractId     String                    @db.Uuid
+  actorUserId    String?                   @db.Uuid
+  action         String
+  previousStatus CommercialContractStatus?
+  nextStatus     CommercialContractStatus?
+  reason         String?
+  safeSummary    String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  contract CommercialContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  actor    User?              @relation("CommercialContractEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([contractId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(uuid()) @db.Uuid
+  reference            String              @unique
+  clientId             String              @db.Uuid
+  recruitmentMissionId String?             @db.Uuid
+  quotationId          String?             @db.Uuid
+  contractId           String?             @db.Uuid
+  currency             String
+  amountCents          Int
+  taxCents             Int                 @default(0)
+  totalCents           Int
+  status               PurchaseOrderStatus @default(DRAFT)
+  issueDate            DateTime?
+  receivedDate         DateTime?
+  createdByUserId      String?             @db.Uuid
+  updatedByUserId      String?             @db.Uuid
+  archivedAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  client             Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruitmentMission RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
+  quotation          CommercialQuotation? @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  contract           CommercialContract?  @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  createdBy          User?                @relation("PurchaseOrderCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?                @relation("PurchaseOrderUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  events             PurchaseOrderEvent[]
+  invoices           Invoice[]
+
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([quotationId])
+  @@index([contractId])
+  @@index([status])
+  @@index([archivedAt])
+}
+
+model PurchaseOrderEvent {
+  id              String               @id @default(uuid()) @db.Uuid
+  purchaseOrderId String               @db.Uuid
+  actorUserId     String?              @db.Uuid
+  action          String
+  previousStatus  PurchaseOrderStatus?
+  nextStatus      PurchaseOrderStatus?
+  reason          String?
+  safeSummary     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  actor         User?         @relation("PurchaseOrderEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id                    String        @id @default(uuid()) @db.Uuid
+  reference             String        @unique
+  clientId              String        @db.Uuid
+  recruitmentMissionId  String?       @db.Uuid
+  missionPlacementId    String?       @unique @db.Uuid
+  quotationId           String?       @db.Uuid
+  contractId            String?       @db.Uuid
+  purchaseOrderId       String?       @db.Uuid
+  currency              String
+  status                InvoiceStatus @default(DRAFT)
+  issueDate             DateTime?
+  dueDate               DateTime?
+  subtotalCents         Int           @default(0)
+  taxCents              Int           @default(0)
+  totalCents            Int           @default(0)
+  issuedAt              DateTime?
+  canceledAt            DateTime?
+  canceledByUserId      String?       @db.Uuid
+  cancellationReason    String?
+  correctionOfInvoiceId String?       @db.Uuid
+  createdByUserId       String?       @db.Uuid
+  updatedByUserId       String?       @db.Uuid
+  archivedAt            DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruitmentMission  RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
+  missionPlacement    MissionPlacement?    @relation(fields: [missionPlacementId], references: [id], onDelete: Restrict)
+  quotation           CommercialQuotation? @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  contract            CommercialContract?  @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  purchaseOrder       PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  correctionOfInvoice Invoice?             @relation("InvoiceCorrection", fields: [correctionOfInvoiceId], references: [id], onDelete: SetNull)
+  corrections         Invoice[]            @relation("InvoiceCorrection")
+  createdBy           User?                @relation("InvoiceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy           User?                @relation("InvoiceUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  canceledBy          User?                @relation("InvoiceCanceler", fields: [canceledByUserId], references: [id], onDelete: SetNull)
+  lines               InvoiceLine[]
+  events              InvoiceEvent[]
+
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([quotationId])
+  @@index([contractId])
+  @@index([purchaseOrderId])
+  @@index([status])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@index([archivedAt])
+}
+
+model InvoiceLine {
+  id                String   @id @default(uuid()) @db.Uuid
+  invoiceId         String   @db.Uuid
+  sortOrder         Int
+  description       String
+  quantity          Int
+  unitPriceCents    Int
+  taxRateBps        Int
+  lineSubtotalCents Int
+  lineTaxCents      Int
+  lineTotalCents    Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, sortOrder])
+  @@index([invoiceId])
+}
+
+model InvoiceEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  invoiceId      String         @db.Uuid
+  actorUserId    String?        @db.Uuid
+  action         String
+  previousStatus InvoiceStatus?
+  nextStatus     InvoiceStatus?
+  reason         String?
+  safeSummary    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  actor   User?   @relation("InvoiceEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model DocumentVersion {
