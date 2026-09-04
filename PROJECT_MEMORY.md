@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Training operations foundation, alongside the in-review document management foundation.
+Training operations foundation (Phase 9) after merged task-management, document-management, and recruitment-reporting foundations.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -28,7 +28,8 @@ Training operations foundation, alongside the in-review document management foun
 - Issue #29 is complete; PR #30 merged the internal offer-to-placement lifecycle. Merge commit `249bca8a0fa1a7619dc5f7bbcff44034b5457cc0` includes final blocking-fix commit `440ea9cb3dec204f0e2308eeb7c02cf4dcae4822`; final-head GitHub Actions run `31719561145` passed all jobs.
 - Issue #31 is complete; PR #32 merged internal task management, reminders, comments, and notifications into `main` as commit `621976272e7029b8bbca962684c8ad074b5e7ef8`.
 - Issue #37 is implemented on branch `feat/training-operations` as a draft PR. It adds the internal training-operations module on the existing training records.
-- Current executable goal: review the Issue #37 draft PR and the Issue #35 PR #40, then decide merge ordering across the concurrent Prisma-heavy branches for Issues #35, #37, and #38.
+- Issue #36 is complete; PR #43 merged recruitment reporting, KPI dashboards, and safe exports into `main` as commit `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
+- Current executable goal: review the Issue #37 draft PR, keep it open and unmerged, and require latest-`main` incorporation plus a clean-database migration and full integration run from whichever remaining Prisma-heavy branch merges after it.
 
 ## Confirmed Product Facts
 
@@ -63,6 +64,7 @@ Training operations foundation, alongside the in-review document management foun
 - Training operations expose a durable certificate-readiness boundary derived from enrollment completion, withdrawal, archival, and certificate status. A later document-generation feature consumes it; the training module produces no file and creates no `Document` records for programs, sessions, or enrollments.
 - Training commercial records remain outside training operations. `TrainingEnrollment.paymentStatus` is a pre-existing column that the training API and contracts deliberately do not expose. The stable training identifiers a later commercial feature can consume are the training program id and reference, the training session id, and the training enrollment id.
 - Issue #31 implemented internal task ownership, multiple assignees, lifecycle, comments, explicit mentions, durable in-app reminders, task-generated notifications, filtered list/read/archive notification controls, searchable/filterable task lists, and permission-aware task visibility. It does not implement private messages, external notifications, email, WhatsApp, calendar delivery, accounting, payroll, training, or document generation.
+- Issue #36 implements the first authenticated internal recruitment reporting layer (KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export) computed from existing authoritative records with no second data source and no schema change. Every metric, drilldown, and export applies server-side record scope: broad reporting requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment; filters only narrow scope and never disclose hidden-record existence. Reporting never exposes salary/compensation, commercial, confidential evaluation, internal-note, storage, or secret fields. It does not implement revenue/accounting/profitability, training, or task-productivity analytics. KPI definitions are in `docs/reporting.md`.
 
 ## Technical Direction
 

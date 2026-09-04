@@ -620,6 +620,17 @@ const permissions = [
     description: 'Review public application submissions within authorized mission context.',
     scopeType: PermissionScopeType.EXPLICIT,
   },
+  {
+    code: 'reporting:recruitment:view',
+    description:
+      'View recruitment reporting KPIs, distributions, trends, breakdowns, and drilldowns within authorized mission scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'reporting:recruitment:export',
+    description: 'Export scoped recruitment reporting datasets as safe CSV files.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
 ] as const;
 
 async function main(): Promise<void> {
@@ -762,6 +773,8 @@ async function main(): Promise<void> {
       'public_opportunities:manage',
       'public_opportunities:publish',
       'public_applications:view',
+      'reporting:recruitment:view',
+      'reporting:recruitment:export',
     ],
     [RoleName.HR_MANAGER]: [
       'records:view',
@@ -862,6 +875,8 @@ async function main(): Promise<void> {
       'public_opportunities:manage',
       'public_opportunities:publish',
       'public_applications:view',
+      'reporting:recruitment:view',
+      'reporting:recruitment:export',
     ],
     [RoleName.MANAGER]: [
       'records:view',

@@ -44,6 +44,11 @@ import {
   NotificationListResponseSchema,
   NotificationReadAllRequestSchema,
   NotificationReadAllResponseSchema,
+  ReportingBreakdownsResponseSchema,
+  ReportingDrilldownResponseSchema,
+  ReportingPipelineResponseSchema,
+  ReportingSummaryResponseSchema,
+  ReportingTrendsResponseSchema,
   TaskAssignmentCreateRequestSchema,
   TaskCommentCreateRequestSchema,
   TaskCommentDetailResponseSchema,
@@ -149,6 +154,12 @@ import {
   type NotificationListQuery,
   type NotificationReadAllRequest,
   type NotificationReadAllResponse,
+  type ReportingBreakdownsResponse,
+  type ReportingDrilldownResponse,
+  type ReportingFilterQuery,
+  type ReportingPipelineResponse,
+  type ReportingSummaryResponse,
+  type ReportingTrendsResponse,
   type TaskAssignmentCreateRequest,
   type TaskCommentCreateRequest,
   type TaskCommentDetailResponse,
@@ -2401,4 +2412,125 @@ export async function correctTrainingAttendance(
     apiBaseUrl,
   );
   return TrainingParticipationDetailResponseSchema.parse(await response.json());
+}
+
+type ReportingQuery = ReportingFilterQuery & {
+  interval?: 'day' | 'week';
+  page?: number;
+  pageSize?: number;
+};
+
+async function reportingRequest(
+  accessToken: string,
+  path: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const response = await fetch(`${apiBaseUrl}/v1/reporting/recruitment${path}`, {
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Reporting request failed with status ${response.status}`);
+  }
+  return response;
+}
+
+function reportingQueryPath(path: string, query: ReportingQuery): string {
+  return queryPath(path, {
+    start: query.start,
+    end: query.end,
+    clientId: query.clientId,
+    missionId: query.missionId,
+    recruiterUserId: query.recruiterUserId,
+    pipelineState: query.pipelineState,
+    offerStatus: query.offerStatus,
+    placementStatus: query.placementStatus,
+    source: query.source,
+    interval: query.interval,
+    page: query.page,
+    pageSize: query.pageSize,
+  });
+}
+
+export async function getReportingSummary(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ReportingSummaryResponse> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/summary', query),
+    apiBaseUrl,
+  );
+  return ReportingSummaryResponseSchema.parse(await response.json());
+}
+
+export async function getReportingPipeline(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ReportingPipelineResponse> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/pipeline', query),
+    apiBaseUrl,
+  );
+  return ReportingPipelineResponseSchema.parse(await response.json());
+}
+
+export async function getReportingTrends(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ReportingTrendsResponse> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/trends', query),
+    apiBaseUrl,
+  );
+  return ReportingTrendsResponseSchema.parse(await response.json());
+}
+
+export async function getReportingBreakdowns(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ReportingBreakdownsResponse> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/breakdowns', query),
+    apiBaseUrl,
+  );
+  return ReportingBreakdownsResponseSchema.parse(await response.json());
+}
+
+export async function getReportingDrilldown(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ReportingDrilldownResponse> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/drilldown', query),
+    apiBaseUrl,
+  );
+  return ReportingDrilldownResponseSchema.parse(await response.json());
+}
+
+export async function exportReportingCsv(
+  accessToken: string,
+  query: ReportingQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<{ filename: string; content: string }> {
+  const response = await reportingRequest(
+    accessToken,
+    reportingQueryPath('/export.csv', query),
+    apiBaseUrl,
+  );
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  return {
+    filename: match?.[1] ?? 'recruitment-report.csv',
+    content: await response.text(),
+  };
 }

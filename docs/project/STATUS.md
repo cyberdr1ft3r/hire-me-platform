@@ -5,10 +5,11 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Training operations foundation, alongside the in-review document management foundation
-**Health:** Issue #37 is implemented on branch `feat/training-operations` as a draft PR built from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (includes PR #44). Issue #35 remains in review on PR #40. Issue #38 (training commercial) and Issue #36 (reporting) are being implemented concurrently by other agents and are not dependencies of Issue #37.
-**Current blocker:** Issue #37 awaits ChatGPT review and exact-head CI on its draft PR. Issue #35 still awaits its own human review/merge gate.
-**Next executable development task:** Review the Issue #37 draft PR, then resolve merge ordering between the concurrent Prisma-heavy branches (#35, #37, #38).
+**Phase:** Training operations foundation (Phase 9) after merged task-management, document-management, and recruitment-reporting foundations.
+**Health:** Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`. Issue #37 is implemented on branch `feat/training-operations` as a draft PR. The branch was started from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules) and then integrated latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting). Both the merged reporting behavior and the Issue #37 training behavior are preserved.
+**Parallelization:** Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior.
+**Current blocker:** Issue #37 awaits ChatGPT review and exact-head GitHub Actions on its draft PR.
+**Next executable development task:** Human/ChatGPT review gate for the Issue #37 draft PR, kept open and unmerged.
 
 ## Active work
 
@@ -27,8 +28,9 @@ Status owner: repository maintainer
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded in current branch context by Issue #35 implementation work |
-| Issue #35 | Open | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Validate the Task-to-Document authorization follow-up on PR #40's new exact head, update PR #40, and keep it open/unmerged |
+| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
+| Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
+| Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
 | Issue #37 | Open | Implement training operations foundation: programs, sessions, enrollment, and attendance | Await ChatGPT review and exact-head CI on the draft PR from branch `feat/training-operations`; keep it open/unmerged |
 
 ## Completed foundation work
@@ -216,6 +218,13 @@ Status owner: repository maintainer
 - Task create/update document context links reuse the centralized server-side document visibility policy. Task and notification responses preserve internal FKs but redact `documentId` unless the actor can independently view the linked document at read time.
 - Candidate CV/public-application uploads remain on `CandidateDocument` / `CandidateDocumentVersion`; Issue #35 does not migrate or rewrite that behavior.
 
+## Issue #36 Implementation State
+
+- Issue #36 merged the first authenticated internal recruitment reporting layer through PR #43.
+- API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`. Shared contracts live in `packages/contracts/src/reporting.ts`. No Prisma schema change or migration was required.
+- Reporting requires the reporting capability plus the underlying operational reads, so it cannot bypass operational read permissions. Record scope reuses the mission-candidate oversight model. Reporting never exposes salary/compensation, commercial values, confidential evaluation bodies, internal notes, storage metadata, or secrets.
+- CSV export requires `reporting:recruitment:export`, neutralizes spreadsheet formula injection, rejects over-large exports instead of truncating, and audits only successful exports with safe metadata.
+
 ## Issue #37 Implementation State
 
 - Issue #37 implements the internal training-operations module on the existing training records. No parallel training model was introduced.
@@ -229,6 +238,7 @@ Status owner: repository maintainer
 - Certificate readiness is a derived durable boundary over `completedAt`, withdrawal, archival, and certificate status. No certificate or contract file is generated, and no `Document` records are created for training records.
 - Training commercial data is deliberately absent. `TrainingEnrollment.paymentStatus` remains an untouched pre-existing column and is not exposed. The stable identifiers a later commercial feature can consume are the training program id/reference, training session id, and training enrollment id.
 - Validation ran against a dedicated local PostgreSQL database because a concurrent agent reset the shared development database mid-task.
+- After integrating latest `main` (PR #43 recruitment reporting), the full suite was rerun from a clean database. `pnpm test:db` totals 173 PostgreSQL integration tests across 14 files (140 merged baseline + 33 training).
 
 ## Current open technical questions
 
@@ -250,8 +260,8 @@ Status owner: repository maintainer
 ## Immediate next actions
 
 1. Review the Issue #37 draft PR on branch `feat/training-operations` and keep it open/unmerged until review completes.
-2. Record the new PR #40 exact-head CI evidence, update the PR body with the new head SHA and database test count, and keep PR #40 open/unmerged for human review.
-3. Decide merge ordering between the concurrent Prisma-heavy branches for Issues #35, #37, and #38, and require latest-main incorporation plus a clean-database migration run from whichever branch merges second and third.
+2. Issue #38 may proceed in parallel (commercial/accounting, including training commercial records); Issue #39 remains blocked by Issue #38.
+3. Require latest-`main` incorporation plus a clean-database migration, double seed, and full integration run from whichever of the remaining Prisma-heavy branches merges after Issue #37.
 
 ## Status Update Rules
 
