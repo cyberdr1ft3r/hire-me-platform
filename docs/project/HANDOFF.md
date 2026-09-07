@@ -8,8 +8,10 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 - Issue #37 / PR #45 training operations is merged into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00`.
 - Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46.
-- PR #46 started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now must be reviewed on a head that incorporates `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
-- The latest required work is integration only: preserve merged training operations and existing commercial workflow behavior without adding Issue #39 scope.
+- PR #46 started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates current `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
+- Substantive ChatGPT integration review passed on exact head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
+- Exact-head GitHub Actions run `34166398141` is green: PostgreSQL Docker Compose health, Quality checks, and Database migration, seed, and integration tests all passed, with 210/210 PostgreSQL integration tests across 15 files.
+- The only commit after reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4` should be this narrow docs refresh unless a reviewer requests otherwise.
 - Commercial records remain structured business records, not `Document` records. Generated or signed files remain future `DocumentVersion` outputs.
 - Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, contract terms, and free-form history reasons without `commercial_data:access`.
 - Commercial access is combined with underlying client and mission source scope. Hidden and nonexistent commercial/source UUIDs return the same generic not-found response.
@@ -19,7 +21,7 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Next Action
 
-Run final local validation and exact-head GitHub Actions for PR #46 after latest-main integration, then hand the draft PR back for human/ChatGPT review. Keep PR #46 draft/open/unmerged. Issue #39 remains blocked until Issue #38 is reviewed and merged.
+Complete the final human/ChatGPT merge gate for PR #46. Keep PR #46 draft/open/unmerged until approved. Issue #39 remains blocked until Issue #38 / PR #46 merges.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

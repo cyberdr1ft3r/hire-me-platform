@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Commercial workflow foundation
-**Health:** Issue #37 / PR #45 training operations is merged into `main` at `09c506262ad3284efd69f70440c1ee06175c6e00`. Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46 and now incorporates that latest `origin/main`.
-**Current blocker:** draft PR #46 needs exact-head local validation, GitHub Actions, and human/ChatGPT review after the latest-main integration. It must stay draft/open/unmerged until approved.
-**Next executable development task:** Human/ChatGPT review / merge gate for Issue #38 draft PR #46 after exact-head CI is green; keep Issue #39 blocked until Issue #38 merges.
+**Health:** Issue #37 / PR #45 training operations is merged into `main` at `09c506262ad3284efd69f70440c1ee06175c6e00`. Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46 and incorporates that latest `origin/main`; substantive application, security, concurrency, and migration review passed on head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
+**Current blocker:** draft PR #46 is at the final human/ChatGPT merge gate. Exact-head GitHub Actions run `34166398141` passed all three jobs, including 210/210 PostgreSQL integration tests across 15 files. The PR must stay draft/open/unmerged until approved.
+**Next executable development task:** Human/ChatGPT merge gate for Issue #38 draft PR #46; keep Issue #39 blocked until Issue #38 merges.
 
 ## Active work
 
@@ -31,7 +31,7 @@ Status owner: repository maintainer
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
 | Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
-| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT review of draft PR #46 after exact-head CI; keep it draft/open/unmerged |
+| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Final human/ChatGPT merge gate for draft PR #46; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -253,7 +253,7 @@ Status owner: repository maintainer
 - Historical commercial reads remain available from the durable commercial record scope after parent client or mission archival; new upstream commercial source creation may keep stricter writable-source checks.
 - Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
 - PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
-- Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior; final validation must run on the new exact head before review.
+- Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior. Substantive ChatGPT integration review passed on reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`; exact-head GitHub Actions run `34166398141` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 210/210 PostgreSQL integration tests across 15 files. No implementation, security, concurrency, or migration blocker remains before the final human/ChatGPT merge gate.
 
 ## Current open technical questions
 
@@ -274,9 +274,8 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete exact-head local validation and GitHub Actions for Issue #38 draft PR #46 after incorporating `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
-2. Human/ChatGPT review / merge gate for PR #46; keep the PR draft/open/unmerged until approved.
-3. Issue #39 remains blocked until Issue #38 is reviewed and merged.
+1. Complete the final human/ChatGPT merge gate for Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
+2. Issue #39 remains blocked until Issue #38 / PR #46 merges.
 
 ## Status Update Rules
 
