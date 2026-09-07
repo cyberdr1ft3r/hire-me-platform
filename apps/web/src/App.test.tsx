@@ -1209,6 +1209,109 @@ describe('App', () => {
     );
   });
 
+  it('hides the training workspace from users without the training view permission', async () => {
+    mockTrainingWorkspace(['records:view']);
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'training-operator@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+
+    expect(await screen.findByRole('button', { name: 'Clients' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Training' })).toBeNull();
+  });
+
+  it('shows read-only training operations without permission-gated controls', async () => {
+    mockTrainingWorkspace([
+      'training_programs:view',
+      'training_sessions:view',
+      'training_enrollments:view',
+    ]);
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'training-operator@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Training' }));
+
+    expect(await screen.findByRole('heading', { name: 'Training' })).toBeVisible();
+    expect(
+      await screen.findByRole('button', { name: /Issue37-001 — Internal Onboarding/i }),
+    ).toBeVisible();
+
+    // Management, lifecycle, and archive controls stay hidden without the capability.
+    expect(screen.queryByRole('button', { name: /create training program/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /set program_active/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /archive training program/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /archive participation/i })).toBeNull();
+    expect(screen.queryByLabelText(/set certificate applicability/i)).toBeNull();
+  });
+
+  it('exposes training lifecycle, enrollment, and attendance controls to an authorized operator', async () => {
+    const fetchMock = mockTrainingWorkspace([
+      'training_programs:view',
+      'training_programs:manage',
+      'training_programs:status:manage',
+      'training_programs:archive',
+      'training_sessions:view',
+      'training_sessions:manage',
+      'training_sessions:archive',
+      'training_enrollments:view',
+      'training_enrollments:manage',
+      'training_participation:view',
+      'training_participation:manage',
+      'training_participation:correct',
+      'training_participation:archive',
+    ]);
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'training-operator@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'Synthetic-password-123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Training' }));
+
+    expect(await screen.findByRole('button', { name: /create training program/i })).toBeVisible();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Issue37-001 — Internal Onboarding/i }),
+    );
+
+    expect(await screen.findByRole('button', { name: /set program_active/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /archive training program/i })).toBeVisible();
+    expect(
+      await screen.findByRole('button', { name: /create training enrollment/i }),
+    ).toBeVisible();
+    expect(screen.getByLabelText(/set certificate applicability/i)).toBeVisible();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Day one induction/i }));
+
+    expect(
+      await screen.findByRole('button', { name: /reschedule training session/i }),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: /cancel training session/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /archive training session/i })).toBeVisible();
+    expect(await screen.findByLabelText(/record attendance/i)).toBeVisible();
+    expect(screen.getByLabelText(/correct attendance/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /archive participation/i })).toBeVisible();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/training/programs?'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
   it('hides the reporting navigation from users without reporting permission', async () => {
     mockReportingSession(['records:view']);
 
@@ -1257,6 +1360,174 @@ describe('App', () => {
     );
   });
 });
+
+function syntheticTrainingProgram() {
+  return {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    reference: 'Issue37-001',
+    name: 'Internal Onboarding',
+    description: 'Internal onboarding training program.',
+    targetAudience: 'New internal staff',
+    status: 'PROGRAM_DRAFT',
+    ownerUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    clientId: null,
+    plannedStartDate: null,
+    plannedEndDate: null,
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function syntheticTrainingSession(trainingProgramId: string) {
+  return {
+    id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    trainingProgramId,
+    title: 'Day one induction',
+    sequence: 1,
+    scheduledAt: '2026-09-10T09:00:00.000Z',
+    scheduledEndAt: '2026-09-10T12:00:00.000Z',
+    deliveryMode: 'ONSITE',
+    trainerUserId: null,
+    location: 'Casablanca office',
+    meetingUrl: null,
+    status: 'SESSION_PLANNED',
+    outcome: null,
+    rescheduleCount: 0,
+    previousScheduledAt: null,
+    lastRescheduledAt: null,
+    lastRescheduleReason: null,
+    canceledAt: null,
+    cancellationReason: null,
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function syntheticTrainingEnrollment(trainingProgramId: string) {
+  return {
+    id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    trainingProgramId,
+    participantType: 'CANDIDATE',
+    participant: {
+      candidateId: '11111111-1111-4111-8111-111111111111',
+      userId: null,
+      clientContactId: null,
+      externalTrainingParticipantId: null,
+    },
+    status: 'REGISTERED',
+    enrolledAt: null,
+    withdrawnAt: null,
+    withdrawalReason: null,
+    completedAt: null,
+    certificateStatus: 'NOT_APPLICABLE',
+    certificateReady: false,
+    createdByUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function syntheticTrainingParticipation(trainingSessionId: string, trainingEnrollmentId: string) {
+  return {
+    id: '22222222-2222-4222-8222-222222222222',
+    trainingSessionId,
+    trainingEnrollmentId,
+    status: 'EXPECTED',
+    attendanceRecordedAt: null,
+    recordedByUserId: null,
+    sessionOutcome: null,
+    completionStatus: null,
+    trainerNotes: null,
+    correctionCount: 0,
+    lastCorrectedAt: null,
+    lastCorrectionReason: null,
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function mockTrainingWorkspace(permissions: string[]) {
+  const program = syntheticTrainingProgram();
+  const session = syntheticTrainingSession(program.id);
+  const enrollment = syntheticTrainingEnrollment(program.id);
+  const participation = syntheticTrainingParticipation(session.id, enrollment.id);
+
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = input instanceof Request ? input.url : input.toString();
+
+    if (url.endsWith('/health')) {
+      return Promise.resolve(
+        jsonResponse({
+          status: 'ok',
+          service: 'hire-me-api',
+          timestamp: '2026-09-01T09:00:00.000Z',
+          uptimeSeconds: 1,
+        }),
+      );
+    }
+
+    if (url.endsWith('/auth/refresh')) {
+      return Promise.resolve(new Response('{}', { status: 401 }));
+    }
+
+    if (url.endsWith('/auth/login')) {
+      return Promise.resolve(
+        jsonResponse({
+          accessToken: 'synthetic-access-token',
+          accessTokenExpiresAt: '2026-09-01T09:05:00.000Z',
+          user: {
+            id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            displayName: 'Training Operator',
+            email: 'training-operator@example.test',
+            permissions,
+          },
+        }),
+      );
+    }
+
+    if (url.includes(`/v1/training/programs/${program.id}/sessions/${session.id}/participations`)) {
+      return Promise.resolve(
+        jsonResponse({
+          participations: [participation],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes(`/v1/training/programs/${program.id}/sessions`)) {
+      return Promise.resolve(
+        jsonResponse({
+          sessions: [session],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes(`/v1/training/programs/${program.id}/enrollments`)) {
+      return Promise.resolve(
+        jsonResponse({
+          enrollments: [enrollment],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/training/programs?')) {
+      return Promise.resolve(
+        jsonResponse({
+          programs: [program],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    return Promise.reject(new Error(`Unexpected request ${url}`));
+  });
+}
 
 function mockMissionWorkspace(permissions: string[]) {
   const mission = syntheticMission();

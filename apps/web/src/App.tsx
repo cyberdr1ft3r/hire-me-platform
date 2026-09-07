@@ -35,6 +35,10 @@ import type {
   ReportingSummary,
   ReportingTrendsResponse,
   TaskSummary,
+  TrainingEnrollmentSummary,
+  TrainingParticipationSummary,
+  TrainingProgramSummary,
+  TrainingSessionSummary,
 } from '@hire-me/contracts';
 
 import {
@@ -137,6 +141,26 @@ import {
   addDocumentVersion,
   downloadDocumentVersion,
   updateTaskStatus,
+  archiveTrainingParticipation,
+  archiveTrainingProgram,
+  archiveTrainingSession,
+  cancelTrainingSession,
+  correctTrainingAttendance,
+  createTrainingEnrollment,
+  createTrainingParticipation,
+  createTrainingProgram,
+  createTrainingSession,
+  listTrainingEnrollments,
+  listTrainingParticipations,
+  listTrainingPrograms,
+  listTrainingSessions,
+  rescheduleTrainingSession,
+  updateTrainingAttendance,
+  updateTrainingEnrollmentCertificateStatus,
+  updateTrainingEnrollmentStatus,
+  updateTrainingProgramStatus,
+  updateTrainingSessionStatus,
+  withdrawTrainingEnrollment,
   getReportingSummary,
   getReportingPipeline,
   getReportingBreakdowns,
@@ -151,7 +175,15 @@ type ApiState =
   | { status: 'error'; message: string };
 
 type Route =
-  'home' | 'admin' | 'clients' | 'candidates' | 'missions' | 'tasks' | 'documents' | 'reporting';
+  | 'home'
+  | 'admin'
+  | 'clients'
+  | 'candidates'
+  | 'missions'
+  | 'tasks'
+  | 'documents'
+  | 'training'
+  | 'reporting';
 type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
@@ -160,6 +192,7 @@ const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
 const MISSIONS_ROUTE_PERMISSION = 'missions:view';
 const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
 const TASKS_ROUTE_PERMISSION = 'tasks:view';
+const TRAINING_ROUTE_PERMISSION = 'training_programs:view';
 const REPORTING_ROUTE_PERMISSION = 'reporting:recruitment:view';
 const REPORTING_EXPORT_PERMISSION = 'reporting:recruitment:export';
 
@@ -181,9 +214,11 @@ export function App() {
               ? 'documents'
               : window.location.pathname === '/tasks'
                 ? 'tasks'
-                : window.location.pathname === '/reporting'
-                  ? 'reporting'
-                  : 'home',
+                : window.location.pathname === '/training'
+                  ? 'training'
+                  : window.location.pathname === '/reporting'
+                    ? 'reporting'
+                    : 'home',
   );
 
   useEffect(() => {
@@ -294,9 +329,11 @@ export function App() {
                 ? '/documents'
                 : nextRoute === 'tasks'
                   ? '/tasks'
-                  : nextRoute === 'reporting'
-                    ? '/reporting'
-                    : '/',
+                  : nextRoute === 'training'
+                    ? '/training'
+                    : nextRoute === 'reporting'
+                      ? '/reporting'
+                      : '/',
     );
   }
 
@@ -314,6 +351,7 @@ export function App() {
   const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
   const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
   const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
+  const canOpenTraining = Boolean(user?.permissions.includes(TRAINING_ROUTE_PERMISSION));
   const canOpenReporting = Boolean(user?.permissions.includes(REPORTING_ROUTE_PERMISSION));
 
   return (
@@ -397,6 +435,16 @@ export function App() {
             >
               Tasks
             </button>
+            {canOpenTraining ? (
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('training');
+                }}
+              >
+                Training
+              </button>
+            ) : null}
             {canOpenReporting ? (
               <button
                 type="button"
@@ -495,6 +543,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Tasks">
             <h2>Tasks</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'training' && user && accessToken ? (
+        canOpenTraining ? (
+          <TrainingPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Training">
+            <h2>Training</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -4871,4 +4929,819 @@ async function documentFileInput(file: File) {
     contentType: file.type || 'application/octet-stream',
     base64Content: btoa(binary),
   };
+}
+
+const trainingProgramStatuses: TrainingProgramSummary['status'][] = [
+  'PROGRAM_DRAFT',
+  'PROGRAM_ACTIVE',
+  'PROGRAM_CLOSED',
+  'PROGRAM_ARCHIVED',
+];
+
+const trainingSessionStatusActions: TrainingSessionSummary['status'][] = [
+  'SESSION_SCHEDULED',
+  'SESSION_IN_PROGRESS',
+  'SESSION_COMPLETED',
+  'SESSION_POSTPONED',
+];
+
+type TrainingEnrollmentStatusAction = Exclude<TrainingEnrollmentSummary['status'], 'CANCELED'>;
+type TrainingAttendanceStatusAction = Exclude<
+  TrainingParticipationSummary['status'],
+  'PARTICIPATION_ARCHIVED'
+>;
+
+const trainingEnrollmentStatuses: TrainingEnrollmentStatusAction[] = [
+  'APPROVAL_PENDING',
+  'APPROVED',
+  'PAYMENT_PENDING',
+  'ENROLLED',
+  'EVALUATED',
+  'INDIVIDUAL_COACHING',
+  'CERTIFICATE_ISSUED',
+  'SATISFACTION_RECORDED',
+  'FOLLOW_UP',
+  'CLOSED',
+  'REJECTED',
+];
+
+const trainingAttendanceStatuses: TrainingAttendanceStatusAction[] = [
+  'ATTENDED',
+  'ABSENT',
+  'EXCUSED',
+  'SESSION_OUTCOME_RECORDED',
+];
+
+const trainingParticipantTypes = ['CANDIDATE', 'USER', 'CLIENT_CONTACT', 'EXTERNAL'] as const;
+
+/**
+ * Internal training operations workspace.
+ *
+ * Every control here is gated on the same permission code the API enforces. The UI
+ * gate is a convenience only: the server re-checks capability and record scope on
+ * every request.
+ */
+function TrainingPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [programs, setPrograms] = useState<TrainingProgramSummary[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<TrainingProgramSummary | null>(null);
+  const [sessions, setSessions] = useState<TrainingSessionSummary[]>([]);
+  const [enrollments, setEnrollments] = useState<TrainingEnrollmentSummary[]>([]);
+  const [selectedSession, setSelectedSession] = useState<TrainingSessionSummary | null>(null);
+  const [participations, setParticipations] = useState<TrainingParticipationSummary[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+
+  const canManagePrograms = permissions.includes('training_programs:manage');
+  const canManageProgramStatus = permissions.includes('training_programs:status:manage');
+  const canArchivePrograms = permissions.includes('training_programs:archive');
+  const canViewSessions = permissions.includes('training_sessions:view');
+  const canManageSessions = permissions.includes('training_sessions:manage');
+  const canArchiveSessions = permissions.includes('training_sessions:archive');
+  const canViewEnrollments = permissions.includes('training_enrollments:view');
+  const canManageEnrollments = permissions.includes('training_enrollments:manage');
+  const canViewParticipation = permissions.includes('training_participation:view');
+  const canManageParticipation = permissions.includes('training_participation:manage');
+  const canCorrectAttendance = permissions.includes('training_participation:correct');
+  const canArchiveParticipation = permissions.includes('training_participation:archive');
+
+  useEffect(() => {
+    void loadPrograms();
+  }, []);
+
+  async function loadPrograms(nextSearch = search, nextStatus = statusFilter): Promise<void> {
+    const response = await listTrainingPrograms({
+      accessToken,
+      search: nextSearch || undefined,
+      status: nextStatus || undefined,
+      pageSize: 20,
+    });
+    setPrograms(response.programs);
+  }
+
+  async function handleProgramSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await loadPrograms(search, statusFilter);
+  }
+
+  async function selectProgram(program: TrainingProgramSummary): Promise<void> {
+    setSelectedProgram(program);
+    setSelectedSession(null);
+    setParticipations([]);
+    setMessage(null);
+    if (canViewSessions) {
+      const sessionResponse = await listTrainingSessions({
+        accessToken,
+        programId: program.id,
+        pageSize: 20,
+      });
+      setSessions(sessionResponse.sessions);
+    }
+    if (canViewEnrollments) {
+      const enrollmentResponse = await listTrainingEnrollments({
+        accessToken,
+        programId: program.id,
+        pageSize: 20,
+      });
+      setEnrollments(enrollmentResponse.enrollments);
+    }
+  }
+
+  async function refreshProgram(programId: string): Promise<void> {
+    await loadPrograms();
+    const sessionResponse = canViewSessions
+      ? await listTrainingSessions({ accessToken, programId, pageSize: 20 })
+      : null;
+    if (sessionResponse) {
+      setSessions(sessionResponse.sessions);
+    }
+    const enrollmentResponse = canViewEnrollments
+      ? await listTrainingEnrollments({ accessToken, programId, pageSize: 20 })
+      : null;
+    if (enrollmentResponse) {
+      setEnrollments(enrollmentResponse.enrollments);
+    }
+  }
+
+  async function handleCreateProgram(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const created = await createTrainingProgram(accessToken, {
+      reference: formValue(formData, 'reference'),
+      name: formValue(formData, 'name'),
+      description: optionalFormValue(formData, 'description'),
+      targetAudience: optionalFormValue(formData, 'targetAudience'),
+      ownerUserId: optionalFormValue(formData, 'ownerUserId'),
+      clientId: optionalFormValue(formData, 'clientId'),
+      plannedStartDate: optionalDateTimeFormValue(formData, 'plannedStartDate'),
+      plannedEndDate: optionalDateTimeFormValue(formData, 'plannedEndDate'),
+    });
+    form.reset();
+    setMessage('Training program created.');
+    await loadPrograms();
+    await selectProgram(created.program);
+  }
+
+  async function changeProgramStatus(status: string): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    const updated = await updateTrainingProgramStatus(accessToken, selectedProgram.id, {
+      status: status as 'PROGRAM_DRAFT' | 'PROGRAM_ACTIVE' | 'PROGRAM_CLOSED',
+    });
+    setSelectedProgram(updated.program);
+    setMessage(`Training program status changed to ${updated.program.status}.`);
+    await loadPrograms();
+  }
+
+  async function archiveSelectedProgram(): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    const archived = await archiveTrainingProgram(accessToken, selectedProgram.id);
+    setSelectedProgram(archived.program);
+    setMessage('Training program archived.');
+    await loadPrograms();
+  }
+
+  async function handleCreateSession(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedProgram) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createTrainingSession(accessToken, selectedProgram.id, {
+      title: formValue(formData, 'title'),
+      sequence: optionalNumber(formData, 'sequence'),
+      scheduledAt: dateTimeFormValue(formData, 'scheduledAt'),
+      scheduledEndAt: dateTimeFormValue(formData, 'scheduledEndAt'),
+      deliveryMode: (optionalFormValue(formData, 'deliveryMode') ?? undefined) as
+        'ONSITE' | 'REMOTE' | 'HYBRID' | undefined,
+      trainerUserId: optionalFormValue(formData, 'trainerUserId'),
+      location: optionalFormValue(formData, 'location'),
+    });
+    form.reset();
+    setMessage('Training session scheduled.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function handleRescheduleSession(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const updated = await rescheduleTrainingSession(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      {
+        scheduledAt: dateTimeFormValue(formData, 'scheduledAt'),
+        scheduledEndAt: dateTimeFormValue(formData, 'scheduledEndAt'),
+        reason: optionalFormValue(formData, 'reason'),
+      },
+    );
+    form.reset();
+    setSelectedSession(updated.session);
+    setMessage('Training session rescheduled.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function changeSessionStatus(status: string): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const updated = await updateTrainingSessionStatus(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      {
+        status: status as
+          | 'SESSION_PLANNED'
+          | 'SESSION_SCHEDULED'
+          | 'SESSION_IN_PROGRESS'
+          | 'SESSION_COMPLETED'
+          | 'SESSION_POSTPONED',
+      },
+    );
+    setSelectedSession(updated.session);
+    setMessage(`Training session status changed to ${updated.session.status}.`);
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function handleCancelSession(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const updated = await cancelTrainingSession(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      { reason: formValue(formData, 'reason') },
+    );
+    form.reset();
+    setSelectedSession(updated.session);
+    setMessage('Training session canceled.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function archiveSelectedSession(): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const updated = await archiveTrainingSession(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+    );
+    setSelectedSession(updated.session);
+    setMessage('Training session archived.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function selectSession(session: TrainingSessionSummary): Promise<void> {
+    setSelectedSession(session);
+    setMessage(null);
+    if (!canViewParticipation || !selectedProgram) {
+      setParticipations([]);
+      return;
+    }
+    const response = await listTrainingParticipations({
+      accessToken,
+      programId: selectedProgram.id,
+      sessionId: session.id,
+      pageSize: 20,
+    });
+    setParticipations(response.participations);
+  }
+
+  async function refreshParticipations(): Promise<void> {
+    if (!selectedProgram || !selectedSession || !canViewParticipation) {
+      return;
+    }
+    const response = await listTrainingParticipations({
+      accessToken,
+      programId: selectedProgram.id,
+      sessionId: selectedSession.id,
+      pageSize: 20,
+    });
+    setParticipations(response.participations);
+  }
+
+  async function handleCreateEnrollment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedProgram) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const participantType = formValue(formData, 'participantType') as
+      'CANDIDATE' | 'USER' | 'CLIENT_CONTACT' | 'EXTERNAL';
+    const participantId = formValue(formData, 'participantId');
+    await createTrainingEnrollment(accessToken, selectedProgram.id, {
+      participantType,
+      candidateId: participantType === 'CANDIDATE' ? participantId : undefined,
+      userId: participantType === 'USER' ? participantId : undefined,
+      clientContactId: participantType === 'CLIENT_CONTACT' ? participantId : undefined,
+      externalTrainingParticipantId: participantType === 'EXTERNAL' ? participantId : undefined,
+    });
+    form.reset();
+    setMessage('Training enrollment created.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function changeEnrollmentStatus(enrollmentId: string, status: string): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    await updateTrainingEnrollmentStatus(accessToken, selectedProgram.id, enrollmentId, {
+      status: status as TrainingEnrollmentStatusAction,
+    });
+    setMessage(`Training enrollment status changed to ${status}.`);
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function withdrawEnrollment(enrollmentId: string): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    const reason = window.prompt('Withdrawal reason');
+    if (!reason) {
+      return;
+    }
+    await withdrawTrainingEnrollment(accessToken, selectedProgram.id, enrollmentId, { reason });
+    setMessage('Training enrollment withdrawn.');
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function handleAddParticipation(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createTrainingParticipation(accessToken, selectedProgram.id, selectedSession.id, {
+      trainingEnrollmentId: formValue(formData, 'trainingEnrollmentId'),
+    });
+    form.reset();
+    setMessage('Training participation record added.');
+    await refreshParticipations();
+  }
+
+  async function recordAttendance(participationId: string, status: string): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    await updateTrainingAttendance(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      participationId,
+      { status: status as TrainingAttendanceStatusAction },
+    );
+    setMessage(`Attendance recorded as ${status}.`);
+    await refreshParticipations();
+  }
+
+  async function correctAttendance(participationId: string, status: string): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    const correctionReason = window.prompt('Attendance correction reason');
+    if (!correctionReason) {
+      return;
+    }
+    await correctTrainingAttendance(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      participationId,
+      { status: status as TrainingAttendanceStatusAction, correctionReason },
+    );
+    setMessage('Attendance corrected.');
+    await refreshParticipations();
+  }
+
+  async function setCertificateApplicability(
+    enrollmentId: string,
+    certificateStatus: 'NOT_APPLICABLE' | 'PENDING',
+  ): Promise<void> {
+    if (!selectedProgram) {
+      return;
+    }
+    await updateTrainingEnrollmentCertificateStatus(accessToken, selectedProgram.id, enrollmentId, {
+      certificateStatus,
+    });
+    setMessage(`Certificate applicability set to ${certificateStatus}.`);
+    await refreshProgram(selectedProgram.id);
+  }
+
+  async function archiveParticipation(participationId: string): Promise<void> {
+    if (!selectedProgram || !selectedSession) {
+      return;
+    }
+    await archiveTrainingParticipation(
+      accessToken,
+      selectedProgram.id,
+      selectedSession.id,
+      participationId,
+    );
+    setMessage('Participation archived.');
+    await refreshParticipations();
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Training">
+      <div className="admin-grid">
+        <section aria-label="Training program list">
+          <h2>Training</h2>
+          <form className="inline-form" onSubmit={(event) => void handleProgramSearch(event)}>
+            <label>
+              Search
+              <input
+                name="search"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                name="status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value)}
+              >
+                <option value="">Any</option>
+                {trainingProgramStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Filter programs</button>
+          </form>
+
+          <ul>
+            {programs.map((program) => (
+              <li key={program.id}>
+                <button type="button" onClick={() => void selectProgram(program)}>
+                  {program.reference} — {program.name} ({program.status})
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {canManagePrograms ? (
+            <form onSubmit={(event) => void handleCreateProgram(event)}>
+              <h3>Create training program</h3>
+              <label>
+                Reference
+                <input name="reference" required />
+              </label>
+              <label>
+                Name
+                <input name="name" required />
+              </label>
+              <label>
+                Description
+                <input name="description" />
+              </label>
+              <label>
+                Target audience
+                <input name="targetAudience" />
+              </label>
+              <label>
+                Owner user ID
+                <input name="ownerUserId" />
+              </label>
+              <label>
+                Client ID
+                <input name="clientId" />
+              </label>
+              <label>
+                Planned start
+                <input name="plannedStartDate" type="datetime-local" />
+              </label>
+              <label>
+                Planned end
+                <input name="plannedEndDate" type="datetime-local" />
+              </label>
+              <button type="submit">Create training program</button>
+            </form>
+          ) : null}
+        </section>
+
+        <section aria-label="Training program detail">
+          {selectedProgram ? (
+            <>
+              <h3>
+                {selectedProgram.reference} — {selectedProgram.name}
+              </h3>
+              <p>Status: {selectedProgram.status}</p>
+              <p>Client context: {selectedProgram.clientId ?? 'None'}</p>
+
+              {canManageProgramStatus ? (
+                <div className="action-row">
+                  {(['PROGRAM_ACTIVE', 'PROGRAM_CLOSED'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => void changeProgramStatus(status)}
+                    >
+                      Set {status}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {canArchivePrograms ? (
+                <button type="button" onClick={() => void archiveSelectedProgram()}>
+                  Archive training program
+                </button>
+              ) : null}
+
+              {canViewSessions ? (
+                <section aria-label="Training sessions">
+                  <h3>Sessions</h3>
+                  <ul>
+                    {sessions.map((session) => (
+                      <li key={session.id}>
+                        <button type="button" onClick={() => void selectSession(session)}>
+                          {session.title} — {session.status} ({session.scheduledAt})
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {canManageSessions ? (
+                    <form onSubmit={(event) => void handleCreateSession(event)}>
+                      <h4>Schedule session</h4>
+                      <label>
+                        Title
+                        <input name="title" required />
+                      </label>
+                      <label>
+                        Sequence
+                        <input name="sequence" type="number" min="1" />
+                      </label>
+                      <label>
+                        Start
+                        <input name="scheduledAt" type="datetime-local" required />
+                      </label>
+                      <label>
+                        End
+                        <input name="scheduledEndAt" type="datetime-local" required />
+                      </label>
+                      <label>
+                        Delivery mode
+                        <select name="deliveryMode" defaultValue="ONSITE">
+                          <option value="ONSITE">ONSITE</option>
+                          <option value="REMOTE">REMOTE</option>
+                          <option value="HYBRID">HYBRID</option>
+                        </select>
+                      </label>
+                      <label>
+                        Trainer user ID
+                        <input name="trainerUserId" />
+                      </label>
+                      <label>
+                        Location
+                        <input name="location" />
+                      </label>
+                      <button type="submit">Schedule training session</button>
+                    </form>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {canViewEnrollments ? (
+                <section aria-label="Training enrollments">
+                  <h3>Enrollments</h3>
+                  <ul>
+                    {enrollments.map((enrollment) => (
+                      <li key={enrollment.id}>
+                        {enrollment.participantType} — {enrollment.status}
+                        {enrollment.certificateReady ? ' — certificate ready' : ''}
+                        {canManageEnrollments ? (
+                          <span className="action-row">
+                            <select
+                              aria-label={`Set enrollment status ${enrollment.id}`}
+                              defaultValue=""
+                              onChange={(event) => {
+                                const next = event.currentTarget.value;
+                                if (next) {
+                                  void changeEnrollmentStatus(enrollment.id, next);
+                                }
+                              }}
+                            >
+                              <option value="">Change status</option>
+                              {trainingEnrollmentStatuses.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => void withdrawEnrollment(enrollment.id)}
+                            >
+                              Withdraw
+                            </button>
+                            <select
+                              aria-label={`Set certificate applicability ${enrollment.id}`}
+                              defaultValue=""
+                              onChange={(event) => {
+                                const next = event.currentTarget.value;
+                                if (next) {
+                                  void setCertificateApplicability(
+                                    enrollment.id,
+                                    next as 'NOT_APPLICABLE' | 'PENDING',
+                                  );
+                                }
+                              }}
+                            >
+                              <option value="">Certificate applicability</option>
+                              <option value="PENDING">PENDING</option>
+                              <option value="NOT_APPLICABLE">NOT_APPLICABLE</option>
+                            </select>
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {canManageEnrollments ? (
+                    <form onSubmit={(event) => void handleCreateEnrollment(event)}>
+                      <h4>Enroll participant</h4>
+                      <label>
+                        Participant type
+                        <select name="participantType" defaultValue="CANDIDATE">
+                          {trainingParticipantTypes.map((participantType) => (
+                            <option key={participantType} value={participantType}>
+                              {participantType}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Participant ID
+                        <input name="participantId" required />
+                      </label>
+                      <button type="submit">Create training enrollment</button>
+                    </form>
+                  ) : null}
+                </section>
+              ) : null}
+            </>
+          ) : (
+            <p>Select a training program to see sessions, enrollment, and attendance.</p>
+          )}
+        </section>
+
+        <section aria-label="Training session attendance">
+          {selectedSession ? (
+            <>
+              <h3>{selectedSession.title}</h3>
+              <p>Status: {selectedSession.status}</p>
+              <p>Reschedules: {selectedSession.rescheduleCount}</p>
+
+              {canManageSessions ? (
+                <>
+                  <div className="action-row">
+                    {trainingSessionStatusActions.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => void changeSessionStatus(status)}
+                      >
+                        Set {status}
+                      </button>
+                    ))}
+                  </div>
+                  <form onSubmit={(event) => void handleRescheduleSession(event)}>
+                    <h4>Reschedule session</h4>
+                    <label>
+                      New start
+                      <input name="scheduledAt" type="datetime-local" required />
+                    </label>
+                    <label>
+                      New end
+                      <input name="scheduledEndAt" type="datetime-local" required />
+                    </label>
+                    <label>
+                      Reason
+                      <input name="reason" />
+                    </label>
+                    <button type="submit">Reschedule training session</button>
+                  </form>
+                  <form onSubmit={(event) => void handleCancelSession(event)}>
+                    <h4>Cancel session</h4>
+                    <label>
+                      Cancellation reason
+                      <input name="reason" required />
+                    </label>
+                    <button type="submit">Cancel training session</button>
+                  </form>
+                </>
+              ) : null}
+              {canArchiveSessions ? (
+                <button type="button" onClick={() => void archiveSelectedSession()}>
+                  Archive training session
+                </button>
+              ) : null}
+
+              {canViewParticipation ? (
+                <section aria-label="Session participation">
+                  <h4>Attendance</h4>
+                  <ul>
+                    {participations.map((participation) => (
+                      <li key={participation.id}>
+                        {participation.trainingEnrollmentId} — {participation.status}
+                        {participation.correctionCount > 0
+                          ? ` — corrections: ${participation.correctionCount}`
+                          : ''}
+                        {canManageParticipation ? (
+                          <select
+                            aria-label={`Record attendance ${participation.id}`}
+                            defaultValue=""
+                            onChange={(event) => {
+                              const next = event.currentTarget.value;
+                              if (next) {
+                                void recordAttendance(participation.id, next);
+                              }
+                            }}
+                          >
+                            <option value="">Record attendance</option>
+                            {trainingAttendanceStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        {canArchiveParticipation ? (
+                          <button
+                            type="button"
+                            onClick={() => void archiveParticipation(participation.id)}
+                          >
+                            Archive participation
+                          </button>
+                        ) : null}
+                        {canCorrectAttendance ? (
+                          <select
+                            aria-label={`Correct attendance ${participation.id}`}
+                            defaultValue=""
+                            onChange={(event) => {
+                              const next = event.currentTarget.value;
+                              if (next) {
+                                void correctAttendance(participation.id, next);
+                              }
+                            }}
+                          >
+                            <option value="">Correct attendance</option>
+                            {trainingAttendanceStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {canManageParticipation ? (
+                    <form onSubmit={(event) => void handleAddParticipation(event)}>
+                      <label>
+                        Enrollment ID
+                        <input name="trainingEnrollmentId" required />
+                      </label>
+                      <button type="submit">Add participation record</button>
+                    </form>
+                  ) : null}
+                </section>
+              ) : null}
+            </>
+          ) : (
+            <p>Select a training session to manage attendance.</p>
+          )}
+        </section>
+      </div>
+
+      {message ? <p role="status">{message}</p> : null}
+    </section>
+  );
 }

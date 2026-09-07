@@ -279,6 +279,32 @@ Document list queries apply document visibility, linked-context scope, archive r
 
 Document version writes assign version numbers while holding a PostgreSQL `Document` row lock and preserve older version rows. Metadata update and archive audit records are written in the same transaction as their mutations. API responses expose safe metadata only; storage keys, filesystem paths, file contents, and public file URLs are not returned. Downloads stream through an authorized API endpoint that rechecks document permission and linked business-context scope at request time. JSON uploads use strict base64 with an encoded input cap and a 4 MB raw file limit so the public application JSON limit remains unchanged. Uploaded filenames preserve a safe original basename for audit/display metadata and use a separate sanitized filename for downloads. File validation checks MIME type, extension, content signature, rejects dangerous extensions, and accepts DOCX/XLSX only when bounded ZIP package metadata contains the expected OOXML manifest and main document/workbook entries.
 
+### Training Operations Module
+
+Issue #37 implements the first internal training-operations module on the existing
+training records rather than a parallel training model. It lives in the API as a
+dedicated `training` module with permission-guarded `/v1/training` endpoints, its own
+Prisma-independent contracts, and its own audit service.
+
+Sessions, enrollments, and participation are exposed as routes nested under their
+training program so that the parent chain is validated server-side on every request.
+Concurrency safety uses PostgreSQL row locks taken in a fixed order (program, session,
+enrollment, participation) plus database unique constraints for active enrollment and
+for session participation.
+
+Audit entries are written inside the same transaction as the mutation they describe, so
+a rejected training action leaves neither partial state nor a misleading history entry.
+
+Training business records are not `Document` records. This module deliberately creates
+no `Document` rows for programs, sessions, or enrollments. It exposes a durable
+completion/certificate-readiness boundary that a later document-generation feature can
+consume for `CONTRAT_FORMATION`-related output, but it renders and distributes nothing.
+
+Training commercial concerns (pricing, quotations, invoicing, payments, revenue,
+profitability) are out of this module. The stable training identifiers and context a
+later commercial feature can consume are the training program id and reference, the
+training session id, and the training enrollment id.
+
 ### Data Migration
 
 The architecture must support initial migration of approximately:

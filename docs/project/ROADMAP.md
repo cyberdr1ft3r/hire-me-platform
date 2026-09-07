@@ -139,11 +139,17 @@ Full legal accounting, general ledger, statutory tax declarations, bank reconcil
 
 ## Phase 9 - Training and coaching
 
-**State:** Planned; issues not yet created
+**State:** Training operations foundation in review through Issue #37 on branch `feat/training-operations`
 
-- Training programs, sessions, enrollment, per-session attendance, assessment, certificates, and follow-up.
+- Implemented: training programs, sessions, enrollment, per-session attendance, deterministic
+  lifecycles, client-linked record scope, and the durable certificate-readiness boundary.
 - Trainers and internal training operators use authenticated internal accounts.
 - Training participants are records by default and do not require accounts.
+- Remaining future work: detailed assessment and exam content, certificate and training-contract
+  file generation, satisfaction and follow-up workflows beyond their lifecycle states, coaching
+  program specifics, calendar delivery, and any learner-facing portal.
+- Training commercial records (pricing, quotations, invoicing, payments, revenue, profitability)
+  belong to Phase 8 and are not part of Issue #37.
 
 ## Phase 10 - Optional future client portal
 
