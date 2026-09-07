@@ -54,16 +54,15 @@ const OPERATIONAL_READS = [
   'offers:view',
   'placements:view',
 ] as const;
-// Every permission this suite grants to shared roles; archived in afterAll to restore
-// the seeded baseline for later suites in the run.
-const REPORTING_GRANTED_CODES = [
-  REPORTING_VIEW,
-  REPORTING_EXPORT,
-  BROAD_SCOPE,
-  ...OPERATIONAL_READS,
-] as const;
-
 const ids: Record<string, string> = {};
+type RolePermissionSnapshot = {
+  roleExisted: boolean;
+  permissions: {
+    permissionId: string;
+    grantedAt: Date;
+    archivedAt: Date | null;
+  }[];
+};
 
 async function cleanReportingRecords(): Promise<void> {
   await prisma.auditLog.deleteMany({
@@ -167,6 +166,63 @@ async function archivePermissions(
     where: { role: { name: roleName }, permission: { code: { in: [...permissionCodes] } } },
     data: { archivedAt: new Date() },
   });
+}
+
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUnique({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  if (!role) {
+    return { roleExisted: false, permissions: [] };
+  }
+  return {
+    roleExisted: true,
+    permissions: role.permissions.map((rolePermission) => ({
+      permissionId: rolePermission.permissionId,
+      grantedAt: rolePermission.grantedAt,
+      archivedAt: rolePermission.archivedAt,
+    })),
+  };
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  if (!snapshot.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: {
+        notIn: snapshot.permissions.map((rolePermission) => rolePermission.permissionId),
+      },
+    },
+  });
+  for (const rolePermission of snapshot.permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
+      },
+      update: {
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+      create: {
+        roleId: role.id,
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+    });
+  }
 }
 
 async function createUser(email: string, roleName: RoleName): Promise<string> {
@@ -527,6 +583,7 @@ async function seedFixture(): Promise<void> {
 describe('Recruitment reporting API', () => {
   let app: INestApplication;
   let baseUrl: string;
+  const roleSnapshots = new Map<RoleName, RolePermissionSnapshot>();
 
   async function login(email: string): Promise<string> {
     const response = await fetch(`${baseUrl}/auth/login`, {
@@ -559,6 +616,15 @@ describe('Recruitment reporting API', () => {
 
   beforeAll(async () => {
     await cleanReportingRecords();
+    for (const role of [
+      RoleName.SUPER_ADMIN,
+      RoleName.MANAGER,
+      RoleName.TEAM_LEADER,
+      RoleName.GUEST,
+      RoleName.EMPLOYEE,
+    ]) {
+      roleSnapshots.set(role, await snapshotRolePermissions(role));
+    }
     await seedFixture();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -569,14 +635,8 @@ describe('Recruitment reporting API', () => {
   afterAll(async () => {
     await app.close();
     await cleanReportingRecords();
-    // Restore the seeded baseline: these shared roles hold none of the granted codes.
-    for (const role of [
-      RoleName.MANAGER,
-      RoleName.TEAM_LEADER,
-      RoleName.GUEST,
-      RoleName.EMPLOYEE,
-    ]) {
-      await archivePermissions(role, REPORTING_GRANTED_CODES);
+    for (const [role, snapshot] of roleSnapshots.entries()) {
+      await restoreRolePermissions(role, snapshot);
     }
     await prisma.$disconnect();
   }, 60000);

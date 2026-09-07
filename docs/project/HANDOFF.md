@@ -10,10 +10,12 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - The branch started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, then incorporated latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` after Issue #36 / PR #43 merged.
 - Issue #31, Issue #35, and Issue #36 are merged into `main`; task management, centralized document management, and recruitment reporting are baseline behavior.
 - The branch implements structured quotations, commercial contracts, purchase orders, and invoices as business records, not `Document` records.
-- Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, and contract terms without `commercial_data:access`.
+- Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, contract terms, and free-form history reasons without `commercial_data:access`.
+- Commercial access is combined with underlying source scope: `clients:view` for every commercial record, and `missions:view` plus either `mission_candidates:transfer` or active `MissionRecruiter` assignment for mission-linked records.
 - Totals are calculated server-side. Issued invoice totals and lines are immutable snapshots.
-- Cross-client links between clients, missions, quotations, contracts, purchase orders, placements, and correction invoices are rejected server-side.
-- Placement-backed invoicing uses authoritative confirmed `MissionPlacement` eligibility. Accepted offers and historical legacy integration metadata do not authorize invoices.
+- Links between clients, missions, quotations, contracts, purchase orders, correction invoices, and placements are checked server-side for same client, compatible business context, matching currency, required source status, and actor access.
+- Placement-backed invoicing uses authoritative locked/re-read confirmed `MissionPlacement` eligibility. Accepted offers and historical legacy integration metadata do not authorize invoices.
+- Default commercial lists exclude archived records; `includeArchived=true` must be explicit. Archive/status retries are idempotent and do not duplicate domain history or global audit rows.
 - Payments, partial payments, overdue balances, expenses, client balances, revenue/profitability, settlement behavior, generated files, e-signature, external portals, training operations, private messages/groups, email, WhatsApp, and calendar delivery remain out of scope.
 - Local PostgreSQL validation used Docker Compose PostgreSQL on `127.0.0.1:55442`; `.env` is local ignored runtime config.
 

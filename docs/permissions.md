@@ -195,7 +195,9 @@ Issue #38 implements these route permissions:
 | `invoices:view` | View invoice metadata and lifecycle state. Amounts and lines also require `commercial_data:access`. |
 | `invoices:manage` | Create/update/issue/cancel/archive invoices. Writes also require `commercial_data:access`. |
 
-Commercial record APIs enforce same-client relationship checks for linked clients, missions, quotations, contracts, purchase orders, correction invoices, and placements. Placement-backed invoice creation requires `placement_commercial_eligibility:view` and an eligible confirmed `MissionPlacement`.
+Commercial record APIs combine the route permission with source-record scope. Every commercial record requires access to its `Client` through `clients:view`; mission-linked records additionally require `missions:view` plus either `mission_candidates:transfer` broad mission oversight or an active `MissionRecruiter` assignment on that mission. Lists apply that scope in the database predicate and hide inaccessible records without existence-sensitive errors. Detail, create, update, lifecycle, and archive paths re-check the same source scope after locking the mutated commercial row or linked source rows.
+
+Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources must belong to the same client, business context, and currency, and must be in the required source state. Training contracts cannot attach to recruitment-mission context. Placement-backed invoice creation also requires `placements:view`, `placement_commercial_eligibility:view`, and an eligible confirmed `MissionPlacement`; accepted offers and legacy integration metadata do not authorize invoices.
 
 ## Implemented Document Permissions
 

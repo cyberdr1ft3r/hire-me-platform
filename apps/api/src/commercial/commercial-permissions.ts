@@ -8,8 +8,5 @@ export const COMMERCIAL_PERMISSIONS = {
   PURCHASE_ORDERS_MANAGE: 'purchase_orders:manage',
   INVOICES_VIEW: 'invoices:view',
   INVOICES_MANAGE: 'invoices:manage',
-  MISSIONS_VIEW: 'missions:view',
-  MISSION_COMMERCIAL_DATA_VIEW: 'mission_commercial_data:view',
-  MISSION_COMMERCIAL_DATA_UPDATE: 'mission_commercial_data:update',
   PLACEMENT_COMMERCIAL_ELIGIBILITY_VIEW: 'placement_commercial_eligibility:view',
 } as const;

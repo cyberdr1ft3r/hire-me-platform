@@ -15,6 +15,7 @@ import {
   MissionCandidateState,
   OfferStatus,
   PlacementStatus,
+  PermissionScopeType,
   PrismaClient,
   RoleName,
   UserStatus,
@@ -23,6 +24,31 @@ import {
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
 const testPassword = 'Synthetic-passphrase-123!';
+type RolePermissionSnapshot = {
+  roleExisted: boolean;
+  permissions: {
+    permissionId: string;
+    grantedAt: Date;
+    archivedAt: Date | null;
+  }[];
+};
+
+const commercialPermissions = [
+  'commercial_data:access',
+  'clients:view',
+  'missions:view',
+  'mission_candidates:transfer',
+  'placements:view',
+  'placement_commercial_eligibility:view',
+  'quotations:view',
+  'quotations:manage',
+  'contracts:view',
+  'contracts:manage',
+  'purchase_orders:view',
+  'purchase_orders:manage',
+  'invoices:view',
+  'invoices:manage',
+];
 
 async function cleanCommercialTestRecords(): Promise<void> {
   await prisma.invoiceEvent.deleteMany({
@@ -117,6 +143,116 @@ async function createUser(email: string, roleName: RoleName): Promise<string> {
   return user.id;
 }
 
+async function ensureRoleWithPermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  const role = await prisma.role.upsert({
+    where: { name: roleName },
+    update: { status: 'ACTIVE', archivedAt: null },
+    create: {
+      name: roleName,
+      description: `Synthetic ${roleName} role for commercial tests.`,
+      status: 'ACTIVE',
+    },
+  });
+  for (const code of permissionCodes) {
+    const permission = await prisma.permission.upsert({
+      where: { code },
+      update: {
+        description: `Synthetic ${code} permission for commercial tests.`,
+        scopeType: PermissionScopeType.EXPLICIT,
+        status: 'ACTIVE',
+      },
+      create: {
+        code,
+        description: `Synthetic ${code} permission for commercial tests.`,
+        scopeType: PermissionScopeType.EXPLICIT,
+        status: 'ACTIVE',
+      },
+    });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
+      update: { archivedAt: null },
+      create: { roleId: role.id, permissionId: permission.id },
+    });
+  }
+}
+
+async function ensureRoleWithOnlyPermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  const role = await prisma.role.upsert({
+    where: { name: roleName },
+    update: { status: 'ACTIVE', archivedAt: null },
+    create: {
+      name: roleName,
+      description: `Synthetic ${roleName} role for commercial tests.`,
+      status: 'ACTIVE',
+    },
+  });
+  await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+  await ensureRoleWithPermissions(roleName, permissionCodes);
+}
+
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUnique({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  if (!role) {
+    return { roleExisted: false, permissions: [] };
+  }
+  return {
+    roleExisted: true,
+    permissions: role.permissions.map((rolePermission) => ({
+      permissionId: rolePermission.permissionId,
+      grantedAt: rolePermission.grantedAt,
+      archivedAt: rolePermission.archivedAt,
+    })),
+  };
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  if (!snapshot.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: {
+        notIn: snapshot.permissions.map((rolePermission) => rolePermission.permissionId),
+      },
+    },
+  });
+  for (const rolePermission of snapshot.permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
+      },
+      update: {
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+      create: {
+        roleId: role.id,
+        permissionId: rolePermission.permissionId,
+        grantedAt: rolePermission.grantedAt,
+        archivedAt: rolePermission.archivedAt,
+      },
+    });
+  }
+}
+
 async function loginAccessToken(baseUrl: string, email: string): Promise<string> {
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
@@ -181,12 +317,42 @@ describe('commercial workflow foundation', () => {
   let app: INestApplication;
   let baseUrl: string;
   let commercialUserId: string;
+  let scopedUserId: string;
   let commercialToken: string;
+  let scopedToken: string;
+  let noClientScopeToken: string;
   let viewerToken: string;
+  let superAdminRoleSnapshot: RolePermissionSnapshot;
+  let adminRoleSnapshot: RolePermissionSnapshot;
+  let managerRoleSnapshot: RolePermissionSnapshot;
+  let employeeRoleSnapshot: RolePermissionSnapshot;
 
   beforeAll(async () => {
     await cleanCommercialTestRecords();
+    superAdminRoleSnapshot = await snapshotRolePermissions(RoleName.SUPER_ADMIN);
+    adminRoleSnapshot = await snapshotRolePermissions(RoleName.ADMIN);
+    managerRoleSnapshot = await snapshotRolePermissions(RoleName.MANAGER);
+    employeeRoleSnapshot = await snapshotRolePermissions(RoleName.EMPLOYEE);
+    await ensureRoleWithOnlyPermissions(RoleName.SUPER_ADMIN, commercialPermissions);
+    await ensureRoleWithOnlyPermissions(RoleName.ADMIN, [
+      'clients:view',
+      'missions:view',
+      'quotations:view',
+      'contracts:view',
+      'purchase_orders:view',
+      'invoices:view',
+    ]);
+    await ensureRoleWithOnlyPermissions(
+      RoleName.MANAGER,
+      commercialPermissions.filter((permission) => permission !== 'mission_candidates:transfer'),
+    );
+    await ensureRoleWithOnlyPermissions(
+      RoleName.EMPLOYEE,
+      commercialPermissions.filter((permission) => permission !== 'clients:view'),
+    );
     commercialUserId = await createUser('operator@commercial.test', RoleName.SUPER_ADMIN);
+    scopedUserId = await createUser('scoped@commercial.test', RoleName.MANAGER);
+    await createUser('no-client-scope@commercial.test', RoleName.EMPLOYEE);
     await createUser('viewer@commercial.test', RoleName.ADMIN);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -194,12 +360,18 @@ describe('commercial workflow foundation', () => {
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
     commercialToken = await loginAccessToken(baseUrl, 'operator@commercial.test');
+    scopedToken = await loginAccessToken(baseUrl, 'scoped@commercial.test');
+    noClientScopeToken = await loginAccessToken(baseUrl, 'no-client-scope@commercial.test');
     viewerToken = await loginAccessToken(baseUrl, 'viewer@commercial.test');
   });
 
   afterAll(async () => {
     await app?.close();
     await cleanCommercialTestRecords();
+    await restoreRolePermissions(RoleName.SUPER_ADMIN, superAdminRoleSnapshot);
+    await restoreRolePermissions(RoleName.ADMIN, adminRoleSnapshot);
+    await restoreRolePermissions(RoleName.MANAGER, managerRoleSnapshot);
+    await restoreRolePermissions(RoleName.EMPLOYEE, employeeRoleSnapshot);
     await prisma.$disconnect();
   });
 
@@ -524,5 +696,514 @@ describe('commercial workflow foundation', () => {
         where: { entityType: 'Invoice', entityId: invoice.id, action: 'commercial.invoice.issued' },
       }),
     ).toBe(1);
+  });
+
+  it('combines commercial permissions with client and mission record scope', async () => {
+    const assigned = await createClientAndMission('Issue38 Scope Assigned', scopedUserId);
+    const hidden = await createClientAndMission('Issue38 Scope Hidden', commercialUserId);
+
+    const assignedResponse = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'Q38-SCOPE-ASSIGNED',
+        clientId: assigned.client.id,
+        recruitmentMissionId: assigned.mission.id,
+        currency: 'MAD',
+        lines: [{ description: 'Scoped', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    const assignedQuotation = QuotationDetailResponseSchema.parse(
+      await assignedResponse.json(),
+    ).quotation;
+    const hiddenResponse = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'Q38-SCOPE-HIDDEN',
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        lines: [{ description: 'Hidden', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    const hiddenQuotation = QuotationDetailResponseSchema.parse(
+      await hiddenResponse.json(),
+    ).quotation;
+
+    const scopedList = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      headers: authHeaders(scopedToken),
+    });
+    const scopedBody = (await scopedList.json()) as { quotations: { id: string }[] };
+    expect(scopedBody.quotations.map((quotation) => quotation.id)).toContain(assignedQuotation.id);
+    expect(scopedBody.quotations.map((quotation) => quotation.id)).not.toContain(
+      hiddenQuotation.id,
+    );
+
+    const hiddenDetail = await fetch(`${baseUrl}/v1/commercial/quotations/${hiddenQuotation.id}`, {
+      headers: authHeaders(scopedToken),
+    });
+    expect(hiddenDetail.status).toBe(404);
+    expect(await readErrorCode(hiddenDetail)).toBe('COMMERCIAL_RECORD_NOT_FOUND');
+
+    const scopedCreateHidden = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      method: 'POST',
+      headers: authHeaders(scopedToken),
+      body: JSON.stringify({
+        reference: 'Q38-SCOPE-CREATE-HIDDEN',
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        lines: [{ description: 'Hidden create', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(scopedCreateHidden.status).toBe(404);
+    expect(await readErrorCode(scopedCreateHidden)).toBe('COMMERCIAL_SOURCE_NOT_FOUND');
+
+    const noClientScope = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      method: 'POST',
+      headers: authHeaders(noClientScopeToken),
+      body: JSON.stringify({
+        reference: 'Q38-NO-CLIENT-SCOPE',
+        clientId: assigned.client.id,
+        currency: 'MAD',
+        lines: [{ description: 'No client', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(noClientScope.status).toBe(404);
+    expect(await readErrorCode(noClientScope)).toBe('COMMERCIAL_SOURCE_NOT_FOUND');
+  });
+
+  it('validates quotation to contract and purchase-order source context, currency, and state', async () => {
+    const { client, mission } = await createClientAndMission('Issue38 Chain A', commercialUserId);
+    const otherMission = await prisma.recruitmentMission.create({
+      data: { clientId: client.id, title: 'Issue38 Chain B', numberOfPositions: 1 },
+    });
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-CHAIN');
+    await prisma.commercialQuotation.update({
+      where: { id: quotation.id },
+      data: { status: 'ACCEPTED', recruitmentMissionId: mission.id },
+    });
+
+    const contextMismatch = await fetch(`${baseUrl}/v1/commercial/contracts`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'C38-CHAIN-CONTEXT',
+        businessType: 'RECRUITMENT',
+        clientId: client.id,
+        recruitmentMissionId: otherMission.id,
+        sourceQuotationId: quotation.id,
+        currency: 'MAD',
+        contractValueCents: 100,
+      }),
+    });
+    expect(await readErrorCode(contextMismatch)).toBe('CONTRACT_QUOTATION_CONTEXT_MISMATCH');
+
+    const currencyMismatch = await fetch(`${baseUrl}/v1/commercial/contracts`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'C38-CHAIN-CURRENCY',
+        businessType: 'RECRUITMENT',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        sourceQuotationId: quotation.id,
+        currency: 'EUR',
+        contractValueCents: 100,
+      }),
+    });
+    expect(await readErrorCode(currencyMismatch)).toBe('CONTRACT_QUOTATION_CURRENCY_MISMATCH');
+
+    const trainingBlocked = await fetch(`${baseUrl}/v1/commercial/contracts`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'C38-TRAINING-MISSION',
+        businessType: 'TRAINING',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        currency: 'MAD',
+        contractValueCents: 100,
+      }),
+    });
+    expect(await readErrorCode(trainingBlocked)).toBe(
+      'TRAINING_CONTRACT_RECRUITMENT_CONTEXT_BLOCKED',
+    );
+
+    const contract = await prisma.commercialContract.create({
+      data: {
+        reference: 'C38-CHAIN-DRAFT',
+        businessType: CommercialContractBusinessType.RECRUITMENT,
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        currency: 'MAD',
+        contractValueCents: 100,
+        totalCents: 100,
+        status: 'DRAFT',
+      },
+    });
+    const draftContractPo = await fetch(`${baseUrl}/v1/commercial/purchase-orders`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'PO38-CHAIN-DRAFT-CONTRACT',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        contractId: contract.id,
+        currency: 'MAD',
+        amountCents: 100,
+      }),
+    });
+    expect(await readErrorCode(draftContractPo)).toBe('PURCHASE_ORDER_ACTIVE_CONTRACT_REQUIRED');
+  });
+
+  it('validates correction invoice source access, context, currency, status, and placement linkage', async () => {
+    const { client, mission } = await createClientAndMission(
+      'Issue38 Correction A',
+      commercialUserId,
+    );
+    const otherMission = await prisma.recruitmentMission.create({
+      data: { clientId: client.id, title: 'Issue38 Correction B', numberOfPositions: 1 },
+    });
+    const source = await prisma.invoice.create({
+      data: {
+        reference: 'I38-CORRECTION-SOURCE',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        currency: 'MAD',
+        status: 'ISSUED',
+        subtotalCents: 100,
+        totalCents: 100,
+      },
+    });
+    const draftSource = await prisma.invoice.create({
+      data: {
+        reference: 'I38-CORRECTION-DRAFT',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        currency: 'MAD',
+        status: 'DRAFT',
+        subtotalCents: 100,
+        totalCents: 100,
+      },
+    });
+
+    const wrongContext = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CORRECTION-CONTEXT',
+        clientId: client.id,
+        recruitmentMissionId: otherMission.id,
+        correctionOfInvoiceId: source.id,
+        currency: 'MAD',
+        lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(await readErrorCode(wrongContext)).toBe('INVOICE_CORRECTION_CONTEXT_MISMATCH');
+
+    const wrongCurrency = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CORRECTION-CURRENCY',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        correctionOfInvoiceId: source.id,
+        currency: 'EUR',
+        lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(await readErrorCode(wrongCurrency)).toBe('INVOICE_CORRECTION_CURRENCY_MISMATCH');
+
+    const wrongStatus = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CORRECTION-STATUS',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        correctionOfInvoiceId: draftSource.id,
+        currency: 'MAD',
+        lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(await readErrorCode(wrongStatus)).toBe('INVOICE_CORRECTION_ISSUED_SOURCE_REQUIRED');
+
+    await prisma.invoice.update({
+      where: { id: source.id },
+      data: { correctionOfInvoiceId: source.id },
+    });
+    const cycle = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CORRECTION-CYCLE',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        correctionOfInvoiceId: source.id,
+        currency: 'MAD',
+        lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(await readErrorCode(cycle)).toBe('INVOICE_CORRECTION_CYCLE_BLOCKED');
+    await prisma.invoice.update({
+      where: { id: source.id },
+      data: { correctionOfInvoiceId: null },
+    });
+
+    const placementLinked = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CORRECTION-PLACEMENT',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: source.id,
+        correctionOfInvoiceId: source.id,
+        currency: 'MAD',
+        lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+      }),
+    });
+    expect(await readErrorCode(placementLinked)).toBe(
+      'INVOICE_CORRECTION_PLACEMENT_DIRECT_LINK_BLOCKED',
+    );
+  });
+
+  it('defaults lists to active records while archive retries avoid duplicate history and audit', async () => {
+    const { client } = await createClientAndMission('Issue38 Archive', commercialUserId);
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-ARCHIVE');
+
+    const firstArchive = await fetch(
+      `${baseUrl}/v1/commercial/quotations/${quotation.id}/archive`,
+      {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+      },
+    );
+    const secondArchive = await fetch(
+      `${baseUrl}/v1/commercial/quotations/${quotation.id}/archive`,
+      {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+      },
+    );
+    expect(firstArchive.status).toBe(200);
+    expect(secondArchive.status).toBe(200);
+    expect(
+      await prisma.commercialQuotationEvent.count({
+        where: { quotationId: quotation.id, action: 'ARCHIVED' },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'CommercialQuotation',
+          entityId: quotation.id,
+          action: 'commercial.quotation.archived',
+        },
+      }),
+    ).toBe(1);
+
+    const defaultList = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      headers: authHeaders(commercialToken),
+    });
+    const defaultBody = (await defaultList.json()) as { quotations: { id: string }[] };
+    expect(defaultBody.quotations.map((item) => item.id)).not.toContain(quotation.id);
+
+    const archivedList = await fetch(`${baseUrl}/v1/commercial/quotations?includeArchived=true`, {
+      headers: authHeaders(commercialToken),
+    });
+    const archivedBody = (await archivedList.json()) as { quotations: { id: string }[] };
+    expect(archivedBody.quotations.map((item) => item.id)).toContain(quotation.id);
+
+    const invalidFilter = await fetch(`${baseUrl}/v1/commercial/quotations?includeArchived=1`, {
+      headers: authHeaders(commercialToken),
+    });
+    expect(invalidFilter.status).toBe(400);
+  });
+
+  it('redacts commercial history reasons without commercial_data access', async () => {
+    const { client } = await createClientAndMission('Issue38 History Redaction', commercialUserId);
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-REDACT');
+    await fetch(`${baseUrl}/v1/commercial/quotations/${quotation.id}/status`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({ status: 'ISSUED', reason: 'Contains sensitive price context.' }),
+    });
+
+    const redacted = await fetch(`${baseUrl}/v1/commercial/quotations/${quotation.id}`, {
+      headers: authHeaders(viewerToken),
+    });
+    const body = QuotationDetailResponseSchema.parse(await redacted.json());
+    expect(body.quotation.amounts).toBeNull();
+    expect(body.quotation.history.some((event) => event.safeSummary?.includes('ISSUED'))).toBe(
+      true,
+    );
+    expect(body.quotation.history.every((event) => event.reason === null)).toBe(true);
+  });
+
+  it('rejects monetary arithmetic overflow before PostgreSQL integer writes', async () => {
+    const { client } = await createClientAndMission('Issue38 Money Bounds', commercialUserId);
+    const overflowingLine = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'Q38-MONEY-OVERFLOW',
+        clientId: client.id,
+        currency: 'MAD',
+        lines: [
+          {
+            description: 'Overflow',
+            quantity: 1_000_000,
+            unitPriceCents: 2_000_000_000,
+            taxRateBps: 0,
+          },
+        ],
+      }),
+    });
+    expect(overflowingLine.status).toBe(400);
+    expect(await readErrorCode(overflowingLine)).toBe('COMMERCIAL_MONEY_BOUNDS_EXCEEDED');
+
+    const overflowingTotal = await fetch(`${baseUrl}/v1/commercial/contracts`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'C38-MONEY-OVERFLOW',
+        businessType: 'TRAINING',
+        clientId: client.id,
+        currency: 'MAD',
+        contractValueCents: 2_000_000_000,
+        taxCents: 2_000_000_000,
+      }),
+    });
+    expect(overflowingTotal.status).toBe(400);
+    expect(await readErrorCode(overflowingTotal)).toBe('COMMERCIAL_MONEY_BOUNDS_EXCEEDED');
+  });
+
+  it('rechecks placement invoice eligibility after queued source writes acquire locks', async () => {
+    const { client, mission } = await createClientAndMission(
+      'Issue38 Placement Race',
+      commercialUserId,
+    );
+    const candidate = await prisma.candidate.create({
+      data: {
+        displayName: 'Issue38 Placement Race Candidate',
+        email: 'placement-race@commercial.test',
+        normalizedEmail: 'placement-race@commercial.test',
+        status: CandidateStatus.ACTIVE,
+      },
+    });
+    const process = await prisma.missionCandidate.create({
+      data: {
+        missionId: mission.id,
+        candidateId: candidate.id,
+        responsibleRecruiterUserId: commercialUserId,
+        state: MissionCandidateState.INTEGRATED,
+      },
+    });
+    const offer = await prisma.recruitmentOffer.create({
+      data: { missionId: mission.id, missionCandidateId: process.id },
+    });
+    const version = await prisma.recruitmentOfferVersion.create({
+      data: {
+        offerId: offer.id,
+        missionId: mission.id,
+        missionCandidateId: process.id,
+        versionNumber: 1,
+        status: OfferStatus.ACCEPTED,
+        isCurrent: true,
+      },
+    });
+    const placement = await prisma.missionPlacement.create({
+      data: {
+        missionId: mission.id,
+        missionCandidateId: process.id,
+        offerVersionId: version.id,
+        status: PlacementStatus.CONFIRMED,
+        integrationStartDate: new Date('2026-09-20T00:00:00.000Z'),
+        eligibleForInvoicing: true,
+        invoicingEligibleAt: new Date(),
+      },
+    });
+
+    let releaseClientLock!: () => void;
+    const lockReleased = new Promise<void>((resolve) => {
+      releaseClientLock = resolve;
+    });
+    const locker = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Client" WHERE id = ${client.id}::uuid FOR UPDATE`;
+        await lockReleased;
+      },
+      { timeout: 10000 },
+    );
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'commercial.invoice.created' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const request = fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-PLACEMENT-RACE',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: placement.id,
+        currency: 'MAD',
+        lines: [
+          { description: 'Placement fee', quantity: 1, unitPriceCents: 30000, taxRateBps: 0 },
+        ],
+      }),
+    });
+    await prisma.missionPlacement.update({
+      where: { id: placement.id },
+      data: { eligibleForInvoicing: false },
+    });
+    releaseClientLock();
+    await locker;
+
+    const response = await request;
+    expect(response.status).toBe(409);
+    expect(await readErrorCode(response)).toBe('PLACEMENT_INVOICE_ELIGIBILITY_REQUIRED');
+    expect(await prisma.invoice.count({ where: { reference: 'I38-PLACEMENT-RACE' } })).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'commercial.invoice.created' },
+      }),
+    ).toBe(auditCountBefore);
+  });
+
+  it('rolls back business rows and domain history when required commercial audit fails', async () => {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "AuditLog" ADD CONSTRAINT "commercial_test_block_audit" CHECK (action <> \'commercial.quotation.created\') NOT VALID',
+    );
+    try {
+      const { client } = await createClientAndMission('Issue38 Audit Atomic', commercialUserId);
+      const response = await fetch(`${baseUrl}/v1/commercial/quotations`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          reference: 'Q38-AUDIT-ROLLBACK',
+          clientId: client.id,
+          currency: 'MAD',
+          lines: [{ description: 'Rollback', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+        }),
+      });
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(
+        await prisma.commercialQuotation.count({ where: { reference: 'Q38-AUDIT-ROLLBACK' } }),
+      ).toBe(0);
+      expect(
+        await prisma.commercialQuotationEvent.count({
+          where: { quotation: { reference: 'Q38-AUDIT-ROLLBACK' } },
+        }),
+      ).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe(
+        'ALTER TABLE "AuditLog" DROP CONSTRAINT IF EXISTS "commercial_test_block_audit"',
+      );
+    }
   });
 });

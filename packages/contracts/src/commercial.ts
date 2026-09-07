@@ -26,6 +26,13 @@ const OptionalIsoDateSchema = z.string().datetime().optional();
 const NullableIsoDateSchema = z.string().datetime().nullable().optional();
 const MoneyCentsSchema = z.number().int().nonnegative().max(2_000_000_000);
 const TaxRateBpsSchema = z.number().int().nonnegative().max(10_000);
+const ExplicitBooleanQuerySchema = z
+  .union([
+    z.literal('true').transform(() => true),
+    z.literal('false').transform(() => false),
+    z.boolean(),
+  ])
+  .default(false);
 
 export const CommercialLineInputSchema = z.object({
   description: z.string().trim().min(1).max(400),
@@ -88,6 +95,7 @@ export const QuotationListQuerySchema = z.object({
   reference: z.string().trim().min(1).max(80).optional(),
   issuedFrom: z.string().datetime().optional(),
   issuedTo: z.string().datetime().optional(),
+  includeArchived: ExplicitBooleanQuerySchema,
 });
 
 export const QuotationCreateRequestSchema = z.object({
@@ -147,6 +155,7 @@ export const CommercialContractListQuerySchema = z.object({
   businessType: CommercialContractBusinessTypeSchema.optional(),
   status: CommercialContractStatusSchema.optional(),
   reference: z.string().trim().min(1).max(80).optional(),
+  includeArchived: ExplicitBooleanQuerySchema,
 });
 
 export const CommercialContractCreateRequestSchema = z.object({
@@ -210,6 +219,7 @@ export const PurchaseOrderListQuerySchema = z.object({
   contractId: z.string().uuid().optional(),
   status: PurchaseOrderStatusSchema.optional(),
   reference: z.string().trim().min(1).max(80).optional(),
+  includeArchived: ExplicitBooleanQuerySchema,
 });
 
 export const PurchaseOrderCreateRequestSchema = z.object({
@@ -279,6 +289,7 @@ export const InvoiceListQuerySchema = z.object({
   reference: z.string().trim().min(1).max(80).optional(),
   issuedFrom: z.string().datetime().optional(),
   issuedTo: z.string().datetime().optional(),
+  includeArchived: ExplicitBooleanQuerySchema,
 });
 
 export const InvoiceCreateRequestSchema = z.object({

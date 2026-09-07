@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '../persistence/prisma/generated-client.js';
 
 import type { RequestContext } from '../auth/auth.types.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
@@ -16,8 +17,9 @@ export class CommercialAuditService {
       entityId?: string;
       metadataSummary: string;
     },
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<void> {
-    await this.prisma.auditLog.create({
+    await prisma.auditLog.create({
       data: {
         action,
         entityType: options.entityType,

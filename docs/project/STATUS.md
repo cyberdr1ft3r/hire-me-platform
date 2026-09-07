@@ -230,10 +230,11 @@ Status owner: repository maintainer
 - Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` and incorporates latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
-- Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, and contract terms without commercial-data access.
-- Linked commercial records are checked server-side for same-client relationships. Placement-backed invoices require authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices.
-- PostgreSQL-backed regressions cover commercial redaction and write denial, quotation lifecycle and terminal mutation blocking, cross-client link rejection, distinct recruitment/training contracts, invoice snapshots, placement-backed invoicing, duplicate references, and concurrent invoice issue idempotency.
-- Local merged validation includes `pnpm.cmd test:db` with 147 PostgreSQL integration tests passing across 14 files.
+- Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, contract terms, and free-form history reasons without commercial-data access.
+- Commercial APIs combine route permissions with underlying client and mission source scope. Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources are checked server-side for same client, compatible business context, currency, required source status, and actor access.
+- Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
+- PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, reason redaction, monetary overflow rejection, placement stale-read protection, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
+- Local merged validation includes `pnpm.cmd test:db` with 155 PostgreSQL integration tests passing across 14 files.
 
 ## Current open technical questions
 
