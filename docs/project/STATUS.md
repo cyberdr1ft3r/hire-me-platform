@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Commercial workflow foundation
-**Health:** Issue #37 / PR #45 training operations is merged into `main` at `09c506262ad3284efd69f70440c1ee06175c6e00`. Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46 and incorporates that latest `origin/main`; substantive application, security, concurrency, and migration review passed on head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
-**Current blocker:** draft PR #46 is at the final human/ChatGPT merge gate. Exact-head GitHub Actions run `34166398141` passed all three jobs, including 210/210 PostgreSQL integration tests across 15 files. The PR must stay draft/open/unmerged until approved.
-**Next executable development task:** Human/ChatGPT merge gate for Issue #38 draft PR #46; keep Issue #39 blocked until Issue #38 merges.
+**Phase:** Accounting foundation (payments, allocation, expenses, receivables, profitability).
+**Health:** Issue #38 / PR #46 commercial workflow is merged into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`. Issue #39 is implemented on branch `feat/accounting-foundation` from that exact main in a draft PR, extending the merged commercial records rather than duplicating them.
+**Current blocker:** Issue #39 draft PR awaits ChatGPT review and exact-head GitHub Actions.
+**Next executable development task:** Review the Issue #39 draft PR; keep it draft/open/unmerged.
 
 ## Active work
 
@@ -31,7 +31,7 @@ Status owner: repository maintainer
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
 | Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
-| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Final human/ChatGPT merge gate for draft PR #46; keep it draft/open/unmerged |
+| Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Final human/ChatGPT merge gate for draft PR #46; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -255,6 +255,20 @@ Status owner: repository maintainer
 - PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
 - Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior. Substantive ChatGPT integration review passed on reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`; exact-head GitHub Actions run `34166398141` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 210/210 PostgreSQL integration tests across 15 files. No implementation, security, concurrency, or migration blocker remains before the final human/ChatGPT merge gate.
 
+## Issue #39 Implementation State
+
+- Issue #39 adds payments, payment-to-invoice allocation, and operational expenses on top of the merged Issue #38 commercial records. Quotations, contracts, purchase orders, and invoices are not remodelled.
+- Schema work is additive only, in migration `20260908120000_accounting_foundation`: `Payment`, `PaymentAllocation`, `PaymentEvent`, `Expense`, and `ExpenseEvent`, plus their enums. No merged migration was edited, renamed, reordered, or squashed.
+- Invoice settlement is derived from the immutable issued invoice total plus active allocations. Nothing is stored, so a payment can never mark an invoice paid merely by existing. States are not-receivable, unpaid, partially paid, paid, and overdue.
+- Allocation validates a positive amount, exact currency match, the payment's unallocated remainder, and the invoice's remaining receivable, all computed while the payment and invoice rows are locked in that fixed order.
+- Financial invariants are enforced in PostgreSQL as well as service code: positive-amount checks on payments, allocations, and expenses; a unique index permitting at most one active allocation per payment/invoice pair; and a check constraint keeping the active allocation key consistent with allocation status so an active row cannot hold a null key and escape the index.
+- Allocation supports an idempotency key: a replayed request returns the original allocation with no second history or audit row. Reversal preserves the allocation row, releases the key, and frees the balance.
+- Correcting a payment amount requires its own capability and reason and can never drop below the amount already allocated. A payment with active allocations cannot be archived.
+- Receivables and profitability are separated per currency with no FX conversion. Profitability follows decision D-053: issued invoice revenue minus directly linked operational expenses, excluding canceled and archived invoices.
+- Profitability contexts are client, recruitment mission, and placement. Training-program profitability is unsupported because the merged commercial model carries no authoritative invoice-to-training-program link; training expenses are still recorded and readable.
+- Authorization combines the accounting capability, `commercial_data:access` for any amount, and the underlying client/mission record scope. Aggregates fail closed rather than returning redacted shells, and hidden, out-of-scope, and nonexistent identifiers share one not-found envelope.
+- Payroll, statutory/accrual/tax accounting, depreciation, FX conversion, and receipt files remain out of scope.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -274,8 +288,8 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Complete the final human/ChatGPT merge gate for Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
-2. Issue #39 remains blocked until Issue #38 / PR #46 merges.
+1. Review the Issue #39 accounting draft PR on branch `feat/accounting-foundation`; keep it draft/open/unmerged.
+2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules
 

@@ -590,6 +590,41 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'payments:view',
+    description: 'View payment records within an explicitly authorized client scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'payments:manage',
+    description: 'Record payments and allocate or reverse allocations against invoices.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'payments:correct',
+    description: 'Apply an audited correction to an already-recorded payment amount.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'expenses:view',
+    description: 'View operational expense records within an explicitly authorized scope.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'expenses:manage',
+    description: 'Record, correct, and archive operational expense records.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'client_balances:view',
+    description: 'View client receivable balances and overdue receivables.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'profitability:view',
+    description: 'View operational profitability summaries by authorized business context.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'tasks:view',
     description:
       'View tasks owned, created, assigned, or reachable through authorized record scope.',
@@ -808,6 +843,8 @@ async function main(): Promise<void> {
       'contracts:view',
       'purchase_orders:view',
       'invoices:view',
+      'payments:view',
+      'expenses:view',
       'tasks:view',
       'tasks:view_all',
       'tasks:create',
@@ -915,6 +952,8 @@ async function main(): Promise<void> {
       'contracts:view',
       'purchase_orders:view',
       'invoices:view',
+      'payments:view',
+      'expenses:view',
       'tasks:view',
       'tasks:view_all',
       'tasks:create',

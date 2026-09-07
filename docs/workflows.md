@@ -679,6 +679,76 @@ Task lifecycle rules:
 - Overdue task notifications are task-generated in-app notifications and must not include confidential candidate, salary, client, commercial, HR note, or comment-body payloads.
 - Issue #38 commercial workflows keep quotations, recruitment/training commercial contracts, purchase orders, and invoices as structured records. Totals are calculated server-side; linked records must belong to the same client, business context, and currency; accepted or terminal quotations are not silently mutated; issued invoice lines and totals are immutable snapshots. Invoice snapshots derived from contracts or purchase orders preserve the exact source subtotal, tax, and total cents instead of recalculating from rounded rates. Historical reads remain available from the commercial record's durable authorized scope after parent archival, while new upstream commercial creation can require currently writable source context. Placement-backed invoices require an eligible confirmed `MissionPlacement`; `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing that locked placement when its eligibility remains valid.
 
+## Accounting Workflow
+
+Issue #39 adds payments, payment-to-invoice allocation, and operational expenses on top
+of the merged Issue #38 commercial records. It does not remodel quotations, contracts,
+purchase orders, or invoices.
+
+### Payment States
+
+- `recorded`: the payment exists and may be allocated.
+- `corrected`: the recorded amount was amended through an audited correction.
+- `archived`: the payment is retained as history and accepts no further changes.
+
+### Payment Allocation States
+
+- `active`: the allocation currently settles part of an invoice.
+- `reversed`: the allocation was explicitly reversed, is preserved as history, and no
+  longer contributes to any balance.
+
+### Invoice Settlement States
+
+Settlement is **derived**, never stored. The authoritative basis is the immutable issued
+invoice total plus its active allocations, so a payment never marks an invoice paid
+merely by existing.
+
+- `not_receivable`: the invoice is not issued, or is canceled or archived. It never
+  contributes to receivables.
+- `unpaid`: issued with nothing allocated.
+- `partially_paid`: issued with some but not all of the total allocated.
+- `paid`: the allocated total covers the invoice total.
+- `overdue`: the due date has passed while a balance remains. This takes precedence over
+  `unpaid` and `partially_paid`.
+
+### Accounting Rules
+
+- An allocation amount is always positive, and the payment and invoice currency must
+  match exactly. No FX conversion is ever performed.
+- An allocation can exceed neither the payment's unallocated amount nor the invoice's
+  remaining receivable. Both are computed while the payment and invoice rows are locked.
+- A payment and an invoice are locked in the fixed order payment then invoice, so
+  concurrent allocations serialize and cannot form a deadlock cycle.
+- At most one `active` allocation may exist per payment and invoice pair, enforced by a
+  database unique index over the payment and a nullable active-allocation key. A
+  database check constraint additionally prevents an active allocation from holding a
+  null key and escaping that index.
+- An allocation request may carry an idempotency key. Replaying the same key on the same
+  payment returns the original allocation without allocating twice or writing a second
+  history or audit row.
+- Reversal preserves the allocation row, releases the active key, and frees the balance
+  so a corrected re-allocation is possible.
+- Correcting a recorded payment amount requires its own capability and a reason and can
+  never drop the amount below what is already allocated.
+- A payment with active allocations cannot be archived.
+- Expense context is validated server-side. A client, recruitment mission, placement, or
+  training program must be consistent with each other, so an expense can never link
+  across clients or contexts. Receipt files remain owned by the document module.
+
+### Profitability
+
+Operational profitability follows decision D-053: eligible **issued invoice revenue**
+minus directly linked operational expenses, separated per currency.
+
+- Canceled and archived invoices never contribute revenue.
+- Received or allocated cash is reported separately as settlement and receivables and is
+  never used as the profitability revenue basis.
+- Supported contexts are client, recruitment mission, and placement. Training-program
+  profitability is not supported because the merged commercial model has no
+  authoritative invoice-to-training-program link; training expenses are still recorded.
+- Payroll cost allocation, statutory, accrual and tax accounting, depreciation, and FX
+  conversion are all out of scope.
+
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.

@@ -539,6 +539,43 @@ enum PurchaseOrderStatus {
   ARCHIVED @map("archived")
 }
 
+enum PaymentMethod {
+  BANK_TRANSFER @map("bank_transfer")
+  CHECK         @map("check")
+  CASH          @map("cash")
+  CARD          @map("card")
+  DIRECT_DEBIT  @map("direct_debit")
+  OTHER         @map("other")
+}
+
+enum PaymentRecordStatus {
+  RECORDED  @map("recorded")
+  CORRECTED @map("corrected")
+  ARCHIVED  @map("archived")
+}
+
+enum PaymentAllocationStatus {
+  ACTIVE   @map("active")
+  REVERSED @map("reversed")
+}
+
+enum ExpenseCategory {
+  RECRUITMENT_SOURCING @map("recruitment_sourcing")
+  TRAINING_DELIVERY    @map("training_delivery")
+  TRAVEL               @map("travel")
+  SUBCONTRACTING       @map("subcontracting")
+  SOFTWARE             @map("software")
+  MARKETING            @map("marketing")
+  OFFICE               @map("office")
+  OTHER                @map("other")
+}
+
+enum ExpenseStatus {
+  RECORDED  @map("recorded")
+  CORRECTED @map("corrected")
+  ARCHIVED  @map("archived")
+}
+
 enum InvoiceStatus {
   DRAFT    @map("draft")
   ISSUED   @map("issued")
@@ -629,6 +666,14 @@ model User {
   updatedInvoices                     Invoice[]                  @relation("InvoiceUpdater")
   canceledInvoices                    Invoice[]                  @relation("InvoiceCanceler")
   invoiceEvents                       InvoiceEvent[]             @relation("InvoiceEventActor")
+  recordedPayments                    Payment[]                  @relation("PaymentRecorder")
+  updatedPayments                     Payment[]                  @relation("PaymentUpdater")
+  paymentEvents                       PaymentEvent[]             @relation("PaymentEventActor")
+  allocatedPaymentAllocations         PaymentAllocation[]        @relation("PaymentAllocationActor")
+  reversedPaymentAllocations          PaymentAllocation[]        @relation("PaymentAllocationReverser")
+  createdExpenses                     Expense[]                  @relation("ExpenseCreator")
+  updatedExpenses                     Expense[]                  @relation("ExpenseUpdater")
+  expenseEvents                       ExpenseEvent[]             @relation("ExpenseEventActor")
   auditLogs                           AuditLog[]                 @relation("AuditActor")
   targetedAuditLogs                   AuditLog[]                 @relation("AuditTargetUser")
   passwordCredential                  PasswordCredential?
@@ -762,6 +807,8 @@ model Client {
   commercialContracts  CommercialContract[]
   purchaseOrders       PurchaseOrder[]
   invoices             Invoice[]
+  payments             Payment[]
+  expenses             Expense[]
 
   @@index([normalizedName])
   @@index([status])
@@ -1125,6 +1172,7 @@ model RecruitmentMission {
   commercialContracts    CommercialContract[]
   purchaseOrders         PurchaseOrder[]
   invoices               Invoice[]
+  expenses               Expense[]
 
   @@index([clientId])
   @@index([state])
@@ -1341,6 +1389,7 @@ model MissionPlacement {
   events           PlacementEvent[]
   tasks            Task[]
   invoices         Invoice[]
+  expenses         Expense[]
 
   @@index([missionId])
   @@index([status])
@@ -1761,6 +1810,7 @@ model TrainingProgram {
   sessions    TrainingSession[]
   enrollments TrainingEnrollment[]
   tasks       Task[]
+  expenses    Expense[]
 
   @@unique([normalizedReference])
   @@index([status])
@@ -2182,6 +2232,7 @@ model Invoice {
   canceledBy          User?                @relation("InvoiceCanceler", fields: [canceledByUserId], references: [id], onDelete: SetNull)
   lines               InvoiceLine[]
   events              InvoiceEvent[]
+  paymentAllocations  PaymentAllocation[]
 
   @@index([clientId])
   @@index([recruitmentMissionId])
@@ -2385,5 +2436,151 @@ model AuditLog {
   @@index([targetUserId])
   @@index([entityType, entityId])
   @@index([action])
+  @@index([createdAt])
+}
+
+/// Issue #39 accounting foundation.
+///
+/// Payments, allocations, and expenses extend the merged Issue #38 commercial
+/// records. Invoice settlement is always derived from the immutable issued invoice
+/// total plus active allocations; no denormalized paid flag is stored, so a payment
+/// can never mark an invoice paid merely by existing.
+model Payment {
+  id                    String              @id @default(uuid()) @db.Uuid
+  reference             String              @unique
+  clientId              String              @db.Uuid
+  receivedDate          DateTime
+  currency              String
+  amountCents           Int
+  method                PaymentMethod
+  externalReference     String?
+  note                  String?
+  status                PaymentRecordStatus @default(RECORDED)
+  correctedAt           DateTime?
+  correctionReason      String?
+  recordedByUserId      String?             @db.Uuid
+  updatedByUserId       String?             @db.Uuid
+  archivedAt            DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  client      Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recordedBy  User?               @relation("PaymentRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+  updatedBy   User?               @relation("PaymentUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  allocations PaymentAllocation[]
+  events      PaymentEvent[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([receivedDate])
+  @@index([currency])
+}
+
+/// A single payment may allocate across many invoices.
+///
+/// `activeAllocationKey` holds the invoice id while the allocation is ACTIVE and is
+/// released to NULL on reversal. Because PostgreSQL treats NULLs as distinct, the
+/// unique index below allows at most one active allocation per payment/invoice pair
+/// while preserving every reversed allocation row as history.
+model PaymentAllocation {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  paymentId           String                  @db.Uuid
+  invoiceId           String                  @db.Uuid
+  amountCents         Int
+  status              PaymentAllocationStatus @default(ACTIVE)
+  activeAllocationKey String?                 @db.Uuid
+  idempotencyKey      String?
+  allocatedByUserId   String?                 @db.Uuid
+  reversedAt          DateTime?
+  reversedByUserId    String?                 @db.Uuid
+  reversalReason      String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  allocatedBy User?   @relation("PaymentAllocationActor", fields: [allocatedByUserId], references: [id], onDelete: SetNull)
+  reversedBy  User?   @relation("PaymentAllocationReverser", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([paymentId, activeAllocationKey])
+  @@unique([paymentId, idempotencyKey])
+  @@index([invoiceId, status])
+  @@index([paymentId, status])
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  reason      String?
+  safeSummary String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  actor   User?   @relation("PaymentEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
+
+/// Operational expense. Receipt files are deliberately absent: managed files remain
+/// owned by the Document / DocumentVersion module.
+model Expense {
+  id                   String          @id @default(uuid()) @db.Uuid
+  reference            String          @unique
+  expenseDate          DateTime
+  category             ExpenseCategory
+  currency             String
+  amountCents          Int
+  clientId             String?         @db.Uuid
+  recruitmentMissionId String?         @db.Uuid
+  missionPlacementId   String?         @db.Uuid
+  trainingProgramId    String?         @db.Uuid
+  vendorLabel          String?
+  description          String?
+  status               ExpenseStatus   @default(RECORDED)
+  correctedAt          DateTime?
+  correctionReason     String?
+  createdByUserId      String?         @db.Uuid
+  updatedByUserId      String?         @db.Uuid
+  archivedAt           DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  recruitmentMission RecruitmentMission? @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
+  missionPlacement   MissionPlacement?   @relation(fields: [missionPlacementId], references: [id], onDelete: Restrict)
+  trainingProgram    TrainingProgram?    @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
+  createdBy          User?               @relation("ExpenseCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?               @relation("ExpenseUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  events             ExpenseEvent[]
+
+  @@index([clientId])
+  @@index([recruitmentMissionId])
+  @@index([missionPlacementId])
+  @@index([trainingProgramId])
+  @@index([status])
+  @@index([expenseDate])
+  @@index([currency])
+}
+
+model ExpenseEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  expenseId   String   @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  reason      String?
+  safeSummary String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  actor   User?   @relation("ExpenseEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([expenseId])
+  @@index([actorUserId])
   @@index([createdAt])
 }
