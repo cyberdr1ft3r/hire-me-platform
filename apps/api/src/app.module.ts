@@ -11,6 +11,7 @@ import { MissionsModule } from './missions/missions.module.js';
 import { PublicApplicationsModule } from './public-applications/public-applications.module.js';
 import { ReportingModule } from './reporting/reporting.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+import { TrainingModule } from './training/training.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TasksModule } from './tasks/tasks.module.js';
     PublicApplicationsModule,
     ReportingModule,
     TasksModule,
+    TrainingModule,
   ],
   controllers: [HealthController],
 })

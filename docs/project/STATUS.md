@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-04
+Last updated: 2026-09-07
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Commercial workflow foundation
-**Health:** Issue #38 is implemented on branch `feat/commercial-workflow`; latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` is incorporated.
-**Current blocker:** none known locally; draft PR #46 remains open for final human/ChatGPT review and must stay draft/open/unmerged until approved.
-**Next executable development task:** Human/ChatGPT final review of Issue #38 draft PR #46; keep it open/unmerged.
+**Health:** Issue #37 / PR #45 training operations is merged into `main` at `09c506262ad3284efd69f70440c1ee06175c6e00`. Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46 and now incorporates that latest `origin/main`.
+**Current blocker:** draft PR #46 needs exact-head local validation, GitHub Actions, and human/ChatGPT review after the latest-main integration. It must stay draft/open/unmerged until approved.
+**Next executable development task:** Human/ChatGPT review / merge gate for Issue #38 draft PR #46 after exact-head CI is green; keep Issue #39 blocked until Issue #38 merges.
 
 ## Active work
 
@@ -29,8 +29,9 @@ Status owner: repository maintainer
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
-| Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged into `main` via PR #43 |
-| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT final review of draft PR #46; keep it draft/open/unmerged |
+| Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
+| Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
+| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT review of draft PR #46 after exact-head CI; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -219,15 +220,32 @@ Status owner: repository maintainer
 
 ## Issue #36 Implementation State
 
-- Issue #36 implements the first authenticated internal recruitment reporting layer and is merged into `main` through PR #43.
-- New API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`.
-- New Prisma-independent shared contracts live in `packages/contracts/src/reporting.ts`; web and contracts remain ORM-independent. No Prisma schema change and no migration were required.
-- Authorization enforces both capability and record scope. Every reporting endpoint requires the reporting capability plus the underlying operational reads (`missions:view`, `mission_candidates:view`, `public_applications:view`, `interviews:view`, `offers:view`, `placements:view`), so reporting cannot bypass operational read permissions; denials use the generic `PERMISSION_DENIED`. Record scope reuses the mission-candidate oversight model: broad scope requires `mission_candidates:transfer`, otherwise the actor is limited to missions with an active `MissionRecruiter` assignment.
-- Reporting never exposes candidate salary/compensation, client/placement commercial values, confidential evaluation bodies, internal notes, document storage metadata, secrets, or tokens. KPI definitions and filter applicability are documented in `docs/reporting.md`.
+- Issue #36 merged the first authenticated internal recruitment reporting layer through PR #43.
+- API module `apps/api/src/reporting` exposes permission-guarded `GET /v1/reporting/recruitment` endpoints: `summary`, `pipeline`, `trends`, `breakdowns`, `drilldown`, and `export.csv`. Shared contracts live in `packages/contracts/src/reporting.ts`. No Prisma schema change or migration was required.
+- Reporting requires the reporting capability plus the underlying operational reads, so it cannot bypass operational read permissions. Record scope reuses the mission-candidate oversight model. Reporting never exposes salary/compensation, commercial values, confidential evaluation bodies, internal notes, storage metadata, or secrets.
+- CSV export requires `reporting:recruitment:export`, neutralizes spreadsheet formula injection, rejects over-large exports instead of truncating, and audits only successful exports with safe metadata.
+
+## Issue #37 Implementation State
+
+- Issue #37 implements the internal training-operations module on the existing training records. No parallel training model was introduced.
+- Schema work is additive only, in migration `20260904143000_training_operations_foundation`: program reference/normalized reference, optional client context and planned window; session title, sequence, scheduled end, delivery mode, reschedule and cancellation metadata; enrollment actor, lifecycle timestamps, withdrawal reason, and active-participant key; participation actor, attendance timestamp, and correction metadata.
+- The API adds permission-guarded `/v1/training` endpoints. Sessions, enrollments, and participation are nested under their training program so the full parent chain is verified server-side.
+- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment additionally supports an explicit authorized withdrawal to `canceled` from any active state, with a recorded reason and preserved history.
+- Active enrollment uniqueness and session participation uniqueness are enforced by PostgreSQL unique constraints, so concurrent duplicate attempts resolve deterministically to a single record.
+- Concurrent reschedule, cancel, lifecycle, and attendance writes serialize through row locks taken in the order program, session, enrollment, participation.
+- Authorization combines an explicit training capability with server-side record scope. `training_programs:view_all` is the separate broad oversight capability. Client-linked programs additionally require `clients:view` and are otherwise excluded from both the list predicate and the detail path.
+- Attendance correction is a separate capability from recording attendance and always records a reason, a correction count, and audit history. Trainer notes are redacted from actors who may not manage participation.
+- Certificate readiness is a derived durable boundary over `completedAt`, withdrawal, archival, and certificate status. No certificate or contract file is generated, and no `Document` records are created for training records.
+- Training commercial data is deliberately absent. `TrainingEnrollment.paymentStatus` remains an untouched pre-existing column and is not exposed. The stable identifiers a later commercial feature can consume are the training program id/reference, training session id, and training enrollment id.
+- Validation ran against a dedicated local PostgreSQL database because a concurrent agent reset the shared development database mid-task.
+- PR #45 review corrections (decision D-050): participant linking now requires the source domain's own read authorization and fails closed indistinguishably; enrollment reads redact source identifiers; the migration backfills and validates legacy active enrollments and adds a keyless-active check constraint; `PARTICIPATION_ARCHIVED` is reachable through an explicit audited idempotent archive action; attendance is gated by session state and can no longer be rewritten through the ordinary action; training query booleans are parsed explicitly; the reschedule reason is persisted; and certificate readiness requires an explicit `PENDING` status.
+- After integrating latest `main` (PR #43 recruitment reporting), the full suite was rerun from a clean database. Following the review correction pass, `pnpm test:db` totals 189 PostgreSQL integration tests across 14 files (140 merged baseline + 49 training).
+- Reviewed head is `d955aa061c64eec943389c629884ba9f65fd9393`. Exact-head Actions run `33896393313` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests (189 passed).
+- PR #45 merged into `main` as merge commit `09c506262ad3284efd69f70440c1ee06175c6e00`; Issue #37 is complete.
 
 ## Issue #38 Implementation State
 
-- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` and incorporates latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates latest `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
 - Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, contract terms, and free-form history reasons without commercial-data access.
@@ -235,7 +253,7 @@ Status owner: repository maintainer
 - Historical commercial reads remain available from the durable commercial record scope after parent client or mission archival; new upstream commercial source creation may keep stricter writable-source checks.
 - Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
 - PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
-- Local merged validation includes `pnpm.cmd test:db` with 161 PostgreSQL integration tests passing across 14 files.
+- Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior; final validation must run on the new exact head before review.
 
 ## Current open technical questions
 
@@ -256,8 +274,9 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Human/ChatGPT final review of Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
-2. Issue #39 remains blocked until Issue #38 is reviewed and merged.
+1. Complete exact-head local validation and GitHub Actions for Issue #38 draft PR #46 after incorporating `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
+2. Human/ChatGPT review / merge gate for PR #46; keep the PR draft/open/unmerged until approved.
+3. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Status Update Rules
 

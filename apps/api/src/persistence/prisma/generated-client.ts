@@ -1,5 +1,6 @@
 export {
   CandidateStatus,
+  CertificateStatus,
   ConsentStatus,
   CandidateDocumentStatus,
   CandidateDocumentType,
@@ -17,6 +18,7 @@ export {
   EvaluationStatus,
   EvaluationRecommendation,
   EvaluationType,
+  ExternalParticipantStatus,
   InterviewEventAction,
   InterviewFormat,
   InterviewParticipantKind,
@@ -52,6 +54,12 @@ export {
   TaskPriority,
   TaskReminderStatus,
   TaskStatus,
+  TrainingDeliveryMode,
+  TrainingEnrollmentStatus,
+  TrainingParticipantType,
+  TrainingProgramStatus,
+  TrainingSessionParticipationStatus,
+  TrainingSessionStatus,
   UserStatus,
   UserType,
 } from '../../../prisma/generated/client/index.js';
