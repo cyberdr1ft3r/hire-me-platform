@@ -1,0 +1,34 @@
+import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '../persistence/prisma/generated-client.js';
+
+import type { RequestContext } from '../auth/auth.types.js';
+import { PrismaService } from '../persistence/prisma/prisma.service.js';
+
+@Injectable()
+export class CommercialAuditService {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  async record(
+    action: string,
+    context: RequestContext,
+    options: {
+      actorUserId: string;
+      entityType: 'CommercialQuotation' | 'CommercialContract' | 'PurchaseOrder' | 'Invoice';
+      entityId?: string;
+      metadataSummary: string;
+    },
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<void> {
+    await prisma.auditLog.create({
+      data: {
+        action,
+        entityType: options.entityType,
+        entityId: options.entityId,
+        actorUserId: options.actorUserId,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        metadataSummary: options.metadataSummary,
+      },
+    });
+  }
+}

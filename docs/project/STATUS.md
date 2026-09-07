@@ -5,11 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Training operations foundation (Phase 9) after merged task-management, document-management, and recruitment-reporting foundations.
-**Health:** Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`. Issue #37 is implemented on branch `feat/training-operations` as a draft PR. The branch was started from `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules) and then integrated latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting). Both the merged reporting behavior and the Issue #37 training behavior are preserved.
-**Parallelization:** Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior.
-**Current blocker:** Issue #37 draft PR #45 is awaiting the human/ChatGPT merge gate. The substantive review is complete: the blocking correction pass was accepted at head `d955aa061c64eec943389c629884ba9f65fd9393`, where exact-head Actions run `33896393313` passed all three jobs (Quality checks; PostgreSQL Docker Compose health; Database migration, seed, and integration tests). Only a docs-only STATUS/HANDOFF refresh follows that head; it changes no application code.
-**Next executable development task:** Human/ChatGPT merge gate for the Issue #37 draft PR #45, kept open and unmerged until then.
+**Phase:** Commercial workflow foundation
+**Health:** Issue #37 / PR #45 training operations is merged into `main` at `09c506262ad3284efd69f70440c1ee06175c6e00`. Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46 and incorporates that latest `origin/main`; substantive application, security, concurrency, and migration review passed on head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
+**Current blocker:** draft PR #46 is at the final human/ChatGPT merge gate. Exact-head GitHub Actions run `34166398141` passed all three jobs, including 210/210 PostgreSQL integration tests across 15 files. The PR must stay draft/open/unmerged until approved.
+**Next executable development task:** Human/ChatGPT merge gate for Issue #38 draft PR #46; keep Issue #39 blocked until Issue #38 merges.
 
 ## Active work
 
@@ -31,7 +30,8 @@ Status owner: repository maintainer
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
-| Issue #37 | In review | Implement training operations foundation: programs, sessions, enrollment, and attendance | Substantive review and exact-head CI are complete; awaiting the human/ChatGPT merge gate on draft PR #45; keep it open/unmerged |
+| Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
+| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Final human/ChatGPT merge gate for draft PR #46; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -208,7 +208,7 @@ Status owner: repository maintainer
 
 ## Issue #35 Implementation State
 
-- Issue #35 implements the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
+- Issue #35 is complete; PR #40 merged the internal document-management foundation on top of the current `main`, which now includes merged Issue #31 task-management functionality.
 - Issue #12 is incorporated by adding distinct centralized document taxonomy values for `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION`. The old generic contract database value is retained only as compatibility taxonomy and is not offered for new document creation.
 - The API adds permission-code guarded `/v1/documents` endpoints for document list/detail, create/register, metadata update, archive, immutable version upload, version list, and protected authorized download.
 - Document authorization combines exact document capability with linked business-context permission and scope. Current implemented contexts are client, candidate, recruitment mission, mission-candidate process, and interview; mission, process, and interview contexts use context-specific scope override rules rather than one blended mission-document bypass. Training contract taxonomy is distinct but training operations/rendering remain future work.
@@ -241,7 +241,19 @@ Status owner: repository maintainer
 - PR #45 review corrections (decision D-050): participant linking now requires the source domain's own read authorization and fails closed indistinguishably; enrollment reads redact source identifiers; the migration backfills and validates legacy active enrollments and adds a keyless-active check constraint; `PARTICIPATION_ARCHIVED` is reachable through an explicit audited idempotent archive action; attendance is gated by session state and can no longer be rewritten through the ordinary action; training query booleans are parsed explicitly; the reschedule reason is persisted; and certificate readiness requires an explicit `PENDING` status.
 - After integrating latest `main` (PR #43 recruitment reporting), the full suite was rerun from a clean database. Following the review correction pass, `pnpm test:db` totals 189 PostgreSQL integration tests across 14 files (140 merged baseline + 49 training).
 - Reviewed head is `d955aa061c64eec943389c629884ba9f65fd9393`. Exact-head Actions run `33896393313` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests (189 passed).
-- The substantive ChatGPT review findings are resolved. The only remaining work before merge is the human/ChatGPT merge gate.
+- PR #45 merged into `main` as merge commit `09c506262ad3284efd69f70440c1ee06175c6e00`; Issue #37 is complete.
+
+## Issue #38 Implementation State
+
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates latest `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
+- The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
+- Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
+- Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, contract terms, and free-form history reasons without commercial-data access.
+- Commercial APIs combine route permissions with underlying client and mission source scope. Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources are checked server-side for same client, compatible business context, currency, required source status, and actor access. Hidden and nonexistent commercial/source UUIDs are masked behind the same generic not-found response.
+- Historical commercial reads remain available from the durable commercial record scope after parent client or mission archival; new upstream commercial source creation may keep stricter writable-source checks.
+- Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
+- PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
+- Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior. Substantive ChatGPT integration review passed on reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`; exact-head GitHub Actions run `34166398141` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 210/210 PostgreSQL integration tests across 15 files. No implementation, security, concurrency, or migration blocker remains before the final human/ChatGPT merge gate.
 
 ## Current open technical questions
 
@@ -257,14 +269,13 @@ Status owner: repository maintainer
 - Detailed per-module permission names beyond the implemented administration, client CRM, candidate profile, recruitment mission, and mission-candidate process catalogs.
 - Dashboard formulas and revenue authorization rules.
 - Production public opportunity URL strategy beyond opaque slugs, CAPTCHA provider, production malware scanner, production storage provider, public upload retention schedule, and applicant duplicate-review workflow.
-- Commercial accounting numbering, correction, VAT/tax, partial-payment allocation, and profitability rules.
+- Commercial numbering/correction policy beyond unique caller-supplied references, payment allocation, overdue handling, expenses, client balances, revenue/profitability, and settlement rules.
 - Integration synchronization and retry policies.
 
 ## Immediate next actions
 
-1. Human/ChatGPT merge gate for the Issue #37 draft PR #45; keep it open and unmerged until that gate completes.
-2. Issue #38 may proceed in parallel (commercial/accounting, including training commercial records); Issue #39 remains blocked by Issue #38.
-3. Require latest-`main` incorporation plus a clean-database migration, double seed, and full integration run from whichever of the remaining Prisma-heavy branches merges after Issue #37.
+1. Complete the final human/ChatGPT merge gate for Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
+2. Issue #39 remains blocked until Issue #38 / PR #46 merges.
 
 ## Status Update Rules
 

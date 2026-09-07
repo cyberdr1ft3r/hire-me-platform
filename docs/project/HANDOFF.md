@@ -6,42 +6,22 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- Issue #31 (PR #32), Issue #35 (PR #40), and Issue #36 (PR #43) are merged into `main`.
-- Issue #37 is implemented on branch `feat/training-operations` and opened as a draft PR. The branch base was `main` at `cebd87ffa0f3686418e2244570a1b1d40f995541` (PR #44 coordination rules). Latest `main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` (PR #43 recruitment reporting) has been merged into the branch; both the merged reporting behavior and the Issue #37 training behavior are preserved.
-- Issue #37 builds the internal training-operations module on the existing `TrainingProgram`, `TrainingSession`, `TrainingEnrollment`, and `TrainingSessionParticipation` records. No parallel training model exists.
-- The only schema change is the additive migration `20260904143000_training_operations_foundation`. No existing migration was edited, renamed, or reordered.
-- Program, session, and participation lifecycles follow `docs/workflows.md` exactly. Enrollment adds one documented extension: an explicit authorized withdrawal to `canceled` from any active state, required by Issue #37 and recorded in decision D-049.
-- Training authorization combines capability plus server-side record scope. `training_programs:view_all` is the separate broad oversight capability, and client-linked programs additionally require `clients:view` in both the list predicate and the detail path.
-- Attendance correction is a separate capability from recording attendance, always carries a reason, and is audited.
-- Certificate readiness is a derived durable boundary only. Issue #37 generates no certificate, no contract file, and no `Document` records for training.
-- Issue #38 (commercial/accounting, including training commercial records) is being implemented concurrently by another agent. Issue #37 does not depend on that branch and implements no pricing, billing, invoicing, payment, revenue, or profitability behavior. The stable training identifiers a later commercial feature can consume are the training program id and reference, the training session id, and the training enrollment id.
-- Local validation for Issue #37 used a dedicated PostgreSQL database because a concurrent agent reset the shared development database during the task. See risk R-028.
-- One blocking ChatGPT review pass on PR #45 has been resolved on the same branch (decision D-050, risk R-029): source-domain authorization and redaction for training participants, a legacy-safe active-enrollment migration backfill plus keyless-active check constraint, an explicit audited participation archive action, session-state gating and no-rewrite semantics for attendance, explicit query-boolean parsing, a persisted reschedule reason, and certificate readiness that requires an explicit `PENDING` status.
-- The substantive Issue #37 review is complete and its findings are resolved. The correction pass was reviewed at head `d955aa061c64eec943389c629884ba9f65fd9393`, where exact-head Actions run `33896393313` passed all three jobs: Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests (189 PostgreSQL integration tests across 14 files). Do not re-run that validation; it is already recorded.
-- The only commit after that reviewed head is this docs-only STATUS/HANDOFF refresh. It changes no application code, no schema, no migration, and no test.
-- Issue #38 commercial workflow is active on PR #46 / branch `feat/commercial-workflow`. It is unmerged. Do not merge it, cherry-pick from it, depend on it, or implement commercial functionality on the Issue #37 branch.
+- Issue #37 / PR #45 training operations is merged into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00`.
+- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46.
+- PR #46 started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates current `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
+- Substantive ChatGPT integration review passed on exact head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
+- Exact-head GitHub Actions run `34166398141` is green: PostgreSQL Docker Compose health, Quality checks, and Database migration, seed, and integration tests all passed, with 210/210 PostgreSQL integration tests across 15 files.
+- The only commit after reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4` should be this narrow docs refresh unless a reviewer requests otherwise.
+- Commercial records remain structured business records, not `Document` records. Generated or signed files remain future `DocumentVersion` outputs.
+- Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, contract terms, and free-form history reasons without `commercial_data:access`.
+- Commercial access is combined with underlying client and mission source scope. Hidden and nonexistent commercial/source UUIDs return the same generic not-found response.
+- Historical commercial reads remain available from the commercial record's durable authorized business scope after parent client or mission archival. New upstream quotation, contract, or purchase-order creation may still require currently writable source context.
+- Placement-backed invoicing uses authoritative locked/re-read confirmed `MissionPlacement` eligibility. `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission.
+- Training operations from PR #45 remain separate from commercial billing; `TrainingEnrollment.paymentStatus` is not exposed by training APIs/contracts, and Issue #38 must not implement payments, revenue/profitability, settlement, generated files, e-signature, external portals, private messages/groups, email, WhatsApp, or calendar delivery.
 
 ## Next Action
 
-Take Issue #37 draft PR #45 through the human/ChatGPT merge gate. The implementation review and its exact-head CI are already complete, so no further validation is requested of the next agent for the reviewed head.
-
-Completion conditions for that gate:
-
-- A human or ChatGPT reviewer accepts PR #45 and marks it ready for merge. Until then the PR stays draft, open, and unmerged.
-- Whoever merges Issue #37 must not merge, cherry-pick from, or depend on the unmerged Issue #38 branch.
-- Whichever remaining Prisma-heavy branch merges after Issue #37 must incorporate latest `main` and rerun a clean-database migration, double seed, and full integration suite before its own merge.
-
-## Known Follow-Up Work For Training
-
-Not implemented by Issue #37 and still requiring their own approved issues:
-
-- Detailed assessment, exam, or lesson content and any LMS behavior.
-- Certificate or training-contract file generation, rendering, templates, and distribution.
-- Training pricing, quotations, invoicing, payments, revenue, and profitability (Issue #38 / Phase 8).
-- Training analytics and reporting KPIs. Issue #36 deliberately excludes training analytics, and training KPI names must not reuse recruitment KPI names with different semantics.
-- Satisfaction and follow-up workflows beyond their existing lifecycle states.
-- Calendar, email, or WhatsApp delivery for training sessions.
-- Any learner or client-facing training portal.
+Complete the final human/ChatGPT merge gate for PR #46. Keep PR #46 draft/open/unmerged until approved. Issue #39 remains blocked until Issue #38 / PR #46 merges.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 
