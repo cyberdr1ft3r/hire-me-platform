@@ -272,6 +272,21 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
   return body.error?.code;
 }
 
+async function readErrorBody(response: Response): Promise<unknown> {
+  return response.json();
+}
+
+async function expectSameNotFoundEnvelope(
+  hiddenResponse: Response,
+  missingResponse: Response,
+): Promise<void> {
+  const hiddenBody = await readErrorBody(hiddenResponse);
+  const missingBody = await readErrorBody(missingResponse);
+  expect(hiddenResponse.status).toBe(404);
+  expect(missingResponse.status).toBe(404);
+  expect(hiddenBody).toEqual(missingBody);
+}
+
 async function createClientAndMission(title: string, recruiterUserId: string) {
   const client = await prisma.client.create({
     data: { name: `${title} Client`, normalizedName: `${title} client`.toLowerCase() },
@@ -311,6 +326,56 @@ async function createQuotation(
     }),
   });
   return QuotationDetailResponseSchema.parse(await response.json()).quotation;
+}
+
+async function createPlacementFixture(
+  clientId: string,
+  missionId: string,
+  userId: string,
+  emailPrefix: string,
+  input: { status?: PlacementStatus; eligibleForInvoicing?: boolean } = {},
+) {
+  const candidate = await prisma.candidate.create({
+    data: {
+      displayName: `Issue38 ${emailPrefix} Candidate`,
+      email: `${emailPrefix}@commercial.test`,
+      normalizedEmail: `${emailPrefix}@commercial.test`,
+      status: CandidateStatus.ACTIVE,
+    },
+  });
+  const process = await prisma.missionCandidate.create({
+    data: {
+      missionId,
+      candidateId: candidate.id,
+      responsibleRecruiterUserId: userId,
+      state: MissionCandidateState.INTEGRATED,
+    },
+  });
+  const offer = await prisma.recruitmentOffer.create({
+    data: { missionId, missionCandidateId: process.id },
+  });
+  const version = await prisma.recruitmentOfferVersion.create({
+    data: {
+      offerId: offer.id,
+      missionId,
+      missionCandidateId: process.id,
+      versionNumber: 1,
+      status: OfferStatus.ACCEPTED,
+      isCurrent: true,
+    },
+  });
+  const placement = await prisma.missionPlacement.create({
+    data: {
+      missionId,
+      missionCandidateId: process.id,
+      offerVersionId: version.id,
+      status: input.status ?? PlacementStatus.CONFIRMED,
+      integrationStartDate: new Date('2026-09-15T00:00:00.000Z'),
+      eligibleForInvoicing: input.eligibleForInvoicing ?? true,
+      invoicingEligibleAt: input.eligibleForInvoicing === false ? null : new Date(),
+    },
+  });
+  return { candidate, process, offer, version, placement, clientId };
 }
 
 describe('commercial workflow foundation', () => {
@@ -646,6 +711,209 @@ describe('commercial workflow foundation', () => {
     expect(placed.status).toBe(201);
   });
 
+  it('keeps issued invoice history readable after parent client and mission archival', async () => {
+    const { client, mission } = await createClientAndMission(
+      'Issue38 Historical Invoice',
+      scopedUserId,
+    );
+    const invoice = await prisma.invoice.create({
+      data: {
+        reference: 'I38-HISTORICAL-READ',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        currency: 'MAD',
+        status: 'ISSUED',
+        issueDate: new Date('2026-09-01T00:00:00.000Z'),
+        issuedAt: new Date('2026-09-01T00:00:00.000Z'),
+        subtotalCents: 1177550311,
+        taxCents: 657168664,
+        totalCents: 1834718975,
+        events: {
+          create: {
+            actorUserId: commercialUserId,
+            action: 'ISSUED',
+            nextStatus: 'ISSUED',
+            safeSummary: 'Historical invoice issued.',
+          },
+        },
+      },
+    });
+    await prisma.recruitmentMission.update({
+      where: { id: mission.id },
+      data: { state: 'ARCHIVED', archivedAt: new Date() },
+    });
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { status: 'ARCHIVED', archivedAt: new Date() },
+    });
+
+    const response = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}`, {
+      headers: authHeaders(scopedToken),
+    });
+    expect(response.status).toBe(200);
+    const body = InvoiceDetailResponseSchema.parse(await response.json()).invoice;
+    expect(body.id).toBe(invoice.id);
+    expect(body.history.some((event) => event.action === 'ISSUED')).toBe(true);
+  });
+
+  it('allows confirmed eligible placement invoicing after mission closure but blocks revoked or ineligible placements', async () => {
+    const { client, mission } = await createClientAndMission(
+      'Issue38 Closed Mission Placement',
+      commercialUserId,
+    );
+    const eligible = await createPlacementFixture(
+      client.id,
+      mission.id,
+      commercialUserId,
+      'closed-placement-eligible',
+    );
+    await prisma.recruitmentMission.update({
+      where: { id: mission.id },
+      data: { state: 'CLOSED_WITH_RECRUITMENT', closedAt: new Date() },
+    });
+
+    const created = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CLOSED-MISSION-PLACEMENT',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: eligible.placement.id,
+        currency: 'MAD',
+        lines: [
+          { description: 'Placement fee', quantity: 1, unitPriceCents: 50000, taxRateBps: 2000 },
+        ],
+      }),
+    });
+    expect(created.status).toBe(201);
+
+    const ineligible = await createPlacementFixture(
+      client.id,
+      mission.id,
+      commercialUserId,
+      'closed-placement-ineligible',
+      { eligibleForInvoicing: false },
+    );
+    const ineligibleResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CLOSED-MISSION-INELIGIBLE',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: ineligible.placement.id,
+        currency: 'MAD',
+        lines: [
+          { description: 'Placement fee', quantity: 1, unitPriceCents: 50000, taxRateBps: 2000 },
+        ],
+      }),
+    });
+    expect(ineligibleResponse.status).toBe(409);
+    expect(await readErrorCode(ineligibleResponse)).toBe('PLACEMENT_INVOICE_ELIGIBILITY_REQUIRED');
+
+    const corrected = await createPlacementFixture(
+      client.id,
+      mission.id,
+      commercialUserId,
+      'closed-placement-corrected',
+      { status: PlacementStatus.CORRECTED, eligibleForInvoicing: true },
+    );
+    const correctedResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CLOSED-MISSION-CORRECTED',
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: corrected.placement.id,
+        currency: 'MAD',
+        lines: [
+          { description: 'Placement fee', quantity: 1, unitPriceCents: 50000, taxRateBps: 2000 },
+        ],
+      }),
+    });
+    expect(correctedResponse.status).toBe(409);
+    expect(await readErrorCode(correctedResponse)).toBe('PLACEMENT_INVOICE_ELIGIBILITY_REQUIRED');
+  });
+
+  it('preserves exact contract and purchase-order cents in derived invoice snapshots', async () => {
+    const { client } = await createClientAndMission(
+      'Issue38 Exact Source Snapshot',
+      commercialUserId,
+    );
+    const contract = await prisma.commercialContract.create({
+      data: {
+        reference: 'C38-EXACT-SNAPSHOT',
+        businessType: CommercialContractBusinessType.TRAINING,
+        clientId: client.id,
+        currency: 'MAD',
+        status: 'ACTIVE',
+        contractValueCents: 1177550311,
+        taxCents: 657168664,
+        totalCents: 1834718975,
+      },
+    });
+    const contractInvoiceResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-CONTRACT-EXACT-SNAPSHOT',
+        clientId: client.id,
+        contractId: contract.id,
+        currency: 'MAD',
+      }),
+    });
+    expect(contractInvoiceResponse.status).toBe(201);
+    const contractInvoice = InvoiceDetailResponseSchema.parse(
+      await contractInvoiceResponse.json(),
+    ).invoice;
+    expect(contractInvoice.amounts).toMatchObject({
+      subtotalCents: 1177550311,
+      taxCents: 657168664,
+      totalCents: 1834718975,
+    });
+    expect(contractInvoice.lines?.[0]).toMatchObject({
+      lineSubtotalCents: 1177550311,
+      lineTaxCents: 657168664,
+      lineTotalCents: 1834718975,
+    });
+
+    const purchaseOrder = await prisma.purchaseOrder.create({
+      data: {
+        reference: 'PO38-EXACT-SNAPSHOT',
+        clientId: client.id,
+        currency: 'MAD',
+        status: 'RECEIVED',
+        amountCents: 10000,
+        taxCents: 2000,
+        totalCents: 12000,
+      },
+    });
+    const poInvoiceResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-PO-EXACT-SNAPSHOT',
+        clientId: client.id,
+        purchaseOrderId: purchaseOrder.id,
+        currency: 'MAD',
+      }),
+    });
+    expect(poInvoiceResponse.status).toBe(201);
+    const poInvoice = InvoiceDetailResponseSchema.parse(await poInvoiceResponse.json()).invoice;
+    expect(poInvoice.amounts).toMatchObject({
+      subtotalCents: 10000,
+      taxCents: 2000,
+      totalCents: 12000,
+    });
+    expect(poInvoice.lines?.[0]).toMatchObject({
+      lineSubtotalCents: 10000,
+      lineTaxCents: 2000,
+      lineTotalCents: 12000,
+    });
+  });
+
   it('prevents duplicate references and concurrent invoice issue duplicates', async () => {
     const { client } = await createClientAndMission('Issue38 Duplicate', commercialUserId);
     await createQuotation(baseUrl, commercialToken, client.id, 'Q38-DUPLICATE');
@@ -696,6 +964,105 @@ describe('commercial workflow foundation', () => {
         where: { entityType: 'Invoice', entityId: invoice.id, action: 'commercial.invoice.issued' },
       }),
     ).toBe(1);
+  });
+
+  it('serializes concurrent quotation accept and cancel from issued state', async () => {
+    const { client } = await createClientAndMission('Issue38 Quotation Race', commercialUserId);
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-RACE');
+    await prisma.commercialQuotation.update({
+      where: { id: quotation.id },
+      data: { status: 'ISSUED' },
+    });
+
+    const [accept, cancel] = await Promise.all([
+      fetch(`${baseUrl}/v1/commercial/quotations/${quotation.id}/status`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({ status: 'ACCEPTED', reason: 'Accepted concurrently.' }),
+      }),
+      fetch(`${baseUrl}/v1/commercial/quotations/${quotation.id}/status`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({ status: 'CANCELED', reason: 'Canceled concurrently.' }),
+      }),
+    ]);
+    expect([accept.status, cancel.status].sort()).toEqual([200, 409]);
+    const finalQuotation = await prisma.commercialQuotation.findUniqueOrThrow({
+      where: { id: quotation.id },
+    });
+    expect(['ACCEPTED', 'CANCELED']).toContain(finalQuotation.status);
+    expect(
+      await prisma.commercialQuotationEvent.count({
+        where: {
+          quotationId: quotation.id,
+          action: 'STATUS_CHANGED',
+          nextStatus: { in: ['ACCEPTED', 'CANCELED'] },
+        },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: 'CommercialQuotation',
+          entityId: quotation.id,
+          action: 'commercial.quotation.status_changed',
+        },
+      }),
+    ).toBe(1);
+  });
+
+  it('serializes duplicate placement-backed invoice creation for one placement source', async () => {
+    const { client, mission } = await createClientAndMission(
+      'Issue38 Duplicate Placement Invoice',
+      commercialUserId,
+    );
+    const { placement } = await createPlacementFixture(
+      client.id,
+      mission.id,
+      commercialUserId,
+      'duplicate-placement-invoice',
+    );
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'commercial.invoice.created' },
+    });
+    const invoiceBody = (reference: string) =>
+      JSON.stringify({
+        reference,
+        clientId: client.id,
+        recruitmentMissionId: mission.id,
+        missionPlacementId: placement.id,
+        currency: 'MAD',
+        lines: [
+          { description: 'Placement fee', quantity: 1, unitPriceCents: 30000, taxRateBps: 2000 },
+        ],
+      });
+
+    const [first, second] = await Promise.all([
+      fetch(`${baseUrl}/v1/commercial/invoices`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: invoiceBody('I38-DUPLICATE-PLACEMENT-A'),
+      }),
+      fetch(`${baseUrl}/v1/commercial/invoices`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: invoiceBody('I38-DUPLICATE-PLACEMENT-B'),
+      }),
+    ]);
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
+    expect(await prisma.invoice.count({ where: { missionPlacementId: placement.id } })).toBe(1);
+    expect(
+      await prisma.invoiceEvent.count({
+        where: { invoice: { missionPlacementId: placement.id }, action: 'CREATED' },
+      }),
+    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'commercial.invoice.created' } })).toBe(
+      auditCountBefore + 1,
+    );
+    const reloadedPlacement = await prisma.missionPlacement.findUniqueOrThrow({
+      where: { id: placement.id },
+    });
+    expect(reloadedPlacement.eligibleForInvoicing).toBe(true);
   });
 
   it('combines commercial permissions with client and mission record scope', async () => {
@@ -773,6 +1140,247 @@ describe('commercial workflow foundation', () => {
     expect(noClientScope.status).toBe(404);
     expect(await readErrorCode(noClientScope)).toBe('COMMERCIAL_SOURCE_NOT_FOUND');
   });
+
+  it('returns indistinguishable responses for hidden and nonexistent commercial records and sources', async () => {
+    const assigned = await createClientAndMission('Issue38 Missing Mask Assigned', scopedUserId);
+    const hidden = await createClientAndMission('Issue38 Missing Mask Hidden', commercialUserId);
+    const missingId = '00000000-0000-4000-8000-000000000038';
+    const hiddenQuotation = await prisma.commercialQuotation.create({
+      data: {
+        reference: 'Q38-MASK-HIDDEN',
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        subtotalCents: 100,
+        totalCents: 100,
+        lines: {
+          create: {
+            description: 'Hidden quotation',
+            quantity: 1,
+            unitPriceCents: 100,
+            taxRateBps: 0,
+            sortOrder: 0,
+            lineSubtotalCents: 100,
+            lineTaxCents: 0,
+            lineTotalCents: 100,
+          },
+        },
+      },
+    });
+    const hiddenContract = await prisma.commercialContract.create({
+      data: {
+        reference: 'C38-MASK-HIDDEN',
+        businessType: CommercialContractBusinessType.RECRUITMENT,
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        contractValueCents: 100,
+        totalCents: 100,
+        status: 'ACTIVE',
+      },
+    });
+    const hiddenPurchaseOrder = await prisma.purchaseOrder.create({
+      data: {
+        reference: 'PO38-MASK-HIDDEN',
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        amountCents: 100,
+        taxCents: 0,
+        totalCents: 100,
+        status: 'RECEIVED',
+      },
+    });
+    const hiddenInvoice = await prisma.invoice.create({
+      data: {
+        reference: 'I38-MASK-HIDDEN',
+        clientId: hidden.client.id,
+        recruitmentMissionId: hidden.mission.id,
+        currency: 'MAD',
+        status: 'ISSUED',
+        subtotalCents: 100,
+        totalCents: 100,
+      },
+    });
+
+    const actionCases = [
+      {
+        hiddenPath: `/v1/commercial/quotations/${hiddenQuotation.id}`,
+        missingPath: `/v1/commercial/quotations/${missingId}`,
+        updateBody: { validUntil: '2026-10-01T00:00:00.000Z' },
+        statusPath: `/v1/commercial/quotations/${hiddenQuotation.id}/status`,
+        missingStatusPath: `/v1/commercial/quotations/${missingId}/status`,
+        statusBody: { status: 'ISSUED' },
+        archivePath: `/v1/commercial/quotations/${hiddenQuotation.id}/archive`,
+        missingArchivePath: `/v1/commercial/quotations/${missingId}/archive`,
+      },
+      {
+        hiddenPath: `/v1/commercial/contracts/${hiddenContract.id}`,
+        missingPath: `/v1/commercial/contracts/${missingId}`,
+        updateBody: { termsSummary: 'Updated' },
+        statusPath: `/v1/commercial/contracts/${hiddenContract.id}/status`,
+        missingStatusPath: `/v1/commercial/contracts/${missingId}/status`,
+        statusBody: { status: 'COMPLETED' },
+        archivePath: `/v1/commercial/contracts/${hiddenContract.id}/archive`,
+        missingArchivePath: `/v1/commercial/contracts/${missingId}/archive`,
+      },
+      {
+        hiddenPath: `/v1/commercial/purchase-orders/${hiddenPurchaseOrder.id}`,
+        missingPath: `/v1/commercial/purchase-orders/${missingId}`,
+        updateBody: { receivedDate: '2026-10-01T00:00:00.000Z' },
+        statusPath: `/v1/commercial/purchase-orders/${hiddenPurchaseOrder.id}/status`,
+        missingStatusPath: `/v1/commercial/purchase-orders/${missingId}/status`,
+        statusBody: { status: 'CANCELED' },
+        archivePath: `/v1/commercial/purchase-orders/${hiddenPurchaseOrder.id}/archive`,
+        missingArchivePath: `/v1/commercial/purchase-orders/${missingId}/archive`,
+      },
+      {
+        hiddenPath: `/v1/commercial/invoices/${hiddenInvoice.id}`,
+        missingPath: `/v1/commercial/invoices/${missingId}`,
+        updateBody: { dueDate: '2026-10-01T00:00:00.000Z' },
+        statusPath: `/v1/commercial/invoices/${hiddenInvoice.id}/issue`,
+        missingStatusPath: `/v1/commercial/invoices/${missingId}/issue`,
+        statusBody: { reason: 'Issue' },
+        archivePath: `/v1/commercial/invoices/${hiddenInvoice.id}/archive`,
+        missingArchivePath: `/v1/commercial/invoices/${missingId}/archive`,
+      },
+    ];
+
+    for (const item of actionCases) {
+      await expectSameNotFoundEnvelope(
+        await fetch(`${baseUrl}${item.hiddenPath}`, { headers: authHeaders(scopedToken) }),
+        await fetch(`${baseUrl}${item.missingPath}`, { headers: authHeaders(scopedToken) }),
+      );
+      await expectSameNotFoundEnvelope(
+        await fetch(`${baseUrl}${item.hiddenPath}`, {
+          method: 'PATCH',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.updateBody),
+        }),
+        await fetch(`${baseUrl}${item.missingPath}`, {
+          method: 'PATCH',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.updateBody),
+        }),
+      );
+      await expectSameNotFoundEnvelope(
+        await fetch(`${baseUrl}${item.statusPath}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.statusBody),
+        }),
+        await fetch(`${baseUrl}${item.missingStatusPath}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.statusBody),
+        }),
+      );
+      await expectSameNotFoundEnvelope(
+        await fetch(`${baseUrl}${item.archivePath}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+        }),
+        await fetch(`${baseUrl}${item.missingArchivePath}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+        }),
+      );
+    }
+
+    const sourceCases = [
+      {
+        hiddenBody: {
+          reference: 'C38-MASK-HIDDEN-Q',
+          businessType: 'RECRUITMENT',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          sourceQuotationId: hiddenQuotation.id,
+          currency: 'MAD',
+          contractValueCents: 100,
+        },
+        missingBody: {
+          reference: 'C38-MASK-MISSING-Q',
+          businessType: 'RECRUITMENT',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          sourceQuotationId: missingId,
+          currency: 'MAD',
+          contractValueCents: 100,
+        },
+        path: '/v1/commercial/contracts',
+      },
+      {
+        hiddenBody: {
+          reference: 'PO38-MASK-HIDDEN-C',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          contractId: hiddenContract.id,
+          currency: 'MAD',
+          amountCents: 100,
+        },
+        missingBody: {
+          reference: 'PO38-MASK-MISSING-C',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          contractId: missingId,
+          currency: 'MAD',
+          amountCents: 100,
+        },
+        path: '/v1/commercial/purchase-orders',
+      },
+      {
+        hiddenBody: {
+          reference: 'I38-MASK-HIDDEN-PO',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          purchaseOrderId: hiddenPurchaseOrder.id,
+          currency: 'MAD',
+        },
+        missingBody: {
+          reference: 'I38-MASK-MISSING-PO',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          purchaseOrderId: missingId,
+          currency: 'MAD',
+        },
+        path: '/v1/commercial/invoices',
+      },
+      {
+        hiddenBody: {
+          reference: 'I38-MASK-HIDDEN-CORRECTION',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          correctionOfInvoiceId: hiddenInvoice.id,
+          currency: 'MAD',
+          lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+        },
+        missingBody: {
+          reference: 'I38-MASK-MISSING-CORRECTION',
+          clientId: assigned.client.id,
+          recruitmentMissionId: assigned.mission.id,
+          correctionOfInvoiceId: missingId,
+          currency: 'MAD',
+          lines: [{ description: 'Correction', quantity: 1, unitPriceCents: 100, taxRateBps: 0 }],
+        },
+        path: '/v1/commercial/invoices',
+      },
+    ];
+
+    for (const item of sourceCases) {
+      await expectSameNotFoundEnvelope(
+        await fetch(`${baseUrl}${item.path}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.hiddenBody),
+        }),
+        await fetch(`${baseUrl}${item.path}`, {
+          method: 'POST',
+          headers: authHeaders(scopedToken),
+          body: JSON.stringify(item.missingBody),
+        }),
+      );
+    }
+  }, 15000);
 
   it('validates quotation to contract and purchase-order source context, currency, and state', async () => {
     const { client, mission } = await createClientAndMission('Issue38 Chain A', commercialUserId);

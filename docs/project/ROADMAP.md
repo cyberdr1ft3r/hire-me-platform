@@ -115,7 +115,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 **State:** Commercial record foundation active through Issue #38 / branch `feat/commercial-workflow`
 
-- Issue #38 implements structured quotations, recruitment and training commercial contracts, purchase orders, invoices, server-calculated VAT/tax totals, lifecycle/history records, permission-aware minimal UI, source-scope authorization, relationship context/currency/status validation, archive filtering, atomic audit, and placement-backed invoice eligibility.
+- Issue #38 implements structured quotations, recruitment and training commercial contracts, purchase orders, invoices, server-calculated VAT/tax totals, lifecycle/history records, permission-aware minimal UI, source-scope authorization with hidden-ID masking, relationship context/currency/status validation, historical read preservation after parent archival, exact contract/PO invoice snapshots, archive filtering, atomic audit, and placement-backed invoice eligibility.
 - Payments and partial payments.
 - Overdue balances.
 - Expenses.

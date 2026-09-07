@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** Commercial workflow foundation
 **Health:** Issue #38 is implemented on branch `feat/commercial-workflow`; latest `origin/main` at `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a` is incorporated.
-**Current blocker:** none known locally; draft PR #46 is open for human/ChatGPT review and must remain draft/open/unmerged until approved.
-**Next executable development task:** Human/ChatGPT review of Issue #38 draft PR #46; keep it open/unmerged.
+**Current blocker:** none known locally; draft PR #46 remains open for final human/ChatGPT review and must stay draft/open/unmerged until approved.
+**Next executable development task:** Human/ChatGPT final review of Issue #38 draft PR #46; keep it open/unmerged.
 
 ## Active work
 
@@ -30,7 +30,7 @@ Status owner: repository maintainer
 | Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged into `main` via PR #43 |
-| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT review of draft PR #46; keep it draft/open/unmerged |
+| Issue #38 | In review | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Human/ChatGPT final review of draft PR #46; keep it draft/open/unmerged |
 
 ## Completed foundation work
 
@@ -231,10 +231,11 @@ Status owner: repository maintainer
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
 - Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, contract terms, and free-form history reasons without commercial-data access.
-- Commercial APIs combine route permissions with underlying client and mission source scope. Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources are checked server-side for same client, compatible business context, currency, required source status, and actor access.
-- Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
-- PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, reason redaction, monetary overflow rejection, placement stale-read protection, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
-- Local merged validation includes `pnpm.cmd test:db` with 155 PostgreSQL integration tests passing across 14 files.
+- Commercial APIs combine route permissions with underlying client and mission source scope. Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources are checked server-side for same client, compatible business context, currency, required source status, and actor access. Hidden and nonexistent commercial/source UUIDs are masked behind the same generic not-found response.
+- Historical commercial reads remain available from the durable commercial record scope after parent client or mission archival; new upstream commercial source creation may keep stricter writable-source checks.
+- Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
+- PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
+- Local merged validation includes `pnpm.cmd test:db` with 161 PostgreSQL integration tests passing across 14 files.
 
 ## Current open technical questions
 
@@ -255,7 +256,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Human/ChatGPT review of Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
+1. Human/ChatGPT final review of Issue #38 draft PR #46; keep the PR draft/open/unmerged until approved.
 2. Issue #39 remains blocked until Issue #38 is reviewed and merged.
 
 ## Status Update Rules

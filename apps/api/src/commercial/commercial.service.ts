@@ -37,7 +37,6 @@ import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
 import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
   AssignmentStatus,
-  ClientStatus,
   CommercialContractBusinessType,
   CommercialContractStatus,
   InvoiceStatus,
@@ -75,6 +74,12 @@ type CalculatedLine = CommercialLineInput & {
   lineSubtotalCents: number;
   lineTaxCents: number;
   lineTotalCents: number;
+};
+type CalculatedInvoiceSnapshot = {
+  lines: CalculatedLine[];
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
 };
 
 const terminalMissionStates = new Set<RecruitmentMissionState>([
@@ -184,8 +189,7 @@ export class CommercialService {
   async getQuotation(id: string, actorUserId: string): Promise<QuotationDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.quotationsView, 'quotations:view', 'QUOTATIONS_VIEW_REQUIRED');
-    const quotation = await this.requireQuotation(id);
-    await this.assertRecordSourceScope(quotation, actorUserId, access, this.prisma);
+    const quotation = await this.getScopedQuotation(id, actorUserId, access);
     return { quotation: this.toQuotationDetail(quotation, access) };
   }
 
@@ -477,8 +481,7 @@ export class CommercialService {
   async getContract(id: string, actorUserId: string): Promise<CommercialContractDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.contractsView, 'contracts:view', 'CONTRACTS_VIEW_REQUIRED');
-    const contract = await this.requireContract(id);
-    await this.assertRecordSourceScope(contract, actorUserId, access, this.prisma);
+    const contract = await this.getScopedContract(id, actorUserId, access);
     return { contract: this.toContractDetail(contract, access) };
   }
 
@@ -804,8 +807,7 @@ export class CommercialService {
       'purchase_orders:view',
       'PURCHASE_ORDERS_VIEW_REQUIRED',
     );
-    const purchaseOrder = await this.requirePurchaseOrder(id);
-    await this.assertRecordSourceScope(purchaseOrder, actorUserId, access, this.prisma);
+    const purchaseOrder = await this.getScopedPurchaseOrder(id, actorUserId, access);
     return {
       purchaseOrder: this.toPurchaseOrderDetail(purchaseOrder, access),
     };
@@ -1143,8 +1145,7 @@ export class CommercialService {
   async getInvoice(id: string, actorUserId: string): Promise<InvoiceDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.invoicesView, 'invoices:view', 'INVOICES_VIEW_REQUIRED');
-    const invoice = await this.requireInvoice(id);
-    await this.assertRecordSourceScope(invoice, actorUserId, access, this.prisma);
+    const invoice = await this.getScopedInvoice(id, actorUserId, access);
     return { invoice: this.toInvoiceDetail(invoice, access) };
   }
 
@@ -1158,20 +1159,22 @@ export class CommercialService {
     try {
       const invoice = await this.prisma.$transaction(async (tx) => {
         await this.lockWritableClient(input.clientId, access, tx);
-        await this.assertMissionContext(
-          input.clientId,
-          input.recruitmentMissionId,
-          actorUserId,
-          access,
-          tx,
-        );
+        if (!input.missionPlacementId) {
+          await this.assertMissionContext(
+            input.clientId,
+            input.recruitmentMissionId,
+            actorUserId,
+            access,
+            tx,
+          );
+        }
         const sourceLines = await this.validateInvoiceSourcesAndBuildLines(
           input,
           tx,
           access,
           actorUserId,
         );
-        const calculated = calculateLines(input.lines ?? sourceLines);
+        const calculated = input.lines ? calculateLines(input.lines) : sourceLines;
         const created = await tx.invoice.create({
           data: {
             reference: input.reference,
@@ -1456,11 +1459,17 @@ export class CommercialService {
     tx: Tx,
     access: CommercialAccess,
     actorUserId: string,
-  ): Promise<CommercialLineInput[]> {
-    const sourceLines: CommercialLineInput[] = [];
+  ): Promise<CalculatedInvoiceSnapshot> {
+    const sourceLines: CalculatedLine[] = [];
     if (input.quotationId) {
-      const quotation = await this.lockQuotation(input.quotationId, tx);
-      await this.assertRecordSourceScope(quotation, actorUserId, access, tx);
+      const quotation = await this.lockQuotation(input.quotationId, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
+      await this.assertRecordSourceScope(quotation, actorUserId, access, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
       this.assertSameClient(
         quotation.clientId,
         input.clientId,
@@ -1485,12 +1494,22 @@ export class CommercialService {
           quantity: line.quantity,
           unitPriceCents: line.unitPriceCents,
           taxRateBps: line.taxRateBps,
+          sortOrder: sourceLines.length + line.sortOrder,
+          lineSubtotalCents: line.lineSubtotalCents,
+          lineTaxCents: line.lineTaxCents,
+          lineTotalCents: line.lineTotalCents,
         })),
       );
     }
     if (input.contractId) {
-      const contract = await this.lockContract(input.contractId, tx);
-      await this.assertRecordSourceScope(contract, actorUserId, access, tx);
+      const contract = await this.lockContract(input.contractId, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
+      await this.assertRecordSourceScope(contract, actorUserId, access, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
       this.assertSameClient(contract.clientId, input.clientId, 'INVOICE_CONTRACT_CLIENT_MISMATCH');
       this.assertSameContext(
         contract.recruitmentMissionId,
@@ -1516,17 +1535,25 @@ export class CommercialService {
         );
       }
       if (sourceLines.length === 0) {
-        sourceLines.push({
-          description: `Contract ${contract.reference}`,
-          quantity: 1,
-          unitPriceCents: contract.contractValueCents,
-          taxRateBps: taxBpsFromAmounts(contract.contractValueCents, contract.taxCents),
-        });
+        sourceLines.push(
+          exactSourceLineSnapshot({
+            description: `Contract ${contract.reference}`,
+            subtotalCents: contract.contractValueCents,
+            taxCents: contract.taxCents,
+            sortOrder: 0,
+          }),
+        );
       }
     }
     if (input.purchaseOrderId) {
-      const po = await this.lockPurchaseOrder(input.purchaseOrderId, tx);
-      await this.assertRecordSourceScope(po, actorUserId, access, tx);
+      const po = await this.lockPurchaseOrder(input.purchaseOrderId, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
+      await this.assertRecordSourceScope(po, actorUserId, access, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
       this.assertSameClient(po.clientId, input.clientId, 'INVOICE_PURCHASE_ORDER_CLIENT_MISMATCH');
       this.assertSameContext(
         po.recruitmentMissionId,
@@ -1554,12 +1581,14 @@ export class CommercialService {
         );
       }
       if (sourceLines.length === 0) {
-        sourceLines.push({
-          description: `Purchase order ${po.reference}`,
-          quantity: 1,
-          unitPriceCents: po.amountCents,
-          taxRateBps: taxBpsFromAmounts(po.amountCents, po.taxCents),
-        });
+        sourceLines.push(
+          exactSourceLineSnapshot({
+            description: `Purchase order ${po.reference}`,
+            subtotalCents: po.amountCents,
+            taxCents: po.taxCents,
+            sortOrder: 0,
+          }),
+        );
       }
     }
     if (input.correctionOfInvoiceId) {
@@ -1569,8 +1598,14 @@ export class CommercialService {
           'Correction invoices cannot directly consume a placement invoice source.',
         );
       }
-      const correctionSource = await this.lockInvoice(input.correctionOfInvoiceId, tx);
-      await this.assertRecordSourceScope(correctionSource, actorUserId, access, tx);
+      const correctionSource = await this.lockInvoice(input.correctionOfInvoiceId, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
+      await this.assertRecordSourceScope(correctionSource, actorUserId, access, tx, {
+        notFoundCode: 'COMMERCIAL_SOURCE_NOT_FOUND',
+        notFoundMessage: 'Commercial source was not found.',
+      });
       this.assertSameClient(
         correctionSource.clientId,
         input.clientId,
@@ -1627,7 +1662,13 @@ export class CommercialService {
         where: { id: placement.missionId },
       });
       this.assertSameClient(mission.clientId, input.clientId, 'INVOICE_PLACEMENT_CLIENT_MISMATCH');
-      await this.assertMissionContext(input.clientId, placement.missionId, actorUserId, access, tx);
+      await this.assertPlacementInvoiceMissionContext(
+        input.clientId,
+        placement.missionId,
+        actorUserId,
+        access,
+        tx,
+      );
     }
     if (!input.lines && sourceLines.length === 0) {
       throw conflict(
@@ -1635,7 +1676,7 @@ export class CommercialService {
         'Invoice requires source lines or input lines.',
       );
     }
-    return sourceLines;
+    return calculateSnapshotTotals(sourceLines);
   }
 
   private async lockWritableClient(
@@ -1691,6 +1732,45 @@ export class CommercialService {
     }
   }
 
+  private async assertPlacementInvoiceMissionContext(
+    clientId: string,
+    missionId: string,
+    actorUserId: string,
+    access: CommercialAccess,
+    tx: Tx,
+  ): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${missionId}::uuid FOR UPDATE`;
+    const mission = await tx.recruitmentMission.findUnique({ where: { id: missionId } });
+    if (!mission || !access.missionsView) {
+      throw notFound('COMMERCIAL_SOURCE_NOT_FOUND', 'Commercial source was not found.');
+    }
+    this.assertSameClient(mission.clientId, clientId, 'INVOICE_PLACEMENT_CLIENT_MISMATCH');
+    if (!access.missionCandidatesTransfer) {
+      const assignment = await tx.missionRecruiter.findFirst({
+        where: {
+          missionId,
+          userId: actorUserId,
+          status: AssignmentStatus.ACTIVE,
+          archivedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!assignment) {
+        throw notFound('COMMERCIAL_SOURCE_NOT_FOUND', 'Commercial source was not found.');
+      }
+    }
+    if (
+      mission.archivedAt ||
+      (terminalMissionStates.has(mission.state) &&
+        mission.state !== RecruitmentMissionState.CLOSED_WITH_RECRUITMENT)
+    ) {
+      throw conflict(
+        'MISSION_TERMINAL',
+        'Terminal missions cannot receive new commercial records.',
+      );
+    }
+  }
+
   private commercialRecordScopeWhere<T>(
     access: CommercialAccess,
     actorUserId: string,
@@ -1701,7 +1781,6 @@ export class CommercialService {
     }
     return {
       ...(includeArchived ? {} : { archivedAt: null }),
-      client: { archivedAt: null, status: { not: ClientStatus.ARCHIVED } },
       ...this.missionRecordScopeWhere(access, actorUserId),
     } as T;
   }
@@ -1743,26 +1822,29 @@ export class CommercialService {
     actorUserId: string,
     access: CommercialAccess,
     prisma: Tx | PrismaService,
+    options: { notFoundCode?: string; notFoundMessage?: string } = {},
   ): Promise<void> {
+    const notFoundCode = options.notFoundCode ?? 'COMMERCIAL_RECORD_NOT_FOUND';
+    const notFoundMessage = options.notFoundMessage ?? 'Commercial record was not found.';
     if (!access.clientsView) {
-      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
+      throw notFound(notFoundCode, notFoundMessage);
     }
     const client = await prisma.client.findUnique({ where: { id: record.clientId } });
-    if (!client || client.archivedAt || client.status === ClientStatus.ARCHIVED) {
-      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
+    if (!client) {
+      throw notFound(notFoundCode, notFoundMessage);
     }
     if (!record.recruitmentMissionId) {
       return;
     }
     if (!access.missionsView) {
-      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
+      throw notFound(notFoundCode, notFoundMessage);
     }
     const mission = await prisma.recruitmentMission.findUnique({
       where: { id: record.recruitmentMissionId },
       select: { id: true, archivedAt: true, clientId: true },
     });
-    if (!mission || mission.archivedAt || mission.clientId !== record.clientId) {
-      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
+    if (!mission || mission.clientId !== record.clientId) {
+      throw notFound(notFoundCode, notFoundMessage);
     }
     if (access.missionCandidatesTransfer) {
       return;
@@ -1777,93 +1859,141 @@ export class CommercialService {
       select: { id: true },
     });
     if (!assignment) {
-      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
+      throw notFound(notFoundCode, notFoundMessage);
     }
   }
 
-  private async lockQuotation(id: string, tx: Tx, options: { allowArchived?: boolean } = {}) {
+  private async lockQuotation(
+    id: string,
+    tx: Tx,
+    options: { allowArchived?: boolean; notFoundCode?: string; notFoundMessage?: string } = {},
+  ) {
     await tx.$queryRaw`SELECT id FROM "CommercialQuotation" WHERE id = ${id}::uuid FOR UPDATE`;
     const quotation = await tx.commercialQuotation.findUnique({
       where: { id },
       include: quotationInclude,
     });
     if (!quotation || (!options.allowArchived && quotation.archivedAt)) {
-      throw notFound('COMMERCIAL_QUOTATION_NOT_FOUND', 'Commercial quotation was not found.');
+      throw notFound(
+        options.notFoundCode ?? 'COMMERCIAL_RECORD_NOT_FOUND',
+        options.notFoundMessage ?? 'Commercial record was not found.',
+      );
     }
     return quotation;
   }
 
-  private async lockContract(id: string, tx: Tx, options: { allowArchived?: boolean } = {}) {
+  private async lockContract(
+    id: string,
+    tx: Tx,
+    options: { allowArchived?: boolean; notFoundCode?: string; notFoundMessage?: string } = {},
+  ) {
     await tx.$queryRaw`SELECT id FROM "CommercialContract" WHERE id = ${id}::uuid FOR UPDATE`;
     const contract = await tx.commercialContract.findUnique({
       where: { id },
       include: contractInclude,
     });
     if (!contract || (!options.allowArchived && contract.archivedAt)) {
-      throw notFound('COMMERCIAL_CONTRACT_NOT_FOUND', 'Commercial contract was not found.');
+      throw notFound(
+        options.notFoundCode ?? 'COMMERCIAL_RECORD_NOT_FOUND',
+        options.notFoundMessage ?? 'Commercial record was not found.',
+      );
     }
     return contract;
   }
 
-  private async lockPurchaseOrder(id: string, tx: Tx, options: { allowArchived?: boolean } = {}) {
+  private async lockPurchaseOrder(
+    id: string,
+    tx: Tx,
+    options: { allowArchived?: boolean; notFoundCode?: string; notFoundMessage?: string } = {},
+  ) {
     await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id = ${id}::uuid FOR UPDATE`;
     const po = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
     if (!po || (!options.allowArchived && po.archivedAt)) {
-      throw notFound('PURCHASE_ORDER_NOT_FOUND', 'Purchase order was not found.');
+      throw notFound(
+        options.notFoundCode ?? 'COMMERCIAL_RECORD_NOT_FOUND',
+        options.notFoundMessage ?? 'Commercial record was not found.',
+      );
     }
     return po;
   }
 
-  private async lockInvoice(id: string, tx: Tx, options: { allowArchived?: boolean } = {}) {
+  private async lockInvoice(
+    id: string,
+    tx: Tx,
+    options: { allowArchived?: boolean; notFoundCode?: string; notFoundMessage?: string } = {},
+  ) {
     await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${id}::uuid FOR UPDATE`;
     const invoice = await tx.invoice.findUnique({ where: { id }, include: invoiceInclude });
     if (!invoice || (!options.allowArchived && invoice.archivedAt)) {
-      throw notFound('INVOICE_NOT_FOUND', 'Invoice was not found.');
+      throw notFound(
+        options.notFoundCode ?? 'COMMERCIAL_RECORD_NOT_FOUND',
+        options.notFoundMessage ?? 'Commercial record was not found.',
+      );
     }
     return invoice;
   }
 
-  private async requireQuotation(id: string): Promise<QuotationRecord> {
+  private async getScopedQuotation(
+    id: string,
+    actorUserId: string,
+    access: CommercialAccess,
+  ): Promise<QuotationRecord> {
     const quotation = await this.prisma.commercialQuotation.findUnique({
       where: { id },
       include: quotationInclude,
     });
     if (!quotation) {
-      throw notFound('COMMERCIAL_QUOTATION_NOT_FOUND', 'Commercial quotation was not found.');
+      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
     }
+    await this.assertRecordSourceScope(quotation, actorUserId, access, this.prisma);
     return quotation;
   }
 
-  private async requireContract(id: string): Promise<ContractRecord> {
+  private async getScopedContract(
+    id: string,
+    actorUserId: string,
+    access: CommercialAccess,
+  ): Promise<ContractRecord> {
     const contract = await this.prisma.commercialContract.findUnique({
       where: { id },
       include: contractInclude,
     });
     if (!contract) {
-      throw notFound('COMMERCIAL_CONTRACT_NOT_FOUND', 'Commercial contract was not found.');
+      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
     }
+    await this.assertRecordSourceScope(contract, actorUserId, access, this.prisma);
     return contract;
   }
 
-  private async requirePurchaseOrder(id: string): Promise<PurchaseOrderRecord> {
+  private async getScopedPurchaseOrder(
+    id: string,
+    actorUserId: string,
+    access: CommercialAccess,
+  ): Promise<PurchaseOrderRecord> {
     const po = await this.prisma.purchaseOrder.findUnique({
       where: { id },
       include: purchaseOrderInclude,
     });
     if (!po) {
-      throw notFound('PURCHASE_ORDER_NOT_FOUND', 'Purchase order was not found.');
+      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
     }
+    await this.assertRecordSourceScope(po, actorUserId, access, this.prisma);
     return po;
   }
 
-  private async requireInvoice(id: string): Promise<InvoiceRecord> {
+  private async getScopedInvoice(
+    id: string,
+    actorUserId: string,
+    access: CommercialAccess,
+  ): Promise<InvoiceRecord> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
       include: invoiceInclude,
     });
     if (!invoice) {
-      throw notFound('INVOICE_NOT_FOUND', 'Invoice was not found.');
+      throw notFound('COMMERCIAL_RECORD_NOT_FOUND', 'Commercial record was not found.');
     }
+    await this.assertRecordSourceScope(invoice, actorUserId, access, this.prisma);
     return invoice;
   }
 
@@ -2152,6 +2282,43 @@ function calculateLines(lines: CommercialLineInput[]): {
     subtotalCents,
     taxCents,
     totalCents: calculateTotal(subtotalCents, taxCents),
+  };
+}
+
+function calculateSnapshotTotals(lines: CalculatedLine[]): CalculatedInvoiceSnapshot {
+  const subtotalCents = lines.reduce(
+    (sum, line) => boundedMoney(sum + line.lineSubtotalCents, 'COMMERCIAL_MONEY_BOUNDS_EXCEEDED'),
+    0,
+  );
+  const taxCents = lines.reduce(
+    (sum, line) => boundedMoney(sum + line.lineTaxCents, 'COMMERCIAL_MONEY_BOUNDS_EXCEEDED'),
+    0,
+  );
+  return {
+    lines,
+    subtotalCents,
+    taxCents,
+    totalCents: calculateTotal(subtotalCents, taxCents),
+  };
+}
+
+function exactSourceLineSnapshot(input: {
+  description: string;
+  subtotalCents: number;
+  taxCents: number;
+  sortOrder: number;
+}): CalculatedLine {
+  const subtotalCents = boundedMoney(input.subtotalCents, 'COMMERCIAL_MONEY_BOUNDS_EXCEEDED');
+  const taxCents = boundedMoney(input.taxCents, 'COMMERCIAL_MONEY_BOUNDS_EXCEEDED');
+  return {
+    description: input.description,
+    quantity: 1,
+    unitPriceCents: subtotalCents,
+    taxRateBps: taxBpsFromAmounts(subtotalCents, taxCents),
+    sortOrder: input.sortOrder,
+    lineSubtotalCents: subtotalCents,
+    lineTaxCents: taxCents,
+    lineTotalCents: calculateTotal(subtotalCents, taxCents),
   };
 }
 
