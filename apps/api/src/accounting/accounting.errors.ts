@@ -1,0 +1,38 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+
+type ErrorBody = { error: { code: string; message: string } };
+
+function body(code: string, message: string): ErrorBody {
+  return { error: { code, message } };
+}
+
+export function badRequest(code: string, message: string): BadRequestException {
+  return new BadRequestException(body(code, message));
+}
+
+export function conflict(code: string, message: string): ConflictException {
+  return new ConflictException(body(code, message));
+}
+
+export function forbidden(code: string, message: string): ForbiddenException {
+  return new ForbiddenException(body(code, message));
+}
+
+export function notFound(code: string, message: string): NotFoundException {
+  return new NotFoundException(body(code, message));
+}
+
+/**
+ * Single not-found shape for every unreachable accounting record.
+ *
+ * Hidden, out-of-scope, and nonexistent identifiers must be indistinguishable so a
+ * caller cannot probe for financial records they may not see.
+ */
+export function accountingNotFound(): NotFoundException {
+  return notFound('ACCOUNTING_RECORD_NOT_FOUND', 'Accounting record was not found.');
+}

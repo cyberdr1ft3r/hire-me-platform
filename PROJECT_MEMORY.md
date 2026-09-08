@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Commercial workflow foundation after merged task, document-management, recruitment-reporting, and training-operations foundations.
+Accounting foundation after the merged commercial workflow foundation. Previously: commercial workflow foundation after merged task, document-management, recruitment-reporting, and training-operations foundations.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -30,7 +30,18 @@ Commercial workflow foundation after merged task, document-management, recruitme
 - Issue #35 is complete; PR #40 merged the centralized document-management foundation into `main` as merge commit `b40e39b`.
 - Issue #36 is complete; PR #43 merged authenticated recruitment reporting, KPI dashboards, and safe CSV exports into `main` as commit `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
 - Issue #37 is complete; PR #45 merged the internal training-operations foundation into `main` as merge commit `09c506262ad3284efd69f70440c1ee06175c6e00`.
-- Current executable goal: review Issue #38 draft PR #46 on branch `feat/commercial-workflow` after latest-`main` integration, which implements structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
+- Issue #38 is complete; PR #46 merged the commercial workflow foundation into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`.
+- Issue #39 is implemented on branch `feat/accounting-foundation` as a draft PR. It adds payments, payment-to-invoice allocation, operational expenses, derived invoice settlement, currency-separated client receivables and overdue balances, and operational profitability.
+- Operational profitability recognises issued invoice revenue minus directly linked operational expenses (decision D-053). Received/allocated cash is reported separately through settlement and receivables and is never the profitability basis. Every aggregate is separated per currency and no FX conversion exists.
+- Invoice settlement is derived from the immutable issued invoice total plus active allocations, never stored, so a payment cannot mark an invoice paid merely by existing.
+- An invoice with active payment allocations cannot be canceled; the operator must reverse the allocations explicitly first. Canceled together with an active allocation is not a reachable state, and allocations are never auto-reversed or deleted.
+- Accounting lists and aggregates apply the same source-scope rule as single-record reads, so a total can never disclose a mission-linked amount that the commercial module hides. Every expense context, including placements and training programs, is scoped on read.
+- Per-row money input is capped at 2,147,483,647 minor units to match the integer columns; response-side totals are uncapped because a sum over many rows can legitimately exceed the per-row range.
+- Training-linked accounting records follow the merged training source rule (`training_programs:view_all`, or program owner or session trainer, plus client scope for a client-linked program), and placement-linked records additionally require `placements:view`. Accounting mirrors those rules as Prisma predicates instead of depending on the training or missions modules.
+- Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
+- Accounting authorization combines the accounting capability, `commercial_data:access` for any amount, and the underlying client/mission record scope. Receivable and profitability aggregates fail closed instead of returning redacted shells.
+- Payroll, statutory/accrual/tax accounting, depreciation, and FX conversion remain out of scope. Training-program profitability is unsupported because no authoritative invoice-to-training-program link exists.
+- Superseded goal: review Issue #38 draft PR #46 on branch `feat/commercial-workflow` after latest-`main` integration, which implements structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
 
 ## Confirmed Product Facts
 

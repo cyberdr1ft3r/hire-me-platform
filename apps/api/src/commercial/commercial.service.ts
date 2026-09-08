@@ -40,6 +40,7 @@ import {
   CommercialContractBusinessType,
   CommercialContractStatus,
   InvoiceStatus,
+  PaymentAllocationStatus,
   PlacementStatus,
   Prisma,
   PurchaseOrderStatus,
@@ -1363,6 +1364,21 @@ export class CommercialService {
       }
       if (existing.status !== InvoiceStatus.DRAFT && existing.status !== InvoiceStatus.ISSUED) {
         throw conflict('INVOICE_CANCEL_BLOCKED', 'Invoice cannot be canceled from this state.');
+      }
+      // Issue #39 financial-integrity invariant: a canceled invoice drops out of
+      // receivables while an active allocation still consumes the payment's balance,
+      // which would strand that cash. Checked while holding the invoice lock, so an
+      // allocation that won the race is already visible here and blocks cancellation.
+      // Allocations are never auto-reversed or deleted: the operator must reverse them
+      // explicitly first.
+      const activeAllocations = await tx.paymentAllocation.count({
+        where: { invoiceId: id, status: PaymentAllocationStatus.ACTIVE },
+      });
+      if (activeAllocations > 0) {
+        throw conflict(
+          'INVOICE_HAS_ACTIVE_ALLOCATIONS',
+          'Reverse the active payment allocations before canceling this invoice.',
+        );
       }
       await tx.invoice.update({
         where: { id },

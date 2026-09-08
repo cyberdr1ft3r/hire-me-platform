@@ -1,27 +1,53 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- Issue #37 / PR #45 training operations is merged into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00`.
-- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46.
-- PR #46 started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates current `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
-- Substantive ChatGPT integration review passed on exact head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`.
-- Exact-head GitHub Actions run `34166398141` is green: PostgreSQL Docker Compose health, Quality checks, and Database migration, seed, and integration tests all passed, with 210/210 PostgreSQL integration tests across 15 files.
-- The only commit after reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4` should be this narrow docs refresh unless a reviewer requests otherwise.
-- Commercial records remain structured business records, not `Document` records. Generated or signed files remain future `DocumentVersion` outputs.
-- Commercial writes require the relevant `*:manage` permission and `commercial_data:access`. Views require the relevant `*:view` permission and redact amounts, quotation/invoice lines, contract terms, and free-form history reasons without `commercial_data:access`.
-- Commercial access is combined with underlying client and mission source scope. Hidden and nonexistent commercial/source UUIDs return the same generic not-found response.
-- Historical commercial reads remain available from the commercial record's durable authorized business scope after parent client or mission archival. New upstream quotation, contract, or purchase-order creation may still require currently writable source context.
-- Placement-backed invoicing uses authoritative locked/re-read confirmed `MissionPlacement` eligibility. `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission.
-- Training operations from PR #45 remain separate from commercial billing; `TrainingEnrollment.paymentStatus` is not exposed by training APIs/contracts, and Issue #38 must not implement payments, revenue/profitability, settlement, generated files, e-signature, external portals, private messages/groups, email, WhatsApp, or calendar delivery.
+- Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), and Issue #38 (PR #46) are merged into `main`. `main` is at `e1976f8a4b888657abe74c40ddf99c730032934a`.
+- Issue #39 is implemented on branch `feat/accounting-foundation`, branched from that exact `main`, and opened as a draft PR.
+- Issue #39 extends the merged Issue #38 commercial records. `CommercialQuotation`, `CommercialContract`, `PurchaseOrder`, `Invoice`, their lifecycles, their server-calculated totals, and their immutable issued snapshots remain owned by Issue #38 and were not duplicated, replaced, or remodelled.
+- The only schema change is the additive migration `20260908120000_accounting_foundation`, which sorts after every merged migration. No merged migration was edited, renamed, reordered, or squashed.
+- New records: `Payment`, `PaymentAllocation`, `PaymentEvent`, `Expense`, `ExpenseEvent`.
+- Invoice settlement is derived, never stored: the immutable issued invoice total plus active allocations. A payment never marks an invoice paid merely by existing.
+- Profitability follows decision D-053: eligible issued invoice revenue minus directly linked operational expenses, excluding canceled and archived invoices, separated per currency. Received/allocated cash is exposed separately through settlement and receivables and is never the profitability basis.
+- Profitability contexts are client, recruitment mission, and placement. Training-program profitability is deliberately unsupported: the merged commercial model has no authoritative invoice-to-training-program link, so training revenue cannot be derived without inventing one. Training expenses are still recorded and readable.
+- Every aggregate is separated per currency. There is no FX conversion anywhere.
+- Accounting authorization combines the accounting capability, `commercial_data:access` for any financial amount, and the underlying client/mission record scope. Receivable and profitability aggregates fail closed instead of returning redacted shells. Hidden, out-of-scope, and nonexistent identifiers all return the same `ACCOUNTING_RECORD_NOT_FOUND` envelope.
+- Financial mutations lock rows in the fixed order client, payment, invoice, allocation, so concurrent allocations serialize without a deadlock cycle.
+- Payroll, statutory/accrual/tax accounting, depreciation, FX conversion, and receipt files are out of scope. Receipt files remain owned by the document module.
+- An invoice with active payment allocations cannot be canceled. `CommercialService.cancelInvoice()` rejects with `INVOICE_HAS_ACTIVE_ALLOCATIONS` while holding the invoice lock, and never reverses or deletes allocations on the operator's behalf. Canceled together with an active allocation is not a reachable state.
+- Accounting lists and aggregates apply the same source-scope rule the detail paths enforce, so mission-linked amounts outside an actor's mission scope cannot be obtained through a total.
+- Every supplied expense context must resolve to one consistent business chain, and each context is scoped on read, so a null `clientId` never exposes a placement-linked or training-linked expense.
+- Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns. Response-side totals are deliberately uncapped.
+- Training-linked accounting records follow the merged training source rule, not client scope: `training_programs:view_all` for broad oversight, otherwise program owner or session trainer, and a client-linked program additionally needs `clients:view`. The rule is mirrored as a Prisma predicate so accounting does not depend on the training module.
+- Placement-linked accounting records additionally require `placements:view`, matching the authoritative placement API and the merged commercial invoice path. Mission scope still applies on top.
+- Accounting list date windows are bounded: both endpoints or neither, ordered, and at most `MAX_ACCOUNTING_DATE_RANGE_DAYS` (366) apart. One-sided windows are rejected.
 
 ## Next Action
 
-Complete the final human/ChatGPT merge gate for PR #46. Keep PR #46 draft/open/unmerged until approved. Issue #39 remains blocked until Issue #38 / PR #46 merges.
+Complete the final review of the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes. Two ChatGPT rounds returned four then three blocking findings; all seven are fixed on the branch and are described under "Review blockers found and addressed" and "Second review round, three blockers addressed" in `docs/project/STATUS.md`.
+
+Completion conditions:
+
+- ChatGPT/human review accepts the accounting implementation and the D-053 revenue policy.
+- Exact-head GitHub Actions is green on the reviewed head.
+- The PR stays draft/open/unmerged until a maintainer explicitly authorizes the merge.
+
+## Known Follow-Up Work For Accounting
+
+Not implemented by Issue #39 and still requiring their own approved issues:
+
+- Moroccan payroll, which needs dedicated legal and regulatory validation.
+- Statutory, accrual, and tax accounting, general ledger, chart of accounts, and tax declarations.
+- FX conversion and any multi-currency consolidated total.
+- Aging buckets beyond the current overdue outstanding figure.
+- Credit notes, overpayment/credit balances, and refunds.
+- Training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
+- Accounting exports, which would need their own dedicated export permission.
+- Receipt file storage, which belongs to the document module.
 
 ## Mandatory Rehydration Checklist For Every New Agent
 

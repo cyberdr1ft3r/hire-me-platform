@@ -244,6 +244,29 @@ import {
   type TrainingSessionListResponse,
   type TrainingSessionRescheduleRequest,
   type TrainingSessionStatusUpdateRequest,
+  ClientReceivableSummaryResponseSchema,
+  ExpenseDetailResponseSchema,
+  ExpenseListResponseSchema,
+  InvoiceSettlementResponseSchema,
+  OverdueReceivableListResponseSchema,
+  PaymentAllocationDetailResponseSchema,
+  PaymentDetailResponseSchema,
+  PaymentListResponseSchema,
+  ProfitabilitySummaryResponseSchema,
+  type ClientReceivableSummaryResponse,
+  type ExpenseCreateRequest,
+  type ExpenseDetailResponse,
+  type ExpenseListResponse,
+  type InvoiceSettlementResponse,
+  type OverdueReceivableListResponse,
+  type PaymentAllocationCreateRequest,
+  type PaymentAllocationDetailResponse,
+  type PaymentAllocationReverseRequest,
+  type PaymentCreateRequest,
+  type PaymentDetailResponse,
+  type PaymentListResponse,
+  type ProfitabilityContext,
+  type ProfitabilitySummaryResponse,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -2889,4 +2912,207 @@ export async function exportReportingCsv(
     filename: match?.[1] ?? 'recruitment-report.csv',
     content: await response.text(),
   };
+}
+
+async function accountingRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/accounting${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Accounting request failed with status ${response.status}`);
+  }
+
+  return response;
+}
+
+export async function listPayments(
+  accessToken: string,
+  options: { clientId?: string; includeArchived?: boolean; pageSize?: number } = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentListResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/payments', {
+      pageSize: options.pageSize ?? 20,
+      clientId: options.clientId,
+      includeArchived: options.includeArchived ? 'true' : undefined,
+    }),
+    {},
+    apiBaseUrl,
+  );
+  return PaymentListResponseSchema.parse(await response.json());
+}
+
+export async function createPayment(
+  accessToken: string,
+  input: PaymentCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    '/payments',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PaymentDetailResponseSchema.parse(await response.json());
+}
+
+export async function getPayment(
+  accessToken: string,
+  paymentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentDetailResponse> {
+  const response = await accountingRequest(accessToken, `/payments/${paymentId}`, {}, apiBaseUrl);
+  return PaymentDetailResponseSchema.parse(await response.json());
+}
+
+export async function allocatePayment(
+  accessToken: string,
+  paymentId: string,
+  input: PaymentAllocationCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentAllocationDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/payments/${paymentId}/allocations`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PaymentAllocationDetailResponseSchema.parse(await response.json());
+}
+
+export async function reversePaymentAllocation(
+  accessToken: string,
+  paymentId: string,
+  allocationId: string,
+  input: PaymentAllocationReverseRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentAllocationDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/payments/${paymentId}/allocations/${allocationId}/reverse`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PaymentAllocationDetailResponseSchema.parse(await response.json());
+}
+
+export async function getInvoiceSettlement(
+  accessToken: string,
+  invoiceId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceSettlementResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/invoices/${invoiceId}/settlement`,
+    {},
+    apiBaseUrl,
+  );
+  return InvoiceSettlementResponseSchema.parse(await response.json());
+}
+
+export async function listExpenses(
+  accessToken: string,
+  options: { clientId?: string; includeArchived?: boolean; pageSize?: number } = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseListResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/expenses', {
+      pageSize: options.pageSize ?? 20,
+      clientId: options.clientId,
+      includeArchived: options.includeArchived ? 'true' : undefined,
+    }),
+    {},
+    apiBaseUrl,
+  );
+  return ExpenseListResponseSchema.parse(await response.json());
+}
+
+export async function createExpense(
+  accessToken: string,
+  input: ExpenseCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    '/expenses',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ExpenseDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveExpense(
+  accessToken: string,
+  expenseId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/expenses/${expenseId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return ExpenseDetailResponseSchema.parse(await response.json());
+}
+
+export async function getClientReceivables(
+  accessToken: string,
+  clientId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ClientReceivableSummaryResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/receivables/client', { clientId }),
+    {},
+    apiBaseUrl,
+  );
+  return ClientReceivableSummaryResponseSchema.parse(await response.json());
+}
+
+export async function listOverdueReceivables(
+  accessToken: string,
+  options: { clientId?: string; pageSize?: number } = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<OverdueReceivableListResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/receivables/overdue', {
+      pageSize: options.pageSize ?? 20,
+      clientId: options.clientId,
+    }),
+    {},
+    apiBaseUrl,
+  );
+  return OverdueReceivableListResponseSchema.parse(await response.json());
+}
+
+export async function getProfitability(
+  accessToken: string,
+  context: ProfitabilityContext,
+  contextId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ProfitabilitySummaryResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/profitability', { context, contextId }),
+    {},
+    apiBaseUrl,
+  );
+  return ProfitabilitySummaryResponseSchema.parse(await response.json());
 }

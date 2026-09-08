@@ -445,6 +445,45 @@ Training participants are records by default. A participant portal or learning p
 - Uniqueness rules: normalized email may be unique when present.
 - Audit requirements: creation, update, enrollment, and archival should be audited.
 
+### Payment
+
+- Purpose and owner: money received from a client; owned by accounting operations.
+- Important attributes: id, reference, client, received date, currency, amount in minor units, method, safe external reference, note, status, correction timestamp and reason, recorder, archival timestamp.
+- Relationships: belongs to one `Client`; has many `PaymentAllocation` records; has durable `PaymentEvent` history.
+- Cardinality: one client can have many payments; one payment can settle many invoices.
+- Lifecycle: recorded, corrected, archived.
+- Sensitive fields: amount, currency, external reference, note, and correction reason are financial data behind `commercial_data:access`.
+- Uniqueness rules: payment reference is globally unique.
+- Audit requirements: creation, update, correction, allocation, allocation reversal, and archival are audited with safe summaries inside the mutating transaction.
+- Deliberately absent: bank credentials, card data, CVV, online banking secrets, and any other sensitive banking information.
+
+### PaymentAllocation
+
+- Purpose and owner: the explicit link that settles part of an invoice from a payment; owned by accounting operations.
+- Important attributes: id, payment, invoice, amount in minor units, status, active allocation key, optional idempotency key, allocating actor, reversal timestamp, reverser, and reversal reason.
+- Relationships: belongs to one `Payment` and one `Invoice`.
+- Cardinality: one payment can allocate to many invoices, and one invoice can receive allocations from many payments.
+- Lifecycle: active, reversed. Reversed allocations are preserved as history and never deleted.
+- Uniqueness rules: at most one active allocation per payment and invoice pair, enforced by a unique index over the payment and a nullable active allocation key, plus a check constraint that prevents an active allocation from holding a null key.
+- Audit requirements: allocation and reversal are audited; a replayed idempotent allocation writes no second history or audit row.
+
+### Expense
+
+- Purpose and owner: operational expense relevant to profitability; owned by accounting operations.
+- Important attributes: id, reference, date, category, currency, amount in minor units, optional client, recruitment mission, placement and training program context, vendor label, description, status, correction timestamp and reason, creator, updater, archival timestamp.
+- Relationships: may belong to a `Client`, `RecruitmentMission`, `MissionPlacement`, or `TrainingProgram`; has durable `ExpenseEvent` history.
+- Lifecycle: recorded, corrected, archived.
+- Uniqueness rules: expense reference is globally unique.
+- Sensitive fields: amount, currency, vendor label, description, and correction reason are financial data behind `commercial_data:access`.
+- Deliberately absent: receipt files. Managed files remain owned by `Document` and `DocumentVersion`.
+
+### Invoice settlement
+
+Settlement is derived, not stored. An invoice is receivable only while it is issued and
+not archived or canceled. Its outstanding balance is the immutable issued total minus its
+active allocations, and it becomes overdue once the due date has passed with a balance
+remaining. No payment marks an invoice paid merely by existing.
+
 ### Document
 
 - Purpose and owner: centralized managed file record for stored, uploaded, imported, or future generated output; owned by the module that creates it.

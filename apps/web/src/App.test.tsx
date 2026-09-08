@@ -1456,7 +1456,200 @@ describe('App', () => {
       expect.objectContaining({ credentials: 'include' }),
     );
   });
+
+  it('hides the accounting workspace without any accounting permission', async () => {
+    mockAccountingWorkspace(['records:view']);
+
+    render(<App />);
+    await loginAs('no-accounting@example.test');
+
+    expect(await screen.findByRole('button', { name: 'Commercial' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Accounting' })).toBeNull();
+  });
+
+  it('shows redacted accounting amounts without commercial data access', async () => {
+    mockAccountingWorkspace(['payments:view', 'expenses:view'], { redacted: true });
+
+    render(<App />);
+    await loginAs('accounting-reader@example.test');
+    fireEvent.click(await screen.findByRole('button', { name: 'Accounting' }));
+
+    expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
+    // The record stays visible but every amount arrives redacted.
+    expect(
+      await screen.findByRole('button', { name: /PAY39-1 — RECORDED — hidden/ }),
+    ).toBeVisible();
+    expect(screen.getByText(/EXP39-1 — TRAVEL — hidden/)).toBeVisible();
+
+    // Write and aggregate controls stay hidden without the matching capability.
+    expect(screen.queryByRole('button', { name: /record payment/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /record expense/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /load receivables/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /load profitability/i })).toBeNull();
+  });
+
+  it('exposes accounting amounts and controls to an authorized operator', async () => {
+    const fetchMock = mockAccountingWorkspace([
+      'payments:view',
+      'payments:manage',
+      'payments:correct',
+      'expenses:view',
+      'expenses:manage',
+      'client_balances:view',
+      'profitability:view',
+    ]);
+
+    render(<App />);
+    await loginAs('accounting-operator@example.test');
+    fireEvent.click(await screen.findByRole('button', { name: 'Accounting' }));
+
+    expect(await screen.findByRole('button', { name: /record payment/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /record expense/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /load receivables/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /load profitability/i })).toBeVisible();
+    expect(
+      await screen.findByRole('button', { name: /PAY39-1 — RECORDED — 100.00 MAD/ }),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: /PAY39-1 — RECORDED — 100.00 MAD/ }));
+    expect(await screen.findByRole('button', { name: /allocate payment/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /reverse allocation/i })).toBeVisible();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/accounting/payments'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
 });
+
+function syntheticPayment(redacted: boolean) {
+  return {
+    id: '33333333-3333-4333-8333-333333333333',
+    reference: 'PAY39-1',
+    clientId: '44444444-4444-4444-8444-444444444444',
+    receivedDate: '2026-09-01T09:00:00.000Z',
+    method: 'BANK_TRANSFER',
+    externalReference: null,
+    note: null,
+    status: 'RECORDED',
+    amounts: redacted
+      ? null
+      : { currency: 'MAD', amountCents: 10000, allocatedCents: 4000, unallocatedCents: 6000 },
+    correctedAt: null,
+    correctionReason: null,
+    recordedByUserId: null,
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function syntheticAllocation(redacted: boolean) {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    paymentId: '33333333-3333-4333-8333-333333333333',
+    invoiceId: '66666666-6666-4666-8666-666666666666',
+    status: 'ACTIVE',
+    amountCents: redacted ? null : 4000,
+    allocatedByUserId: null,
+    reversedAt: null,
+    reversalReason: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function syntheticExpense(redacted: boolean) {
+  return {
+    id: '77777777-7777-4777-8777-777777777777',
+    reference: 'EXP39-1',
+    expenseDate: '2026-09-01T09:00:00.000Z',
+    category: 'TRAVEL',
+    context: {
+      clientId: null,
+      recruitmentMissionId: null,
+      missionPlacementId: null,
+      trainingProgramId: null,
+    },
+    vendorLabel: redacted ? null : 'Issue39 vendor',
+    description: null,
+    status: 'RECORDED',
+    amounts: redacted ? null : { currency: 'MAD', amountCents: 2500 },
+    correctedAt: null,
+    correctionReason: null,
+    createdByUserId: null,
+    archivedAt: null,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+  };
+}
+
+function mockAccountingWorkspace(permissions: string[], options: { redacted?: boolean } = {}) {
+  const redacted = options.redacted ?? false;
+  const payment = syntheticPayment(redacted);
+  const allocation = syntheticAllocation(redacted);
+  const expense = syntheticExpense(redacted);
+
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = requestUrl(input);
+
+    if (url.endsWith('/health')) {
+      return Promise.resolve(
+        jsonResponse({
+          status: 'ok',
+          service: 'hire-me-api',
+          timestamp: '2026-09-01T09:00:00.000Z',
+          uptimeSeconds: 1,
+        }),
+      );
+    }
+
+    if (url.endsWith('/auth/refresh')) {
+      return Promise.resolve(new Response('{}', { status: 401 }));
+    }
+
+    if (url.endsWith('/auth/login')) {
+      return Promise.resolve(
+        jsonResponse({
+          accessToken: 'synthetic-access-token',
+          accessTokenExpiresAt: '2026-09-01T09:05:00.000Z',
+          user: {
+            id: '88888888-8888-4888-8888-888888888888',
+            displayName: 'Accounting Operator',
+            email: 'accounting-operator@example.test',
+            permissions,
+          },
+        }),
+      );
+    }
+
+    if (url.includes(`/v1/accounting/payments/${payment.id}`)) {
+      return Promise.resolve(
+        jsonResponse({ payment: { ...payment, allocations: [allocation], history: [] } }),
+      );
+    }
+
+    if (url.includes('/v1/accounting/payments')) {
+      return Promise.resolve(
+        jsonResponse({
+          payments: [payment],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/accounting/expenses')) {
+      return Promise.resolve(
+        jsonResponse({
+          expenses: [expense],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    return Promise.reject(new Error(`Unexpected request ${url}`));
+  });
+}
 
 function syntheticTrainingProgram() {
   return {

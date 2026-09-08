@@ -39,6 +39,13 @@ import type {
   ReportingSummary,
   ReportingTrendsResponse,
   TaskSummary,
+  ClientReceivableSummary,
+  ExpenseSummary,
+  OverdueReceivableListResponse,
+  PaymentDetail,
+  PaymentSummary,
+  ProfitabilityContext,
+  ProfitabilitySummary,
   TrainingEnrollmentSummary,
   TrainingParticipationSummary,
   TrainingProgramSummary,
@@ -162,6 +169,17 @@ import {
   addDocumentVersion,
   downloadDocumentVersion,
   updateTaskStatus,
+  allocatePayment,
+  archiveExpense,
+  createExpense,
+  createPayment,
+  getClientReceivables,
+  getPayment,
+  getProfitability,
+  listExpenses,
+  listOverdueReceivables,
+  listPayments,
+  reversePaymentAllocation,
   archiveTrainingParticipation,
   archiveTrainingProgram,
   archiveTrainingSession,
@@ -205,7 +223,8 @@ type Route =
   | 'documents'
   | 'training'
   | 'reporting'
-  | 'commercial';
+  | 'commercial'
+  | 'accounting';
 type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const ADMIN_ROUTE_PERMISSION = 'users:view';
@@ -215,6 +234,12 @@ const MISSIONS_ROUTE_PERMISSION = 'missions:view';
 const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
 const TASKS_ROUTE_PERMISSION = 'tasks:view';
 const TRAINING_ROUTE_PERMISSION = 'training_programs:view';
+const ACCOUNTING_ROUTE_PERMISSIONS = [
+  'payments:view',
+  'expenses:view',
+  'client_balances:view',
+  'profitability:view',
+] as const;
 const COMMERCIAL_ROUTE_PERMISSIONS = [
   'quotations:view',
   'contracts:view',
@@ -246,9 +271,11 @@ export function App() {
                   ? 'training'
                   : window.location.pathname === '/commercial'
                     ? 'commercial'
-                    : window.location.pathname === '/reporting'
-                      ? 'reporting'
-                      : 'home',
+                    : window.location.pathname === '/accounting'
+                      ? 'accounting'
+                      : window.location.pathname === '/reporting'
+                        ? 'reporting'
+                        : 'home',
   );
 
   useEffect(() => {
@@ -363,9 +390,11 @@ export function App() {
                     ? '/training'
                     : nextRoute === 'commercial'
                       ? '/commercial'
-                      : nextRoute === 'reporting'
-                        ? '/reporting'
-                        : '/',
+                      : nextRoute === 'accounting'
+                        ? '/accounting'
+                        : nextRoute === 'reporting'
+                          ? '/reporting'
+                          : '/',
     );
   }
 
@@ -384,6 +413,11 @@ export function App() {
   const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
   const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
   const canOpenTraining = Boolean(user?.permissions.includes(TRAINING_ROUTE_PERMISSION));
+  const canOpenAccounting = Boolean(
+    user?.permissions.some((permission) =>
+      (ACCOUNTING_ROUTE_PERMISSIONS as readonly string[]).includes(permission),
+    ),
+  );
   const canOpenCommercial = Boolean(
     user?.permissions.some((permission) =>
       (COMMERCIAL_ROUTE_PERMISSIONS as readonly string[]).includes(permission),
@@ -500,6 +534,16 @@ export function App() {
             >
               Commercial
             </button>
+            {canOpenAccounting ? (
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('accounting');
+                }}
+              >
+                Accounting
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -598,6 +642,16 @@ export function App() {
         ) : (
           <section className="admin-panel" aria-label="Training">
             <h2>Training</h2>
+            <p role="alert">Permission denied.</p>
+          </section>
+        )
+      ) : null}
+      {route === 'accounting' && user && accessToken ? (
+        canOpenAccounting ? (
+          <AccountingPanel accessToken={accessToken} permissions={user.permissions} />
+        ) : (
+          <section className="admin-panel" aria-label="Accounting">
+            <h2>Accounting</h2>
             <p role="alert">Permission denied.</p>
           </section>
         )
@@ -6336,6 +6390,439 @@ function TrainingPanel({
             <p>Select a training session to manage attendance.</p>
           )}
         </section>
+      </div>
+
+      {message ? <p role="status">{message}</p> : null}
+    </section>
+  );
+}
+
+const paymentMethods = ['BANK_TRANSFER', 'CHECK', 'CASH', 'CARD', 'DIRECT_DEBIT', 'OTHER'] as const;
+const expenseCategories = [
+  'RECRUITMENT_SOURCING',
+  'TRAINING_DELIVERY',
+  'TRAVEL',
+  'SUBCONTRACTING',
+  'SOFTWARE',
+  'MARKETING',
+  'OFFICE',
+  'OTHER',
+] as const;
+
+/** Amounts arrive as null whenever the caller lacks commercial data access. */
+function formatCents(cents: number | null | undefined, currency?: string): string {
+  if (cents === null || cents === undefined) {
+    return 'hidden';
+  }
+  return `${(cents / 100).toFixed(2)}${currency ? ` ${currency}` : ''}`;
+}
+
+/**
+ * Internal accounting workspace.
+ *
+ * Every control is gated on the same permission code the API enforces, and amounts
+ * simply arrive redacted when the caller lacks commercial data access. The UI gate is
+ * a convenience: the server re-checks capability, commercial data access, and record
+ * scope on every request.
+ */
+function AccountingPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const [payments, setPayments] = useState<PaymentSummary[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentDetail | null>(null);
+  const [expenses, setExpenses] = useState<ExpenseSummary[]>([]);
+  const [receivables, setReceivables] = useState<ClientReceivableSummary | null>(null);
+  const [overdue, setOverdue] = useState<OverdueReceivableListResponse['rows']>([]);
+  const [profitability, setProfitability] = useState<ProfitabilitySummary | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const canViewPayments = permissions.includes('payments:view');
+  const canManagePayments = permissions.includes('payments:manage');
+  const canCorrectPayments = permissions.includes('payments:correct');
+  const canViewExpenses = permissions.includes('expenses:view');
+  const canManageExpenses = permissions.includes('expenses:manage');
+  const canViewBalances = permissions.includes('client_balances:view');
+  const canViewProfitability = permissions.includes('profitability:view');
+
+  useEffect(() => {
+    void loadPayments();
+    void loadExpenses();
+  }, []);
+
+  async function loadPayments(): Promise<void> {
+    if (!canViewPayments) {
+      return;
+    }
+    const response = await listPayments(accessToken, { pageSize: 20 });
+    setPayments(response.payments);
+  }
+
+  async function loadExpenses(): Promise<void> {
+    if (!canViewExpenses) {
+      return;
+    }
+    const response = await listExpenses(accessToken, { pageSize: 20 });
+    setExpenses(response.expenses);
+  }
+
+  async function selectPayment(paymentId: string): Promise<void> {
+    const response = await getPayment(accessToken, paymentId);
+    setSelectedPayment(response.payment);
+    setMessage(null);
+  }
+
+  async function handleCreatePayment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const created = await createPayment(accessToken, {
+      reference: formValue(formData, 'reference'),
+      clientId: formValue(formData, 'clientId'),
+      receivedDate: dateTimeFormValue(formData, 'receivedDate'),
+      currency: formValue(formData, 'currency').toUpperCase(),
+      amountCents: Number(formValue(formData, 'amountCents')),
+      method: formValue(formData, 'method') as (typeof paymentMethods)[number],
+      externalReference: optionalFormValue(formData, 'externalReference'),
+    });
+    form.reset();
+    setSelectedPayment(created.payment);
+    setMessage('Payment recorded.');
+    await loadPayments();
+  }
+
+  async function handleAllocate(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedPayment) {
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const result = await allocatePayment(accessToken, selectedPayment.id, {
+      invoiceId: formValue(formData, 'invoiceId'),
+      amountCents: Number(formValue(formData, 'amountCents')),
+      idempotencyKey: optionalFormValue(formData, 'idempotencyKey'),
+    });
+    form.reset();
+    setSelectedPayment(result.payment);
+    setMessage('Payment allocated to the invoice.');
+    await loadPayments();
+  }
+
+  async function handleReverseAllocation(allocationId: string): Promise<void> {
+    if (!selectedPayment) {
+      return;
+    }
+    const reversalReason = window.prompt('Allocation reversal reason');
+    if (!reversalReason) {
+      return;
+    }
+    const result = await reversePaymentAllocation(accessToken, selectedPayment.id, allocationId, {
+      reversalReason,
+    });
+    setSelectedPayment(result.payment);
+    setMessage('Allocation reversed.');
+    await loadPayments();
+  }
+
+  async function handleCreateExpense(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    await createExpense(accessToken, {
+      reference: formValue(formData, 'reference'),
+      expenseDate: dateTimeFormValue(formData, 'expenseDate'),
+      category: formValue(formData, 'category') as (typeof expenseCategories)[number],
+      currency: formValue(formData, 'currency').toUpperCase(),
+      amountCents: Number(formValue(formData, 'amountCents')),
+      clientId: optionalFormValue(formData, 'clientId'),
+      vendorLabel: optionalFormValue(formData, 'vendorLabel'),
+    });
+    form.reset();
+    setMessage('Expense recorded.');
+    await loadExpenses();
+  }
+
+  async function handleArchiveExpense(expenseId: string): Promise<void> {
+    await archiveExpense(accessToken, expenseId);
+    setMessage('Expense archived.');
+    await loadExpenses();
+  }
+
+  async function handleLoadReceivables(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const response = await getClientReceivables(accessToken, formValue(formData, 'clientId'));
+    setReceivables(response.receivables);
+    const overdueResponse = await listOverdueReceivables(accessToken, {
+      clientId: formValue(formData, 'clientId'),
+    });
+    setOverdue(overdueResponse.rows);
+  }
+
+  async function handleLoadProfitability(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const response = await getProfitability(
+      accessToken,
+      formValue(formData, 'context') as ProfitabilityContext,
+      formValue(formData, 'contextId'),
+    );
+    setProfitability(response.profitability);
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Accounting">
+      <div className="admin-grid">
+        <section aria-label="Payments">
+          <h2>Accounting</h2>
+          <h3>Payments</h3>
+          <ul>
+            {payments.map((payment) => (
+              <li key={payment.id}>
+                <button type="button" onClick={() => void selectPayment(payment.id)}>
+                  {payment.reference} — {payment.status} —{' '}
+                  {formatCents(payment.amounts?.amountCents, payment.amounts?.currency)}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {canManagePayments ? (
+            <form onSubmit={(event) => void handleCreatePayment(event)}>
+              <h4>Record payment</h4>
+              <label>
+                Reference
+                <input name="reference" required />
+              </label>
+              <label>
+                Client ID
+                <input name="clientId" required />
+              </label>
+              <label>
+                Received date
+                <input name="receivedDate" type="datetime-local" required />
+              </label>
+              <label>
+                Currency
+                <input name="currency" defaultValue="MAD" required />
+              </label>
+              <label>
+                Amount in cents
+                <input name="amountCents" type="number" min="1" required />
+              </label>
+              <label>
+                Method
+                <select name="method" defaultValue="BANK_TRANSFER">
+                  {paymentMethods.map((method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                External reference
+                <input name="externalReference" />
+              </label>
+              <button type="submit">Record payment</button>
+            </form>
+          ) : null}
+        </section>
+
+        <section aria-label="Payment allocation">
+          {selectedPayment ? (
+            <>
+              <h3>{selectedPayment.reference}</h3>
+              <p>
+                Unallocated:{' '}
+                {formatCents(
+                  selectedPayment.amounts?.unallocatedCents,
+                  selectedPayment.amounts?.currency,
+                )}
+              </p>
+              <ul>
+                {selectedPayment.allocations.map((allocation) => (
+                  <li key={allocation.id}>
+                    {allocation.invoiceId} — {allocation.status} —{' '}
+                    {formatCents(allocation.amountCents)}
+                    {canManagePayments && allocation.status === 'ACTIVE' ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleReverseAllocation(allocation.id)}
+                      >
+                        Reverse allocation
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+
+              {canManagePayments ? (
+                <form onSubmit={(event) => void handleAllocate(event)}>
+                  <h4>Allocate to invoice</h4>
+                  <label>
+                    Invoice ID
+                    <input name="invoiceId" required />
+                  </label>
+                  <label>
+                    Amount in cents
+                    <input name="amountCents" type="number" min="1" required />
+                  </label>
+                  <label>
+                    Idempotency key
+                    <input name="idempotencyKey" />
+                  </label>
+                  <button type="submit">Allocate payment</button>
+                </form>
+              ) : null}
+              {canCorrectPayments ? <p>Payment correction is available for this account.</p> : null}
+            </>
+          ) : (
+            <p>Select a payment to manage its invoice allocations.</p>
+          )}
+        </section>
+
+        <section aria-label="Expenses">
+          <h3>Expenses</h3>
+          <ul>
+            {expenses.map((expense) => (
+              <li key={expense.id}>
+                {expense.reference} — {expense.category} —{' '}
+                {formatCents(expense.amounts?.amountCents, expense.amounts?.currency)}
+                {canManageExpenses && !expense.archivedAt ? (
+                  <button type="button" onClick={() => void handleArchiveExpense(expense.id)}>
+                    Archive expense
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+
+          {canManageExpenses ? (
+            <form onSubmit={(event) => void handleCreateExpense(event)}>
+              <h4>Record expense</h4>
+              <label>
+                Reference
+                <input name="reference" required />
+              </label>
+              <label>
+                Expense date
+                <input name="expenseDate" type="datetime-local" required />
+              </label>
+              <label>
+                Category
+                <select name="category" defaultValue="RECRUITMENT_SOURCING">
+                  {expenseCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Currency
+                <input name="currency" defaultValue="MAD" required />
+              </label>
+              <label>
+                Amount in cents
+                <input name="amountCents" type="number" min="1" required />
+              </label>
+              <label>
+                Client ID
+                <input name="clientId" />
+              </label>
+              <label>
+                Vendor
+                <input name="vendorLabel" />
+              </label>
+              <button type="submit">Record expense</button>
+            </form>
+          ) : null}
+        </section>
+
+        {canViewBalances ? (
+          <section aria-label="Client balances">
+            <h3>Client balances</h3>
+            <form className="inline-form" onSubmit={(event) => void handleLoadReceivables(event)}>
+              <label>
+                Client ID
+                <input name="clientId" required />
+              </label>
+              <button type="submit">Load receivables</button>
+            </form>
+            {receivables ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Currency</th>
+                    <th>Invoiced</th>
+                    <th>Allocated</th>
+                    <th>Outstanding</th>
+                    <th>Overdue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receivables.totalsByCurrency.map((row) => (
+                    <tr key={row.currency}>
+                      <td>{row.currency}</td>
+                      <td>{formatCents(row.invoicedCents)}</td>
+                      <td>{formatCents(row.allocatedCents)}</td>
+                      <td>{formatCents(row.outstandingCents)}</td>
+                      <td>{formatCents(row.overdueOutstandingCents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+            <h4>Overdue receivables</h4>
+            <ul>
+              {overdue.map((row) => (
+                <li key={row.invoiceId}>
+                  {row.reference} — {row.daysOverdue} days —{' '}
+                  {formatCents(row.amounts?.outstandingCents, row.amounts?.currency)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {canViewProfitability ? (
+          <section aria-label="Profitability">
+            <h3>Profitability</h3>
+            <form className="inline-form" onSubmit={(event) => void handleLoadProfitability(event)}>
+              <label>
+                Context
+                <select name="context" defaultValue="CLIENT">
+                  <option value="CLIENT">CLIENT</option>
+                  <option value="RECRUITMENT_MISSION">RECRUITMENT_MISSION</option>
+                  <option value="PLACEMENT">PLACEMENT</option>
+                </select>
+              </label>
+              <label>
+                Context ID
+                <input name="contextId" required />
+              </label>
+              <button type="submit">Load profitability</button>
+            </form>
+            {profitability ? (
+              <>
+                <p>Revenue policy: {profitability.revenuePolicy}</p>
+                <ul>
+                  {profitability.totalsByCurrency.map((row) => (
+                    <li key={row.currency}>
+                      {row.currency}: revenue {formatCents(row.revenueCents)}, expenses{' '}
+                      {formatCents(row.expenseCents)}, margin {formatCents(row.marginCents)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </section>
+        ) : null}
       </div>
 
       {message ? <p role="status">{message}</p> : null}

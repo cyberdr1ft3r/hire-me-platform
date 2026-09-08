@@ -305,6 +305,30 @@ profitability) are out of this module. The stable training identifiers and conte
 later commercial feature can consume are the training program id and reference, the
 training session id, and the training enrollment id.
 
+### Accounting Module
+
+Issue #39 adds an `accounting` API module with permission-guarded `/v1/accounting`
+endpoints for payments, payment-to-invoice allocation, invoice settlement, expenses,
+client receivables, overdue receivables, and profitability. Shared contracts live in
+`packages/contracts/src/accounting.ts` and stay Prisma-independent.
+
+Accounting extends the merged commercial records rather than duplicating them. Invoices,
+their lifecycle, and their immutable issued totals remain owned by Issue #38.
+
+Money is stored in minor units as integers, never floating point. Settlement and every
+balance are derived from the issued invoice total plus active allocations, so no
+denormalized paid flag can drift from the underlying records.
+
+Financial integrity is enforced in PostgreSQL as well as in service code: positive-amount
+check constraints on payments, allocations, and expenses; a unique index allowing at most
+one active allocation per payment/invoice pair; and a check constraint keeping the active
+allocation key consistent with the allocation status. Mutations lock rows in the fixed
+order client, payment, invoice, allocation.
+
+Audit rows are written inside the mutating transaction with safe summaries only. Amounts,
+currencies, bank references, vendor details, and notes are never copied into generic audit
+metadata.
+
 ### Data Migration
 
 The architecture must support initial migration of approximately:

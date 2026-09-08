@@ -476,6 +476,58 @@ profitability data. `TrainingEnrollment.paymentStatus` remains an untouched
 pre-existing column and is not exposed by the training API or contracts; commercial
 training records belong to the separate commercial issue.
 
+## Implemented Accounting Permissions
+
+| Permission | Implemented use |
+| --- | --- |
+| `payments:view` | Read payment records and their allocations within an authorized client scope. |
+| `payments:manage` | Record payments, allocate them to invoices, reverse allocations, and archive payments. |
+| `payments:correct` | Apply an audited correction to an already-recorded payment amount. |
+| `expenses:view` | Read operational expense records within an authorized scope. |
+| `expenses:manage` | Record, update, correct, and archive operational expenses. |
+| `client_balances:view` | Read client receivable balances and overdue receivables. |
+| `profitability:view` | Read operational profitability summaries by authorized business context. |
+
+Accounting authorization combines three things: the accounting capability, the merged
+`commercial_data:access` capability for any financial amount, and the underlying client
+and recruitment-mission record scope.
+
+Every financial write requires the matching capability **and** `commercial_data:access`.
+Reads require only the capability, and amounts, vendor labels, correction reasons, and
+allocation values are redacted to null without `commercial_data:access`.
+
+Receivable and profitability aggregates are financial disclosure by definition, so they
+require `commercial_data:access` outright and fail closed rather than returning a
+redacted shell. This prevents indirect amount disclosure through totals.
+
+Client and mission scope reuses the merged commercial rule: `clients:view` for the
+client, and for mission-linked records `missions:view` plus either
+`mission_candidates:transfer` for broad oversight or an active `MissionRecruiter`
+assignment. Hidden, out-of-scope, and nonexistent accounting identifiers all return the
+same `ACCOUNTING_RECORD_NOT_FOUND` envelope, so financial records cannot be probed.
+
+Training and placement contexts follow their own authoritative domains rather than client
+scope. A training-linked accounting record obeys the merged training rule: broad oversight
+requires `training_programs:view_all`, otherwise the actor must own the program or train
+one of its sessions, and a client-linked program additionally requires `clients:view`. A
+placement-linked accounting record additionally requires `placements:view`, matching the
+placement API and the merged commercial invoice path, with mission scope still applying on
+top. `clients:view` alone is never an alternate path to a record another domain hides.
+
+The same rule is applied as a row-level predicate to accounting lists and aggregates, not
+only to single-record reads. Expense listing, client receivables, overdue receivables,
+and client, mission, and placement profitability all exclude records the actor could not
+open directly, so a total can never disclose a mission-linked amount that the commercial
+module hides. Every expense context is scoped, including placements through their mission
+and training programs through their optional client, so a record with a null `clientId`
+is not readable by default. This holds for any custom permission combination and does not
+depend on the seeded role shapes.
+
+Development seed mapping gives the full accounting set to `SUPER_ADMIN` only. `ADMIN`
+and `HR_MANAGER` receive `payments:view` and `expenses:view`, matching how the merged
+commercial permissions were seeded: they can see that records exist while amounts stay
+behind `commercial_data:access`. All other roles receive no accounting permissions.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
