@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Accounting foundation (payments, allocation, expenses, receivables, profitability).
-**Health:** Issue #38 / PR #46 commercial workflow is merged into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`. Issue #39 is implemented on branch `feat/accounting-foundation` from that exact main in a draft PR, extending the merged commercial records rather than duplicating them.
-**Current blocker:** Two ChatGPT review rounds on Issue #39 draft PR #47 returned four then three blocking findings. All seven are fixed on the branch; the PR now awaits a final review and exact-head GitHub Actions.
-**Next executable development task:** Final review of the Issue #39 draft PR; keep it draft/open/unmerged.
+**Phase:** Phase 8 commercial and operational accounting is complete through Issue #38 / merged PR #46 and Issue #39 / merged PR #47. Phase 7 document generation is the next product step.
+**Health:** `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47. The final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded on every job.
+**Current blocker:** None.
+**Next executable development task:** Issue #49 — implement template-driven document and business-output generation on the merged `Document` / immutable `DocumentVersion` architecture. Issue #48 is this project-memory reconciliation and is documentation only.
 
 ## Active work
 
@@ -27,11 +27,14 @@ Status owner: repository maintainer
 | Issue #27 | Complete | Implement public opportunity and unauthenticated candidate application foundation | No action |
 | Issue #29 | Complete | Implement internal offer-to-placement lifecycle | No action |
 | Issue #31 | Complete | Implement internal task management, reminders, comments, and notifications | No action |
-| Issue #33 | Open | Reconcile project memory after Issue #29 / PR #30 merge | Superseded by later merges; revisit if still needed |
+| Issue #33 | Complete | Reconcile project memory after Issue #29 / PR #30 merge | Closed on GitHub; superseded by later reconciliations |
 | Issue #35 | Complete | Implement document management foundation and contract taxonomy, incorporating Issue #12 | Merged via PR #40 into `main` |
 | Issue #36 | Complete | Implement recruitment reporting, KPI dashboards, and safe exports | Merged via PR #43 into `main` |
 | Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
-| Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Final human/ChatGPT merge gate for draft PR #46; keep it draft/open/unmerged |
+| Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Merged via PR #46 into `main` as `e1976f8a4b888657abe74c40ddf99c730032934a` |
+| Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
+| Issue #48 | Open | Reconcile project memory after the accounting merge | Documentation only; draft PR on `docs/reconcile-after-accounting-merge` |
+| Issue #49 | Open | Implement template-driven document and business-output generation | Next executable product task; not started |
 
 ## Completed foundation work
 
@@ -245,7 +248,7 @@ Status owner: repository maintainer
 
 ## Issue #38 Implementation State
 
-- Issue #38 is implemented on branch `feat/commercial-workflow` in draft PR #46, started from `origin/main` at `cebd87ffa0f3686418e2244570a1b1d40f995541`, previously incorporated `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`, and now incorporates latest `origin/main` at `09c506262ad3284efd69f70440c1ee06175c6e00`.
+- Issue #38 is complete. PR #46 merged the commercial workflow foundation into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`.
 - The branch adds structured commercial records for quotations, commercial contracts, purchase orders, and invoices. These are business records, not `Document` records; generated or signed files remain future `DocumentVersion` outputs.
 - Server-calculated totals are authoritative. Client-submitted subtotals or totals are not accepted by shared contracts; invoices store immutable line and amount snapshots once issued.
 - Commercial writes require the matching `*:manage` permission plus `commercial_data:access`; views require matching `*:view` and redact amounts, line details, contract terms, and free-form history reasons without commercial-data access.
@@ -253,10 +256,11 @@ Status owner: repository maintainer
 - Historical commercial reads remain available from the durable commercial record scope after parent client or mission archival; new upstream commercial source creation may keep stricter writable-source checks.
 - Placement-backed invoices require locked/re-read authoritative confirmed `MissionPlacement` eligibility; accepted offers and historical legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing when the placement remains confirmed, eligible, visible, not archived, and linked to the requested client and mission. Commercial mutations write domain history and global audit rows atomically in the same transaction; idempotent archive/status retries do not duplicate history or audit.
 - PostgreSQL-backed regressions cover commercial redaction and write denial, route-plus-source authorization, hidden-vs-missing masking, quotation lifecycle and terminal mutation blocking, relationship context/currency/status rejection, correction invoice validation, archive filtering/idempotency, historical parent-archive reads, reason redaction, monetary overflow rejection, exact contract/PO snapshot preservation, placement stale-read protection, closed-mission placement invoicing, duplicate placement-backed invoice creation, quotation accept/cancel concurrency, atomic audit rollback, duplicate references, invoice snapshots, placement-backed invoicing, and concurrent invoice issue idempotency.
-- Latest-main integration preserves merged Issue #37 training operations and PR #46 commercial behavior. Substantive ChatGPT integration review passed on reviewed head `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`; exact-head GitHub Actions run `34166398141` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 210/210 PostgreSQL integration tests across 15 files. No implementation, security, concurrency, or migration blocker remains before the final human/ChatGPT merge gate.
+- Latest-main integration preserved merged Issue #37 training operations alongside the commercial behavior. The reviewed head was `25b0e6f0db6e3d1ca41ff4d1afdeeb73b4803fe4`; exact-head GitHub Actions run `34166398141` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 210/210 PostgreSQL integration tests across 15 files.
 
 ## Issue #39 Implementation State
 
+- Issue #39 is complete. PR #47 merged the accounting foundation into `main` as merge commit `54def73831df9b6cd7b0064171c52dff9b55e2ac`. The final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a`, and exact-head GitHub Actions run `34213661408` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 263/263 PostgreSQL integration tests across 16 files.
 - Issue #39 adds payments, payment-to-invoice allocation, and operational expenses on top of the merged Issue #38 commercial records. Quotations, contracts, purchase orders, and invoices are not remodelled.
 - Schema work is additive only, in migration `20260908120000_accounting_foundation`: `Payment`, `PaymentAllocation`, `PaymentEvent`, `Expense`, and `ExpenseEvent`, plus their enums. No merged migration was edited, renamed, reordered, or squashed.
 - Invoice settlement is derived from the immutable issued invoice total plus active allocations. Nothing is stored, so a payment can never mark an invoice paid merely by existing. States are not-receivable, unpaid, partially paid, paid, and overdue.
@@ -271,7 +275,7 @@ Status owner: repository maintainer
 
 ### Review blockers found and addressed
 
-The first ChatGPT review of PR #47, on head `81a242f53e37b4d76126e3802d7bc7b55b417408`, returned four blocking findings. All four are fixed on the branch.
+The first ChatGPT review of PR #47, on head `81a242f53e37b4d76126e3802d7bc7b55b417408`, returned four blocking findings. All four were fixed before the merge.
 
 1. **Invoice cancellation could strand allocated cash.** `CommercialService.cancelInvoice()` now counts `ACTIVE` payment allocations while it already holds the invoice row lock and, if any exist, rejects with `INVOICE_HAS_ACTIVE_ALLOCATIONS`. Allocations are never auto-reversed or deleted: the operator reverses them explicitly first. `archiveInvoice()` needed no change, because it already refuses issued invoices and only issued invoices can carry allocations. The previous race test mutated the invoice status straight through Prisma, which bypassed the guard under test; it is replaced by tests that drive the real commercial cancellation endpoint.
 2. **Accounting aggregates ignored mission source scope.** A deterministic scope predicate now mirrors the merged commercial visibility rule (`clients:view`, plus `missions:view` and either `mission_candidates:transfer` or an active `MissionRecruiter` assignment for mission-linked records) and is applied to expense listing, client receivables, overdue receivables, and client, mission, and placement profitability. Regression tests use a synthetic role that is deliberately not one of the seeded shapes.
@@ -282,13 +286,24 @@ Optional hardening in the same pass: reusing an allocation idempotency key for a
 
 ### Second review round, three blockers addressed
 
-The second ChatGPT review, on head `fd8f739e040e73a2fae05dd75ec2fd09f98c76ca`, verified the first four fixes and returned three further blocking findings. All three are fixed.
+The second ChatGPT review, on head `fd8f739e040e73a2fae05dd75ec2fd09f98c76ca`, verified the first four fixes and returned three further blocking findings. All three were fixed before the merge.
 
 1. **Training-linked expenses did not follow training source scope.** Accounting checked a training program only through its `clientId`, so `clients:view` was an alternate path to a program the training domain hides. Accounting now mirrors the merged `TrainingService.visibleProgramWhere` rule exactly: broad oversight needs `training_programs:view_all`, otherwise the actor must own the program or train one of its sessions, and a client-linked program additionally needs client read capability. The rule is mirrored as a Prisma predicate using existing permission constants, so no circular Nest module dependency is created. It applies to expense creation with a training context, expense detail, expense listing, and the update, correction, and archive paths that resolve scope through the same helper.
 2. **Placement-linked accounting did not require `placements:view`.** The authoritative placement API and the merged commercial invoice path both require it before a `MissionPlacement` may be used. `AccountingAccess` now carries `placementsView`, and it is required for creating an expense with a placement context, reading or listing placement-linked expenses, and PLACEMENT profitability. Client scope, mission scope, and the `MissionRecruiter` or `mission_candidates:transfer` rule still apply on top. `placement_commercial_eligibility:view` is deliberately not required, because no accounting operation evaluates commercial eligibility.
 3. **Accounting list date ranges were unbounded.** `PaymentListQuerySchema` and `ExpenseListQuerySchema` now require that both endpoints are omitted or both supplied, that the window is ordered, and that it spans at most `MAX_ACCOUNTING_DATE_RANGE_DAYS` (366). A one-sided window is rejected instead of silently widening into an unbounded ledger sweep. Validation is deterministic Zod in the Prisma-independent contracts, so the controllers keep returning `INVALID_PAYMENT_LIST_QUERY` and `INVALID_EXPENSE_LIST_QUERY`.
 
 Every capability the new checks rely on is already granted by the existing seed to the roles that hold broad oversight, so no seed change was needed.
+
+### Accounting scope deliberately left for later issues
+
+Merged through Issue #39: payments, payment allocations, derived invoice settlement with partial/paid/overdue behavior, operational expenses, client receivables, overdue receivables, and D-053 issued-invoice profitability, all separated per currency with no FX conversion.
+
+Still requiring their own approved issues: Moroccan payroll; statutory, general-ledger, and tax accounting; credit notes and refunds; aging buckets beyond the current overdue outstanding figure; accounting exports; and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
+
+## Closed without merge
+
+- PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
+- Issue #12 (recruitment/training contract document taxonomy) is closed as completed through the merged Issue #35 document foundation, which keeps `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` as distinct taxonomy values.
 
 ## Current open technical questions
 
@@ -309,8 +324,9 @@ Every capability the new checks rely on is already granted by the existing seed 
 
 ## Immediate next actions
 
-1. Final review of the Issue #39 accounting draft PR on branch `feat/accounting-foundation` after two rounds of review blockers were fixed; keep it draft/open/unmerged.
-2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
+1. Review and merge the Issue #48 project-memory reconciliation on branch `docs/reconcile-after-accounting-merge`; it is documentation only.
+2. Start Issue #49, template-driven document and business-output generation, on its own branch from current `main`. Generated outputs must attach to the existing `Document` aggregate as immutable `DocumentVersion` records with `DocumentVersionSource.GENERATED`, never as a second source of truth.
+3. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules
 

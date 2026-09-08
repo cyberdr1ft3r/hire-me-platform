@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-04
+Last updated: 2026-09-08
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -83,7 +83,7 @@ Issue #15 completed clients and contacts. Issue #17 completed candidate master/p
 
 Issue #27 completed the public opportunity and candidate application foundation with public listed/unlisted opportunity controls, unauthenticated candidate submissions, approved public fields, upload requirements, CV/file version preservation, safe candidate reuse, and permanent one-process-per-mission/candidate enforcement.
 
-Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 completed task management. Issue #35 completed the centralized document foundation. Broader search, payments, payroll, profitability, and document generation remain separate scoped work.
+Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 completed task management. Issue #35 completed the centralized document foundation, which also completed Issue #12's distinct recruitment/training contract taxonomy. Issues #38 and #39 completed the commercial and operational accounting foundations. Broader search, payroll, and document generation remain separate scoped work.
 
 ## Phase 6 - Offers and placements
 
@@ -105,7 +105,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 **State:** Document foundation complete through Issue #35 / merged PR #40
 
 - Protected centralized `Document` / `DocumentVersion` foundation, distinct recruitment/training contract taxonomy, immutable uploaded versions, internal-only visibility semantics, database-level list visibility, and authorized downloads.
-- Document templates and generated PDF/Word/Excel output remain future work that must attach generated files as normal immutable `DocumentVersion` records.
+- Document templates and generated PDF/Word/Excel output are the next approved product step, tracked as Issue #49. Generated files must attach to the existing `Document` aggregate as normal immutable `DocumentVersion` records with `DocumentVersionSource.GENERATED`, never as a second source of truth. Issue #49 is not started.
 - Issue #36 / merged PR #43 adds the first authenticated internal recruitment reporting layer: scoped KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export, all record-scope enforced and computed from existing data with no schema change. Accounting/revenue, training, and task-productivity analytics remain out of scope.
 - Customizable dashboard indicators, reports, and exports (broader dashboards beyond Issue #36 recruitment reporting).
 - Private messages and discussion groups.
@@ -113,16 +113,12 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 ## Phase 8 - Commercial and operational accounting
 
-**State:** Commercial record foundation active through Issue #38 / branch `feat/commercial-workflow`
+**State:** Complete through Issue #38 / merged PR #46 and Issue #39 / merged PR #47
 
 - Issue #38 implements structured quotations, recruitment and training commercial contracts, purchase orders, invoices, server-calculated VAT/tax totals, lifecycle/history records, permission-aware minimal UI, source-scope authorization with hidden-ID masking, relationship context/currency/status validation, historical read preservation after parent archival, exact contract/PO invoice snapshots, archive filtering, atomic audit, and placement-backed invoice eligibility.
-- Payments and partial payments.
-- Overdue balances.
-- Expenses.
-- Client balances.
-- Mission and training revenue and profitability.
+- Issue #39 implements payments, payment allocations, derived invoice settlement with partial, paid, and overdue behavior, operational expenses, client receivables, overdue receivables, and D-053 issued-invoice profitability. Every aggregate is separated per currency and there is no FX conversion.
 
-Full legal accounting, general ledger, statutory tax declarations, bank reconciliation, and balance-sheet behavior require separate approval and are not assumed.
+Remaining accounting scope requires its own approved issues and is not assumed here: Moroccan payroll (Phase 8a), statutory and general-ledger and tax accounting, bank reconciliation, balance-sheet behavior, credit notes and refunds, aging buckets beyond the current overdue outstanding figure, accounting exports, and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 
 ## Phase 8a - Complete Moroccan payroll
 
