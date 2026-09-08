@@ -540,7 +540,9 @@ own rule, never the document capability alone. A commercial output requires the 
 `commercial_data:access` and the merged client and mission record scope. A training
 certificate requires `training_enrollments:view`, the merged training program visibility
 rule, and the participant's own source-domain read capability before a participant name is
-rendered.
+rendered. That participant rule is re-applied when a generated certificate is read,
+listed, or downloaded, so a certificate identifier can never disclose a candidate or
+client-contact identity the actor could not obtain directly.
 
 Reading a generated document, listing its versions, and downloading a current or
 historical version all re-authorize the underlying business record at request time, and

@@ -356,7 +356,23 @@ contain no caller-controlled text at all.
 Storage and PostgreSQL are deliberately not presented as one transaction. The documented
 compensation boundary is that a failed commit deletes the object that attempt published
 and never touches a historical object, so the database never references missing bytes and
-at worst one unreferenced object survives a compensation failure.
+at worst one unreferenced object survives a compensation failure. Publication itself
+writes a temporary file inside the same protected directory and links it atomically into
+the final key, so a failed or partial write never leaves an object at a key the caller
+does not know to compensate.
+
+Rendering happens outside any transaction, so the source could change while a file is
+produced. Each output therefore carries a `sourceSnapshotSha256` fingerprint over exactly
+the authoritative fields it rendered, including ordered line rows; the source is re-read
+inside the publishing transaction and the fingerprint recomputed, and a mismatch rejects
+the attempt. No row lock is held across rendering or storage I/O.
+
+The renderer protects the output format without changing business meaning: it removes
+control characters but never truncates or substitutes. PDF text wraps across lines and
+pages and covers the full WinAnsi repertoire, including the `oe` ligature and the euro
+sign; text a PDF standard font genuinely cannot encode is refused rather than corrupted,
+while the Word output carries full Unicode. Supporting arbitrary scripts in PDF would
+require embedding a Unicode font asset, which is deliberately not done here.
 
 Provenance is bounded and structured on the version itself: template id, template version,
 language, output family, size, and checksum. Audit metadata carries the document, version,

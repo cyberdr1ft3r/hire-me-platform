@@ -24,6 +24,7 @@ ADD COLUMN     "purchaseOrderId" UUID;
 -- AlterTable
 ALTER TABLE "DocumentVersion" ADD COLUMN     "generationIdempotencyKey" TEXT,
 ADD COLUMN     "generationLanguage" TEXT,
+ADD COLUMN     "sourceSnapshotSha256" TEXT,
 ADD COLUMN     "templateId" TEXT,
 ADD COLUMN     "templateVersion" INTEGER;
 
@@ -156,10 +157,13 @@ ADD CONSTRAINT "DocumentVersion_generation_provenance_consistent" CHECK (
       AND "generationLanguage" IS NOT NULL
       AND "outputFamily" IS NOT NULL
       AND "checksumSha256" IS NOT NULL
+      AND "generationIdempotencyKey" IS NOT NULL
+      AND "sourceSnapshotSha256" IS NOT NULL
     ELSE
       "templateId" IS NULL
       AND "templateVersion" IS NULL
       AND "generationLanguage" IS NULL
       AND "generationIdempotencyKey" IS NULL
+      AND "sourceSnapshotSha256" IS NULL
   END
 );

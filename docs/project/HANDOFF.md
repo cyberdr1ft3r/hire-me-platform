@@ -33,11 +33,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Issued invoice outputs copy the immutable issued lines and totals verbatim; nothing is recomputed and placement eligibility is never re-evaluated.
 - Certificate generation reuses the merged training readiness rule and never transitions the enrollment. Certificate issuance stays the explicit audited training action.
 - Generation requires `documents:generate` plus the source domain's own rule, and generated-document reads and downloads re-authorize that source at request time. A leaked document UUID cannot bypass the source domain; hidden and nonexistent sources are indistinguishable.
-- Storage and PostgreSQL are not one transaction. Render, publish, then commit; a failed commit deletes only the object that attempt published and never a historical one.
+- Storage and PostgreSQL are not one transaction. Render, publish, then commit; a failed commit deletes only the object that attempt published and never a historical one. Publication itself writes a temporary file and links it atomically into the final key, so a failed write leaves nothing at that key.
+- Every generated version records a `sourceSnapshotSha256` over exactly the authoritative fields it rendered. The source is re-read inside the publishing transaction and the fingerprint recomputed, so bytes derived from a stale mutable record are never committed.
+- The renderer never truncates or substitutes authoritative text. PDF wraps across lines and pages, DOCX keeps full Unicode, and text a PDF standard font cannot encode fails closed rather than being corrupted.
+- Reading a generated certificate re-checks the participant's own source capability, not just enrollment and program visibility.
 
 ## Next Action
 
-Review the Issue #49 draft PR on branch `feat/document-output-generation` and keep it draft, open, and unmerged until that review completes.
+Re-review the Issue #49 draft PR on branch `feat/document-output-generation` and keep it draft, open, and unmerged until that review completes. The first ChatGPT review returned four blocking findings; all four are fixed on the branch and are described under "Review blockers found and addressed" in `docs/project/STATUS.md`.
 
 Completion conditions:
 

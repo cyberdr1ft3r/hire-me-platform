@@ -2344,6 +2344,7 @@ model DocumentVersion {
   templateVersion          Int?
   generationLanguage       String?
   generationIdempotencyKey String?               @unique
+  sourceSnapshotSha256     String?
   status                   DocumentStatus        @default(ACTIVE)
   archivedAt               DateTime?
   createdAt                DateTime              @default(now())

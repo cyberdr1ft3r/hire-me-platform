@@ -1,7 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import './setup-env.js';
 import { randomUUID } from 'node:crypto';
-import { inflateSync } from 'node:zlib';
+import { inflateRawSync, inflateSync } from 'node:zlib';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -85,6 +85,15 @@ const noTrainingScopePermissions = generatorPermissions.filter(
   (code) => code !== 'training_programs:view' && code !== 'training_programs:view_all',
 );
 
+/**
+ * Full training program and enrollment visibility, but no participant source capability.
+ * A certificate renders the participant's name, so this actor must not be able to reach
+ * one through a document identifier either.
+ */
+const noParticipantSourcePermissions = generatorPermissions.filter(
+  (code) => code !== 'candidates:view' && code !== 'client_contacts:view',
+);
+
 type RolePermissionSnapshot = {
   roleExisted: boolean;
   permissions: { permissionId: string; grantedAt: Date; archivedAt: Date | null }[];
@@ -135,6 +144,12 @@ async function cleanGenerationTestRecords(): Promise<void> {
   });
   await prisma.externalTrainingParticipant.deleteMany({
     where: { displayName: { startsWith: 'Gen49' } },
+  });
+  await prisma.candidate.deleteMany({
+    where: { normalizedEmail: { endsWith: '@generation.test' } },
+  });
+  await prisma.clientContact.deleteMany({
+    where: { normalizedEmail: { endsWith: '@generation.test' } },
   });
   await prisma.missionRecruiter.deleteMany({
     where: { mission: { title: { startsWith: 'Gen49' } } },
@@ -264,6 +279,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
   let generatorUserId: string;
   let generatorToken: string;
   let noGenerateToken: string;
+  let noParticipantSourceToken: string;
   let noCommercialDataToken: string;
   let noSourceViewToken: string;
   let limitedScopeToken: string;
@@ -441,6 +457,65 @@ describe('document output generation', { timeout: 60_000 }, () => {
     });
   }
 
+  async function createCandidateEnrollment(options: { clientContact?: boolean } = {}) {
+    const key = randomUUID().slice(0, 8);
+    const program = await prisma.trainingProgram.create({
+      data: {
+        reference: `GEN49-TP-${key}`,
+        normalizedReference: `gen49-tp-${key}`,
+        name: 'Gen49 Participant Program',
+      },
+    });
+
+    if (options.clientContact) {
+      const contactClient = await prisma.client.create({
+        data: { name: `Gen49 Contact Client ${key}`, normalizedName: `gen49 contact ${key}` },
+      });
+      const contact = await prisma.clientContact.create({
+        data: {
+          clientId: contactClient.id,
+          displayName: `Gen49 Contact ${key}`,
+          email: `gen49-contact-${key}@generation.test`,
+          normalizedEmail: `gen49-contact-${key}@generation.test`,
+        },
+      });
+      const enrollment = await prisma.trainingEnrollment.create({
+        data: {
+          trainingProgramId: program.id,
+          participantType: 'CLIENT_CONTACT',
+          clientContactId: contact.id,
+          activeParticipantKey: `CLIENT_CONTACT:${contact.id}`,
+          status: TrainingEnrollmentStatus.EVALUATED,
+          enrolledAt: new Date(),
+          completedAt: new Date(),
+          certificateStatus: CertificateStatus.PENDING,
+        },
+      });
+      return { program, enrollment };
+    }
+
+    const candidate = await prisma.candidate.create({
+      data: {
+        displayName: `Gen49 Candidate ${key}`,
+        email: `gen49-candidate-${key}@generation.test`,
+        normalizedEmail: `gen49-candidate-${key}@generation.test`,
+      },
+    });
+    const enrollment = await prisma.trainingEnrollment.create({
+      data: {
+        trainingProgramId: program.id,
+        participantType: 'CANDIDATE',
+        candidateId: candidate.id,
+        activeParticipantKey: `CANDIDATE:${candidate.id}`,
+        status: TrainingEnrollmentStatus.EVALUATED,
+        enrolledAt: new Date(),
+        completedAt: new Date(),
+        certificateStatus: CertificateStatus.PENDING,
+      },
+    });
+    return { program, enrollment };
+  }
+
   async function createCertificateReadyEnrollment(options: { ready?: boolean } = {}) {
     const key = randomUUID().slice(0, 8);
     const program = await prisma.trainingProgram.create({
@@ -518,6 +593,30 @@ describe('document output generation', { timeout: 60_000 }, () => {
     );
   }
 
+  /** Inflates every deflated entry of an OOXML package so its XML can be inspected. */
+  function docxXml(bytes: Buffer): string {
+    let xml = '';
+    let offset = 0;
+    while (offset >= 0 && offset < bytes.length - 30) {
+      if (bytes.readUInt32LE(offset) !== 0x04034b50) {
+        break;
+      }
+      const method = bytes.readUInt16LE(offset + 8);
+      const compressedSize = bytes.readUInt32LE(offset + 18);
+      const nameLength = bytes.readUInt16LE(offset + 26);
+      const extraLength = bytes.readUInt16LE(offset + 28);
+      const dataStart = offset + 30 + nameLength + extraLength;
+      const data = bytes.subarray(dataStart, dataStart + compressedSize);
+      try {
+        xml += method === 8 ? inflateRawSync(data).toString('utf8') : data.toString('utf8');
+      } catch {
+        // A non-inflatable entry contributes nothing to the inspected XML.
+      }
+      offset = dataStart + compressedSize;
+    }
+    return xml;
+  }
+
   function certificatePath(programId: string, enrollmentId: string): string {
     return `/v1/training/programs/${programId}/enrollments/${enrollmentId}/generate-certificate`;
   }
@@ -528,6 +627,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       await Promise.all(
         [
           RoleName.HR_MANAGER,
+          RoleName.ADMIN,
           RoleName.MANAGER,
           RoleName.TEAM_LEADER,
           RoleName.EMPLOYEE,
@@ -537,14 +637,16 @@ describe('document output generation', { timeout: 60_000 }, () => {
       ),
     );
     await setRolePermissions(RoleName.HR_MANAGER, generatorPermissions);
-    await setRolePermissions(RoleName.MANAGER, noGeneratePermissions);
+    await setRolePermissions(RoleName.MANAGER, noParticipantSourcePermissions);
     await setRolePermissions(RoleName.TEAM_LEADER, noCommercialDataPermissions);
     await setRolePermissions(RoleName.EMPLOYEE, noSourceViewPermissions);
     await setRolePermissions(RoleName.GUEST, limitedMissionScopePermissions);
     await setRolePermissions(RoleName.CLIENT_USER, noTrainingScopePermissions);
 
     generatorUserId = await createUser('generator@generation.test', RoleName.HR_MANAGER);
-    await createUser('no-generate@generation.test', RoleName.MANAGER);
+    await createUser('no-participant-source@generation.test', RoleName.MANAGER);
+    await setRolePermissions(RoleName.ADMIN, noGeneratePermissions);
+    await createUser('no-generate@generation.test', RoleName.ADMIN);
     await createUser('no-commercial@generation.test', RoleName.TEAM_LEADER);
     await createUser('no-source-view@generation.test', RoleName.EMPLOYEE);
     limitedScopeUserId = await createUser('limited-scope@generation.test', RoleName.GUEST);
@@ -567,6 +669,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
 
     generatorToken = await login('generator@generation.test');
     noGenerateToken = await login('no-generate@generation.test');
+    noParticipantSourceToken = await login('no-participant-source@generation.test');
     noCommercialDataToken = await login('no-commercial@generation.test');
     noSourceViewToken = await login('no-source-view@generation.test');
     limitedScopeToken = await login('limited-scope@generation.test');
@@ -1171,6 +1274,351 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const document = await prisma.document.findUniqueOrThrow({ where: { id: first.documentId } });
     expect(document.currentVersionId).toBe(first.versionId);
     await expect(storage.get(publishedKey!)).rejects.toThrow();
+  });
+
+  // -------------------------------------------------------------------------
+  // Certificate participant source re-authorization
+  // -------------------------------------------------------------------------
+
+  it('hides a candidate certificate from an actor without candidates:view', async () => {
+    const { program, enrollment } = await createCandidateEnrollment();
+    const result = generated((await generate(certificatePath(program.id, enrollment.id))).body);
+
+    // The narrow actor sees the program and the enrollment, but not the candidate.
+    const detail = await api(noParticipantSourceToken, `/v1/documents/${result.documentId}`);
+    expect(detail.status).toBe(404);
+    expect(errorCode(detail.body)).toBe('DOCUMENT_NOT_FOUND');
+    expect(
+      (await api(noParticipantSourceToken, `/v1/documents/${result.documentId}/versions`)).status,
+    ).toBe(404);
+    const download = await fetch(
+      `${baseUrl}/v1/documents/${result.documentId}/versions/${result.versionId}/download`,
+      { headers: { Authorization: `Bearer ${noParticipantSourceToken}` } },
+    );
+    expect(download.status).toBe(404);
+    expect(
+      (
+        (await api(noParticipantSourceToken, '/v1/documents?pageSize=100')).body as {
+          documents: { id: string }[];
+        }
+      ).documents.map((item) => item.id),
+    ).not.toContain(result.documentId);
+
+    // A nonexistent document identifier is indistinguishable from the hidden one.
+    const missing = await api(noParticipantSourceToken, `/v1/documents/${randomUUID()}`);
+    expect(missing.status).toBe(detail.status);
+    expect(errorCode(missing.body)).toBe(errorCode(detail.body));
+
+    // Granting only candidates:view makes exactly this document readable again.
+    await setRolePermissions(RoleName.MANAGER, [
+      ...noParticipantSourcePermissions,
+      'candidates:view',
+    ]);
+    try {
+      expect(
+        (await api(noParticipantSourceToken, `/v1/documents/${result.documentId}`)).status,
+      ).toBe(200);
+      expect(
+        (await api(noParticipantSourceToken, `/v1/documents/${result.documentId}/versions`)).status,
+      ).toBe(200);
+      const allowed = await fetch(
+        `${baseUrl}/v1/documents/${result.documentId}/versions/${result.versionId}/download`,
+        { headers: { Authorization: `Bearer ${noParticipantSourceToken}` } },
+      );
+      expect(allowed.status).toBe(200);
+      expect(
+        (
+          (await api(noParticipantSourceToken, '/v1/documents?pageSize=100')).body as {
+            documents: { id: string }[];
+          }
+        ).documents.map((item) => item.id),
+      ).toContain(result.documentId);
+    } finally {
+      await setRolePermissions(RoleName.MANAGER, noParticipantSourcePermissions);
+    }
+  });
+
+  it('hides a client-contact certificate without clients:view and client_contacts:view', async () => {
+    const { program, enrollment } = await createCandidateEnrollment({ clientContact: true });
+    const result = generated((await generate(certificatePath(program.id, enrollment.id))).body);
+
+    expect((await api(noParticipantSourceToken, `/v1/documents/${result.documentId}`)).status).toBe(
+      404,
+    );
+
+    // Both capabilities are required; the client capability alone is not enough.
+    await setRolePermissions(RoleName.MANAGER, [
+      ...noParticipantSourcePermissions,
+      'client_contacts:view',
+    ]);
+    try {
+      expect(
+        (await api(noParticipantSourceToken, `/v1/documents/${result.documentId}`)).status,
+      ).toBe(200);
+    } finally {
+      await setRolePermissions(RoleName.MANAGER, noParticipantSourcePermissions);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Source snapshot identity
+  // -------------------------------------------------------------------------
+
+  it('records the source snapshot fingerprint on every generated version', async () => {
+    const quotation = await createQuotation();
+    const result = generated(
+      (await generate(`/v1/commercial/quotations/${quotation.id}/generate`)).body,
+    );
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    expect(version.sourceSnapshotSha256).toHaveLength(64);
+  });
+
+  it('refuses to commit bytes rendered from a stale mutable purchase order', async () => {
+    const order = await createPurchaseOrder({ status: PurchaseOrderStatus.DRAFT });
+    let publishedKey: string | null = null;
+    const realPut = storage.put.bind(storage);
+    const spy = vi.spyOn(storage, 'put').mockImplementation(async (key, content) => {
+      await realPut(key, content);
+      publishedKey = key;
+      // The record stays DRAFT, so lifecycle alone would not notice: only the snapshot
+      // fingerprint reveals that the rendered amount is now stale.
+      await prisma.purchaseOrder.update({
+        where: { id: order.id },
+        data: { amountCents: 20_000, totalCents: 24_000, taxCents: 4_000 },
+      });
+    });
+
+    const response = await generate(`/v1/commercial/purchase-orders/${order.id}/generate`);
+    spy.mockRestore();
+
+    expect(response.status).toBe(409);
+    expect(errorCode(response.body)).toBe('GENERATION_SOURCE_CHANGED');
+    expect(await prisma.documentVersion.count({ where: { storageKey: publishedKey! } })).toBe(0);
+    expect(await prisma.document.count({ where: { purchaseOrderId: order.id } })).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: { in: ['documents.generated', 'documents.regenerated'] } },
+      }),
+    ).toBeGreaterThanOrEqual(0);
+    await expect(storage.get(publishedKey!)).rejects.toThrow();
+
+    // Retrying against the current state succeeds and renders the new amount.
+    const retry = await generate(`/v1/commercial/purchase-orders/${order.id}/generate`);
+    expect(retry.status).toBe(201);
+    const retryVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(retry.body).versionId },
+    });
+    expect(pdfText(await storage.get(retryVersion.storageKey))).toContain('200.00 MAD');
+  });
+
+  it('refuses to commit bytes rendered from a stale mutable contract', async () => {
+    const contract = await createContract(CommercialContractBusinessType.RECRUITMENT, {
+      status: CommercialContractStatus.DRAFT,
+    });
+    const first = generated(
+      (await generate(`/v1/commercial/contracts/${contract.id}/generate`)).body,
+    );
+
+    let publishedKey: string | null = null;
+    const realPut = storage.put.bind(storage);
+    const spy = vi.spyOn(storage, 'put').mockImplementation(async (key, content) => {
+      await realPut(key, content);
+      publishedKey = key;
+      await prisma.commercialContract.update({
+        where: { id: contract.id },
+        data: { termsSummary: 'Renegotiated terms.', contractValueCents: 90_000 },
+      });
+    });
+
+    const response = await generate(`/v1/commercial/contracts/${contract.id}/generate`);
+    spy.mockRestore();
+
+    expect(response.status).toBe(409);
+    expect(errorCode(response.body)).toBe('GENERATION_SOURCE_CHANGED');
+
+    // The historical version, its bytes, and the current pointer are untouched.
+    const preserved = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: first.versionId },
+    });
+    expect((await storage.get(preserved.storageKey)).subarray(0, 4).toString()).toBe('%PDF');
+    const document = await prisma.document.findUniqueOrThrow({ where: { id: first.documentId } });
+    expect(document.currentVersionId).toBe(first.versionId);
+    expect(await prisma.documentVersion.count({ where: { documentId: first.documentId } })).toBe(1);
+    await expect(storage.get(publishedKey!)).rejects.toThrow();
+  });
+
+  // -------------------------------------------------------------------------
+  // Content fidelity
+  // -------------------------------------------------------------------------
+
+  it('keeps a long invoice line description intact in the PDF', async () => {
+    const description = Array.from({ length: 90 }, (_, index) => `segment${index}`).join(' ');
+    const invoice = await prisma.invoice.create({
+      data: {
+        reference: reference('INV'),
+        clientId,
+        currency: 'MAD',
+        status: InvoiceStatus.ISSUED,
+        issueDate: new Date(),
+        issuedAt: new Date(),
+        subtotalCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+        lines: {
+          create: [
+            {
+              sortOrder: 1,
+              description,
+              quantity: 1,
+              unitPriceCents: 1_000,
+              taxRateBps: 0,
+              lineSubtotalCents: 1_000,
+              lineTaxCents: 0,
+              lineTotalCents: 1_000,
+            },
+          ],
+        },
+      },
+    });
+
+    const result = generated(
+      (await generate(`/v1/commercial/invoices/${invoice.id}/generate`)).body,
+    );
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    const drawn = pdfText(await storage.get(version.storageKey));
+    expect(description.length).toBeGreaterThan(500);
+    expect(drawn).toContain('segment0');
+    expect(drawn).toContain('segment89');
+  });
+
+  it('keeps long quotation and contract text intact in the Word output', async () => {
+    const description = 'q'.repeat(900);
+    const quotation = await prisma.commercialQuotation.create({
+      data: {
+        reference: reference('QT'),
+        clientId,
+        currency: 'MAD',
+        status: QuotationStatus.ISSUED,
+        issueDate: new Date(),
+        subtotalCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+        lines: {
+          create: [
+            {
+              sortOrder: 1,
+              description,
+              quantity: 1,
+              unitPriceCents: 1_000,
+              taxRateBps: 0,
+              lineSubtotalCents: 1_000,
+              lineTaxCents: 0,
+              lineTotalCents: 1_000,
+            },
+          ],
+        },
+      },
+    });
+    const quotationResult = generated(
+      (
+        await generate(`/v1/commercial/quotations/${quotation.id}/generate`, {
+          outputFamily: 'WORD',
+        })
+      ).body,
+    );
+    const quotationVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: quotationResult.versionId },
+    });
+    expect(docxXml(await storage.get(quotationVersion.storageKey))).toContain(description);
+
+    const terms = 't'.repeat(1_200);
+    const contract = await prisma.commercialContract.create({
+      data: {
+        reference: reference('CT'),
+        businessType: CommercialContractBusinessType.TRAINING,
+        clientId,
+        currency: 'MAD',
+        contractValueCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+        termsSummary: terms,
+        status: CommercialContractStatus.ACTIVE,
+      },
+    });
+    const contractResult = generated(
+      (
+        await generate(`/v1/commercial/contracts/${contract.id}/generate`, {
+          outputFamily: 'WORD',
+        })
+      ).body,
+    );
+    const contractVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: contractResult.versionId },
+    });
+    expect(docxXml(await storage.get(contractVersion.storageKey))).toContain(terms);
+  });
+
+  it('renders a Unicode ligature in PDF and refuses non-encodable text instead of corrupting it', async () => {
+    const ligatureClient = await prisma.client.create({
+      data: { name: 'Gen49 Cœur & Œuvre', normalizedName: 'gen49 coeur oeuvre' },
+    });
+    const ligatureInvoice = await prisma.invoice.create({
+      data: {
+        reference: reference('INV'),
+        clientId: ligatureClient.id,
+        currency: 'MAD',
+        status: InvoiceStatus.ISSUED,
+        issueDate: new Date(),
+        issuedAt: new Date(),
+        subtotalCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+      },
+    });
+    const pdfResult = await generate(`/v1/commercial/invoices/${ligatureInvoice.id}/generate`);
+    expect(pdfResult.status).toBe(201);
+    const pdfVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(pdfResult.body).versionId },
+    });
+    const drawn = pdfText(await storage.get(pdfVersion.storageKey));
+    expect(drawn).toContain(String.fromCharCode(0x9c));
+    expect(drawn).toContain(String.fromCharCode(0x8c));
+
+    const scriptClient = await prisma.client.create({
+      data: { name: 'Gen49 عميل 中文', normalizedName: 'gen49 non latin client' },
+    });
+    const scriptInvoice = await prisma.invoice.create({
+      data: {
+        reference: reference('INV'),
+        clientId: scriptClient.id,
+        currency: 'MAD',
+        status: InvoiceStatus.ISSUED,
+        issueDate: new Date(),
+        issuedAt: new Date(),
+        subtotalCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+      },
+    });
+    // PDF refuses rather than substituting characters into an official document.
+    const refused = await generate(`/v1/commercial/invoices/${scriptInvoice.id}/generate`);
+    expect(refused.status).toBe(409);
+    expect(errorCode(refused.body)).toBe('GENERATION_PDF_UNSUPPORTED_CHARACTERS');
+    expect(await prisma.document.count({ where: { invoiceId: scriptInvoice.id } })).toBe(0);
+
+    // The Word output carries the same name faithfully.
+    const word = await generate(`/v1/commercial/invoices/${scriptInvoice.id}/generate`, {
+      outputFamily: 'WORD',
+    });
+    expect(word.status).toBe(201);
+    const wordVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(word.body).versionId },
+    });
+    expect(docxXml(await storage.get(wordVersion.storageKey))).toContain('Gen49 عميل 中文');
   });
 
   // -------------------------------------------------------------------------

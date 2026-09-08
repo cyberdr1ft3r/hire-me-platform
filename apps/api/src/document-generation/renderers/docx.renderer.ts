@@ -12,7 +12,7 @@ import {
 } from 'docx';
 
 import type { RenderableBlock, RenderableDocument } from '../renderable-document.js';
-import { sanitizeText } from '../renderable-document.js';
+import { sanitizeText, textLines } from '../renderable-document.js';
 
 /**
  * Pure-JavaScript Word-compatible renderer.
@@ -20,10 +20,16 @@ import { sanitizeText } from '../renderable-document.js';
  * The `docx` package assembles an OpenXML package in process, so like the PDF path it
  * needs no native binary, no office suite, and no shell. Values are written as literal
  * text runs, never as markup, so nothing in a business record can be interpreted.
+ *
+ * DOCX is fully Unicode and nothing here folds, substitutes, or truncates: a run carries
+ * exactly what the authoritative record stores, minus control characters. Explicit line
+ * breaks are preserved as real breaks rather than collapsed into spaces.
  */
 
-function textRun(value: string, bold = false): TextRun {
-  return new TextRun({ text: sanitizeText(value), bold });
+function textRuns(value: string, bold = false): TextRun[] {
+  return textLines(sanitizeText(value)).map(
+    (line, index) => new TextRun({ text: line, bold, break: index === 0 ? 0 : 1 }),
+  );
 }
 
 function blockToElements(block: RenderableBlock): (Paragraph | Table)[] {
@@ -32,16 +38,16 @@ function blockToElements(block: RenderableBlock): (Paragraph | Table)[] {
       return [
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
-          children: [textRun(block.text, true)],
+          children: textRuns(block.text, true),
         }),
       ];
     case 'paragraph':
-      return [new Paragraph({ children: [textRun(block.text)] })];
+      return [new Paragraph({ children: textRuns(block.text) })];
     case 'keyValues':
       return block.rows.map(
         (row) =>
           new Paragraph({
-            children: [textRun(`${row.label}: `, true), textRun(row.value)],
+            children: [...textRuns(`${row.label}: `, true), ...textRuns(row.value)],
           }),
       );
     case 'table': {
@@ -49,7 +55,7 @@ function blockToElements(block: RenderableBlock): (Paragraph | Table)[] {
         children: block.columns.map(
           (column) =>
             new TableCell({
-              children: [new Paragraph({ children: [textRun(column, true)] })],
+              children: [new Paragraph({ children: textRuns(column, true) })],
             }),
         ),
       });
@@ -59,7 +65,7 @@ function blockToElements(block: RenderableBlock): (Paragraph | Table)[] {
             children: row.map(
               (cell) =>
                 new TableCell({
-                  children: [new Paragraph({ children: [textRun(cell)] })],
+                  children: [new Paragraph({ children: textRuns(cell) })],
                 }),
             ),
           }),
@@ -84,12 +90,12 @@ export async function renderDocx(document: RenderableDocument): Promise<Buffer> 
     new Paragraph({
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.LEFT,
-      children: [textRun(document.title, true)],
+      children: textRuns(document.title, true),
     }),
   ];
 
   if (document.subtitle) {
-    children.push(new Paragraph({ children: [textRun(document.subtitle)] }));
+    children.push(new Paragraph({ children: textRuns(document.subtitle) }));
   }
 
   for (const block of document.blocks) {
@@ -97,7 +103,7 @@ export async function renderDocx(document: RenderableDocument): Promise<Buffer> 
   }
 
   if (document.footer) {
-    children.push(new Paragraph({ children: [textRun(document.footer)] }));
+    children.push(new Paragraph({ children: textRuns(document.footer) }));
   }
 
   const file = new Document({

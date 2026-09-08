@@ -34,6 +34,7 @@ import {
   Prisma,
   GeneratedDocumentSource,
   RecruitmentMissionState,
+  TrainingParticipantType,
   UserStatus,
   UserType,
 } from '../persistence/prisma/generated-client.js';
@@ -942,12 +943,51 @@ export class DocumentsService {
           id: document.trainingEnrollmentId,
           program: this.visibleTrainingProgramWhere(actorUserId, permissions),
         },
-        select: { id: true },
+        select: { id: true, participantType: true },
       });
       if (!enrollment) {
         deny();
+        return;
+      }
+      // A generated certificate renders the participant's name, so reading it back
+      // requires the same participant source capability generation itself demanded.
+      // Without this, a certificate document identifier would be an alternate route to
+      // a candidate or client-contact identity the actor cannot otherwise read.
+      if (!this.hasParticipantSourceAccess(enrollment.participantType, permissions)) {
+        deny();
       }
     }
+  }
+
+  /**
+   * Participant source capability, identical to the merged training participant rule
+   * that generation applies before rendering a name. `USER` and `EXTERNAL` participants
+   * are training-owned and need no additional source capability.
+   */
+  private hasParticipantSourceAccess(participantType: string, permissions: string[]): boolean {
+    switch (participantType) {
+      case TrainingParticipantType.CANDIDATE:
+        return this.hasPermission(permissions, CANDIDATE_PERMISSIONS.CANDIDATES_VIEW);
+      case TrainingParticipantType.CLIENT_CONTACT:
+        return (
+          this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW) &&
+          this.hasPermission(permissions, TRAINING_PERMISSIONS.CLIENT_CONTACTS_VIEW)
+        );
+      default:
+        return true;
+    }
+  }
+
+  /** The same participant rule expressed as a predicate for the list path. */
+  private visibleParticipantTypeWhere(permissions: string[]): Prisma.TrainingEnrollmentWhereInput {
+    const blocked: TrainingParticipantType[] = [];
+    if (!this.hasParticipantSourceAccess(TrainingParticipantType.CANDIDATE, permissions)) {
+      blocked.push(TrainingParticipantType.CANDIDATE);
+    }
+    if (!this.hasParticipantSourceAccess(TrainingParticipantType.CLIENT_CONTACT, permissions)) {
+      blocked.push(TrainingParticipantType.CLIENT_CONTACT);
+    }
+    return blocked.length > 0 ? { participantType: { notIn: blocked } } : {};
   }
 
   /** The merged `TrainingService` program visibility rule, mirrored as a predicate. */
@@ -1055,7 +1095,10 @@ export class DocumentsService {
                 { trainingEnrollmentId: null },
                 {
                   trainingEnrollment: {
-                    program: this.visibleTrainingProgramWhere(actorUserId, permissions),
+                    AND: [
+                      { program: this.visibleTrainingProgramWhere(actorUserId, permissions) },
+                      this.visibleParticipantTypeWhere(permissions),
+                    ],
                   },
                 },
               ],

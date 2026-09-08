@@ -795,7 +795,15 @@ source of truth.
   amount is recomputed and placement eligibility is never re-evaluated.
 - Templates are code-owned. There is no template language, no markup, no evaluation, no
   uploaded template, and no remote fetch, so a business value can never be interpreted.
-  Every generated version records the exact template identity and version used.
+  Every generated version records the exact template identity and version used, plus a
+  fingerprint of the authoritative source values it rendered.
+- The source is re-read and its fingerprint recomputed inside the publishing transaction.
+  A mutable record that changed while the file rendered is rejected rather than committed,
+  so an output never claims a state the source no longer has.
+- Authoritative text is never truncated or substituted. Long descriptions and terms wrap
+  across lines and pages. Word output carries full Unicode; a PDF whose text a standard
+  font cannot encode is refused rather than corrupted, and the Word output stays available
+  for it.
 - One logical document exists per source record, output family, and language. The first
   generation creates version 1 and an intentional regeneration adds version N+1; a
   historical version and its bytes are never overwritten.

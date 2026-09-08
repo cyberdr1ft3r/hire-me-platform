@@ -17,7 +17,7 @@ import {
 import type { GenerationView } from './generation-view-models.js';
 import { renderDocx } from './renderers/docx.renderer.js';
 import { renderPdf } from './renderers/pdf.renderer.js';
-import { sanitizeText } from './renderable-document.js';
+import { sanitizeText, unrepresentablePdfCharacters } from './renderable-document.js';
 import { resolveTemplate } from './template-registry.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
@@ -75,8 +75,19 @@ type ResolvedSource = {
     clientId: string | null;
     trainingEnrollmentId: string | null;
   };
-  /** Re-checked inside the publishing transaction to close the snapshot race. */
-  revalidate: (tx: Tx) => Promise<void>;
+  /**
+   * Canonical fingerprint of exactly the authoritative fields this output renders.
+   * Recorded on the generated version so provenance can answer which state of the
+   * source produced these bytes.
+   */
+  fingerprint: string;
+  /**
+   * Re-reads the authoritative source inside the publishing transaction, re-asserts
+   * lifecycle eligibility, and recomputes the fingerprint. Rendering happens outside any
+   * transaction, so this is what proves the bytes still describe the committed state
+   * without holding a row lock across rendering or storage I/O.
+   */
+  resnapshot: (tx: Tx) => Promise<string>;
 };
 
 type GenerationAccess = {
@@ -229,6 +240,19 @@ export class DocumentGenerationService {
     }
 
     const renderable = template.build(source.view, input.language);
+    if (input.outputFamily === 'PDF') {
+      // Refuse rather than silently corrupt. The PDF standard fonts cover WinAnsi, which
+      // includes Latin-1 and the typographic block, but not every script a real name can
+      // use. Substituting characters would quietly change an official document, so an
+      // unrepresentable name fails deterministically and DOCX remains available.
+      const unsupported = unrepresentablePdfCharacters(renderable);
+      if (unsupported.length > 0) {
+        throw generationConflict(
+          'GENERATION_PDF_UNSUPPORTED_CHARACTERS',
+          'The source text contains characters the PDF font cannot represent. Generate the Word output instead.',
+        );
+      }
+    }
     const bytes =
       input.outputFamily === 'PDF' ? await renderPdf(renderable) : await renderDocx(renderable);
     if (bytes.length === 0 || bytes.length > maxGeneratedBytes) {
@@ -290,10 +314,17 @@ export class DocumentGenerationService {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          // The snapshot was taken before rendering; re-validate the source lifecycle
-          // under the publishing transaction so a state change mid-render cannot be
-          // published as an official output.
-          await source.revalidate(tx);
+          // The snapshot was taken before rendering. Re-reading it here and comparing
+          // fingerprints is what stops bytes derived from a stale source state from ever
+          // being committed: a mutable DRAFT purchase order or contract can change while
+          // the file renders, and the lifecycle state alone would not reveal it.
+          const currentFingerprint = await source.resnapshot(tx);
+          if (currentFingerprint !== source.fingerprint) {
+            throw generationConflict(
+              'GENERATION_SOURCE_CHANGED',
+              'The source record changed while the output was rendered. Retry the generation.',
+            );
+          }
 
           const document = await this.lockOrCreateLogicalDocument(tx, options);
 
@@ -334,6 +365,7 @@ export class DocumentGenerationService {
               templateVersion: options.templateVersion,
               generationLanguage: input.language,
               generationIdempotencyKey: input.idempotencyKey,
+              sourceSnapshotSha256: source.fingerprint,
             },
           });
 
@@ -612,17 +644,79 @@ export class DocumentGenerationService {
           missionTitle: quotation.recruitmentMission?.title ?? null,
         },
       },
-      revalidate: async (tx) => {
+      fingerprint: this.quotationFingerprint(quotation),
+      resnapshot: async (tx) => {
         const current = await tx.commercialQuotation.findUnique({
           where: { id: quotationId },
-          select: { status: true, archivedAt: true },
+          include: {
+            client: { select: { name: true } },
+            recruitmentMission: { select: { title: true } },
+            lines: { orderBy: { sortOrder: 'asc' } },
+          },
         });
         if (!current) {
           throw generationSourceNotFound();
         }
         this.assertQuotationEligible(current.status, current.archivedAt);
+        return this.quotationFingerprint(current);
       },
     };
+  }
+
+  private quotationFingerprint(quotation: {
+    id: string;
+    reference: string;
+    status: string;
+    clientId: string;
+    recruitmentMissionId: string | null;
+    currency: string;
+    issueDate: Date | null;
+    validUntil: Date | null;
+    subtotalCents: number;
+    taxCents: number;
+    totalCents: number;
+    archivedAt: Date | null;
+    client: { name: string };
+    recruitmentMission: { title: string } | null;
+    lines: {
+      sortOrder: number;
+      description: string;
+      quantity: number;
+      unitPriceCents: number;
+      taxRateBps: number;
+      lineSubtotalCents: number;
+      lineTaxCents: number;
+      lineTotalCents: number;
+    }[];
+  }): string {
+    return this.fingerprintOf([
+      'COMMERCIAL_QUOTATION',
+      quotation.id,
+      quotation.reference,
+      quotation.status,
+      quotation.clientId,
+      quotation.recruitmentMissionId,
+      quotation.currency,
+      quotation.issueDate,
+      quotation.validUntil,
+      quotation.subtotalCents,
+      quotation.taxCents,
+      quotation.totalCents,
+      quotation.archivedAt,
+      quotation.client.name,
+      quotation.recruitmentMission?.title ?? null,
+      quotation.lines.length,
+      ...quotation.lines.flatMap((line) => [
+        line.sortOrder,
+        line.description,
+        line.quantity,
+        line.unitPriceCents,
+        line.taxRateBps,
+        line.lineSubtotalCents,
+        line.lineTaxCents,
+        line.lineTotalCents,
+      ]),
+    ]);
   }
 
   private async resolvePurchaseOrder(
@@ -666,17 +760,57 @@ export class DocumentGenerationService {
           missionTitle: order.recruitmentMission?.title ?? null,
         },
       },
-      revalidate: async (tx) => {
+      fingerprint: this.purchaseOrderFingerprint(order),
+      resnapshot: async (tx) => {
         const current = await tx.purchaseOrder.findUnique({
           where: { id: purchaseOrderId },
-          select: { status: true, archivedAt: true },
+          include: {
+            client: { select: { name: true } },
+            recruitmentMission: { select: { title: true } },
+          },
         });
         if (!current) {
           throw generationSourceNotFound();
         }
         this.assertPurchaseOrderEligible(current.status, current.archivedAt);
+        return this.purchaseOrderFingerprint(current);
       },
     };
+  }
+
+  private purchaseOrderFingerprint(order: {
+    id: string;
+    reference: string;
+    status: string;
+    clientId: string;
+    recruitmentMissionId: string | null;
+    currency: string;
+    amountCents: number;
+    taxCents: number;
+    totalCents: number;
+    issueDate: Date | null;
+    receivedDate: Date | null;
+    archivedAt: Date | null;
+    client: { name: string };
+    recruitmentMission: { title: string } | null;
+  }): string {
+    return this.fingerprintOf([
+      'PURCHASE_ORDER',
+      order.id,
+      order.reference,
+      order.status,
+      order.clientId,
+      order.recruitmentMissionId,
+      order.currency,
+      order.amountCents,
+      order.taxCents,
+      order.totalCents,
+      order.issueDate,
+      order.receivedDate,
+      order.archivedAt,
+      order.client.name,
+      order.recruitmentMission?.title ?? null,
+    ]);
   }
 
   private async resolveContract(
@@ -735,17 +869,63 @@ export class DocumentGenerationService {
           missionTitle: contract.recruitmentMission?.title ?? null,
         },
       },
-      revalidate: async (tx) => {
+      fingerprint: this.contractFingerprint(contract),
+      resnapshot: async (tx) => {
         const current = await tx.commercialContract.findUnique({
           where: { id: contractId },
-          select: { status: true, archivedAt: true },
+          include: {
+            client: { select: { name: true } },
+            recruitmentMission: { select: { title: true } },
+          },
         });
         if (!current) {
           throw generationSourceNotFound();
         }
         this.assertContractEligible(current.status, current.archivedAt);
+        return this.contractFingerprint(current);
       },
     };
+  }
+
+  private contractFingerprint(contract: {
+    id: string;
+    reference: string;
+    businessType: string;
+    status: string;
+    clientId: string;
+    recruitmentMissionId: string | null;
+    currency: string;
+    contractValueCents: number;
+    taxCents: number;
+    totalCents: number;
+    termsSummary: string | null;
+    effectiveDate: Date | null;
+    startDate: Date | null;
+    endDate: Date | null;
+    archivedAt: Date | null;
+    client: { name: string };
+    recruitmentMission: { title: string } | null;
+  }): string {
+    return this.fingerprintOf([
+      'COMMERCIAL_CONTRACT',
+      contract.id,
+      contract.reference,
+      contract.businessType,
+      contract.status,
+      contract.clientId,
+      contract.recruitmentMissionId,
+      contract.currency,
+      contract.contractValueCents,
+      contract.taxCents,
+      contract.totalCents,
+      contract.termsSummary,
+      contract.effectiveDate,
+      contract.startDate,
+      contract.endDate,
+      contract.archivedAt,
+      contract.client.name,
+      contract.recruitmentMission?.title ?? null,
+    ]);
   }
 
   private async resolveInvoice(
@@ -802,17 +982,81 @@ export class DocumentGenerationService {
           missionTitle: invoice.recruitmentMission?.title ?? null,
         },
       },
-      revalidate: async (tx) => {
+      fingerprint: this.invoiceFingerprint(invoice),
+      resnapshot: async (tx) => {
         const current = await tx.invoice.findUnique({
           where: { id: invoiceId },
-          select: { status: true, archivedAt: true },
+          include: {
+            client: { select: { name: true } },
+            recruitmentMission: { select: { title: true } },
+            lines: { orderBy: { sortOrder: 'asc' } },
+          },
         });
         if (!current) {
           throw generationSourceNotFound();
         }
         this.assertInvoiceEligible(current.status, current.archivedAt);
+        return this.invoiceFingerprint(current);
       },
     };
+  }
+
+  private invoiceFingerprint(invoice: {
+    id: string;
+    reference: string;
+    status: string;
+    clientId: string;
+    recruitmentMissionId: string | null;
+    currency: string;
+    issueDate: Date | null;
+    dueDate: Date | null;
+    issuedAt: Date | null;
+    subtotalCents: number;
+    taxCents: number;
+    totalCents: number;
+    archivedAt: Date | null;
+    client: { name: string };
+    recruitmentMission: { title: string } | null;
+    lines: {
+      sortOrder: number;
+      description: string;
+      quantity: number;
+      unitPriceCents: number;
+      taxRateBps: number;
+      lineSubtotalCents: number;
+      lineTaxCents: number;
+      lineTotalCents: number;
+    }[];
+  }): string {
+    return this.fingerprintOf([
+      'INVOICE',
+      invoice.id,
+      invoice.reference,
+      invoice.status,
+      invoice.clientId,
+      invoice.recruitmentMissionId,
+      invoice.currency,
+      invoice.issueDate,
+      invoice.dueDate,
+      invoice.issuedAt,
+      invoice.subtotalCents,
+      invoice.taxCents,
+      invoice.totalCents,
+      invoice.archivedAt,
+      invoice.client.name,
+      invoice.recruitmentMission?.title ?? null,
+      invoice.lines.length,
+      ...invoice.lines.flatMap((line) => [
+        line.sortOrder,
+        line.description,
+        line.quantity,
+        line.unitPriceCents,
+        line.taxRateBps,
+        line.lineSubtotalCents,
+        line.lineTaxCents,
+        line.lineTotalCents,
+      ]),
+    ]);
   }
 
   private async resolveCertificate(
@@ -863,22 +1107,71 @@ export class DocumentGenerationService {
         completedAt: enrollment.completedAt,
         clientName: program.client?.name ?? null,
       },
-      revalidate: async (tx) => {
-        const current = await tx.trainingEnrollment.findUnique({
-          where: { id: enrollmentId },
-          select: {
-            completedAt: true,
-            archivedAt: true,
-            withdrawnAt: true,
-            certificateStatus: true,
+      fingerprint: this.certificateFingerprint(program, enrollment, participantName),
+      resnapshot: async (tx) => {
+        const currentProgram = await tx.trainingProgram.findUnique({
+          where: { id: programId },
+          include: { client: { select: { name: true } } },
+        });
+        const current = await tx.trainingEnrollment.findFirst({
+          where: { id: enrollmentId, trainingProgramId: programId },
+          include: {
+            candidate: { select: { displayName: true } },
+            user: { select: { displayName: true } },
+            clientContact: { select: { displayName: true } },
+            externalTrainingParticipant: { select: { displayName: true } },
           },
         });
-        if (!current) {
+        if (!currentProgram || !current) {
           throw generationSourceNotFound();
         }
         this.assertCertificateEligible(current);
+        return this.certificateFingerprint(
+          currentProgram,
+          current,
+          this.resolveParticipantName(current, access),
+        );
       },
     };
+  }
+
+  private certificateFingerprint(
+    program: {
+      id: string;
+      reference: string;
+      name: string;
+      clientId: string | null;
+      archivedAt: Date | null;
+      client: { name: string } | null;
+    },
+    enrollment: {
+      id: string;
+      participantType: string;
+      status: string;
+      completedAt: Date | null;
+      withdrawnAt: Date | null;
+      archivedAt: Date | null;
+      certificateStatus: string;
+    },
+    participantName: string,
+  ): string {
+    return this.fingerprintOf([
+      'TRAINING_ENROLLMENT',
+      enrollment.id,
+      enrollment.participantType,
+      enrollment.status,
+      enrollment.completedAt,
+      enrollment.withdrawnAt,
+      enrollment.archivedAt,
+      enrollment.certificateStatus,
+      participantName,
+      program.id,
+      program.reference,
+      program.name,
+      program.clientId,
+      program.archivedAt,
+      program.client?.name ?? null,
+    ]);
   }
 
   /**
@@ -1123,6 +1416,27 @@ export class DocumentGenerationService {
   // --------------------------------------------------------------------------
   // Naming, storage keys, helpers
   // --------------------------------------------------------------------------
+
+  /**
+   * Deterministic fingerprint over exactly the authoritative values an output renders.
+   *
+   * The input is an ordered array of primitives, so there is no object key-ordering
+   * ambiguity and no dependence on `updatedAt`, which would not change when a child line
+   * row is edited. Dates are normalised to ISO strings and nulls to an explicit marker,
+   * so two different shapes can never hash alike.
+   */
+  private fingerprintOf(parts: readonly (string | number | boolean | Date | null)[]): string {
+    const canonical = parts.map((part) => {
+      if (part === null) {
+        return '\u0000null';
+      }
+      if (part instanceof Date) {
+        return `\u0000date:${part.toISOString()}`;
+      }
+      return `\u0000${typeof part}:${String(part)}`;
+    });
+    return createHash('sha256').update(canonical.join('\u0001')).digest('hex');
+  }
 
   private logicalDocumentKey(
     sourceType: GeneratedDocumentSource,

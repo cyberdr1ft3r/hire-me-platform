@@ -4414,57 +4414,95 @@ function GenerationControls({
   accessToken,
   label,
   canGenerate,
+  canViewHistory,
+  eligible,
   generate,
 }: {
   accessToken: string;
   label: string;
   canGenerate: boolean;
+  canViewHistory: boolean;
+  eligible: boolean;
   generate: (body: DocumentGenerationRequest) => Promise<DocumentGenerationResponse>;
 }) {
   const [provenance, setProvenance] = useState<GeneratedVersionProvenance | null>(null);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<'fr' | 'en'>('fr');
 
   if (!canGenerate) {
     return null;
   }
 
   async function run(outputFamily: 'PDF' | 'WORD'): Promise<void> {
-    const result = await generate({
-      outputFamily,
-      language: 'fr',
-      idempotencyKey: generationIdempotencyKey(),
-    });
-    setProvenance(result.generated);
-    setStatus(
-      `${label} ${outputFamily} version ${result.generated.versionNumber} generated from template ${result.generated.templateId} v${result.generated.templateVersion} (${result.generated.language}).`,
-    );
-    const history = await listDocumentVersions(accessToken, result.generated.documentId);
-    setVersions(history.versions);
+    setError(null);
+    setStatus(null);
+    try {
+      const result = await generate({
+        outputFamily,
+        language,
+        idempotencyKey: generationIdempotencyKey(),
+      });
+      setProvenance(result.generated);
+      setStatus(
+        `${label} ${outputFamily} version ${result.generated.versionNumber} generated from template ${result.generated.templateId} v${result.generated.templateVersion} (${result.generated.language}).`,
+      );
+      if (canViewHistory) {
+        // Version history needs documents:view. Without it the generation still
+        // succeeded, so the control degrades instead of surfacing a failed fetch.
+        const history = await listDocumentVersions(accessToken, result.generated.documentId);
+        setVersions(history.versions);
+      }
+    } catch {
+      setError(`Unable to generate ${label}.`);
+    }
   }
 
   async function download(versionId: string, filename: string): Promise<void> {
     if (!provenance) {
       return;
     }
-    await downloadDocumentVersion(accessToken, provenance.documentId, versionId);
-    setStatus(`Downloaded ${filename} through the protected document endpoint.`);
+    setError(null);
+    try {
+      const blob = await downloadDocumentVersion(accessToken, provenance.documentId, versionId);
+      downloadBlob(blob, filename);
+      setStatus(`Downloaded ${filename} through the protected document endpoint.`);
+    } catch {
+      setError(`Unable to download ${filename}.`);
+    }
   }
 
   return (
     <div className="generation-controls">
-      <button type="button" onClick={() => void run('PDF')}>
+      <label>
+        {`Language (${label})`}
+        <select
+          aria-label={`Generation language (${label})`}
+          value={language}
+          onChange={(event) => setLanguage(event.currentTarget.value === 'en' ? 'en' : 'fr')}
+        >
+          <option value="fr">fr</option>
+          <option value="en">en</option>
+        </select>
+      </label>
+      <button type="button" disabled={!eligible} onClick={() => void run('PDF')}>
         {`Generate PDF (${label})`}
       </button>
-      <button type="button" onClick={() => void run('WORD')}>
+      <button type="button" disabled={!eligible} onClick={() => void run('WORD')}>
         {`Generate Word (${label})`}
       </button>
       {provenance ? (
-        <button type="button" onClick={() => void run(provenance.outputFamily)}>
+        <button
+          type="button"
+          disabled={!eligible}
+          onClick={() => void run(provenance.outputFamily)}
+        >
           {`Regenerate (${label})`}
         </button>
       ) : null}
       {status ? <p role="status">{status}</p> : null}
+      {error ? <p role="alert">{error}</p> : null}
       {versions.length > 0 ? (
         <ul aria-label={`Generated versions (${label})`}>
           {versions.map((version) => (
@@ -4483,6 +4521,23 @@ function GenerationControls({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Hands a blob obtained from a protected API endpoint to the browser as a download.
+ *
+ * The object URL is revoked immediately after the click, and the temporary anchor is
+ * removed, so no blob reference or storage identity lingers in the document.
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** Bounded, per-request idempotency key. Regeneration deliberately uses a new key. */
@@ -4510,6 +4565,7 @@ function CommercialPanel({
     canSeeCommercialAmounts && permissions.includes('purchase_orders:manage');
   const canManageInvoices = canSeeCommercialAmounts && permissions.includes('invoices:manage');
   const canGenerate = permissions.includes('documents:generate') && canSeeCommercialAmounts;
+  const canViewDocumentHistory = permissions.includes('documents:view');
   const canGenerateQuotation = canGenerate && permissions.includes('quotations:view');
   const canGenerateContract = canGenerate && permissions.includes('contracts:view');
   const canGeneratePurchaseOrder = canGenerate && permissions.includes('purchase_orders:view');
@@ -4682,6 +4738,8 @@ function CommercialPanel({
                   <GenerationControls
                     accessToken={accessToken}
                     label={`Quotation ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={['ISSUED', 'ACCEPTED', 'REJECTED', 'EXPIRED'].includes(record.status)}
                     canGenerate={canGenerateQuotation}
                     generate={(body) => generateQuotationDocument(accessToken, record.id, body)}
                   />
@@ -4738,6 +4796,8 @@ function CommercialPanel({
                   <GenerationControls
                     accessToken={accessToken}
                     label={`Contract ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status !== 'CANCELED' && record.status !== 'ARCHIVED'}
                     canGenerate={canGenerateContract}
                     generate={(body) => generateContractDocument(accessToken, record.id, body)}
                   />
@@ -4786,6 +4846,8 @@ function CommercialPanel({
                   <GenerationControls
                     accessToken={accessToken}
                     label={`Purchase order ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status !== 'CANCELED' && record.status !== 'ARCHIVED'}
                     canGenerate={canGeneratePurchaseOrder}
                     generate={(body) => generatePurchaseOrderDocument(accessToken, record.id, body)}
                   />
@@ -4826,6 +4888,8 @@ function CommercialPanel({
                   <GenerationControls
                     accessToken={accessToken}
                     label={`Invoice ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status === 'ISSUED'}
                     canGenerate={canGenerateInvoice}
                     generate={(body) => generateInvoiceDocument(accessToken, record.id, body)}
                   />
@@ -5786,6 +5850,7 @@ function TrainingPanel({
   // Generation controls are hidden unless the actor also holds the enrollment read
   // capability the API re-checks, so a hidden enrollment never shows a control.
   const canGenerateCertificate = permissions.includes('documents:generate') && canViewEnrollments;
+  const canViewDocumentHistory = permissions.includes('documents:view');
   const canViewParticipation = permissions.includes('training_participation:view');
   const canManageParticipation = permissions.includes('training_participation:manage');
   const canCorrectAttendance = permissions.includes('training_participation:correct');
@@ -6320,6 +6385,8 @@ function TrainingPanel({
                             accessToken={accessToken}
                             label={`Certificate ${enrollment.id}`}
                             canGenerate={canGenerateCertificate}
+                            canViewHistory={canViewDocumentHistory}
+                            eligible={enrollment.certificateReady}
                             generate={(body) =>
                               generateTrainingCertificateDocument(
                                 accessToken,

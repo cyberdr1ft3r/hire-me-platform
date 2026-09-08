@@ -1353,13 +1353,79 @@ describe('App', () => {
           ) && call[1]?.method === 'POST',
       ),
     ).toBe(true);
-
-    // Historical versions are listed and downloaded through the protected document API.
     expect(await screen.findByRole('button', { name: /download v1/i })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: /download v1/i }));
+  });
+
+  it('requests generation in the selected language', async () => {
+    const fetchMock = mockCommercialWorkspace([
+      'commercial_data:access',
+      'quotations:view',
+      'documents:generate',
+      'documents:view',
+      'documents:download',
+    ]);
+
+    await openCommercialWorkspace('Commercial Operator');
+
+    fireEvent.change(
+      await screen.findByRole('combobox', { name: /generation language \(quotation q38-web\)/i }),
+      { target: { value: 'en' } },
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /generate word \(quotation q38-web\)/i }),
+    );
+
+    await screen.findByText(/version 1 generated from template/i);
+    const request = fetchMock.mock.calls.find((call) => requestUrl(call[0]).endsWith('/generate'));
+    const rawBody = request?.[1]?.body;
+    const body = JSON.parse(typeof rawBody === 'string' ? rawBody : '{}') as {
+      language: string;
+      outputFamily: string;
+    };
+    expect(body.language).toBe('en');
+    expect(body.outputFamily).toBe('WORD');
+  });
+
+  it('hands the downloaded blob to the browser and cleans up the temporary anchor', async () => {
+    mockCommercialWorkspace([
+      'commercial_data:access',
+      'quotations:view',
+      'documents:generate',
+      'documents:view',
+      'documents:download',
+    ]);
+    const createObjectURL = vi.fn((blob: Blob) =>
+      blob instanceof Blob ? 'blob:synthetic-generated-document' : 'blob:invalid',
+    );
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const clicks: HTMLAnchorElement[] = [];
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function mockClick(this: HTMLAnchorElement) {
+        clicks.push(this);
+      });
+
+    await openCommercialWorkspace('Commercial Operator');
+    fireEvent.click(
+      await screen.findByRole('button', { name: /generate pdf \(quotation q38-web\)/i }),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /download v1/i }));
+
     expect(
       await screen.findByText(/downloaded .* through the protected document endpoint/i),
     ).toBeVisible();
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(createObjectURL.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]?.download).toBe('quotation-q38-web-v1.pdf');
+    expect(clicks[0]?.href).toBe('blob:synthetic-generated-document');
+    // The temporary anchor is removed and the object URL released.
+    expect(clicks[0]?.isConnected).toBe(false);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-generated-document');
+
+    anchorClick.mockRestore();
   });
 
   it('hides the training workspace from users without the training view permission', async () => {
@@ -1940,7 +2006,9 @@ function mockCommercialWorkspace(permissions: string[]) {
     }
 
     if (url.includes('/versions/') && url.endsWith('/download')) {
-      return Promise.resolve(new Response('%PDF-1.7', { status: 200 }));
+      return Promise.resolve(
+        new Response(new Blob(['%PDF-1.7'], { type: 'application/pdf' }), { status: 200 }),
+      );
     }
 
     if (url.includes('/v1/documents/') && url.endsWith('/versions')) {
@@ -2424,7 +2492,8 @@ function syntheticQuotation() {
     reference: 'Q38-WEB',
     clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     recruitmentMissionId: syntheticMissionId,
-    status: 'DRAFT',
+    // Issued: generation controls are disabled for lifecycle-ineligible records.
+    status: 'ISSUED',
     issueDate: null,
     validUntil: null,
     amounts: {
