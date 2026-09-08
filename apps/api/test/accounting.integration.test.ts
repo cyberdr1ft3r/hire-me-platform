@@ -8,9 +8,14 @@ import { AuthResponseSchema } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import {
+  AssignmentStatus,
+  CandidateStatus,
   InvoiceStatus,
+  MissionCandidateState,
+  OfferStatus,
   PaymentAllocationStatus,
   PermissionScopeType,
+  PlacementStatus,
   PrismaClient,
   RoleName,
   UserStatus,
@@ -35,6 +40,7 @@ const operatorPermissions = [
   'missions:view',
   'mission_candidates:transfer',
   'invoices:view',
+  'invoices:manage',
   'payments:view',
   'payments:manage',
   'payments:correct',
@@ -68,6 +74,22 @@ const noClientScopePermissions = [
 /** No accounting capability at all. */
 const noAccountingPermissions = ['clients:view', 'missions:view'] as const;
 
+/**
+ * Full accounting capability and client scope, but no broad mission oversight and no
+ * mission assignment. Deliberately not one of the seeded role shapes: the accounting
+ * source-scope rule must hold for any custom permission combination.
+ */
+const limitedMissionScopePermissions = [
+  'commercial_data:access',
+  'clients:view',
+  'missions:view',
+  'invoices:view',
+  'payments:view',
+  'expenses:view',
+  'client_balances:view',
+  'profitability:view',
+] as const;
+
 type RolePermissionSnapshot = {
   roleExisted: boolean;
   permissions: { permissionId: string; grantedAt: Date; archivedAt: Date | null }[];
@@ -95,10 +117,28 @@ async function cleanAccountingTestRecords(): Promise<void> {
     where: { invoice: { reference: { startsWith: 'INV39-' } } },
   });
   await prisma.invoice.deleteMany({ where: { reference: { startsWith: 'INV39-' } } });
+  await prisma.missionPlacement.deleteMany({
+    where: { mission: { title: { startsWith: 'Issue39' } } },
+  });
+  await prisma.recruitmentOfferVersion.deleteMany({
+    where: { mission: { title: { startsWith: 'Issue39' } } },
+  });
+  await prisma.recruitmentOffer.deleteMany({
+    where: { mission: { title: { startsWith: 'Issue39' } } },
+  });
+  await prisma.missionCandidate.deleteMany({
+    where: { mission: { title: { startsWith: 'Issue39' } } },
+  });
+  await prisma.candidate.deleteMany({
+    where: { normalizedEmail: { endsWith: '@candidate.accounting.test' } },
+  });
   await prisma.missionRecruiter.deleteMany({
     where: { mission: { title: { startsWith: 'Issue39' } } },
   });
   await prisma.recruitmentMission.deleteMany({ where: { title: { startsWith: 'Issue39' } } });
+  await prisma.trainingProgram.deleteMany({
+    where: { normalizedReference: { startsWith: 'issue39' } },
+  });
   await prisma.client.deleteMany({ where: { normalizedName: { startsWith: 'issue39' } } });
   await prisma.refreshSession.deleteMany({
     where: { user: { normalizedEmail: { endsWith: '@accounting.test' } } },
@@ -224,6 +264,8 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
   let noAmountsToken: string;
   let noScopeToken: string;
   let noAccountingToken: string;
+  let limitedUserId: string;
+  let limitedToken: string;
   let clientId: string;
   let otherClientId: string;
   let missionId: string;
@@ -252,8 +294,102 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     return { status: response.status, body: text ? (JSON.parse(text) as never) : {} };
   }
 
+  /** Calls the merged Issue #38 commercial API, which owns invoice state changes. */
+  async function commercialApi(
+    token: string,
+    path: string,
+    init: { method?: string; body?: unknown } = {},
+  ): Promise<{ status: number; body: Record<string, unknown> }> {
+    const response = await fetch(`${baseUrl}/v1/commercial${path}`, {
+      method: init.method ?? 'GET',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+    });
+    const text = await response.text();
+    return { status: response.status, body: text ? (JSON.parse(text) as never) : {} };
+  }
+
   function errorCode(body: Record<string, unknown>): string | undefined {
     return (body as { error?: { code?: string } }).error?.code;
+  }
+
+  /** Builds the full candidate/offer chain a `MissionPlacement` requires. */
+  async function createPlacement(mission: string, key: string) {
+    const email = `${key}-${randomUUID().slice(0, 8)}@candidate.accounting.test`;
+    const candidate = await prisma.candidate.create({
+      data: {
+        displayName: `Issue39 ${key} Candidate`,
+        email,
+        normalizedEmail: email,
+        status: CandidateStatus.ACTIVE,
+      },
+    });
+    const process = await prisma.missionCandidate.create({
+      data: {
+        missionId: mission,
+        candidateId: candidate.id,
+        responsibleRecruiterUserId: operatorUserId,
+        state: MissionCandidateState.INTEGRATED,
+      },
+    });
+    const offer = await prisma.recruitmentOffer.create({
+      data: { missionId: mission, missionCandidateId: process.id },
+    });
+    const version = await prisma.recruitmentOfferVersion.create({
+      data: {
+        offerId: offer.id,
+        missionId: mission,
+        missionCandidateId: process.id,
+        versionNumber: 1,
+        status: OfferStatus.ACCEPTED,
+        isCurrent: true,
+      },
+    });
+    return prisma.missionPlacement.create({
+      data: {
+        missionId: mission,
+        missionCandidateId: process.id,
+        offerVersionId: version.id,
+        status: PlacementStatus.CONFIRMED,
+        integrationStartDate: new Date(),
+        eligibleForInvoicing: true,
+        invoicingEligibleAt: new Date(),
+      },
+    });
+  }
+
+  async function scopedClientFixture(key: string) {
+    const localClient = await prisma.client.create({
+      data: { name: `Issue39 ${key} Client`, normalizedName: `issue39 ${key} client` },
+    });
+    const mission = await prisma.recruitmentMission.create({
+      data: { clientId: localClient.id, title: `Issue39 ${key} Mission`, numberOfPositions: 1 },
+    });
+    return { localClient, mission };
+  }
+
+  function receivableTotals(body: Record<string, unknown>) {
+    return (
+      body as {
+        receivables: {
+          totalsByCurrency: { currency: string; invoicedCents: number }[];
+        };
+      }
+    ).receivables.totalsByCurrency;
+  }
+
+  function profitabilityTotals(body: Record<string, unknown>) {
+    return (
+      body as {
+        profitability: {
+          totalsByCurrency: { currency: string; revenueCents: number; expenseCents: number }[];
+        };
+      }
+    ).profitability.totalsByCurrency;
+  }
+
+  function expenseIds(body: Record<string, unknown>): string[] {
+    return (body as { expenses: { id: string }[] }).expenses.map((expense) => expense.id);
   }
 
   /** Creates an ISSUED invoice directly: Issue #38 owns invoice creation semantics. */
@@ -342,20 +478,26 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     await cleanAccountingTestRecords();
     roleSnapshots = new Map(
       await Promise.all(
-        [RoleName.HR_MANAGER, RoleName.MANAGER, RoleName.TEAM_LEADER, RoleName.EMPLOYEE].map(
-          async (role) => [role, await snapshotRolePermissions(role)] as const,
-        ),
+        [
+          RoleName.HR_MANAGER,
+          RoleName.MANAGER,
+          RoleName.TEAM_LEADER,
+          RoleName.EMPLOYEE,
+          RoleName.GUEST,
+        ].map(async (role) => [role, await snapshotRolePermissions(role)] as const),
       ),
     );
     await setRolePermissions(RoleName.HR_MANAGER, operatorPermissions);
     await setRolePermissions(RoleName.MANAGER, noAmountsPermissions);
     await setRolePermissions(RoleName.TEAM_LEADER, noClientScopePermissions);
     await setRolePermissions(RoleName.EMPLOYEE, noAccountingPermissions);
+    await setRolePermissions(RoleName.GUEST, limitedMissionScopePermissions);
 
     operatorUserId = await createUser('operator@accounting.test', RoleName.HR_MANAGER);
     await createUser('no-amounts@accounting.test', RoleName.MANAGER);
     await createUser('no-scope@accounting.test', RoleName.TEAM_LEADER);
     await createUser('no-accounting@accounting.test', RoleName.EMPLOYEE);
+    limitedUserId = await createUser('limited-scope@accounting.test', RoleName.GUEST);
 
     const client = await prisma.client.create({
       data: { name: 'Issue39 Client', normalizedName: 'issue39 client' },
@@ -379,6 +521,7 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     noAmountsToken = await login('no-amounts@accounting.test');
     noScopeToken = await login('no-scope@accounting.test');
     noAccountingToken = await login('no-accounting@accounting.test');
+    limitedToken = await login('limited-scope@accounting.test');
   }, 180_000);
 
   afterAll(async () => {
@@ -762,32 +905,134 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
-  it('rejects an allocation racing an invoice cancellation without leaving partial state', async () => {
+  // -------------------------------------------------------------------------
+  // Cancellation versus active allocations
+  //
+  // These exercise the real commercial cancellation endpoint. Mutating the invoice
+  // status straight through Prisma would bypass the guard under test.
+  // -------------------------------------------------------------------------
+
+  it('refuses to cancel an invoice that still has an active allocation', async () => {
+    const invoice = await issuedInvoice({ totalCents: 10_000 });
+    const payment = await createPayment(10_000);
+    expect((await allocate(payment.id, invoice.id, 10_000)).status).toBe(201);
+
+    const canceled = await commercialApi(operatorToken, `/invoices/${invoice.id}/cancel`, {
+      method: 'POST',
+      body: { reason: 'Issue39 cancellation attempt' },
+    });
+    expect(canceled.status).toBe(409);
+    expect(errorCode(canceled.body)).toBe('INVOICE_HAS_ACTIVE_ALLOCATIONS');
+
+    // The refused cancellation writes no state, no invoice event, and no audit row,
+    // and it never reverses or deletes the allocation on the operator's behalf.
+    const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    expect(stored.status).toBe(InvoiceStatus.ISSUED);
+    expect(stored.canceledAt).toBeNull();
+    expect(
+      await prisma.invoiceEvent.count({ where: { invoiceId: invoice.id, action: 'CANCELED' } }),
+    ).toBe(0);
+    expect(await auditCount('commercial.invoice.canceled', invoice.id)).toBe(0);
+    expect(
+      await prisma.paymentAllocation.count({
+        where: { invoiceId: invoice.id, status: PaymentAllocationStatus.ACTIVE },
+      }),
+    ).toBe(1);
+  });
+
+  it('cancels an invoice once every allocation has been reversed', async () => {
+    const invoice = await issuedInvoice({ totalCents: 8_000 });
+    const payment = await createPayment(8_000);
+    const created = await allocate(payment.id, invoice.id, 8_000);
+    const allocationId = (created.body as { allocation: { id: string } }).allocation.id;
+
+    expect(
+      (
+        await api(operatorToken, `/payments/${payment.id}/allocations/${allocationId}/reverse`, {
+          method: 'POST',
+          body: { reversalReason: 'Issue39 reversal before cancellation' },
+        })
+      ).status,
+    ).toBe(201);
+
+    const canceled = await commercialApi(operatorToken, `/invoices/${invoice.id}/cancel`, {
+      method: 'POST',
+      body: { reason: 'Issue39 cancellation after reversal' },
+    });
+    expect(canceled.status).toBe(200);
+
+    const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    expect(stored.status).toBe(InvoiceStatus.CANCELED);
+    // A reversed allocation is preserved as history and never blocks cancellation.
+    expect(await prisma.paymentAllocation.count({ where: { invoiceId: invoice.id } })).toBe(1);
+    expect(
+      await prisma.paymentAllocation.count({
+        where: { invoiceId: invoice.id, status: PaymentAllocationStatus.ACTIVE },
+      }),
+    ).toBe(0);
+  });
+
+  it('never leaves a canceled invoice holding active cash when the two requests race', async () => {
     const invoice = await issuedInvoice({ totalCents: 10_000 });
     const payment = await createPayment(10_000);
 
-    const [allocation] = await Promise.all([
+    const [allocation, canceled] = await Promise.all([
       allocate(payment.id, invoice.id, 10_000),
-      prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { status: InvoiceStatus.CANCELED, canceledAt: new Date() },
+      commercialApi(operatorToken, `/invoices/${invoice.id}/cancel`, {
+        method: 'POST',
+        body: { reason: 'Issue39 concurrent cancellation' },
       }),
     ]);
 
+    const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
     const active = await prisma.paymentAllocation.count({
       where: { invoiceId: invoice.id, status: PaymentAllocationStatus.ACTIVE },
     });
-    if (allocation.status === 201) {
-      expect(active).toBe(1);
-    } else {
+
+    // The invariant, whichever request won the lock: canceled and actively allocated
+    // is never a reachable state.
+    expect(stored.status === InvoiceStatus.CANCELED && active > 0).toBe(false);
+    expect([allocation.status === 201, canceled.status === 200].filter(Boolean).length).toBe(1);
+
+    if (stored.status === InvoiceStatus.CANCELED) {
       expect(active).toBe(0);
-      expect(await auditCount('accounting.payment.allocated', invoice.id)).toBe(0);
+      // The rejected allocation persists nothing at all.
+      expect(await prisma.paymentAllocation.count({ where: { paymentId: payment.id } })).toBe(0);
+      const state = await settlement(invoice.id);
+      expect(
+        (state.body as { settlement: { settlementState: string } }).settlement.settlementState,
+      ).toBe('NOT_RECEIVABLE');
+    } else {
+      expect(stored.status).toBe(InvoiceStatus.ISSUED);
+      expect(errorCode(canceled.body)).toBe('INVOICE_HAS_ACTIVE_ALLOCATIONS');
+      expect(active).toBe(1);
+      expect(await auditCount('commercial.invoice.canceled', invoice.id)).toBe(0);
+      const state = await settlement(invoice.id);
+      expect(
+        (state.body as { settlement: { settlementState: string } }).settlement.settlementState,
+      ).toBe('PAID');
     }
-    // A canceled invoice never reports a receivable balance regardless of the race.
-    const state = await settlement(invoice.id);
-    expect(
-      (state.body as { settlement: { settlementState: string } }).settlement.settlementState,
-    ).toBe('NOT_RECEIVABLE');
+  });
+
+  it('rejects reusing an idempotency key for a different invoice or amount', async () => {
+    const first = await issuedInvoice({ totalCents: 10_000 });
+    const second = await issuedInvoice({ totalCents: 10_000 });
+    const payment = await createPayment(10_000);
+    const key = `IDEM39-${randomUUID().slice(0, 12)}`;
+
+    expect((await allocate(payment.id, first.id, 4_000, key)).status).toBe(201);
+
+    const otherInvoice = await allocate(payment.id, second.id, 4_000, key);
+    expect(otherInvoice.status).toBe(409);
+    expect(errorCode(otherInvoice.body)).toBe('ALLOCATION_IDEMPOTENCY_KEY_CONFLICT');
+
+    const otherAmount = await allocate(payment.id, first.id, 5_000, key);
+    expect(otherAmount.status).toBe(409);
+    expect(errorCode(otherAmount.body)).toBe('ALLOCATION_IDEMPOTENCY_KEY_CONFLICT');
+
+    // The identical request still replays to the original allocation.
+    expect((await allocate(payment.id, first.id, 4_000, key)).status).toBe(201);
+    expect(await prisma.paymentAllocation.count({ where: { paymentId: payment.id } })).toBe(1);
   });
 
   // -------------------------------------------------------------------------
@@ -871,6 +1116,239 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
         where: { recruitmentMissionId: missionId, clientId: otherClientId },
       }),
     ).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Expense cross-context integrity
+  // -------------------------------------------------------------------------
+
+  it('rejects an expense whose placement belongs to a different client', async () => {
+    const otherMission = await prisma.recruitmentMission.create({
+      data: {
+        clientId: otherClientId,
+        title: 'Issue39 Cross Client Mission',
+        numberOfPositions: 1,
+      },
+    });
+    const placement = await createPlacement(otherMission.id, 'cross-client');
+
+    const expensesBefore = await prisma.expense.count();
+    const eventsBefore = await prisma.expenseEvent.count();
+    const auditBefore = await auditCount('accounting.expense.created');
+
+    // The recruitment mission is deliberately omitted: the placement alone still
+    // resolves to a client, and that chain must be checked.
+    const rejected = await createExpense({ clientId, missionPlacementId: placement.id });
+    expect(rejected.status).toBe(400);
+    expect(errorCode(rejected.body)).toBe('EXPENSE_CONTEXT_MISMATCH');
+
+    expect(await prisma.expense.count({ where: { missionPlacementId: placement.id } })).toBe(0);
+    expect(await prisma.expense.count()).toBe(expensesBefore);
+    expect(await prisma.expenseEvent.count()).toBe(eventsBefore);
+    expect(await auditCount('accounting.expense.created')).toBe(auditBefore);
+  });
+
+  it('rejects an expense whose placement belongs to a different recruitment mission', async () => {
+    const placement = await createPlacement(missionId, 'mission-mismatch');
+    const secondMission = await prisma.recruitmentMission.create({
+      data: { clientId, title: 'Issue39 Second Mission', numberOfPositions: 1 },
+    });
+
+    const rejected = await createExpense({
+      clientId,
+      recruitmentMissionId: secondMission.id,
+      missionPlacementId: placement.id,
+    });
+    expect(rejected.status).toBe(400);
+    expect(errorCode(rejected.body)).toBe('EXPENSE_CONTEXT_MISMATCH');
+    expect(await prisma.expense.count({ where: { missionPlacementId: placement.id } })).toBe(0);
+  });
+
+  it('rejects an expense whose training program belongs to a different client', async () => {
+    const program = await prisma.trainingProgram.create({
+      data: {
+        reference: 'ISSUE39-TP-CROSS',
+        normalizedReference: 'issue39-tp-cross',
+        name: 'Issue39 Cross Client Program',
+        clientId: otherClientId,
+      },
+    });
+
+    const rejected = await createExpense({ clientId, trainingProgramId: program.id });
+    expect(rejected.status).toBe(400);
+    expect(errorCode(rejected.body)).toBe('EXPENSE_CONTEXT_MISMATCH');
+    expect(await prisma.expense.count({ where: { trainingProgramId: program.id } })).toBe(0);
+  });
+
+  it('records an expense whose whole context chain agrees', async () => {
+    const placement = await createPlacement(missionId, 'consistent');
+    const created = await createExpense({
+      clientId,
+      recruitmentMissionId: missionId,
+      missionPlacementId: placement.id,
+    });
+    expect(created.status).toBe(201);
+    expect(await prisma.expense.count({ where: { missionPlacementId: placement.id } })).toBe(1);
+  });
+
+  it('hides a placement-linked expense outside the actor mission scope', async () => {
+    const { mission } = await scopedClientFixture('placement-scope');
+    const placement = await createPlacement(mission.id, 'hidden-placement');
+    const created = await createExpense({ missionPlacementId: placement.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    // The direct client and mission columns are null, so only the placement chain can
+    // hide this row.
+    const hidden = await api(limitedToken, `/expenses/${expenseId}`);
+    expect(hidden.status).toBe(404);
+    expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(expenseIds((await api(limitedToken, '/expenses?pageSize=100')).body)).not.toContain(
+      expenseId,
+    );
+
+    await prisma.missionRecruiter.create({
+      data: { missionId: mission.id, userId: limitedUserId, status: AssignmentStatus.ACTIVE },
+    });
+
+    expect((await api(limitedToken, `/expenses/${expenseId}`)).status).toBe(200);
+    expect(expenseIds((await api(limitedToken, '/expenses?pageSize=100')).body)).toContain(
+      expenseId,
+    );
+  });
+
+  it('hides a training-linked expense without client read scope', async () => {
+    const program = await prisma.trainingProgram.create({
+      data: {
+        reference: 'ISSUE39-TP-SCOPED',
+        normalizedReference: 'issue39-tp-scoped',
+        name: 'Issue39 Client Program',
+        clientId,
+      },
+    });
+    const created = await createExpense({ trainingProgramId: program.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    // `noScopeToken` holds expenses:view but no clients:view, and the expense carries a
+    // null clientId, so only the training chain can hide it.
+    const hidden = await api(noScopeToken, `/expenses/${expenseId}`);
+    expect(hidden.status).toBe(404);
+    expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(expenseIds((await api(noScopeToken, '/expenses?pageSize=100')).body)).not.toContain(
+      expenseId,
+    );
+
+    expect((await api(operatorToken, `/expenses/${expenseId}`)).status).toBe(200);
+  });
+
+  // -------------------------------------------------------------------------
+  // Aggregate source scope
+  // -------------------------------------------------------------------------
+
+  it('keeps mission-linked invoices out of accounting totals without mission scope', async () => {
+    const { localClient, mission } = await scopedClientFixture('aggregate-scope');
+    const hidden = await issuedInvoice({
+      totalCents: 30_000,
+      client: localClient.id,
+      mission: mission.id,
+      dueInDays: -5,
+    });
+    await issuedInvoice({ totalCents: 7_000, client: localClient.id, dueInDays: -5 });
+
+    const balancePath = `/receivables/client?clientId=${localClient.id}`;
+    const overduePath = `/receivables/overdue?clientId=${localClient.id}`;
+    const profitPath = `/profitability?context=CLIENT&contextId=${localClient.id}`;
+
+    const limitedBalance = await api(limitedToken, balancePath);
+    expect(limitedBalance.status).toBe(200);
+    expect(receivableTotals(limitedBalance.body)).toEqual([
+      expect.objectContaining({ currency: 'MAD', invoicedCents: 7_000 }),
+    ]);
+
+    const limitedOverdue = await api(limitedToken, overduePath);
+    expect(
+      (limitedOverdue.body as { rows: { invoiceId: string }[] }).rows.map((row) => row.invoiceId),
+    ).not.toContain(hidden.id);
+
+    const limitedProfit = await api(limitedToken, profitPath);
+    expect(profitabilityTotals(limitedProfit.body)).toEqual([
+      expect.objectContaining({ currency: 'MAD', revenueCents: 7_000 }),
+    ]);
+
+    // The operator holds broad mission oversight and sees the whole client.
+    expect(receivableTotals((await api(operatorToken, balancePath)).body)).toEqual([
+      expect.objectContaining({ currency: 'MAD', invoicedCents: 37_000 }),
+    ]);
+
+    // An active assignment alone makes the mission visible: no permission changes.
+    await prisma.missionRecruiter.create({
+      data: { missionId: mission.id, userId: limitedUserId, status: AssignmentStatus.ACTIVE },
+    });
+
+    expect(receivableTotals((await api(limitedToken, balancePath)).body)).toEqual([
+      expect.objectContaining({ currency: 'MAD', invoicedCents: 37_000 }),
+    ]);
+    expect(
+      ((await api(limitedToken, overduePath)).body as { rows: { invoiceId: string }[] }).rows.map(
+        (row) => row.invoiceId,
+      ),
+    ).toContain(hidden.id);
+    expect(profitabilityTotals((await api(limitedToken, profitPath)).body)).toEqual([
+      expect.objectContaining({ currency: 'MAD', revenueCents: 37_000 }),
+    ]);
+  });
+
+  it('keeps an out-of-scope aggregate context indistinguishable from a nonexistent one', async () => {
+    const { mission } = await scopedClientFixture('indistinguishable');
+    const paths = [
+      `/profitability?context=RECRUITMENT_MISSION&contextId=`,
+      `/profitability?context=PLACEMENT&contextId=`,
+    ];
+
+    for (const path of paths) {
+      const hidden = await api(limitedToken, `${path}${mission.id}`);
+      const missing = await api(limitedToken, `${path}${randomUUID()}`);
+      expect(hidden.status).toBe(404);
+      expect(missing.status).toBe(hidden.status);
+      expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+      expect(errorCode(missing.body)).toBe(errorCode(hidden.body));
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Money input range
+  // -------------------------------------------------------------------------
+
+  it('accepts the largest storable amount and rejects anything above the column range', async () => {
+    const accepted = await createPayment(2_147_483_647);
+    expect(
+      (await prisma.payment.findUniqueOrThrow({ where: { id: accepted.id } })).amountCents,
+    ).toBe(2_147_483_647);
+
+    const oversizedReference = `PAY39-${randomUUID().slice(0, 12)}`;
+    const rejectedPayment = await api(operatorToken, '/payments', {
+      method: 'POST',
+      body: {
+        reference: oversizedReference,
+        clientId,
+        receivedDate: new Date().toISOString(),
+        currency: 'MAD',
+        amountCents: 2_147_483_648,
+        method: 'BANK_TRANSFER',
+      },
+    });
+    // Rejected as request validation, before any persistence is attempted.
+    expect(rejectedPayment.status).toBe(400);
+    expect(errorCode(rejectedPayment.body)).toBe('INVALID_CREATE_PAYMENT_REQUEST');
+    expect(await prisma.payment.count({ where: { reference: oversizedReference } })).toBe(0);
+
+    const oversizedExpense = await createExpense({ amountCents: 2_147_483_648 });
+    expect(oversizedExpense.status).toBe(400);
+    expect(errorCode(oversizedExpense.body)).toBe('INVALID_CREATE_EXPENSE_REQUEST');
+
+    const acceptedExpense = await createExpense({ amountCents: 2_147_483_647 });
+    expect(acceptedExpense.status).toBe(201);
   });
 
   // -------------------------------------------------------------------------

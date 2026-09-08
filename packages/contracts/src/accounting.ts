@@ -71,8 +71,20 @@ export const CurrencyCodeSchema = z
   .trim()
   .regex(/^[A-Z]{3}$/, 'Currency must be a three-letter uppercase code.');
 
-/** Money is always minor units (cents) to avoid floating point drift. */
-export const PositiveCentsSchema = z.number().int().positive().max(9_000_000_000);
+/**
+ * Money is always minor units (cents) to avoid floating point drift.
+ *
+ * The input bound matches the PostgreSQL `integer` range the accounting columns use,
+ * so an oversized amount is rejected deterministically as request validation instead
+ * of failing later at persistence.
+ */
+export const MAX_ACCOUNTING_CENTS = 2_147_483_647;
+export const PositiveCentsSchema = z.number().int().positive().max(MAX_ACCOUNTING_CENTS);
+
+/**
+ * Response-side money is deliberately uncapped: a receivable or profitability total
+ * sums many rows and can legitimately exceed the per-row column range.
+ */
 export const NonNegativeCentsSchema = z.number().int().nonnegative();
 export const SignedCentsSchema = z.number().int();
 

@@ -79,6 +79,9 @@ type AccountingAccess = {
 
 const UNIQUE_VIOLATION = 'P2002';
 
+/** Predicate that can never match a row, used when an actor has no read scope at all. */
+const NEVER_MATCHES = { id: { in: [] as string[] } };
+
 /**
  * Issue #39 accounting service.
  *
@@ -434,6 +437,18 @@ export class AccountingService {
             where: { paymentId, idempotencyKey: input.idempotencyKey },
           });
           if (existing) {
+            // A replay is only idempotent when the effective request is the same.
+            // Reusing one key for a different invoice or amount is a caller error and
+            // must fail deterministically instead of returning an unrelated allocation.
+            if (
+              existing.invoiceId !== input.invoiceId ||
+              existing.amountCents !== input.amountCents
+            ) {
+              throw conflict(
+                'ALLOCATION_IDEMPOTENCY_KEY_CONFLICT',
+                'This idempotency key was already used for a different invoice or amount.',
+              );
+            }
             // Idempotent replay: return the original allocation untouched, with no
             // second history or audit row.
             return { allocation: existing, replayed: true };
@@ -665,8 +680,8 @@ export class AccountingService {
             },
           }
         : {}),
-      // Client-linked expenses are only visible with client read scope.
-      ...(access.clientsView ? {} : { clientId: null }),
+      // Row-level source scope, identical to the rule the detail path enforces.
+      ...this.visibleExpenseScope(actorUserId, access),
     };
 
     const [expenses, total] = await this.prisma.$transaction([
@@ -921,7 +936,12 @@ export class AccountingService {
 
     const now = new Date();
     const invoices = await this.prisma.invoice.findMany({
-      where: { clientId, status: InvoiceStatus.ISSUED, archivedAt: null },
+      where: {
+        clientId,
+        status: InvoiceStatus.ISSUED,
+        archivedAt: null,
+        ...this.visibleInvoiceScope(actorUserId, access),
+      },
     });
     const totals = new Map<
       string,
@@ -979,6 +999,7 @@ export class AccountingService {
       dueDate: { lt: now },
       ...(query.clientId ? { clientId: query.clientId } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
+      ...this.visibleInvoiceScope(actorUserId, access),
     };
 
     const candidates = await this.prisma.invoice.findMany({
@@ -1028,11 +1049,17 @@ export class AccountingService {
     this.assertPermission(access.profitabilityView, ACCOUNTING_PERMISSIONS.PROFITABILITY_VIEW);
     this.assertCommercialData(access);
 
+    // Source scope is applied to every context, so a client total can never include
+    // mission-linked revenue or expenses the actor is not allowed to see.
     const invoiceWhere: Prisma.InvoiceWhereInput = {
       status: InvoiceStatus.ISSUED,
       archivedAt: null,
+      AND: [this.visibleInvoiceScope(actorUserId, access)],
     };
-    const expenseWhere: Prisma.ExpenseWhereInput = { archivedAt: null };
+    const expenseWhere: Prisma.ExpenseWhereInput = {
+      archivedAt: null,
+      AND: [this.visibleExpenseScope(actorUserId, access)],
+    };
 
     if (query.context === 'CLIENT') {
       await this.assertClientScope(query.contextId, access, this.prisma);
@@ -1145,6 +1172,89 @@ export class AccountingService {
   ): void {
     this.assertPermission(granted, permission);
     this.assertCommercialData(access);
+  }
+
+  /**
+   * Mission assignment fragment matching the merged commercial source-scope rule.
+   * Expressed as a Prisma predicate so lists and aggregates apply exactly the rule
+   * `assertMissionScope` enforces on the detail paths.
+   */
+  private assignedMissionFilter(actorUserId: string): Prisma.RecruitmentMissionWhereInput {
+    return {
+      recruiters: {
+        some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+      },
+    };
+  }
+
+  /**
+   * Invoice rows this actor may aggregate over.
+   *
+   * Mission-linked invoices outside the actor's mission scope must not contribute to
+   * any total, otherwise accounting would disclose through sums what the commercial
+   * module hides record by record.
+   */
+  private visibleInvoiceScope(
+    actorUserId: string,
+    access: AccountingAccess,
+  ): Prisma.InvoiceWhereInput {
+    if (!access.clientsView) {
+      return NEVER_MATCHES;
+    }
+    if (!access.missionsView) {
+      return { recruitmentMissionId: null };
+    }
+    if (access.missionCandidatesTransfer) {
+      return {};
+    }
+    return {
+      OR: [
+        { recruitmentMissionId: null },
+        { recruitmentMission: this.assignedMissionFilter(actorUserId) },
+      ],
+    };
+  }
+
+  /**
+   * Expense rows this actor may read.
+   *
+   * Every context is scoped, not only the direct client column: a placement-linked or
+   * training-linked expense must not become visible merely because `clientId` and
+   * `recruitmentMissionId` are null.
+   */
+  private visibleExpenseScope(
+    actorUserId: string,
+    access: AccountingAccess,
+  ): Prisma.ExpenseWhereInput {
+    const clauses: Prisma.ExpenseWhereInput[] = [];
+
+    if (!access.clientsView) {
+      clauses.push({ clientId: null });
+      // A client-linked training program needs client read scope.
+      clauses.push({
+        OR: [{ trainingProgramId: null }, { trainingProgram: { clientId: null } }],
+      });
+    }
+
+    // Mission scope requires client scope as well, mirroring `assertMissionScope`.
+    if (!access.missionsView || !access.clientsView) {
+      clauses.push({ recruitmentMissionId: null, missionPlacementId: null });
+    } else if (!access.missionCandidatesTransfer) {
+      clauses.push({
+        OR: [
+          { recruitmentMissionId: null },
+          { recruitmentMission: this.assignedMissionFilter(actorUserId) },
+        ],
+      });
+      clauses.push({
+        OR: [
+          { missionPlacementId: null },
+          { missionPlacement: { mission: this.assignedMissionFilter(actorUserId) } },
+        ],
+      });
+    }
+
+    return clauses.length > 0 ? { AND: clauses } : {};
   }
 
   private async assertClientScope(
@@ -1274,10 +1384,17 @@ export class AccountingService {
     return expense;
   }
 
+  /**
+   * Read scope for one expense. Every context is checked: a placement resolves through
+   * its mission, and a client-linked training program through client scope, so a null
+   * `clientId` or `recruitmentMissionId` never opens a side door.
+   */
   private async assertExpenseScope(
     expense: {
       clientId: string | null;
       recruitmentMissionId: string | null;
+      missionPlacementId: string | null;
+      trainingProgramId: string | null;
     },
     actorUserId: string,
     access: AccountingAccess,
@@ -1289,11 +1406,39 @@ export class AccountingService {
     if (expense.recruitmentMissionId) {
       await this.assertMissionScope(expense.recruitmentMissionId, actorUserId, access, prisma);
     }
+    if (expense.missionPlacementId) {
+      const placement = await prisma.missionPlacement.findUnique({
+        where: { id: expense.missionPlacementId },
+        select: { missionId: true },
+      });
+      if (!placement) {
+        throw accountingNotFound();
+      }
+      await this.assertMissionScope(placement.missionId, actorUserId, access, prisma);
+    }
+    if (expense.trainingProgramId) {
+      const program = await prisma.trainingProgram.findUnique({
+        where: { id: expense.trainingProgramId },
+        select: { clientId: true },
+      });
+      if (!program) {
+        throw accountingNotFound();
+      }
+      if (program.clientId) {
+        await this.assertClientScope(program.clientId, access, prisma);
+      }
+    }
   }
 
   /**
-   * Every optional expense context is verified server-side and must belong to the
-   * same client, so an expense can never link across clients or contexts.
+   * Server-side expense context integrity.
+   *
+   * Each supplied context is first resolved to its own business chain
+   * (placement -> mission -> client, mission -> client, training program -> optional
+   * client), and only then are the chains required to agree. Resolving before
+   * comparing is what rejects a client combined with a placement from another client,
+   * which the earlier pairwise comparison missed whenever the mission field was
+   * omitted.
    */
   private async validateExpenseContext(
     input: ExpenseCreateRequest,
@@ -1304,6 +1449,12 @@ export class AccountingService {
     if (input.clientId) {
       await this.assertClientScope(input.clientId, access, tx);
     }
+
+    let missionClientId: string | null = null;
+    let placementMissionId: string | null = null;
+    let placementClientId: string | null = null;
+    let programClientId: string | null = null;
+
     if (input.recruitmentMissionId) {
       const mission = await tx.recruitmentMission.findUnique({
         where: { id: input.recruitmentMissionId },
@@ -1313,29 +1464,22 @@ export class AccountingService {
         throw accountingNotFound();
       }
       await this.assertMissionScope(mission.id, actorUserId, access, tx);
-      if (input.clientId && mission.clientId !== input.clientId) {
-        throw badRequest(
-          'EXPENSE_CONTEXT_MISMATCH',
-          'The recruitment mission belongs to a different client.',
-        );
-      }
+      missionClientId = mission.clientId;
     }
+
     if (input.missionPlacementId) {
       const placement = await tx.missionPlacement.findUnique({
         where: { id: input.missionPlacementId },
-        select: { id: true, missionId: true },
+        select: { id: true, missionId: true, mission: { select: { clientId: true } } },
       });
       if (!placement) {
         throw accountingNotFound();
       }
       await this.assertMissionScope(placement.missionId, actorUserId, access, tx);
-      if (input.recruitmentMissionId && placement.missionId !== input.recruitmentMissionId) {
-        throw badRequest(
-          'EXPENSE_CONTEXT_MISMATCH',
-          'The placement belongs to a different recruitment mission.',
-        );
-      }
+      placementMissionId = placement.missionId;
+      placementClientId = placement.mission.clientId;
     }
+
     if (input.trainingProgramId) {
       const program = await tx.trainingProgram.findUnique({
         where: { id: input.trainingProgramId },
@@ -1344,15 +1488,43 @@ export class AccountingService {
       if (!program) {
         throw accountingNotFound();
       }
-      if (program.clientId && !access.clientsView) {
-        throw accountingNotFound();
+      if (program.clientId) {
+        await this.assertClientScope(program.clientId, access, tx);
       }
-      if (input.clientId && program.clientId && program.clientId !== input.clientId) {
-        throw badRequest(
-          'EXPENSE_CONTEXT_MISMATCH',
-          'The training program belongs to a different client.',
-        );
+      programClientId = program.clientId;
+    }
+
+    const mismatch = (message: string): never => {
+      throw badRequest('EXPENSE_CONTEXT_MISMATCH', message);
+    };
+
+    if (
+      input.recruitmentMissionId &&
+      placementMissionId &&
+      placementMissionId !== input.recruitmentMissionId
+    ) {
+      mismatch('The placement belongs to a different recruitment mission.');
+    }
+    if (input.clientId) {
+      if (missionClientId && missionClientId !== input.clientId) {
+        mismatch('The recruitment mission belongs to a different client.');
       }
+      if (placementClientId && placementClientId !== input.clientId) {
+        mismatch('The placement belongs to a different client.');
+      }
+      if (programClientId && programClientId !== input.clientId) {
+        mismatch('The training program belongs to a different client.');
+      }
+    }
+    // The derived chains must agree even when no client was supplied explicitly.
+    if (missionClientId && placementClientId && missionClientId !== placementClientId) {
+      mismatch('The placement and the recruitment mission belong to different clients.');
+    }
+    if (programClientId && missionClientId && programClientId !== missionClientId) {
+      mismatch('The training program and the recruitment mission belong to different clients.');
+    }
+    if (programClientId && placementClientId && programClientId !== placementClientId) {
+      mismatch('The training program and the placement belong to different clients.');
     }
   }
 

@@ -741,6 +741,7 @@ export {
   PaymentRecordStatusSchema,
   PaymentSummarySchema,
   PaymentUpdateRequestSchema,
+  MAX_ACCOUNTING_CENTS,
   PositiveCentsSchema,
   ProfitabilityContextSchema,
   ProfitabilityCurrencyRowSchema,

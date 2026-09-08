@@ -506,6 +506,15 @@ client, and for mission-linked records `missions:view` plus either
 assignment. Hidden, out-of-scope, and nonexistent accounting identifiers all return the
 same `ACCOUNTING_RECORD_NOT_FOUND` envelope, so financial records cannot be probed.
 
+The same rule is applied as a row-level predicate to accounting lists and aggregates, not
+only to single-record reads. Expense listing, client receivables, overdue receivables,
+and client, mission, and placement profitability all exclude records the actor could not
+open directly, so a total can never disclose a mission-linked amount that the commercial
+module hides. Every expense context is scoped, including placements through their mission
+and training programs through their optional client, so a record with a null `clientId`
+is not readable by default. This holds for any custom permission combination and does not
+depend on the seeded role shapes.
+
 Development seed mapping gives the full accounting set to `SUPER_ADMIN` only. `ADMIN`
 and `HR_MANAGER` receive `payments:view` and `expenses:view`, matching how the merged
 commercial permissions were seeded: they can see that records exist while amounts stay

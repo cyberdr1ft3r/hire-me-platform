@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** Accounting foundation (payments, allocation, expenses, receivables, profitability).
 **Health:** Issue #38 / PR #46 commercial workflow is merged into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`. Issue #39 is implemented on branch `feat/accounting-foundation` from that exact main in a draft PR, extending the merged commercial records rather than duplicating them.
-**Current blocker:** Issue #39 draft PR awaits ChatGPT review and exact-head GitHub Actions.
-**Next executable development task:** Review the Issue #39 draft PR; keep it draft/open/unmerged.
+**Current blocker:** The first ChatGPT review of Issue #39 draft PR #47 returned four blocking findings. All four are fixed on the branch; the PR now awaits a re-review and exact-head GitHub Actions.
+**Next executable development task:** Re-review the Issue #39 draft PR; keep it draft/open/unmerged.
 
 ## Active work
 
@@ -269,6 +269,17 @@ Status owner: repository maintainer
 - Authorization combines the accounting capability, `commercial_data:access` for any amount, and the underlying client/mission record scope. Aggregates fail closed rather than returning redacted shells, and hidden, out-of-scope, and nonexistent identifiers share one not-found envelope.
 - Payroll, statutory/accrual/tax accounting, depreciation, FX conversion, and receipt files remain out of scope.
 
+### Review blockers found and addressed
+
+The first ChatGPT review of PR #47, on head `81a242f53e37b4d76126e3802d7bc7b55b417408`, returned four blocking findings. All four are fixed on the branch.
+
+1. **Invoice cancellation could strand allocated cash.** `CommercialService.cancelInvoice()` now counts `ACTIVE` payment allocations while it already holds the invoice row lock and, if any exist, rejects with `INVOICE_HAS_ACTIVE_ALLOCATIONS`. Allocations are never auto-reversed or deleted: the operator reverses them explicitly first. `archiveInvoice()` needed no change, because it already refuses issued invoices and only issued invoices can carry allocations. The previous race test mutated the invoice status straight through Prisma, which bypassed the guard under test; it is replaced by tests that drive the real commercial cancellation endpoint.
+2. **Accounting aggregates ignored mission source scope.** A deterministic scope predicate now mirrors the merged commercial visibility rule (`clients:view`, plus `missions:view` and either `mission_candidates:transfer` or an active `MissionRecruiter` assignment for mission-linked records) and is applied to expense listing, client receivables, overdue receivables, and client, mission, and placement profitability. Regression tests use a synthetic role that is deliberately not one of the seeded shapes.
+3. **Expense context integrity was incomplete.** `validateExpenseContext()` now resolves each supplied context to its own chain (placement to mission to client, mission to client, training program to its optional client) before requiring the chains to agree, which closes a client combined with a placement from another client when the mission field was omitted. `assertExpenseScope()` now validates placements through their mission and training programs through client scope, so a null `clientId` no longer opens a read path.
+4. **Money input bound did not match storage.** `PositiveCentsSchema` is capped at `MAX_ACCOUNTING_CENTS` (2,147,483,647), matching the PostgreSQL `integer` range of the accounting columns, so an oversized amount fails request validation instead of failing later at persistence. Response-side totals stay uncapped because a sum over many rows can legitimately exceed the per-row range. No `BigInt` was introduced: nothing in the product needs values beyond that range.
+
+Optional hardening in the same pass: reusing an allocation idempotency key for a different invoice or amount now fails with `ALLOCATION_IDEMPOTENCY_KEY_CONFLICT` instead of returning an unrelated allocation. An identical replay still returns the original allocation with no second history or audit row.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -288,7 +299,7 @@ Status owner: repository maintainer
 
 ## Immediate next actions
 
-1. Review the Issue #39 accounting draft PR on branch `feat/accounting-foundation`; keep it draft/open/unmerged.
+1. Re-review the Issue #39 accounting draft PR on branch `feat/accounting-foundation` after the four review blockers were fixed; keep it draft/open/unmerged.
 2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules

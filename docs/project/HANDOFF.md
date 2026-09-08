@@ -18,10 +18,14 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Accounting authorization combines the accounting capability, `commercial_data:access` for any financial amount, and the underlying client/mission record scope. Receivable and profitability aggregates fail closed instead of returning redacted shells. Hidden, out-of-scope, and nonexistent identifiers all return the same `ACCOUNTING_RECORD_NOT_FOUND` envelope.
 - Financial mutations lock rows in the fixed order client, payment, invoice, allocation, so concurrent allocations serialize without a deadlock cycle.
 - Payroll, statutory/accrual/tax accounting, depreciation, FX conversion, and receipt files are out of scope. Receipt files remain owned by the document module.
+- An invoice with active payment allocations cannot be canceled. `CommercialService.cancelInvoice()` rejects with `INVOICE_HAS_ACTIVE_ALLOCATIONS` while holding the invoice lock, and never reverses or deletes allocations on the operator's behalf. Canceled together with an active allocation is not a reachable state.
+- Accounting lists and aggregates apply the same source-scope rule the detail paths enforce, so mission-linked amounts outside an actor's mission scope cannot be obtained through a total.
+- Every supplied expense context must resolve to one consistent business chain, and each context is scoped on read, so a null `clientId` never exposes a placement-linked or training-linked expense.
+- Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns. Response-side totals are deliberately uncapped.
 
 ## Next Action
 
-Review the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes.
+Re-review the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes. The first ChatGPT review returned four blocking findings; all four are fixed on the branch and are described under "Review blockers found and addressed" in `docs/project/STATUS.md`.
 
 Completion conditions:
 

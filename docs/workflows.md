@@ -731,9 +731,20 @@ merely by existing.
 - Correcting a recorded payment amount requires its own capability and a reason and can
   never drop the amount below what is already allocated.
 - A payment with active allocations cannot be archived.
-- Expense context is validated server-side. A client, recruitment mission, placement, or
-  training program must be consistent with each other, so an expense can never link
-  across clients or contexts. Receipt files remain owned by the document module.
+- An invoice with active allocations cannot be canceled. Cancellation is refused while
+  the invoice row is locked, so an allocation that won the race is already visible and
+  blocks it. Allocations are never reversed or deleted automatically: the operator
+  reverses them explicitly first. A canceled invoice therefore never holds active cash.
+- Reusing an allocation idempotency key for a different invoice or a different amount is
+  a deterministic conflict, not a silent replay of an unrelated allocation.
+- Per-row money input is capped at 2,147,483,647 minor units, matching the integer
+  columns the amounts are stored in, so an oversized amount is rejected as request
+  validation rather than failing at persistence. Aggregate totals in responses are not
+  capped, because a sum over many rows can legitimately exceed the per-row range.
+- Expense context is validated server-side. Every supplied context is first resolved to
+  its own business chain (placement to mission to client, mission to client, training
+  program to its optional client) and the chains must then agree, so an expense can never
+  link across clients or contexts. Receipt files remain owned by the document module.
 
 ### Profitability
 
