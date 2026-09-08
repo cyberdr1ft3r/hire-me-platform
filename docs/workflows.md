@@ -741,6 +741,10 @@ merely by existing.
   columns the amounts are stored in, so an oversized amount is rejected as request
   validation rather than failing at persistence. Aggregate totals in responses are not
   capped, because a sum over many rows can legitimately exceed the per-row range.
+- Accounting list date windows are bounded. A payment or expense list either supplies
+  both endpoints or neither, the window must not run backwards, and it may span at most
+  366 days. A one-sided window is rejected rather than silently widened, so a financial
+  list can never sweep the whole ledger in one request.
 - Expense context is validated server-side. Every supplied context is first resolved to
   its own business chain (placement to mission to client, mission to client, training
   program to its optional client) and the chains must then agree, so an expense can never

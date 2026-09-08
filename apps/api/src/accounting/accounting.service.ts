@@ -44,6 +44,7 @@ import {
   Prisma,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
+import { TRAINING_PERMISSIONS } from '../training/training-permissions.js';
 
 type Tx = Prisma.TransactionClient;
 type PrismaLike = Tx | PrismaService;
@@ -75,6 +76,9 @@ type AccountingAccess = {
   clientsView: boolean;
   missionsView: boolean;
   missionCandidatesTransfer: boolean;
+  placementsView: boolean;
+  trainingProgramsView: boolean;
+  trainingProgramsViewAll: boolean;
 };
 
 const UNIQUE_VIOLATION = 'P2002';
@@ -1070,14 +1074,7 @@ export class AccountingService {
       invoiceWhere.recruitmentMissionId = query.contextId;
       expenseWhere.recruitmentMissionId = query.contextId;
     } else {
-      const placement = await this.prisma.missionPlacement.findUnique({
-        where: { id: query.contextId },
-        select: { id: true, missionId: true },
-      });
-      if (!placement) {
-        throw accountingNotFound();
-      }
-      await this.assertMissionScope(placement.missionId, actorUserId, access, this.prisma);
+      await this.assertPlacementScope(query.contextId, actorUserId, access, this.prisma);
       invoiceWhere.missionPlacementId = query.contextId;
       expenseWhere.missionPlacementId = query.contextId;
     }
@@ -1146,6 +1143,9 @@ export class AccountingService {
       clientsView: has(CLIENT_PERMISSIONS.CLIENTS_VIEW),
       missionsView: has(MISSION_PERMISSIONS.MISSIONS_VIEW),
       missionCandidatesTransfer: has(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
+      placementsView: has(MISSION_PERMISSIONS.PLACEMENTS_VIEW),
+      trainingProgramsView: has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW),
+      trainingProgramsViewAll: has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW_ALL),
     };
   }
 
@@ -1184,6 +1184,42 @@ export class AccountingService {
       recruiters: {
         some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
       },
+    };
+  }
+
+  /**
+   * Training program visibility, mirroring the merged `TrainingService` source rule
+   * exactly: broad oversight needs `training_programs:view_all`, otherwise the actor
+   * must own the program or train one of its sessions, and a client-linked program
+   * additionally needs client read capability.
+   *
+   * Mirrored as a Prisma predicate rather than injected, so accounting does not create
+   * a circular module dependency with training. `clients:view` alone must never become
+   * an alternate path to a program the training domain hides.
+   */
+  private visibleTrainingProgramScope(
+    actorUserId: string,
+    access: AccountingAccess,
+  ): Prisma.TrainingProgramWhereInput {
+    if (!access.trainingProgramsView && !access.trainingProgramsViewAll) {
+      return NEVER_MATCHES;
+    }
+    const clientScope: Prisma.TrainingProgramWhereInput = access.clientsView
+      ? {}
+      : { clientId: null };
+    if (access.trainingProgramsViewAll) {
+      return clientScope;
+    }
+    return {
+      AND: [
+        clientScope,
+        {
+          OR: [
+            { ownerUserId: actorUserId },
+            { sessions: { some: { trainerUserId: actorUserId } } },
+          ],
+        },
+      ],
     };
   }
 
@@ -1230,28 +1266,39 @@ export class AccountingService {
 
     if (!access.clientsView) {
       clauses.push({ clientId: null });
-      // A client-linked training program needs client read scope.
-      clauses.push({
-        OR: [{ trainingProgramId: null }, { trainingProgram: { clientId: null } }],
-      });
     }
+
+    // Training context follows the merged training source rule, not client scope.
+    clauses.push({
+      OR: [
+        { trainingProgramId: null },
+        { trainingProgram: this.visibleTrainingProgramScope(actorUserId, access) },
+      ],
+    });
 
     // Mission scope requires client scope as well, mirroring `assertMissionScope`.
     if (!access.missionsView || !access.clientsView) {
       clauses.push({ recruitmentMissionId: null, missionPlacementId: null });
-    } else if (!access.missionCandidatesTransfer) {
-      clauses.push({
-        OR: [
-          { recruitmentMissionId: null },
-          { recruitmentMission: this.assignedMissionFilter(actorUserId) },
-        ],
-      });
-      clauses.push({
-        OR: [
-          { missionPlacementId: null },
-          { missionPlacement: { mission: this.assignedMissionFilter(actorUserId) } },
-        ],
-      });
+    } else {
+      if (!access.missionCandidatesTransfer) {
+        clauses.push({
+          OR: [
+            { recruitmentMissionId: null },
+            { recruitmentMission: this.assignedMissionFilter(actorUserId) },
+          ],
+        });
+        clauses.push({
+          OR: [
+            { missionPlacementId: null },
+            { missionPlacement: { mission: this.assignedMissionFilter(actorUserId) } },
+          ],
+        });
+      }
+      // A placement context is only readable with the authoritative placement
+      // capability, matching the merged placement API and commercial invoice path.
+      if (!access.placementsView) {
+        clauses.push({ missionPlacementId: null });
+      }
     }
 
     return clauses.length > 0 ? { AND: clauses } : {};
@@ -1306,6 +1353,51 @@ export class AccountingService {
     if (!assignment) {
       throw accountingNotFound();
     }
+  }
+
+  /**
+   * Placement read scope.
+   *
+   * The authoritative placement API and the merged commercial invoice path both require
+   * `placements:view` before a `MissionPlacement` may be used, so accounting requires it
+   * too. Mission assignment scope still applies on top. A missing capability collapses
+   * into the same not-found envelope as a hidden or nonexistent placement.
+   */
+  private async assertPlacementScope(
+    placementId: string,
+    actorUserId: string,
+    access: AccountingAccess,
+    prisma: PrismaLike,
+  ): Promise<{ missionId: string; clientId: string }> {
+    if (!access.placementsView) {
+      throw accountingNotFound();
+    }
+    const placement = await prisma.missionPlacement.findUnique({
+      where: { id: placementId },
+      select: { missionId: true, mission: { select: { clientId: true } } },
+    });
+    if (!placement) {
+      throw accountingNotFound();
+    }
+    await this.assertMissionScope(placement.missionId, actorUserId, access, prisma);
+    return { missionId: placement.missionId, clientId: placement.mission.clientId };
+  }
+
+  /** Training program read scope, evaluated through the merged training source rule. */
+  private async assertTrainingProgramScope(
+    programId: string,
+    actorUserId: string,
+    access: AccountingAccess,
+    prisma: PrismaLike,
+  ): Promise<{ clientId: string | null }> {
+    const program = await prisma.trainingProgram.findFirst({
+      where: { id: programId, ...this.visibleTrainingProgramScope(actorUserId, access) },
+      select: { clientId: true },
+    });
+    if (!program) {
+      throw accountingNotFound();
+    }
+    return program;
   }
 
   private async assertInvoiceScope(
@@ -1407,26 +1499,10 @@ export class AccountingService {
       await this.assertMissionScope(expense.recruitmentMissionId, actorUserId, access, prisma);
     }
     if (expense.missionPlacementId) {
-      const placement = await prisma.missionPlacement.findUnique({
-        where: { id: expense.missionPlacementId },
-        select: { missionId: true },
-      });
-      if (!placement) {
-        throw accountingNotFound();
-      }
-      await this.assertMissionScope(placement.missionId, actorUserId, access, prisma);
+      await this.assertPlacementScope(expense.missionPlacementId, actorUserId, access, prisma);
     }
     if (expense.trainingProgramId) {
-      const program = await prisma.trainingProgram.findUnique({
-        where: { id: expense.trainingProgramId },
-        select: { clientId: true },
-      });
-      if (!program) {
-        throw accountingNotFound();
-      }
-      if (program.clientId) {
-        await this.assertClientScope(program.clientId, access, prisma);
-      }
+      await this.assertTrainingProgramScope(expense.trainingProgramId, actorUserId, access, prisma);
     }
   }
 
@@ -1468,29 +1544,23 @@ export class AccountingService {
     }
 
     if (input.missionPlacementId) {
-      const placement = await tx.missionPlacement.findUnique({
-        where: { id: input.missionPlacementId },
-        select: { id: true, missionId: true, mission: { select: { clientId: true } } },
-      });
-      if (!placement) {
-        throw accountingNotFound();
-      }
-      await this.assertMissionScope(placement.missionId, actorUserId, access, tx);
+      const placement = await this.assertPlacementScope(
+        input.missionPlacementId,
+        actorUserId,
+        access,
+        tx,
+      );
       placementMissionId = placement.missionId;
-      placementClientId = placement.mission.clientId;
+      placementClientId = placement.clientId;
     }
 
     if (input.trainingProgramId) {
-      const program = await tx.trainingProgram.findUnique({
-        where: { id: input.trainingProgramId },
-        select: { id: true, clientId: true },
-      });
-      if (!program) {
-        throw accountingNotFound();
-      }
-      if (program.clientId) {
-        await this.assertClientScope(program.clientId, access, tx);
-      }
+      const program = await this.assertTrainingProgramScope(
+        input.trainingProgramId,
+        actorUserId,
+        access,
+        tx,
+      );
       programClientId = program.clientId;
     }
 

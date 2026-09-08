@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { AuthResponseSchema } from '@hire-me/contracts';
+import { AuthResponseSchema, MAX_ACCOUNTING_DATE_RANGE_DAYS } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import {
@@ -39,6 +39,9 @@ const operatorPermissions = [
   'clients:view',
   'missions:view',
   'mission_candidates:transfer',
+  'placements:view',
+  'training_programs:view',
+  'training_programs:view_all',
   'invoices:view',
   'invoices:manage',
   'payments:view',
@@ -61,9 +64,14 @@ const noAmountsPermissions = [
   'profitability:view',
 ] as const;
 
-/** Holds accounting capability but no client read scope. */
+/**
+ * Holds accounting capability and broad training oversight but no client read scope.
+ * `training_programs:view_all` must still respect client scope for a client-linked
+ * program, exactly as the merged training rule does.
+ */
 const noClientScopePermissions = [
   'commercial_data:access',
+  'training_programs:view_all',
   'invoices:view',
   'payments:view',
   'payments:manage',
@@ -83,9 +91,30 @@ const limitedMissionScopePermissions = [
   'commercial_data:access',
   'clients:view',
   'missions:view',
+  'placements:view',
   'invoices:view',
   'payments:view',
   'expenses:view',
+  'expenses:manage',
+  'client_balances:view',
+  'profitability:view',
+] as const;
+
+/**
+ * Training and placement source scope, deliberately narrow: `training_programs:view`
+ * without `training_programs:view_all`, and no `placements:view` at all. Client and
+ * mission scope are broad, so only the training and placement rules can hide a record.
+ */
+const narrowSourceScopePermissions = [
+  'commercial_data:access',
+  'clients:view',
+  'missions:view',
+  'mission_candidates:transfer',
+  'training_programs:view',
+  'invoices:view',
+  'payments:view',
+  'expenses:view',
+  'expenses:manage',
   'client_balances:view',
   'profitability:view',
 ] as const;
@@ -136,6 +165,9 @@ async function cleanAccountingTestRecords(): Promise<void> {
     where: { mission: { title: { startsWith: 'Issue39' } } },
   });
   await prisma.recruitmentMission.deleteMany({ where: { title: { startsWith: 'Issue39' } } });
+  await prisma.trainingSession.deleteMany({
+    where: { program: { normalizedReference: { startsWith: 'issue39' } } },
+  });
   await prisma.trainingProgram.deleteMany({
     where: { normalizedReference: { startsWith: 'issue39' } },
   });
@@ -266,6 +298,8 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
   let noAccountingToken: string;
   let limitedUserId: string;
   let limitedToken: string;
+  let narrowUserId: string;
+  let narrowToken: string;
   let clientId: string;
   let otherClientId: string;
   let missionId: string;
@@ -354,6 +388,22 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
         integrationStartDate: new Date(),
         eligibleForInvoicing: true,
         invoicingEligibleAt: new Date(),
+      },
+    });
+  }
+
+  /** Creates a training program, optionally client-linked and optionally owned. */
+  async function createProgram(
+    key: string,
+    options: { client?: string | null; owner?: string } = {},
+  ) {
+    return prisma.trainingProgram.create({
+      data: {
+        reference: `ISSUE39-TP-${key.toUpperCase()}`,
+        normalizedReference: `issue39-tp-${key}`,
+        name: `Issue39 ${key} Program`,
+        clientId: options.client === undefined ? null : options.client,
+        ownerUserId: options.owner ?? null,
       },
     });
   }
@@ -484,6 +534,7 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
           RoleName.TEAM_LEADER,
           RoleName.EMPLOYEE,
           RoleName.GUEST,
+          RoleName.CLIENT_USER,
         ].map(async (role) => [role, await snapshotRolePermissions(role)] as const),
       ),
     );
@@ -492,12 +543,14 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     await setRolePermissions(RoleName.TEAM_LEADER, noClientScopePermissions);
     await setRolePermissions(RoleName.EMPLOYEE, noAccountingPermissions);
     await setRolePermissions(RoleName.GUEST, limitedMissionScopePermissions);
+    await setRolePermissions(RoleName.CLIENT_USER, narrowSourceScopePermissions);
 
     operatorUserId = await createUser('operator@accounting.test', RoleName.HR_MANAGER);
     await createUser('no-amounts@accounting.test', RoleName.MANAGER);
     await createUser('no-scope@accounting.test', RoleName.TEAM_LEADER);
     await createUser('no-accounting@accounting.test', RoleName.EMPLOYEE);
     limitedUserId = await createUser('limited-scope@accounting.test', RoleName.GUEST);
+    narrowUserId = await createUser('narrow-scope@accounting.test', RoleName.CLIENT_USER);
 
     const client = await prisma.client.create({
       data: { name: 'Issue39 Client', normalizedName: 'issue39 client' },
@@ -522,6 +575,7 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     noScopeToken = await login('no-scope@accounting.test');
     noAccountingToken = await login('no-accounting@accounting.test');
     limitedToken = await login('limited-scope@accounting.test');
+    narrowToken = await login('narrow-scope@accounting.test');
   }, 180_000);
 
   afterAll(async () => {
@@ -1165,14 +1219,7 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
   });
 
   it('rejects an expense whose training program belongs to a different client', async () => {
-    const program = await prisma.trainingProgram.create({
-      data: {
-        reference: 'ISSUE39-TP-CROSS',
-        normalizedReference: 'issue39-tp-cross',
-        name: 'Issue39 Cross Client Program',
-        clientId: otherClientId,
-      },
-    });
+    const program = await createProgram('cross', { client: otherClientId });
 
     const rejected = await createExpense({ clientId, trainingProgramId: program.id });
     expect(rejected.status).toBe(400);
@@ -1218,20 +1265,15 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
   });
 
   it('hides a training-linked expense without client read scope', async () => {
-    const program = await prisma.trainingProgram.create({
-      data: {
-        reference: 'ISSUE39-TP-SCOPED',
-        normalizedReference: 'issue39-tp-scoped',
-        name: 'Issue39 Client Program',
-        clientId,
-      },
-    });
+    const program = await createProgram('scoped', { client: clientId });
     const created = await createExpense({ trainingProgramId: program.id });
     expect(created.status).toBe(201);
     const expenseId = (created.body as { expense: { id: string } }).expense.id;
 
-    // `noScopeToken` holds expenses:view but no clients:view, and the expense carries a
-    // null clientId, so only the training chain can hide it.
+    // `noScopeToken` holds expenses:view and `training_programs:view_all` but no
+    // clients:view, and the expense carries a null clientId, so only the client half of
+    // the merged training rule can hide it. Broad training oversight does not override
+    // client scope.
     const hidden = await api(noScopeToken, `/expenses/${expenseId}`);
     expect(hidden.status).toBe(404);
     expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
@@ -1240,6 +1282,204 @@ describe('accounting foundation', { timeout: 40_000 }, () => {
     );
 
     expect((await api(operatorToken, `/expenses/${expenseId}`)).status).toBe(200);
+  });
+
+  // -------------------------------------------------------------------------
+  // Training source scope
+  //
+  // Accounting mirrors the merged TrainingService rule: broad oversight needs
+  // `training_programs:view_all`, otherwise the actor must own the program or train one
+  // of its sessions, and a client-linked program additionally needs client scope.
+  // `clients:view` alone is never an alternate path to a hidden program.
+  // -------------------------------------------------------------------------
+
+  it('hides a training-linked expense without any training program capability', async () => {
+    const program = await createProgram('no-capability');
+    const created = await createExpense({ trainingProgramId: program.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    // The limited role holds clients:view and expense capability but neither
+    // training_programs:view nor training_programs:view_all.
+    const hidden = await api(limitedToken, `/expenses/${expenseId}`);
+    expect(hidden.status).toBe(404);
+    expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(expenseIds((await api(limitedToken, '/expenses?pageSize=100')).body)).not.toContain(
+      expenseId,
+    );
+
+    const blocked = await createExpense({ trainingProgramId: program.id }, limitedToken);
+    expect(blocked.status).toBe(404);
+    expect(errorCode(blocked.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(await prisma.expense.count({ where: { trainingProgramId: program.id } })).toBe(1);
+  });
+
+  it('hides a training program from a non-owner non-trainer holding training_programs:view', async () => {
+    const program = await createProgram('non-owner');
+    const created = await createExpense({ trainingProgramId: program.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    const hidden = await api(narrowToken, `/expenses/${expenseId}`);
+    expect(hidden.status).toBe(404);
+    expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(expenseIds((await api(narrowToken, '/expenses?pageSize=100')).body)).not.toContain(
+      expenseId,
+    );
+
+    const blocked = await createExpense({ trainingProgramId: program.id }, narrowToken);
+    expect(blocked.status).toBe(404);
+    // A hidden program is indistinguishable from one that does not exist.
+    const missing = await createExpense({ trainingProgramId: randomUUID() }, narrowToken);
+    expect(missing.status).toBe(blocked.status);
+    expect(errorCode(missing.body)).toBe(errorCode(blocked.body));
+  });
+
+  it('shows a training program to its owner holding training_programs:view', async () => {
+    const program = await createProgram('owned', { owner: narrowUserId });
+    const created = await createExpense({ trainingProgramId: program.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    expect((await api(narrowToken, `/expenses/${expenseId}`)).status).toBe(200);
+    expect(expenseIds((await api(narrowToken, '/expenses?pageSize=100')).body)).toContain(
+      expenseId,
+    );
+    expect((await createExpense({ trainingProgramId: program.id }, narrowToken)).status).toBe(201);
+  });
+
+  it('shows a training program to a session trainer holding training_programs:view', async () => {
+    const program = await createProgram('trained');
+    await prisma.trainingSession.create({
+      data: {
+        trainingProgramId: program.id,
+        trainerUserId: narrowUserId,
+        title: 'Issue39 Trainer Session',
+        scheduledAt: daysFromNow(1),
+        scheduledEndAt: daysFromNow(2),
+      },
+    });
+    const created = await createExpense({ trainingProgramId: program.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    expect((await api(narrowToken, `/expenses/${expenseId}`)).status).toBe(200);
+    expect(expenseIds((await api(narrowToken, '/expenses?pageSize=100')).body)).toContain(
+      expenseId,
+    );
+  });
+
+  it('keeps client scope in force for training_programs:view_all', async () => {
+    const clientLinked = await createProgram('view-all-client', { client: clientId });
+    const clientLinkedExpense = await createExpense({ trainingProgramId: clientLinked.id });
+    expect(clientLinkedExpense.status).toBe(201);
+    const clientLinkedId = (clientLinkedExpense.body as { expense: { id: string } }).expense.id;
+
+    const openProgram = await createProgram('view-all-open');
+    const openExpense = await createExpense({ trainingProgramId: openProgram.id });
+    expect(openExpense.status).toBe(201);
+    const openId = (openExpense.body as { expense: { id: string } }).expense.id;
+
+    // `noScopeToken` holds training_programs:view_all without clients:view.
+    expect((await api(noScopeToken, `/expenses/${clientLinkedId}`)).status).toBe(404);
+    expect((await api(noScopeToken, `/expenses/${openId}`)).status).toBe(200);
+
+    // The operator holds both, so it sees the client-linked program as well.
+    expect((await api(operatorToken, `/expenses/${clientLinkedId}`)).status).toBe(200);
+  });
+
+  // -------------------------------------------------------------------------
+  // Placement source scope
+  // -------------------------------------------------------------------------
+
+  it('requires placements:view for placement-linked accounting records', async () => {
+    const { mission } = await scopedClientFixture('placement-capability');
+    const placement = await createPlacement(mission.id, 'placement-capability');
+    const created = await createExpense({ missionPlacementId: placement.id });
+    expect(created.status).toBe(201);
+    const expenseId = (created.body as { expense: { id: string } }).expense.id;
+
+    // The narrow role holds broad mission oversight but no placements:view.
+    const hidden = await api(narrowToken, `/expenses/${expenseId}`);
+    expect(hidden.status).toBe(404);
+    expect(errorCode(hidden.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+    expect(expenseIds((await api(narrowToken, '/expenses?pageSize=100')).body)).not.toContain(
+      expenseId,
+    );
+
+    const blockedCreate = await createExpense({ missionPlacementId: placement.id }, narrowToken);
+    expect(blockedCreate.status).toBe(404);
+    expect(errorCode(blockedCreate.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+
+    const profitPath = `/profitability?context=PLACEMENT&contextId=${placement.id}`;
+    const blockedProfit = await api(narrowToken, profitPath);
+    expect(blockedProfit.status).toBe(404);
+    const missingProfit = await api(
+      narrowToken,
+      `/profitability?context=PLACEMENT&contextId=${randomUUID()}`,
+    );
+    expect(missingProfit.status).toBe(blockedProfit.status);
+    expect(errorCode(missingProfit.body)).toBe(errorCode(blockedProfit.body));
+    expect(errorCode(blockedProfit.body)).toBe('ACCOUNTING_RECORD_NOT_FOUND');
+
+    // Adding placements:view alone, with no other permission change, is sufficient.
+    await setRolePermissions(RoleName.CLIENT_USER, [
+      ...narrowSourceScopePermissions,
+      'placements:view',
+    ]);
+    try {
+      expect((await api(narrowToken, `/expenses/${expenseId}`)).status).toBe(200);
+      expect(expenseIds((await api(narrowToken, '/expenses?pageSize=100')).body)).toContain(
+        expenseId,
+      );
+      expect((await createExpense({ missionPlacementId: placement.id }, narrowToken)).status).toBe(
+        201,
+      );
+      expect((await api(narrowToken, profitPath)).status).toBe(200);
+    } finally {
+      await setRolePermissions(RoleName.CLIENT_USER, narrowSourceScopePermissions);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Bounded accounting list date windows
+  // -------------------------------------------------------------------------
+
+  it('requires a complete, ordered, bounded date window on accounting lists', async () => {
+    const from = '2026-01-01T00:00:00.000Z';
+    const within = '2026-06-01T00:00:00.000Z';
+    const exactLimit = new Date(
+      Date.parse(from) + MAX_ACCOUNTING_DATE_RANGE_DAYS * 86_400_000,
+    ).toISOString();
+    const overLimit = new Date(
+      Date.parse(from) + MAX_ACCOUNTING_DATE_RANGE_DAYS * 86_400_000 + 1,
+    ).toISOString();
+
+    const windows: [string, string, string][] = [
+      ['/payments', 'receivedFrom', 'receivedTo'],
+      ['/expenses', 'expenseFrom', 'expenseTo'],
+    ];
+
+    for (const [path, fromKey, toKey] of windows) {
+      const code =
+        path === '/payments' ? 'INVALID_PAYMENT_LIST_QUERY' : 'INVALID_EXPENSE_LIST_QUERY';
+      const query = (search: string) => api(operatorToken, `${path}?${search}`);
+
+      expect((await query('page=1')).status).toBe(200);
+      expect((await query(`${fromKey}=${from}&${toKey}=${within}`)).status).toBe(200);
+      expect((await query(`${fromKey}=${from}&${toKey}=${exactLimit}`)).status).toBe(200);
+
+      for (const search of [
+        `${fromKey}=${from}`,
+        `${toKey}=${within}`,
+        `${fromKey}=${within}&${toKey}=${from}`,
+        `${fromKey}=${from}&${toKey}=${overLimit}`,
+      ]) {
+        const rejected = await query(search);
+        expect(rejected.status).toBe(400);
+        expect(errorCode(rejected.body)).toBe(code);
+      }
+    }
   });
 
   // -------------------------------------------------------------------------

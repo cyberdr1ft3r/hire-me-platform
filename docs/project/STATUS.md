@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** Accounting foundation (payments, allocation, expenses, receivables, profitability).
 **Health:** Issue #38 / PR #46 commercial workflow is merged into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`. Issue #39 is implemented on branch `feat/accounting-foundation` from that exact main in a draft PR, extending the merged commercial records rather than duplicating them.
-**Current blocker:** The first ChatGPT review of Issue #39 draft PR #47 returned four blocking findings. All four are fixed on the branch; the PR now awaits a re-review and exact-head GitHub Actions.
-**Next executable development task:** Re-review the Issue #39 draft PR; keep it draft/open/unmerged.
+**Current blocker:** Two ChatGPT review rounds on Issue #39 draft PR #47 returned four then three blocking findings. All seven are fixed on the branch; the PR now awaits a final review and exact-head GitHub Actions.
+**Next executable development task:** Final review of the Issue #39 draft PR; keep it draft/open/unmerged.
 
 ## Active work
 
@@ -280,6 +280,16 @@ The first ChatGPT review of PR #47, on head `81a242f53e37b4d76126e3802d7bc7b55b4
 
 Optional hardening in the same pass: reusing an allocation idempotency key for a different invoice or amount now fails with `ALLOCATION_IDEMPOTENCY_KEY_CONFLICT` instead of returning an unrelated allocation. An identical replay still returns the original allocation with no second history or audit row.
 
+### Second review round, three blockers addressed
+
+The second ChatGPT review, on head `fd8f739e040e73a2fae05dd75ec2fd09f98c76ca`, verified the first four fixes and returned three further blocking findings. All three are fixed.
+
+1. **Training-linked expenses did not follow training source scope.** Accounting checked a training program only through its `clientId`, so `clients:view` was an alternate path to a program the training domain hides. Accounting now mirrors the merged `TrainingService.visibleProgramWhere` rule exactly: broad oversight needs `training_programs:view_all`, otherwise the actor must own the program or train one of its sessions, and a client-linked program additionally needs client read capability. The rule is mirrored as a Prisma predicate using existing permission constants, so no circular Nest module dependency is created. It applies to expense creation with a training context, expense detail, expense listing, and the update, correction, and archive paths that resolve scope through the same helper.
+2. **Placement-linked accounting did not require `placements:view`.** The authoritative placement API and the merged commercial invoice path both require it before a `MissionPlacement` may be used. `AccountingAccess` now carries `placementsView`, and it is required for creating an expense with a placement context, reading or listing placement-linked expenses, and PLACEMENT profitability. Client scope, mission scope, and the `MissionRecruiter` or `mission_candidates:transfer` rule still apply on top. `placement_commercial_eligibility:view` is deliberately not required, because no accounting operation evaluates commercial eligibility.
+3. **Accounting list date ranges were unbounded.** `PaymentListQuerySchema` and `ExpenseListQuerySchema` now require that both endpoints are omitted or both supplied, that the window is ordered, and that it spans at most `MAX_ACCOUNTING_DATE_RANGE_DAYS` (366). A one-sided window is rejected instead of silently widening into an unbounded ledger sweep. Validation is deterministic Zod in the Prisma-independent contracts, so the controllers keep returning `INVALID_PAYMENT_LIST_QUERY` and `INVALID_EXPENSE_LIST_QUERY`.
+
+Every capability the new checks rely on is already granted by the existing seed to the roles that hold broad oversight, so no seed change was needed.
+
 ## Current open technical questions
 
 - Microsoft 365 authentication and account-linking strategy.
@@ -299,7 +309,7 @@ Optional hardening in the same pass: reusing an allocation idempotency key for a
 
 ## Immediate next actions
 
-1. Re-review the Issue #39 accounting draft PR on branch `feat/accounting-foundation` after the four review blockers were fixed; keep it draft/open/unmerged.
+1. Final review of the Issue #39 accounting draft PR on branch `feat/accounting-foundation` after two rounds of review blockers were fixed; keep it draft/open/unmerged.
 2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules

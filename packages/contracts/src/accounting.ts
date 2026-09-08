@@ -186,18 +186,79 @@ export const PaymentCorrectRequestSchema = z.object({
   correctionReason: z.string().trim().min(1).max(500),
 });
 
-export const PaymentListQuerySchema = z.object({
-  page: z.coerce.number().int().positive().max(500).default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-  clientId: z.string().uuid().optional(),
-  status: PaymentRecordStatusSchema.optional(),
-  method: PaymentMethodSchema.optional(),
-  currency: CurrencyCodeSchema.optional(),
-  receivedFrom: z.string().datetime({ offset: true }).optional(),
-  receivedTo: z.string().datetime({ offset: true }).optional(),
-  includeArchived: AccountingQueryBooleanSchema.default(false),
-  sortDirection: AccountingSortDirectionSchema.default('desc'),
-});
+/**
+ * Longest accounting list window, in days.
+ *
+ * Issue #39 requires bounded date ranges: an unbounded or one-sided window makes a
+ * financial list non-deterministic in cost and lets a caller sweep the whole ledger in
+ * one request. 366 days covers a full calendar year including a leap year, which is the
+ * longest window an operator needs for a single accounting list.
+ */
+export const MAX_ACCOUNTING_DATE_RANGE_DAYS = 366;
+
+const MAX_ACCOUNTING_DATE_RANGE_MS = MAX_ACCOUNTING_DATE_RANGE_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Validates one accounting list date window.
+ *
+ * Either both endpoints are omitted or both are supplied: a one-sided window is
+ * rejected rather than silently widened to an unbounded query. The window must not run
+ * backwards and must not exceed `MAX_ACCOUNTING_DATE_RANGE_DAYS`.
+ */
+function addDateWindowIssues(
+  from: string | undefined,
+  to: string | undefined,
+  fromKey: string,
+  toKey: string,
+  ctx: z.RefinementCtx,
+): void {
+  if (from === undefined && to === undefined) {
+    return;
+  }
+  if (from === undefined || to === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [from === undefined ? fromKey : toKey],
+      message: `${fromKey} and ${toKey} must be supplied together.`,
+    });
+    return;
+  }
+
+  const start = Date.parse(from);
+  const end = Date.parse(to);
+  if (end < start) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [toKey],
+      message: `${fromKey} must not be later than ${toKey}.`,
+    });
+    return;
+  }
+  if (end - start > MAX_ACCOUNTING_DATE_RANGE_MS) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [toKey],
+      message: `The window must not exceed ${MAX_ACCOUNTING_DATE_RANGE_DAYS} days.`,
+    });
+  }
+}
+
+export const PaymentListQuerySchema = z
+  .object({
+    page: z.coerce.number().int().positive().max(500).default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+    clientId: z.string().uuid().optional(),
+    status: PaymentRecordStatusSchema.optional(),
+    method: PaymentMethodSchema.optional(),
+    currency: CurrencyCodeSchema.optional(),
+    receivedFrom: z.string().datetime({ offset: true }).optional(),
+    receivedTo: z.string().datetime({ offset: true }).optional(),
+    includeArchived: AccountingQueryBooleanSchema.default(false),
+    sortDirection: AccountingSortDirectionSchema.default('desc'),
+  })
+  .superRefine((value, ctx) => {
+    addDateWindowIssues(value.receivedFrom, value.receivedTo, 'receivedFrom', 'receivedTo', ctx);
+  });
 
 // ---------------------------------------------------------------------------
 // Allocation
@@ -307,20 +368,24 @@ export const ExpenseCorrectRequestSchema = z.object({
   correctionReason: z.string().trim().min(1).max(500),
 });
 
-export const ExpenseListQuerySchema = z.object({
-  page: z.coerce.number().int().positive().max(500).default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-  clientId: z.string().uuid().optional(),
-  recruitmentMissionId: z.string().uuid().optional(),
-  trainingProgramId: z.string().uuid().optional(),
-  category: ExpenseCategorySchema.optional(),
-  currency: CurrencyCodeSchema.optional(),
-  status: ExpenseStatusSchema.optional(),
-  expenseFrom: z.string().datetime({ offset: true }).optional(),
-  expenseTo: z.string().datetime({ offset: true }).optional(),
-  includeArchived: AccountingQueryBooleanSchema.default(false),
-  sortDirection: AccountingSortDirectionSchema.default('desc'),
-});
+export const ExpenseListQuerySchema = z
+  .object({
+    page: z.coerce.number().int().positive().max(500).default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+    clientId: z.string().uuid().optional(),
+    recruitmentMissionId: z.string().uuid().optional(),
+    trainingProgramId: z.string().uuid().optional(),
+    category: ExpenseCategorySchema.optional(),
+    currency: CurrencyCodeSchema.optional(),
+    status: ExpenseStatusSchema.optional(),
+    expenseFrom: z.string().datetime({ offset: true }).optional(),
+    expenseTo: z.string().datetime({ offset: true }).optional(),
+    includeArchived: AccountingQueryBooleanSchema.default(false),
+    sortDirection: AccountingSortDirectionSchema.default('desc'),
+  })
+  .superRefine((value, ctx) => {
+    addDateWindowIssues(value.expenseFrom, value.expenseTo, 'expenseFrom', 'expenseTo', ctx);
+  });
 
 // ---------------------------------------------------------------------------
 // Receivables and profitability

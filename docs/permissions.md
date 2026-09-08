@@ -506,6 +506,14 @@ client, and for mission-linked records `missions:view` plus either
 assignment. Hidden, out-of-scope, and nonexistent accounting identifiers all return the
 same `ACCOUNTING_RECORD_NOT_FOUND` envelope, so financial records cannot be probed.
 
+Training and placement contexts follow their own authoritative domains rather than client
+scope. A training-linked accounting record obeys the merged training rule: broad oversight
+requires `training_programs:view_all`, otherwise the actor must own the program or train
+one of its sessions, and a client-linked program additionally requires `clients:view`. A
+placement-linked accounting record additionally requires `placements:view`, matching the
+placement API and the merged commercial invoice path, with mission scope still applying on
+top. `clients:view` alone is never an alternate path to a record another domain hides.
+
 The same rule is applied as a row-level predicate to accounting lists and aggregates, not
 only to single-record reads. Expense listing, client receivables, overdue receivables,
 and client, mission, and placement profitability all exclude records the actor could not

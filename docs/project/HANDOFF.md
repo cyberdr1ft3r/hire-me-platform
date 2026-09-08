@@ -22,10 +22,13 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Accounting lists and aggregates apply the same source-scope rule the detail paths enforce, so mission-linked amounts outside an actor's mission scope cannot be obtained through a total.
 - Every supplied expense context must resolve to one consistent business chain, and each context is scoped on read, so a null `clientId` never exposes a placement-linked or training-linked expense.
 - Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns. Response-side totals are deliberately uncapped.
+- Training-linked accounting records follow the merged training source rule, not client scope: `training_programs:view_all` for broad oversight, otherwise program owner or session trainer, and a client-linked program additionally needs `clients:view`. The rule is mirrored as a Prisma predicate so accounting does not depend on the training module.
+- Placement-linked accounting records additionally require `placements:view`, matching the authoritative placement API and the merged commercial invoice path. Mission scope still applies on top.
+- Accounting list date windows are bounded: both endpoints or neither, ordered, and at most `MAX_ACCOUNTING_DATE_RANGE_DAYS` (366) apart. One-sided windows are rejected.
 
 ## Next Action
 
-Re-review the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes. The first ChatGPT review returned four blocking findings; all four are fixed on the branch and are described under "Review blockers found and addressed" in `docs/project/STATUS.md`.
+Complete the final review of the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes. Two ChatGPT rounds returned four then three blocking findings; all seven are fixed on the branch and are described under "Review blockers found and addressed" and "Second review round, three blockers addressed" in `docs/project/STATUS.md`.
 
 Completion conditions:
 

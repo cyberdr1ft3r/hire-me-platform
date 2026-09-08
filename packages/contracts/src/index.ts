@@ -742,6 +742,7 @@ export {
   PaymentSummarySchema,
   PaymentUpdateRequestSchema,
   MAX_ACCOUNTING_CENTS,
+  MAX_ACCOUNTING_DATE_RANGE_DAYS,
   PositiveCentsSchema,
   ProfitabilityContextSchema,
   ProfitabilityCurrencyRowSchema,
