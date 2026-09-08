@@ -1,40 +1,41 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), and Issue #38 (PR #46) are merged into `main`. `main` is at `e1976f8a4b888657abe74c40ddf99c730032934a`.
-- Issue #39 is implemented on branch `feat/accounting-foundation`, branched from that exact `main`, and opened as a draft PR.
-- Issue #39 extends the merged Issue #38 commercial records. `CommercialQuotation`, `CommercialContract`, `PurchaseOrder`, `Invoice`, their lifecycles, their server-calculated totals, and their immutable issued snapshots remain owned by Issue #38 and were not duplicated, replaced, or remodelled.
-- The only schema change is the additive migration `20260908120000_accounting_foundation`, which sorts after every merged migration. No merged migration was edited, renamed, reordered, or squashed.
-- New records: `Payment`, `PaymentAllocation`, `PaymentEvent`, `Expense`, `ExpenseEvent`.
-- Invoice settlement is derived, never stored: the immutable issued invoice total plus active allocations. A payment never marks an invoice paid merely by existing.
-- Profitability follows decision D-053: eligible issued invoice revenue minus directly linked operational expenses, excluding canceled and archived invoices, separated per currency. Received/allocated cash is exposed separately through settlement and receivables and is never the profitability basis.
-- Profitability contexts are client, recruitment mission, and placement. Training-program profitability is deliberately unsupported: the merged commercial model has no authoritative invoice-to-training-program link, so training revenue cannot be derived without inventing one. Training expenses are still recorded and readable.
+- `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47.
+- Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), Issue #38 (PR #46), and Issue #39 (PR #47) are all merged. Issue #12 is complete through the merged document foundation, and Issue #33 is closed.
+- Issue #39 is complete. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a`, and exact-head GitHub Actions run `34213661408` succeeded on Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 263 PostgreSQL integration tests across 16 files.
+- PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
+- Phase 8 commercial and operational accounting is complete through Issues #38 and #39.
+
+## Merged Accounting Behavior To Preserve
+
+- Invoice settlement is derived, never stored: the immutable issued invoice total plus active allocations. A payment never marks an invoice paid merely by existing. States are not-receivable, unpaid, partially paid, paid, and overdue.
+- Profitability follows decision D-053: eligible issued invoice revenue minus directly linked operational expenses, excluding canceled and archived invoices. Received or allocated cash is exposed separately through settlement and receivables and is never the profitability basis.
 - Every aggregate is separated per currency. There is no FX conversion anywhere.
-- Accounting authorization combines the accounting capability, `commercial_data:access` for any financial amount, and the underlying client/mission record scope. Receivable and profitability aggregates fail closed instead of returning redacted shells. Hidden, out-of-scope, and nonexistent identifiers all return the same `ACCOUNTING_RECORD_NOT_FOUND` envelope.
-- Financial mutations lock rows in the fixed order client, payment, invoice, allocation, so concurrent allocations serialize without a deadlock cycle.
-- Payroll, statutory/accrual/tax accounting, depreciation, FX conversion, and receipt files are out of scope. Receipt files remain owned by the document module.
-- An invoice with active payment allocations cannot be canceled. `CommercialService.cancelInvoice()` rejects with `INVOICE_HAS_ACTIVE_ALLOCATIONS` while holding the invoice lock, and never reverses or deletes allocations on the operator's behalf. Canceled together with an active allocation is not a reachable state.
-- Accounting lists and aggregates apply the same source-scope rule the detail paths enforce, so mission-linked amounts outside an actor's mission scope cannot be obtained through a total.
-- Every supplied expense context must resolve to one consistent business chain, and each context is scoped on read, so a null `clientId` never exposes a placement-linked or training-linked expense.
-- Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns. Response-side totals are deliberately uncapped.
-- Training-linked accounting records follow the merged training source rule, not client scope: `training_programs:view_all` for broad oversight, otherwise program owner or session trainer, and a client-linked program additionally needs `clients:view`. The rule is mirrored as a Prisma predicate so accounting does not depend on the training module.
-- Placement-linked accounting records additionally require `placements:view`, matching the authoritative placement API and the merged commercial invoice path. Mission scope still applies on top.
-- Accounting list date windows are bounded: both endpoints or neither, ordered, and at most `MAX_ACCOUNTING_DATE_RANGE_DAYS` (366) apart. One-sided windows are rejected.
+- An invoice with active payment allocations cannot be canceled; the operator must reverse the allocations explicitly first. Allocations are never auto-reversed or deleted.
+- Financial mutations lock rows in the fixed order client, payment, invoice, allocation.
+- Accounting authorization combines the accounting capability, `commercial_data:access` for any financial amount, and the underlying source scope. Aggregates fail closed rather than returning redacted shells, and hidden, out-of-scope, and nonexistent identifiers share one `ACCOUNTING_RECORD_NOT_FOUND` envelope. Lists and aggregates apply the same source-scope rule as the detail paths.
+- Training-linked accounting records follow the merged training source rule; placement-linked records additionally require `placements:view`.
+- Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns; response-side totals are uncapped. Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
 
 ## Next Action
 
-Complete the final review of the Issue #39 draft PR on branch `feat/accounting-foundation` and keep it draft, open, and unmerged until that review completes. Two ChatGPT rounds returned four then three blocking findings; all seven are fixed on the branch and are described under "Review blockers found and addressed" and "Second review round, three blockers addressed" in `docs/project/STATUS.md`.
+Implement Issue #49 — template-driven document and business-output generation — on its own branch from current `main`. It is not started.
 
-Completion conditions:
+Issue #49 turns approved business records into managed generated PDF and Word-compatible outputs using the merged `Document` / immutable `DocumentVersion` architecture. Structured business records stay authoritative; a generated file is an output snapshot stored as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, behind the existing protected storage and download authorization boundary. Regeneration creates a new version and never overwrites history.
 
-- ChatGPT/human review accepts the accounting implementation and the D-053 revenue policy.
-- Exact-head GitHub Actions is green on the reviewed head.
-- The PR stays draft/open/unmerged until a maintainer explicitly authorizes the merge.
+Issue #48 is documentation and project-memory reconciliation only, on branch `docs/reconcile-after-accounting-merge`. Do not implement any part of Issue #49 there.
+
+Completion conditions for Issue #49:
+
+- A draft PR linked to Issue #49 on its own branch, opened against current `main`.
+- Exact-head GitHub Actions green on the reviewed head.
+- The PR stays draft, open, and unmerged until a maintainer explicitly authorizes the merge.
 
 ## Known Follow-Up Work For Accounting
 

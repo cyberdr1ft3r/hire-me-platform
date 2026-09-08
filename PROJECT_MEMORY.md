@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-04
+Last updated: 2026-09-09
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Accounting foundation after the merged commercial workflow foundation. Previously: commercial workflow foundation after merged task, document-management, recruitment-reporting, and training-operations foundations.
+Template-driven document and business-output generation, after the merged commercial workflow and operational accounting foundations. `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -31,7 +31,10 @@ Accounting foundation after the merged commercial workflow foundation. Previousl
 - Issue #36 is complete; PR #43 merged authenticated recruitment reporting, KPI dashboards, and safe CSV exports into `main` as commit `6ff19ad2a03f3f6dc6bdbbf00be9db68d6779a2a`.
 - Issue #37 is complete; PR #45 merged the internal training-operations foundation into `main` as merge commit `09c506262ad3284efd69f70440c1ee06175c6e00`.
 - Issue #38 is complete; PR #46 merged the commercial workflow foundation into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`.
-- Issue #39 is implemented on branch `feat/accounting-foundation` as a draft PR. It adds payments, payment-to-invoice allocation, operational expenses, derived invoice settlement, currency-separated client receivables and overdue balances, and operational profitability.
+- Issue #39 is complete; PR #47 merged the operational accounting foundation into `main` as merge commit `54def73831df9b6cd7b0064171c52dff9b55e2ac`. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded. It adds payments, payment-to-invoice allocation, derived invoice settlement with partial/paid/overdue behavior, operational expenses, currency-separated client receivables and overdue receivables, and operational profitability.
+- Issue #48 reconciles project memory after the accounting merge and is documentation only. Issue #49 is the next approved product task: template-driven document and business-output generation.
+- PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance.
+- Issue #12 is complete through the merged Issue #35 document foundation, which keeps `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` as distinct taxonomy values.
 - Operational profitability recognises issued invoice revenue minus directly linked operational expenses (decision D-053). Received/allocated cash is reported separately through settlement and receivables and is never the profitability basis. Every aggregate is separated per currency and no FX conversion exists.
 - Invoice settlement is derived from the immutable issued invoice total plus active allocations, never stored, so a payment cannot mark an invoice paid merely by existing.
 - An invoice with active payment allocations cannot be canceled; the operator must reverse the allocations explicitly first. Canceled together with an active allocation is not a reachable state, and allocations are never auto-reversed or deleted.
@@ -40,8 +43,7 @@ Accounting foundation after the merged commercial workflow foundation. Previousl
 - Training-linked accounting records follow the merged training source rule (`training_programs:view_all`, or program owner or session trainer, plus client scope for a client-linked program), and placement-linked records additionally require `placements:view`. Accounting mirrors those rules as Prisma predicates instead of depending on the training or missions modules.
 - Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
 - Accounting authorization combines the accounting capability, `commercial_data:access` for any amount, and the underlying client/mission record scope. Receivable and profitability aggregates fail closed instead of returning redacted shells.
-- Payroll, statutory/accrual/tax accounting, depreciation, and FX conversion remain out of scope. Training-program profitability is unsupported because no authoritative invoice-to-training-program link exists.
-- Superseded goal: review Issue #38 draft PR #46 on branch `feat/commercial-workflow` after latest-`main` integration, which implements structured quotations, recruitment/training commercial contracts, purchase orders, invoices, permission-aware minimal UI, and project documentation while keeping payments and profitability for Issue #39.
+- Still requiring their own approved issues: Moroccan payroll; statutory, general-ledger, and tax accounting; credit notes and refunds; aging buckets beyond the current overdue outstanding figure; accounting exports; and training-program profitability, which is unsupported until an authoritative invoice-to-training-program link exists. Depreciation and FX conversion also remain out of scope.
 
 ## Confirmed Product Facts
 
@@ -65,7 +67,7 @@ Accounting foundation after the merged commercial workflow foundation. Previousl
 - Issue #12 requires `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` to remain distinct document taxonomy values. They must not be collapsed into a generic contract type.
 - Public CV submission must preserve file-version and opportunity-submission history rather than silently overwrite older files.
 - Trainers and internal training operators require internal accounts. Training participants are records and do not require accounts by default.
-- Commercial and operational accounting is in scope across scoped issues. Issue #38 covers structured quotations, recruitment/training commercial contracts, purchase orders, invoices, VAT/tax fields on those records, and placement-backed invoicing eligibility. Payments, partial payments, overdue balances, expenses, client balances, revenue/profitability, and settlement behavior remain Issue #39/future scope. Complete Moroccan payroll is a confirmed future requirement. Full legal accounting, general ledger, tax declarations, bank reconciliation, and payroll implementation details remain unresolved.
+- Commercial and operational accounting is implemented across two merged issues. Issue #38 covers structured quotations, recruitment/training commercial contracts, purchase orders, invoices, VAT/tax fields on those records, and placement-backed invoicing eligibility. Issue #39 covers payments, payment allocations, derived invoice settlement with partial/paid/overdue behavior, operational expenses, client receivables, overdue receivables, and D-053 issued-invoice profitability, all separated per currency with no FX conversion. Complete Moroccan payroll is a confirmed future requirement. Full legal accounting, general ledger, tax declarations, bank reconciliation, and payroll implementation details remain unresolved.
 - Portfolio is normally represented as a professional link such as GitHub, Behance, or a personal website; it becomes a document only when an actual file is uploaded.
 - Principal dashboard indicators are active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - The first version must support French and English and work responsively on desktop, tablet, and mobile browsers.
