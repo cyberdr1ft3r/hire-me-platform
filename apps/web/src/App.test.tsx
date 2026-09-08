@@ -1306,6 +1306,62 @@ describe('App', () => {
     ).toBe(true);
   });
 
+  it('hides generation controls without the generation capability', async () => {
+    mockCommercialWorkspace(['commercial_data:access', 'quotations:view']);
+
+    await openCommercialWorkspace('Commercial Viewer');
+
+    expect(await screen.findByText('Q38-WEB')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /generate pdf/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /generate word/i })).toBeNull();
+  });
+
+  it('hides generation controls for a source the actor cannot read', async () => {
+    // Generation capability without commercial data access: the API would refuse the
+    // request, so the control must not be offered either.
+    mockCommercialWorkspace(['documents:generate', 'quotations:view']);
+
+    await openCommercialWorkspace('Commercial Viewer');
+
+    expect(await screen.findByText('Q38-WEB')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /generate pdf/i })).toBeNull();
+  });
+
+  it('generates a quotation output and lists its authorized provenance', async () => {
+    const fetchMock = mockCommercialWorkspace([
+      'commercial_data:access',
+      'quotations:view',
+      'documents:generate',
+      'documents:view',
+      'documents:download',
+    ]);
+
+    await openCommercialWorkspace('Commercial Operator');
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /generate pdf \(quotation q38-web\)/i }),
+    );
+
+    expect(
+      await screen.findByText(/version 1 generated from template commercial.quotation v1/i),
+    ).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(
+        (call) =>
+          requestUrl(call[0]).endsWith(
+            '/v1/commercial/quotations/' + syntheticQuotationId + '/generate',
+          ) && call[1]?.method === 'POST',
+      ),
+    ).toBe(true);
+
+    // Historical versions are listed and downloaded through the protected document API.
+    expect(await screen.findByRole('button', { name: /download v1/i })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /download v1/i }));
+    expect(
+      await screen.findByText(/downloaded .* through the protected document endpoint/i),
+    ).toBeVisible();
+  });
+
   it('hides the training workspace from users without the training view permission', async () => {
     mockTrainingWorkspace(['records:view']);
 
@@ -1854,6 +1910,67 @@ function mockCommercialWorkspace(permissions: string[]) {
       );
     }
 
+    if (url.includes('/generate') && init?.method === 'POST') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            generated: {
+              documentId: syntheticGeneratedDocumentId,
+              versionId: syntheticGeneratedVersionId,
+              versionNumber: 1,
+              sourceType: 'COMMERCIAL_QUOTATION',
+              sourceId: syntheticQuotationId,
+              documentType: 'QUOTATION',
+              outputFamily: 'PDF',
+              language: 'fr',
+              templateId: 'commercial.quotation',
+              templateVersion: 1,
+              filename: 'quotation-q38-web-v1.pdf',
+              mimeType: 'application/pdf',
+              sizeBytes: 2048,
+              checksumSha256: 'a'.repeat(64),
+              generatedByUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              generatedAt: '2026-09-09T10:00:00.000Z',
+              replayed: false,
+            },
+          }),
+          { status: 201, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    }
+
+    if (url.includes('/versions/') && url.endsWith('/download')) {
+      return Promise.resolve(new Response('%PDF-1.7', { status: 200 }));
+    }
+
+    if (url.includes('/v1/documents/') && url.endsWith('/versions')) {
+      return Promise.resolve(
+        jsonResponse({
+          versions: [
+            {
+              id: syntheticGeneratedVersionId,
+              documentId: syntheticGeneratedDocumentId,
+              versionNumber: 1,
+              filename: 'quotation-q38-web-v1.pdf',
+              originalFilename: null,
+              mimeType: 'application/pdf',
+              sizeBytes: 2048,
+              checksumSha256: 'a'.repeat(64),
+              outputFamily: 'PDF',
+              source: 'GENERATED',
+              templateId: 'commercial.quotation',
+              templateVersion: 1,
+              generationLanguage: 'fr',
+              status: 'ACTIVE',
+              archivedAt: null,
+              createdByUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              createdAt: '2026-09-09T10:00:00.000Z',
+            },
+          ],
+        }),
+      );
+    }
+
     if (url.includes('/v1/commercial/quotations') && init?.method === 'POST') {
       return Promise.resolve(
         jsonResponse({
@@ -2297,9 +2414,13 @@ function syntheticDocument() {
   };
 }
 
+const syntheticQuotationId = '56565656-5656-4565-8565-565656565656';
+const syntheticGeneratedDocumentId = '57575757-5757-4575-8575-575757575757';
+const syntheticGeneratedVersionId = '58585858-5858-4585-8585-585858585858';
+
 function syntheticQuotation() {
   return {
-    id: '56565656-5656-4565-8565-565656565656',
+    id: syntheticQuotationId,
     reference: 'Q38-WEB',
     clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     recruitmentMissionId: syntheticMissionId,

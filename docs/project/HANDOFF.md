@@ -6,7 +6,8 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 
 ## Current Situation
 
-- `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47.
+- `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 reconciliation (PR #50).
+- Issue #49 is implemented on branch `feat/document-output-generation`, branched from that exact `main`, and opened as a draft PR.
 - Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), Issue #38 (PR #46), and Issue #39 (PR #47) are all merged. Issue #12 is complete through the merged document foundation, and Issue #33 is closed.
 - Issue #39 is complete. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a`, and exact-head GitHub Actions run `34213661408` succeeded on Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 263 PostgreSQL integration tests across 16 files.
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -23,19 +24,30 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Training-linked accounting records follow the merged training source rule; placement-linked records additionally require `placements:view`.
 - Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns; response-side totals are uncapped. Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
 
+## Merged Generation Behavior To Preserve
+
+- Structured business records stay authoritative. A generated file is an output snapshot published as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, never a second mutable record.
+- One logical document exists per source record, output family, and language, keyed by a unique `generatedDocumentKey`. Regeneration adds version N+1; a historical version and its bytes are never overwritten.
+- Templates are code-owned TypeScript functions over a neutral, data-only renderable document. No template language, no HTML, no evaluation, no uploaded template, and no remote fetch. Every generated version records the exact `templateId` and `templateVersion` used, so a later template change cannot re-explain an existing file.
+- Renderers are pure JavaScript (`pdf-lib`, `docx`). No native binary, browser, office suite, or shell is involved.
+- Issued invoice outputs copy the immutable issued lines and totals verbatim; nothing is recomputed and placement eligibility is never re-evaluated.
+- Certificate generation reuses the merged training readiness rule and never transitions the enrollment. Certificate issuance stays the explicit audited training action.
+- Generation requires `documents:generate` plus the source domain's own rule, and generated-document reads and downloads re-authorize that source at request time. A leaked document UUID cannot bypass the source domain; hidden and nonexistent sources are indistinguishable.
+- Storage and PostgreSQL are not one transaction. Render, publish, then commit; a failed commit deletes only the object that attempt published and never a historical one.
+
 ## Next Action
 
-Implement Issue #49 — template-driven document and business-output generation — on its own branch from current `main`. It is not started.
+Review the Issue #49 draft PR on branch `feat/document-output-generation` and keep it draft, open, and unmerged until that review completes.
 
-Issue #49 turns approved business records into managed generated PDF and Word-compatible outputs using the merged `Document` / immutable `DocumentVersion` architecture. Structured business records stay authoritative; a generated file is an output snapshot stored as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, behind the existing protected storage and download authorization boundary. Regeneration creates a new version and never overwrites history.
+Completion conditions:
 
-Issue #48 is documentation and project-memory reconciliation only, on branch `docs/reconcile-after-accounting-merge`. Do not implement any part of Issue #49 there.
-
-Completion conditions for Issue #49:
-
-- A draft PR linked to Issue #49 on its own branch, opened against current `main`.
+- Review accepts the generation architecture, the template and renderer boundary, the authorization and re-authorization rules, and the documented storage compensation boundary.
 - Exact-head GitHub Actions green on the reviewed head.
 - The PR stays draft, open, and unmerged until a maintainer explicitly authorizes the merge.
+
+## Known Follow-Up Work For Generation
+
+Not implemented by Issue #49 and still requiring their own approved issues: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, payment receipts, accounting exports, payroll documents, OCR or AI extraction, Excel generation, and any client or candidate portal.
 
 ## Known Follow-Up Work For Accounting
 

@@ -103,6 +103,12 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'documents:generate',
+    description:
+      'Generate official business output files from authoritative business records within authorized context.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'users:admin',
     description: 'Legacy umbrella permission retained for compatibility with prior seeds.',
     scopeType: PermissionScopeType.EXPLICIT,
@@ -757,6 +763,7 @@ async function main(): Promise<void> {
       'documents:versions:create',
       'documents:update',
       'documents:archive',
+      'documents:generate',
       'users:admin',
       'users:view',
       'users:create',
@@ -875,6 +882,7 @@ async function main(): Promise<void> {
       'documents:versions:create',
       'documents:update',
       'documents:archive',
+      'documents:generate',
       'clients:view',
       'clients:create',
       'clients:update',

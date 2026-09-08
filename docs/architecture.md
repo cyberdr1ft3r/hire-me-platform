@@ -329,6 +329,40 @@ Audit rows are written inside the mutating transaction with safe summaries only.
 currencies, bank references, vendor details, and notes are never copied into generic audit
 metadata.
 
+### Document Generation Module
+
+Issue #49 adds a `document-generation` API module with source-oriented endpoints under
+`/v1/commercial/*/generate` and
+`/v1/training/programs/:programId/enrollments/:enrollmentId/generate-certificate`. Shared
+contracts live in `packages/contracts/src/document-generation.ts` and stay
+Prisma-independent. The module reads commercial and training records through Prisma and
+reuses their merged permission constants, but imports neither module, so no circular Nest
+module dependency exists.
+
+The pipeline is: authorize the source, take one authoritative snapshot, build a typed view
+model, apply a code-owned template to produce a neutral data-only renderable document,
+render bytes, publish them to a server-generated storage key through the existing
+protected storage service, and commit an immutable `DocumentVersion` inside a transaction
+that also advances `Document.currentVersionId` and writes the audit row.
+
+Renderers are pure JavaScript: `pdf-lib` for PDF and `docx` for Word-compatible output.
+Neither requires a native binary, headless browser, office suite, or shell invocation, so
+generation adds no machine prerequisite and offers no command or URL injection surface.
+Every string crosses one sanitization boundary that removes control characters, folds
+typographic punctuation to the PDF standard-font repertoire, collapses whitespace, and
+bounds length. Download filenames are reduced to a conservative alphabet, and storage keys
+contain no caller-controlled text at all.
+
+Storage and PostgreSQL are deliberately not presented as one transaction. The documented
+compensation boundary is that a failed commit deletes the object that attempt published
+and never touches a historical object, so the database never references missing bytes and
+at worst one unreferenced object survives a compensation failure.
+
+Provenance is bounded and structured on the version itself: template id, template version,
+language, output family, size, and checksum. Audit metadata carries the document, version,
+source family, template identity, output family, and language, and never the rendered
+content, storage key, or any commercial amount.
+
 ### Data Migration
 
 The architecture must support initial migration of approximately:

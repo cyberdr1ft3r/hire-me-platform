@@ -13,6 +13,7 @@ export const DocumentTypeSchema = z.enum([
   'HR_DOCUMENT',
   'TECHNICAL_TEST_REPORT',
   'TRAINING_MATERIAL',
+  'TRAINING_CERTIFICATE',
   'MESSAGE_ATTACHMENT',
   'CLIENT_FILE',
   'OTHER',
@@ -131,6 +132,10 @@ export const DocumentVersionSchema = z.object({
   checksumSha256: z.string().nullable(),
   outputFamily: OutputFamilySchema.nullable(),
   source: DocumentVersionSourceSchema,
+  // Issue #49 bounded generation provenance. Null on uploaded and imported versions.
+  templateId: z.string().nullable(),
+  templateVersion: z.number().int().positive().nullable(),
+  generationLanguage: z.string().nullable(),
   status: DocumentStatusSchema,
   archivedAt: z.string().datetime().nullable(),
   createdByUserId: z.string().uuid().nullable(),

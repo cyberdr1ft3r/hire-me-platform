@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Phase 8 commercial and operational accounting is complete through Issue #38 / merged PR #46 and Issue #39 / merged PR #47. Phase 7 document generation is the next product step.
-**Health:** `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47. The final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded on every job.
-**Current blocker:** None.
-**Next executable development task:** Issue #49 — implement template-driven document and business-output generation on the merged `Document` / immutable `DocumentVersion` architecture. Issue #48 is this project-memory reconciliation and is documentation only.
+**Phase:** Phase 7 template-driven document and business-output generation, on top of the complete Phase 8 commercial and accounting foundations.
+**Health:** `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 project-memory reconciliation (PR #50). Issue #49 is implemented on branch `feat/document-output-generation` from that exact main, in a draft PR.
+**Current blocker:** Issue #49 draft PR awaits review and exact-head GitHub Actions.
+**Next executable development task:** Review the Issue #49 draft PR; keep it draft/open/unmerged.
 
 ## Active work
 
@@ -33,8 +33,8 @@ Status owner: repository maintainer
 | Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
 | Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Merged via PR #46 into `main` as `e1976f8a4b888657abe74c40ddf99c730032934a` |
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
-| Issue #48 | Open | Reconcile project memory after the accounting merge | Documentation only; draft PR on `docs/reconcile-after-accounting-merge` |
-| Issue #49 | Open | Implement template-driven document and business-output generation | Next executable product task; not started |
+| Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
+| Issue #49 | Open | Implement template-driven document and business-output generation | Implemented on branch `feat/document-output-generation`; keep the draft PR open/unmerged |
 
 ## Completed foundation work
 
@@ -300,6 +300,22 @@ Merged through Issue #39: payments, payment allocations, derived invoice settlem
 
 Still requiring their own approved issues: Moroccan payroll; statutory, general-ledger, and tax accounting; credit notes and refunds; aging buckets beyond the current overdue outstanding figure; accounting exports; and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 
+## Issue #49 Implementation State
+
+- Issue #49 adds template-driven generation of business output files on top of the merged `Document` / immutable `DocumentVersion` foundation. Structured business records stay authoritative; a generated file is only an output snapshot and never a second source of truth.
+- Output families: commercial quotation, purchase order, recruitment contract, training contract, issued invoice, and training certificate. Each renders to PDF and to Word-compatible DOCX in French or English.
+- Schema work is additive only, in migration `20260909120000_document_output_generation`. `Document` gains `generatedSourceType`, a unique `generatedDocumentKey`, `generatedLanguage`, and authoritative `commercialQuotationId`, `commercialContractId`, `purchaseOrderId`, and `invoiceId` relations with `onDelete: Restrict`. `DocumentVersion` gains `templateId`, `templateVersion`, `generationLanguage`, and a unique `generationIdempotencyKey`. The existing `trainingEnrollmentId` relation is reused rather than duplicated, and one new `DocumentType.TRAINING_CERTIFICATE` taxonomy value is added because none existed.
+- Four PostgreSQL check constraints keep provenance unambiguous: a generated document names exactly one source relation, its taxonomy matches that source family, its generated identity is complete or entirely absent, and a generated version always carries template identity, language, output family, and a checksum. All four use `CASE` with `IS NULL` / `IS NOT NULL` because PostgreSQL accepts a null check result.
+- Templates are a code-owned registry of ordinary TypeScript functions that map a typed view model onto a neutral, data-only renderable document. There is no template language, no HTML, no expression evaluation, no uploaded template, and no remote fetch, so a business value can never be interpreted. Every string passes one sanitization boundary that removes control characters, collapses whitespace, folds typographic punctuation, and bounds length.
+- Renderers are pure JavaScript: `pdf-lib` for PDF and `docx` for DOCX. Neither needs a native binary, headless browser, office suite, or shell, so generation adds no machine prerequisite.
+- View models are built server-side from one authoritative snapshot; the renderer never queries the database. Issued invoice lines and totals are copied verbatim from the immutable issued snapshot, nothing is recomputed, and placement eligibility is never re-evaluated.
+- Eligibility follows merged lifecycle semantics: a quotation must be issued, accepted, rejected, or expired; a purchase order must not be canceled or archived; a contract must not be canceled or archived; only an issued, non-canceled, non-archived invoice produces an invoice output; and a certificate requires the merged training readiness rule, so `NOT_APPLICABLE` and `ISSUED` are both refused. Generating a certificate never transitions the enrollment: issuance stays the explicit audited training action.
+- Logical document identity is one document per source record, output family, and language. First generation creates version 1; regeneration adds version N+1 and never overwrites a historical version or its bytes. The lock order for a publish is `Document` then `DocumentVersion`; source records are read and re-validated inside the publishing transaction rather than locked.
+- Idempotency keys are resolved globally. The same key with the same effective request returns the original version; the same key against a different source, output family, language, or template is a deterministic `GENERATION_IDEMPOTENCY_KEY_CONFLICT`.
+- Storage and PostgreSQL are not one transaction, and the boundary is documented rather than claimed away: bytes are rendered in memory, published to a server-generated storage key, and only then committed inside a transaction. A failed transaction deletes the object this attempt published and never touches a historical object, so the database never references missing bytes and at most one unreferenced object can be left if compensation itself fails.
+- Authorization requires `documents:generate` plus the source domain's own rule: for commercial outputs the matching `*:view` capability, `commercial_data:access`, and the merged client/mission record scope; for certificates the merged training program visibility rule plus `training_enrollments:view`, and the participant's own source-domain read capability before the participant name is rendered. Generated-document detail, version listing, and both current and historical downloads re-authorize the underlying source at request time, and the same rule is mirrored in the document list predicate, so a leaked document UUID cannot bypass the source domain. Hidden and nonexistent sources share one envelope.
+- Out of scope and unchanged: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, payment receipts, accounting exports, payroll documents, OCR or AI extraction, and any client or candidate portal.
+
 ## Closed without merge
 
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -324,9 +340,8 @@ Still requiring their own approved issues: Moroccan payroll; statutory, general-
 
 ## Immediate next actions
 
-1. Review and merge the Issue #48 project-memory reconciliation on branch `docs/reconcile-after-accounting-merge`; it is documentation only.
-2. Start Issue #49, template-driven document and business-output generation, on its own branch from current `main`. Generated outputs must attach to the existing `Document` aggregate as immutable `DocumentVersion` records with `DocumentVersionSource.GENERATED`, never as a second source of truth.
-3. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
+1. Review the Issue #49 draft PR on branch `feat/document-output-generation`; keep it draft/open/unmerged until exact-head CI and review both pass.
+2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules
 

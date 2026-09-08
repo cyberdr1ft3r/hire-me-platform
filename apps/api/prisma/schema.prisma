@@ -396,9 +396,20 @@ enum DocumentType {
   HR_DOCUMENT           @map("hr_document")
   TECHNICAL_TEST_REPORT @map("technical_test_report")
   TRAINING_MATERIAL     @map("training_material")
+  TRAINING_CERTIFICATE  @map("training_certificate")
   MESSAGE_ATTACHMENT    @map("message_attachment")
   CLIENT_FILE           @map("client_file")
   OTHER                 @map("other")
+}
+
+/// Authoritative business record a generated document output was rendered from.
+/// Exactly one matching source relation is set on a generated `Document`.
+enum GeneratedDocumentSource {
+  COMMERCIAL_QUOTATION @map("commercial_quotation")
+  PURCHASE_ORDER       @map("purchase_order")
+  COMMERCIAL_CONTRACT  @map("commercial_contract")
+  INVOICE              @map("invoice")
+  TRAINING_ENROLLMENT  @map("training_enrollment")
 }
 
 enum OutputFamily {
@@ -598,84 +609,84 @@ model User {
 
   roles                               UserRole[]
   clientContact                       ClientContact?
-  commercialOwnedClients              Client[]                   @relation("ClientCommercialOwner")
+  commercialOwnedClients              Client[]                       @relation("ClientCommercialOwner")
   missionRecruiters                   MissionRecruiter[]
-  responsibleMissionCandidates        MissionCandidate[]         @relation("MissionCandidateResponsibleRecruiter")
-  presentedMissionCandidates          MissionCandidate[]         @relation("MissionCandidatePresenter")
-  placementConfirmedMissionCandidates MissionCandidate[]         @relation("MissionCandidatePlacementConfirmer")
-  missionCandidateEvents              MissionCandidateEvent[]    @relation("MissionCandidateEventActor")
-  createdOffers                       RecruitmentOffer[]         @relation("RecruitmentOfferCreator")
-  updatedOffers                       RecruitmentOffer[]         @relation("RecruitmentOfferUpdater")
-  createdOfferVersions                RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionCreator")
-  updatedOfferVersions                RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionUpdater")
-  sentOfferVersions                   RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionSender")
-  respondedOfferVersions              RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionResponder")
-  withdrawnOfferVersions              RecruitmentOfferVersion[]  @relation("RecruitmentOfferVersionWithdrawer")
-  offerEvents                         OfferEvent[]               @relation("OfferEventActor")
-  confirmedPlacements                 MissionPlacement[]         @relation("MissionPlacementConfirmer")
-  correctedPlacements                 MissionPlacement[]         @relation("MissionPlacementCorrector")
-  placementEvents                     PlacementEvent[]           @relation("PlacementEventActor")
-  organizedInterviews                 Interview[]                @relation("InterviewOrganizer")
-  interviewParticipants               InterviewParticipant[]     @relation("InterviewParticipantUser")
-  interviewEvents                     InterviewEvent[]           @relation("InterviewEventActor")
-  candidateEvaluations                CandidateEvaluation[]      @relation("EvaluationAuthor")
-  assignedTasks                       Task[]                     @relation("TaskAssignee")
-  createdTasks                        Task[]                     @relation("TaskCreator")
-  ownedTasks                          Task[]                     @relation("TaskOwner")
-  completedTasks                      Task[]                     @relation("TaskCompleter")
-  canceledTasks                       Task[]                     @relation("TaskCanceler")
-  reopenedTasks                       Task[]                     @relation("TaskReopener")
-  archivedTasks                       Task[]                     @relation("TaskArchiver")
-  taskAssignments                     TaskAssignment[]           @relation("TaskAssignmentUser")
-  createdTaskAssignments              TaskAssignment[]           @relation("TaskAssignmentCreator")
-  removedTaskAssignments              TaskAssignment[]           @relation("TaskAssignmentRemover")
-  authoredTaskComments                TaskComment[]              @relation("TaskCommentAuthor")
-  editedTaskComments                  TaskComment[]              @relation("TaskCommentEditor")
-  archivedTaskComments                TaskComment[]              @relation("TaskCommentArchiver")
-  receivedTaskMentions                TaskMention[]              @relation("TaskMentionUser")
-  createdTaskMentions                 TaskMention[]              @relation("TaskMentionCreator")
-  receivedTaskReminders               TaskReminder[]             @relation("TaskReminderRecipient")
-  createdTaskReminders                TaskReminder[]             @relation("TaskReminderCreator")
-  canceledTaskReminders               TaskReminder[]             @relation("TaskReminderCanceler")
-  taskEvents                          TaskEvent[]                @relation("TaskEventActor")
-  ownedDocuments                      Document[]                 @relation("DocumentOwner")
-  createdDocuments                    Document[]                 @relation("DocumentCreator")
-  createdDocumentVersions             DocumentVersion[]          @relation("DocumentVersionCreator")
-  uploadedCandidateDocuments          CandidateDocument[]        @relation("CandidateDocumentUploader")
-  createdCandidateDocumentVersions    CandidateDocumentVersion[] @relation("CandidateDocumentVersionCreator")
-  notifications                       Notification[]             @relation("NotificationRecipient")
-  authoredNotifications               Notification[]             @relation("NotificationActor")
-  archivedNotifications               Notification[]             @relation("NotificationArchiver")
-  authoredMessages                    Message[]                  @relation("MessageAuthor")
+  responsibleMissionCandidates        MissionCandidate[]             @relation("MissionCandidateResponsibleRecruiter")
+  presentedMissionCandidates          MissionCandidate[]             @relation("MissionCandidatePresenter")
+  placementConfirmedMissionCandidates MissionCandidate[]             @relation("MissionCandidatePlacementConfirmer")
+  missionCandidateEvents              MissionCandidateEvent[]        @relation("MissionCandidateEventActor")
+  createdOffers                       RecruitmentOffer[]             @relation("RecruitmentOfferCreator")
+  updatedOffers                       RecruitmentOffer[]             @relation("RecruitmentOfferUpdater")
+  createdOfferVersions                RecruitmentOfferVersion[]      @relation("RecruitmentOfferVersionCreator")
+  updatedOfferVersions                RecruitmentOfferVersion[]      @relation("RecruitmentOfferVersionUpdater")
+  sentOfferVersions                   RecruitmentOfferVersion[]      @relation("RecruitmentOfferVersionSender")
+  respondedOfferVersions              RecruitmentOfferVersion[]      @relation("RecruitmentOfferVersionResponder")
+  withdrawnOfferVersions              RecruitmentOfferVersion[]      @relation("RecruitmentOfferVersionWithdrawer")
+  offerEvents                         OfferEvent[]                   @relation("OfferEventActor")
+  confirmedPlacements                 MissionPlacement[]             @relation("MissionPlacementConfirmer")
+  correctedPlacements                 MissionPlacement[]             @relation("MissionPlacementCorrector")
+  placementEvents                     PlacementEvent[]               @relation("PlacementEventActor")
+  organizedInterviews                 Interview[]                    @relation("InterviewOrganizer")
+  interviewParticipants               InterviewParticipant[]         @relation("InterviewParticipantUser")
+  interviewEvents                     InterviewEvent[]               @relation("InterviewEventActor")
+  candidateEvaluations                CandidateEvaluation[]          @relation("EvaluationAuthor")
+  assignedTasks                       Task[]                         @relation("TaskAssignee")
+  createdTasks                        Task[]                         @relation("TaskCreator")
+  ownedTasks                          Task[]                         @relation("TaskOwner")
+  completedTasks                      Task[]                         @relation("TaskCompleter")
+  canceledTasks                       Task[]                         @relation("TaskCanceler")
+  reopenedTasks                       Task[]                         @relation("TaskReopener")
+  archivedTasks                       Task[]                         @relation("TaskArchiver")
+  taskAssignments                     TaskAssignment[]               @relation("TaskAssignmentUser")
+  createdTaskAssignments              TaskAssignment[]               @relation("TaskAssignmentCreator")
+  removedTaskAssignments              TaskAssignment[]               @relation("TaskAssignmentRemover")
+  authoredTaskComments                TaskComment[]                  @relation("TaskCommentAuthor")
+  editedTaskComments                  TaskComment[]                  @relation("TaskCommentEditor")
+  archivedTaskComments                TaskComment[]                  @relation("TaskCommentArchiver")
+  receivedTaskMentions                TaskMention[]                  @relation("TaskMentionUser")
+  createdTaskMentions                 TaskMention[]                  @relation("TaskMentionCreator")
+  receivedTaskReminders               TaskReminder[]                 @relation("TaskReminderRecipient")
+  createdTaskReminders                TaskReminder[]                 @relation("TaskReminderCreator")
+  canceledTaskReminders               TaskReminder[]                 @relation("TaskReminderCanceler")
+  taskEvents                          TaskEvent[]                    @relation("TaskEventActor")
+  ownedDocuments                      Document[]                     @relation("DocumentOwner")
+  createdDocuments                    Document[]                     @relation("DocumentCreator")
+  createdDocumentVersions             DocumentVersion[]              @relation("DocumentVersionCreator")
+  uploadedCandidateDocuments          CandidateDocument[]            @relation("CandidateDocumentUploader")
+  createdCandidateDocumentVersions    CandidateDocumentVersion[]     @relation("CandidateDocumentVersionCreator")
+  notifications                       Notification[]                 @relation("NotificationRecipient")
+  authoredNotifications               Notification[]                 @relation("NotificationActor")
+  archivedNotifications               Notification[]                 @relation("NotificationArchiver")
+  authoredMessages                    Message[]                      @relation("MessageAuthor")
   conversationMemberships             ConversationMember[]
-  trainingEnrollments                 TrainingEnrollment[]       @relation("UserTrainingEnrollment")
-  trainingEnrollmentsCreated          TrainingEnrollment[]       @relation("TrainingEnrollmentCreator")
+  trainingEnrollments                 TrainingEnrollment[]           @relation("UserTrainingEnrollment")
+  trainingEnrollmentsCreated          TrainingEnrollment[]           @relation("TrainingEnrollmentCreator")
   trainingParticipationsRecorded      TrainingSessionParticipation[] @relation("TrainingParticipationRecorder")
-  trainingProgramsOwned               TrainingProgram[]          @relation("TrainingProgramOwner")
-  trainingSessionsTrained             TrainingSession[]          @relation("TrainingSessionTrainer")
-  createdCommercialQuotations         CommercialQuotation[]      @relation("CommercialQuotationCreator")
-  updatedCommercialQuotations         CommercialQuotation[]      @relation("CommercialQuotationUpdater")
-  commercialQuotationEvents           CommercialQuotationEvent[] @relation("CommercialQuotationEventActor")
-  createdCommercialContracts          CommercialContract[]       @relation("CommercialContractCreator")
-  updatedCommercialContracts          CommercialContract[]       @relation("CommercialContractUpdater")
-  commercialContractEvents            CommercialContractEvent[]  @relation("CommercialContractEventActor")
-  createdPurchaseOrders               PurchaseOrder[]            @relation("PurchaseOrderCreator")
-  updatedPurchaseOrders               PurchaseOrder[]            @relation("PurchaseOrderUpdater")
-  purchaseOrderEvents                 PurchaseOrderEvent[]       @relation("PurchaseOrderEventActor")
-  createdInvoices                     Invoice[]                  @relation("InvoiceCreator")
-  updatedInvoices                     Invoice[]                  @relation("InvoiceUpdater")
-  canceledInvoices                    Invoice[]                  @relation("InvoiceCanceler")
-  invoiceEvents                       InvoiceEvent[]             @relation("InvoiceEventActor")
-  recordedPayments                    Payment[]                  @relation("PaymentRecorder")
-  updatedPayments                     Payment[]                  @relation("PaymentUpdater")
-  paymentEvents                       PaymentEvent[]             @relation("PaymentEventActor")
-  allocatedPaymentAllocations         PaymentAllocation[]        @relation("PaymentAllocationActor")
-  reversedPaymentAllocations          PaymentAllocation[]        @relation("PaymentAllocationReverser")
-  createdExpenses                     Expense[]                  @relation("ExpenseCreator")
-  updatedExpenses                     Expense[]                  @relation("ExpenseUpdater")
-  expenseEvents                       ExpenseEvent[]             @relation("ExpenseEventActor")
-  auditLogs                           AuditLog[]                 @relation("AuditActor")
-  targetedAuditLogs                   AuditLog[]                 @relation("AuditTargetUser")
+  trainingProgramsOwned               TrainingProgram[]              @relation("TrainingProgramOwner")
+  trainingSessionsTrained             TrainingSession[]              @relation("TrainingSessionTrainer")
+  createdCommercialQuotations         CommercialQuotation[]          @relation("CommercialQuotationCreator")
+  updatedCommercialQuotations         CommercialQuotation[]          @relation("CommercialQuotationUpdater")
+  commercialQuotationEvents           CommercialQuotationEvent[]     @relation("CommercialQuotationEventActor")
+  createdCommercialContracts          CommercialContract[]           @relation("CommercialContractCreator")
+  updatedCommercialContracts          CommercialContract[]           @relation("CommercialContractUpdater")
+  commercialContractEvents            CommercialContractEvent[]      @relation("CommercialContractEventActor")
+  createdPurchaseOrders               PurchaseOrder[]                @relation("PurchaseOrderCreator")
+  updatedPurchaseOrders               PurchaseOrder[]                @relation("PurchaseOrderUpdater")
+  purchaseOrderEvents                 PurchaseOrderEvent[]           @relation("PurchaseOrderEventActor")
+  createdInvoices                     Invoice[]                      @relation("InvoiceCreator")
+  updatedInvoices                     Invoice[]                      @relation("InvoiceUpdater")
+  canceledInvoices                    Invoice[]                      @relation("InvoiceCanceler")
+  invoiceEvents                       InvoiceEvent[]                 @relation("InvoiceEventActor")
+  recordedPayments                    Payment[]                      @relation("PaymentRecorder")
+  updatedPayments                     Payment[]                      @relation("PaymentUpdater")
+  paymentEvents                       PaymentEvent[]                 @relation("PaymentEventActor")
+  allocatedPaymentAllocations         PaymentAllocation[]            @relation("PaymentAllocationActor")
+  reversedPaymentAllocations          PaymentAllocation[]            @relation("PaymentAllocationReverser")
+  createdExpenses                     Expense[]                      @relation("ExpenseCreator")
+  updatedExpenses                     Expense[]                      @relation("ExpenseUpdater")
+  expenseEvents                       ExpenseEvent[]                 @relation("ExpenseEventActor")
+  auditLogs                           AuditLog[]                     @relation("AuditActor")
+  targetedAuditLogs                   AuditLog[]                     @relation("AuditTargetUser")
   passwordCredential                  PasswordCredential?
   refreshSessions                     RefreshSession[]
 
@@ -1819,27 +1830,27 @@ model TrainingProgram {
 }
 
 model TrainingSession {
-  id                  String                @id @default(uuid()) @db.Uuid
-  trainingProgramId   String                @db.Uuid
-  trainerUserId       String?               @db.Uuid
-  title               String
-  sequence            Int?
-  scheduledAt         DateTime
-  scheduledEndAt      DateTime
-  deliveryMode        TrainingDeliveryMode  @default(ONSITE)
-  status              TrainingSessionStatus @default(SESSION_PLANNED)
-  location            String?
-  meetingUrl          String?
-  outcome             String?
-  rescheduleCount      Int                  @default(0)
+  id                   String                @id @default(uuid()) @db.Uuid
+  trainingProgramId    String                @db.Uuid
+  trainerUserId        String?               @db.Uuid
+  title                String
+  sequence             Int?
+  scheduledAt          DateTime
+  scheduledEndAt       DateTime
+  deliveryMode         TrainingDeliveryMode  @default(ONSITE)
+  status               TrainingSessionStatus @default(SESSION_PLANNED)
+  location             String?
+  meetingUrl           String?
+  outcome              String?
+  rescheduleCount      Int                   @default(0)
   previousScheduledAt  DateTime?
   lastRescheduledAt    DateTime?
   lastRescheduleReason String?
-  canceledAt          DateTime?
-  cancellationReason  String?
-  archivedAt          DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  canceledAt           DateTime?
+  cancellationReason   String?
+  archivedAt           DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   program        TrainingProgram                @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
   trainer        User?                          @relation("TrainingSessionTrainer", fields: [trainerUserId], references: [id], onDelete: SetNull)
@@ -1950,42 +1961,59 @@ model ExternalTrainingParticipant {
 }
 
 model Document {
-  id                   String             @id @default(uuid()) @db.Uuid
-  title                String
-  documentType         DocumentType
-  currentVersionId     String?            @unique @db.Uuid
-  visibility           DocumentVisibility @default(INTERNAL_ONLY)
-  generated            Boolean            @default(false)
-  outputFamily         OutputFamily?
-  ownerUserId          String?            @db.Uuid
-  createdByUserId      String?            @db.Uuid
-  candidateId          String?            @db.Uuid
-  clientId             String?            @db.Uuid
-  recruitmentMissionId String?            @db.Uuid
-  missionCandidateId   String?            @db.Uuid
-  interviewId          String?            @db.Uuid
-  trainingSessionId    String?            @db.Uuid
-  trainingEnrollmentId String?            @db.Uuid
-  messageId            String?            @db.Uuid
-  status               DocumentStatus     @default(DRAFT)
-  archivedAt           DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                    String                   @id @default(uuid()) @db.Uuid
+  title                 String
+  documentType          DocumentType
+  currentVersionId      String?                  @unique @db.Uuid
+  visibility            DocumentVisibility       @default(INTERNAL_ONLY)
+  generated             Boolean                  @default(false)
+  outputFamily          OutputFamily?
+  ownerUserId           String?                  @db.Uuid
+  createdByUserId       String?                  @db.Uuid
+  candidateId           String?                  @db.Uuid
+  // Issue #49 generated business outputs. `generatedSourceType` names the single
+  // authoritative source relation, and `generatedDocumentKey` is the deterministic
+  // logical identity of one source/output-family/language document so concurrent first
+  // generations converge on one logical record instead of racing into duplicates.
+  generatedSourceType   GeneratedDocumentSource?
+  generatedDocumentKey  String?                  @unique
+  generatedLanguage     String?
+  commercialQuotationId String?                  @db.Uuid
+  commercialContractId  String?                  @db.Uuid
+  purchaseOrderId       String?                  @db.Uuid
+  invoiceId             String?                  @db.Uuid
+  clientId              String?                  @db.Uuid
+  recruitmentMissionId  String?                  @db.Uuid
+  missionCandidateId    String?                  @db.Uuid
+  interviewId           String?                  @db.Uuid
+  trainingSessionId     String?                  @db.Uuid
+  trainingEnrollmentId  String?                  @db.Uuid
+  messageId             String?                  @db.Uuid
+  status                DocumentStatus           @default(DRAFT)
+  archivedAt            DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
 
-  owner              User?               @relation("DocumentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy          User?               @relation("DocumentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  candidate          Candidate?          @relation(fields: [candidateId], references: [id], onDelete: SetNull)
-  client             Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  recruitmentMission RecruitmentMission? @relation(fields: [recruitmentMissionId], references: [id], onDelete: SetNull)
-  missionCandidate   MissionCandidate?   @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
-  interview          Interview?          @relation(fields: [interviewId], references: [id], onDelete: SetNull)
-  trainingSession    TrainingSession?    @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
-  trainingEnrollment TrainingEnrollment? @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
-  message            Message?            @relation(fields: [messageId], references: [id], onDelete: SetNull)
-  versions           DocumentVersion[]   @relation("DocumentVersions")
-  currentVersion     DocumentVersion?    @relation("CurrentDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
-  tasks              Task[]
-  notifications      Notification[]
+  owner               User?                @relation("DocumentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy           User?                @relation("DocumentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  candidate           Candidate?           @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  recruitmentMission  RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: SetNull)
+  missionCandidate    MissionCandidate?    @relation(fields: [missionCandidateId], references: [id], onDelete: SetNull)
+  interview           Interview?           @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  trainingSession     TrainingSession?     @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
+  trainingEnrollment  TrainingEnrollment?  @relation(fields: [trainingEnrollmentId], references: [id], onDelete: SetNull)
+  message             Message?             @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  // Restrict, never cascade: archiving or deleting a commercial source must never
+  // destroy the generated file history that documents what was sent to a client.
+  commercialQuotation CommercialQuotation? @relation("GeneratedQuotationDocument", fields: [commercialQuotationId], references: [id], onDelete: Restrict)
+  commercialContract  CommercialContract?  @relation("GeneratedContractDocument", fields: [commercialContractId], references: [id], onDelete: Restrict)
+  purchaseOrder       PurchaseOrder?       @relation("GeneratedPurchaseOrderDocument", fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  invoice             Invoice?             @relation("GeneratedInvoiceDocument", fields: [invoiceId], references: [id], onDelete: Restrict)
+  versions            DocumentVersion[]    @relation("DocumentVersions")
+  currentVersion      DocumentVersion?     @relation("CurrentDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  tasks               Task[]
+  notifications       Notification[]
 
   @@index([visibility])
   @@index([status])
@@ -1995,6 +2023,12 @@ model Document {
   @@index([recruitmentMissionId])
   @@index([missionCandidateId])
   @@index([messageId])
+  @@index([trainingEnrollmentId])
+  @@index([commercialQuotationId])
+  @@index([commercialContractId])
+  @@index([purchaseOrderId])
+  @@index([invoiceId])
+  @@index([generatedSourceType])
 }
 
 model CommercialQuotation {
@@ -2024,6 +2058,7 @@ model CommercialQuotation {
   contracts          CommercialContract[]
   purchaseOrders     PurchaseOrder[]
   invoices           Invoice[]
+  generatedDocuments Document[]                 @relation("GeneratedQuotationDocument")
 
   @@index([clientId])
   @@index([recruitmentMissionId])
@@ -2104,6 +2139,7 @@ model CommercialContract {
   events             CommercialContractEvent[]
   purchaseOrders     PurchaseOrder[]
   invoices           Invoice[]
+  generatedDocuments Document[]                @relation("GeneratedContractDocument")
 
   @@index([clientId])
   @@index([recruitmentMissionId])
@@ -2162,6 +2198,7 @@ model PurchaseOrder {
   updatedBy          User?                @relation("PurchaseOrderUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   events             PurchaseOrderEvent[]
   invoices           Invoice[]
+  generatedDocuments Document[]           @relation("GeneratedPurchaseOrderDocument")
 
   @@index([clientId])
   @@index([recruitmentMissionId])
@@ -2233,6 +2270,7 @@ model Invoice {
   lines               InvoiceLine[]
   events              InvoiceEvent[]
   paymentAllocations  PaymentAllocation[]
+  generatedDocuments  Document[]           @relation("GeneratedInvoiceDocument")
 
   @@index([clientId])
   @@index([recruitmentMissionId])
@@ -2287,22 +2325,29 @@ model InvoiceEvent {
 }
 
 model DocumentVersion {
-  id               String                @id @default(uuid()) @db.Uuid
-  documentId       String                @db.Uuid
-  versionNumber    Int
-  filename         String
-  originalFilename String?
-  storageKey       String                @unique
-  mimeType         String
-  sizeBytes        BigInt
-  checksumSha256   String?
-  outputFamily     OutputFamily?
-  createdByUserId  String?               @db.Uuid
-  source           DocumentVersionSource
-  status           DocumentStatus        @default(ACTIVE)
-  archivedAt       DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  id                       String                @id @default(uuid()) @db.Uuid
+  documentId               String                @db.Uuid
+  versionNumber            Int
+  filename                 String
+  originalFilename         String?
+  storageKey               String                @unique
+  mimeType                 String
+  sizeBytes                BigInt
+  checksumSha256           String?
+  outputFamily             OutputFamily?
+  createdByUserId          String?               @db.Uuid
+  source                   DocumentVersionSource
+  // Issue #49 bounded generation provenance. Records which code-owned template and
+  // template version produced these exact bytes, so a later template change can never
+  // change how an already-generated historical file is explained.
+  templateId               String?
+  templateVersion          Int?
+  generationLanguage       String?
+  generationIdempotencyKey String?               @unique
+  status                   DocumentStatus        @default(ACTIVE)
+  archivedAt               DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
 
   document   Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
   currentFor Document? @relation("CurrentDocumentVersion")
@@ -2446,23 +2491,23 @@ model AuditLog {
 /// total plus active allocations; no denormalized paid flag is stored, so a payment
 /// can never mark an invoice paid merely by existing.
 model Payment {
-  id                    String              @id @default(uuid()) @db.Uuid
-  reference             String              @unique
-  clientId              String              @db.Uuid
-  receivedDate          DateTime
-  currency              String
-  amountCents           Int
-  method                PaymentMethod
-  externalReference     String?
-  note                  String?
-  status                PaymentRecordStatus @default(RECORDED)
-  correctedAt           DateTime?
-  correctionReason      String?
-  recordedByUserId      String?             @db.Uuid
-  updatedByUserId       String?             @db.Uuid
-  archivedAt            DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                String              @id @default(uuid()) @db.Uuid
+  reference         String              @unique
+  clientId          String              @db.Uuid
+  receivedDate      DateTime
+  currency          String
+  amountCents       Int
+  method            PaymentMethod
+  externalReference String?
+  note              String?
+  status            PaymentRecordStatus @default(RECORDED)
+  correctedAt       DateTime?
+  correctionReason  String?
+  recordedByUserId  String?             @db.Uuid
+  updatedByUserId   String?             @db.Uuid
+  archivedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   client      Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
   recordedBy  User?               @relation("PaymentRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)

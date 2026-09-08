@@ -764,6 +764,48 @@ minus directly linked operational expenses, separated per currency.
 - Payroll cost allocation, statutory, accrual and tax accounting, depreciation, and FX
   conversion are all out of scope.
 
+## Business Output Generation Workflow
+
+Issue #49 turns approved business records into managed generated files. It does not
+remodel any business record: a generated file is an output snapshot, never a second
+source of truth.
+
+### Output families
+
+- Commercial quotation, purchase order, recruitment contract, training contract, and
+  issued invoice, plus a training certificate for a certificate-ready enrollment.
+- Each renders as PDF or Word-compatible DOCX, in French or English.
+- Excel generation, candidate summaries, interview reports, generic HR templates, an
+  arbitrary template editor, e-signature, and any delivery channel remain out of scope.
+
+### Generation rules
+
+- Generation requires the dedicated `documents:generate` capability **and** the source
+  domain's own read authorization. A commercial output additionally requires
+  `commercial_data:access` and the merged client and mission record scope; a certificate
+  requires the merged training program visibility rule and the participant's own
+  source-domain read capability before a participant name is rendered.
+- Eligibility follows merged lifecycle semantics. A quotation must be issued, accepted,
+  rejected, or expired. A purchase order or contract must not be canceled or archived.
+  Only an issued, non-canceled, non-archived invoice produces an invoice output. A
+  certificate reuses the training readiness boundary, so `not_applicable` is refused and
+  generating a file never transitions the enrollment.
+- The renderer receives one authoritative server-side snapshot and never queries the
+  database itself. Issued invoice lines and totals are copied exactly as persisted; no
+  amount is recomputed and placement eligibility is never re-evaluated.
+- Templates are code-owned. There is no template language, no markup, no evaluation, no
+  uploaded template, and no remote fetch, so a business value can never be interpreted.
+  Every generated version records the exact template identity and version used.
+- One logical document exists per source record, output family, and language. The first
+  generation creates version 1 and an intentional regeneration adds version N+1; a
+  historical version and its bytes are never overwritten.
+- Requests carry an idempotency key. The same key with the same effective request returns
+  the original version; the same key against a different source, family, language, or
+  template is a deterministic conflict.
+- Generated-document reads and downloads, including historical versions, re-authorize the
+  underlying business record at request time. A leaked document identifier never bypasses
+  the source domain, and hidden and nonexistent sources are indistinguishable.
+
 ## Transition Rules
 
 - Only authorized internal users can transition workflow states.

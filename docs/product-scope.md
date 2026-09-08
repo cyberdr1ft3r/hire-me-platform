@@ -63,6 +63,7 @@ The first implementation phase should provide a single-developer MVP foundation 
 - Support training participation for candidates, employees or users, client contacts, and external participants through `TrainingEnrollment`.
 - Require authenticated internal accounts for trainers and internal training operators.
 - Treat training participants as business records that do not require accounts by default.
+- Generate business output files from approved structured records. Issue #49 implements PDF and Word-compatible generation for commercial quotations, purchase orders, recruitment and training contracts, issued invoices, and training certificates, in French or English, stored as immutable document versions. Excel generation, e-signature, delivery channels, and an arbitrary template editor remain later scope.
 - Manage commercial operational records in scoped increments. Issue #38 implements quotations, recruitment and training commercial contracts, purchase orders, invoices, and VAT or tax fields on those records. Issue #39 adds payments, payment allocation, partial payment and overdue settlement state, operational expenses, currency-separated client balances, and operational profitability based on issued invoice revenue. Full statutory accounting, payroll, and FX conversion remain later scope.
 - Provide customizable dashboards with confirmed first metrics: active missions, candidates presented to clients, successful placements, upcoming tasks, and revenue.
 - Provide advanced multi-criteria search, customizable reporting views, and exportable reports.

@@ -2,6 +2,7 @@ import {
   CandidateDocumentType,
   DocumentType,
   DocumentVersionSource,
+  OutputFamily,
   DocumentVisibility,
   MissionRecruiterRole,
   Prisma,
@@ -336,8 +337,14 @@ describe('foundational Prisma schema', () => {
         storageKey: 'documents/synthetic-candidate-summary-v1',
         mimeType: 'application/pdf',
         sizeBytes: BigInt(2048),
+        checksumSha256: 'a'.repeat(64),
+        outputFamily: OutputFamily.PDF,
         createdByUserId: owner.id,
         source: DocumentVersionSource.GENERATED,
+        // Issue #49 requires bounded provenance on every generated version.
+        templateId: 'synthetic.template',
+        templateVersion: 1,
+        generationLanguage: 'fr',
       },
     });
 
@@ -355,8 +362,13 @@ describe('foundational Prisma schema', () => {
           storageKey: 'documents/synthetic-candidate-summary-v1',
           mimeType: 'application/pdf',
           sizeBytes: BigInt(2048),
+          checksumSha256: 'b'.repeat(64),
+          outputFamily: OutputFamily.PDF,
           createdByUserId: owner.id,
           source: DocumentVersionSource.GENERATED,
+          templateId: 'synthetic.template',
+          templateVersion: 1,
+          generationLanguage: 'fr',
         },
       }),
     ).rejects.toSatisfy((error: unknown) => {

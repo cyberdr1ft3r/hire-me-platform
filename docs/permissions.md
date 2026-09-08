@@ -528,6 +528,30 @@ and `HR_MANAGER` receive `payments:view` and `expenses:view`, matching how the m
 commercial permissions were seeded: they can see that records exist while amounts stay
 behind `commercial_data:access`. All other roles receive no accounting permissions.
 
+## Implemented Generation Permission
+
+| Permission | Implemented use |
+| --- | --- |
+| `documents:generate` | Generate an official business output file from an authoritative business record within an authorized scope. |
+
+Generation authorization is always the generation capability **plus** the source domain's
+own rule, never the document capability alone. A commercial output requires the matching
+`quotations:view`, `purchase_orders:view`, `contracts:view`, or `invoices:view`, plus
+`commercial_data:access` and the merged client and mission record scope. A training
+certificate requires `training_enrollments:view`, the merged training program visibility
+rule, and the participant's own source-domain read capability before a participant name is
+rendered.
+
+Reading a generated document, listing its versions, and downloading a current or
+historical version all re-authorize the underlying business record at request time, and
+the same rule is applied as a row-level predicate to document listing. A leaked document
+identifier therefore never becomes a path into a commercial record or training enrollment
+that the source domain hides, and hidden and nonexistent sources return the same envelope.
+
+Development seed mapping gives `documents:generate` to `SUPER_ADMIN`, `ADMIN`, and
+`HR_MANAGER`, which are the roles that already hold the full document set together with
+the commercial and training read capabilities the generation path re-checks.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.
