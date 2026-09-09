@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Phase 7 template-driven document and business-output generation, on top of the complete Phase 8 commercial and accounting foundations.
-**Health:** `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 project-memory reconciliation (PR #50). Issue #49 is implemented on branch `feat/document-output-generation` from that exact main, in a draft PR.
-**Current blocker:** Two ChatGPT reviews of Issue #49 draft PR #51 returned four then three blocking findings. All seven are fixed on the branch; the PR now awaits the final merge gate and exact-head GitHub Actions.
-**Next executable development task:** Review the Issue #49 draft PR; keep it draft/open/unmerged.
+**Phase:** HireMe UI/UX v1 Phase 1 foundation, on top of the merged document-output, commercial, and accounting foundations.
+**Health:** `main` is at `e2879b38c54dcc1b42b85aa345680260487454dc`, the merge commit for Issue #49 / PR #51. Issue #52 Phase 1 is implemented on branch `design/ui-ux-v1` for maintainer visual review.
+**Current blocker:** Maintainer visual approval of the UI-DNA and development-only preview is required before any representative production surface or AppShell rollout begins.
+**Next executable development task:** Review the Issue #52 Phase 1 preview; keep its draft PR open/unmerged and do not start representative surfaces until approval.
 
 ## Active work
 
@@ -34,7 +34,8 @@ Status owner: repository maintainer
 | Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Merged via PR #46 into `main` as `e1976f8a4b888657abe74c40ddf99c730032934a` |
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
-| Issue #49 | Open | Implement template-driven document and business-output generation | Implemented on branch `feat/document-output-generation`; keep the draft PR open/unmerged |
+| Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Phase 1 foundation implemented on `design/ui-ux-v1`; preview awaits maintainer approval; representative surfaces not started |
 
 ## Completed foundation work
 
@@ -347,6 +348,16 @@ The ChatGPT final gate, on head `78620f2a5de640d0a66dbc469aa3334b96fab991`, retu
 
 Hardening in the same pass: the shared-lock helper no longer takes a table name as text and no longer uses `$queryRawUnsafe`; a closed `LockableTable` union selects a written-out parameterized statement per table, so no caller can route text into SQL. The unused `pdf-lib` dependency is removed and `fontkit` becomes a direct dependency, since the registry now uses it at runtime.
 
+## Issue #52 Phase 1 Foundation State
+
+- Branch `design/ui-ux-v1` started from authoritative `main` `e2879b38c54dcc1b42b85aa345680260487454dc` and contains only the first approved checkpoint.
+- `docs/design/HIREME_UI_DNA.md` is the canonical visual source of truth. It defines exact semantic colors, type, spacing, radii, borders, elevation, motion, density, responsive behavior, interaction states, composition, data-visualization, accessibility, raw-value, and future dark-mode rules.
+- Web CSS is layered through `tokens.css`, `reset.css`, `base.css`, `components.css`, and `utilities.css`; the root stylesheet is an import entry. Raw color literals outside `tokens.css` fail `pnpm check:styles`, which also calculates the required WCAG contrast pairings.
+- The restrained deep teal brand descends from the historical app color and is paired with neutral-first surfaces. Internal compact, internal standard, and public spacious contexts use the same identity with different control and spacing rhythms.
+- The foundation set is limited to Button, field/input/select/checkbox controls, StatusBadge, InlineMessage, Skeleton, and EmptyState. No component framework or new dependency was added.
+- `apps/web/design-system.html` is a development-only, synthetic, API-free preview entry and is not linked from production navigation or included in the normal production build entry.
+- Candidate workspace, Recruitment/Reporting dashboard, Public Opportunity, and AppShell rollout remain intentionally untouched and must not start until maintainer visual approval.
+
 ## Closed without merge
 
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -371,8 +382,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Final review of the Issue #49 draft PR on branch `feat/document-output-generation` after two rounds of review blockers were fixed; keep it draft/open/unmerged.
-2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
+1. Visually review the Issue #52 Phase 1 preview on branch `design/ui-ux-v1`; keep the draft PR open/unmerged.
+2. After explicit approval only, continue Issue #52 with the next reviewed representative-surface checkpoint. Candidate, Recruitment/Reporting, Public Opportunity, and AppShell work has not started.
 
 ## Status Update Rules
 

@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -111,6 +111,16 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 - Customizable dashboard indicators, reports, and exports (broader dashboards beyond Issue #36 recruitment reporting).
 - Private messages and discussion groups.
 - Protected document access and sharing.
+
+## Phase 7a - HireMe UI/UX v1
+
+**State:** Phase 1 foundation implemented under Issue #52; awaiting maintainer visual approval
+
+- Canonical HireMe UI-DNA, semantic CSS tokens, typography, spacing, radius, elevation, motion, density, responsive, interaction, composition, data-visualization, accessibility, and raw-value rules.
+- Development-only, synthetic, API-free preview and the minimum primitives needed to review the visual language.
+- Internal compact, internal standard, and public spacious expressions share one brand and semantic system.
+- Hard stop before the Candidate workspace, Recruitment/Reporting dashboard, Public Opportunity experience, AppShell rollout, or broader production migration.
+- After explicit visual approval, continue Issue #52 through separately reviewed representative-surface checkpoints; broader module rollout remains follow-up work.
 
 ## Phase 8 - Commercial and operational accounting
 

@@ -4,86 +4,59 @@ Last updated: 2026-09-09
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
-## Current Situation
+## Current situation
 
-- `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 reconciliation (PR #50).
-- Issue #49 is implemented on branch `feat/document-output-generation`, branched from that exact `main`, and opened as a draft PR.
-- Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), Issue #38 (PR #46), and Issue #39 (PR #47) are all merged. Issue #12 is complete through the merged document foundation, and Issue #33 is closed.
-- Issue #39 is complete. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a`, and exact-head GitHub Actions run `34213661408` succeeded on Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 263 PostgreSQL integration tests across 16 files.
-- PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
-- Phase 8 commercial and operational accounting is complete through Issues #38 and #39.
+- Authoritative `main` is `e2879b38c54dcc1b42b85aa345680260487454dc`, the merge commit for Issue #49 / PR #51.
+- Issue #52 is open on branch `design/ui-ux-v1`, created from that exact `main`.
+- Issue #52 Task 1 / Phase 1 establishes only the HireMe UI-DNA and implementation foundation. It does not redesign production surfaces.
+- The canonical visual source of truth is `docs/design/HIREME_UI_DNA.md`.
+- CSS is layered through `apps/web/src/styles.css` into tokens, reset, base, components, and utilities. Raw colors outside the canonical token file and required contrast failures are rejected by `pnpm check:styles`, which is also invoked by `pnpm check:architecture`.
+- The foundation component set is intentionally small: Button, field/input/select/checkbox controls, StatusBadge, InlineMessage, Skeleton, and EmptyState.
+- `apps/web/design-system.html` is an isolated development-only preview containing synthetic data and no API imports or calls. It is absent from production navigation and is not the normal production build entry.
 
-## Merged Accounting Behavior To Preserve
+## Visual direction to preserve
 
-- Invoice settlement is derived, never stored: the immutable issued invoice total plus active allocations. A payment never marks an invoice paid merely by existing. States are not-receivable, unpaid, partially paid, paid, and overdue.
-- Profitability follows decision D-053: eligible issued invoice revenue minus directly linked operational expenses, excluding canceled and archived invoices. Received or allocated cash is exposed separately through settlement and receivables and is never the profitability basis.
-- Every aggregate is separated per currency. There is no FX conversion anywhere.
-- An invoice with active payment allocations cannot be canceled; the operator must reverse the allocations explicitly first. Allocations are never auto-reversed or deleted.
-- Financial mutations lock rows in the fixed order client, payment, invoice, allocation.
-- Accounting authorization combines the accounting capability, `commercial_data:access` for any financial amount, and the underlying source scope. Aggregates fail closed rather than returning redacted shells, and hidden, out-of-scope, and nonexistent identifiers share one `ACCOUNTING_RECORD_NOT_FOUND` envelope. Lists and aggregates apply the same source-scope rule as the detail paths.
-- Training-linked accounting records follow the merged training source rule; placement-linked records additionally require `placements:view`.
-- Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns; response-side totals are uncapped. Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
+- Calm, trustworthy, professional, mature, and efficient.
+- Neutral-first surfaces with a restrained deep teal brand descended from the historical app accent.
+- Strong typography, subtle borders, rare overlay-only shadows, moderate radii, compact functional areas, and generous page whitespace.
+- Three expressions share one system: internal compact, internal standard, and public spacious.
+- Avoid nested card soup, arbitrary raw values, gradients, glassmorphism, module rainbows, decorative motion, and giant rounded containers.
+- Target WCAG 2.2 AA with native semantics, explicit labels/errors, visible focus, textual status meaning, reduced motion, and touch-appropriate targets.
 
-## Merged Generation Behavior To Preserve
+## Next action
 
-- Structured business records stay authoritative. A generated file is an output snapshot published as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, never a second mutable record.
-- One logical document exists per source record, output family, and language, keyed by a unique `generatedDocumentKey`. Regeneration adds version N+1; a historical version and its bytes are never overwritten.
-- Templates are code-owned TypeScript functions over a neutral, data-only renderable document. No template language, no HTML, no evaluation, no uploaded template, and no remote fetch. Every generated version records the exact `templateId` and `templateVersion` used, so a later template change cannot re-explain an existing file.
-- Renderers are pure JavaScript (`pdfkit` with `fontkit` shaping, `bidi-js` for UAX #9 ordering, and `docx`) over repository-owned Noto faces. No native binary, browser, office suite, shell, or runtime asset fetch is involved.
-- Issued invoice outputs copy the immutable issued lines and totals verbatim; nothing is recomputed and placement eligibility is never re-evaluated.
-- Certificate generation reuses the merged training readiness rule and never transitions the enrollment. Certificate issuance stays the explicit audited training action.
-- Generation requires `documents:generate` plus the source domain's own rule, and generated-document reads and downloads re-authorize that source at request time. A leaked document UUID cannot bypass the source domain; hidden and nonexistent sources are indistinguishable.
-- Storage and PostgreSQL are not one transaction. Render, publish, then commit; a failed commit deletes only the object that attempt published and never a historical one. Publication itself writes a temporary file and links it atomically into the final key, so a failed write leaves nothing at that key.
-- Every generated version records a `sourceSnapshotSha256` over exactly the authoritative fields it rendered. Inside the publishing transaction the generation takes a shared row lock on every rendered row, then re-reads and re-fingerprints the source, so the accepted state cannot change between the comparison and the commit and bytes derived from a stale record are never committed. No lock is held across rendering or storage publication.
-- The renderer never truncates or substitutes authoritative text. PDF embeds repository-owned Noto faces and supports Latin, Greek, Cyrillic, and Arabic including mixed-direction lines; DOCX keeps full Unicode. PDF coverage is decided per code point by asking the chosen face for the glyph, never by a Unicode block range, and a character no registered face contains fails closed rather than being drawn as a box.
-- PDF text is both visually and semantically correct: shaped contextual forms in UAX #9 visual order, and a `ToUnicode` mapping that returns the exact source Unicode when the file is copied, searched, or extracted. `apps/api/src/document-generation/renderers/pdf-text-mapping.ts` documents the PDFKit and fontkit behaviours that make this need explicit handling; do not simplify it away.
-- Reading a generated certificate re-checks the participant's own source capability, not just enrollment and program visibility.
+The maintainer must visually review the Phase 1 preview before any further Issue #52 work.
 
-## Next Action
+Run from the repository root:
 
-Await the ChatGPT merge authorization for the Issue #49 draft PR on branch `feat/document-output-generation`, and keep it draft, open, and unmerged until then. Three ChatGPT rounds returned four, then three, then three findings; all ten are fixed on the branch and are described under "Review blockers found and addressed", "Second review round, three blockers addressed", and "Final review gate, three findings addressed" in `docs/project/STATUS.md`.
+```text
+pnpm --filter @hire-me/web dev
+```
 
-Completion conditions:
+Open `http://127.0.0.1:5173/design-system.html`.
 
-- Review accepts the generation architecture, the template and renderer boundary, the authorization and re-authorization rules, and the documented storage compensation boundary.
-- Exact-head GitHub Actions green on the reviewed head.
-- The PR stays draft, open, and unmerged until a maintainer explicitly authorizes the merge.
+Completion conditions for this checkpoint:
 
-## Known Follow-Up Work For Generation
+- The token system and HireMe visual character are approved or specific changes are requested.
+- Local quality gates and exact-head GitHub Actions are green.
+- The Issue #52 pull request remains draft, open, and unmerged.
+- Candidate workspace, Recruitment/Reporting dashboard, Public Opportunity, AppShell, and broad production migration remain unstarted.
 
-Not implemented by Issue #49 and still requiring their own approved issues: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, payment receipts, accounting exports, payroll documents, OCR or AI extraction, Excel generation, and any client or candidate portal.
+## Explicit hard stop
 
-## Known Follow-Up Work For Accounting
+Do not continue to representative production surfaces until the maintainer explicitly approves the UI-DNA. Nothing from this handoff authorizes a merge or deployment.
 
-Not implemented by Issue #39 and still requiring their own approved issues:
+## Mandatory rehydration checklist
 
-- Moroccan payroll, which needs dedicated legal and regulatory validation.
-- Statutory, accrual, and tax accounting, general ledger, chart of accounts, and tax declarations.
-- FX conversion and any multi-currency consolidated total.
-- Aging buckets beyond the current overdue outstanding figure.
-- Credit notes, overpayment/credit balances, and refunds.
-- Training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
-- Accounting exports, which would need their own dedicated export permission.
-- Receipt file storage, which belongs to the document module.
+Before resuming:
 
-## Mandatory Rehydration Checklist For Every New Agent
-
-Before working:
-
-- Read `AGENTS.md`.
-- Read `PROJECT_MEMORY.md`.
-- Read `docs/project/STATUS.md`.
-- Read `docs/project/DECISIONS.md`.
-- Read this handoff.
-- Read the full assigned issue and all comments.
-- Inspect relevant merged documentation and active pull requests.
+- Read `AGENTS.md`, the full Issue #52 and comments, and all required project-memory files.
 - Load all materially applicable project skills, including `project-memory`.
-- State the active skills and current source-of-truth understanding.
+- Fetch `origin` and verify whether `main` or `design/ui-ux-v1` advanced.
+- Inspect review comments and exact-head CI before changing the branch.
 
 Before finishing:
 
-- Update `STATUS.md`.
-- Replace this handoff with the next concrete action.
-- Update the decision and risk logs when applicable.
-- Link the issue or pull request that supports changes.
-- Report checks performed and remaining blockers.
+- Update status, this handoff, decisions, risks, and roadmap only where current truth changed.
+- Re-run the full applicable quality gate from the repository root.
+- Keep the PR draft/open/unmerged and report the exact head.
