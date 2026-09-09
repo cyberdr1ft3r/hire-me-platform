@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShellPreview } from '../../app-shell-preview/AppShellPreview.js';
+import { I18nProvider } from '../../i18n/index.js';
 import type { InternalRoute } from '../../navigation/internal-navigation.js';
 import { Button } from '../Button.js';
 import { PageHeader } from '../PageHeader.js';
@@ -40,16 +41,18 @@ function mockMobileNavigation(matches: boolean): void {
 function ShellHarness() {
   const [route, setRoute] = useState<InternalRoute>('home');
   return (
-    <AppShell
-      apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
-      currentRoute={route}
-      onLogout={() => undefined}
-      onNavigate={setRoute}
-      onRefreshUser={() => undefined}
-      user={syntheticUser}
-    >
-      <h1>{route === 'home' ? 'Overview content' : 'Task content'}</h1>
-    </AppShell>
+    <I18nProvider initialLocale="en">
+      <AppShell
+        apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
+        currentRoute={route}
+        onLogout={() => undefined}
+        onNavigate={setRoute}
+        onRefreshUser={() => undefined}
+        user={syntheticUser}
+      >
+        <h1>{route === 'home' ? 'Overview content' : 'Task content'}</h1>
+      </AppShell>
+    </I18nProvider>
   );
 }
 

@@ -4,11 +4,13 @@ Last updated: 2026-09-09
 
 ## Current situation
 
-- Authoritative `main` remains `e2879b38c54dcc1b42b85aa345680260487454dc`.
-- Issue #52 and draft PR #53 remain open on `design/ui-ux-v1`; do not merge or deploy them.
-- The maintainer approved the Phase 1 UI-DNA foundation on 2026-09-09 and authorized Task 2.
-- Task 2 implements the authenticated internal AppShell and PageHeader only. Candidate, Recruitment/Reporting, and Public Opportunity representative redesigns have not started.
-- The bounded visual correction uses one aligned `56.25rem`/900px JS and CSS threshold: 1024px stays persistent and 900px and below use off-canvas navigation. Button labels remain intact while PageHeader actions wrap as a group, and border-box sidebar sizing keeps the scrollable navigation plus fixed session footer inside the viewport.
+- Authoritative `main` is `a0236fe66936891d8235236c924e652c8067ab13`, the PR #53 merge commit for Issue #52 Tasks 1–2 (UI-DNA, foundation components, internal `AppShell`, `PageHeader`).
+- Issue #52 remains open for its later representative-surface checkpoints. PR #53 is merged and closed.
+- Issue #54 and draft PR #55 are open on `feat/web-i18n-en-fr`. Do not merge or deploy them.
+- Issue #54 adds the English/French localization foundation only. It is deliberately sequenced before the Reporting redesign so Reporting is bilingual from its first commit.
+- No database change was made: there is no `preferredLocale` column and no migration.
+- Legacy business modules and the public opportunity pages stay English on purpose. They migrate when each is redesigned, and until then each declares `lang="en"` through the shared `LegacyEnglishContent` boundary so the document language never misrepresents them.
+- Review `5157248513` raised two correctness blockers, both resolved on this branch: deferred English content is now marked as English, and translator arguments are compile-time checked.
 
 ## Review target
 
@@ -20,28 +22,39 @@ pnpm --filter @hire-me/web dev
 
 Open `http://127.0.0.1:5173/app-shell.html` and review:
 
-- desktop/laptop sidebar hierarchy, density, active destination, content width, and persistent session chrome;
-- permission filtering, including removal of empty groups and a generic denial for direct unauthorized routes;
-- tablet/mobile off-canvas navigation, scrim, close button, action wrapping, and absence of horizontal overflow;
-- intact PageHeader button labels and reachable refresh/sign-out actions at desktop, short laptop, tablet, and mobile heights;
-- keyboard skip link, focus order, route-change focus, Escape close, focus containment, and trigger focus restoration;
-- compact text-plus-dot API health and safe display-name/email identity presentation.
+- the language control in the shell session region: native `<select>`, labelled `Language`/`Langue`, each language named in its own language, no flags, keyboard reachable, focus visible;
+- switching English to French and back with no page reload, no route change, no API call, and no permission change;
+- French navigation groups and destinations, including `Vue d’ensemble`, `Tâches`, `Comptabilité`, `Gestion commerciale`, and `Administration`;
+- French session chrome, including `Actualiser le profil` and `Se déconnecter`;
+- `Intl` output in the preview metadata: number, date-time, `MAD`, and `EUR` in both locales;
+- `document.documentElement.lang` following the active locale while `dir` stays untouched;
+- 390, 430, 800, 1024, and 1440 px in French: no clipping, no horizontal shell overflow, session controls reachable, `<= 900px` off-canvas and `> 900px` persistent unchanged;
+- the mobile drawer keeping the language control reachable without consuming excessive vertical space.
 
-The preview is synthetic and API-free. For an authenticated integration smoke check, use the documented local-only development credentials from the current task environment; never record that passphrase in Git.
+Then confirm the language-of-content boundary. With French active:
+
+- `http://127.0.0.1:5173/opportunities` and an opportunity detail page keep `<html lang="fr">` while their English content sits inside `lang="en"`;
+- an authenticated legacy module such as Tasks or Reporting shows French shell chrome around an English module body marked `lang="en"`;
+- the Overview, the permission denial, and the login screen carry no boundary, because they are translated.
+
+The boundary is `display: contents`, so it must change no layout anywhere.
+
+The preview is synthetic and API-free. The login screen at `http://127.0.0.1:5173/` is also localized and can be reviewed without a running API.
 
 ## Completion conditions
 
 - Local quality gates and exact-head GitHub Actions are green.
-- `app-shell.html` and `design-system.html` are absent from the normal production build output.
-- PR #53 remains draft, open, and unmerged.
-- Maintainer grants explicit AppShell visual approval or requests another bounded correction.
+- The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`; no i18n framework was added.
+- A missing or misspelled translation key, a missing interpolation value, and a count-sensitive key without a numeric count all still fail `pnpm typecheck`; `translate.type-test.ts` is what holds that.
+- PR #55 remains draft, open, and unmerged.
+- The maintainer accepts the localization foundation or requests a bounded correction.
 
 ## Explicit hard stop
 
-Do not begin the Recruitment/Reporting representative surface until AppShell visual approval. Do not begin Candidate workspace, Public Opportunity redesign, broader module redesigns, migration, deployment, or merge work.
+Do not begin the Recruitment/Reporting representative surface until the localization foundation is accepted. Do not begin the Candidate workspace, the Public Opportunity redesign, a legacy-module translation sweep, a server-stored locale preference, Arabic or RTL work, migration, deployment, or merge work.
 
 ## Resume checklist
 
-- Read `AGENTS.md`, Issue #52, PR #53 review history, and the project-memory files.
-- Fetch `origin`; verify `main`, branch head, draft PR state, and exact-head CI.
-- Keep any requested correction inside the AppShell/PageHeader boundary.
+- Read `AGENTS.md`, Issue #54, PR #55 review history, and the project-memory files.
+- Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
+- Keep any requested correction inside the localization boundary: `apps/web/src/i18n`, the shell and authentication surfaces it already translates, and the design/project documentation.

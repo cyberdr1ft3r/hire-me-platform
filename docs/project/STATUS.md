@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** HireMe UI/UX v1 Task 2 internal AppShell, on top of the approved Phase 1 foundation.
-**Health:** `main` is at `e2879b38c54dcc1b42b85aa345680260487454dc`, the merge commit for Issue #49 / PR #51. Issue #52 Task 2 is implemented on branch `design/ui-ux-v1` for maintainer visual review.
-**Current blocker:** Maintainer visual approval of the AppShell checkpoint is required before the Recruitment/Reporting representative surface begins.
-**Next executable development task:** Review `app-shell.html`; keep draft PR #53 open/unmerged and do not start representative surfaces until approval.
+**Phase:** English/French localization foundation (Issue #54), sequenced between the merged UI/UX v1 shell and the Reporting redesign.
+**Health:** `main` is at `a0236fe66936891d8235236c924e652c8067ab13`, the merge commit for Issue #52 Tasks 1–2 / PR #53. Issue #54 is implemented on branch `feat/web-i18n-en-fr` for review.
+**Current blocker:** Review of the localization foundation. The Reporting representative surface does not begin until it is settled, because Reporting must be bilingual from its first commit.
+**Next executable development task:** Review draft PR #55; keep it open/unmerged and do not start the Reporting, Candidate, or Public Opportunity redesigns until the localization foundation is accepted.
 
 ## Active work
 
@@ -35,7 +35,8 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Phase 1 approved; Task 2 AppShell implemented on `design/ui-ux-v1` and awaiting visual approval; representative surfaces not started |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53 into `main` as `a0236fe66936891d8235236c924e652c8067ab13`; representative surfaces not started |
+| Issue #54 | Open | Add the English/French localization foundation to the web interface | Implemented on `feat/web-i18n-en-fr`; draft PR #55 open and awaiting review |
 
 ## Completed foundation work
 
@@ -365,6 +366,25 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 - `apps/web/app-shell.html` is a second development-only, synthetic, API-free review entry and remains outside product navigation and the normal production build.
 - Candidate workspace, Recruitment/Reporting dashboard, and Public Opportunity representative redesigns remain intentionally untouched. Recruitment/Reporting is next only after AppShell visual approval.
 
+## Issue #54 Localization State
+
+- Branch `feat/web-i18n-en-fr` started from authoritative `main` `a0236fe66936891d8235236c924e652c8067ab13`, the PR #53 merge commit.
+- `apps/web/src/i18n` holds the whole localization layer: `locale.ts` (allow-list, metadata, selection, persistence), `message.ts` (plural shape), `messages/en.ts` (canonical dictionary and the `Messages` contract), `messages/fr.ts`, `messages/index.ts` (static frozen dictionary map), `translate.ts` (typed key paths, lookup, interpolation, plurals), `format.ts` (`Intl` helpers), `context.ts`, `I18nProvider.tsx`, and `useI18n.ts`. No third-party i18n dependency was added.
+- English is canonical. French is annotated with `Messages`, so a missing, extra, renamed, or misspelled key fails `pnpm typecheck`. The canonical dictionary is `as const`, so `MessageKey`, each key's required `{placeholder}` names, and its count requirement are all derived from it: `t('overview.signedInAs')`, `t('overview.signedInAs', { name })`, and `t('common.counts.candidates')` are compile errors. `translate.type-test.ts` holds that contract through `@ts-expect-error`, exercised by `pnpm typecheck`. Runtime lookup, interpolation, and plural misuse still throw as defence in depth.
+- Structural typing cannot prove that a translator kept a template's placeholder names, so deterministic tests assert cross-locale parity: identical placeholder sets for ordinary messages, and identical non-count placeholder sets for count-sensitive ones, with `count` compared separately and plural categories free to differ per locale.
+- Deferred English surfaces declare their own language. `LegacyEnglishContent` renders one `display: contents` boundary with `lang="en"`, so the document stays on the active locale while untranslated content is announced correctly. `deferredEnglishRoutes` names the ten internal destinations it covers; the public opportunity list and detail are wrapped at the routing layer. The translated Overview, permission denial, and login screen carry no boundary.
+- `Locale` is `'en' | 'fr'`. English formats as `en-GB` and French as `fr-FR`. `LocaleMetadata` carries `direction`, currently `ltr` for both; RTL layout is not implemented and `dir` is untouched.
+- Selection order is a valid stored preference, then a browser language starting with `fr`, then English. The value lives in `localStorage` under `hireme.locale`, is validated before use, holds no token or business data, and never reaches an import specifier or path.
+- The provider wraps the whole application, so the public opportunity routes already share the active locale even though their copy stays English until their own redesign. `document.documentElement.lang` follows the locale.
+- Translated in this task: the `AppShell` (brand subtitle, skip link, navigation regions, group and destination labels, API health, identity chrome, refresh, sign out, menu and drawer controls), the `PageHeader`-hosted authenticated Overview, the login screen, the permission-denied surface, shared `common.*` action and count labels, and the synthetic AppShell preview. Navigation carries typed message keys instead of display text.
+- Deliberately untranslated: every legacy business module panel in `App.tsx` (administration, clients, candidates, missions, tasks, documents, training, reporting, commercial, accounting) and the public opportunity pages. They migrate when each is redesigned. Reporting is first and must be bilingual from its initial redesign.
+- The language control is one native `<select>` in the shell session region, labelled `Language`/`Langue`, with each language named in its own language and no flags. It stays inside the mobile drawer with a 44px target.
+- Domain values stay language-neutral. `domain.recordState.ACTIVE|DRAFT|ARCHIVED` is a presentation mapping keyed by the stored value; the preview demonstrates it through `StatusBadge` and no localized label is ever returned to the API.
+- No database change: no `preferredLocale` column and no migration.
+- `.ui-page-header__metadata` now wraps its items as a group so a longer translation of one field cannot collide with the next.
+- Web tests went from 59 to 121. The 62 new tests cover locale resolution and persistence, allow-list rejection, dictionary and placeholder parity, markup-free values, typed lookup failure, interpolation, `Intl.PluralRules` plurals in both locales, `Intl` number/date/currency formatting with an explicit timezone and explicit `MAD`/`EUR` codes, live language switching, unchanged route and destinations, absence of API calls on switch, sign-out after switching, `documentElement.lang`, the public/auth boundary, and the language-of-content boundary for deferred internal and public surfaces.
+- Verified manually at 390, 430, 800, 1024, and 1440 px in both locales: no clipping, no horizontal shell overflow, session controls in view, `<= 900px` off-canvas and `> 900px` persistent unchanged.
+
 ## Closed without merge
 
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -389,8 +409,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Visually review the Issue #52 AppShell preview at `http://127.0.0.1:5173/app-shell.html`; keep draft PR #53 open/unmerged.
-2. After explicit approval only, continue Issue #52 with the Recruitment/Reporting representative-surface checkpoint. Candidate and Public Opportunity redesigns remain later checkpoints.
+1. Review the Issue #54 localization foundation on draft PR #55, including the French shell at `http://127.0.0.1:5173/app-shell.html`; keep the PR open/unmerged.
+2. After acceptance only, continue Issue #52 with the Recruitment/Reporting representative surface, built bilingual from its first commit. Candidate and Public Opportunity redesigns remain later checkpoints.
 
 ## Status Update Rules
 
