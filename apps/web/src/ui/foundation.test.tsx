@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DesignSystemPreview } from '../design-system-preview/DesignSystemPreview.js';
-import { Button, StatusBadge, TextField } from './index.js';
+import { Button, InlineMessage, StatusBadge, TextField } from './index.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -72,12 +72,47 @@ describe('HireMe foundation components', () => {
     expect(badge).toHaveTextContent('Active');
   });
 
+  it('keeps ordinary inline messages out of live regions', () => {
+    render(
+      <>
+        <InlineMessage title="Information">Static guidance.</InlineMessage>
+        <InlineMessage title="Unable to continue" tone="danger">
+          Static recovery guidance.
+        </InlineMessage>
+      </>,
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('announces explicitly dynamic feedback with urgency derived from its tone', () => {
+    const { rerender } = render(
+      <InlineMessage announce title="Saved" tone="success">
+        Changes are up to date.
+      </InlineMessage>,
+    );
+
+    expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
+
+    rerender(
+      <InlineMessage announce title="Unable to save" tone="danger">
+        Try again.
+      </InlineMessage>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveAttribute('aria-atomic', 'true');
+  });
+
   it('renders the preview without making API calls', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     render(<DesignSystemPreview />);
     expect(
       screen.getByRole('heading', { name: 'Calm systems for consequential work.' }),
     ).toBeVisible();
+    const selectedRow = screen.getByRole('row', { name: /Candidate 1044/ });
+    expect(selectedRow).toHaveAttribute('aria-selected', 'true');
+    expect(selectedRow.querySelector('.preview-table__selection-marker')).not.toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

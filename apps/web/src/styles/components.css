@@ -73,8 +73,13 @@
 }
 
 .ui-button--danger:hover:not(:disabled) {
-  background: var(--color-text);
-  border-color: var(--color-text);
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
+.ui-button--danger:active:not(:disabled) {
+  background: var(--color-danger-pressed);
+  border-color: var(--color-danger-pressed);
 }
 
 .ui-button:disabled {

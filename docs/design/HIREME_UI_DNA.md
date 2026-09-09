@@ -34,7 +34,7 @@ Primitives construct semantics and must not be consumed by components directly.
 
 - Neutrals: `--neutral-0`, `25`, `50`, `100`, `200`, `300`, `400`, `500`, `600`, `700`, `800`, `900`, `950`.
 - Brand: `--brand-100`, `200`, `600`, `700`, `800`, `900`.
-- State primitives: green 100/700, amber 100/800, red 100/700, blue 100/700.
+- State primitives: green 100/700, amber 100/800, red 100/700/800/900, blue 100/700. Red 800 and 900 exist only for destructive hover and pressed semantics.
 - Chart primitives: blue, violet, copper, and slate. They are reporting colors, not module identity.
 
 ### Semantic palette
@@ -46,7 +46,7 @@ Primitives construct semantics and must not be consumed by components directly.
 | Text | `--color-text`, `text-secondary`, `text-muted`, `text-inverse` | primary copy, supporting copy, metadata, inverse actions |
 | Brand | `--color-brand`, `brand-hover`, `brand-pressed`, `brand-subtle`, `brand-subtle-hover` | primary action, link, selection support |
 | Focus | `--color-focus` | focus-visible outline on all interactive controls |
-| State | `--color-success`, `warning`, `danger`, `info` plus each `-subtle` token | paired state foreground/background |
+| State | `--color-success`, `warning`, `danger`, `info` plus each `-subtle` token; `--color-danger-hover` and `--color-danger-pressed` | paired state foreground/background and destructive-action continuity |
 | Disabled | `--color-disabled-fg`, `disabled-bg` | unavailable controls; state remains visible without opacity |
 | Selection | `--color-selection`, `selection-fg` | browser selection and selected UI support |
 | Tables | `--color-table-header`, `table-hover`, `table-selected` | dense data-only surfaces |
@@ -61,11 +61,19 @@ The brand is a refined descendant of the historical `#174f64`: `--brand-700` is 
 | --- | ---: | ---: |
 | primary text / canvas | 14.89:1 | 4.5:1 |
 | secondary text / canvas | 6.49:1 | 4.5:1 |
+| muted text / canvas | 4.73:1 | 4.5:1 |
 | primary text / surface | 15.87:1 | 4.5:1 |
+| muted text / surface | 5.05:1 | 4.5:1 |
+| brand link text / canvas | 7.20:1 | 4.5:1 |
+| brand link text / surface | 7.67:1 | 4.5:1 |
 | inverse text / brand button | 7.67:1 | 4.5:1 |
+| inverse text / danger | 7.32:1 | 4.5:1 |
+| inverse text / danger hover | 9.45:1 | 4.5:1 |
+| inverse text / danger pressed | 11.99:1 | 4.5:1 |
 | danger / danger subtle | 6.37:1 | 4.5:1 |
 | success / success subtle | 6.39:1 | 4.5:1 |
 | warning / warning subtle | 6.83:1 | 4.5:1 |
+| info / info subtle | 6.31:1 | 4.5:1 |
 | focus / surface | 5.33:1 | 3:1 non-text |
 | focus / canvas | 5.00:1 | 3:1 non-text |
 | disabled foreground / disabled background | 4.47:1 | 3:1 internal target |
@@ -161,6 +169,7 @@ Additional rules:
 | Default | neutral surface, explicit label, predictable border |
 | Hover | subtle surface/border change; never the sole way to discover an action |
 | Active/pressed | darker brand or stronger subtle fill for the duration of press |
+| Destructive | danger red by default, `--color-danger-hover` on hover, and the still darker `--color-danger-pressed` while pressed; disabled destructive actions use the shared disabled treatment |
 | Focus-visible | 3px `--color-focus` outline with 2px offset; keyboard-only where the platform supports it |
 | Selected | brand-subtle fill plus semantic selection (`aria-selected`, checked state, or current marker) |
 | Disabled | native `disabled`; disabled tokens; no opacity-only treatment; explain why when not obvious |
@@ -199,6 +208,7 @@ Use `--color-chart-1` through `--color-chart-5` in order. The brand is one serie
 - Every form control has a visible label. Hint and error text are connected with `aria-describedby`; invalid controls use `aria-invalid`.
 - Focus-visible is never removed without an equally visible replacement.
 - Status meaning uses text and/or icons in addition to color.
+- Static inline guidance is not a live region. Dynamic feedback opts into announcement explicitly: ordinary feedback is polite, while an urgent dynamic danger failure uses alert semantics.
 - Keyboard order follows visual reading order. Do not create positive `tabindex` values.
 - Loading controls prevent duplicate activation and retain an accessible progress label.
 - Pointer targets are at least 44px in touch contexts; compact internal exceptions require surrounding spacing and are not used for primary mobile actions.
@@ -220,4 +230,4 @@ Components depend on semantic tokens, never assumptions that a surface is white 
 
 ## Foundation component boundary
 
-Phase 1 proves only `Button`, `FieldFrame`, `TextField`, `TextArea`, `Select`, `Checkbox`, `StatusBadge`, `InlineMessage`, `Skeleton`, and `EmptyState`. These components use native semantics, small variant sets, density tokens, and explicit states. `AppShell`, production data-table abstractions, modal/drawer frameworks, charts, tabs, and pagination belong to later approved Issue #52 checkpoints after visual review.
+Phase 1 proves only `Button`, `FieldFrame`, `TextField`, `TextArea`, `Select`, `Checkbox`, `StatusBadge`, `InlineMessage`, `Skeleton`, and `EmptyState`. These components use native semantics, small variant sets, density tokens, and explicit states. `InlineMessage` is non-live by default; its single `announce` option makes non-danger dynamic feedback polite and dynamic danger feedback assertive. `AppShell`, production data-table abstractions, modal/drawer frameworks, charts, tabs, and pagination belong to later approved Issue #52 checkpoints after visual review.

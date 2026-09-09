@@ -356,6 +356,7 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 - The restrained deep teal brand descends from the historical app color and is paired with neutral-first surfaces. Internal compact, internal standard, and public spacious contexts use the same identity with different control and spacing rhythms.
 - The foundation set is limited to Button, field/input/select/checkbox controls, StatusBadge, InlineMessage, Skeleton, and EmptyState. No component framework or new dependency was added.
 - `apps/web/design-system.html` is a development-only, synthetic, API-free preview entry and is not linked from production navigation or included in the normal production build entry.
+- Owner review `5153241889` corrections keep danger hover/pressed states inside the destructive color family, add a visible check marker to the selected preview row, remove undocumented display tracking, extend deterministic contrast coverage, and make inline messages non-live by default with explicit announcement behavior for dynamic feedback.
 - Candidate workspace, Recruitment/Reporting dashboard, Public Opportunity, and AppShell rollout remain intentionally untouched and must not start until maintainer visual approval.
 
 ## Closed without merge

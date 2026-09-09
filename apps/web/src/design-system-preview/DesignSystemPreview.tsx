@@ -231,6 +231,9 @@ export function DesignSystemPreview() {
           <table className="preview-table">
             <thead>
               <tr>
+                <th className="preview-table__selection" scope="col">
+                  <span className="sr-only">Selection</span>
+                </th>
                 <th scope="col">Candidate</th>
                 <th scope="col">Role</th>
                 <th scope="col">Stage</th>
@@ -240,6 +243,7 @@ export function DesignSystemPreview() {
             </thead>
             <tbody>
               <tr>
+                <td aria-hidden="true" />
                 <td>Candidate 1042</td>
                 <td>Operations lead</td>
                 <td>
@@ -249,6 +253,7 @@ export function DesignSystemPreview() {
                 <td>Today</td>
               </tr>
               <tr className="is-hovered">
+                <td aria-hidden="true" />
                 <td>Candidate 1043</td>
                 <td>Finance analyst</td>
                 <td>
@@ -258,6 +263,15 @@ export function DesignSystemPreview() {
                 <td>Yesterday</td>
               </tr>
               <tr aria-selected="true" className="is-selected">
+                <td className="preview-table__selection">
+                  <span
+                    aria-hidden="true"
+                    className="preview-table__selection-marker"
+                    title="Selected"
+                  >
+                    ✓
+                  </span>
+                </td>
                 <td>Candidate 1044</td>
                 <td>Product designer</td>
                 <td>

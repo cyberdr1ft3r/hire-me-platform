@@ -29,6 +29,8 @@
   --amber-800: #744c00;
   --red-100: #fdebed;
   --red-700: #a12834;
+  --red-800: #84202a;
+  --red-900: #681923;
   --blue-100: #eaf2fb;
   --blue-700: #245a91;
   --chart-blue: #4969a6;
@@ -58,6 +60,8 @@
   --color-warning: var(--amber-800);
   --color-warning-subtle: var(--amber-100);
   --color-danger: var(--red-700);
+  --color-danger-hover: var(--red-800);
+  --color-danger-pressed: var(--red-900);
   --color-danger-subtle: var(--red-100);
   --color-info: var(--blue-700);
   --color-info-subtle: var(--blue-100);

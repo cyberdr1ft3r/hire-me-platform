@@ -14,7 +14,6 @@
 
 .preview-hero h1 {
   font-size: var(--font-size-7);
-  letter-spacing: -0.025em;
   max-width: var(--layout-reading-max);
 }
 
@@ -257,6 +256,22 @@
 
 .preview-table .is-selected td {
   background: var(--color-table-selected);
+}
+
+.preview-table__selection {
+  width: var(--control-height-compact);
+}
+
+.preview-table__selection-marker {
+  align-items: center;
+  border: var(--border-width) solid currentColor;
+  border-radius: var(--radius-small);
+  color: var(--color-brand);
+  display: inline-flex;
+  font-weight: var(--font-weight-bold);
+  height: var(--space-5);
+  justify-content: center;
+  width: var(--space-5);
 }
 
 .preview-data-states {
