@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 Status owner: repository maintainer
 
 ## Overall state
