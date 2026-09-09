@@ -19,6 +19,8 @@ import {
   CommercialContractStatusActionRequestSchema,
   CandidateDetailResponseSchema,
   DocumentDetailResponseSchema,
+  DocumentGenerationRequestSchema,
+  DocumentGenerationResponseSchema,
   DocumentListResponseSchema,
   DocumentVersionListResponseSchema,
   InvoiceCancelRequestSchema,
@@ -267,6 +269,8 @@ import {
   type PaymentListResponse,
   type ProfitabilityContext,
   type ProfitabilitySummaryResponse,
+  type DocumentGenerationRequest,
+  type DocumentGenerationResponse,
 } from '@hire-me/contracts';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
@@ -3115,4 +3119,101 @@ export async function getProfitability(
     apiBaseUrl,
   );
   return ProfitabilitySummaryResponseSchema.parse(await response.json());
+}
+
+// ---------------------------------------------------------------------------
+// Issue #49 template-driven business-output generation
+// ---------------------------------------------------------------------------
+
+async function generationRequest(
+  accessToken: string,
+  path: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  const headers = new Headers();
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  headers.set('Content-Type', 'application/json');
+
+  const response = await fetch(`${apiBaseUrl}/v1${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(DocumentGenerationRequestSchema.parse(body)),
+  });
+  if (!response.ok) {
+    throw new Error(`Generation request failed with status ${response.status}`);
+  }
+  return DocumentGenerationResponseSchema.parse(await response.json());
+}
+
+export async function generateQuotationDocument(
+  accessToken: string,
+  quotationId: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  return generationRequest(
+    accessToken,
+    `/commercial/quotations/${quotationId}/generate`,
+    body,
+    apiBaseUrl,
+  );
+}
+
+export async function generatePurchaseOrderDocument(
+  accessToken: string,
+  purchaseOrderId: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  return generationRequest(
+    accessToken,
+    `/commercial/purchase-orders/${purchaseOrderId}/generate`,
+    body,
+    apiBaseUrl,
+  );
+}
+
+export async function generateContractDocument(
+  accessToken: string,
+  contractId: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  return generationRequest(
+    accessToken,
+    `/commercial/contracts/${contractId}/generate`,
+    body,
+    apiBaseUrl,
+  );
+}
+
+export async function generateInvoiceDocument(
+  accessToken: string,
+  invoiceId: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  return generationRequest(
+    accessToken,
+    `/commercial/invoices/${invoiceId}/generate`,
+    body,
+    apiBaseUrl,
+  );
+}
+
+export async function generateTrainingCertificateDocument(
+  accessToken: string,
+  programId: string,
+  enrollmentId: string,
+  body: DocumentGenerationRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<DocumentGenerationResponse> {
+  return generationRequest(
+    accessToken,
+    `/training/programs/${programId}/enrollments/${enrollmentId}/generate-certificate`,
+    body,
+    apiBaseUrl,
+  );
 }

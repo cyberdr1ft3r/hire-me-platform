@@ -790,3 +790,22 @@ export type {
   ProfitabilitySummary,
   ProfitabilitySummaryResponse,
 } from './accounting.js';
+
+export {
+  DocumentGenerationRequestSchema,
+  DocumentGenerationResponseSchema,
+  GeneratedDocumentSourceSchema,
+  GeneratedVersionProvenanceSchema,
+  GenerationIdempotencyKeySchema,
+  GenerationLanguageSchema,
+  GenerationOutputFamilySchema,
+} from './document-generation.js';
+
+export type {
+  DocumentGenerationRequest,
+  DocumentGenerationResponse,
+  GeneratedDocumentSource,
+  GeneratedVersionProvenance,
+  GenerationLanguage,
+  GenerationOutputFamily,
+} from './document-generation.js';

@@ -1,12 +1,13 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This file tells the next human or agent exactly where to resume. Replace stale content instead of appending session transcripts.
 
 ## Current Situation
 
-- `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47.
+- `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 reconciliation (PR #50).
+- Issue #49 is implemented on branch `feat/document-output-generation`, branched from that exact `main`, and opened as a draft PR.
 - Issue #31 (PR #32), Issue #35 (PR #40), Issue #36 (PR #43), Issue #37 (PR #45), Issue #38 (PR #46), and Issue #39 (PR #47) are all merged. Issue #12 is complete through the merged document foundation, and Issue #33 is closed.
 - Issue #39 is complete. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a`, and exact-head GitHub Actions run `34213661408` succeeded on Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 263 PostgreSQL integration tests across 16 files.
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -23,19 +24,34 @@ This file tells the next human or agent exactly where to resume. Replace stale c
 - Training-linked accounting records follow the merged training source rule; placement-linked records additionally require `placements:view`.
 - Per-row money input is capped at 2,147,483,647 minor units to match the PostgreSQL `integer` columns; response-side totals are uncapped. Accounting list date windows are bounded: both endpoints or neither, ordered, at most 366 days apart.
 
+## Merged Generation Behavior To Preserve
+
+- Structured business records stay authoritative. A generated file is an output snapshot published as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, never a second mutable record.
+- One logical document exists per source record, output family, and language, keyed by a unique `generatedDocumentKey`. Regeneration adds version N+1; a historical version and its bytes are never overwritten.
+- Templates are code-owned TypeScript functions over a neutral, data-only renderable document. No template language, no HTML, no evaluation, no uploaded template, and no remote fetch. Every generated version records the exact `templateId` and `templateVersion` used, so a later template change cannot re-explain an existing file.
+- Renderers are pure JavaScript (`pdfkit` with `fontkit` shaping, `bidi-js` for UAX #9 ordering, and `docx`) over repository-owned Noto faces. No native binary, browser, office suite, shell, or runtime asset fetch is involved.
+- Issued invoice outputs copy the immutable issued lines and totals verbatim; nothing is recomputed and placement eligibility is never re-evaluated.
+- Certificate generation reuses the merged training readiness rule and never transitions the enrollment. Certificate issuance stays the explicit audited training action.
+- Generation requires `documents:generate` plus the source domain's own rule, and generated-document reads and downloads re-authorize that source at request time. A leaked document UUID cannot bypass the source domain; hidden and nonexistent sources are indistinguishable.
+- Storage and PostgreSQL are not one transaction. Render, publish, then commit; a failed commit deletes only the object that attempt published and never a historical one. Publication itself writes a temporary file and links it atomically into the final key, so a failed write leaves nothing at that key.
+- Every generated version records a `sourceSnapshotSha256` over exactly the authoritative fields it rendered. Inside the publishing transaction the generation takes a shared row lock on every rendered row, then re-reads and re-fingerprints the source, so the accepted state cannot change between the comparison and the commit and bytes derived from a stale record are never committed. No lock is held across rendering or storage publication.
+- The renderer never truncates or substitutes authoritative text. PDF embeds repository-owned Noto faces and supports Latin, Greek, Cyrillic, and Arabic including mixed-direction lines; DOCX keeps full Unicode. PDF coverage is decided per code point by asking the chosen face for the glyph, never by a Unicode block range, and a character no registered face contains fails closed rather than being drawn as a box.
+- PDF text is both visually and semantically correct: shaped contextual forms in UAX #9 visual order, and a `ToUnicode` mapping that returns the exact source Unicode when the file is copied, searched, or extracted. `apps/api/src/document-generation/renderers/pdf-text-mapping.ts` documents the PDFKit and fontkit behaviours that make this need explicit handling; do not simplify it away.
+- Reading a generated certificate re-checks the participant's own source capability, not just enrollment and program visibility.
+
 ## Next Action
 
-Implement Issue #49 — template-driven document and business-output generation — on its own branch from current `main`. It is not started.
+Await the ChatGPT merge authorization for the Issue #49 draft PR on branch `feat/document-output-generation`, and keep it draft, open, and unmerged until then. Three ChatGPT rounds returned four, then three, then three findings; all ten are fixed on the branch and are described under "Review blockers found and addressed", "Second review round, three blockers addressed", and "Final review gate, three findings addressed" in `docs/project/STATUS.md`.
 
-Issue #49 turns approved business records into managed generated PDF and Word-compatible outputs using the merged `Document` / immutable `DocumentVersion` architecture. Structured business records stay authoritative; a generated file is an output snapshot stored as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`, behind the existing protected storage and download authorization boundary. Regeneration creates a new version and never overwrites history.
+Completion conditions:
 
-Issue #48 is documentation and project-memory reconciliation only, on branch `docs/reconcile-after-accounting-merge`. Do not implement any part of Issue #49 there.
-
-Completion conditions for Issue #49:
-
-- A draft PR linked to Issue #49 on its own branch, opened against current `main`.
+- Review accepts the generation architecture, the template and renderer boundary, the authorization and re-authorization rules, and the documented storage compensation boundary.
 - Exact-head GitHub Actions green on the reviewed head.
 - The PR stays draft, open, and unmerged until a maintainer explicitly authorizes the merge.
+
+## Known Follow-Up Work For Generation
+
+Not implemented by Issue #49 and still requiring their own approved issues: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, payment receipts, accounting exports, payroll documents, OCR or AI extraction, Excel generation, and any client or candidate portal.
 
 ## Known Follow-Up Work For Accounting
 

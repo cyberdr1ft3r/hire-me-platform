@@ -13,7 +13,10 @@ import type {
   DocumentDetail,
   DocumentSummary,
   DocumentType,
+  DocumentGenerationRequest,
+  DocumentGenerationResponse,
   DocumentVersion,
+  GeneratedVersionProvenance,
   InvoiceSummary,
   CandidateEvaluation,
   ClientContactSummary,
@@ -168,6 +171,11 @@ import {
   withdrawMissionCandidateOffer,
   addDocumentVersion,
   downloadDocumentVersion,
+  generateContractDocument,
+  generateInvoiceDocument,
+  generatePurchaseOrderDocument,
+  generateQuotationDocument,
+  generateTrainingCertificateDocument,
   updateTaskStatus,
   allocatePayment,
   archiveExpense,
@@ -4394,6 +4402,150 @@ function nextMissionStates(state: MissionLifecycleState): MissionLifecycleState[
   return transitions[state] ?? [];
 }
 
+/**
+ * Issue #49 generation controls.
+ *
+ * Rendered only when the actor holds `documents:generate` plus the source-domain read
+ * capability the API re-checks, so a hidden source never shows a generation control.
+ * Downloads always go through the protected document version endpoint; no storage key
+ * or direct file URL is ever exposed to the browser.
+ */
+function GenerationControls({
+  accessToken,
+  label,
+  canGenerate,
+  canViewHistory,
+  eligible,
+  generate,
+}: {
+  accessToken: string;
+  label: string;
+  canGenerate: boolean;
+  canViewHistory: boolean;
+  eligible: boolean;
+  generate: (body: DocumentGenerationRequest) => Promise<DocumentGenerationResponse>;
+}) {
+  const [provenance, setProvenance] = useState<GeneratedVersionProvenance | null>(null);
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<'fr' | 'en'>('fr');
+
+  if (!canGenerate) {
+    return null;
+  }
+
+  async function run(outputFamily: 'PDF' | 'WORD'): Promise<void> {
+    setError(null);
+    setStatus(null);
+    try {
+      const result = await generate({
+        outputFamily,
+        language,
+        idempotencyKey: generationIdempotencyKey(),
+      });
+      setProvenance(result.generated);
+      setStatus(
+        `${label} ${outputFamily} version ${result.generated.versionNumber} generated from template ${result.generated.templateId} v${result.generated.templateVersion} (${result.generated.language}).`,
+      );
+      if (canViewHistory) {
+        // Version history needs documents:view. Without it the generation still
+        // succeeded, so the control degrades instead of surfacing a failed fetch.
+        const history = await listDocumentVersions(accessToken, result.generated.documentId);
+        setVersions(history.versions);
+      }
+    } catch {
+      setError(`Unable to generate ${label}.`);
+    }
+  }
+
+  async function download(versionId: string, filename: string): Promise<void> {
+    if (!provenance) {
+      return;
+    }
+    setError(null);
+    try {
+      const blob = await downloadDocumentVersion(accessToken, provenance.documentId, versionId);
+      downloadBlob(blob, filename);
+      setStatus(`Downloaded ${filename} through the protected document endpoint.`);
+    } catch {
+      setError(`Unable to download ${filename}.`);
+    }
+  }
+
+  return (
+    <div className="generation-controls">
+      <label>
+        {`Language (${label})`}
+        <select
+          aria-label={`Generation language (${label})`}
+          value={language}
+          onChange={(event) => setLanguage(event.currentTarget.value === 'en' ? 'en' : 'fr')}
+        >
+          <option value="fr">fr</option>
+          <option value="en">en</option>
+        </select>
+      </label>
+      <button type="button" disabled={!eligible} onClick={() => void run('PDF')}>
+        {`Generate PDF (${label})`}
+      </button>
+      <button type="button" disabled={!eligible} onClick={() => void run('WORD')}>
+        {`Generate Word (${label})`}
+      </button>
+      {provenance ? (
+        <button
+          type="button"
+          disabled={!eligible}
+          onClick={() => void run(provenance.outputFamily)}
+        >
+          {`Regenerate (${label})`}
+        </button>
+      ) : null}
+      {status ? <p role="status">{status}</p> : null}
+      {error ? <p role="alert">{error}</p> : null}
+      {versions.length > 0 ? (
+        <ul aria-label={`Generated versions (${label})`}>
+          {versions.map((version) => (
+            <li key={version.id}>
+              <span>
+                {`v${version.versionNumber} ${version.mimeType} ${version.templateId ?? ''} ${
+                  version.generationLanguage ?? ''
+                }`}
+              </span>
+              <button type="button" onClick={() => void download(version.id, version.filename)}>
+                {`Download v${version.versionNumber}`}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Hands a blob obtained from a protected API endpoint to the browser as a download.
+ *
+ * The object URL is revoked immediately after the click, and the temporary anchor is
+ * removed, so no blob reference or storage identity lingers in the document.
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Bounded, per-request idempotency key. Regeneration deliberately uses a new key. */
+function generationIdempotencyKey(): string {
+  const random = globalThis.crypto?.randomUUID?.();
+  return random ?? `gen-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function CommercialPanel({
   accessToken,
   permissions,
@@ -4412,6 +4564,12 @@ function CommercialPanel({
   const canManagePurchaseOrders =
     canSeeCommercialAmounts && permissions.includes('purchase_orders:manage');
   const canManageInvoices = canSeeCommercialAmounts && permissions.includes('invoices:manage');
+  const canGenerate = permissions.includes('documents:generate') && canSeeCommercialAmounts;
+  const canViewDocumentHistory = permissions.includes('documents:view');
+  const canGenerateQuotation = canGenerate && permissions.includes('quotations:view');
+  const canGenerateContract = canGenerate && permissions.includes('contracts:view');
+  const canGeneratePurchaseOrder = canGenerate && permissions.includes('purchase_orders:view');
+  const canGenerateInvoice = canGenerate && permissions.includes('invoices:view');
 
   useEffect(() => {
     void loadCommercialRecords();
@@ -4575,9 +4733,17 @@ function CommercialPanel({
               reference: record.reference,
               status: record.status,
               amount: commercialAmount(record),
-              actions: canManageQuotations ? (
+              actions: (
                 <>
-                  {record.status === 'DRAFT' ? (
+                  <GenerationControls
+                    accessToken={accessToken}
+                    label={`Quotation ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={['ISSUED', 'ACCEPTED', 'REJECTED', 'EXPIRED'].includes(record.status)}
+                    canGenerate={canGenerateQuotation}
+                    generate={(body) => generateQuotationDocument(accessToken, record.id, body)}
+                  />
+                  {canManageQuotations && record.status === 'DRAFT' ? (
                     <button
                       type="button"
                       onClick={() => void setQuotationStatus(record.id, 'ISSUED')}
@@ -4585,7 +4751,7 @@ function CommercialPanel({
                       Issue
                     </button>
                   ) : null}
-                  {record.status === 'ISSUED' ? (
+                  {canManageQuotations && record.status === 'ISSUED' ? (
                     <>
                       <button
                         type="button"
@@ -4601,7 +4767,7 @@ function CommercialPanel({
                       </button>
                     </>
                   ) : null}
-                  {record.status !== 'ISSUED' ? (
+                  {canManageQuotations && record.status !== 'ISSUED' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4615,7 +4781,7 @@ function CommercialPanel({
                     </button>
                   ) : null}
                 </>
-              ) : null,
+              ),
             }))}
           />
           <CommercialTable
@@ -4625,9 +4791,17 @@ function CommercialPanel({
               reference: `${record.reference} (${record.businessType})`,
               status: record.status,
               amount: commercialAmount(record),
-              actions: canManageContracts ? (
+              actions: (
                 <>
-                  {record.status === 'DRAFT' ? (
+                  <GenerationControls
+                    accessToken={accessToken}
+                    label={`Contract ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status !== 'CANCELED' && record.status !== 'ARCHIVED'}
+                    canGenerate={canGenerateContract}
+                    generate={(body) => generateContractDocument(accessToken, record.id, body)}
+                  />
+                  {canManageContracts && record.status === 'DRAFT' ? (
                     <button
                       type="button"
                       onClick={() => void setContractStatus(record.id, 'ACTIVE')}
@@ -4635,7 +4809,7 @@ function CommercialPanel({
                       Activate
                     </button>
                   ) : null}
-                  {record.status === 'ACTIVE' ? (
+                  {canManageContracts && record.status === 'ACTIVE' ? (
                     <button
                       type="button"
                       onClick={() => void setContractStatus(record.id, 'COMPLETED')}
@@ -4643,7 +4817,7 @@ function CommercialPanel({
                       Complete
                     </button>
                   ) : null}
-                  {record.status !== 'ACTIVE' ? (
+                  {canManageContracts && record.status !== 'ACTIVE' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4657,7 +4831,7 @@ function CommercialPanel({
                     </button>
                   ) : null}
                 </>
-              ) : null,
+              ),
             }))}
           />
           <CommercialTable
@@ -4667,9 +4841,17 @@ function CommercialPanel({
               reference: record.reference,
               status: record.status,
               amount: commercialAmount(record),
-              actions: canManagePurchaseOrders ? (
+              actions: (
                 <>
-                  {record.status === 'DRAFT' ? (
+                  <GenerationControls
+                    accessToken={accessToken}
+                    label={`Purchase order ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status !== 'CANCELED' && record.status !== 'ARCHIVED'}
+                    canGenerate={canGeneratePurchaseOrder}
+                    generate={(body) => generatePurchaseOrderDocument(accessToken, record.id, body)}
+                  />
+                  {canManagePurchaseOrders && record.status === 'DRAFT' ? (
                     <button
                       type="button"
                       onClick={() => void setPurchaseOrderStatus(record.id, 'RECEIVED')}
@@ -4677,7 +4859,7 @@ function CommercialPanel({
                       Receive
                     </button>
                   ) : null}
-                  {record.status !== 'RECEIVED' ? (
+                  {canManagePurchaseOrders && record.status !== 'RECEIVED' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4691,7 +4873,7 @@ function CommercialPanel({
                     </button>
                   ) : null}
                 </>
-              ) : null,
+              ),
             }))}
           />
           <CommercialTable
@@ -4701,9 +4883,17 @@ function CommercialPanel({
               reference: record.reference,
               status: record.status,
               amount: commercialAmount(record),
-              actions: canManageInvoices ? (
+              actions: (
                 <>
-                  {record.status === 'DRAFT' ? (
+                  <GenerationControls
+                    accessToken={accessToken}
+                    label={`Invoice ${record.reference}`}
+                    canViewHistory={canViewDocumentHistory}
+                    eligible={record.status === 'ISSUED'}
+                    canGenerate={canGenerateInvoice}
+                    generate={(body) => generateInvoiceDocument(accessToken, record.id, body)}
+                  />
+                  {canManageInvoices && record.status === 'DRAFT' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4715,7 +4905,7 @@ function CommercialPanel({
                       Issue
                     </button>
                   ) : null}
-                  {record.status !== 'CANCELED' ? (
+                  {canManageInvoices && record.status !== 'CANCELED' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4727,7 +4917,7 @@ function CommercialPanel({
                       Cancel
                     </button>
                   ) : null}
-                  {record.status !== 'ISSUED' ? (
+                  {canManageInvoices && record.status !== 'ISSUED' ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -4741,7 +4931,7 @@ function CommercialPanel({
                     </button>
                   ) : null}
                 </>
-              ) : null,
+              ),
             }))}
           />
         </section>
@@ -5657,6 +5847,10 @@ function TrainingPanel({
   const canArchiveSessions = permissions.includes('training_sessions:archive');
   const canViewEnrollments = permissions.includes('training_enrollments:view');
   const canManageEnrollments = permissions.includes('training_enrollments:manage');
+  // Generation controls are hidden unless the actor also holds the enrollment read
+  // capability the API re-checks, so a hidden enrollment never shows a control.
+  const canGenerateCertificate = permissions.includes('documents:generate') && canViewEnrollments;
+  const canViewDocumentHistory = permissions.includes('documents:view');
   const canViewParticipation = permissions.includes('training_participation:view');
   const canManageParticipation = permissions.includes('training_participation:manage');
   const canCorrectAttendance = permissions.includes('training_participation:correct');
@@ -6186,6 +6380,23 @@ function TrainingPanel({
                       <li key={enrollment.id}>
                         {enrollment.participantType} — {enrollment.status}
                         {enrollment.certificateReady ? ' — certificate ready' : ''}
+                        {enrollment.certificateReady && selectedProgram ? (
+                          <GenerationControls
+                            accessToken={accessToken}
+                            label={`Certificate ${enrollment.id}`}
+                            canGenerate={canGenerateCertificate}
+                            canViewHistory={canViewDocumentHistory}
+                            eligible={enrollment.certificateReady}
+                            generate={(body) =>
+                              generateTrainingCertificateDocument(
+                                accessToken,
+                                selectedProgram.id,
+                                enrollment.id,
+                                body,
+                              )
+                            }
+                          />
+                        ) : null}
                         {canManageEnrollments ? (
                           <span className="action-row">
                             <select

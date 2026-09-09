@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-Template-driven document and business-output generation, after the merged commercial workflow and operational accounting foundations. `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`.
+Template-driven document and business-output generation, after the merged commercial workflow and operational accounting foundations. `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -32,7 +32,16 @@ Template-driven document and business-output generation, after the merged commer
 - Issue #37 is complete; PR #45 merged the internal training-operations foundation into `main` as merge commit `09c506262ad3284efd69f70440c1ee06175c6e00`.
 - Issue #38 is complete; PR #46 merged the commercial workflow foundation into `main` as merge commit `e1976f8a4b888657abe74c40ddf99c730032934a`.
 - Issue #39 is complete; PR #47 merged the operational accounting foundation into `main` as merge commit `54def73831df9b6cd7b0064171c52dff9b55e2ac`. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded. It adds payments, payment-to-invoice allocation, derived invoice settlement with partial/paid/overdue behavior, operational expenses, currency-separated client receivables and overdue receivables, and operational profitability.
-- Issue #48 reconciles project memory after the accounting merge and is documentation only. Issue #49 is the next approved product task: template-driven document and business-output generation.
+- Issue #48 is complete; PR #50 merged the project-memory reconciliation into `main` as merge commit `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`.
+- Issue #49 is implemented on branch `feat/document-output-generation` as a draft PR. It generates business output files for commercial quotations, purchase orders, recruitment and training contracts, issued invoices, and certificate-ready training enrollments, as PDF and Word-compatible DOCX in French or English.
+- A generated file is always an output snapshot published as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`. Structured business records stay authoritative and are never duplicated by a generated document.
+- One logical document exists per source record, output family, and language. Regeneration adds a new version; a historical version and its bytes are never overwritten.
+- Templates are a code-owned registry of TypeScript functions over a neutral, data-only renderable document: no template language, no HTML, no evaluation, no uploaded template, and no remote fetch. Renderers are pure JavaScript (`pdfkit` with `fontkit` shaping, `bidi-js` for UAX #9 ordering, and `docx`) over repository-owned Noto faces, and need no native binary, browser, office suite, shell, or runtime asset fetch.
+- Every generated version records the exact template id, template version, language, output family, checksum, and a `sourceSnapshotSha256` fingerprint of the authoritative fields it rendered. Inside the publishing transaction the generation shares-locks every rendered row, re-reads the source, and recompares the fingerprint, so the accepted state holds until commit and a file rendered from a stale record is never committed. No lock is held across rendering or storage publication.
+- Generation never truncates or substitutes authoritative text. PDF output uses `pdfkit` with repository-owned SIL Open Font License Noto faces, `fontkit` shaping, and `bidi-js` UAX #9 ordering, so Latin, Greek, Cyrillic, and Arabic all render correctly, including mixed-direction lines, and the drawn text also extracts back as the exact source Unicode. Coverage is decided per code point by a real glyph lookup in the face that will draw it, not by a Unicode block range; a character no registered face contains fails closed. The Word output carries full Unicode.
+- Reading or downloading a generated training certificate re-checks the participant's own source-domain capability, not only enrollment and program visibility.
+- Generation requires `documents:generate` plus the source domain's own authorization, and generated-document reads and downloads re-authorize that source at request time, so a leaked document UUID cannot bypass the source domain.
+- Storage and PostgreSQL are not one transaction: bytes are rendered, published, then committed, and a failed commit removes only the object that attempt published.
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance.
 - Issue #12 is complete through the merged Issue #35 document foundation, which keeps `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` as distinct taxonomy values.
 - Operational profitability recognises issued invoice revenue minus directly linked operational expenses (decision D-053). Received/allocated cash is reported separately through settlement and receivables and is never the profitability basis. Every aggregate is separated per currency and no FX conversion exists.

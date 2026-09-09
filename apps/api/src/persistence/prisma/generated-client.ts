@@ -14,6 +14,7 @@ export {
   DocumentStatus,
   DocumentVersionSource,
   DocumentVisibility,
+  GeneratedDocumentSource,
   InvoiceStatus,
   OutputFamily,
   AssignmentStatus,

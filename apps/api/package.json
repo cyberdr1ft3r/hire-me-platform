@@ -17,6 +17,7 @@
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:validate": "dotenv -e ../../.env.example -- prisma validate",
     "start": "dotenv -e ../../.env -- node dist/main.js",
+    "verify:generation-assets": "node scripts/verify-generation-assets.mjs",
     "test": "vitest run",
     "test:db": "dotenv -e ../../.env -- vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -31,6 +32,10 @@
     "@nestjs/platform-express": "^11.1.5",
     "@prisma/client": "^6.13.0",
     "argon2": "^0.45.0",
+    "bidi-js": "1.1.0",
+    "docx": "9.7.1",
+    "fontkit": "2.0.4",
+    "pdfkit": "0.20.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.0.10"
@@ -39,7 +44,9 @@
     "@hire-me/config": "workspace:*",
     "@nestjs/testing": "^11.1.5",
     "@types/node": "^24.1.0",
+    "@types/pdfkit": "0.17.6",
     "dotenv-cli": "^10.0.0",
+    "pdfjs-dist": "5.4.394",
     "prisma": "^6.13.0",
     "tsx": "^4.20.3",
     "vitest": "^3.2.4"

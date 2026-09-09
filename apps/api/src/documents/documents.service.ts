@@ -20,6 +20,7 @@ import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 import { CANDIDATE_PERMISSIONS } from '../candidates/candidate-permissions.js';
 import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
+import { COMMERCIAL_PERMISSIONS } from '../commercial/commercial-permissions.js';
 import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
   CandidateStatus,
@@ -31,12 +32,15 @@ import {
   InterviewStatus,
   AssignmentStatus,
   Prisma,
+  GeneratedDocumentSource,
   RecruitmentMissionState,
+  TrainingParticipantType,
   UserStatus,
   UserType,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
 import { ProtectedStorageService } from '../storage/protected-storage.service.js';
+import { TRAINING_PERMISSIONS } from '../training/training-permissions.js';
 
 type PrismaTransaction = Prisma.TransactionClient;
 type DocumentRecord = Prisma.DocumentGetPayload<{ include: typeof documentInclude }>;
@@ -59,6 +63,7 @@ type FilePolicy = {
 };
 
 const maxDocumentFileSizeBytes = 4_000_000;
+const unmatchableId = '00000000-0000-0000-0000-000000000000';
 const dangerousExtensionPattern = /\.(exe|bat|cmd|com|scr|js|jar|zip|rar|7z|tar|gz)$/i;
 const ooxmlDocxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const ooxmlXlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -822,6 +827,287 @@ export class DocumentsService {
     }
   }
 
+  /**
+   * Issue #49 generated-output re-authorization.
+   *
+   * A generated business output stays readable only while the actor can still read the
+   * authoritative record it was produced from. Document capability alone is never
+   * sufficient, so a leaked document UUID cannot become a side door into a commercial
+   * record or training enrollment the source domain hides. The same rule is applied
+   * again on every version listing and every historical download, not just on the
+   * detail path, and it is mirrored in the list predicate below.
+   */
+  private async assertGeneratedSourceScope(
+    document: DocumentRecord,
+    actorUserId: string,
+    permissions: string[],
+    transaction: PrismaService | PrismaTransaction,
+  ): Promise<void> {
+    const deny = (): never => {
+      throw notFound('DOCUMENT_NOT_FOUND', 'Document was not found.');
+    };
+
+    const commercialRecord = async (
+      granted: boolean,
+      record: { clientId: string; recruitmentMissionId: string | null } | null,
+    ): Promise<void> => {
+      if (
+        !granted ||
+        !this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS)
+      ) {
+        deny();
+      }
+      if (!record) {
+        deny();
+        return;
+      }
+      if (!this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW)) {
+        deny();
+      }
+      if (!record.recruitmentMissionId) {
+        return;
+      }
+      if (!this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW)) {
+        deny();
+      }
+      if (this.hasPermission(permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER)) {
+        return;
+      }
+      const assignment = await transaction.missionRecruiter.findFirst({
+        where: {
+          missionId: record.recruitmentMissionId,
+          userId: actorUserId,
+          status: AssignmentStatus.ACTIVE,
+          archivedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!assignment) {
+        deny();
+      }
+    };
+
+    switch (document.generatedSourceType) {
+      case GeneratedDocumentSource.COMMERCIAL_QUOTATION:
+        return commercialRecord(
+          this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.QUOTATIONS_VIEW),
+          document.commercialQuotationId
+            ? await transaction.commercialQuotation.findUnique({
+                where: { id: document.commercialQuotationId },
+                select: { clientId: true, recruitmentMissionId: true },
+              })
+            : null,
+        );
+      case GeneratedDocumentSource.PURCHASE_ORDER:
+        return commercialRecord(
+          this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.PURCHASE_ORDERS_VIEW),
+          document.purchaseOrderId
+            ? await transaction.purchaseOrder.findUnique({
+                where: { id: document.purchaseOrderId },
+                select: { clientId: true, recruitmentMissionId: true },
+              })
+            : null,
+        );
+      case GeneratedDocumentSource.COMMERCIAL_CONTRACT:
+        return commercialRecord(
+          this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.CONTRACTS_VIEW),
+          document.commercialContractId
+            ? await transaction.commercialContract.findUnique({
+                where: { id: document.commercialContractId },
+                select: { clientId: true, recruitmentMissionId: true },
+              })
+            : null,
+        );
+      case GeneratedDocumentSource.INVOICE:
+        return commercialRecord(
+          this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.INVOICES_VIEW),
+          document.invoiceId
+            ? await transaction.invoice.findUnique({
+                where: { id: document.invoiceId },
+                select: { clientId: true, recruitmentMissionId: true },
+              })
+            : null,
+        );
+      default:
+        break;
+    }
+
+    // Any document linked to a training enrollment, generated or uploaded, follows the
+    // merged training source rule rather than document capability alone.
+    if (document.trainingEnrollmentId) {
+      if (!this.hasPermission(permissions, TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_VIEW)) {
+        deny();
+      }
+      const enrollment = await transaction.trainingEnrollment.findFirst({
+        where: {
+          id: document.trainingEnrollmentId,
+          program: this.visibleTrainingProgramWhere(actorUserId, permissions),
+        },
+        select: { id: true, participantType: true },
+      });
+      if (!enrollment) {
+        deny();
+        return;
+      }
+      // A generated certificate renders the participant's name, so reading it back
+      // requires the same participant source capability generation itself demanded.
+      // Without this, a certificate document identifier would be an alternate route to
+      // a candidate or client-contact identity the actor cannot otherwise read.
+      if (!this.hasParticipantSourceAccess(enrollment.participantType, permissions)) {
+        deny();
+      }
+    }
+  }
+
+  /**
+   * Participant source capability, identical to the merged training participant rule
+   * that generation applies before rendering a name. `USER` and `EXTERNAL` participants
+   * are training-owned and need no additional source capability.
+   */
+  private hasParticipantSourceAccess(participantType: string, permissions: string[]): boolean {
+    switch (participantType) {
+      case TrainingParticipantType.CANDIDATE:
+        return this.hasPermission(permissions, CANDIDATE_PERMISSIONS.CANDIDATES_VIEW);
+      case TrainingParticipantType.CLIENT_CONTACT:
+        return (
+          this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW) &&
+          this.hasPermission(permissions, TRAINING_PERMISSIONS.CLIENT_CONTACTS_VIEW)
+        );
+      default:
+        return true;
+    }
+  }
+
+  /** The same participant rule expressed as a predicate for the list path. */
+  private visibleParticipantTypeWhere(permissions: string[]): Prisma.TrainingEnrollmentWhereInput {
+    const blocked: TrainingParticipantType[] = [];
+    if (!this.hasParticipantSourceAccess(TrainingParticipantType.CANDIDATE, permissions)) {
+      blocked.push(TrainingParticipantType.CANDIDATE);
+    }
+    if (!this.hasParticipantSourceAccess(TrainingParticipantType.CLIENT_CONTACT, permissions)) {
+      blocked.push(TrainingParticipantType.CLIENT_CONTACT);
+    }
+    return blocked.length > 0 ? { participantType: { notIn: blocked } } : {};
+  }
+
+  /** The merged `TrainingService` program visibility rule, mirrored as a predicate. */
+  private visibleTrainingProgramWhere(
+    actorUserId: string,
+    permissions: string[],
+  ): Prisma.TrainingProgramWhereInput {
+    const programView = this.hasPermission(
+      permissions,
+      TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    );
+    const programViewAll = this.hasPermission(
+      permissions,
+      TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW_ALL,
+    );
+    if (!programView && !programViewAll) {
+      return { id: unmatchableId };
+    }
+    const clientScope: Prisma.TrainingProgramWhereInput = this.hasPermission(
+      permissions,
+      CLIENT_PERMISSIONS.CLIENTS_VIEW,
+    )
+      ? {}
+      : { clientId: null };
+    if (programViewAll) {
+      return clientScope;
+    }
+    return {
+      AND: [
+        clientScope,
+        {
+          OR: [
+            { ownerUserId: actorUserId },
+            { sessions: { some: { trainerUserId: actorUserId } } },
+          ],
+        },
+      ],
+    };
+  }
+
+  /** Commercial source visibility as a predicate, matching `assertGeneratedSourceScope`. */
+  private commercialSourceWhere(
+    actorUserId: string,
+    permissions: string[],
+    sourceView: string,
+  ): Prisma.CommercialQuotationWhereInput {
+    if (
+      !this.hasPermission(permissions, sourceView) ||
+      !this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS) ||
+      !this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW)
+    ) {
+      return { id: unmatchableId };
+    }
+    if (!this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW)) {
+      return { recruitmentMissionId: null };
+    }
+    if (this.hasPermission(permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER)) {
+      return {};
+    }
+    return {
+      OR: [
+        { recruitmentMissionId: null },
+        {
+          recruitmentMission: {
+            recruiters: {
+              some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  /** Generated-source visibility for the list predicate. */
+  private generatedSourceWhere(
+    actorUserId: string,
+    permissions: string[],
+  ): Prisma.DocumentWhereInput {
+    const clause = (
+      key: 'commercialQuotation' | 'purchaseOrder' | 'commercialContract' | 'invoice',
+      idKey: 'commercialQuotationId' | 'purchaseOrderId' | 'commercialContractId' | 'invoiceId',
+      sourceView: string,
+    ): Prisma.DocumentWhereInput => ({
+      OR: [
+        { [idKey]: null },
+        {
+          [key]: this.commercialSourceWhere(actorUserId, permissions, sourceView),
+        },
+      ],
+    });
+
+    return {
+      AND: [
+        clause(
+          'commercialQuotation',
+          'commercialQuotationId',
+          COMMERCIAL_PERMISSIONS.QUOTATIONS_VIEW,
+        ),
+        clause('purchaseOrder', 'purchaseOrderId', COMMERCIAL_PERMISSIONS.PURCHASE_ORDERS_VIEW),
+        clause('commercialContract', 'commercialContractId', COMMERCIAL_PERMISSIONS.CONTRACTS_VIEW),
+        clause('invoice', 'invoiceId', COMMERCIAL_PERMISSIONS.INVOICES_VIEW),
+        this.hasPermission(permissions, TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_VIEW)
+          ? {
+              OR: [
+                { trainingEnrollmentId: null },
+                {
+                  trainingEnrollment: {
+                    AND: [
+                      { program: this.visibleTrainingProgramWhere(actorUserId, permissions) },
+                      this.visibleParticipantTypeWhere(permissions),
+                    ],
+                  },
+                },
+              ],
+            }
+          : { trainingEnrollmentId: null },
+      ],
+    };
+  }
+
   private async hasDocumentAccess(
     document: DocumentRecord,
     actorUserId: string,
@@ -846,6 +1132,7 @@ export class DocumentsService {
         permissions,
         transaction,
       );
+      await this.assertGeneratedSourceScope(document, actorUserId, permissions, transaction);
       return true;
     } catch {
       return false;
@@ -893,6 +1180,7 @@ export class DocumentsService {
           ],
         },
         contextPredicates,
+        this.generatedSourceWhere(actorUserId, permissions),
       ],
     };
   }
@@ -1191,6 +1479,10 @@ export class DocumentsService {
       checksumSha256: version.checksumSha256,
       outputFamily: version.outputFamily,
       source: version.source,
+      // Issue #49 generation provenance. Null for uploaded and imported versions.
+      templateId: version.templateId,
+      templateVersion: version.templateVersion,
+      generationLanguage: version.generationLanguage,
       status: version.status,
       archivedAt: isoOrNull(version.archivedAt),
       createdByUserId: version.createdByUserId,

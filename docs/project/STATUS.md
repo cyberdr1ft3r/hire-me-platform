@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Phase 8 commercial and operational accounting is complete through Issue #38 / merged PR #46 and Issue #39 / merged PR #47. Phase 7 document generation is the next product step.
-**Health:** `main` is at `54def73831df9b6cd7b0064171c52dff9b55e2ac`, the merge commit for PR #47. The final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded on every job.
-**Current blocker:** None.
-**Next executable development task:** Issue #49 — implement template-driven document and business-output generation on the merged `Document` / immutable `DocumentVersion` architecture. Issue #48 is this project-memory reconciliation and is documentation only.
+**Phase:** Phase 7 template-driven document and business-output generation, on top of the complete Phase 8 commercial and accounting foundations.
+**Health:** `main` is at `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`, the merge commit for the Issue #48 project-memory reconciliation (PR #50). Issue #49 is implemented on branch `feat/document-output-generation` from that exact main, in a draft PR.
+**Current blocker:** Two ChatGPT reviews of Issue #49 draft PR #51 returned four then three blocking findings. All seven are fixed on the branch; the PR now awaits the final merge gate and exact-head GitHub Actions.
+**Next executable development task:** Review the Issue #49 draft PR; keep it draft/open/unmerged.
 
 ## Active work
 
@@ -33,8 +33,8 @@ Status owner: repository maintainer
 | Issue #37 | Complete | Implement training operations foundation: programs, sessions, enrollment, and attendance | Merged via PR #45 into `main` as `09c506262ad3284efd69f70440c1ee06175c6e00` |
 | Issue #38 | Complete | Implement commercial workflow foundation for quotations, recruitment/training contracts, purchase orders, and invoices | Merged via PR #46 into `main` as `e1976f8a4b888657abe74c40ddf99c730032934a` |
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
-| Issue #48 | Open | Reconcile project memory after the accounting merge | Documentation only; draft PR on `docs/reconcile-after-accounting-merge` |
-| Issue #49 | Open | Implement template-driven document and business-output generation | Next executable product task; not started |
+| Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
+| Issue #49 | Open | Implement template-driven document and business-output generation | Implemented on branch `feat/document-output-generation`; keep the draft PR open/unmerged |
 
 ## Completed foundation work
 
@@ -300,6 +300,53 @@ Merged through Issue #39: payments, payment allocations, derived invoice settlem
 
 Still requiring their own approved issues: Moroccan payroll; statutory, general-ledger, and tax accounting; credit notes and refunds; aging buckets beyond the current overdue outstanding figure; accounting exports; and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 
+## Issue #49 Implementation State
+
+- Issue #49 adds template-driven generation of business output files on top of the merged `Document` / immutable `DocumentVersion` foundation. Structured business records stay authoritative; a generated file is only an output snapshot and never a second source of truth.
+- Output families: commercial quotation, purchase order, recruitment contract, training contract, issued invoice, and training certificate. Each renders to PDF and to Word-compatible DOCX in French or English.
+- Schema work is additive only, in migration `20260908160000_document_output_generation`. `Document` gains `generatedSourceType`, a unique `generatedDocumentKey`, `generatedLanguage`, and authoritative `commercialQuotationId`, `commercialContractId`, `purchaseOrderId`, and `invoiceId` relations with `onDelete: Restrict`. `DocumentVersion` gains `templateId`, `templateVersion`, `generationLanguage`, and a unique `generationIdempotencyKey`. The existing `trainingEnrollmentId` relation is reused rather than duplicated, and one new `DocumentType.TRAINING_CERTIFICATE` taxonomy value is added because none existed.
+- Four PostgreSQL check constraints keep provenance unambiguous: a generated document names exactly one source relation, its taxonomy matches that source family, its generated identity is complete or entirely absent, and a generated version always carries template identity, language, output family, and a checksum. All four use `CASE` with `IS NULL` / `IS NOT NULL` because PostgreSQL accepts a null check result.
+- Templates are a code-owned registry of ordinary TypeScript functions that map a typed view model onto a neutral, data-only renderable document. There is no template language, no HTML, no expression evaluation, no uploaded template, and no remote fetch, so a business value can never be interpreted. Every string passes one sanitization boundary that removes control characters, collapses whitespace, folds typographic punctuation, and bounds length.
+- Renderers are pure JavaScript: `pdfkit` for PDF, with `fontkit` OpenType shaping and `bidi-js` for UAX #9 bidirectional ordering, and `docx` for Word output. None needs a native binary, headless browser, office suite, or shell, so generation adds no machine prerequisite.
+- PDF output embeds repository-owned SIL Open Font License Noto faces from `apps/api/assets/fonts`, resolved relative to the module rather than the working directory so the compiled build finds them. Supported scripts are Latin, Latin Extended, Greek, Cyrillic, and Arabic, including mixed Latin/Arabic lines with correct bidirectional ordering and Arabic contextual joining. Coverage is decided per code point by asking the chosen face whether it contains the glyph, not by a Unicode block range; a character no registered face can draw fails closed with `GENERATION_PDF_SCRIPT_UNSUPPORTED`, and nothing is ever substituted or drawn as a missing-glyph box.
+- PDF text is real text in both senses: the glyphs on the page are the shaper’s contextual forms in UAX #9 visual order, and every drawn glyph maps back to the source characters, so copying, searching, and extracting an Arabic or mixed line returns the exact source Unicode.
+- View models are built server-side from one authoritative snapshot; the renderer never queries the database. Issued invoice lines and totals are copied verbatim from the immutable issued snapshot, nothing is recomputed, and placement eligibility is never re-evaluated.
+- Eligibility follows merged lifecycle semantics: a quotation must be issued, accepted, rejected, or expired; a purchase order must not be canceled or archived; a contract must not be canceled or archived; only an issued, non-canceled, non-archived invoice produces an invoice output; and a certificate requires the merged training readiness rule, so `NOT_APPLICABLE` and `ISSUED` are both refused. Generating a certificate never transitions the enrollment: issuance stays the explicit audited training action.
+- Logical document identity is one document per source record, output family, and language. First generation creates version 1; regeneration adds version N+1 and never overwrites a historical version or its bytes. A publish locks in this order: the rendered source rows parent-first, then `Document`, then `DocumentVersion`.
+- Idempotency keys are resolved globally. The same key with the same effective request returns the original version; the same key against a different source, output family, language, or template is a deterministic `GENERATION_IDEMPOTENCY_KEY_CONFLICT`.
+- Storage and PostgreSQL are not one transaction, and the boundary is documented rather than claimed away: bytes are rendered in memory, published to a server-generated storage key, and only then committed inside a transaction. A failed transaction deletes the object this attempt published and never touches a historical object, so the database never references missing bytes and at most one unreferenced object can be left if compensation itself fails.
+- Authorization requires `documents:generate` plus the source domain's own rule: for commercial outputs the matching `*:view` capability, `commercial_data:access`, and the merged client/mission record scope; for certificates the merged training program visibility rule plus `training_enrollments:view`, and the participant's own source-domain read capability before the participant name is rendered. Generated-document detail, version listing, and both current and historical downloads re-authorize the underlying source at request time, and the same rule is mirrored in the document list predicate, so a leaked document UUID cannot bypass the source domain. Hidden and nonexistent sources share one envelope.
+- Out of scope and unchanged: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, payment receipts, accounting exports, payroll documents, OCR or AI extraction, and any client or candidate portal.
+
+### Review blockers found and addressed
+
+The first ChatGPT review of PR #51, on head `0fb4ab5a0b4f845b0e767cc6347279c8447afe07`, returned four blocking findings. All four are fixed.
+
+1. **Generated certificates did not re-check the participant source on read.** Generation already required the participant's own source-domain capability before rendering a name, but document detail, version listing, and downloads only checked enrollment and program visibility, so a certificate document identifier could disclose a candidate or client-contact name the actor could not otherwise read. `DocumentsService` now applies the same participant rule (`candidates:view` for a candidate; `clients:view` plus `client_contacts:view` for a client contact; internal users and external participants stay training-owned) on detail, version listing, current and historical downloads, and as a predicate in the document list.
+2. **A stale source snapshot could be committed.** Rendering happens outside any transaction, and mutable generation-eligible records such as a draft purchase order or contract can change while a file renders, which the lifecycle check alone could not detect. Every generated version now records a `sourceSnapshotSha256` fingerprint over exactly the authoritative fields the output renders, including ordered line rows. The source is re-read inside the publishing transaction, the fingerprint is recomputed, and a mismatch rejects with `GENERATION_SOURCE_CHANGED` and compensates the published object. No row lock is held across rendering or storage I/O.
+3. **The renderer could silently alter authoritative text.** Sanitization no longer truncates at 500 characters and no longer substitutes characters, and PDF table cells no longer clip to one physical line. Text wraps across lines and pages, an unbroken token is split rather than dropped, explicit line breaks are preserved, and DOCX carries full Unicode untouched. The PDF standard-font repertoire is now the complete WinAnsi set, so the French `oe` ligature, the euro sign, and typographic punctuation render properly; text a standard font genuinely cannot encode fails with `GENERATION_PDF_UNSUPPORTED_CHARACTERS` instead of being corrupted, and the Word output remains available for it.
+4. **The web download control did not download.** It now routes the protected-endpoint blob through the repository's existing object-URL pattern: create the object URL, click a temporary anchor carrying the authorized filename, remove the anchor, and revoke the URL. No storage key is ever exposed.
+
+Hardening in the same pass: a bounded French/English selector on the generation control, caught API failures with a bounded error state, generation buttons disabled for lifecycle-ineligible records, version history gated on `documents:view` so an actor with only `documents:generate` degrades gracefully, a `DocumentVersion` check constraint that additionally requires `generationIdempotencyKey` and `sourceSnapshotSha256` on every generated version, and protected storage publication through a temporary file plus an atomic link so a failed write can never leave a partial object at the final key.
+
+### Second review round, three blockers addressed
+
+The second ChatGPT review, on head `71d3465e4ffd195656b2ac76985b3dfbcc3a6164`, accepted the four earlier fixes and returned three further blocking findings. All three are fixed.
+
+1. **Source stability was provenance, not an invariant.** Comparing fingerprints inside the transaction still left a window in which a concurrent mutation could commit between the comparison and the version insert. The publishing transaction now takes a **shared row lock on every row whose values the output renders** before that comparison: the commercial client, the optional recruitment mission, and the commercial root, whose exclusive lock is the only path through which its line rows change; and for a certificate the client, program, enrollment, and the participant record whose name is rendered. Locks are acquired parent-first in the order the merged mutation paths already use, are taken as `FOR SHARE` so concurrent generations never block one another, and are never held across rendering or storage publication.
+2. **PDF Unicode support was incomplete.** The renderer moved from `pdf-lib` standard fonts to `pdfkit` with embedded Noto faces, `fontkit` OpenType shaping, and `bidi-js` UAX #9 ordering, so Arabic renders as joined contextual forms in correct right-to-left order and mixed Latin/Arabic lines order correctly. The old `GENERATION_PDF_UNSUPPORTED_CHARACTERS` path is replaced by a narrower `GENERATION_PDF_SCRIPT_UNSUPPORTED` that only triggers for scripts no bundled face covers.
+3. **Project-memory dates were future-dated.** D-054 and the Issue #49 migration timestamp were dated 2026-09-09 while the repository date is 2026-09-08; both are corrected, and the migration is renamed to `20260908160000_document_output_generation`, which still sorts after the merged tail.
+
+### Final review gate, three findings addressed
+
+The ChatGPT final gate, on head `78620f2a5de640d0a66dbc469aa3334b96fab991`, returned two PDF fidelity findings and one documentation correction. All three are fixed.
+
+1. **Arabic PDF text was drawn correctly but did not extract as source Unicode.** Noto Sans Arabic decomposes a dotted letter into a dotless skeleton plus a separate dots glyph, so one glyph serves several letters and the dots glyph carries no source characters at all. PDFKit keys its `ToUnicode` map by glyph id and writes an empty destination for an unattributed glyph, which loses characters and confuses `س` with `ش`. The renderer now allocates a distinct CID per *(glyph, code points)* pair, re-creates glyph objects so each occurrence reports its own characters, and maps a glyph that stands for no source character to U+2060 WORD JOINER instead of to an empty destination. Fixing the same seam also supplies the shaping direction UAX #9 resolved and draws a whole same-face stretch of a line as one text object, which corrected two rendering defects found while proving the first: PDFKit laid right-to-left words out left to right, and fontkit reversed Arabic-Indic digits inside Arabic. Nine round-trip vectors now assert exact source recovery through `pdfjs-dist`, and separate assertions read the content stream directly to prove page order; the vacuous assertion and the placeholder filtering the review named are gone.
+2. **Font coverage was decided by Unicode ranges rather than by the faces.** `font-registry.ts` now parses every registered face with `fontkit` and answers coverage with `hasGlyphForCodePoint` for the weight that will draw the character, trying the block hint first and then the approved fallbacks. The range classifier remains as a routing optimisation only. A character the classifier admits but no face contains — Armenian, which shares a span with Latin Extended, Greek, and Cyrillic — is now refused with `GENERATION_PDF_SCRIPT_UNSUPPORTED` rather than drawn as a box, and a neutral character the surrounding face lacks, such as `€` inside Arabic, opens a run in a face that has it.
+3. **The service lock comment was stale.** It still described locking only `Document` then `DocumentVersion` and claimed source rows were never locked, which the second round had already made untrue. It now describes the real order: stabilize the rendered source rows parent-first, fingerprint, lock or create `Document`, insert `DocumentVersion`, commit.
+
+Hardening in the same pass: the shared-lock helper no longer takes a table name as text and no longer uses `$queryRawUnsafe`; a closed `LockableTable` union selects a written-out parameterized statement per table, so no caller can route text into SQL. The unused `pdf-lib` dependency is removed and `fontkit` becomes a direct dependency, since the registry now uses it at runtime.
+
 ## Closed without merge
 
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance. Nothing from it is pending.
@@ -324,9 +371,8 @@ Still requiring their own approved issues: Moroccan payroll; statutory, general-
 
 ## Immediate next actions
 
-1. Review and merge the Issue #48 project-memory reconciliation on branch `docs/reconcile-after-accounting-merge`; it is documentation only.
-2. Start Issue #49, template-driven document and business-output generation, on its own branch from current `main`. Generated outputs must attach to the existing `Document` aggregate as immutable `DocumentVersion` records with `DocumentVersionSource.GENERATED`, never as a second source of truth.
-3. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
+1. Final review of the Issue #49 draft PR on branch `feat/document-output-generation` after two rounds of review blockers were fixed; keep it draft/open/unmerged.
+2. Confirm the approved profitability revenue policy (decision D-053) still reflects product intent before any later cash-basis reporting is added.
 
 ## Status Update Rules
 

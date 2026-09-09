@@ -2,6 +2,7 @@ import {
   CandidateDocumentType,
   DocumentType,
   DocumentVersionSource,
+  OutputFamily,
   DocumentVisibility,
   MissionRecruiterRole,
   Prisma,
@@ -336,8 +337,16 @@ describe('foundational Prisma schema', () => {
         storageKey: 'documents/synthetic-candidate-summary-v1',
         mimeType: 'application/pdf',
         sizeBytes: BigInt(2048),
+        checksumSha256: 'a'.repeat(64),
+        outputFamily: OutputFamily.PDF,
         createdByUserId: owner.id,
         source: DocumentVersionSource.GENERATED,
+        // Issue #49 requires bounded provenance on every generated version.
+        templateId: 'synthetic.template',
+        templateVersion: 1,
+        generationLanguage: 'fr',
+        generationIdempotencyKey: 'synthetic-generation-key-1',
+        sourceSnapshotSha256: 'c'.repeat(64),
       },
     });
 
@@ -355,14 +364,73 @@ describe('foundational Prisma schema', () => {
           storageKey: 'documents/synthetic-candidate-summary-v1',
           mimeType: 'application/pdf',
           sizeBytes: BigInt(2048),
+          checksumSha256: 'b'.repeat(64),
+          outputFamily: OutputFamily.PDF,
           createdByUserId: owner.id,
           source: DocumentVersionSource.GENERATED,
+          templateId: 'synthetic.template',
+          templateVersion: 1,
+          generationLanguage: 'fr',
+          generationIdempotencyKey: 'synthetic-generation-key-2',
+          sourceSnapshotSha256: 'd'.repeat(64),
         },
       }),
     ).rejects.toSatisfy((error: unknown) => {
       expectUniqueConstraint(error);
       return true;
     });
+  });
+
+  it('refuses a generated document version without its generation provenance', async () => {
+    const owner = await createUser('provenance.owner@example.test', 'Provenance Owner');
+    const document = await prisma.document.create({
+      data: {
+        title: 'Synthetic provenance document',
+        documentType: DocumentType.OTHER,
+        visibility: DocumentVisibility.INTERNAL_ONLY,
+        ownerUserId: owner.id,
+        createdByUserId: owner.id,
+      },
+    });
+
+    // Issue #49 routes every generated version through the generation boundary, so a
+    // generated row without its idempotency key or source snapshot is unexplainable.
+    await expect(
+      prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          versionNumber: 1,
+          filename: 'missing-provenance.pdf',
+          storageKey: 'documents/missing-provenance-v1',
+          mimeType: 'application/pdf',
+          sizeBytes: BigInt(1024),
+          checksumSha256: 'e'.repeat(64),
+          outputFamily: OutputFamily.PDF,
+          createdByUserId: owner.id,
+          source: DocumentVersionSource.GENERATED,
+          templateId: 'synthetic.template',
+          templateVersion: 1,
+          generationLanguage: 'fr',
+        },
+      }),
+    ).rejects.toThrow(/DocumentVersion_generation_provenance_consistent/);
+
+    // An uploaded version may never carry generation provenance either.
+    await expect(
+      prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          versionNumber: 2,
+          filename: 'uploaded-with-provenance.pdf',
+          storageKey: 'documents/uploaded-with-provenance-v1',
+          mimeType: 'application/pdf',
+          sizeBytes: BigInt(1024),
+          createdByUserId: owner.id,
+          source: DocumentVersionSource.UPLOADED,
+          templateId: 'synthetic.template',
+        },
+      }),
+    ).rejects.toThrow(/DocumentVersion_generation_provenance_consistent/);
   });
 
   it('preserves history through deliberate foreign-key deletion restrictions', async () => {
