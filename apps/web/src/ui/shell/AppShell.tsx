@@ -30,7 +30,7 @@ interface AppShellProps {
   user: AuthenticatedUser;
 }
 
-const mobileNavigationQuery = '(max-width: 47.999rem)';
+const mobileNavigationQuery = '(max-width: 56.25rem)';
 
 function isMobileNavigation(): boolean {
   return (

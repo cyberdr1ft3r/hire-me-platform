@@ -10,6 +10,7 @@
   justify-content: center;
   line-height: var(--line-height-tight);
   padding-inline: var(--space-3);
+  white-space: nowrap;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),

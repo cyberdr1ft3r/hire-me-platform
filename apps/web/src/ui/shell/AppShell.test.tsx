@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { useState } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -5,6 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShellPreview } from '../../app-shell-preview/AppShellPreview.js';
 import type { InternalRoute } from '../../navigation/internal-navigation.js';
+import { Button } from '../Button.js';
+import { PageHeader } from '../PageHeader.js';
 import { AppShell } from './AppShell.js';
 
 const syntheticUser: AuthenticatedUser = {
@@ -26,7 +30,7 @@ function mockMobileNavigation(matches: boolean): void {
       addEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
       matches,
-      media: '(max-width: 47.999rem)',
+      media: '(max-width: 56.25rem)',
       onchange: null,
       removeEventListener: vi.fn(),
     }),
@@ -122,5 +126,39 @@ describe('AppShell', () => {
     expect(screen.getByRole('heading', { name: 'AppShell review' })).toBeVisible();
     expect(screen.getByText('HM-SYNTHETIC')).toBeVisible();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps PageHeader action labels intact while the action group can wrap', () => {
+    render(
+      <PageHeader
+        primaryAction={<Button>Create item</Button>}
+        secondaryActions={<Button variant="secondary">Secondary action</Button>}
+        title="Constrained header"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Create item' })).toHaveTextContent('Create item');
+    expect(screen.getByRole('button', { name: 'Secondary action' })).toHaveTextContent(
+      'Secondary action',
+    );
+
+    const componentCss = readFileSync(path.resolve('src/styles/components.css'), 'utf8');
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+    expect(componentCss).toMatch(/\.ui-button\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(shellCss).toMatch(/\.ui-page-header__actions\s*\{[^}]*flex-wrap:\s*wrap;/s);
+    expect(shellCss).toMatch(/\.ui-page-header__actions > \*\s*\{[^}]*flex-shrink:\s*0;/s);
+  });
+
+  it('keeps the padded sidebar within the viewport and scrolls navigation before the session footer', () => {
+    const shellSource = readFileSync(path.resolve('src/ui/shell/AppShell.tsx'), 'utf8');
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+
+    expect(shellSource).toContain("const mobileNavigationQuery = '(max-width: 56.25rem)'");
+    expect(shellCss).toContain('@media (max-width: 56.25rem)');
+    expect(shellCss).toMatch(/\.app-shell__sidebar\s*\{[^}]*box-sizing:\s*border-box;/s);
+    expect(shellCss).toMatch(
+      /\.app-shell__navigation\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s,
+    );
+    expect(shellCss).toMatch(/\.app-shell__session\s*\{[^}]*flex:\s*0 0 auto;/s);
   });
 });

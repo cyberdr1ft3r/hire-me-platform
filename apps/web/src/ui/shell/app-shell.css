@@ -24,6 +24,7 @@
 .app-shell__sidebar {
   background: var(--color-surface);
   border-inline-end: var(--border-width) solid var(--color-border);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -254,6 +255,10 @@
   justify-content: flex-end;
 }
 
+.ui-page-header__actions > * {
+  flex-shrink: 0;
+}
+
 .app-home__intro {
   border-block-start: var(--border-width) solid var(--color-border);
   max-width: var(--layout-reading-max);
@@ -274,7 +279,7 @@
   }
 }
 
-@media (max-width: 47.999rem) {
+@media (max-width: 56.25rem) {
   .app-shell {
     display: block;
   }

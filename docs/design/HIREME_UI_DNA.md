@@ -1,6 +1,6 @@
 # HireMe UI-DNA v1
 
-Status: Phase 1 foundation, awaiting maintainer visual approval
+Status: Phase 1 foundation approved; Task 2 AppShell awaiting visual approval
 
 Canonical implementation: `apps/web/src/styles/tokens.css`
 Review harness: `apps/web/design-system.html`
@@ -235,3 +235,5 @@ Phase 1 proves `Button`, `FieldFrame`, `TextField`, `TextArea`, `Select`, `Check
 The approved Task 2 checkpoint adds the authenticated internal `AppShell` and `PageHeader`. `AppShell` owns only persistent internal chrome: grouped permission-aware navigation, the current-destination marker, compact API health, safe user identity, refresh, sign-out, responsive off-canvas behavior, and the main-content focus target. It does not redesign module content. `PageHeader` owns the canonical internal title, concise description, optional metadata, and action region; actions wrap without changing their semantic order. Internal modules keep their existing density and business behavior while they are hosted by the shell.
 
 The synthetic API-free shell specimen is available only through `apps/web/app-shell.html` during development. It uses placeholder identity and content, is not linked from product navigation, and is excluded from the normal production build. Production data-table abstractions, modal/drawer frameworks beyond the shell navigation, charts, tabs, pagination, and representative module redesigns belong to later approved Issue #52 checkpoints.
+
+For this AppShell checkpoint, the persistent sidebar switches to the off-canvas navigation at and below 900px (`56.25rem`); 1024px remains the persistent laptop shell. The JavaScript media query and CSS breakpoint must stay identical.
