@@ -227,7 +227,13 @@
   width: 100%;
 }
 
-.app-shell__content > .admin-panel {
+/*
+ * The boundary element below is `display: contents`, so it changes no layout,
+ * but it does add a level to the selector path. Both forms are listed rather
+ * than loosening this to a descendant selector.
+ */
+.app-shell__content > .admin-panel,
+.app-shell__content > .legacy-english-content > .admin-panel {
   background: transparent;
   border: 0;
   border-radius: 0;

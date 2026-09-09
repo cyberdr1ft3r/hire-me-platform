@@ -9,7 +9,8 @@ Last updated: 2026-09-09
 - Issue #54 and draft PR #55 are open on `feat/web-i18n-en-fr`. Do not merge or deploy them.
 - Issue #54 adds the English/French localization foundation only. It is deliberately sequenced before the Reporting redesign so Reporting is bilingual from its first commit.
 - No database change was made: there is no `preferredLocale` column and no migration.
-- Legacy business modules and the public opportunity pages stay English on purpose. They migrate when each is redesigned.
+- Legacy business modules and the public opportunity pages stay English on purpose. They migrate when each is redesigned, and until then each declares `lang="en"` through the shared `LegacyEnglishContent` boundary so the document language never misrepresents them.
+- Review `5157248513` raised two correctness blockers, both resolved on this branch: deferred English content is now marked as English, and translator arguments are compile-time checked.
 
 ## Review target
 
@@ -30,13 +31,21 @@ Open `http://127.0.0.1:5173/app-shell.html` and review:
 - 390, 430, 800, 1024, and 1440 px in French: no clipping, no horizontal shell overflow, session controls reachable, `<= 900px` off-canvas and `> 900px` persistent unchanged;
 - the mobile drawer keeping the language control reachable without consuming excessive vertical space.
 
+Then confirm the language-of-content boundary. With French active:
+
+- `http://127.0.0.1:5173/opportunities` and an opportunity detail page keep `<html lang="fr">` while their English content sits inside `lang="en"`;
+- an authenticated legacy module such as Tasks or Reporting shows French shell chrome around an English module body marked `lang="en"`;
+- the Overview, the permission denial, and the login screen carry no boundary, because they are translated.
+
+The boundary is `display: contents`, so it must change no layout anywhere.
+
 The preview is synthetic and API-free. The login screen at `http://127.0.0.1:5173/` is also localized and can be reviewed without a running API.
 
 ## Completion conditions
 
 - Local quality gates and exact-head GitHub Actions are green.
 - The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`; no i18n framework was added.
-- A missing or misspelled translation key still fails `pnpm typecheck`.
+- A missing or misspelled translation key, a missing interpolation value, and a count-sensitive key without a numeric count all still fail `pnpm typecheck`; `translate.type-test.ts` is what holds that.
 - PR #55 remains draft, open, and unmerged.
 - The maintainer accepts the localization foundation or requests a bounded correction.
 

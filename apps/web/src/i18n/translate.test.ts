@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createFormatters } from './format.js';
 import { LOCALE_METADATA, SUPPORTED_LOCALES, type Locale } from './locale.js';
-import type { PluralMessage } from './message.js';
+import type { PluralForms } from './message.js';
 import { DICTIONARIES } from './messages/index.js';
 import { createTranslator, type Translator } from './translate.js';
 
@@ -22,16 +22,28 @@ function normalizeSpaces(value: string): string {
   return value.replace(/[\u00a0\u202f]/g, ' ');
 }
 
+function isPluralNode(node: unknown): node is PluralForms {
+  return (
+    typeof node === 'object' && node !== null && typeof (node as PluralForms).other === 'string'
+  );
+}
+
 function leafPaths(node: unknown, prefix = ''): string[] {
   if (typeof node !== 'object' || node === null) {
     return [prefix];
   }
-  if (typeof (node as PluralMessage).other === 'string') {
+  if (isPluralNode(node)) {
     return [prefix];
   }
   return Object.entries(node as Record<string, unknown>).flatMap(([key, value]) =>
     leafPaths(value, prefix ? `${prefix}.${key}` : key),
   );
+}
+
+function leafAt(dictionary: unknown, key: string): unknown {
+  return key.split('.').reduce<unknown>((node, segment) => {
+    return (node as Record<string, unknown>)[segment];
+  }, dictionary);
 }
 
 function stringValues(node: unknown): string[] {
@@ -44,12 +56,54 @@ function stringValues(node: unknown): string[] {
   return Object.values(node as Record<string, unknown>).flatMap(stringValues);
 }
 
+/**
+ * The placeholder names one template uses, deduplicated and ordered so two
+ * locales can be compared directly.
+ */
+function placeholderNames(template: string): string[] {
+  const names = [...template.matchAll(/\{(\w+)\}/g)]
+    .map((match) => match[1])
+    .filter((name): name is string => name !== undefined);
+  return [...new Set(names)].sort();
+}
+
+/**
+ * `count` is the plural-selection input rather than ordinary interpolation, so
+ * it is compared separately from the placeholders a form must print.
+ */
+function nonCountPlaceholders(template: string): string[] {
+  return placeholderNames(template).filter((name) => name !== 'count');
+}
+
+function pluralFormTexts(node: PluralForms): string[] {
+  return Object.values(node).filter((form): form is string => typeof form === 'string');
+}
+
+const canonicalLeafPaths = leafPaths(DICTIONARIES.en).sort();
+const canonicalPluralPaths = canonicalLeafPaths.filter((key) =>
+  isPluralNode(leafAt(DICTIONARIES.en, key)),
+);
+const canonicalOrdinaryPaths = canonicalLeafPaths.filter(
+  (key) => !canonicalPluralPaths.includes(key),
+);
+
 describe('dictionary contract', () => {
   it('gives every locale the same leaf keys as canonical English', () => {
-    const canonical = leafPaths(DICTIONARIES.en).sort();
-    expect(canonical.length).toBeGreaterThan(0);
+    expect(canonicalLeafPaths.length).toBeGreaterThan(0);
     for (const locale of SUPPORTED_LOCALES) {
-      expect(leafPaths(DICTIONARIES[locale]).sort()).toEqual(canonical);
+      expect(leafPaths(DICTIONARIES[locale]).sort()).toEqual(canonicalLeafPaths);
+    }
+  });
+
+  it('pins which entries are count-sensitive, so runtime detection matches the dictionary', () => {
+    expect(canonicalPluralPaths).toEqual(['common.counts.candidates', 'common.pagination.results']);
+    for (const locale of SUPPORTED_LOCALES) {
+      for (const key of canonicalPluralPaths) {
+        expect(isPluralNode(leafAt(DICTIONARIES[locale], key))).toBe(true);
+      }
+      for (const key of canonicalOrdinaryPaths) {
+        expect(typeof leafAt(DICTIONARIES[locale], key)).toBe('string');
+      }
     }
   });
 
@@ -89,6 +143,92 @@ describe('dictionary contract', () => {
   });
 });
 
+/**
+ * Structural typing proves both locales carry the same keys. It cannot prove
+ * that a translator kept the same placeholder names inside a template, so a
+ * French `{courriel}` where English has `{email}` would otherwise fail only for
+ * French users at run time.
+ */
+describe('cross-locale placeholder parity', () => {
+  it('gives every ordinary message the same placeholder names as canonical English', () => {
+    for (const key of canonicalOrdinaryPaths) {
+      const canonical = placeholderNames(leafAt(DICTIONARIES.en, key) as string);
+      for (const locale of SUPPORTED_LOCALES) {
+        const translated = placeholderNames(leafAt(DICTIONARIES[locale], key) as string);
+        expect({ key, locale, placeholders: translated }).toEqual({
+          key,
+          locale,
+          placeholders: canonical,
+        });
+      }
+    }
+  });
+
+  it('keeps every form of a plural entry consistent within its own locale', () => {
+    for (const key of canonicalPluralPaths) {
+      for (const locale of SUPPORTED_LOCALES) {
+        const forms = pluralFormTexts(leafAt(DICTIONARIES[locale], key) as PluralForms);
+        const [first] = forms;
+        expect(first).toBeTypeOf('string');
+        const expected = nonCountPlaceholders(first ?? '');
+        for (const form of forms) {
+          expect({ key, locale, form, placeholders: nonCountPlaceholders(form) }).toEqual({
+            key,
+            locale,
+            form,
+            placeholders: expected,
+          });
+        }
+      }
+    }
+  });
+
+  it('gives every plural entry the same non-count placeholders as canonical English', () => {
+    for (const key of canonicalPluralPaths) {
+      const canonical = [
+        ...new Set(
+          pluralFormTexts(leafAt(DICTIONARIES.en, key) as PluralForms).flatMap(
+            nonCountPlaceholders,
+          ),
+        ),
+      ].sort();
+      for (const locale of SUPPORTED_LOCALES) {
+        const translated = [
+          ...new Set(
+            pluralFormTexts(leafAt(DICTIONARIES[locale], key) as PluralForms).flatMap(
+              nonCountPlaceholders,
+            ),
+          ),
+        ].sort();
+        expect({ key, locale, placeholders: translated }).toEqual({
+          key,
+          locale,
+          placeholders: canonical,
+        });
+      }
+    }
+  });
+
+  it('detects a renamed placeholder, which is the mistake this contract exists to catch', () => {
+    // A French copy of the canonical entry with `{email}` renamed to `{courriel}`.
+    const canonical = placeholderNames('Signed in as {email}');
+    const drifted = placeholderNames('Session ouverte : {courriel}');
+    expect(canonical).toEqual(['email']);
+    expect(drifted).not.toEqual(canonical);
+  });
+
+  it('does not require French to expose the same plural categories as English', () => {
+    const englishCategories = Object.keys(
+      leafAt(DICTIONARIES.en, 'common.pagination.results') as PluralForms,
+    ).sort();
+    const frenchCategories = Object.keys(
+      leafAt(DICTIONARIES.fr, 'common.pagination.results') as PluralForms,
+    ).sort();
+    expect(englishCategories).toEqual(['one', 'other']);
+    expect(frenchCategories).toEqual(['many', 'one', 'other']);
+  });
+});
+
 describe('translation lookup', () => {
   it('resolves the same key to each locale', () => {
     expect(en('navigation.destinations.overview')).toBe('Overview');
@@ -102,8 +242,8 @@ describe('translation lookup', () => {
   });
 
   it('refuses an unknown key instead of falling back silently', () => {
-    // The typed signature makes this unreachable from application code; the cast
-    // proves the runtime does not hide a development mistake either.
+    // Typed call sites cannot reach these; the casts prove the runtime boundary
+    // still fails closed when a key arrives untyped.
     const untyped = en as unknown as (key: string) => string;
     expect(() => untyped('shell.session.missing')).toThrow(/Missing translation key/);
     expect(() => untyped('shell')).toThrow(/does not resolve to a message/);

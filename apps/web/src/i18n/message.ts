@@ -7,11 +7,11 @@
  */
 
 /**
- * A count-sensitive entry. `other` is mandatory because every CLDR plural rule
- * set falls back to it; the remaining categories are supplied per language, so
- * French can add `many` where English needs only `one` and `other`.
+ * The CLDR plural categories a message may supply. `other` is mandatory because
+ * every rule set falls back to it; the rest are supplied per language, so French
+ * can add `many` where English needs only `one` and `other`.
  */
-export interface PluralMessage {
+export interface PluralForms {
   readonly few?: string;
   readonly many?: string;
   readonly one?: string;
@@ -21,12 +21,38 @@ export interface PluralMessage {
 }
 
 /**
- * Marks a dictionary entry as count-sensitive. Wrapping the English entry widens
- * its inferred type to `PluralMessage`, which is what lets French supply a
- * different set of plural categories while satisfying the same structure.
+ * Type-only brand. It never exists at runtime, so traversal, comparison, and
+ * serialization see a plain object, while the type system can tell a
+ * count-sensitive entry from an ordinary message group with certainty rather
+ * than by guessing from the presence of an `other` key.
  */
-export function plural(forms: PluralMessage): PluralMessage {
-  return forms;
+declare const PLURAL_MESSAGE: unique symbol;
+
+export type PluralMessage<Forms extends PluralForms = PluralForms> = Forms & {
+  readonly [PLURAL_MESSAGE]: 'plural';
+};
+
+/**
+ * Marks a dictionary entry as count-sensitive.
+ *
+ * The `const` type parameter keeps each form's literal text, which is what lets
+ * the translator derive a key's required arguments at compile time. The brand is
+ * added by assertion only; the returned object is exactly the argument.
+ */
+export function plural<const Forms extends PluralForms>(forms: Forms): PluralMessage<Forms> {
+  return forms as PluralMessage<Forms>;
 }
 
+/**
+ * The structural contract a non-canonical locale must satisfy: the same tree and
+ * the same count-sensitive entries as canonical English, but free to carry its
+ * own text and its own plural categories.
+ */
+export type WidenMessages<Tree> = Tree extends string
+  ? string
+  : Tree extends PluralMessage
+    ? PluralMessage
+    : { [Key in keyof Tree]: WidenMessages<Tree[Key]> };
+
+/** The loose value shape the runtime translator accepts. */
 export type MessageValues = Readonly<Record<string, number | string>>;

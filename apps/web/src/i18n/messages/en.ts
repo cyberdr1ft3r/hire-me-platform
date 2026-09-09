@@ -1,4 +1,4 @@
-import { plural } from '../message.js';
+import { plural, type WidenMessages } from '../message.js';
 
 /**
  * The canonical HireMe dictionary.
@@ -6,6 +6,10 @@ import { plural } from '../message.js';
  * English defines the structural contract: every other locale is annotated with
  * `Messages` and must satisfy exactly this shape, so a missing or misspelled key
  * fails `pnpm typecheck` instead of falling back silently at runtime.
+ *
+ * It is declared `as const` so each template keeps its literal type. That is what
+ * lets the translator derive a key's required `{placeholder}` names and its
+ * count requirement at compile time.
  *
  * Keys are semantic paths, never English sentences. Values are plain text; a
  * `{placeholder}` is replaced with text at render time.
@@ -138,7 +142,13 @@ export const enMessages = {
     title: 'AppShell review',
     workspaceTitle: 'Operational content belongs directly in the page',
   },
-};
+} as const;
 
-/** The structural contract every locale must satisfy. */
-export type Messages = typeof enMessages;
+/** Canonical English, with every literal template preserved. */
+export type CanonicalMessages = typeof enMessages;
+
+/**
+ * The structural contract every locale must satisfy: the same tree and the same
+ * count-sensitive entries, with its own text and its own plural categories.
+ */
+export type Messages = WidenMessages<CanonicalMessages>;

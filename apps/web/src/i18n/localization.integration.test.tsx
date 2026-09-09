@@ -294,13 +294,16 @@ describe('locale reach beyond the authenticated shell', () => {
 
     render(<App />);
 
-    // Public copy is intentionally still English until its own redesign, but the
-    // provider is already active, so the document language tracks the locale.
-    expect(await screen.findByRole('heading', { name: 'Open roles' })).toBeVisible();
+    // Public copy is intentionally still English until its own redesign. The
+    // provider is active and the document language tracks the locale, so the
+    // English content must declare its own language rather than inherit French.
+    const heading = await screen.findByRole('heading', { name: 'Open roles' });
+    expect(heading).toBeVisible();
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
+    expect(heading.closest('[lang]')).toHaveAttribute('lang', 'en');
   });
 
   it('denies an unauthorized direct route in the active language', async () => {

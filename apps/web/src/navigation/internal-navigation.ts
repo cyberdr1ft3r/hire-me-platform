@@ -1,4 +1,4 @@
-import type { MessageKey } from '../i18n/index.js';
+import type { PlainMessageKey } from '../i18n/index.js';
 
 export type InternalRoute =
   | 'home'
@@ -19,9 +19,12 @@ export type NavigationGroupId = 'workspace' | 'recruitment' | 'operations' | 'bu
  * Navigation carries typed message keys, never display text. Routes, paths, and
  * permission codes stay language-neutral; only the rendered label changes with
  * the active locale.
+ *
+ * `PlainMessageKey` restricts these to keys that need no interpolation values,
+ * which is what makes a stored key safe to translate at render time.
  */
 export interface InternalNavigationItem {
-  labelKey: MessageKey;
+  labelKey: PlainMessageKey;
   path: string;
   permissions?: readonly string[];
   route: InternalRoute;
@@ -30,7 +33,7 @@ export interface InternalNavigationItem {
 export interface InternalNavigationGroup {
   id: NavigationGroupId;
   items: readonly InternalNavigationItem[];
-  labelKey: MessageKey;
+  labelKey: PlainMessageKey;
 }
 
 const internalNavigationGroups: readonly InternalNavigationGroup[] = [
@@ -131,6 +134,31 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
     ],
   },
 ] as const;
+
+/**
+ * Destinations whose module interface is still English while the shell around
+ * them is translated.
+ *
+ * These are marked as English content so assistive technology is not told that
+ * English copy is French. A route leaves this list when its own redesign makes
+ * it bilingual; Reporting is first, then Candidates, then the public surfaces.
+ */
+export const deferredEnglishRoutes: readonly InternalRoute[] = [
+  'accounting',
+  'admin',
+  'candidates',
+  'clients',
+  'commercial',
+  'documents',
+  'missions',
+  'reporting',
+  'tasks',
+  'training',
+];
+
+export function isDeferredEnglishRoute(route: InternalRoute): boolean {
+  return deferredEnglishRoutes.includes(route);
+}
 
 const internalNavigationItems = internalNavigationGroups.flatMap((group) => group.items);
 

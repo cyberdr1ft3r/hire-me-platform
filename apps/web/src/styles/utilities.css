@@ -16,3 +16,12 @@
   max-width: 100%;
   overflow-x: auto;
 }
+
+/*
+ * Language-of-content boundary for surfaces that are still English while the
+ * rest of the interface is translated. It carries a `lang` attribute only, so
+ * it must generate no box and change no layout.
+ */
+.legacy-english-content {
+  display: contents;
+}

@@ -217,12 +217,13 @@ import {
 } from './api.js';
 import {
   canAccessInternalRoute,
+  isDeferredEnglishRoute,
   pathToRoute,
   routeToPath,
   type InternalRoute,
 } from './navigation/internal-navigation.js';
 import { AppShell } from './ui/shell/AppShell.js';
-import { I18nProvider, useI18n } from './i18n/index.js';
+import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
 
 type ApiState =
@@ -357,12 +358,23 @@ function AppRoutes() {
     window.history.pushState({}, '', routeToPath(nextRoute));
   }
 
+  // The public opportunity experience shares the locale provider and the saved
+  // preference, but its own copy is not translated until its redesign, so it is
+  // marked as English content. Routing, data loading, and layout are unchanged.
   const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
   if (window.location.pathname === '/opportunities') {
-    return <PublicOpportunitiesPage />;
+    return (
+      <LegacyEnglishContent>
+        <PublicOpportunitiesPage />
+      </LegacyEnglishContent>
+    );
   }
   if (publicOpportunityMatch?.[1]) {
-    return <PublicOpportunityDetailPage publicSlug={publicOpportunityMatch[1]} />;
+    return (
+      <LegacyEnglishContent>
+        <PublicOpportunityDetailPage publicSlug={publicOpportunityMatch[1]} />
+      </LegacyEnglishContent>
+    );
   }
 
   if (!user || !accessToken) {
@@ -445,6 +457,12 @@ function AppRoutes() {
       default:
         routeContent = <InternalHome user={user} />;
     }
+  }
+
+  if (canOpenRoute && isDeferredEnglishRoute(route)) {
+    // The shell around this module is translated, but the module itself is not
+    // yet. Say so, rather than letting French chrome imply French content.
+    routeContent = <LegacyEnglishContent>{routeContent}</LegacyEnglishContent>;
   }
 
   return (
