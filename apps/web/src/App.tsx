@@ -215,46 +215,22 @@ import {
   getReportingTrends,
   exportReportingCsv,
 } from './api.js';
+import {
+  canAccessInternalRoute,
+  pathToRoute,
+  routeToPath,
+  type InternalRoute,
+} from './navigation/internal-navigation.js';
+import { AppShell } from './ui/shell/AppShell.js';
+import { InternalHome } from './ui/shell/InternalHome.js';
 
 type ApiState =
   | { status: 'loading' }
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
-type Route =
-  | 'home'
-  | 'admin'
-  | 'clients'
-  | 'candidates'
-  | 'missions'
-  | 'tasks'
-  | 'documents'
-  | 'training'
-  | 'reporting'
-  | 'commercial'
-  | 'accounting';
 type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
-const ADMIN_ROUTE_PERMISSION = 'users:view';
-const CLIENTS_ROUTE_PERMISSION = 'clients:view';
-const CANDIDATES_ROUTE_PERMISSION = 'candidates:view';
-const MISSIONS_ROUTE_PERMISSION = 'missions:view';
-const DOCUMENTS_ROUTE_PERMISSION = 'documents:view';
-const TASKS_ROUTE_PERMISSION = 'tasks:view';
-const TRAINING_ROUTE_PERMISSION = 'training_programs:view';
-const ACCOUNTING_ROUTE_PERMISSIONS = [
-  'payments:view',
-  'expenses:view',
-  'client_balances:view',
-  'profitability:view',
-] as const;
-const COMMERCIAL_ROUTE_PERMISSIONS = [
-  'quotations:view',
-  'contracts:view',
-  'purchase_orders:view',
-  'invoices:view',
-] as const;
-const REPORTING_ROUTE_PERMISSION = 'reporting:recruitment:view';
 const REPORTING_EXPORT_PERMISSION = 'reporting:recruitment:export';
 
 export function App() {
@@ -262,29 +238,7 @@ export function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [route, setRoute] = useState<Route>(() =>
-    window.location.pathname === '/admin'
-      ? 'admin'
-      : window.location.pathname === '/clients'
-        ? 'clients'
-        : window.location.pathname === '/candidates'
-          ? 'candidates'
-          : window.location.pathname === '/missions'
-            ? 'missions'
-            : window.location.pathname === '/documents'
-              ? 'documents'
-              : window.location.pathname === '/tasks'
-                ? 'tasks'
-                : window.location.pathname === '/training'
-                  ? 'training'
-                  : window.location.pathname === '/commercial'
-                    ? 'commercial'
-                    : window.location.pathname === '/accounting'
-                      ? 'accounting'
-                      : window.location.pathname === '/reporting'
-                        ? 'reporting'
-                        : 'home',
-  );
+  const [route, setRoute] = useState<InternalRoute>(() => pathToRoute(window.location.pathname));
 
   useEffect(() => {
     let isMounted = true;
@@ -310,6 +264,12 @@ export function App() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(pathToRoute(window.location.pathname));
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -377,33 +337,9 @@ export function App() {
     navigate('home');
   }
 
-  function navigate(nextRoute: Route): void {
+  function navigate(nextRoute: InternalRoute): void {
     setRoute(nextRoute);
-    window.history.pushState(
-      {},
-      '',
-      nextRoute === 'admin'
-        ? '/admin'
-        : nextRoute === 'clients'
-          ? '/clients'
-          : nextRoute === 'candidates'
-            ? '/candidates'
-            : nextRoute === 'missions'
-              ? '/missions'
-              : nextRoute === 'documents'
-                ? '/documents'
-                : nextRoute === 'tasks'
-                  ? '/tasks'
-                  : nextRoute === 'training'
-                    ? '/training'
-                    : nextRoute === 'commercial'
-                      ? '/commercial'
-                      : nextRoute === 'accounting'
-                        ? '/accounting'
-                        : nextRoute === 'reporting'
-                          ? '/reporting'
-                          : '/',
-    );
+    window.history.pushState({}, '', routeToPath(nextRoute));
   }
 
   const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
@@ -414,155 +350,14 @@ export function App() {
     return <PublicOpportunityDetailPage publicSlug={publicOpportunityMatch[1]} />;
   }
 
-  const canOpenAdmin = Boolean(user?.permissions.includes(ADMIN_ROUTE_PERMISSION));
-  const canOpenClients = Boolean(user?.permissions.includes(CLIENTS_ROUTE_PERMISSION));
-  const canOpenCandidates = Boolean(user?.permissions.includes(CANDIDATES_ROUTE_PERMISSION));
-  const canOpenMissions = Boolean(user?.permissions.includes(MISSIONS_ROUTE_PERMISSION));
-  const canOpenDocuments = Boolean(user?.permissions.includes(DOCUMENTS_ROUTE_PERMISSION));
-  const canOpenTasks = Boolean(user?.permissions.includes(TASKS_ROUTE_PERMISSION));
-  const canOpenTraining = Boolean(user?.permissions.includes(TRAINING_ROUTE_PERMISSION));
-  const canOpenAccounting = Boolean(
-    user?.permissions.some((permission) =>
-      (ACCOUNTING_ROUTE_PERMISSIONS as readonly string[]).includes(permission),
-    ),
-  );
-  const canOpenCommercial = Boolean(
-    user?.permissions.some((permission) =>
-      (COMMERCIAL_ROUTE_PERMISSIONS as readonly string[]).includes(permission),
-    ),
-  );
-  const canOpenReporting = Boolean(user?.permissions.includes(REPORTING_ROUTE_PERMISSION));
-
-  return (
-    <main className="shell">
-      <section className="intro" aria-labelledby="page-title">
-        <p className="eyebrow">Hire Me Platform</p>
-        <h1 id="page-title">Recruitment operations workspace</h1>
-        <p>The monorepo foundation is ready for product modules after the next approved tasks.</p>
-      </section>
-
-      <section className="status-panel" aria-live="polite" aria-label="API status">
-        <span className={`status-dot status-dot--${apiState.status}`} />
-        <div>
-          <h2>API health</h2>
-          <p>
-            {apiState.status === 'loading' ? 'Checking API health status...' : apiState.message}
-          </p>
-        </div>
-      </section>
-
-      {user ? (
-        <section className="auth-panel" aria-label="Authenticated workspace">
-          <div>
-            <h2>Signed in</h2>
-            <p>{user.displayName}</p>
-          </div>
-          <div className="action-row">
-            <button
-              type="button"
-              onClick={() => {
-                void handleRefreshUser();
-              }}
-            >
-              Refresh profile
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('admin');
-              }}
-            >
-              Administration
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('clients');
-              }}
-            >
-              Clients
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('candidates');
-              }}
-            >
-              Candidates
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('missions');
-              }}
-            >
-              Missions
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('documents');
-              }}
-            >
-              Documents
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate('tasks');
-              }}
-            >
-              Tasks
-            </button>
-            {canOpenTraining ? (
-              <button
-                type="button"
-                onClick={() => {
-                  navigate('training');
-                }}
-              >
-                Training
-              </button>
-            ) : null}
-            {canOpenReporting ? (
-              <button
-                type="button"
-                onClick={() => {
-                  navigate('reporting');
-                }}
-              >
-                Reporting
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                navigate('commercial');
-              }}
-            >
-              Commercial
-            </button>
-            {canOpenAccounting ? (
-              <button
-                type="button"
-                onClick={() => {
-                  navigate('accounting');
-                }}
-              >
-                Accounting
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                void handleLogout();
-              }}
-            >
-              Logout
-            </button>
-          </div>
+  if (!user || !accessToken) {
+    return (
+      <main className="shell login-shell">
+        <section className="intro" aria-labelledby="page-title">
+          <p className="eyebrow">Hire Me Platform</p>
+          <h1 id="page-title">Recruitment operations workspace</h1>
+          <p>Sign in to continue to the internal HireMe workspace.</p>
         </section>
-      ) : (
         <form
           className="auth-panel"
           aria-label="Login"
@@ -582,109 +377,74 @@ export function App() {
           <button type="submit">Login</button>
           {authError ? <p role="alert">{authError}</p> : null}
         </form>
-      )}
+        <div className="login-health" aria-live="polite" aria-label="API status">
+          <span aria-hidden="true" className={`status-dot status-dot--${apiState.status}`} />
+          <span>
+            {apiState.status === 'loading' ? 'Checking API health status...' : apiState.message}
+          </span>
+        </div>
+      </main>
+    );
+  }
 
-      {route === 'admin' && user && accessToken ? (
-        canOpenAdmin ? (
-          <AdminPanel accessToken={accessToken} />
-        ) : (
-          <section className="admin-panel" aria-label="Administration">
-            <h2>Administration</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'clients' && user && accessToken ? (
-        canOpenClients ? (
-          <ClientsPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Clients">
-            <h2>Clients</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'candidates' && user && accessToken ? (
-        canOpenCandidates ? (
-          <CandidatesPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Candidates">
-            <h2>Candidates</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'missions' && user && accessToken ? (
-        canOpenMissions ? (
-          <MissionsPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Missions">
-            <h2>Missions</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'documents' && user && accessToken ? (
-        canOpenDocuments ? (
-          <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Documents">
-            <h2>Documents</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'tasks' && user && accessToken ? (
-        canOpenTasks ? (
-          <TasksPanel accessToken={accessToken} user={user} />
-        ) : (
-          <section className="admin-panel" aria-label="Tasks">
-            <h2>Tasks</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'training' && user && accessToken ? (
-        canOpenTraining ? (
-          <TrainingPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Training">
-            <h2>Training</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'accounting' && user && accessToken ? (
-        canOpenAccounting ? (
-          <AccountingPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Accounting">
-            <h2>Accounting</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'commercial' && user && accessToken ? (
-        canOpenCommercial ? (
-          <CommercialPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Commercial">
-            <h2>Commercial</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-      {route === 'reporting' && user && accessToken ? (
-        canOpenReporting ? (
-          <ReportingPanel accessToken={accessToken} permissions={user.permissions} />
-        ) : (
-          <section className="admin-panel" aria-label="Recruitment reporting">
-            <h2>Recruitment reporting</h2>
-            <p role="alert">Permission denied.</p>
-          </section>
-        )
-      ) : null}
-    </main>
+  const canOpenRoute = canAccessInternalRoute(route, user.permissions);
+  let routeContent: ReactNode;
+
+  if (!canOpenRoute) {
+    routeContent = (
+      <section className="admin-panel" aria-label="Protected workspace">
+        <h2>Protected workspace</h2>
+        <p role="alert">Permission denied.</p>
+      </section>
+    );
+  } else {
+    switch (route) {
+      case 'admin':
+        routeContent = <AdminPanel accessToken={accessToken} />;
+        break;
+      case 'clients':
+        routeContent = <ClientsPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'candidates':
+        routeContent = <CandidatesPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'missions':
+        routeContent = <MissionsPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'tasks':
+        routeContent = <TasksPanel accessToken={accessToken} user={user} />;
+        break;
+      case 'documents':
+        routeContent = <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'training':
+        routeContent = <TrainingPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'reporting':
+        routeContent = <ReportingPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'commercial':
+        routeContent = <CommercialPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      case 'accounting':
+        routeContent = <AccountingPanel accessToken={accessToken} permissions={user.permissions} />;
+        break;
+      default:
+        routeContent = <InternalHome user={user} />;
+    }
+  }
+
+  return (
+    <AppShell
+      apiState={apiState}
+      currentRoute={route}
+      onLogout={handleLogout}
+      onNavigate={navigate}
+      onRefreshUser={handleRefreshUser}
+      user={user}
+    >
+      {routeContent}
+    </AppShell>
   );
 }
 

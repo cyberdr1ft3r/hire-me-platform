@@ -72,6 +72,7 @@
   --color-table-header: var(--neutral-100);
   --color-table-hover: var(--neutral-50);
   --color-table-selected: var(--brand-100);
+  --color-overlay-scrim: rgb(11 23 25 / 48%);
   --color-chart-1: var(--brand-700);
   --color-chart-2: var(--chart-blue);
   --color-chart-3: var(--chart-violet);
@@ -146,6 +147,8 @@
   --layout-content-max: 73.75rem;
   --layout-card-min: 16rem;
   --layout-dialog-max: 36rem;
+  --layout-sidebar-width: 15.5rem;
+  --layout-shell-topbar-height: 3.5rem;
   --size-swatch: 2.5rem;
 }
 

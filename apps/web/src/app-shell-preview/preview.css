@@ -1,0 +1,48 @@
+.app-shell-preview__workspace {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-6);
+  padding-block-start: var(--space-6);
+}
+
+.app-shell-preview__workspace > div:first-child {
+  max-width: var(--layout-reading-max);
+}
+
+.app-shell-preview__kicker {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-label);
+  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+}
+
+.app-shell-preview__workspace h2 {
+  font-size: var(--font-size-5);
+  margin-bottom: var(--space-2);
+}
+
+.app-shell-preview__data {
+  border-block: var(--border-width) solid var(--color-border);
+  font-size: var(--font-size-2);
+  overflow-x: auto;
+}
+
+.app-shell-preview__data > div {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(10rem, 1.5fr) repeat(2, minmax(8rem, 1fr));
+  min-width: 34rem;
+  padding: var(--space-3) var(--space-2);
+}
+
+.app-shell-preview__data > div:first-child {
+  background: var(--color-table-header);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-shell-preview__data > div + div {
+  border-block-start: var(--border-width) solid var(--color-border);
+}

@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-HireMe UI/UX v1 Phase 1 foundation under Issue #52, after the merged document-output, commercial, and operational accounting foundations. `main` is at `e2879b38c54dcc1b42b85aa345680260487454dc`.
+HireMe UI/UX v1 Task 2 AppShell checkpoint under Issue #52, after maintainer approval of the Phase 1 foundation. `main` is at `e2879b38c54dcc1b42b85aa345680260487454dc`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -34,7 +34,7 @@ HireMe UI/UX v1 Phase 1 foundation under Issue #52, after the merged document-ou
 - Issue #39 is complete; PR #47 merged the operational accounting foundation into `main` as merge commit `54def73831df9b6cd7b0064171c52dff9b55e2ac`. Its final reviewed head was `cdb0ef3b295ab9b749c4bdd92ecab1e74af3c34a` and exact-head GitHub Actions run `34213661408` succeeded. It adds payments, payment-to-invoice allocation, derived invoice settlement with partial/paid/overdue behavior, operational expenses, currency-separated client receivables and overdue receivables, and operational profitability.
 - Issue #48 is complete; PR #50 merged the project-memory reconciliation into `main` as merge commit `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a`.
 - Issue #49 is complete through merged PR #51. It generates business output files for commercial quotations, purchase orders, recruitment and training contracts, issued invoices, and certificate-ready training enrollments, as PDF and Word-compatible DOCX in French or English.
-- Issue #52 is active on branch `design/ui-ux-v1`. Phase 1 defines the canonical HireMe UI-DNA, semantic CSS-token architecture, internal-compact/internal-standard/public-spacious density contexts, accessible foundation primitives, and a development-only synthetic preview. Representative Candidate, Recruitment/Reporting, Public Opportunity, and AppShell work has not started and awaits maintainer visual approval.
+- Issue #52 is active on branch `design/ui-ux-v1`. The maintainer approved Phase 1 on 2026-09-09, authorizing Task 2. The branch now adds the authenticated internal AppShell and PageHeader: one permission-aware navigation definition, grouped internal destinations, generic direct-route denial, responsive off-canvas navigation, safe identity/session controls, and a development-only synthetic shell preview. Existing module panels retain their business logic and internal density. Candidate, Recruitment/Reporting, and Public Opportunity representative redesigns have not started; Reporting is next only after AppShell visual approval.
 - A generated file is always an output snapshot published as a normal immutable `DocumentVersion` with `DocumentVersionSource.GENERATED`. Structured business records stay authoritative and are never duplicated by a generated document.
 - One logical document exists per source record, output family, and language. Regeneration adds a new version; a historical version and its bytes are never overwritten.
 - Templates are a code-owned registry of TypeScript functions over a neutral, data-only renderable document: no template language, no HTML, no evaluation, no uploaded template, and no remote fetch. Renderers are pure JavaScript (`pdfkit` with `fontkit` shaping, `bidi-js` for UAX #9 ordering, and `docx`) over repository-owned Noto faces, and need no native binary, browser, office suite, shell, or runtime asset fetch.
@@ -97,6 +97,7 @@ HireMe UI/UX v1 Phase 1 foundation under Issue #52, after the merged document-ou
 - TypeScript monorepo.
 - Modular monolith for the initial implementation.
 - React + Vite frontend.
+- The authenticated web application uses one internal AppShell with permission-filtered grouped navigation, History API and `popstate` routing, responsive modal-style navigation below 768px, and a reusable PageHeader. Login and public opportunity routes remain outside the shell.
 - NestJS backend API.
 - PostgreSQL with Prisma ORM.
 - Prisma is owned by `apps/api`; web and contracts packages stay ORM-independent and are checked by `pnpm check:architecture`.
