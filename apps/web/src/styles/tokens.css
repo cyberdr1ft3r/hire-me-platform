@@ -1,0 +1,171 @@
+:root {
+  color-scheme: light;
+
+  /* Neutral primitives exist only to construct the semantic layer below. */
+  --neutral-0: #ffffff;
+  --neutral-25: #fbfcfc;
+  --neutral-50: #f6f8f8;
+  --neutral-100: #eef2f2;
+  --neutral-200: #dce4e4;
+  --neutral-300: #c3cecf;
+  --neutral-400: #94a4a6;
+  --neutral-500: #607275;
+  --neutral-600: #4b5d60;
+  --neutral-700: #35474a;
+  --neutral-800: #223437;
+  --neutral-900: #132528;
+  --neutral-950: #0b1719;
+
+  --brand-100: #e1f0f3;
+  --brand-200: #cce4e9;
+  --brand-600: #14758a;
+  --brand-700: #0f5b6d;
+  --brand-800: #0c4d5d;
+  --brand-900: #093f4c;
+
+  --green-100: #e5f4ec;
+  --green-700: #17633f;
+  --amber-100: #fff3cf;
+  --amber-800: #744c00;
+  --red-100: #fdebed;
+  --red-700: #a12834;
+  --red-800: #84202a;
+  --red-900: #681923;
+  --blue-100: #eaf2fb;
+  --blue-700: #245a91;
+  --chart-blue: #4969a6;
+  --chart-violet: #74569c;
+  --chart-copper: #8b5a2b;
+  --chart-slate: #4f6f73;
+
+  /* Semantic color tokens are the only colors components consume. */
+  --color-canvas: var(--neutral-50);
+  --color-surface: var(--neutral-0);
+  --color-surface-subtle: var(--neutral-100);
+  --color-surface-raised: var(--neutral-0);
+  --color-border: var(--neutral-200);
+  --color-border-strong: var(--neutral-300);
+  --color-text: var(--neutral-900);
+  --color-text-secondary: var(--neutral-600);
+  --color-text-muted: var(--neutral-500);
+  --color-text-inverse: var(--neutral-0);
+  --color-brand: var(--brand-700);
+  --color-brand-hover: var(--brand-800);
+  --color-brand-pressed: var(--brand-900);
+  --color-brand-subtle: var(--brand-100);
+  --color-brand-subtle-hover: var(--brand-200);
+  --color-focus: var(--brand-600);
+  --color-success: var(--green-700);
+  --color-success-subtle: var(--green-100);
+  --color-warning: var(--amber-800);
+  --color-warning-subtle: var(--amber-100);
+  --color-danger: var(--red-700);
+  --color-danger-hover: var(--red-800);
+  --color-danger-pressed: var(--red-900);
+  --color-danger-subtle: var(--red-100);
+  --color-info: var(--blue-700);
+  --color-info-subtle: var(--blue-100);
+  --color-disabled-fg: var(--neutral-500);
+  --color-disabled-bg: var(--neutral-100);
+  --color-selection: var(--brand-200);
+  --color-selection-fg: var(--neutral-900);
+  --color-table-header: var(--neutral-100);
+  --color-table-hover: var(--neutral-50);
+  --color-table-selected: var(--brand-100);
+  --color-overlay-scrim: rgb(11 23 25 / 48%);
+  --color-chart-1: var(--brand-700);
+  --color-chart-2: var(--chart-blue);
+  --color-chart-3: var(--chart-violet);
+  --color-chart-4: var(--chart-copper);
+  --color-chart-5: var(--chart-slate);
+
+  --font-family-ui:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --font-size-1: 0.75rem;
+  --font-size-2: 0.8125rem;
+  --font-size-3: 0.875rem;
+  --font-size-4: 1rem;
+  --font-size-5: 1.125rem;
+  --font-size-6: 1.5rem;
+  --font-size-7: 2rem;
+  --line-height-tight: 1.2;
+  --line-height-heading: 1.3;
+  --line-height-body: 1.55;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --letter-spacing-label: 0.01em;
+
+  --space-0: 0;
+  --space-0-5: 0.125rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-page-x: clamp(var(--space-4), 4vw, var(--space-12));
+  --space-page-y: clamp(var(--space-6), 5vw, var(--space-16));
+  --space-section: var(--space-8);
+  --space-component: var(--space-4);
+  --space-control: var(--space-2);
+
+  --radius-small: 0.25rem;
+  --radius-medium: 0.5rem;
+  --radius-large: 0.75rem;
+  --radius-full: 999rem;
+
+  --border-width: 0.0625rem;
+  --focus-ring-width: 0.1875rem;
+  --shadow-overlay: 0 1rem 2.5rem rgb(11 23 25 / 18%);
+  --shadow-popover: 0 0.5rem 1.5rem rgb(11 23 25 / 14%);
+
+  --motion-fast: 120ms;
+  --motion-standard: 180ms;
+  --motion-overlay: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --control-height-compact: 2rem;
+  --control-height-standard: 2.5rem;
+  --control-height-public: 2.75rem;
+  --control-height: var(--control-height-standard);
+  --table-row-height-compact: 2.25rem;
+  --table-row-height-standard: 2.75rem;
+  --nav-item-height: 2.25rem;
+  --hit-target-min: 2.75rem;
+
+  --layout-reading-max: 42.5rem;
+  --layout-public-max: 45rem;
+  --layout-content-max: 73.75rem;
+  --layout-card-min: 16rem;
+  --layout-dialog-max: 36rem;
+  --layout-sidebar-width: 15.5rem;
+  --layout-shell-topbar-height: 3.5rem;
+  --size-swatch: 2.5rem;
+}
+
+[data-density='internal-compact'] {
+  --control-height: var(--control-height-compact);
+  --space-component: var(--space-3);
+  --space-control: var(--space-1);
+}
+
+[data-density='internal-standard'] {
+  --control-height: var(--control-height-standard);
+  --space-component: var(--space-4);
+  --space-control: var(--space-2);
+}
+
+[data-density='public-spacious'] {
+  --control-height: var(--control-height-public);
+  --space-component: var(--space-6);
+  --space-control: var(--space-3);
+}

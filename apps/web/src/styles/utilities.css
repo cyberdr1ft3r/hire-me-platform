@@ -1,0 +1,18 @@
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: var(--border-width);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--border-width);
+}
+
+.u-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.u-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}

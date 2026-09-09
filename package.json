@@ -10,7 +10,8 @@
   "scripts": {
     "build": "turbo run build",
     "auth:bootstrap-admin": "pnpm --filter @hire-me/api auth:bootstrap-admin",
-    "check:architecture": "node scripts/check-prisma-boundary.mjs",
+    "check:architecture": "node scripts/check-prisma-boundary.mjs && pnpm check:styles",
+    "check:styles": "node scripts/check-web-style-tokens.mjs && node scripts/check-web-contrast.mjs",
     "dev": "turbo run dev --parallel",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",

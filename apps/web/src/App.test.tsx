@@ -97,7 +97,7 @@ describe('App', () => {
     expect(await screen.findByText('Development Administrator')).toBeVisible();
     expect(localStorageSpy).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /logout/i }));
+    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
 
     expect(await screen.findByRole('button', { name: /login/i })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -107,6 +107,7 @@ describe('App', () => {
   });
 
   it('shows permission denied on the protected administration route', async () => {
+    window.history.pushState({}, '', '/admin');
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = input instanceof Request ? input.url : input.toString();
 
@@ -158,12 +159,12 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /administration/i }));
-
     expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
+    expect(screen.queryByRole('link', { name: /administration/i })).not.toBeInTheDocument();
   });
 
   it('does not expose task controls to users without task permissions', async () => {
+    window.history.pushState({}, '', '/tasks');
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = input instanceof Request ? input.url : input.toString();
 
@@ -215,9 +216,8 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
-
     expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
+    expect(screen.queryByRole('link', { name: /tasks/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
   });
 
@@ -335,7 +335,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /tasks/i }));
 
     expect(await screen.findByRole('button', { name: 'Review candidate follow-up' })).toBeVisible();
     expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
@@ -485,7 +485,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /tasks/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /tasks/i }));
     fireEvent.change(await screen.findByPlaceholderText(/task title/i), {
       target: { value: 'Call client after interview' },
     });
@@ -643,7 +643,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /administration/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /administration/i }));
 
     expect(await screen.findByRole('heading', { name: /administration/i })).toBeVisible();
     expect(await screen.findByText('users:view')).toBeVisible();
@@ -778,7 +778,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /clients/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /clients/i }));
 
     expect(await screen.findByRole('heading', { name: /clients/i })).toBeVisible();
     expect(await screen.findByText('Synthetic Client')).toBeVisible();
@@ -908,7 +908,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /candidates/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
     expect(await screen.findByRole('heading', { name: /candidates/i })).toBeVisible();
     expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
@@ -1195,7 +1195,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /documents/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
     expect(await screen.findByRole('heading', { name: /documents/i })).toBeVisible();
     expect(await screen.findByText('Issue35 Contract')).toBeVisible();
@@ -1254,9 +1254,9 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /commercial/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied.');
+    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: /commercial/i })).toBeNull();
     expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
   });
 
@@ -1440,8 +1440,8 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
-    expect(await screen.findByRole('button', { name: 'Clients' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Training' })).toBeNull();
+    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Training' })).toBeNull();
   });
 
   it('shows read-only training operations without permission-gated controls', async () => {
@@ -1459,7 +1459,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Training' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
     expect(await screen.findByRole('heading', { name: 'Training' })).toBeVisible();
     expect(
@@ -1499,7 +1499,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Training' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
     expect(await screen.findByRole('button', { name: /create training program/i })).toBeVisible();
 
@@ -1537,8 +1537,8 @@ describe('App', () => {
     render(<App />);
     await loginAs('no-report@example.test');
 
-    expect(await screen.findByRole('button', { name: /^missions$/i })).toBeVisible();
-    expect(screen.queryByRole('button', { name: /^reporting$/i })).toBeNull();
+    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: /^reporting$/i })).toBeNull();
   });
 
   it('renders reporting KPIs and filters and hides export without export permission', async () => {
@@ -1546,7 +1546,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
-    fireEvent.click(await screen.findByRole('button', { name: /^reporting$/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
     expect(await screen.findByRole('heading', { name: /recruitment reporting/i })).toBeVisible();
     expect(await screen.findByText('Open missions')).toBeVisible();
@@ -1567,7 +1567,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('full-report@example.test');
-    fireEvent.click(await screen.findByRole('button', { name: /^reporting$/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
     const exportButton = await screen.findByRole('button', { name: /export csv/i });
     fireEvent.click(exportButton);
@@ -1585,8 +1585,8 @@ describe('App', () => {
     render(<App />);
     await loginAs('no-accounting@example.test');
 
-    expect(await screen.findByRole('button', { name: 'Commercial' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Accounting' })).toBeNull();
+    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Accounting' })).toBeNull();
   });
 
   it('shows redacted accounting amounts without commercial data access', async () => {
@@ -1594,7 +1594,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-reader@example.test');
-    fireEvent.click(await screen.findByRole('button', { name: 'Accounting' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
     expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
     // The record stays visible but every amount arrives redacted.
@@ -1623,7 +1623,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-operator@example.test');
-    fireEvent.click(await screen.findByRole('button', { name: 'Accounting' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
     expect(await screen.findByRole('button', { name: /record payment/i })).toBeVisible();
     expect(screen.getByRole('button', { name: /record expense/i })).toBeVisible();
@@ -2098,7 +2098,7 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /commercial/i }));
+  fireEvent.click(await screen.findByRole('link', { name: /commercial/i }));
 }
 
 function mockMissionWorkspace(permissions: string[]) {
@@ -2315,7 +2315,7 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /missions/i }));
+  fireEvent.click(await screen.findByRole('link', { name: /missions/i }));
   fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
 }
 
