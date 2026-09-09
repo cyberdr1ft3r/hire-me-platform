@@ -1,28 +1,32 @@
-// @ts-expect-error `fontkit` ships no type declarations; only the two methods used below
-// are needed, and they are narrowed explicitly by the `fontkit` binding underneath.
+// @ts-expect-error `fontkit` ships no type declarations; only the methods used below are
+// needed, and they are narrowed explicitly by the `fontkit` binding underneath.
 import * as fontkitModule from 'fontkit';
 import { describe, expect, it } from 'vitest';
 
-import { fontBytes, scriptOf, unsupportedCharacters } from './font-registry.js';
-import { extractPdf, embeddedFontNames } from './pdf-text.testing.js';
+import type { FontScript, FontWeight } from './font-registry.js';
+import {
+  faceForCodePoint,
+  fontBytes,
+  registeredFontAssets,
+  scriptHint,
+  unsupportedCharacters,
+} from './font-registry.js';
+import { drawnLineText, extractPdf, embeddedFontNames } from './pdf-text.testing.js';
 import { PdfScriptCoverageError, renderPdf } from './pdf.renderer.js';
-import { lineIsRtl, visualRuns } from './text-runs.js';
+import { lineIsRtl, runGroups, visualRuns } from './text-runs.js';
 import type { RenderableDocument } from '../renderable-document.js';
 
 /**
- * Unicode PDF output: fonts, Arabic shaping, and bidirectional ordering.
+ * Unicode PDF output: fonts, Arabic shaping, bidirectional ordering, and text recovery.
  *
- * The three hard parts are verified where each is actually decided. Contextual shaping is
- * asserted at the font-engine level, because that is where joining forms are chosen.
- * Bidirectional ordering is asserted against the UAX #9 embedding levels, because that is
- * where run order is decided. The produced file is then parsed with `pdfjs-dist` to prove
- * the bytes really are a PDF that embeds the expected faces and carries readable text.
- *
- * One honest caveat is asserted rather than hidden: PDFKit derives its `ToUnicode` map
- * from each glyph's source code points, and the joining forms an Arabic shaper produces
- * carry none, so a few extracted characters are unmapped. That is a property of PDFKit
- * itself, not of this renderer: the same gaps appear when PDFKit draws the string with no
- * layer of ours involved, and the drawn glyphs are correct either way.
+ * Four separate claims are made and each is verified where it is actually decided.
+ * Contextual shaping is asserted at the font-engine level, because that is where joining
+ * forms are chosen. Bidirectional segmentation is asserted against the UAX #9 embedding
+ * levels. Page layout is asserted by reading the content stream, which reports glyphs in
+ * the order and at the position they are drawn. Text recovery is asserted by parsing the
+ * produced file with `pdfjs-dist` and requiring the **exact** source string back — no
+ * placeholder filtering, no "contains something" fallback, nothing removed to make the
+ * comparison succeed.
  */
 
 const fontkit = fontkitModule as unknown as {
@@ -35,40 +39,103 @@ const fontkit = fontkitModule as unknown as {
 
 const arabicCompany = 'شركة الأطلس للتقنية';
 const arabicPerson = 'يوسف العلوي';
+const arabicDigits = '٢٠٢٦';
 const french = 'Cœur & Œuvre — 1 250,00 €';
 const mixed = 'Hire Me — شركة الأطلس — Casablanca 2026';
+/** In the Unicode block the range classifier hands to the Latin face, absent from it. */
+const armenian = 'Ա';
 
 function document(title: string, blocks: RenderableDocument['blocks'] = []): RenderableDocument {
   return { title, subtitle: null, blocks, footer: null };
 }
 
-/** Extracted text with the unmapped-glyph placeholders removed. */
-function readable(text: string): string {
-  return [...text].filter((character) => (character.codePointAt(0) ?? 0) >= 0x20).join('');
+function reversed(value: string): string {
+  return [...value].reverse().join('');
+}
+
+async function extractedText(bytes: Buffer): Promise<string> {
+  return (await extractPdf(bytes)).text;
 }
 
 describe('bundled font coverage', () => {
-  it('covers every character of the required test vectors', () => {
-    for (const value of [arabicCompany, arabicPerson, french, mixed, '٢٠٢٦']) {
+  it('covers the scripts business text uses', () => {
+    const covered = [
+      'Hire Me Casablanca',
+      'Cœur Œuvre àéîõü Ÿšž',
+      'Ωμέγα Δοκιμή',
+      'Кириллица Проверка',
+      arabicCompany,
+      arabicPerson,
+      arabicDigits,
+      mixed,
+      '€ £ — – … « » ‰ 1 250,00',
+    ];
+    for (const value of covered) {
       expect(unsupportedCharacters(value)).toEqual([]);
     }
   });
 
-  it('routes each script to the face that actually contains its glyphs', () => {
-    expect(scriptOf('ش'.codePointAt(0) ?? 0)).toBe('arabic');
-    expect(scriptOf('C'.codePointAt(0) ?? 0)).toBe('latin');
-    expect(scriptOf('œ'.codePointAt(0) ?? 0)).toBe('latin');
-    expect(scriptOf('€'.codePointAt(0) ?? 0)).toBe('neutral');
-    expect(scriptOf('中'.codePointAt(0) ?? 0)).toBeNull();
+  it('confirms every routed character against the chosen face, not against a range', () => {
+    const faces = new Map<string, ReturnType<typeof fontkit.create>>();
+    const faceOf = (script: FontScript, weight: FontWeight) => {
+      const key = `${script}:${weight}`;
+      const existing = faces.get(key);
+      if (existing) {
+        return existing;
+      }
+      const created = fontkit.create(fontBytes(script, weight));
+      faces.set(key, created);
+      return created;
+    };
 
-    const arabic = fontkit.create(fontBytes('arabic', 'regular'));
-    const latin = fontkit.create(fontBytes('latin', 'regular'));
-    for (const character of `${arabicCompany}${arabicPerson}٢٠٢٦`.replace(/\s/g, '')) {
-      expect(arabic.hasGlyphForCodePoint(character.codePointAt(0) ?? 0)).toBe(true);
+    for (const value of [arabicCompany, arabicDigits, french, mixed, 'Ωμέγα Кириллица']) {
+      for (const character of value) {
+        const codePoint = character.codePointAt(0) ?? 0;
+        for (const weight of ['regular', 'bold'] as const) {
+          const script = faceForCodePoint(codePoint, weight);
+          expect(script).not.toBeNull();
+          expect(faceOf(script as FontScript, weight).hasGlyphForCodePoint(codePoint)).toBe(true);
+        }
+      }
     }
-    for (const character of french.replace(/\s/g, '')) {
-      expect(latin.hasGlyphForCodePoint(character.codePointAt(0) ?? 0)).toBe(true);
+  });
+
+  it('rejects a character the range classifier admits but no face contains', () => {
+    const codePoint = armenian.codePointAt(0) ?? 0;
+
+    // The range classifier routes Armenian to the Latin face, because it shares a span
+    // with Latin Extended, Greek and Cyrillic.
+    expect(scriptHint(codePoint)).toBe('latin');
+    // No registered face actually has the glyph, which is proven rather than assumed.
+    for (const { script, weight } of registeredFontAssets()) {
+      expect(fontkit.create(fontBytes(script, weight)).hasGlyphForCodePoint(codePoint)).toBe(false);
     }
+    expect(faceForCodePoint(codePoint, 'regular')).toBeNull();
+    expect(unsupportedCharacters(`Name ${armenian}`)).toEqual([armenian]);
+  });
+
+  it('rejects a character outside every bundled block', () => {
+    expect(scriptHint('中'.codePointAt(0) ?? 0)).toBeNull();
+    expect(faceForCodePoint('中'.codePointAt(0) ?? 0, 'regular')).toBeNull();
+    expect(unsupportedCharacters('中文')).toEqual(['中', '文']);
+  });
+
+  it('routes a neutral character to a face that has it rather than to its neighbours', () => {
+    const euro = '€'.codePointAt(0) ?? 0;
+    // The Arabic face has no euro sign, so an Arabic price line must not draw one with it.
+    expect(fontkit.create(fontBytes('arabic', 'regular')).hasGlyphForCodePoint(euro)).toBe(false);
+    expect(faceForCodePoint(euro, 'regular')).toBe('latin');
+
+    const runs = visualRuns(`${arabicCompany} €`);
+    const euroRun = runs.find((run) => run.text.includes('€'));
+    expect(euroRun?.script).toBe('latin');
+  });
+
+  it('fails closed with a coverage error instead of drawing a missing-glyph box', async () => {
+    await expect(renderPdf(document('中文 title'))).rejects.toBeInstanceOf(PdfScriptCoverageError);
+    await expect(renderPdf(document(`Name ${armenian}`))).rejects.toBeInstanceOf(
+      PdfScriptCoverageError,
+    );
   });
 });
 
@@ -129,81 +196,131 @@ describe('bidirectional ordering', () => {
     expect(runs[0]?.script).toBe('arabic');
     expect((runs[0]?.level ?? 0) % 2).toBe(1);
   });
+
+  it('gives Arabic-Indic digits their own left-to-right run inside Arabic', () => {
+    const runs = visualRuns(`شهادة ${arabicDigits}`);
+    const digits = runs.find((run) => run.text.includes(arabicDigits));
+
+    expect(digits).toBeDefined();
+    expect((digits?.level ?? 1) % 2).toBe(0);
+    // Leftmost on the page, because the surrounding line reads right to left.
+    expect(runs.indexOf(digits as (typeof runs)[number])).toBe(0);
+  });
+
+  it('draws a same-face stretch of a line as one group', () => {
+    expect(runGroups(visualRuns(arabicCompany))).toHaveLength(1);
+    expect(runGroups(visualRuns(`شهادة ${arabicDigits}`))).toHaveLength(1);
+    expect(runGroups(visualRuns(mixed)).length).toBeGreaterThan(1);
+  });
 });
 
-describe('Unicode PDF output', () => {
-  it('renders French typography faithfully', async () => {
-    const bytes = await renderPdf(document(french));
-    const extracted = await extractPdf(bytes);
-
-    expect(bytes.subarray(0, 4).toString()).toBe('%PDF');
-    expect(readable(extracted.text)).toContain('Cœur & Œuvre');
-    expect(readable(extracted.text)).toContain('1 250,00 €');
-    expect(readable(extracted.text)).not.toContain('?');
-  });
-
-  it('renders an Arabic company name with the Arabic face embedded', async () => {
+describe('page layout', () => {
+  it('draws a right-to-left line with its first logical word furthest right', async () => {
     const bytes = await renderPdf(document(arabicCompany));
-    const extracted = await extractPdf(bytes);
-    const text = readable(extracted.text);
-
-    expect(extracted.pageCount).toBe(1);
-    expect(embeddedFontNames(bytes).some((name) => name.includes('NotoSansArabic'))).toBe(true);
-    expect(text).not.toContain('?');
-    // Every Arabic letter of the source survives into the file.
-    for (const character of new Set(arabicCompany.replace(/\s/g, ''))) {
-      expect(text.includes(character) || text.length > 0).toBe(true);
-    }
-    // Right-to-left display order: the last logical word is drawn first.
-    const words = arabicCompany.split(' ');
-    expect(text.indexOf(words[2]?.slice(0, 2) ?? '')).toBeLessThan(
-      text.indexOf(words[0]?.slice(0, 1) ?? ''),
-    );
+    // Read straight from the content stream, so this is the order on the page, not the
+    // order a text extractor reconstructs.
+    expect(drawnLineText(bytes)).toBe(reversed(arabicCompany));
   });
 
-  it('renders an Arabic person name', async () => {
-    const bytes = await renderPdf(document(arabicPerson));
-    const text = readable((await extractPdf(bytes)).text);
-    expect(text).not.toContain('?');
-    expect(text).toContain('العلوي');
+  it('keeps Arabic-Indic digits left to right inside a right-to-left line', async () => {
+    const bytes = await renderPdf(document(`شهادة ${arabicDigits}`));
+    // The digits sit leftmost and are not reversed; the Arabic word is.
+    expect(drawnLineText(bytes)).toBe(`${arabicDigits} ${reversed('شهادة')}`);
   });
 
-  it('renders a mixed Latin and Arabic line in bidirectional order', async () => {
+  it('draws a left-to-right line in logical order', async () => {
+    const bytes = await renderPdf(document(french));
+    expect(drawnLineText(bytes)).toBe(french);
+  });
+
+  it('draws a mixed line with the Latin parts in place and the Arabic reversed', async () => {
     const bytes = await renderPdf(document(mixed));
-    const text = readable((await extractPdf(bytes)).text);
+    expect(drawnLineText(bytes)).toBe(`Hire Me — ${reversed('شركة الأطلس')} — Casablanca 2026`);
+  });
+});
 
-    expect(text.startsWith('Hire Me')).toBe(true);
-    expect(text).toContain('Casablanca 2026');
-    expect(text.indexOf('Hire Me')).toBeLessThan(text.indexOf('Casablanca'));
-    expect(text).not.toContain('?');
+describe('Unicode round trip through a real PDF parser', () => {
+  it('recovers an Arabic company name exactly', async () => {
+    const bytes = await renderPdf(document(arabicCompany));
+    expect(await extractedText(bytes)).toBe(arabicCompany);
+    expect(embeddedFontNames(bytes).some((name) => name.includes('NotoSansArabic'))).toBe(true);
+  });
+
+  it('recovers an Arabic person name exactly', async () => {
+    const bytes = await renderPdf(document(arabicPerson));
+    expect(await extractedText(bytes)).toBe(arabicPerson);
+  });
+
+  it('recovers a mixed Latin and Arabic line exactly', async () => {
+    const bytes = await renderPdf(document(mixed));
+    const text = await extractedText(bytes);
+
+    expect(text).toBe(mixed);
     expect(embeddedFontNames(bytes).some((name) => name.includes('NotoSans-'))).toBe(true);
     expect(embeddedFontNames(bytes).some((name) => name.includes('NotoSansArabic'))).toBe(true);
   });
 
-  it('wraps a long mixed paragraph onto more lines without losing content', async () => {
-    const paragraph = Array.from({ length: 24 }, (_, index) =>
-      index % 2 === 0 ? `segment${index}` : 'شركة الأطلس',
-    ).join(' ');
-    const bytes = await renderPdf(
-      document('Mixed paragraph', [{ kind: 'paragraph', text: paragraph }]),
-    );
-    const text = readable((await extractPdf(bytes)).text);
-
-    expect(text).toContain('segment0');
-    expect(text).toContain('segment22');
-    expect(text).not.toContain('?');
+  it('recovers Arabic-Indic digits exactly', async () => {
+    const bytes = await renderPdf(document(arabicDigits));
+    expect(await extractedText(bytes)).toBe(arabicDigits);
   });
 
-  it('wraps an Arabic table cell without clipping it', async () => {
-    const cell = Array.from({ length: 30 }, () => 'شركة الأطلس للتقنية').join(' ');
+  it('recovers French typography exactly', async () => {
+    const bytes = await renderPdf(document(french));
+    expect(bytes.subarray(0, 4).toString()).toBe('%PDF');
+    expect(await extractedText(bytes)).toBe(french);
+  });
+
+  it('recovers every line of a long wrapped mixed paragraph', async () => {
+    const sentences = Array.from(
+      { length: 12 },
+      (_, index) => `Segment ${index} — ${arabicCompany} — Casablanca ${2020 + index}`,
+    );
+    const bytes = await renderPdf(
+      document('Mixed paragraph', [{ kind: 'paragraph', text: sentences.join(' ') }]),
+    );
+    // Wrapping is the point of the vector, so display line breaks are read back as the
+    // spaces they replaced; nothing else is normalised.
+    const text = (await extractedText(bytes)).replaceAll(String.fromCharCode(10), ' ');
+
+    // Every sentence survives wrapping, in full, in both scripts.
+    for (const sentence of sentences) {
+      expect(text).toContain(sentence);
+    }
+  });
+
+  it('recovers an Arabic table cell that wraps across lines', async () => {
+    const cell = Array.from({ length: 30 }, () => arabicCompany).join(' ');
     const bytes = await renderPdf(
       document('Table', [{ kind: 'table', columns: ['Description'], rows: [[cell]] }]),
     );
-    const extracted = await extractPdf(bytes);
+    const text = await extractedText(bytes);
 
-    expect(extracted.pageCount).toBeGreaterThanOrEqual(1);
-    expect(readable(extracted.text)).not.toContain('?');
+    expect(text).toContain(arabicCompany);
+    // A wrapped cell keeps every repetition rather than clipping the overflow.
+    expect(text.split(arabicCompany).length - 1).toBeGreaterThanOrEqual(30);
     expect(bytes.length).toBeLessThan(4_000_000);
+  });
+
+  it('leaves no unmapped glyph anywhere in a document mixing both scripts', async () => {
+    const bytes = await renderPdf(
+      document(mixed, [
+        { kind: 'paragraph', text: `${arabicCompany} ${arabicPerson} ${arabicDigits}` },
+        { kind: 'keyValues', rows: [{ label: 'Client', value: arabicCompany }] },
+        { kind: 'table', columns: ['Client', 'Total'], rows: [[arabicPerson, french]] },
+      ]),
+    );
+    const text = await extractedText(bytes);
+
+    // An unmapped glyph surfaces as the raw glyph id, which lands in the control range.
+    const control = [...text].filter(
+      (character) => (character.codePointAt(0) ?? 0) < 0x20 && character !== '\n',
+    );
+    expect(control).toEqual([]);
+    expect(text).not.toContain('?');
+    // Letters that share one skeleton glyph in the face stay distinct in the text.
+    expect(text).toContain('يوسف');
+    expect(text).toContain('شركة');
   });
 
   it('emits no active content, remote reference, or embedded file', async () => {
@@ -222,16 +339,12 @@ describe('Unicode PDF output', () => {
     }
   });
 
-  it('fails closed for a script no bundled face covers', async () => {
-    await expect(renderPdf(document('中文 title'))).rejects.toBeInstanceOf(PdfScriptCoverageError);
-  });
-
   it('resolves its font assets without depending on the working directory', async () => {
     const original = process.cwd();
     try {
       process.chdir(original.split(/[\\/]/).slice(0, -1).join('/') || '/');
       const bytes = await renderPdf(document(arabicPerson));
-      expect(bytes.subarray(0, 4).toString()).toBe('%PDF');
+      expect(await extractedText(bytes)).toBe(arabicPerson);
     } finally {
       process.chdir(original);
     }

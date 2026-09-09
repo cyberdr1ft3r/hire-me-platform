@@ -58,15 +58,26 @@ assert(
 );
 
 const extracted = await extractPdf(bytes);
-const readable = [...extracted.text]
-  .filter((character) => (character.codePointAt(0) ?? 0) >= 0x20)
-  .join('');
+const text = extracted.text;
 
 assert(extracted.pageCount >= 1, 'the produced PDF has no pages');
-assert(readable.includes('Hire Me'), 'the Latin text is missing from the compiled output');
-assert(readable.includes('Casablanca 2026'), 'the trailing Latin run is missing');
-assert(readable.includes('Cœur & Œuvre'), 'the French ligature is missing');
-assert(!readable.includes('?'), 'a character was substituted rather than rendered');
+assert(!text.includes('?'), 'a character was substituted rather than rendered');
+
+// Exact source strings, read back through the compiled renderer's own ToUnicode map.
+for (const value of [
+  'Hire Me — شركة الأطلس — Casablanca 2026',
+  'Cœur & Œuvre — 1 250,00 €',
+  'يوسف العلوي',
+  'شركة الأطلس للتقنية',
+]) {
+  assert(text.includes(value), `the compiled output did not read back ${JSON.stringify(value)}`);
+}
+
+// An unmapped glyph surfaces as its raw glyph id, which lands in the control range.
+const unmapped = [...text].filter(
+  (character) => character.codePointAt(0) < 0x20 && character !== String.fromCharCode(10),
+);
+assert(unmapped.length === 0, 'the compiled output left glyphs without a Unicode mapping');
 
 console.log(
   `Compiled generation assets verified from ${process.cwd()}: ${fonts.length} faces embedded, ${extracted.pageCount} page(s).`,

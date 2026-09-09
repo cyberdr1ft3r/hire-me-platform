@@ -1,17 +1,24 @@
 import type { Bidi } from 'bidi-js';
 import * as bidiModule from 'bidi-js';
 
-import type { FontScript } from './font-registry.js';
-import { scriptOf } from './font-registry.js';
+import type { FontScript, FontWeight } from './font-registry.js';
+import { faceForCodePoint, faceHasGlyph, scriptHint } from './font-registry.js';
+import type { ShapedSegment } from './pdf-text-mapping.js';
 
 /**
- * Bidirectional segmentation for PDF text layout.
+ * Bidirectional segmentation and face routing for PDF text layout.
  *
  * The Unicode bidirectional algorithm (UAX #9) is applied by `bidi-js`, a maintained
  * pure-JavaScript implementation. Nothing here reverses strings, maps characters to
  * presentation forms, or invents an ad-hoc table: the algorithm produces embedding
  * levels, this module turns those levels into visually ordered runs, and the PDF font
  * engine performs the actual Arabic contextual shaping from the original characters.
+ *
+ * Each run also carries the face that will draw it, chosen by asking the faces which of
+ * them actually contains a glyph for the character. A neutral character stays with the
+ * surrounding run whenever that run's face can draw it, so an em dash between Arabic words
+ * does not split the run; when it cannot — the Arabic face has no `€`, for instance — the
+ * character opens a run in a face that does, instead of rendering as a missing-glyph box.
  */
 
 // `bidi-js` is published as CommonJS whose `module.exports` is the factory itself, so
@@ -29,44 +36,65 @@ export type TextRun = {
   script: FontScript;
 };
 
-function resolveScript(text: string, paragraphIsRtl: boolean): FontScript {
-  for (const character of text) {
-    const script = scriptOf(character.codePointAt(0) ?? 0);
-    if (script === 'latin' || script === 'arabic') {
-      return script;
-    }
+/** Consecutive runs drawn with one face, shaped and emitted as a single text object. */
+export type RunGroup = {
+  script: FontScript;
+  segments: ShapedSegment[];
+};
+
+/** Raised when a character reaches layout that no bundled face can draw. */
+export class UnroutableCharacterError extends Error {
+  constructor(readonly character: string) {
+    super(`No bundled PDF font contains a glyph for ${JSON.stringify(character)}.`);
+    this.name = 'UnroutableCharacterError';
   }
-  // A neutral-only run (spaces, digits, punctuation) follows the paragraph direction so
-  // that, for example, a number inside an Arabic sentence keeps the Arabic face.
-  return paragraphIsRtl ? 'arabic' : 'latin';
+}
+
+function directionOf(level: number): 'ltr' | 'rtl' {
+  return level % 2 === 1 ? 'rtl' : 'ltr';
 }
 
 /**
  * Splits one logical line into runs already ordered left to right on the page.
  *
- * Runs are split on both a change of embedding level and a change of script, so each run
- * can be shaped and measured with exactly one font.
+ * Runs are split on both a change of embedding level and a change of face, so each run can
+ * be shaped and measured with exactly one font.
+ *
+ * `base` is the direction of the paragraph the line belongs to. UAX #9 resolves the base
+ * direction once per paragraph and applies it to every line of it, so a wrapped line that
+ * happens to start with Arabic must not be re-read as a right-to-left paragraph of its
+ * own — that is what turns the middle of a wrapped Latin paragraph inside out.
  */
-export function visualRuns(line: string): TextRun[] {
+export function visualRuns(
+  line: string,
+  weight: FontWeight = 'regular',
+  base?: 'ltr' | 'rtl',
+): TextRun[] {
   if (line.length === 0) {
     return [];
   }
 
-  const embeddingLevels = bidi.getEmbeddingLevels(line);
-  const paragraphIsRtl = (embeddingLevels.paragraphs[0]?.level ?? 0) % 2 === 1;
+  const embeddingLevels = bidi.getEmbeddingLevels(line, base);
   const levels = embeddingLevels.levels;
 
-  // Logical runs first: contiguous characters sharing an embedding level and a script.
+  // Logical runs first: contiguous characters sharing an embedding level and a face.
   type LogicalRun = { start: number; end: number; level: number; script: FontScript };
   const logical: LogicalRun[] = [];
-  const characters = [...line];
   let index = 0;
-  for (const character of characters) {
+  for (const character of [...line]) {
+    const codePoint = character.codePointAt(0) ?? 0;
     const level = levels[index] ?? 0;
-    const script = resolveScript(character, paragraphIsRtl);
     const previous = logical[logical.length - 1];
-    const neutral = scriptOf(character.codePointAt(0) ?? 0) === 'neutral';
-    if (previous && previous.level === level && (neutral || previous.script === script)) {
+    const joinsPrevious =
+      previous !== undefined &&
+      previous.level === level &&
+      scriptHint(codePoint) === 'neutral' &&
+      faceHasGlyph(previous.script, weight, codePoint);
+    const script = joinsPrevious ? previous.script : faceForCodePoint(codePoint, weight);
+    if (script === null) {
+      throw new UnroutableCharacterError(character);
+    }
+    if (previous && previous.level === level && previous.script === script) {
       previous.end = index + character.length;
     } else {
       logical.push({ start: index, end: index + character.length, level, script });
@@ -105,6 +133,27 @@ export function visualRuns(line: string): TextRun[] {
     level: run.level,
     script: run.script,
   }));
+}
+
+/**
+ * Merges neighbouring visual runs that share a face into one drawing group.
+ *
+ * Each group becomes a single PDF text object, which keeps a whole same-face stretch of a
+ * line in one extraction run so that a reader applies the bidirectional algorithm to the
+ * stretch as a whole rather than to one word at a time.
+ */
+export function runGroups(runs: TextRun[]): RunGroup[] {
+  const groups: RunGroup[] = [];
+  for (const run of runs) {
+    const segment: ShapedSegment = { text: run.text, direction: directionOf(run.level) };
+    const last = groups[groups.length - 1];
+    if (last && last.script === run.script) {
+      last.segments.push(segment);
+    } else {
+      groups.push({ script: run.script, segments: [segment] });
+    }
+  }
+  return groups;
 }
 
 /** True when the line as a whole reads right to left. */

@@ -118,6 +118,74 @@ type GenerationAccess = {
   trainingEnrollmentsView: boolean;
 };
 
+/** Commercial roots whose own row is stabilized alongside its client and mission. */
+type CommercialRootTable =
+  'CommercialQuotation' | 'PurchaseOrder' | 'CommercialContract' | 'Invoice';
+
+/**
+ * Every table generation may take a shared row lock on.
+ *
+ * The set is closed and the statement for each member is written out below, so no caller
+ * can route text of its own into SQL even by mistake. Identifiers cannot be parameterized
+ * in PostgreSQL, which is the reason a table name must never come from a variable.
+ */
+type LockableTable =
+  | 'Client'
+  | 'RecruitmentMission'
+  | CommercialRootTable
+  | 'TrainingProgram'
+  | 'TrainingEnrollment'
+  | 'Candidate'
+  | 'ClientContact'
+  | 'User'
+  | 'ExternalTrainingParticipant';
+
+/** One shared row lock, with the row id parameterized and the table statically chosen. */
+async function lockRowForShare(tx: Tx, table: LockableTable, id: string): Promise<void> {
+  switch (table) {
+    case 'Client':
+      await tx.$queryRaw`SELECT id FROM "Client" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'RecruitmentMission':
+      await tx.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'CommercialQuotation':
+      await tx.$queryRaw`SELECT id FROM "CommercialQuotation" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'PurchaseOrder':
+      await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'CommercialContract':
+      await tx.$queryRaw`SELECT id FROM "CommercialContract" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'Invoice':
+      await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'TrainingProgram':
+      await tx.$queryRaw`SELECT id FROM "TrainingProgram" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'TrainingEnrollment':
+      await tx.$queryRaw`SELECT id FROM "TrainingEnrollment" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'Candidate':
+      await tx.$queryRaw`SELECT id FROM "Candidate" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'ClientContact':
+      await tx.$queryRaw`SELECT id FROM "ClientContact" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'User':
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    case 'ExternalTrainingParticipant':
+      await tx.$queryRaw`SELECT id FROM "ExternalTrainingParticipant" WHERE id = ${id}::uuid FOR SHARE`;
+      return;
+    default: {
+      const exhaustive: never = table;
+      throw new Error(`Unlockable table: ${String(exhaustive)}`);
+    }
+  }
+}
+
 /**
  * Issue #49 template-driven business-output generation.
  *
@@ -134,9 +202,21 @@ type GenerationAccess = {
  * and a failure can leave at most the one object that was just written, which the
  * compensation removes.
  *
- * Lock order for a publish: **Document -> DocumentVersion**. Source business records are
- * read for the snapshot and re-validated inside the transaction, never locked, so this
- * path cannot participate in a commercial or accounting lock cycle.
+ * Lock order for a publish, in the order the transaction takes them:
+ *
+ * 1. **source stabilization** — a shared lock on every row whose values the output
+ *    renders, parent-first within its family: `Client`, then the optional
+ *    `RecruitmentMission`, then the commercial root; or `Client`, `TrainingProgram`,
+ *    `TrainingEnrollment`, then the participant row;
+ * 2. **fingerprint** — the source is re-read under those locks and its fingerprint
+ *    compared with the one the rendered bytes were built from;
+ * 3. **`Document`** — the logical document row is locked or created;
+ * 4. **`DocumentVersion`** — the version is inserted, `currentVersionId` advanced, and
+ *    the audit row written;
+ * 5. **commit**, which releases every lock at once.
+ *
+ * Source rows are therefore locked, not merely re-read; `lockRowsForShare` documents why
+ * that parent-first order matches the merged mutation paths and forms no cycle.
  */
 @Injectable()
 export class DocumentGenerationService {
@@ -1512,10 +1592,14 @@ export class DocumentGenerationService {
    * No merged path holds a participant, program, or enrollment row and then requests a
    * `Client` or commercial row, so placing `Client` first is safe for every family.
    */
-  private async lockRowsForShare(tx: Tx, table: string, ids: readonly string[]): Promise<void> {
+  private async lockRowsForShare(
+    tx: Tx,
+    table: LockableTable,
+    ids: readonly string[],
+  ): Promise<void> {
     const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))].sort();
     for (const id of unique) {
-      await tx.$queryRawUnsafe(`SELECT id FROM "${table}" WHERE id = $1::uuid FOR SHARE`, id);
+      await lockRowForShare(tx, table, id);
     }
   }
 
@@ -1527,7 +1611,7 @@ export class DocumentGenerationService {
    */
   private async stabilizeCommercial(
     tx: Tx,
-    table: string,
+    table: CommercialRootTable,
     record: { id: string; clientId: string; recruitmentMissionId: string | null },
   ): Promise<void> {
     await this.lockRowsForShare(tx, 'Client', [record.clientId]);

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { RenderableDocument } from './renderable-document.js';
 import { formatMoney, sanitizeText, textLines } from './renderable-document.js';
 import { renderDocx } from './renderers/docx.renderer.js';
-import { scriptOf, unsupportedCharacters } from './renderers/font-registry.js';
+import { faceForCodePoint, unsupportedCharacters } from './renderers/font-registry.js';
 import { extractPdf } from './renderers/pdf-text.testing.js';
 import {
   PdfScriptCoverageError,
@@ -112,10 +112,10 @@ describe('generated output sanitization', () => {
 describe('PDF script coverage', () => {
   it('covers the Latin, Greek, Cyrillic and Arabic repertoire business text uses', () => {
     for (const character of 'cœur Œuvre € ‰ – — “ ” é à ç ñ Ÿ š Ωμέγα Кириллица') {
-      expect(scriptOf(character.codePointAt(0) ?? 0)).not.toBeNull();
+      expect(faceForCodePoint(character.codePointAt(0) ?? 0, 'regular')).not.toBeNull();
     }
     for (const character of 'شركة الأطلس يوسف العلوي ٢٠٢٦') {
-      expect(scriptOf(character.codePointAt(0) ?? 0)).not.toBeNull();
+      expect(faceForCodePoint(character.codePointAt(0) ?? 0, 'regular')).not.toBeNull();
     }
     expect(unsupportedCharacters('Cœur & شركة')).toEqual([]);
   });

@@ -6,7 +6,7 @@ import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AuthResponseSchema } from '@hire-me/contracts';
-import { extractPdf } from '../src/document-generation/renderers/pdf-text.testing.js';
+import { drawnLines, extractPdf } from '../src/document-generation/renderers/pdf-text.testing.js';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import { DocumentGenerationService } from '../src/document-generation/document-generation.service.js';
@@ -558,14 +558,12 @@ describe('document output generation', { timeout: 60_000 }, () => {
    *
    * Generated PDFs embed subsetted TrueType faces, so the content stream holds glyph
    * indices rather than characters. Parsing the file and reading its `ToUnicode` map is
-   * what makes an assertion about rendered content real. Unmapped placeholders, which
-   * PDFKit produces for the joining forms an Arabic shaper creates, are dropped.
+   * what makes an assertion about rendered content real. Nothing is filtered out of the
+   * result: every drawn glyph maps back to the source characters it came from, so an
+   * assertion here is an assertion about what a reader would copy.
    */
   async function pdfText(bytes: Buffer): Promise<string> {
-    const extracted = await extractPdf(bytes);
-    return [...extracted.text]
-      .filter((character) => (character.codePointAt(0) ?? 0) >= 0x20)
-      .join('');
+    return (await extractPdf(bytes)).text;
   }
 
   /** Inflates every deflated entry of an OOXML package so its XML can be inspected. */
@@ -1771,8 +1769,12 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(arabicText).not.toContain('?');
     // The Arabic face is embedded, so the name is drawn rather than boxed.
     expect(arabicBytes.toString('latin1')).toContain('NotoSansArabic');
-    // Right-to-left display order: the last logical word is drawn first.
-    expect(arabicText.indexOf('للتقنية'.slice(0, 3))).toBeLessThan(arabicText.indexOf('طلس'));
+    // The whole client name comes back as the exact source string: reading the PDF gives
+    // the characters the record holds, in the order the record holds them.
+    expect(arabicText).toContain('شركة الأطلس للتقنية');
+    // On the page it is drawn right to left, which extraction deliberately undoes.
+    const arabicVisual = [...'شركة الأطلس للتقنية'].reverse().join('');
+    expect(drawnLines(arabicBytes).some((line) => line.includes(arabicVisual))).toBe(true);
 
     // The same name is carried faithfully by the Word output too.
     const word = await generate(`/v1/commercial/invoices/${arabicInvoice.id}/generate`, {
@@ -1783,6 +1785,51 @@ describe('document output generation', { timeout: 60_000 }, () => {
       where: { id: generated(word.body).versionId },
     });
     expect(docxXml(await storage.get(wordVersion.storageKey))).toContain('شركة الأطلس للتقنية');
+  });
+
+  it('renders an Arabic participant name on a certificate end to end', async () => {
+    const key = randomUUID().slice(0, 8);
+    const program = await prisma.trainingProgram.create({
+      data: {
+        reference: `GEN49-TP-${key}`,
+        normalizedReference: `gen49-tp-${key}`,
+        name: 'Gen49 Program',
+      },
+    });
+    const participantName = 'يوسف العلوي';
+    const participant = await prisma.externalTrainingParticipant.create({
+      data: { displayName: participantName },
+    });
+    const enrollment = await prisma.trainingEnrollment.create({
+      data: {
+        trainingProgramId: program.id,
+        participantType: 'EXTERNAL',
+        externalTrainingParticipantId: participant.id,
+        activeParticipantKey: `EXTERNAL:${participant.id}`,
+        status: TrainingEnrollmentStatus.EVALUATED,
+        enrolledAt: new Date(),
+        completedAt: new Date(),
+        certificateStatus: CertificateStatus.PENDING,
+      },
+    });
+
+    const response = await generate(certificatePath(program.id, enrollment.id));
+    expect(response.status).toBe(201);
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(response.body).versionId },
+    });
+    const bytes = await storage.get(version.storageKey);
+
+    // Copying the certificate gives back the participant's name as the record holds it.
+    expect(await pdfText(bytes)).toContain(participantName);
+    // And the page draws it right to left, with the first logical word furthest right.
+    const visual = [...participantName].reverse().join('');
+    expect(drawnLines(bytes).some((line) => line.includes(visual))).toBe(true);
+    // Generating a certificate never advances the enrollment's own certificate state.
+    const after = await prisma.trainingEnrollment.findUniqueOrThrow({
+      where: { id: enrollment.id },
+    });
+    expect(after.certificateStatus).toBe(CertificateStatus.PENDING);
   });
 
   it('refuses a PDF whose script no bundled font covers, and still produces the Word output', async () => {

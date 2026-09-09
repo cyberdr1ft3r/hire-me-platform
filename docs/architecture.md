@@ -353,8 +353,20 @@ PDF output embeds repository-owned SIL Open Font License Noto faces committed un
 `apps/api/assets/fonts` and resolved relative to the module rather than the working
 directory, so the compiled build finds them and nothing is fetched at runtime. Supported
 scripts are Latin, Latin Extended, Greek, Cyrillic, and Arabic, including mixed
-Latin/Arabic lines with correct bidirectional ordering and Arabic contextual joining; a
-script outside that coverage fails closed rather than being substituted.
+Latin/Arabic lines with correct bidirectional ordering and Arabic contextual joining.
+Coverage is decided per code point by asking the face that will draw it whether it
+contains the glyph; the Unicode block ranges only choose which face to try first. A
+character no registered face contains fails closed rather than being substituted or drawn
+as a missing-glyph box.
+
+PDF text is correct both on the page and in the file. Glyphs are the shaper's contextual
+forms placed in UAX #9 visual order, and every drawn glyph maps back through `ToUnicode`
+to the source characters it came from, so copying, searching, or extracting an Arabic or
+mixed-direction line returns the original Unicode.
+`apps/api/src/document-generation/renderers/pdf-text-mapping.ts` records why that needs
+explicit handling: the Arabic face decomposes dotted letters into a shared dotless
+skeleton plus a separate dots glyph, so PDFKit's glyph-keyed map would both lose the
+unattributed glyphs and merge distinct letters.
 Every string crosses one sanitization boundary that removes control characters, folds
 typographic punctuation to the PDF standard-font repertoire, collapses whitespace, and
 bounds length. Download filenames are reduced to a conservative alphabet, and storage keys

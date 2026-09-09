@@ -7,8 +7,9 @@ import {
   registeredFontAssets,
   unsupportedCharacters,
 } from './font-registry.js';
-import type { TextRun } from './text-runs.js';
-import { lineIsRtl, visualRuns } from './text-runs.js';
+import { ShapedTextWriter } from './pdf-text-mapping.js';
+import type { RunGroup } from './text-runs.js';
+import { lineIsRtl, runGroups, visualRuns } from './text-runs.js';
 import type { RenderableBlock, RenderableDocument } from '../renderable-document.js';
 import { sanitizeText, textLines } from '../renderable-document.js';
 
@@ -20,8 +21,13 @@ import { sanitizeText, textLines } from '../renderable-document.js';
  * or URL injection surface. It embeds the bundled TrueType faces through `fontkit`, which
  * performs real OpenType shaping, so Arabic is rendered as properly joined contextual
  * forms rather than isolated letters. Bidirectional ordering comes from `bidi-js`
- * (UAX #9); nothing reverses strings or substitutes presentation forms by hand, and the
- * text stays real selectable, searchable PDF text.
+ * (UAX #9); nothing reverses strings or substitutes presentation forms by hand.
+ *
+ * The output is real text in both senses. Visually, glyphs are the shaper's contextual
+ * forms placed in UAX #9 visual order. Semantically, every drawn glyph maps back to the
+ * source characters it came from, so copying, searching, and extracting return the
+ * original Unicode; `pdf-text-mapping.ts` explains what PDFKit gets wrong there and how
+ * this renderer corrects it.
  *
  * Nothing is clipped or truncated: long values wrap across lines and pages so the full
  * authoritative text is represented.
@@ -53,13 +59,20 @@ function registerFonts(pdf: Pdf): void {
   }
 }
 
-/** Width of one shaped run in the face that will actually draw it. */
-function runWidth(pdf: Pdf, run: TextRun, weight: FontWeight, size: number): number {
-  pdf.font(fontKey(run.script, weight)).fontSize(size);
-  return pdf.widthOfString(run.text);
-}
+type LaidOutGroup = RunGroup & { width: number };
+type LaidOutLine = { groups: LaidOutGroup[]; width: number };
 
-type LaidOutLine = { runs: TextRun[]; width: number };
+function measureGroups(
+  writer: ShapedTextWriter,
+  groups: RunGroup[],
+  weight: FontWeight,
+  size: number,
+): LaidOutGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    width: writer.measure(fontKey(group.script, weight), size, group.segments),
+  }));
+}
 
 /**
  * Wraps one logical line, then reorders each display line for presentation.
@@ -75,25 +88,22 @@ type LaidOutLine = { runs: TextRun[]; width: number };
  * authoritative text is ever lost.
  */
 function layoutLine(
-  pdf: Pdf,
+  writer: ShapedTextWriter,
   line: string,
   weight: FontWeight,
   size: number,
   width: number,
+  base: 'ltr' | 'rtl',
 ): LaidOutLine[] {
-  const measure = (text: string): number =>
-    visualRuns(text).reduce((total, run) => total + runWidth(pdf, run, weight, size), 0);
-
   const toDisplayLine = (text: string): LaidOutLine => {
-    const runs = visualRuns(text);
-    return {
-      runs,
-      width: runs.reduce((total, run) => total + runWidth(pdf, run, weight, size), 0),
-    };
+    const groups = measureGroups(writer, runGroups(visualRuns(text, weight, base)), weight, size);
+    return { groups, width: groups.reduce((total, group) => total + group.width, 0) };
   };
 
+  const measure = (text: string): number => toDisplayLine(text).width;
+
   if (line.length === 0) {
-    return [{ runs: [], width: 0 }];
+    return [{ groups: [], width: 0 }];
   }
 
   const segments: string[] = [];
@@ -159,6 +169,7 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     },
   });
   registerFonts(pdf);
+  const writer = new ShapedTextWriter(pdf);
 
   const chunks: Buffer[] = [];
   pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -186,13 +197,12 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     rightToLeft: boolean,
   ): void => {
     let x = rightToLeft ? left + available - laidOut.width : left;
-    for (const run of laidOut.runs) {
-      pdf.font(fontKey(run.script, weight)).fontSize(size);
-      // PDFKit hands the characters to fontkit, which detects the script and applies the
-      // face's own OpenType shaping plan. No feature list is forced here: overriding the
-      // plan is what breaks Arabic contextual forms.
-      pdf.text(run.text, x, cursor.y, { lineBreak: false });
-      x += pdf.widthOfString(run.text);
+    // One baseline for the whole line, taken from the Latin face, so that a mixed line
+    // does not sit its Arabic and Latin stretches at two different heights.
+    const ascent = writer.ascent(fontKey('latin', weight), size);
+    for (const group of laidOut.groups) {
+      writer.draw(fontKey(group.script, weight), size, group.segments, x, cursor.y, ascent);
+      x += group.width;
     }
   };
 
@@ -200,7 +210,8 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     const available = contentWidth - indent;
     for (const logicalLine of textLines(sanitizeText(text))) {
       const rightToLeft = lineIsRtl(logicalLine);
-      for (const laidOut of layoutLine(pdf, logicalLine, weight, size, available)) {
+      const base = rightToLeft ? 'rtl' : 'ltr';
+      for (const laidOut of layoutLine(writer, logicalLine, weight, size, available, base)) {
         ensureSpace(lineHeightFor(size));
         drawLine(laidOut, weight, size, margin + indent, available, rightToLeft);
         cursor.y += lineHeightFor(size);
@@ -216,7 +227,7 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
   cursor.y += 8;
 
   for (const block of document.blocks) {
-    drawBlock(pdf, block, { drawText, ensureSpace, drawLine, cursor });
+    drawBlock(writer, block, { drawText, ensureSpace, drawLine, cursor });
   }
 
   if (document.footer) {
@@ -243,7 +254,7 @@ type DrawContext = {
   cursor: { y: number };
 };
 
-function drawBlock(pdf: Pdf, block: RenderableBlock, context: DrawContext): void {
+function drawBlock(writer: ShapedTextWriter, block: RenderableBlock, context: DrawContext): void {
   const { drawText, ensureSpace, drawLine, cursor } = context;
   switch (block.kind) {
     case 'heading':
@@ -268,12 +279,13 @@ function drawBlock(pdf: Pdf, block: RenderableBlock, context: DrawContext): void
 
       const drawRow = (cells: readonly string[], weight: FontWeight): void => {
         const wrapped = cells.map((cell) =>
-          textLines(sanitizeText(cell)).flatMap((logicalLine) =>
-            layoutLine(pdf, logicalLine, weight, cellSize, usableWidth).map((laidOut) => ({
-              laidOut,
-              rightToLeft: lineIsRtl(logicalLine),
-            })),
-          ),
+          textLines(sanitizeText(cell)).flatMap((logicalLine) => {
+            const rightToLeft = lineIsRtl(logicalLine);
+            const base = rightToLeft ? 'rtl' : 'ltr';
+            return layoutLine(writer, logicalLine, weight, cellSize, usableWidth, base).map(
+              (laidOut) => ({ laidOut, rightToLeft }),
+            );
+          }),
         );
         const rowLines = Math.max(...wrapped.map((lines) => lines.length), 1);
         const height = lineHeightFor(cellSize);
