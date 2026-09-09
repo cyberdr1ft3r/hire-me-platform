@@ -1,3 +1,5 @@
+import type { MessageKey } from '../i18n/index.js';
+
 export type InternalRoute =
   | 'home'
   | 'admin'
@@ -11,46 +13,58 @@ export type InternalRoute =
   | 'commercial'
   | 'accounting';
 
-export type NavigationGroupName =
-  'Workspace' | 'Recruitment' | 'Operations' | 'Business' | 'System';
+export type NavigationGroupId = 'workspace' | 'recruitment' | 'operations' | 'business' | 'system';
 
+/**
+ * Navigation carries typed message keys, never display text. Routes, paths, and
+ * permission codes stay language-neutral; only the rendered label changes with
+ * the active locale.
+ */
 export interface InternalNavigationItem {
-  label: string;
+  labelKey: MessageKey;
   path: string;
   permissions?: readonly string[];
   route: InternalRoute;
 }
 
 export interface InternalNavigationGroup {
-  label: NavigationGroupName;
+  id: NavigationGroupId;
   items: readonly InternalNavigationItem[];
+  labelKey: MessageKey;
 }
 
 const internalNavigationGroups: readonly InternalNavigationGroup[] = [
   {
-    label: 'Workspace',
+    id: 'workspace',
+    labelKey: 'navigation.groups.workspace',
     items: [
-      { label: 'Overview', path: '/', route: 'home' },
-      { label: 'Tasks', path: '/tasks', permissions: ['tasks:view'], route: 'tasks' },
+      { labelKey: 'navigation.destinations.overview', path: '/', route: 'home' },
+      {
+        labelKey: 'navigation.destinations.tasks',
+        path: '/tasks',
+        permissions: ['tasks:view'],
+        route: 'tasks',
+      },
     ],
   },
   {
-    label: 'Recruitment',
+    id: 'recruitment',
+    labelKey: 'navigation.groups.recruitment',
     items: [
       {
-        label: 'Candidates',
+        labelKey: 'navigation.destinations.candidates',
         path: '/candidates',
         permissions: ['candidates:view'],
         route: 'candidates',
       },
       {
-        label: 'Missions',
+        labelKey: 'navigation.destinations.missions',
         path: '/missions',
         permissions: ['missions:view'],
         route: 'missions',
       },
       {
-        label: 'Reporting',
+        labelKey: 'navigation.destinations.reporting',
         path: '/reporting',
         permissions: ['reporting:recruitment:view'],
         route: 'reporting',
@@ -58,22 +72,23 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
     ],
   },
   {
-    label: 'Operations',
+    id: 'operations',
+    labelKey: 'navigation.groups.operations',
     items: [
       {
-        label: 'Clients',
+        labelKey: 'navigation.destinations.clients',
         path: '/clients',
         permissions: ['clients:view'],
         route: 'clients',
       },
       {
-        label: 'Training',
+        labelKey: 'navigation.destinations.training',
         path: '/training',
         permissions: ['training_programs:view'],
         route: 'training',
       },
       {
-        label: 'Documents',
+        labelKey: 'navigation.destinations.documents',
         path: '/documents',
         permissions: ['documents:view'],
         route: 'documents',
@@ -81,16 +96,17 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
     ],
   },
   {
-    label: 'Business',
+    id: 'business',
+    labelKey: 'navigation.groups.business',
     items: [
       {
-        label: 'Commercial',
+        labelKey: 'navigation.destinations.commercial',
         path: '/commercial',
         permissions: ['quotations:view', 'contracts:view', 'purchase_orders:view', 'invoices:view'],
         route: 'commercial',
       },
       {
-        label: 'Accounting',
+        labelKey: 'navigation.destinations.accounting',
         path: '/accounting',
         permissions: [
           'payments:view',
@@ -103,10 +119,11 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
     ],
   },
   {
-    label: 'System',
+    id: 'system',
+    labelKey: 'navigation.groups.system',
     items: [
       {
-        label: 'Administration',
+        labelKey: 'navigation.destinations.administration',
         path: '/admin',
         permissions: ['users:view'],
         route: 'admin',

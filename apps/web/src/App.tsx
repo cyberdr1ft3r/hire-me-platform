@@ -222,6 +222,7 @@ import {
   type InternalRoute,
 } from './navigation/internal-navigation.js';
 import { AppShell } from './ui/shell/AppShell.js';
+import { I18nProvider, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
 
 type ApiState =
@@ -233,7 +234,21 @@ type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 const REPORTING_EXPORT_PERMISSION = 'reporting:recruitment:export';
 
+/**
+ * One localization provider wraps the whole application, so the public
+ * opportunity routes below share the authenticated workspace's active locale and
+ * can adopt localized copy later without a second architecture.
+ */
 export function App() {
+  return (
+    <I18nProvider>
+      <AppRoutes />
+    </I18nProvider>
+  );
+}
+
+function AppRoutes() {
+  const { t } = useI18n();
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
@@ -309,7 +324,7 @@ export function App() {
       setAccessToken(auth.accessToken);
       setUser(auth.user);
     } catch {
-      setAuthError('Authentication failed.');
+      setAuthError(t('auth.failed'));
     }
   }
 
@@ -355,33 +370,31 @@ export function App() {
       <main className="shell login-shell">
         <section className="intro" aria-labelledby="page-title">
           <p className="eyebrow">Hire Me Platform</p>
-          <h1 id="page-title">Recruitment operations workspace</h1>
-          <p>Sign in to continue to the internal HireMe workspace.</p>
+          <h1 id="page-title">{t('auth.title')}</h1>
+          <p>{t('auth.subtitle')}</p>
         </section>
         <form
           className="auth-panel"
-          aria-label="Login"
+          aria-label={t('auth.formRegion')}
           onSubmit={(event) => {
             void handleLogin(event);
           }}
         >
-          <h2>Sign in</h2>
+          <h2>{t('auth.heading')}</h2>
           <label>
-            Email
+            {t('auth.email')}
             <input name="email" type="email" autoComplete="username" required />
           </label>
           <label>
-            Password
+            {t('auth.password')}
             <input name="password" type="password" autoComplete="current-password" required />
           </label>
-          <button type="submit">Login</button>
+          <button type="submit">{t('auth.submit')}</button>
           {authError ? <p role="alert">{authError}</p> : null}
         </form>
-        <div className="login-health" aria-live="polite" aria-label="API status">
+        <div className="login-health" aria-live="polite" aria-label={t('auth.apiStatusRegion')}>
           <span aria-hidden="true" className={`status-dot status-dot--${apiState.status}`} />
-          <span>
-            {apiState.status === 'loading' ? 'Checking API health status...' : apiState.message}
-          </span>
+          <span>{apiState.status === 'loading' ? t('auth.checkingApi') : apiState.message}</span>
         </div>
       </main>
     );
@@ -392,9 +405,9 @@ export function App() {
 
   if (!canOpenRoute) {
     routeContent = (
-      <section className="admin-panel" aria-label="Protected workspace">
-        <h2>Protected workspace</h2>
-        <p role="alert">Permission denied.</p>
+      <section className="admin-panel" aria-label={t('access.deniedRegion')}>
+        <h2>{t('access.deniedTitle')}</h2>
+        <p role="alert">{t('access.deniedMessage')}</p>
       </section>
     );
   } else {

@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-HireMe UI/UX v1 Task 2 AppShell checkpoint under Issue #52, after maintainer approval of the Phase 1 foundation. `main` is at `e2879b38c54dcc1b42b85aa345680260487454dc`.
+English/French localization foundation under Issue #54, started after PR #53 merged the Issue #52 UI-DNA, AppShell, and PageHeader foundations. `main` is at `a0236fe66936891d8235236c924e652c8067ab13`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
@@ -43,6 +43,8 @@ HireMe UI/UX v1 Task 2 AppShell checkpoint under Issue #52, after maintainer app
 - Reading or downloading a generated training certificate re-checks the participant's own source-domain capability, not only enrollment and program visibility.
 - Generation requires `documents:generate` plus the source domain's own authorization, and generated-document reads and downloads re-authorize that source at request time, so a leaked document UUID cannot bypass the source domain.
 - Storage and PostgreSQL are not one transaction: bytes are rendered, published, then committed, and a failed commit removes only the object that attempt published.
+- Issue #52 Task 1 and Task 2 are merged through PR #53: the HireMe UI-DNA, the semantic CSS token layers, the foundation components, the authenticated internal `AppShell`, and `PageHeader`.
+- Issue #54 introduces the English/French localization foundation on `feat/web-i18n-en-fr`. It is infrastructure plus shell/authentication scope only; legacy business modules stay English until their own redesign task, and Reporting is the first module to be built bilingual from its first commit.
 - PR #42 (Cursor Cloud development environment) was closed without merge as obsolete environment-specific guidance.
 - Issue #12 is complete through the merged Issue #35 document foundation, which keeps `CONTRAT_RECRUTEMENT` and `CONTRAT_FORMATION` as distinct taxonomy values.
 - Operational profitability recognises issued invoice revenue minus directly linked operational expenses (decision D-053). Received/allocated cash is reported separately through settlement and receivables and is never the profitability basis. Every aggregate is separated per currency and no FX conversion exists.
@@ -98,6 +100,14 @@ HireMe UI/UX v1 Task 2 AppShell checkpoint under Issue #52, after maintainer app
 - Modular monolith for the initial implementation.
 - React + Vite frontend.
 - The authenticated web application uses one internal AppShell with permission-filtered grouped navigation, History API and `popstate` routing, responsive modal-style navigation at and below 900px, and a reusable PageHeader. Login and public opportunity routes remain outside the shell.
+- The web interface is English/French through a small typed internal localization layer in `apps/web/src/i18n`. No third-party i18n framework was added; for two locales at the current product size, React, ReactDOM, Vite, and `@hire-me/contracts` remain the whole web dependency set.
+- `Locale` is exactly `'en' | 'fr'`. English formats as `en-GB` and French as `fr-FR`. Locale metadata carries a `direction` field for a future locale; both current locales are `ltr` and RTL layout is not implemented.
+- English is the canonical dictionary and French is annotated with its structural type, so a missing, renamed, or misspelled key fails `pnpm typecheck`. There is no runtime fallback that would hide a missing translation; lookup, interpolation, and plural misuse throw.
+- Interpolated values are inserted as text and React escaping stays authoritative. Counts select their form through `Intl.PluralRules`; numbers, dates, and currency are formatted through `Intl`, currency always with an explicit ISO 4217 code and never converted.
+- Locale selection order is a valid stored preference, then a browser language starting with `fr`, then English. The preference lives in `localStorage` under `hireme.locale`, holds a display preference only, is validated against the allow-list before use, and never feeds a dynamic import or path. Dictionaries are resolved through a static frozen map.
+- The locale provider wraps the whole application, authenticated and public alike, so public routes adopt localization later without a second architecture. `document.documentElement.lang` follows the active locale; `dir` is untouched.
+- API, database, and contract values such as `ACTIVE` or `DRAFT` stay language-neutral. Localized labels are a presentation mapping at the UI boundary and are never sent back to the API or used to branch business logic. Arbitrary backend error text is never machine-translated.
+- Localization added no database change: there is no `preferredLocale` column and no migration. A server-stored, cross-device user preference would be separate future work.
 - NestJS backend API.
 - PostgreSQL with Prisma ORM.
 - Prisma is owned by `apps/api`; web and contracts packages stay ORM-independent and are checked by `pnpm check:architecture`.

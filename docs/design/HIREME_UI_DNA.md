@@ -228,6 +228,19 @@ Spacing and radius literals are not automatically linted in Phase 1 because medi
 
 Components depend on semantic tokens, never assumptions that a surface is white or text is black. A future dark mode will override semantic tokens under an explicit theme selector while retaining the primitive audit, contrast checks, and state meaning. Do not use alpha overlays whose result depends on an unknown background for ordinary text or controls. Elevation may require theme-specific shadow values. Dark mode is compatibility work only in this phase; no dark palette or user control is implemented.
 
+## S. Localization
+
+HireMe ships English and French. `Locale` is exactly `'en' | 'fr'`, and a locale value is accepted only from that allow-list.
+
+- **Text is data.** Interfaces read their copy from typed dictionaries keyed by semantic paths (`navigation.destinations.reporting`), never by English sentences. English is the canonical structure and French must satisfy it at compile time, so a missing translation is a build failure rather than a silent English string in a French screen.
+- **Text expansion is a layout requirement.** French routinely runs 15–30% longer than English. A control, navigation label, badge, table header, or action must survive that without truncating, shrinking its type, wrapping mid-word, or pushing the shell into horizontal overflow. Size components from content and available space, not from the English string. Verify every new surface with French active at 390, 430, 800, 1024, and 1440 px.
+- **Formatting belongs to `Intl`.** Numbers, dates, and money are formatted through `Intl.NumberFormat` and `Intl.DateTimeFormat`, and counts select their form through `Intl.PluralRules`. HireMe English formats as `en-GB` and French as `fr-FR`. Currency always receives an explicit ISO 4217 code; the product is currency-aware, never MAD by assumption, and formatting never converts between currencies.
+- **No flags.** A language is not a country. The language control names each language in its own language (`English`, `Français`), communicates the active choice through text rather than color alone, uses native control semantics, and stays reachable in the mobile navigation drawer.
+- **Backend values are never translated.** `ACTIVE`, `DRAFT`, and every other API, database, and contract value stays language-neutral end to end. A localized label is a presentation mapping applied at the UI boundary only; it is never sent back to the API, stored, or used to branch business logic. Permission codes, IDs, URLs, and internal debug identifiers are not translated either.
+- **Errors keep their existing safety.** HireMe-owned interface messages are translated. Arbitrary backend text is shown as the product already shows it and is never machine-translated, and adding localization never becomes a reason to expose technical server detail.
+- **`lang` tracks the active locale.** `document.documentElement.lang` is updated as the language changes so assistive technology and the browser follow.
+- **Future locales.** Locale metadata already carries a `direction` field and both current locales are `ltr`. RTL layout is not implemented in this phase, but no component may assume that every future locale is left-to-right in its API surface. Use logical CSS properties, as the rest of this document already requires.
+
 ## Foundation and AppShell boundary
 
 Phase 1 proves `Button`, `FieldFrame`, `TextField`, `TextArea`, `Select`, `Checkbox`, `StatusBadge`, `InlineMessage`, `Skeleton`, and `EmptyState`. These components use native semantics, small variant sets, density tokens, and explicit states. `InlineMessage` is non-live by default; its single `announce` option makes non-danger dynamic feedback polite and dynamic danger feedback assertive.

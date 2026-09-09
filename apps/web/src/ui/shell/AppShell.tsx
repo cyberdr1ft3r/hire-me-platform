@@ -8,12 +8,14 @@ import {
 } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
 
+import { useI18n } from '../../i18n/index.js';
 import {
   routeToPath,
   visibleInternalNavigation,
   type InternalRoute,
 } from '../../navigation/internal-navigation.js';
 import { Button } from '../Button.js';
+import { LanguageSelect } from './LanguageSelect.js';
 
 export type ShellApiState =
   | { status: 'loading' }
@@ -47,6 +49,7 @@ export function AppShell({
   onRefreshUser,
   user,
 }: AppShellProps) {
+  const { t } = useI18n();
   const [mobile, setMobile] = useState(isMobileNavigation);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
@@ -106,7 +109,9 @@ export function AppShell({
     }
 
     const focusable = Array.from(
-      navigationRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [],
+      navigationRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), select:not(:disabled)',
+      ) ?? [],
     );
     if (focusable.length === 0) {
       return;
@@ -140,21 +145,23 @@ export function AppShell({
     onNavigate(route);
   }
 
+  // The shell shows the language-neutral health state through its own localized
+  // label. The API's own message text is never machine-translated.
   const apiLabel =
     apiState.status === 'loading'
-      ? 'API checking'
+      ? t('shell.api.checking')
       : apiState.status === 'ready'
-        ? 'API healthy'
-        : 'API unavailable';
+        ? t('shell.api.healthy')
+        : t('shell.api.unavailable');
 
   return (
     <div className="app-shell" data-density="internal-compact">
       <a className="app-shell__skip-link" href="#main-content">
-        Skip to main content
+        {t('shell.navigation.skipToMain')}
       </a>
       {mobile && navigationOpen ? (
         <button
-          aria-label="Dismiss navigation"
+          aria-label={t('shell.navigation.dismissNavigation')}
           className="app-shell__scrim"
           onClick={() => closeNavigation()}
           tabIndex={-1}
@@ -163,7 +170,9 @@ export function AppShell({
       ) : null}
       <aside
         aria-hidden={mobile && !navigationOpen ? 'true' : undefined}
-        aria-label={mobile ? 'Mobile navigation' : 'Application sidebar'}
+        aria-label={
+          mobile ? t('shell.navigation.mobileRegion') : t('shell.navigation.sidebarRegion')
+        }
         aria-modal={mobile && navigationOpen ? 'true' : undefined}
         className="app-shell__sidebar"
         data-mobile={mobile ? 'true' : undefined}
@@ -180,24 +189,24 @@ export function AppShell({
           </span>
           <span>
             <strong>HireMe</strong>
-            <small>Operations</small>
+            <small>{t('shell.brand.subtitle')}</small>
           </span>
           {mobile ? (
             <Button
-              aria-label="Close navigation"
+              aria-label={t('shell.navigation.closeNavigation')}
               onClick={() => closeNavigation()}
               size="compact"
               variant="quiet"
             >
-              Close
+              {t('shell.navigation.close')}
             </Button>
           ) : null}
         </div>
 
-        <nav aria-label="Primary navigation" className="app-shell__navigation">
+        <nav aria-label={t('shell.navigation.primaryRegion')} className="app-shell__navigation">
           {groups.map((group) => (
-            <section className="app-shell__nav-group" key={group.label}>
-              <h2>{group.label}</h2>
+            <section className="app-shell__nav-group" key={group.id}>
+              <h2>{t(group.labelKey)}</h2>
               <ul>
                 {group.items.map((item) => (
                   <li key={item.route}>
@@ -206,7 +215,7 @@ export function AppShell({
                       href={item.path}
                       onClick={(event) => handleDestination(event, item.route)}
                     >
-                      <span>{item.label}</span>
+                      <span>{t(item.labelKey)}</span>
                       {item.route === currentRoute ? (
                         <span aria-hidden="true" className="app-shell__current-marker" />
                       ) : null}
@@ -227,12 +236,13 @@ export function AppShell({
             <strong>{user.displayName}</strong>
             <span>{user.email}</span>
           </div>
+          <LanguageSelect />
           <div className="app-shell__session-actions">
             <Button onClick={() => void onRefreshUser()} size="compact" variant="quiet">
-              Refresh profile
+              {t('shell.session.refreshProfile')}
             </Button>
             <Button onClick={() => void onLogout()} size="compact" variant="secondary">
-              Sign out
+              {t('shell.session.signOut')}
             </Button>
           </div>
         </footer>
@@ -249,13 +259,13 @@ export function AppShell({
           <button
             aria-controls="app-navigation"
             aria-expanded={navigationOpen}
-            aria-label="Open navigation"
+            aria-label={t('shell.navigation.openNavigation')}
             className="app-shell__menu-trigger"
             onClick={() => setNavigationOpen(true)}
             ref={triggerRef}
             type="button"
           >
-            <span aria-hidden="true">Menu</span>
+            <span aria-hidden="true">{t('shell.navigation.menu')}</span>
           </button>
           <strong>HireMe</strong>
           <span aria-hidden="true" />
