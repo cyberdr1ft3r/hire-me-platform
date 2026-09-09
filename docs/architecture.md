@@ -345,9 +345,16 @@ render bytes, publish them to a server-generated storage key through the existin
 protected storage service, and commit an immutable `DocumentVersion` inside a transaction
 that also advances `Document.currentVersionId` and writes the audit row.
 
-Renderers are pure JavaScript: `pdf-lib` for PDF and `docx` for Word-compatible output.
-Neither requires a native binary, headless browser, office suite, or shell invocation, so
+Renderers are pure JavaScript: `pdfkit` for PDF, with `fontkit` OpenType shaping and
+`bidi-js` for UAX #9 bidirectional ordering, and `docx` for Word-compatible output. None
+requires a native binary, headless browser, office suite, or shell invocation, so
 generation adds no machine prerequisite and offers no command or URL injection surface.
+PDF output embeds repository-owned SIL Open Font License Noto faces committed under
+`apps/api/assets/fonts` and resolved relative to the module rather than the working
+directory, so the compiled build finds them and nothing is fetched at runtime. Supported
+scripts are Latin, Latin Extended, Greek, Cyrillic, and Arabic, including mixed
+Latin/Arabic lines with correct bidirectional ordering and Arabic contextual joining; a
+script outside that coverage fails closed rather than being substituted.
 Every string crosses one sanitization boundary that removes control characters, folds
 typographic punctuation to the PDF standard-font repertoire, collapses whitespace, and
 bounds length. Download filenames are reduced to a conservative alphabet, and storage keys
@@ -369,10 +376,10 @@ the attempt. No row lock is held across rendering or storage I/O.
 
 The renderer protects the output format without changing business meaning: it removes
 control characters but never truncates or substitutes. PDF text wraps across lines and
-pages and covers the full WinAnsi repertoire, including the `oe` ligature and the euro
-sign; text a PDF standard font genuinely cannot encode is refused rather than corrupted,
-while the Word output carries full Unicode. Supporting arbitrary scripts in PDF would
-require embedding a Unicode font asset, which is deliberately not done here.
+pages, and text is laid out by wrapping in logical order first and applying the
+bidirectional reordering per display line afterwards, which is the sequence UAX #9
+prescribes. Text in a script no bundled face covers is refused rather than corrupted,
+while the Word output carries full Unicode.
 
 Provenance is bounded and structured on the version itself: template id, template version,
 language, output family, size, and checksum. Audit metadata carries the document, version,

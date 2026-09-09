@@ -1,13 +1,15 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import './setup-env.js';
 import { randomUUID } from 'node:crypto';
-import { inflateRawSync, inflateSync } from 'node:zlib';
+import { inflateRawSync } from 'node:zlib';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AuthResponseSchema } from '@hire-me/contracts';
+import { extractPdf } from '../src/document-generation/renderers/pdf-text.testing.js';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
+import { DocumentGenerationService } from '../src/document-generation/document-generation.service.js';
 import { ProtectedStorageService } from '../src/storage/protected-storage.service.js';
 import {
   CertificateStatus,
@@ -276,6 +278,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
   let app: NestExpressApplication;
   let baseUrl: string;
   let storage: ProtectedStorageService;
+  let generationService: DocumentGenerationService;
   let generatorUserId: string;
   let generatorToken: string;
   let noGenerateToken: string;
@@ -424,12 +427,17 @@ describe('document output generation', { timeout: 60_000 }, () => {
   }
 
   async function createInvoice(
-    options: { status?: InvoiceStatus; mission?: string | null; referenceValue?: string } = {},
+    options: {
+      status?: InvoiceStatus;
+      mission?: string | null;
+      referenceValue?: string;
+      client?: string;
+    } = {},
   ) {
     return prisma.invoice.create({
       data: {
         reference: options.referenceValue ?? reference('INV'),
-        clientId,
+        clientId: options.client ?? clientId,
         recruitmentMissionId: options.mission === undefined ? null : options.mission,
         currency: 'MAD',
         status: options.status ?? InvoiceStatus.ISSUED,
@@ -546,51 +554,18 @@ describe('document output generation', { timeout: 60_000 }, () => {
   }
 
   /**
-   * Extracts the drawn text from a PDF.
+   * Reads the drawn text back out of a generated PDF.
    *
-   * pdf-lib writes content streams with `/FlateDecode`, so inflating them is what makes
-   * an assertion about the rendered figures meaningful rather than vacuous.
+   * Generated PDFs embed subsetted TrueType faces, so the content stream holds glyph
+   * indices rather than characters. Parsing the file and reading its `ToUnicode` map is
+   * what makes an assertion about rendered content real. Unmapped placeholders, which
+   * PDFKit produces for the joining forms an Arabic shaper creates, are dropped.
    */
-  function pdfText(bytes: Buffer): string {
-    const raw = bytes.toString('latin1');
-    let text = '';
-    let cursor = raw.indexOf('stream');
-    while (cursor !== -1) {
-      let start = cursor + 'stream'.length;
-      if (raw[start] === '\r') {
-        start += 1;
-      }
-      if (raw[start] === '\n') {
-        start += 1;
-      }
-      const end = raw.indexOf('endstream', start);
-      if (end > start) {
-        let body = raw.slice(start, end);
-        while (body.endsWith('\n') || body.endsWith('\r')) {
-          body = body.slice(0, -1);
-        }
-        const chunk = Buffer.from(body, 'latin1');
-        try {
-          text += inflateSync(chunk).toString('latin1');
-        } catch {
-          text += body;
-        }
-        cursor = raw.indexOf('stream', end + 'endstream'.length);
-        continue;
-      }
-      cursor = raw.indexOf('stream', start);
-    }
-    return decodePdfHexStrings(text);
-  }
-
-  /**
-   * pdf-lib writes standard-font text as PDF hex strings, so decoding them is what makes
-   * an assertion about the drawn figures real rather than vacuous.
-   */
-  function decodePdfHexStrings(content: string): string {
-    return content.replace(/<([0-9A-Fa-f]+)>/g, (_match, hex: string) =>
-      Buffer.from(hex.length % 2 === 0 ? hex : `${hex}0`, 'hex').toString('latin1'),
-    );
+  async function pdfText(bytes: Buffer): Promise<string> {
+    const extracted = await extractPdf(bytes);
+    return [...extracted.text]
+      .filter((character) => (character.codePointAt(0) ?? 0) >= 0x20)
+      .join('');
   }
 
   /** Inflates every deflated entry of an OOXML package so its XML can be inspected. */
@@ -666,6 +641,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
     storage = app.get(ProtectedStorageService);
+    generationService = app.get(DocumentGenerationService);
 
     generatorToken = await login('generator@generation.test');
     noGenerateToken = await login('no-generate@generation.test');
@@ -677,6 +653,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
   }, 180_000);
 
   afterAll(async () => {
+    generationService.afterSourceStabilized = null;
     vi.restoreAllMocks();
     await app?.close();
     await cleanGenerationTestRecords();
@@ -775,7 +752,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const version = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: result.versionId },
     });
-    const text = pdfText(await storage.get(version.storageKey));
+    const text = await pdfText(await storage.get(version.storageKey));
     // The rendered figures are the exact persisted issued values; nothing is recomputed.
     expect(text).toContain('300.00 MAD');
     expect(text).toContain('60.00 MAD');
@@ -1022,7 +999,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     for (const construct of ['/JavaScript', '/JS', '/OpenAction', '/Launch', '/EmbeddedFile']) {
       expect(raw).not.toContain(construct);
     }
-    expect(pdfText(bytes)).toContain('script');
+    expect(await pdfText(bytes)).toContain('script');
   });
 
   it('records the template identity and version on the generated version', async () => {
@@ -1410,7 +1387,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const retryVersion = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: generated(retry.body).versionId },
     });
-    expect(pdfText(await storage.get(retryVersion.storageKey))).toContain('200.00 MAD');
+    expect(await pdfText(await storage.get(retryVersion.storageKey))).toContain('200.00 MAD');
   });
 
   it('refuses to commit bytes rendered from a stale mutable contract', async () => {
@@ -1447,6 +1424,209 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(document.currentVersionId).toBe(first.versionId);
     expect(await prisma.documentVersion.count({ where: { documentId: first.documentId } })).toBe(1);
     await expect(storage.get(publishedKey!)).rejects.toThrow();
+  });
+
+  // -------------------------------------------------------------------------
+  // Commit-time source stabilization
+  //
+  // These exercise the window the fingerprint alone cannot close: the moment after the
+  // final comparison and before the generated version commits. The service exposes a
+  // deterministic hook that pauses exactly there so a real competing mutation can be
+  // started and observed.
+  // -------------------------------------------------------------------------
+
+  /** Pauses generation inside the publishing transaction, after the fingerprint passes. */
+  function pauseAfterStabilization(): {
+    reached: Promise<void>;
+    release: () => void;
+    restore: () => void;
+  } {
+    let signalReached: () => void = () => {};
+    let releaseGeneration: () => void = () => {};
+    const reached = new Promise<void>((resolve) => {
+      signalReached = resolve;
+    });
+    const paused = new Promise<void>((resolve) => {
+      releaseGeneration = resolve;
+    });
+    generationService.afterSourceStabilized = async () => {
+      // Only the first generation of a test pauses; later ones run straight through.
+      generationService.afterSourceStabilized = null;
+      signalReached();
+      await paused;
+    };
+    return {
+      reached,
+      release: () => releaseGeneration(),
+      restore: () => {
+        generationService.afterSourceStabilized = null;
+        releaseGeneration();
+      },
+    };
+  }
+
+  function settleTracker<T>(promise: Promise<T>): { promise: Promise<T>; settled: () => boolean } {
+    let done = false;
+    const tracked = promise.then(
+      (value) => {
+        done = true;
+        return value;
+      },
+      (error: unknown) => {
+        done = true;
+        throw error;
+      },
+    );
+    return { promise: tracked, settled: () => done };
+  }
+
+  async function wait(milliseconds: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  it('blocks a purchase order update from committing while generation holds the source', async () => {
+    const order = await createPurchaseOrder({ status: PurchaseOrderStatus.DRAFT });
+    const barrier = pauseAfterStabilization();
+
+    try {
+      const generation = generate(`/v1/commercial/purchase-orders/${order.id}/generate`);
+      await barrier.reached;
+
+      // A real mutation through Prisma, started only once generation owns its locks.
+      const update = settleTracker(
+        prisma.purchaseOrder.update({
+          where: { id: order.id },
+          data: { amountCents: 20_000, taxCents: 4_000, totalCents: 24_000 },
+        }),
+      );
+      await wait(750);
+      // The share lock generation holds is what keeps this update waiting.
+      expect(update.settled()).toBe(false);
+
+      barrier.release();
+      const response = await generation;
+      expect(response.status).toBe(201);
+      await update.promise;
+
+      const result = generated(response.body);
+      const version = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: result.versionId },
+      });
+      // The committed version describes the state that was fingerprinted, not the update.
+      expect(await pdfText(await storage.get(version.storageKey))).toContain('150.00 MAD');
+      expect(version.sourceSnapshotSha256).toHaveLength(64);
+      expect(
+        (await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: order.id } })).amountCents,
+      ).toBe(20_000);
+      expect(await prisma.documentVersion.count({ where: { documentId: result.documentId } })).toBe(
+        1,
+      );
+    } finally {
+      barrier.restore();
+    }
+  });
+
+  it('blocks a contract terms update from committing while generation holds the source', async () => {
+    const contract = await createContract(CommercialContractBusinessType.RECRUITMENT, {
+      status: CommercialContractStatus.DRAFT,
+    });
+    const barrier = pauseAfterStabilization();
+
+    try {
+      const generation = generate(`/v1/commercial/contracts/${contract.id}/generate`);
+      await barrier.reached;
+
+      const update = settleTracker(
+        prisma.commercialContract.update({
+          where: { id: contract.id },
+          data: { termsSummary: 'Renegotiated terms.', contractValueCents: 90_000 },
+        }),
+      );
+      await wait(750);
+      expect(update.settled()).toBe(false);
+
+      barrier.release();
+      const response = await generation;
+      expect(response.status).toBe(201);
+      await update.promise;
+
+      const version = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: generated(response.body).versionId },
+      });
+      const drawn = await pdfText(await storage.get(version.storageKey));
+      expect(drawn).toContain('Synthetic terms.');
+      expect(drawn).not.toContain('Renegotiated terms.');
+    } finally {
+      barrier.restore();
+    }
+  });
+
+  it('blocks a rendered related record from changing while generation holds the source', async () => {
+    const quotation = await createQuotation();
+    const barrier = pauseAfterStabilization();
+
+    try {
+      const generation = generate(`/v1/commercial/quotations/${quotation.id}/generate`);
+      await barrier.reached;
+
+      // The client name is rendered onto the output, so its row is stabilized too.
+      const update = settleTracker(
+        prisma.client.update({ where: { id: clientId }, data: { name: 'Gen49 Renamed Client' } }),
+      );
+      await wait(750);
+      expect(update.settled()).toBe(false);
+
+      barrier.release();
+      const response = await generation;
+      expect(response.status).toBe(201);
+      await update.promise;
+
+      const version = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: generated(response.body).versionId },
+      });
+      const drawn = await pdfText(await storage.get(version.storageKey));
+      expect(drawn).toContain('Gen49 Client');
+      expect(drawn).not.toContain('Gen49 Renamed Client');
+    } finally {
+      barrier.restore();
+      await prisma.client.update({ where: { id: clientId }, data: { name: 'Gen49 Client' } });
+    }
+  });
+
+  it('blocks a certificate participant rename while generation holds the source', async () => {
+    const { program, enrollment } = await createCandidateEnrollment();
+    const candidateId = (
+      await prisma.trainingEnrollment.findUniqueOrThrow({ where: { id: enrollment.id } })
+    ).candidateId;
+    const barrier = pauseAfterStabilization();
+
+    try {
+      const generation = generate(certificatePath(program.id, enrollment.id));
+      await barrier.reached;
+
+      const update = settleTracker(
+        prisma.candidate.update({
+          where: { id: candidateId! },
+          data: { displayName: 'Gen49 Renamed Candidate' },
+        }),
+      );
+      await wait(750);
+      expect(update.settled()).toBe(false);
+
+      barrier.release();
+      const response = await generation;
+      expect(response.status).toBe(201);
+      await update.promise;
+
+      const version = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: generated(response.body).versionId },
+      });
+      const drawn = await pdfText(await storage.get(version.storageKey));
+      expect(drawn).toContain('Gen49 Candidate');
+      expect(drawn).not.toContain('Gen49 Renamed Candidate');
+    } finally {
+      barrier.restore();
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -1489,7 +1669,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const version = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: result.versionId },
     });
-    const drawn = pdfText(await storage.get(version.storageKey));
+    const drawn = await pdfText(await storage.get(version.storageKey));
     expect(description.length).toBeGreaterThan(500);
     expect(drawn).toContain('segment0');
     expect(drawn).toContain('segment89');
@@ -1562,55 +1742,60 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(docxXml(await storage.get(contractVersion.storageKey))).toContain(terms);
   });
 
-  it('renders a Unicode ligature in PDF and refuses non-encodable text instead of corrupting it', async () => {
+  it('renders French and Arabic client names in the PDF end to end', async () => {
     const ligatureClient = await prisma.client.create({
       data: { name: 'Gen49 Cœur & Œuvre', normalizedName: 'gen49 coeur oeuvre' },
     });
-    const ligatureInvoice = await prisma.invoice.create({
-      data: {
-        reference: reference('INV'),
-        clientId: ligatureClient.id,
-        currency: 'MAD',
-        status: InvoiceStatus.ISSUED,
-        issueDate: new Date(),
-        issuedAt: new Date(),
-        subtotalCents: 1_000,
-        taxCents: 0,
-        totalCents: 1_000,
-      },
+    const ligatureInvoice = await createInvoice({ client: ligatureClient.id });
+    const ligature = await generate(`/v1/commercial/invoices/${ligatureInvoice.id}/generate`);
+    expect(ligature.status).toBe(201);
+    const ligatureVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(ligature.body).versionId },
     });
-    const pdfResult = await generate(`/v1/commercial/invoices/${ligatureInvoice.id}/generate`);
-    expect(pdfResult.status).toBe(201);
-    const pdfVersion = await prisma.documentVersion.findUniqueOrThrow({
-      where: { id: generated(pdfResult.body).versionId },
-    });
-    const drawn = pdfText(await storage.get(pdfVersion.storageKey));
-    expect(drawn).toContain(String.fromCharCode(0x9c));
-    expect(drawn).toContain(String.fromCharCode(0x8c));
+    const ligatureText = await pdfText(await storage.get(ligatureVersion.storageKey));
+    // Real Unicode, not a WinAnsi approximation and not a substitution.
+    expect(ligatureText).toContain('Cœur & Œuvre');
+    expect(ligatureText).not.toContain('?');
 
+    const arabicClient = await prisma.client.create({
+      data: { name: 'شركة الأطلس للتقنية', normalizedName: 'gen49 arabic client' },
+    });
+    const arabicInvoice = await createInvoice({ client: arabicClient.id });
+    const arabic = await generate(`/v1/commercial/invoices/${arabicInvoice.id}/generate`);
+    expect(arabic.status).toBe(201);
+    const arabicVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(arabic.body).versionId },
+    });
+    const arabicBytes = await storage.get(arabicVersion.storageKey);
+    const arabicText = await pdfText(arabicBytes);
+    expect(arabicText).not.toContain('?');
+    // The Arabic face is embedded, so the name is drawn rather than boxed.
+    expect(arabicBytes.toString('latin1')).toContain('NotoSansArabic');
+    // Right-to-left display order: the last logical word is drawn first.
+    expect(arabicText.indexOf('للتقنية'.slice(0, 3))).toBeLessThan(arabicText.indexOf('طلس'));
+
+    // The same name is carried faithfully by the Word output too.
+    const word = await generate(`/v1/commercial/invoices/${arabicInvoice.id}/generate`, {
+      outputFamily: 'WORD',
+    });
+    expect(word.status).toBe(201);
+    const wordVersion = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: generated(word.body).versionId },
+    });
+    expect(docxXml(await storage.get(wordVersion.storageKey))).toContain('شركة الأطلس للتقنية');
+  });
+
+  it('refuses a PDF whose script no bundled font covers, and still produces the Word output', async () => {
     const scriptClient = await prisma.client.create({
-      data: { name: 'Gen49 عميل 中文', normalizedName: 'gen49 non latin client' },
+      data: { name: 'Gen49 中文 客戶', normalizedName: 'gen49 uncovered script client' },
     });
-    const scriptInvoice = await prisma.invoice.create({
-      data: {
-        reference: reference('INV'),
-        clientId: scriptClient.id,
-        currency: 'MAD',
-        status: InvoiceStatus.ISSUED,
-        issueDate: new Date(),
-        issuedAt: new Date(),
-        subtotalCents: 1_000,
-        taxCents: 0,
-        totalCents: 1_000,
-      },
-    });
-    // PDF refuses rather than substituting characters into an official document.
+    const scriptInvoice = await createInvoice({ client: scriptClient.id });
+
     const refused = await generate(`/v1/commercial/invoices/${scriptInvoice.id}/generate`);
     expect(refused.status).toBe(409);
-    expect(errorCode(refused.body)).toBe('GENERATION_PDF_UNSUPPORTED_CHARACTERS');
+    expect(errorCode(refused.body)).toBe('GENERATION_PDF_SCRIPT_UNSUPPORTED');
     expect(await prisma.document.count({ where: { invoiceId: scriptInvoice.id } })).toBe(0);
 
-    // The Word output carries the same name faithfully.
     const word = await generate(`/v1/commercial/invoices/${scriptInvoice.id}/generate`, {
       outputFamily: 'WORD',
     });
@@ -1618,7 +1803,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const wordVersion = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: generated(word.body).versionId },
     });
-    expect(docxXml(await storage.get(wordVersion.storageKey))).toContain('Gen49 عميل 中文');
+    expect(docxXml(await storage.get(wordVersion.storageKey))).toContain('Gen49 中文 客戶');
   });
 
   // -------------------------------------------------------------------------

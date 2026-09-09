@@ -16,8 +16,8 @@ import {
 } from './document-generation.errors.js';
 import type { GenerationView } from './generation-view-models.js';
 import { renderDocx } from './renderers/docx.renderer.js';
-import { renderPdf } from './renderers/pdf.renderer.js';
-import { sanitizeText, unrepresentablePdfCharacters } from './renderable-document.js';
+import { PdfScriptCoverageError, renderPdf } from './renderers/pdf.renderer.js';
+import { sanitizeText } from './renderable-document.js';
 import { resolveTemplate } from './template-registry.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
@@ -82,10 +82,20 @@ type ResolvedSource = {
    */
   fingerprint: string;
   /**
-   * Re-reads the authoritative source inside the publishing transaction, re-asserts
-   * lifecycle eligibility, and recomputes the fingerprint. Rendering happens outside any
-   * transaction, so this is what proves the bytes still describe the committed state
-   * without holding a row lock across rendering or storage I/O.
+   * Takes a short-lived shared lock on **every** row whose values the output renders,
+   * inside the publishing transaction and before the final fingerprint comparison.
+   *
+   * `FOR SHARE` is used rather than `FOR UPDATE`: two concurrent generations never block
+   * each other, while any mutation of a rendered value must take a row-exclusive lock on
+   * exactly one of these rows and therefore waits until this transaction commits. That is
+   * what makes the accepted source state stable from comparison through commit, without
+   * holding any lock across rendering or storage publication.
+   */
+  stabilize: (tx: Tx) => Promise<void>;
+  /**
+   * Re-reads the authoritative source under those locks, re-asserts lifecycle
+   * eligibility, and recomputes the fingerprint. Rendering happens outside any
+   * transaction, so this is what proves the bytes still describe the committed state.
    */
   resnapshot: (tx: Tx) => Promise<string>;
 };
@@ -135,6 +145,13 @@ export class DocumentGenerationService {
     @Inject(PermissionsService) private readonly permissions: PermissionsService,
     @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
   ) {}
+
+  /**
+   * Deterministic hook for concurrency tests, invoked inside the publishing transaction
+   * after the source rows are stabilized and the fingerprint has been accepted, and
+   * before the generated version is inserted. Production never assigns it.
+   */
+  afterSourceStabilized: (() => Promise<void>) | null = null;
 
   async generateQuotation(
     quotationId: string,
@@ -240,21 +257,22 @@ export class DocumentGenerationService {
     }
 
     const renderable = template.build(source.view, input.language);
-    if (input.outputFamily === 'PDF') {
-      // Refuse rather than silently corrupt. The PDF standard fonts cover WinAnsi, which
-      // includes Latin-1 and the typographic block, but not every script a real name can
-      // use. Substituting characters would quietly change an official document, so an
-      // unrepresentable name fails deterministically and DOCX remains available.
-      const unsupported = unrepresentablePdfCharacters(renderable);
-      if (unsupported.length > 0) {
+    let bytes: Buffer;
+    try {
+      bytes =
+        input.outputFamily === 'PDF' ? await renderPdf(renderable) : await renderDocx(renderable);
+    } catch (error: unknown) {
+      // The bundled faces cover Latin, Greek, Cyrillic, and Arabic. A script outside that
+      // coverage fails with a precise error rather than a substituted character, and the
+      // Word output, which is fully Unicode, remains available for it.
+      if (error instanceof PdfScriptCoverageError) {
         throw generationConflict(
-          'GENERATION_PDF_UNSUPPORTED_CHARACTERS',
-          'The source text contains characters the PDF font cannot represent. Generate the Word output instead.',
+          'GENERATION_PDF_SCRIPT_UNSUPPORTED',
+          'The source text uses a script no bundled PDF font covers. Generate the Word output instead.',
         );
       }
+      throw error;
     }
-    const bytes =
-      input.outputFamily === 'PDF' ? await renderPdf(renderable) : await renderDocx(renderable);
     if (bytes.length === 0 || bytes.length > maxGeneratedBytes) {
       throw generationConflict(
         'GENERATION_OUTPUT_SIZE_INVALID',
@@ -314,16 +332,23 @@ export class DocumentGenerationService {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          // The snapshot was taken before rendering. Re-reading it here and comparing
-          // fingerprints is what stops bytes derived from a stale source state from ever
-          // being committed: a mutable DRAFT purchase order or contract can change while
-          // the file renders, and the lifecycle state alone would not reveal it.
+          // Stabilize first, then compare. Locking every rendered row before the
+          // comparison is what makes the accepted state hold until commit: without it a
+          // mutation could still land between the comparison and the version insert.
+          await source.stabilize(tx);
           const currentFingerprint = await source.resnapshot(tx);
           if (currentFingerprint !== source.fingerprint) {
             throw generationConflict(
               'GENERATION_SOURCE_CHANGED',
               'The source record changed while the output was rendered. Retry the generation.',
             );
+          }
+
+          // Test seam: lets a concurrency test start a real competing mutation once the
+          // source is stabilized and the fingerprint accepted, but before this transaction
+          // commits. Never set outside tests.
+          if (this.afterSourceStabilized) {
+            await this.afterSourceStabilized();
           }
 
           const document = await this.lockOrCreateLogicalDocument(tx, options);
@@ -645,6 +670,7 @@ export class DocumentGenerationService {
         },
       },
       fingerprint: this.quotationFingerprint(quotation),
+      stabilize: (tx) => this.stabilizeCommercial(tx, 'CommercialQuotation', quotation),
       resnapshot: async (tx) => {
         const current = await tx.commercialQuotation.findUnique({
           where: { id: quotationId },
@@ -761,6 +787,7 @@ export class DocumentGenerationService {
         },
       },
       fingerprint: this.purchaseOrderFingerprint(order),
+      stabilize: (tx) => this.stabilizeCommercial(tx, 'PurchaseOrder', order),
       resnapshot: async (tx) => {
         const current = await tx.purchaseOrder.findUnique({
           where: { id: purchaseOrderId },
@@ -870,6 +897,7 @@ export class DocumentGenerationService {
         },
       },
       fingerprint: this.contractFingerprint(contract),
+      stabilize: (tx) => this.stabilizeCommercial(tx, 'CommercialContract', contract),
       resnapshot: async (tx) => {
         const current = await tx.commercialContract.findUnique({
           where: { id: contractId },
@@ -983,6 +1011,7 @@ export class DocumentGenerationService {
         },
       },
       fingerprint: this.invoiceFingerprint(invoice),
+      stabilize: (tx) => this.stabilizeCommercial(tx, 'Invoice', invoice),
       resnapshot: async (tx) => {
         const current = await tx.invoice.findUnique({
           where: { id: invoiceId },
@@ -1108,6 +1137,33 @@ export class DocumentGenerationService {
         clientName: program.client?.name ?? null,
       },
       fingerprint: this.certificateFingerprint(program, enrollment, participantName),
+      // Certificate stabilization: the client the program is linked to, then the program,
+      // then the enrollment, then the participant row whose display name is rendered.
+      // Nothing in the merged code holds a participant row and then asks for a program or
+      // client row, so this order introduces no inversion.
+      stabilize: async (tx) => {
+        await this.lockRowsForShare(tx, 'Client', program.clientId ? [program.clientId] : []);
+        await this.lockRowsForShare(tx, 'TrainingProgram', [program.id]);
+        await this.lockRowsForShare(tx, 'TrainingEnrollment', [enrollment.id]);
+        await this.lockRowsForShare(
+          tx,
+          'Candidate',
+          enrollment.candidateId ? [enrollment.candidateId] : [],
+        );
+        await this.lockRowsForShare(
+          tx,
+          'ClientContact',
+          enrollment.clientContactId ? [enrollment.clientContactId] : [],
+        );
+        await this.lockRowsForShare(tx, 'User', enrollment.userId ? [enrollment.userId] : []);
+        await this.lockRowsForShare(
+          tx,
+          'ExternalTrainingParticipant',
+          enrollment.externalTrainingParticipantId
+            ? [enrollment.externalTrainingParticipantId]
+            : [],
+        );
+      },
       resnapshot: async (tx) => {
         const currentProgram = await tx.trainingProgram.findUnique({
           where: { id: programId },
@@ -1436,6 +1492,51 @@ export class DocumentGenerationService {
       return `\u0000${typeof part}:${String(part)}`;
     });
     return createHash('sha256').update(canonical.join('\u0001')).digest('hex');
+  }
+
+  /**
+   * Takes a shared row lock, in a fixed table order.
+   *
+   * The order below is derived from the merged mutation paths rather than invented:
+   * every merged transaction that touches more than one of these tables acquires them
+   * parent-first, so generation never requests a lock in the opposite direction and no
+   * cross-domain cycle can form.
+   *
+   * - Commercial writes lock `Client`, then `RecruitmentMission`, then the commercial
+   *   root; accounting locks `Client`, then `Payment`, then `Invoice`.
+   * - Mission-candidate writes lock `RecruitmentMission`, then `MissionCandidate`, then
+   *   `Candidate`.
+   * - Training writes lock `TrainingProgram`, then session, then `TrainingEnrollment`.
+   * - Document writes lock only `Document`, always last.
+   *
+   * No merged path holds a participant, program, or enrollment row and then requests a
+   * `Client` or commercial row, so placing `Client` first is safe for every family.
+   */
+  private async lockRowsForShare(tx: Tx, table: string, ids: readonly string[]): Promise<void> {
+    const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))].sort();
+    for (const id of unique) {
+      await tx.$queryRawUnsafe(`SELECT id FROM "${table}" WHERE id = $1::uuid FOR SHARE`, id);
+    }
+  }
+
+  /**
+   * Commercial stabilization: client, optional mission, then the commercial root.
+   *
+   * Child line rows are not locked individually because they are only ever written under
+   * the root row's exclusive lock, which this shared lock on the root already blocks.
+   */
+  private async stabilizeCommercial(
+    tx: Tx,
+    table: string,
+    record: { id: string; clientId: string; recruitmentMissionId: string | null },
+  ): Promise<void> {
+    await this.lockRowsForShare(tx, 'Client', [record.clientId]);
+    await this.lockRowsForShare(
+      tx,
+      'RecruitmentMission',
+      record.recruitmentMissionId ? [record.recruitmentMissionId] : [],
+    );
+    await this.lockRowsForShare(tx, table, [record.id]);
   }
 
   private logicalDocumentKey(

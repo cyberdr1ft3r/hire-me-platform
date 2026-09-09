@@ -1,17 +1,17 @@
-import { inflateRawSync, inflateSync } from 'node:zlib';
+import { inflateRawSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
 import type { RenderableDocument } from './renderable-document.js';
-import {
-  formatMoney,
-  isPdfRepresentable,
-  sanitizeText,
-  textLines,
-  unrepresentablePdfCharacters,
-} from './renderable-document.js';
+import { formatMoney, sanitizeText, textLines } from './renderable-document.js';
 import { renderDocx } from './renderers/docx.renderer.js';
-import { renderPdf } from './renderers/pdf.renderer.js';
+import { scriptOf, unsupportedCharacters } from './renderers/font-registry.js';
+import { extractPdf } from './renderers/pdf-text.testing.js';
+import {
+  PdfScriptCoverageError,
+  renderPdf,
+  unsupportedDocumentCharacters,
+} from './renderers/pdf.renderer.js';
 import { registeredTemplates, resolveTemplate } from './template-registry.js';
 
 /**
@@ -46,38 +46,12 @@ const hostileDocument: RenderableDocument = {
   footer: hostile,
 };
 
-/** Inflates PDF content streams and decodes the hex strings pdf-lib writes text as. */
-function pdfText(bytes: Buffer): string {
-  const raw = bytes.toString('latin1');
-  let text = '';
-  let cursor = raw.indexOf('stream');
-  while (cursor !== -1) {
-    let start = cursor + 'stream'.length;
-    if (raw[start] === '\r') {
-      start += 1;
-    }
-    if (raw[start] === '\n') {
-      start += 1;
-    }
-    const end = raw.indexOf('endstream', start);
-    if (end > start) {
-      let body = raw.slice(start, end);
-      while (body.endsWith('\n') || body.endsWith('\r')) {
-        body = body.slice(0, -1);
-      }
-      try {
-        text += inflateSync(Buffer.from(body, 'latin1')).toString('latin1');
-      } catch {
-        text += body;
-      }
-      cursor = raw.indexOf('stream', end + 'endstream'.length);
-      continue;
-    }
-    cursor = raw.indexOf('stream', start);
-  }
-  return text.replace(/<([0-9A-Fa-f]+)>/g, (_match, hex: string) =>
-    Buffer.from(hex.length % 2 === 0 ? hex : `${hex}0`, 'hex').toString('latin1'),
-  );
+/** Reads drawn text back out of a generated PDF through its embedded ToUnicode map. */
+async function pdfText(bytes: Buffer): Promise<string> {
+  const extracted = await extractPdf(bytes);
+  return [...extracted.text]
+    .filter((character) => (character.codePointAt(0) ?? 0) >= 0x20)
+    .join('');
 }
 
 /** Inflates every deflated entry of an OOXML package so its XML can be inspected. */
@@ -135,22 +109,37 @@ describe('generated output sanitization', () => {
   });
 });
 
-describe('PDF representability', () => {
-  it('accepts the WinAnsi repertoire real business text uses', () => {
-    for (const character of 'cœur Œuvre € ‰ – — “ ” é à ç ñ Ÿ š') {
-      expect(isPdfRepresentable(character.codePointAt(0) ?? 0)).toBe(true);
+describe('PDF script coverage', () => {
+  it('covers the Latin, Greek, Cyrillic and Arabic repertoire business text uses', () => {
+    for (const character of 'cœur Œuvre € ‰ – — “ ” é à ç ñ Ÿ š Ωμέγα Кириллица') {
+      expect(scriptOf(character.codePointAt(0) ?? 0)).not.toBeNull();
     }
+    for (const character of 'شركة الأطلس يوسف العلوي ٢٠٢٦') {
+      expect(scriptOf(character.codePointAt(0) ?? 0)).not.toBeNull();
+    }
+    expect(unsupportedCharacters('Cœur & شركة')).toEqual([]);
   });
 
-  it('reports characters a PDF standard font cannot encode instead of substituting', () => {
+  it('reports a script no bundled face covers instead of substituting', () => {
     const document: RenderableDocument = {
       title: 'Certificate',
       subtitle: null,
-      blocks: [{ kind: 'paragraph', text: 'participant أمثلة 中文' }],
+      blocks: [{ kind: 'paragraph', text: 'participant 中文 name' }],
       footer: null,
     };
-    expect(unrepresentablePdfCharacters(document).length).toBeGreaterThan(0);
-    expect(unrepresentablePdfCharacters(hostileDocument)).toEqual([]);
+    expect(unsupportedDocumentCharacters(document).length).toBeGreaterThan(0);
+    expect(unsupportedDocumentCharacters(hostileDocument)).toEqual([]);
+  });
+
+  it('fails closed rather than drawing a missing-glyph box', async () => {
+    await expect(
+      renderPdf({
+        title: '中文 title',
+        subtitle: null,
+        blocks: [],
+        footer: null,
+      }),
+    ).rejects.toBeInstanceOf(PdfScriptCoverageError);
   });
 });
 
@@ -169,7 +158,7 @@ describe('PDF rendering', () => {
     for (const construct of ['/JavaScript', '/JS', '/OpenAction', '/Launch', '/EmbeddedFile']) {
       expect(raw).not.toContain(construct);
     }
-    expect(pdfText(bytes)).toContain('script');
+    expect(await pdfText(bytes)).toContain('script');
   });
 
   it('drops control characters before they reach the rendered stream', async () => {
@@ -179,44 +168,44 @@ describe('PDF rendering', () => {
       blocks: [],
       footer: null,
     });
-    const drawn = pdfText(bytes);
+    const drawn = await pdfText(bytes);
     expect(drawn).not.toContain(String.fromCharCode(7));
     expect(drawn).not.toContain(String.fromCharCode(0));
+    expect(drawn).toContain('bell null escape');
   });
 
-  it('renders the French ligature rather than replacing it', async () => {
-    const bytes = await renderPdf({
-      title: 'Client coeur',
-      subtitle: 'cœur Œuvre',
-      blocks: [],
-      footer: null,
-    });
-    // WinAnsi encodes the ligature at 0x9c / 0x8c; the point is that it is not a '?'.
-    const drawn = pdfText(bytes);
-    expect(drawn).toContain(String.fromCharCode(0x9c));
-    expect(drawn).toContain(String.fromCharCode(0x8c));
+  it('renders the French ligature as real Unicode rather than replacing it', async () => {
+    const drawn = await pdfText(
+      await renderPdf({
+        title: 'Client coeur',
+        subtitle: 'cœur Œuvre',
+        blocks: [],
+        footer: null,
+      }),
+    );
+    expect(drawn).toContain('cœur Œuvre');
     expect(drawn).not.toContain('?');
   });
 
   it('wraps a long table cell across lines and pages instead of clipping it', async () => {
-    const description = Array.from({ length: 400 }, (_, index) => `word${index}`).join(' ');
+    const description = Array.from({ length: 1_500 }, (_, index) => `word${index}`).join(' ');
     const bytes = await renderPdf({
       title: 'Invoice',
       subtitle: null,
       blocks: [{ kind: 'table', columns: ['Description'], rows: [[description]] }],
       footer: null,
     });
-    const drawn = pdfText(bytes);
+    const drawn = await pdfText(bytes);
     // Both the first and the very last token survive, so nothing was clipped away.
     expect(drawn).toContain('word0');
-    expect(drawn).toContain('word399');
+    expect(drawn).toContain('word1499');
     // A cell that cannot fit one page continues onto another.
-    expect(bytes.toString('latin1').split('/Type /Page\n').length).toBeGreaterThan(1);
+    expect((await extractPdf(bytes)).pageCount).toBeGreaterThan(1);
   });
 
   it('wraps an unbroken token instead of dropping its tail', async () => {
     const token = 'A'.repeat(600);
-    const drawn = pdfText(
+    const drawn = await pdfText(
       await renderPdf({
         title: 'Reference',
         subtitle: null,

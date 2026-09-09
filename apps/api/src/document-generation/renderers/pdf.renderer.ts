@@ -1,20 +1,30 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import type { PDFFont, PDFPage } from 'pdf-lib';
+import PDFDocument from 'pdfkit';
 
+import type { FontScript, FontWeight } from './font-registry.js';
+import {
+  fontAsset,
+  fontBytes,
+  registeredFontAssets,
+  unsupportedCharacters,
+} from './font-registry.js';
+import type { TextRun } from './text-runs.js';
+import { lineIsRtl, visualRuns } from './text-runs.js';
 import type { RenderableBlock, RenderableDocument } from '../renderable-document.js';
 import { sanitizeText, textLines } from '../renderable-document.js';
 
 /**
- * Pure-JavaScript PDF renderer.
+ * Pure-JavaScript Unicode PDF renderer.
  *
- * `pdf-lib` builds the file in process with no native binary, no headless browser, and
- * no shell invocation, so generation adds no machine prerequisite and cannot be steered
- * into executing anything. Text is drawn as literal strings; there is no markup or
- * scripting path into the output.
+ * PDFKit builds the file in process with no native binary, no headless browser, no office
+ * suite, and no shell, so generation adds no machine prerequisite and offers no command
+ * or URL injection surface. It embeds the bundled TrueType faces through `fontkit`, which
+ * performs real OpenType shaping, so Arabic is rendered as properly joined contextual
+ * forms rather than isolated letters. Bidirectional ordering comes from `bidi-js`
+ * (UAX #9); nothing reverses strings or substitutes presentation forms by hand, and the
+ * text stays real selectable, searchable PDF text.
  *
- * Nothing is clipped or truncated. Long values wrap across lines and pages so the full
- * authoritative text is represented, because an official business output must not
- * silently drop part of a line description or a contract term.
+ * Nothing is clipped or truncated: long values wrap across lines and pages so the full
+ * authoritative text is represented.
  */
 
 const pageWidth = 595.28;
@@ -25,200 +35,346 @@ const bodySize = 10;
 const cellSize = 9;
 const headingSize = 13;
 const titleSize = 18;
-const lineHeight = 14;
-const cellLineHeight = 12;
+const lineGap = 4;
 const cellPadding = 6;
 
-/** Fixed document metadata keeps identical content byte-identical between renders. */
+/** Fixed metadata keeps identical content byte-identical between renders. */
 const fixedTimestamp = new Date(Date.UTC(2000, 0, 1));
 
-type Cursor = { page: PDFPage; y: number };
+type Pdf = PDFKit.PDFDocument;
+
+function fontKey(script: FontScript, weight: FontWeight): string {
+  return fontAsset(script, weight).id;
+}
+
+function registerFonts(pdf: Pdf): void {
+  for (const { script, weight } of registeredFontAssets()) {
+    pdf.registerFont(fontKey(script, weight), fontBytes(script, weight));
+  }
+}
+
+/** Width of one shaped run in the face that will actually draw it. */
+function runWidth(pdf: Pdf, run: TextRun, weight: FontWeight, size: number): number {
+  pdf.font(fontKey(run.script, weight)).fontSize(size);
+  return pdf.widthOfString(run.text);
+}
+
+type LaidOutLine = { runs: TextRun[]; width: number };
 
 /**
- * Wraps one logical line to a width.
+ * Wraps one logical line, then reorders each display line for presentation.
  *
- * A single word longer than the available width is split rather than clipped, so an
- * unbroken reference or identifier still appears in full.
+ * Order matters here. Wrapping is performed on the text in **logical** order, which is
+ * how a reader composes it, and only then is each resulting display line passed through
+ * the bidirectional algorithm. That is exactly the sequence UAX #9 prescribes: the
+ * reordering rules apply per display line, after line breaking. Reordering first and
+ * wrapping afterwards would lay right-to-left words out left to right, which reads as
+ * scrambled Arabic even though every glyph is correct.
+ *
+ * A token wider than the line is split at a character boundary rather than clipped, so no
+ * authoritative text is ever lost.
  */
-function wrap(text: string, font: PDFFont, size: number, width: number): string[] {
-  const words = text.split(' ').filter((word) => word.length > 0);
-  if (words.length === 0) {
-    return [''];
-  }
-  const lines: string[] = [];
-  let current = '';
+function layoutLine(
+  pdf: Pdf,
+  line: string,
+  weight: FontWeight,
+  size: number,
+  width: number,
+): LaidOutLine[] {
+  const measure = (text: string): number =>
+    visualRuns(text).reduce((total, run) => total + runWidth(pdf, run, weight, size), 0);
 
-  const pushBrokenWord = (word: string): void => {
-    let remainder = word;
-    while (font.widthOfTextAtSize(remainder, size) > width && remainder.length > 1) {
-      let take = remainder.length - 1;
-      while (take > 1 && font.widthOfTextAtSize(remainder.slice(0, take), size) > width) {
-        take -= 1;
-      }
-      lines.push(remainder.slice(0, take));
-      remainder = remainder.slice(take);
-    }
-    current = remainder;
+  const toDisplayLine = (text: string): LaidOutLine => {
+    const runs = visualRuns(text);
+    return {
+      runs,
+      width: runs.reduce((total, run) => total + runWidth(pdf, run, weight, size), 0),
+    };
   };
 
-  for (const word of words) {
-    const candidate = current.length === 0 ? word : `${current} ${word}`;
-    if (font.widthOfTextAtSize(candidate, size) <= width) {
+  if (line.length === 0) {
+    return [{ runs: [], width: 0 }];
+  }
+
+  const segments: string[] = [];
+  let current = '';
+
+  const breakLongToken = (token: string): void => {
+    let remainder = token;
+    while (remainder.length > 0) {
+      let take = remainder.length;
+      while (take > 1 && measure(remainder.slice(0, take)) > width) {
+        take -= 1;
+      }
+      segments.push(remainder.slice(0, take));
+      remainder = remainder.slice(take);
+    }
+  };
+
+  for (const token of line.split(/(\s+)/).filter((piece) => piece.length > 0)) {
+    const candidate = current + token;
+    if (measure(candidate) <= width) {
       current = candidate;
       continue;
     }
     if (current.length > 0) {
-      lines.push(current);
+      segments.push(current.trimEnd());
       current = '';
     }
-    if (font.widthOfTextAtSize(word, size) > width) {
-      pushBrokenWord(word);
+    const standalone = token.trimStart();
+    if (standalone.length === 0) {
       continue;
     }
-    current = word;
+    if (measure(standalone) <= width) {
+      current = standalone;
+      continue;
+    }
+    breakLongToken(standalone);
+    current = segments.pop() ?? '';
   }
-  if (current.length > 0 || lines.length === 0) {
-    lines.push(current);
+  if (current.length > 0 || segments.length === 0) {
+    segments.push(current);
   }
-  return lines;
+
+  return segments.map(toDisplayLine);
 }
 
-/** Every physical line a value needs, honouring explicit line breaks then wrapping. */
-function layoutLines(text: string, font: PDFFont, size: number, width: number): string[] {
-  return textLines(sanitizeText(text)).flatMap((line) => wrap(line, font, size, width));
+function lineHeightFor(size: number): number {
+  return size + lineGap;
 }
 
 export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
-  const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  assertScriptCoverage(document);
 
-  pdf.setTitle(sanitizeText(document.title));
-  pdf.setProducer('Hire Me Platform');
-  pdf.setCreator('Hire Me Platform');
-  pdf.setCreationDate(fixedTimestamp);
-  pdf.setModificationDate(fixedTimestamp);
+  const pdf = new PDFDocument({
+    size: [pageWidth, pageHeight],
+    margins: { top: margin, bottom: margin, left: margin, right: margin },
+    autoFirstPage: true,
+    info: {
+      Title: sanitizeText(document.title),
+      Producer: 'Hire Me Platform',
+      Creator: 'Hire Me Platform',
+      CreationDate: fixedTimestamp,
+      ModDate: fixedTimestamp,
+    },
+  });
+  registerFonts(pdf);
 
-  const cursor: Cursor = { page: pdf.addPage([pageWidth, pageHeight]), y: pageHeight - margin };
+  const chunks: Buffer[] = [];
+  pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
+  const finished = new Promise<void>((resolve, reject) => {
+    pdf.on('end', () => resolve());
+    pdf.on('error', (error: Error) => reject(error));
+  });
+
+  const cursor = { y: margin };
 
   const ensureSpace = (needed: number): void => {
-    if (cursor.y - needed < margin) {
-      cursor.page = pdf.addPage([pageWidth, pageHeight]);
-      cursor.y = pageHeight - margin;
+    if (cursor.y + needed > pageHeight - margin) {
+      pdf.addPage();
+      cursor.y = margin;
     }
   };
 
-  const drawLines = (text: string, font: PDFFont, size: number, indent = 0): void => {
-    for (const line of layoutLines(text, font, size, contentWidth - indent)) {
-      ensureSpace(lineHeight);
-      cursor.page.drawText(line, {
-        x: margin + indent,
-        y: cursor.y,
-        size,
-        font,
-        color: rgb(0.1, 0.1, 0.1),
-      });
-      cursor.y -= lineHeight;
+  /** Draws one laid-out line, right-aligning it when the paragraph reads right to left. */
+  const drawLine = (
+    laidOut: LaidOutLine,
+    weight: FontWeight,
+    size: number,
+    left: number,
+    available: number,
+    rightToLeft: boolean,
+  ): void => {
+    let x = rightToLeft ? left + available - laidOut.width : left;
+    for (const run of laidOut.runs) {
+      pdf.font(fontKey(run.script, weight)).fontSize(size);
+      // PDFKit hands the characters to fontkit, which detects the script and applies the
+      // face's own OpenType shaping plan. No feature list is forced here: overriding the
+      // plan is what breaks Arabic contextual forms.
+      pdf.text(run.text, x, cursor.y, { lineBreak: false });
+      x += pdf.widthOfString(run.text);
     }
   };
 
-  drawLines(document.title, bold, titleSize);
-  cursor.y -= 4;
+  const drawText = (text: string, weight: FontWeight, size: number, indent = 0): void => {
+    const available = contentWidth - indent;
+    for (const logicalLine of textLines(sanitizeText(text))) {
+      const rightToLeft = lineIsRtl(logicalLine);
+      for (const laidOut of layoutLine(pdf, logicalLine, weight, size, available)) {
+        ensureSpace(lineHeightFor(size));
+        drawLine(laidOut, weight, size, margin + indent, available, rightToLeft);
+        cursor.y += lineHeightFor(size);
+      }
+    }
+  };
+
+  drawText(document.title, 'bold', titleSize);
+  cursor.y += 4;
   if (document.subtitle) {
-    drawLines(document.subtitle, regular, bodySize);
+    drawText(document.subtitle, 'regular', bodySize);
   }
-  cursor.y -= 8;
+  cursor.y += 8;
 
   for (const block of document.blocks) {
-    drawBlock(block, { drawLines, ensureSpace, cursor, regular, bold });
+    drawBlock(pdf, block, { drawText, ensureSpace, drawLine, cursor });
   }
 
   if (document.footer) {
-    cursor.y -= 8;
-    drawLines(document.footer, regular, bodySize - 1);
+    cursor.y += 8;
+    drawText(document.footer, 'regular', bodySize - 1);
   }
 
-  const bytes = await pdf.save({ useObjectStreams: false });
-  return Buffer.from(bytes);
+  pdf.end();
+  await finished;
+  return Buffer.concat(chunks);
 }
 
-function drawBlock(
-  block: RenderableBlock,
-  context: {
-    drawLines: (text: string, font: PDFFont, size: number, indent?: number) => void;
-    ensureSpace: (needed: number) => void;
-    cursor: Cursor;
-    regular: PDFFont;
-    bold: PDFFont;
-  },
-): void {
-  const { drawLines, ensureSpace, cursor, regular, bold } = context;
+type DrawContext = {
+  drawText: (text: string, weight: FontWeight, size: number, indent?: number) => void;
+  ensureSpace: (needed: number) => void;
+  drawLine: (
+    laidOut: LaidOutLine,
+    weight: FontWeight,
+    size: number,
+    left: number,
+    available: number,
+    rightToLeft: boolean,
+  ) => void;
+  cursor: { y: number };
+};
+
+function drawBlock(pdf: Pdf, block: RenderableBlock, context: DrawContext): void {
+  const { drawText, ensureSpace, drawLine, cursor } = context;
   switch (block.kind) {
     case 'heading':
-      cursor.y -= 6;
-      drawLines(block.text, bold, headingSize);
-      cursor.y -= 2;
+      cursor.y += 6;
+      drawText(block.text, 'bold', headingSize);
+      cursor.y += 2;
       return;
     case 'paragraph':
-      drawLines(block.text, regular, bodySize);
-      cursor.y -= 4;
+      drawText(block.text, 'regular', bodySize);
+      cursor.y += 4;
       return;
     case 'keyValues':
       for (const row of block.rows) {
-        drawLines(`${row.label}: ${row.value}`, regular, bodySize);
+        drawText(`${row.label}: ${row.value}`, 'regular', bodySize);
       }
-      cursor.y -= 4;
+      cursor.y += 4;
       return;
     case 'table': {
       const columnCount = Math.max(block.columns.length, 1);
       const columnWidth = contentWidth / columnCount;
       const usableWidth = columnWidth - cellPadding;
 
-      /** Draws one row as a multi-line cell block so nothing is clipped. */
-      const drawRow = (cells: readonly string[], font: PDFFont): void => {
-        const wrapped = cells.map((cell) => layoutLines(cell, font, cellSize, usableWidth));
+      const drawRow = (cells: readonly string[], weight: FontWeight): void => {
+        const wrapped = cells.map((cell) =>
+          textLines(sanitizeText(cell)).flatMap((logicalLine) =>
+            layoutLine(pdf, logicalLine, weight, cellSize, usableWidth).map((laidOut) => ({
+              laidOut,
+              rightToLeft: lineIsRtl(logicalLine),
+            })),
+          ),
+        );
         const rowLines = Math.max(...wrapped.map((lines) => lines.length), 1);
+        const height = lineHeightFor(cellSize);
         let drawn = 0;
         while (drawn < rowLines) {
-          // A tall row continues on the next page instead of losing its remaining text.
-          const remaining = rowLines - drawn;
-          const available = Math.max(Math.floor((cursor.y - margin) / cellLineHeight), 0);
+          const available = Math.max(Math.floor((pageHeight - margin - cursor.y) / height), 0);
           if (available === 0) {
-            ensureSpace(cellLineHeight);
+            // A tall row continues on the next page instead of losing its remaining text.
+            ensureSpace(height);
             continue;
           }
-          const chunk = Math.min(remaining, available);
+          const chunk = Math.min(rowLines - drawn, available);
+          const startY = cursor.y;
           for (let offset = 0; offset < chunk; offset += 1) {
             wrapped.forEach((lines, index) => {
-              const line = lines[drawn + offset];
-              if (line === undefined || line.length === 0) {
+              const entry = lines[drawn + offset];
+              if (!entry) {
                 return;
               }
-              cursor.page.drawText(line, {
-                x: margin + index * columnWidth,
-                y: cursor.y - offset * cellLineHeight,
-                size: cellSize,
-                font,
-                color: rgb(0.1, 0.1, 0.1),
-              });
+              cursor.y = startY + offset * height;
+              drawLine(
+                entry.laidOut,
+                weight,
+                cellSize,
+                margin + index * columnWidth,
+                usableWidth,
+                entry.rightToLeft,
+              );
             });
           }
-          cursor.y -= chunk * cellLineHeight;
+          cursor.y = startY + chunk * height;
           drawn += chunk;
         }
-        cursor.y -= 2;
+        cursor.y += 2;
       };
 
-      drawRow(block.columns, bold);
+      drawRow(block.columns, 'bold');
       for (const row of block.rows) {
-        drawRow(row, regular);
+        drawRow(row, 'regular');
       }
-      cursor.y -= 4;
+      cursor.y += 4;
       return;
     }
     default: {
       const exhaustive: never = block;
       throw new Error(`Unsupported renderable block: ${JSON.stringify(exhaustive)}`);
     }
+  }
+}
+
+/** Every string a document renders, for coverage checking. */
+export function documentStrings(document: RenderableDocument): string[] {
+  const values: string[] = [document.title, document.subtitle ?? '', document.footer ?? ''];
+  for (const block of document.blocks) {
+    switch (block.kind) {
+      case 'heading':
+      case 'paragraph':
+        values.push(block.text);
+        break;
+      case 'keyValues':
+        for (const row of block.rows) {
+          values.push(row.label, row.value);
+        }
+        break;
+      case 'table':
+        values.push(...block.columns);
+        for (const row of block.rows) {
+          values.push(...row);
+        }
+        break;
+      default: {
+        const exhaustive: never = block;
+        throw new Error(`Unsupported renderable block: ${JSON.stringify(exhaustive)}`);
+      }
+    }
+  }
+  return values;
+}
+
+/** Characters no bundled face covers, judged on the text that will actually be drawn. */
+export function unsupportedDocumentCharacters(document: RenderableDocument): string[] {
+  const found = new Set<string>();
+  for (const value of documentStrings(document)) {
+    for (const character of unsupportedCharacters(sanitizeText(value))) {
+      found.add(character);
+    }
+  }
+  return [...found];
+}
+
+function assertScriptCoverage(document: RenderableDocument): void {
+  const unsupported = unsupportedDocumentCharacters(document);
+  if (unsupported.length > 0) {
+    throw new PdfScriptCoverageError(unsupported);
+  }
+}
+
+/** Raised instead of substituting a character the bundled faces cannot render. */
+export class PdfScriptCoverageError extends Error {
+  constructor(readonly characters: string[]) {
+    super('The source text uses a script no bundled PDF font covers.');
+    this.name = 'PdfScriptCoverageError';
   }
 }

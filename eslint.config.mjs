@@ -11,6 +11,8 @@ export default tseslint.config(
       '**/*.config.mjs',
       '**/*.config.cjs',
       'apps/api/prisma/generated/**',
+      // Standalone build-verification scripts, outside the TypeScript project service.
+      'apps/api/scripts/**',
     ],
   },
   js.configs.recommended,

@@ -801,9 +801,13 @@ source of truth.
   A mutable record that changed while the file rendered is rejected rather than committed,
   so an output never claims a state the source no longer has.
 - Authoritative text is never truncated or substituted. Long descriptions and terms wrap
-  across lines and pages. Word output carries full Unicode; a PDF whose text a standard
-  font cannot encode is refused rather than corrupted, and the Word output stays available
-  for it.
+  across lines and pages. Both output families carry full Unicode: PDF embeds bundled Noto
+  faces and supports Latin, Greek, Cyrillic, and Arabic, including mixed-direction lines
+  with Arabic contextual joining. A script no bundled face covers is refused rather than
+  corrupted, and the Word output stays available for it.
+- The publishing transaction share-locks every row whose values the output renders before
+  its final fingerprint comparison, so the accepted source state cannot change before the
+  version commits. No lock is held while the file is rendered or published.
 - One logical document exists per source record, output family, and language. The first
   generation creates version 1 and an intentional regeneration adds version N+1; a
   historical version and its bytes are never overwritten.
