@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** English/French localization foundation (Issue #54), sequenced between the merged UI/UX v1 shell and the Reporting redesign.
-**Health:** `main` is at `a0236fe66936891d8235236c924e652c8067ab13`, the merge commit for Issue #52 Tasks 1–2 / PR #53. Issue #54 is implemented on branch `feat/web-i18n-en-fr` for review.
-**Current blocker:** Review of the localization foundation. The Reporting representative surface does not begin until it is settled, because Reporting must be bilingual from its first commit.
-**Next executable development task:** Review draft PR #55; keep it open/unmerged and do not start the Reporting, Candidate, or Public Opportunity redesigns until the localization foundation is accepted.
+**Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
+**Health:** `main` is at `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`, the merge commit for Issue #54 / PR #55. Issue #56 is implemented on branch `design/reporting-dashboard-v1` for review.
+**Current blocker:** Technical and visual review of the Reporting representative surface. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
+**Next executable development task:** Review the draft Reporting PR; keep it open/unmerged, and do not start the Candidate or Public Opportunity redesigns until Reporting is accepted.
 
 ## Active work
 
@@ -35,8 +35,22 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53 into `main` as `a0236fe66936891d8235236c924e652c8067ab13`; representative surfaces not started |
-| Issue #54 | Open | Add the English/French localization foundation to the web interface | Implemented on `feat/web-i18n-en-fr`; draft PR #55 open and awaiting review |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
+| Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
+| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR open and awaiting technical and visual review |
+
+## Issue #56 Verification State
+
+- Branch `design/reporting-dashboard-v1` was created from exact `main` `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`.
+- Reporting presentation was extracted from `App.tsx` into `apps/web/src/reporting/`. `App.tsx` keeps routing and every other module panel.
+- No API, contract, Prisma, KPI-calculation, authorization, record-scope, filter-semantic, or CSV change was made. The five reporting reads, their query shape, and the export flow are unchanged.
+- Navigation stays gated by `reporting:recruitment:view`; the CSV export action is not rendered at all without `reporting:recruitment:export`.
+- The dashboard is fully bilingual, so `reporting` was removed from `deferredEnglishRoutes` and no `lang="en"` boundary remains around the module.
+- Switching language re-renders labels and `Intl` formatting only; the report is not refetched.
+- Drilldown paging replaces the table alone and does not refetch the aggregates; applying filters restarts the report at page 1.
+- `pnpm install --frozen-lockfile`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build` all passed locally. Test totals: contracts 23, API 67, web 140 (was 121).
+- The production build contains only `index.html`; the development-only `reporting.html` review surface is excluded.
+- Reviewed at 1440, 1024, 900, 800, 430, and 390 px in both languages with no whole-page horizontal overflow; drilldown overflow stays inside the data region.
 
 ## Completed foundation work
 

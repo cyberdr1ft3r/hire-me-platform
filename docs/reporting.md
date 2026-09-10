@@ -210,6 +210,32 @@ filters. No CSV is produced and no audit record is written in that case.
 Successful exports are audited with safe metadata only (actor, report type, and a
 bounded filter summary). Interactive dashboard reads are not audited.
 
+## Interface
+
+Issue #56 redesigned the authenticated reporting dashboard on the approved HireMe
+visual system. That work is presentation only: it changed no endpoint, no KPI
+definition, no authorization rule, no record scope, no filter semantic, no
+pagination contract, and no CSV behavior described above.
+
+The dashboard performs the same five reads as one logical load (`/summary`,
+`/pipeline`, `/breakdowns`, `/trends` at `interval=week`, and `/drilldown` at
+page size 25) and exposes the same five filters it always exposed: start, end,
+client, mission, and recruiter. `pipelineState`, `offerStatus`,
+`placementStatus`, and `source` remain server-supported but deliberately
+unexposed. Changing the drilldown page requests that page alone; applying
+filters restarts the report at page 1.
+
+The navigation entry is gated by `reporting:recruitment:view`. The CSV export
+action is not rendered at all without `reporting:recruitment:export` — it is
+never shown disabled, which would still disclose it — and the client only hands
+the server-generated filename and bytes to the browser.
+
+Presentation labels for language-neutral values (pipeline states, trend metric
+names, and the actor scope) are a UI-boundary mapping. The stored value is
+unchanged, is what any filter sends back, and no business logic reads a label.
+A distribution key the interface does not recognise keeps its raw value rather
+than being guessed at.
+
 ## Performance and schema
 
 Aggregates use set-based PostgreSQL queries (`groupBy`, `count`, and scoped
