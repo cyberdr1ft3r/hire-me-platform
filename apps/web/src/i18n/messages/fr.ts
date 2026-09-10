@@ -132,9 +132,9 @@ export const frMessages: Messages = {
       exportTitle: 'Export CSV',
     },
     filters: {
-      allClients: 'Tous les clients autorisés',
-      allMissions: 'Toutes les missions autorisées',
-      allRecruiters: 'Tous les recruteurs autorisés',
+      allClients: 'Tous les clients',
+      allMissions: 'Toutes les missions',
+      allRecruiters: 'Tous les recruteurs',
       apply: 'Appliquer les filtres',
       client: 'Client',
       end: 'Date de fin',

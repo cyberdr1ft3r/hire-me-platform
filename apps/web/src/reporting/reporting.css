@@ -216,6 +216,11 @@
 
 /* --- Weekly trends ----------------------------------------------------- */
 
+.reporting-trends__body {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .reporting-trends {
   display: grid;
   gap: var(--space-3);
@@ -252,6 +257,34 @@
 .reporting-trends__chart {
   block-size: var(--space-12);
   inline-size: 100%;
+}
+
+.reporting-trends__axis {
+  border-block-start: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
+  display: grid;
+  font-size: var(--font-size-1);
+  gap: 0;
+  grid-template-columns: repeat(var(--reporting-trend-bucket-count, 1), minmax(0, 1fr));
+  line-height: var(--line-height-tight);
+  min-width: 0;
+  padding-block-start: var(--space-2);
+}
+
+.reporting-trends__axis-tick {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reporting-trends__axis-tick:first-child {
+  text-align: start;
+}
+
+.reporting-trends__axis-tick:last-child {
+  text-align: end;
 }
 
 /*

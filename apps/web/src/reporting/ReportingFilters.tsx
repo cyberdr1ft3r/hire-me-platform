@@ -41,7 +41,7 @@ export function ReportingFilters({
   recruiters,
   values,
 }: ReportingFiltersProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
 
   function update(patch: Partial<ReportingFilterValues>): void {
     onChange({ ...values, ...patch });
@@ -58,12 +58,14 @@ export function ReportingFilters({
     >
       <div className="reporting-filters__controls">
         <TextField
+          lang={locale}
           label={t('reporting.filters.start')}
           onChange={(event) => update({ start: event.target.value })}
           type="date"
           value={values.start}
         />
         <TextField
+          lang={locale}
           label={t('reporting.filters.end')}
           onChange={(event) => update({ end: event.target.value })}
           type="date"

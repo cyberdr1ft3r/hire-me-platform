@@ -1,7 +1,8 @@
-import { useId } from 'react';
+import { useId, type CSSProperties } from 'react';
 import type { ReportingTrendSeries } from '@hire-me/contracts';
 
 import { useI18n } from '../i18n/index.js';
+import { selectTrendAxisLabelIndices } from './trend-axis-labels.js';
 
 /** Geometry of one weekly bar column, in the chart's own user units. */
 const COLUMN_WIDTH = 4;
@@ -38,6 +39,7 @@ export function ReportingTrends({ series }: { series: readonly ReportingTrendSer
     ...series.flatMap((entry) => entry.points.map((point) => point.count)),
   );
   const chartWidth = Math.max(buckets.length * COLUMN_WIDTH, COLUMN_WIDTH);
+  const axisLabelIndices = new Set(selectTrendAxisLabelIndices(buckets.length));
 
   function countAt(entry: ReportingTrendSeries, bucketStart: string): number {
     return entry.points.find((point) => point.bucketStart === bucketStart)?.count ?? 0;
@@ -53,48 +55,66 @@ export function ReportingTrends({ series }: { series: readonly ReportingTrendSer
         <p className="reporting-panel__empty">{t('reporting.empty.trends')}</p>
       ) : (
         <>
-          <ul className="reporting-trends">
-            {series.map((entry, index) => {
-              const total = entry.points.reduce((sum, point) => sum + point.count, 0);
-              return (
-                <li className="reporting-trends__row" data-series={index + 1} key={entry.metric}>
-                  <div className="reporting-trends__meta">
-                    <span className="reporting-trends__label">
-                      {t(`domain.trendMetric.${entry.metric}`)}
-                    </span>
-                    <span className="reporting-trends__total u-tabular">
-                      {t('reporting.trends.total', { total })}
-                    </span>
-                  </div>
-                  {/*
-                    The bars restate the table below them, so they are hidden
-                    from assistive technology rather than announced twice.
-                  */}
-                  <svg
-                    aria-hidden="true"
-                    className="reporting-trends__chart"
-                    preserveAspectRatio="none"
-                    viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
-                  >
-                    {buckets.map((bucketStart, column) => {
-                      const count = countAt(entry, bucketStart);
-                      const height =
-                        count === 0 ? 0 : Math.max(MINIMUM_BAR, (count / maximum) * CHART_HEIGHT);
-                      return (
-                        <rect
-                          height={height}
-                          key={bucketStart}
-                          width={BAR_WIDTH}
-                          x={column * COLUMN_WIDTH}
-                          y={CHART_HEIGHT - height}
-                        />
-                      );
-                    })}
-                  </svg>
-                </li>
-              );
-            })}
-          </ul>
+          <div
+            className="reporting-trends__body"
+            style={
+              {
+                '--reporting-trend-bucket-count': String(buckets.length),
+              } as CSSProperties
+            }
+          >
+            <ul className="reporting-trends">
+              {series.map((entry, index) => {
+                const total = entry.points.reduce((sum, point) => sum + point.count, 0);
+                return (
+                  <li className="reporting-trends__row" data-series={index + 1} key={entry.metric}>
+                    <div className="reporting-trends__meta">
+                      <span className="reporting-trends__label">
+                        {t(`domain.trendMetric.${entry.metric}`)}
+                      </span>
+                      <span className="reporting-trends__total u-tabular">
+                        {t('reporting.trends.total', { total })}
+                      </span>
+                    </div>
+                    {/*
+                      The bars restate the table below them, so they are hidden
+                      from assistive technology rather than announced twice.
+                    */}
+                    <svg
+                      aria-hidden="true"
+                      className="reporting-trends__chart"
+                      preserveAspectRatio="none"
+                      viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
+                    >
+                      {buckets.map((bucketStart, column) => {
+                        const count = countAt(entry, bucketStart);
+                        const height =
+                          count === 0 ? 0 : Math.max(MINIMUM_BAR, (count / maximum) * CHART_HEIGHT);
+                        return (
+                          <rect
+                            height={height}
+                            key={bucketStart}
+                            width={BAR_WIDTH}
+                            x={column * COLUMN_WIDTH}
+                            y={CHART_HEIGHT - height}
+                          />
+                        );
+                      })}
+                    </svg>
+                  </li>
+                );
+              })}
+            </ul>
+            <div aria-hidden="true" className="reporting-trends__axis">
+              {buckets.map((bucketStart, index) => (
+                <span className="reporting-trends__axis-tick" key={bucketStart}>
+                  {axisLabelIndices.has(index)
+                    ? formatDate(bucketStart, { timeZone: 'UTC' })
+                    : null}
+                </span>
+              ))}
+            </div>
+          </div>
           {/*
             The bars restate this table, so the exact weekly counts stay
             available to assistive technology without being drawn twice. The

@@ -337,6 +337,20 @@ describe('recruitment reporting dashboard', () => {
     });
     expect(within(table).getByRole('rowheader', { name: '1 Jun 2026' })).toBeInTheDocument();
     expect(within(table).getByRole('rowheader', { name: '8 Jun 2026' })).toBeInTheDocument();
+
+    const axis = document.querySelector('.reporting-trends__axis');
+    expect(axis).not.toBeNull();
+    expect(axis?.textContent).toContain('1 Jun');
+    expect(axis?.textContent).toContain('8 Jun');
+  });
+
+  it('does not render a visible trend axis when weekly trends are empty', async () => {
+    stubReportingApi({ emptyTrends: true });
+    renderReporting();
+    await screen.findByText('Weekly trends');
+
+    expect(screen.getByText('No recruitment activity was recorded in this window.')).toBeVisible();
+    expect(document.querySelector('.reporting-trends__axis')).toBeNull();
   });
 
   it('renders the drilldown as a real table with column headers', async () => {
@@ -482,9 +496,13 @@ describe('recruitment reporting dashboard', () => {
     const readsBefore = reportingReads();
     expect(readsBefore).toHaveLength(5);
 
+    const axis = document.querySelector('.reporting-trends__axis');
+    expect(axis?.textContent).toMatch(/1 Jun/);
+
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
 
     expect(await screen.findByText('Missions ouvertes')).toBeVisible();
+    expect(axis?.textContent).toMatch(/1 juin/);
     expect(
       screen.getByRole('heading', { level: 1, name: 'Rapports de recrutement' }),
     ).toBeVisible();
@@ -519,6 +537,9 @@ describe('recruitment reporting dashboard', () => {
     expect(screen.getByRole('button', { name: 'Appliquer les filtres' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Exporter en CSV' })).toBeVisible();
     expect(screen.getByLabelText('Date de début')).toBeInTheDocument();
+    expect(screen.getByLabelText('Client')).toHaveTextContent('Tous les clients');
+    expect(screen.getByLabelText('Mission')).toHaveTextContent('Toutes les missions');
+    expect(screen.getByLabelText('Recruteur')).toHaveTextContent('Tous les recruteurs');
     expect(screen.getAllByText('Présenté au client').length).toBeGreaterThan(0);
   });
 

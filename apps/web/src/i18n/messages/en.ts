@@ -132,9 +132,9 @@ export const enMessages = {
       exportTitle: 'CSV export',
     },
     filters: {
-      allClients: 'All authorized clients',
-      allMissions: 'All authorized missions',
-      allRecruiters: 'All authorized recruiters',
+      allClients: 'All clients',
+      allMissions: 'All missions',
+      allRecruiters: 'All recruiters',
       apply: 'Apply filters',
       client: 'Client',
       end: 'End date',
