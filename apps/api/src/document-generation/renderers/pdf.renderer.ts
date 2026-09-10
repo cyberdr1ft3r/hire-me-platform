@@ -7,6 +7,7 @@ import {
   registeredFontAssets,
   unsupportedCharacters,
 } from './font-registry.js';
+import { splitUnbrokenToken } from './line-breaking.js';
 import { ShapedTextWriter } from './pdf-text-mapping.js';
 import type { RunGroup } from './text-runs.js';
 import { lineIsRtl, runGroups, visualRuns } from './text-runs.js';
@@ -85,7 +86,8 @@ function measureGroups(
  * scrambled Arabic even though every glyph is correct.
  *
  * A token wider than the line is split at a character boundary rather than clipped, so no
- * authoritative text is ever lost.
+ * authoritative text is ever lost. `splitUnbrokenToken` chooses each split with a bounded
+ * search, and every candidate it accepts is measured here, shaped exactly as it is drawn.
  */
 function layoutLine(
   writer: ShapedTextWriter,
@@ -110,15 +112,7 @@ function layoutLine(
   let current = '';
 
   const breakLongToken = (token: string): void => {
-    let remainder = token;
-    while (remainder.length > 0) {
-      let take = remainder.length;
-      while (take > 1 && measure(remainder.slice(0, take)) > width) {
-        take -= 1;
-      }
-      segments.push(remainder.slice(0, take));
-      remainder = remainder.slice(take);
-    }
+    segments.push(...splitUnbrokenToken(token, (text) => measure(text) <= width));
   };
 
   for (const token of line.split(/(\s+)/).filter((piece) => piece.length > 0)) {

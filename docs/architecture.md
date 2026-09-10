@@ -390,8 +390,13 @@ The renderer protects the output format without changing business meaning: it re
 control characters but never truncates or substitutes. PDF text wraps across lines and
 pages, and text is laid out by wrapping in logical order first and applying the
 bidirectional reordering per display line afterwards, which is the sequence UAX #9
-prescribes. Text in a script no bundled face covers is refused rather than corrupted,
-while the Word output carries full Unicode.
+prescribes. A token wider than the line is split at the longest prefix the shaped width
+measurement accepts, found by a galloping search followed by a binary search, so the work
+for an unbroken value such as a long reference or URL grows roughly linearly with its
+length instead of cubically, and every accepted split is one the real shaping measured.
+That bound comes from the search alone; no value is shortened to achieve it. Text in a
+script no bundled face covers is refused rather than corrupted, while the Word output
+carries full Unicode.
 
 Provenance is bounded and structured on the version itself: template id, template version,
 language, output family, size, and checksum. Audit metadata carries the document, version,
