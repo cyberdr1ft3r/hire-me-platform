@@ -262,6 +262,7 @@
 .reporting-trends__axis {
   border-block-start: var(--border-width) solid var(--color-border);
   color: var(--color-text-muted);
+  container: reporting-trend-axis / inline-size;
   display: grid;
   font-size: var(--font-size-1);
   gap: 0;
@@ -271,20 +272,49 @@
   padding-block-start: var(--space-2);
 }
 
+/*
+ * Only the sparse selected ticks carry a label, so a label may extend into the
+ * empty bucket cells beside it instead of being clipped to its own narrow
+ * column. Flex alignment keeps the overflow anchored: the first label runs from
+ * the start edge, the last label ends at the end edge, and middle labels stay
+ * centered on their bucket.
+ */
 .reporting-trends__axis-tick {
+  display: flex;
+  justify-content: center;
   min-width: 0;
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .reporting-trends__axis-tick:first-child {
-  text-align: start;
+  justify-content: flex-start;
 }
 
 .reporting-trends__axis-tick:last-child {
-  text-align: end;
+  justify-content: flex-end;
+}
+
+.reporting-trends__axis-label {
+  flex: 0 0 auto;
+}
+
+.reporting-trends__axis-label[data-length='compact'] {
+  display: none;
+}
+
+/*
+ * Below this axis width the full medium dates of neighbouring selected buckets
+ * would collide, so the axis switches to the compact day-and-month form of the
+ * same bucket dates. The reporting window in the page header carries the year.
+ */
+@container reporting-trend-axis (max-width: 35.999rem) {
+  .reporting-trends__axis-label[data-length='full'] {
+    display: none;
+  }
+
+  .reporting-trends__axis-label[data-length='compact'] {
+    display: inline;
+  }
 }
 
 /*

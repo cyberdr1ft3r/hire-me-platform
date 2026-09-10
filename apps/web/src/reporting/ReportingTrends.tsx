@@ -105,12 +105,30 @@ export function ReportingTrends({ series }: { series: readonly ReportingTrendSer
                 );
               })}
             </ul>
+            {/*
+              Each selected tick carries its bucket date twice: the full medium
+              date and a compact day-and-month form. The stylesheet shows one of
+              them by the axis's own width, so a narrow axis still names the real
+              week instead of truncating the full date.
+            */}
             <div aria-hidden="true" className="reporting-trends__axis">
               {buckets.map((bucketStart, index) => (
                 <span className="reporting-trends__axis-tick" key={bucketStart}>
-                  {axisLabelIndices.has(index)
-                    ? formatDate(bucketStart, { timeZone: 'UTC' })
-                    : null}
+                  {axisLabelIndices.has(index) ? (
+                    <>
+                      <span className="reporting-trends__axis-label" data-length="full">
+                        {formatDate(bucketStart, { timeZone: 'UTC' })}
+                      </span>
+                      <span className="reporting-trends__axis-label" data-length="compact">
+                        {formatDate(bucketStart, {
+                          dateStyle: undefined,
+                          day: 'numeric',
+                          month: 'short',
+                          timeZone: 'UTC',
+                        })}
+                      </span>
+                    </>
+                  ) : null}
                 </span>
               ))}
             </div>
