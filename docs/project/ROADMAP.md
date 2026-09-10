@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -114,15 +114,15 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 ## Phase 7a - HireMe UI/UX v1
 
-**State:** Foundations merged; Recruitment/Reporting representative surface implemented under Issue #56 and awaiting its final validation and visual gate
+**State:** Foundations and the Recruitment/Reporting surface merged (Issue #56 / PR #57); the Candidate workspace representative surface is in review under Issue #60
 
 - Canonical HireMe UI-DNA, semantic CSS tokens, typography, spacing, radius, elevation, motion, density, responsive, interaction, composition, data-visualization, accessibility, and raw-value rules.
 - Development-only, synthetic, API-free preview and the minimum primitives needed to review the visual language.
 - Internal compact, internal standard, and public spacious expressions share one brand and semantic system.
 - Authenticated internal AppShell and PageHeader checkpoint: permission-aware grouped navigation, safe session chrome, responsive off-canvas behavior, and development-only synthetic review entry without changing module business logic.
 - The bilingual Recruitment/Reporting dashboard is the first representative production surface. It preserves reporting calculations, contracts, authorization, record scope, filters, pagination, CSV behavior, and persistence while proving the approved KPI, visualization, filter, dense-table, responsive, accessibility, and state patterns.
-- Hard stop before the Candidate workspace, Public Opportunity experience, or broader production migration.
-- After explicit Reporting approval, continue Issue #52 with the Candidate workspace representative surface; broader module rollout remains follow-up work.
+- The bilingual Candidate workspace is the second representative surface (Issue #60). It preserves candidate endpoints, payloads, lifecycle, archival, duplicate handling, authorization, and redaction while proving dense record-detail hierarchy, structured forms, and sensitive permission boundaries.
+- Hard stop before the Public Opportunity experience or broader production migration until the Candidate workspace is approved; broader module rollout remains follow-up work.
 
 ## Phase 8 - Commercial and operational accounting
 

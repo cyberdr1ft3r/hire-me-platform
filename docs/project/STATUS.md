@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
-**Health:** `main` is at `938979bf7646a98a57d0cc3da82d518acafdf13a`, the merge commit for Issue #58 / PR #59. Issue #56 is implemented on branch `design/reporting-dashboard-v1`, and current `main` is integrated without conflicts.
-**Current blocker:** Final maintainer/ChatGPT approval of the Reporting representative surface after visual re-review `5168423918`. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
-**Next executable development task:** Review draft PR #57 at `http://127.0.0.1:5173/reporting.html` in English and French; keep it open/unmerged.
+**Phase:** Issue #52 representative surfaces. Recruitment/Reporting (Issue #56) is merged through PR #57; the Candidate workspace (Issue #60) is the second surface and is in review.
+**Health:** `main` is at `922b5ecc1b7aa4724d3026a18f7015026328c847`, the PR #57 merge commit. Issue #60 is implemented on branch `design/candidate-workspace-v1`, created from that exact `main`.
+**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Candidate workspace. The Public Opportunity redesign does not begin until the Candidate workspace is approved.
+**Next executable development task:** Review the draft Candidate PR at `http://127.0.0.1:5173/candidate.html` in English and French; keep it open/unmerged.
 
 ## Active work
 
@@ -35,10 +35,23 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; Reporting merged via PR #57 (Issue #56); the Candidate workspace is in review under Issue #60. Public Opportunity redesign not started |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
-| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`, visual review `5168036411` (shared weekly trend axis, shorter filter defaults, `lang` on date inputs), and visual re-review `5168423918` (readable compact mobile axis dates); current `main` integrated; awaiting final Reporting approval |
+| Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
+| Issue #60 | Open | Redesign the bilingual Candidate workspace as the second representative surface | Implemented on `design/candidate-workspace-v1`; draft PR open for technical and visual review; keep it open and unmerged |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #60 Verification State
+
+- Branch `design/candidate-workspace-v1` was created from exact `main` `922b5ecc1b7aa4724d3026a18f7015026328c847`.
+- Candidate presentation was extracted from `App.tsx` into `apps/web/src/candidates/`: the `CandidatesPanel` container owns reads, mutations, confirmations, request sequencing, and permission-derived access; presentation components receive everything as props. `App.tsx` keeps only the route switch.
+- No API, contract, Prisma, lifecycle, duplicate, archival, authorization, or redaction change was made. The web client's candidate request error now carries the HTTP status and stable API error code, never the server message.
+- Requests are unchanged: `GET /v1/candidates?page=1&pageSize=20` with `search`/`status` only; the same seven create fields; the same eight update fields with cleared values as `null`; `PATCH …/status` and `POST …/archive` after a localized confirmation; add-only structured record bodies.
+- No capability was added: pagination controls, a source filter, child-record edit/remove, and compensation/consent editing remain unexposed, as in the previous panel.
+- Actions without their permission, and every write action on an archived candidate, are hidden rather than disabled. Compensation and consent render only with their own view permissions and are read-only. Without `candidate_profile:view` the structured records are reported as unavailable, not empty.
+- Candidates is bilingual and left `deferredEnglishRoutes`; the French `/candidates` route carries no `lang="en"` boundary, and switching language does not refetch.
+- Development-only `apps/web/candidate.html` renders the real workspace with synthetic data and full, recruiter, and read-only access profiles; it is excluded from the production build.
+- Web tests went from 159 to 212; 53 are Candidate-focused.
 
 ## Issue #56 Verification State
 
@@ -431,8 +444,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the bilingual Reporting surface at `http://127.0.0.1:5173/reporting.html` in English and French at the required responsive widths.
-2. Keep PR #57 open, draft, and unmerged. Candidate and Public Opportunity redesigns remain blocked until Reporting is accepted.
+1. Review the bilingual Candidate workspace at `http://127.0.0.1:5173/candidate.html` in English and French at the required responsive widths, including the three access profiles.
+2. Keep the Candidate PR open, draft, and unmerged. The Public Opportunity redesign remains blocked until the Candidate workspace is accepted.
 
 ## Status Update Rules
 
