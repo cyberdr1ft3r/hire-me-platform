@@ -114,14 +114,15 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 ## Phase 7a - HireMe UI/UX v1
 
-**State:** Phase 1 foundation approved; Task 2 AppShell implemented under Issue #52 and awaiting visual review
+**State:** Foundations merged; Recruitment/Reporting representative surface implemented under Issue #56 and awaiting its final validation and visual gate
 
 - Canonical HireMe UI-DNA, semantic CSS tokens, typography, spacing, radius, elevation, motion, density, responsive, interaction, composition, data-visualization, accessibility, and raw-value rules.
 - Development-only, synthetic, API-free preview and the minimum primitives needed to review the visual language.
 - Internal compact, internal standard, and public spacious expressions share one brand and semantic system.
 - Authenticated internal AppShell and PageHeader checkpoint: permission-aware grouped navigation, safe session chrome, responsive off-canvas behavior, and development-only synthetic review entry without changing module business logic.
-- Hard stop before the Candidate workspace, Recruitment/Reporting dashboard, Public Opportunity experience, or broader production migration.
-- After explicit AppShell visual approval, continue Issue #52 with the Recruitment/Reporting representative surface; broader module rollout remains follow-up work.
+- The bilingual Recruitment/Reporting dashboard is the first representative production surface. It preserves reporting calculations, contracts, authorization, record scope, filters, pagination, CSV behavior, and persistence while proving the approved KPI, visualization, filter, dense-table, responsive, accessibility, and state patterns.
+- Hard stop before the Candidate workspace, Public Opportunity experience, or broader production migration.
+- After explicit Reporting approval, continue Issue #52 with the Candidate workspace representative surface; broader module rollout remains follow-up work.
 
 ## Phase 8 - Commercial and operational accounting
 

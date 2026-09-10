@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
-**Health:** `main` is at `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`, the merge commit for Issue #54 / PR #55. Issue #56 is implemented on branch `design/reporting-dashboard-v1` for review.
-**Current blocker:** Technical re-review and visual review of the Reporting representative surface, and green exact-head CI, which is blocked by the unrelated flaky PDF test tracked in Issue #58. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
-**Next executable development task:** Review the draft Reporting PR; keep it open/unmerged, and do not start the Candidate or Public Opportunity redesigns until Reporting is accepted.
+**Health:** `main` is at `938979bf7646a98a57d0cc3da82d518acafdf13a`, the merge commit for Issue #58 / PR #59. Issue #56 is implemented on branch `design/reporting-dashboard-v1`, and current `main` is integrated without conflicts.
+**Current blocker:** Complete post-integration local validation, obtain green exact-head CI, and complete the Reporting visual review. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
+**Next executable development task:** Validate the integrated Reporting head, update draft PR #57 with exact-head evidence, and perform the EN/FR visual gate; keep it open/unmerged.
 
 ## Active work
 
@@ -37,8 +37,8 @@ Status owner: repository maintainer
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
 | Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
-| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`; exact-head CI still blocked by Issue #58 |
-| Issue #58 | Open | Stabilize the timing-sensitive unbroken-token PDF rendering test | Tracked separately; must land on `main` and be integrated into PR #57 before final approval |
+| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`; current `main` integrated and post-integration validation pending |
+| Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
 ## Issue #56 Verification State
 
@@ -53,6 +53,7 @@ Status owner: repository maintainer
 - `pnpm install --frozen-lockfile`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build` all passed locally. Test totals: contracts 23, API 67, web 149 (was 121 on `main`).
 - The production build contains only `index.html`; the development-only `reporting.html` review surface is excluded.
 - Reviewed at 1440, 1024, 900, 800, 430, and 390 px in both languages with no whole-page horizontal overflow; drilldown overflow stays inside the data region.
+- Issue #58 / PR #59 merged into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a` and was integrated without conflicts. The inherited delta is limited to `line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`; Reporting authored no API, contract, Prisma, or migration changes. Full post-integration validation and exact-head CI evidence remain pending.
 
 ## Completed foundation work
 
@@ -425,8 +426,9 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the Issue #54 localization foundation on draft PR #55, including the French shell at `http://127.0.0.1:5173/app-shell.html`; keep the PR open/unmerged.
-2. After acceptance only, continue Issue #52 with the Recruitment/Reporting representative surface, built bilingual from its first commit. Candidate and Public Opportunity redesigns remain later checkpoints.
+1. Complete post-integration validation and exact-head CI for draft PR #57.
+2. Review the bilingual Reporting surface at `http://127.0.0.1:5173/reporting.html` in English and French at the required responsive widths.
+3. Keep PR #57 open, draft, and unmerged. Candidate and Public Opportunity redesigns remain blocked until Reporting is accepted.
 
 ## Status Update Rules
 

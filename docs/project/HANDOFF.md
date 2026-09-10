@@ -4,14 +4,15 @@ Last updated: 2026-09-10
 
 ## Current situation
 
-- Authoritative `main` is `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`, the PR #55 merge commit for the Issue #54 English/French localization foundation.
+- Authoritative `main` is `938979bf7646a98a57d0cc3da82d518acafdf13a`, the PR #59 merge commit for the Issue #58 bounded PDF line-breaking correction.
 - Issue #52 remains open for its representative-surface checkpoints. PR #53 and PR #55 are merged and closed.
-- Issue #56 and its draft PR are open on `design/reporting-dashboard-v1`. Do not merge or deploy them.
+- Issue #56 and draft PR #57 are open on `design/reporting-dashboard-v1`. Current `main` is integrated without conflicts. Do not merge or deploy them.
 - Issue #56 redesigns the Recruitment/Reporting dashboard as the first representative surface. It is presentation work only: no API, contract, Prisma, KPI, authorization, record-scope, filter-semantic, or CSV change was made.
 - Reporting is now fully bilingual, so it left `deferredEnglishRoutes`. Every other deferred route still declares `lang="en"` through the shared `LegacyEnglishContent` boundary.
 - Reporting presentation moved out of `App.tsx` into `apps/web/src/reporting/`. No other module was moved and no unrelated refactor was performed.
 - Technical review `5164555554` raised three corrections, all resolved on this branch: stale drilldown page responses are discarded through a request-sequence guard, the language-switch test now switches locale on one mounted dashboard, and CSV export again sends the current filter-control values as merged `main` did.
-- Exact-head CI is red only on `generation-rendering.test.ts` > `wraps an unbroken token instead of dropping its tail`, a 5000 ms timeout outside this PR's files. It is tracked in Issue #58 and must not be patched from this branch. Once its fix is on `main`, integrate latest `main` here and rerun CI.
+- Issue #58 is complete through merged PR #59. Its inherited delta is limited to `apps/api/src/document-generation/renderers/line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`. The fix keeps the original preservation assertion, adds no timeout/retry/skip, and passed exact-head run `34468919515`.
+- The integrated Reporting head still needs the full local validation suite, refreshed visual evidence, an updated PR description, and green exact-head CI.
 
 ## Review target
 
@@ -38,7 +39,7 @@ Then confirm the language-of-content boundary. With French active, `/reporting` 
 
 ## Completion conditions
 
-- Local quality gates pass, Issue #58 is fixed on `main`, latest `main` is integrated here, and exact-head GitHub Actions are green.
+- Full post-integration local quality gates and exact-head GitHub Actions are green.
 - The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`; no chart library, UI framework, or i18n framework was added.
 - Reporting endpoints, KPI definitions, authorization, record scope, filter semantics, the pagination contract, and CSV generation are provably unchanged.
 - The production build contains no development preview page.
@@ -53,4 +54,6 @@ Do not begin the Candidate workspace or the Public Opportunity redesign until th
 
 - Read `AGENTS.md`, Issue #52, Issue #56, the Reporting PR review history, and the project-memory files.
 - Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
+- Run the full repository validation suite after the `main` integration and record exact test totals.
+- Regenerate the EN/FR responsive visual evidence from the integrated head and update PR #57.
 - Keep any requested correction inside the Reporting boundary: `apps/web/src/reporting`, `apps/web/src/reporting-preview`, the `reporting.*` and reporting-owned `domain.*` dictionary entries, and the design/project documentation.
