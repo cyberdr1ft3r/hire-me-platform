@@ -223,7 +223,15 @@ page size 25) and exposes the same five filters it always exposed: start, end,
 client, mission, and recruiter. `pipelineState`, `offerStatus`,
 `placementStatus`, and `source` remain server-supported but deliberately
 unexposed. Changing the drilldown page requests that page alone; applying
-filters restarts the report at page 1.
+filters restarts the report at page 1. A page response commits only while it is
+still the latest page request of the report that is still showing: a response
+that arrives after the filters, the session, or the page request itself was
+superseded is discarded, success and failure alike, so it can never pair one
+filter set's rows with another's aggregates.
+
+CSV export keeps the behavior of the surface it replaced: it sends the values
+currently in the filter controls, whether or not they have been applied to the
+displayed report, and it does not reload the dashboard first.
 
 The navigation entry is gated by `reporting:recruitment:view`. The CSV export
 action is not rendered at all without `reporting:recruitment:export` — it is

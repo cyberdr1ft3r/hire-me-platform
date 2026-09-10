@@ -7,7 +7,7 @@ Status owner: repository maintainer
 
 **Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
 **Health:** `main` is at `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`, the merge commit for Issue #54 / PR #55. Issue #56 is implemented on branch `design/reporting-dashboard-v1` for review.
-**Current blocker:** Technical and visual review of the Reporting representative surface. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
+**Current blocker:** Technical re-review and visual review of the Reporting representative surface, and green exact-head CI, which is blocked by the unrelated flaky PDF test tracked in Issue #58. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
 **Next executable development task:** Review the draft Reporting PR; keep it open/unmerged, and do not start the Candidate or Public Opportunity redesigns until Reporting is accepted.
 
 ## Active work
@@ -37,7 +37,8 @@ Status owner: repository maintainer
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
 | Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
-| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR open and awaiting technical and visual review |
+| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`; exact-head CI still blocked by Issue #58 |
+| Issue #58 | Open | Stabilize the timing-sensitive unbroken-token PDF rendering test | Tracked separately; must land on `main` and be integrated into PR #57 before final approval |
 
 ## Issue #56 Verification State
 
@@ -47,8 +48,9 @@ Status owner: repository maintainer
 - Navigation stays gated by `reporting:recruitment:view`; the CSV export action is not rendered at all without `reporting:recruitment:export`.
 - The dashboard is fully bilingual, so `reporting` was removed from `deferredEnglishRoutes` and no `lang="en"` boundary remains around the module.
 - Switching language re-renders labels and `Intl` formatting only; the report is not refetched.
-- Drilldown paging replaces the table alone and does not refetch the aggregates; applying filters restarts the report at page 1.
-- `pnpm install --frozen-lockfile`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build` all passed locally. Test totals: contracts 23, API 67, web 140 (was 121).
+- Drilldown paging replaces the table alone and does not refetch the aggregates; applying filters restarts the report at page 1. A monotonic request-sequence guard discards any page response, success or failure, whose report generation (filters, retry, reset, session) or page request has been superseded, and deterministic deferred-promise tests prove it.
+- CSV export sends the current filter-control values, exactly as merged `main` did, without reloading the dashboard.
+- `pnpm install --frozen-lockfile`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build` all passed locally. Test totals: contracts 23, API 67, web 149 (was 121 on `main`).
 - The production build contains only `index.html`; the development-only `reporting.html` review surface is excluded.
 - Reviewed at 1440, 1024, 900, 800, 430, and 390 px in both languages with no whole-page horizontal overflow; drilldown overflow stays inside the data region.
 

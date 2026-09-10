@@ -19,6 +19,7 @@ import {
   type ReportingState,
   type ReportingTableState,
 } from './reporting-state.js';
+import { createRequestSequence } from './request-sequence.js';
 
 /**
  * Container for the recruitment reporting surface.
@@ -45,6 +46,18 @@ export function ReportingPanel({
   const [report, setReport] = useState<ReportingState>({ status: 'loading' });
   const [tableState, setTableState] = useState<ReportingTableState>('idle');
   const [exportFeedback, setExportFeedback] = useState<ReportingExportFeedback | null>(null);
+  /**
+   * Two request sequences keep late responses from mixing reports.
+   *
+   * `reportRequests` advances with every full load, and when the session, the
+   * applied filters, or the component itself goes away. `pageRequests` advances
+   * with every drilldown page request and whenever a full load starts. A page
+   * response may commit only while both still name the request that produced
+   * it, so rows fetched for an earlier filter set, an earlier session, or a
+   * superseded page can never land beside a newer report's aggregates.
+   */
+  const [reportRequests] = useState(createRequestSequence);
+  const [pageRequests] = useState(createRequestSequence);
 
   /**
    * One logical load composed of the five reporting reads, exactly as before.
@@ -55,7 +68,9 @@ export function ReportingPanel({
    * `Intl` formatting only.
    */
   useEffect(() => {
-    let active = true;
+    const isCurrentReport = reportRequests.next();
+    // A page request belongs to the report that was showing when it started.
+    pageRequests.invalidate();
     const query = toReportingQuery(appliedFilters);
     setReport({ status: 'loading' });
     setTableState('idle');
@@ -69,7 +84,7 @@ export function ReportingPanel({
       getReportingDrilldown(accessToken, { ...query, page: 1, pageSize: DRILLDOWN_PAGE_SIZE }),
     ])
       .then(([summary, pipeline, breakdowns, trends, drilldown]) => {
-        if (!active) {
+        if (!isCurrentReport()) {
           return;
         }
         setReport({
@@ -78,17 +93,20 @@ export function ReportingPanel({
         });
       })
       .catch(() => {
-        if (active) {
+        if (isCurrentReport()) {
           // Deliberately generic: the reporting surface never surfaces backend
           // error text, which could describe records outside the actor's scope.
           setReport({ status: 'error' });
         }
       });
 
+    // Runs when the session or the applied filters change and on unmount, so a
+    // superseded load and any page request started under it can no longer commit.
     return () => {
-      active = false;
+      reportRequests.invalidate();
+      pageRequests.invalidate();
     };
-  }, [accessToken, appliedFilters]);
+  }, [accessToken, appliedFilters, pageRequests, reportRequests]);
 
   /** Applying filters commits the controls and restarts the report at page 1. */
   function handleApply(): void {
@@ -108,8 +126,15 @@ export function ReportingPanel({
   /**
    * Paging replaces the drilldown only. The aggregates already describe the
    * same filtered scope, so refetching them here would be duplicate traffic.
+   *
+   * Its success and its failure both commit only while this is still the
+   * latest page request of the report that is still showing.
    */
   async function handlePageChange(page: number): Promise<void> {
+    const isCurrentReport = reportRequests.current();
+    const isLatestPage = pageRequests.next();
+    const isCurrent = () => isCurrentReport() && isLatestPage();
+
     setTableState('loading');
     try {
       const drilldown = await getReportingDrilldown(accessToken, {
@@ -117,6 +142,9 @@ export function ReportingPanel({
         page,
         pageSize: DRILLDOWN_PAGE_SIZE,
       });
+      if (!isCurrent()) {
+        return;
+      }
       setReport((previous) =>
         previous.status === 'ready'
           ? { data: { ...previous.data, drilldown }, status: 'ready' }
@@ -124,20 +152,26 @@ export function ReportingPanel({
       );
       setTableState('idle');
     } catch {
-      setTableState('error');
+      if (isCurrent()) {
+        setTableState('error');
+      }
     }
   }
 
   /**
    * The export is unchanged: the server decides the rows, the content, and the
    * filename, and the client only hands the bytes to the browser.
+   *
+   * Like the surface it replaced, it exports with the values currently in the
+   * filter controls, whether or not they have been applied to the displayed
+   * report yet, and it does not reload the dashboard first.
    */
   async function handleExport(): Promise<void> {
     setExportFeedback(null);
     try {
       const { filename, content } = await exportReportingCsv(
         accessToken,
-        toReportingQuery(appliedFilters),
+        toReportingQuery(formFilters),
       );
       const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);

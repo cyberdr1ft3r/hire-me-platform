@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { I18nProvider, LOCALE_STORAGE_KEY } from '../i18n/index.js';
+import type { AuthenticatedUser } from '@hire-me/contracts';
+
+import { I18nProvider } from '../i18n/index.js';
 import type { Locale } from '../i18n/index.js';
+import { AppShell } from '../ui/shell/AppShell.js';
 import { ReportingPanel } from './ReportingPanel.js';
 
 /**
@@ -447,30 +450,58 @@ describe('recruitment reporting dashboard', () => {
     ).not.toContain('clientId=');
   });
 
-  it('does not refetch the report when the interface language changes', async () => {
+  it('switches language on the mounted dashboard without refetching the report', async () => {
     const fetchMock = stubReportingApi();
+    const user: AuthenticatedUser = {
+      displayName: 'Reporting Reviewer',
+      email: 'reviewer@example.test',
+      id: '44444444-4444-4444-8444-444444444444',
+      permissions: VIEW_ONLY,
+    };
+    // One mount for the whole test: the real shell and its real language
+    // control drive the locale while the same ReportingPanel stays mounted.
     render(
-      <I18nProvider>
-        <ReportingPanel accessToken={ACCESS_TOKEN} permissions={VIEW_ONLY} />
+      <I18nProvider initialLocale="en">
+        <AppShell
+          apiState={{ message: 'ok', status: 'ready' }}
+          currentRoute="reporting"
+          onLogout={() => undefined}
+          onNavigate={() => undefined}
+          onRefreshUser={() => undefined}
+          user={user}
+        >
+          <ReportingPanel accessToken={ACCESS_TOKEN} permissions={VIEW_ONLY} />
+        </AppShell>
       </I18nProvider>,
     );
-    await screen.findByText('Open missions');
-    const before = fetchMock.mock.calls.length;
+    await screen.findByText('Candidate 1');
+    const table = screen.getByRole('table', { name: 'Candidate process drilldown' });
 
-    // The provider re-renders on a stored locale change exactly as the shell's
-    // language control drives it.
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, 'fr');
-    cleanup();
-    render(
-      <I18nProvider initialLocale="fr">
-        <ReportingPanel accessToken={ACCESS_TOKEN} permissions={VIEW_ONLY} />
-      </I18nProvider>,
-    );
-    await screen.findByText('Missions ouvertes');
+    const reportingReads = () =>
+      requestedUrls(fetchMock).filter((url) => url.includes('/v1/reporting/recruitment/'));
+    const readsBefore = reportingReads();
+    expect(readsBefore).toHaveLength(5);
 
-    // A fresh mount loads once; what matters is that one mounted dashboard
-    // never issues a second load for a language change alone.
-    expect(fetchMock.mock.calls.length).toBe(before * 2);
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
+
+    expect(await screen.findByText('Missions ouvertes')).toBeVisible();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Rapports de recrutement' }),
+    ).toBeVisible();
+    expect(document.documentElement.lang).toBe('fr');
+
+    // The same table element is still in the document, now under its French
+    // name, and still showing the rows that were loaded in English.
+    expect(table.isConnected).toBe(true);
+    expect(screen.getByRole('table', { name: 'Détail des processus candidats' })).toBe(table);
+    expect(within(table).getByText('Candidate 1')).toBeVisible();
+    expect(screen.queryByText('Chargement des rapports de recrutement…')).toBeNull();
+
+    // A language change is a re-render only: none of the five reads repeats.
+    expect(reportingReads()).toEqual(readsBefore);
+    for (const endpoint of ['/summary', '/pipeline', '/breakdowns', '/trends', '/drilldown']) {
+      expect(reportingReads().filter((url) => url.includes(endpoint))).toHaveLength(1);
+    }
   });
 
   it('renders the whole dashboard in French', async () => {
@@ -559,6 +590,43 @@ describe('recruitment reporting dashboard', () => {
     );
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:reporting');
     expect(requestedUrls(fetchMock).some((url) => url.includes('/export.csv'))).toBe(true);
+  });
+
+  it('exports with the filter controls as they stand, without applying or reloading', async () => {
+    const fetchMock = stubReportingApi();
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:reporting'),
+      revokeObjectURL: vi.fn(),
+    });
+    renderReporting(VIEW_AND_EXPORT);
+    await screen.findByText('Candidate 1');
+
+    // Edit two controls but never press Apply.
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-07-01' } });
+    fireEvent.change(screen.getByLabelText('Client'), { target: { value: CLIENT_ID } });
+    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Exported recruitment-report-20260901.csv.',
+    );
+
+    // As on the surface this redesign replaced, the export uses the values in
+    // the controls, including edits that have not been applied yet.
+    const exportRequest = requestedUrls(fetchMock).find((url) => url.includes('/export.csv'));
+    expect(exportRequest).toContain(`clientId=${CLIENT_ID}`);
+    expect(exportRequest).toContain('start=2026-07-01T00%3A00%3A00.000Z');
+
+    // Exporting does not reload the dashboard, so the displayed report keeps
+    // describing the filters it was loaded with.
+    for (const endpoint of ['/summary', '/pipeline', '/breakdowns', '/trends', '/drilldown']) {
+      expect(requestedUrls(fetchMock).filter((url) => url.includes(endpoint))).toHaveLength(1);
+    }
+    expect(requestedUrls(fetchMock).find((url) => url.includes('/summary'))).not.toContain(
+      'clientId=',
+    );
+    expect(screen.getByText('Candidate 1')).toBeVisible();
+    expect(screen.getByText('Window 1 Jun 2026 to 1 Sept 2026')).toBeVisible();
+    expect(screen.getByLabelText('Client')).toHaveValue(CLIENT_ID);
   });
 
   it('reports a failed export without replacing the dashboard', async () => {
