@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** English/French localization foundation (Issue #54), sequenced between the merged UI/UX v1 shell and the Reporting redesign.
-**Health:** `main` is at `a0236fe66936891d8235236c924e652c8067ab13`, the merge commit for Issue #52 Tasks 1–2 / PR #53. Issue #54 is implemented on branch `feat/web-i18n-en-fr` for review.
-**Current blocker:** Review of the localization foundation. The Reporting representative surface does not begin until it is settled, because Reporting must be bilingual from its first commit.
-**Next executable development task:** Review draft PR #55; keep it open/unmerged and do not start the Reporting, Candidate, or Public Opportunity redesigns until the localization foundation is accepted.
+**Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
+**Health:** `main` is at `938979bf7646a98a57d0cc3da82d518acafdf13a`, the merge commit for Issue #58 / PR #59. Issue #56 is implemented on branch `design/reporting-dashboard-v1`, and current `main` is integrated without conflicts.
+**Current blocker:** Final maintainer/ChatGPT approval of the Reporting representative surface after visual re-review `5168423918`. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
+**Next executable development task:** Review draft PR #57 at `http://127.0.0.1:5173/reporting.html` in English and French; keep it open/unmerged.
 
 ## Active work
 
@@ -35,8 +35,30 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53 into `main` as `a0236fe66936891d8235236c924e652c8067ab13`; representative surfaces not started |
-| Issue #54 | Open | Add the English/French localization foundation to the web interface | Implemented on `feat/web-i18n-en-fr`; draft PR #55 open and awaiting review |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
+| Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
+| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`, visual review `5168036411` (shared weekly trend axis, shorter filter defaults, `lang` on date inputs), and visual re-review `5168423918` (readable compact mobile axis dates); current `main` integrated; awaiting final Reporting approval |
+| Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #56 Verification State
+
+- Branch `design/reporting-dashboard-v1` was created from exact `main` `6e6cf6fd499800ed019a9c0d82680bde8b275f2e`.
+- Reporting presentation was extracted from `App.tsx` into `apps/web/src/reporting/`. `App.tsx` keeps routing and every other module panel.
+- No API, contract, Prisma, KPI-calculation, authorization, record-scope, filter-semantic, or CSV change was made. The five reporting reads, their query shape, and the export flow are unchanged.
+- Navigation stays gated by `reporting:recruitment:view`; the CSV export action is not rendered at all without `reporting:recruitment:export`.
+- The dashboard is fully bilingual, so `reporting` was removed from `deferredEnglishRoutes` and no `lang="en"` boundary remains around the module.
+- Switching language re-renders labels and `Intl` formatting only; the report is not refetched.
+- Drilldown paging replaces the table alone and does not refetch the aggregates; applying filters restarts the report at page 1. A monotonic request-sequence guard discards any page response, success or failure, whose report generation (filters, retry, reset, session) or page request has been superseded, and deterministic deferred-promise tests prove it.
+- CSV export sends the current filter-control values, exactly as merged `main` did, without reloading the dashboard.
+- Visual review `5168036411` corrections on head `a41acc85ba55558b79265724ad08968feed84079`: one shared visible weekly trend x-axis below the small multiples (deterministic first/25%/75%/last labels aligned to bucket columns), shorter EN/FR default filter option labels, and `lang={locale}` on native date inputs. Chromium still renders `mm/dd/yyyy` in the date mask despite `lang="fr"`; documented as browser-native presentation.
+- Post-integration local validation passed on head `a41acc85ba55558b79265724ad08968feed84079`: `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build`. Test totals: contracts 23/23, API 78/78, web 158/158.
+- Visual re-review `5168423918` correction in `99eaa3a158f05e270e8ba2b90c916a14326fe7e2`: selected axis labels extend into empty neighbouring bucket cells without ellipsis (first start, middle centered, last end), and below a 36rem axis width a container query shows the compact localized day-and-month form of the same bucket dates. Measured on the 13-bucket preview: 390 px and 430 px show `1 juin`, `22 juin`, `3 août`, `24 août` (EN `1 Jun` … `24 Aug`) with no overlap and no whole-page overflow; 800, 901, 1024, and 1440 px keep full dates. The exact 900 px AppShell already honours the `<= 900px` contract (query matches, Menu visible and keyboard focusable, drawer opens and closes); no AppShell change was made.
+- Local validation on `99eaa3a158f05e270e8ba2b90c916a14326fe7e2`: `format:check`, `git diff --check`, `check:styles`, `lint`, `typecheck`, web tests 159/159, and `build` pass. The web run intermittently exits 1 locally on one unhandled rejection from `src/i18n/content-language.test.tsx`, a finished App test whose late task request escapes its restored `fetch` mock; it is unrelated to Reporting and left for separate follow-up.
+- The production build contains only `index.html`; the development-only `reporting.html` review surface is excluded.
+- Reviewed at 1440, 1024, 900, 800, 430, and 390 px in both languages with no whole-page horizontal overflow; drilldown overflow stays inside the data region.
+- Issue #58 / PR #59 merged into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a` and was integrated without conflicts. The inherited delta is limited to `line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`; Reporting authored no API, contract, Prisma, or migration changes.
+- Exact-head GitHub Actions run `34481793348` at `3874f4f54f5ee5927bd20e63e80dbc196391e29f` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 306/306 PostgreSQL integration tests.
+- Visual evidence from the integrated head: English overview, French same-mount language switch (`<html lang="fr">`, zero `.legacy-english-content` around Reporting), and French empty-result preview at `reporting.html`.
 
 ## Completed foundation work
 
@@ -409,8 +431,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the Issue #54 localization foundation on draft PR #55, including the French shell at `http://127.0.0.1:5173/app-shell.html`; keep the PR open/unmerged.
-2. After acceptance only, continue Issue #52 with the Recruitment/Reporting representative surface, built bilingual from its first commit. Candidate and Public Opportunity redesigns remain later checkpoints.
+1. Review the bilingual Reporting surface at `http://127.0.0.1:5173/reporting.html` in English and French at the required responsive widths.
+2. Keep PR #57 open, draft, and unmerged. Candidate and Public Opportunity redesigns remain blocked until Reporting is accepted.
 
 ## Status Update Rules
 

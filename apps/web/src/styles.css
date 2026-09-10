@@ -4,3 +4,4 @@
 @import './styles/components.css';
 @import './styles/utilities.css';
 @import './ui/shell/app-shell.css';
+@import './reporting/reporting.css';

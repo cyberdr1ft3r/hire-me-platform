@@ -1548,12 +1548,31 @@ describe('App', () => {
     await loginAs('viewonly-report@example.test');
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
-    expect(await screen.findByRole('heading', { name: /recruitment reporting/i })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Recruitment reporting' }),
+    ).toBeVisible();
     expect(await screen.findByText('Open missions')).toBeVisible();
-    expect(screen.getByLabelText(/client filter/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/mission filter/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/recruiter filter/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Client')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mission')).toBeInTheDocument();
+    expect(screen.getByLabelText('Recruiter')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply filters' })).toBeVisible();
+    // The action does not exist without the export capability. It is not merely
+    // rendered in a disabled state, which would still disclose it.
     expect(screen.queryByRole('button', { name: /export csv/i })).toBeNull();
+  });
+
+  it('leaves the bilingual reporting surface outside the deferred English boundary', async () => {
+    mockReportingSession(['reporting:recruitment:view']);
+
+    render(<App />);
+    await loginAs('viewonly-report@example.test');
+    fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
+
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Recruitment reporting',
+    });
+    expect(heading.closest('.legacy-english-content')).toBeNull();
   });
 
   it('exposes the export action and triggers a CSV download when permitted', async () => {

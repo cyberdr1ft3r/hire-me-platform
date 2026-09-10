@@ -248,6 +248,18 @@ Phase 1 proves `Button`, `FieldFrame`, `TextField`, `TextArea`, `Select`, `Check
 
 The approved Task 2 checkpoint adds the authenticated internal `AppShell` and `PageHeader`. `AppShell` owns only persistent internal chrome: grouped permission-aware navigation, the current-destination marker, compact API health, safe user identity, refresh, sign-out, responsive off-canvas behavior, and the main-content focus target. It does not redesign module content. `PageHeader` owns the canonical internal title, concise description, optional metadata, and action region; actions wrap without changing their semantic order. Internal modules keep their existing density and business behavior while they are hosted by the shell.
 
-The synthetic API-free shell specimen is available only through `apps/web/app-shell.html` during development. It uses placeholder identity and content, is not linked from product navigation, and is excluded from the normal production build. Production data-table abstractions, modal/drawer frameworks beyond the shell navigation, charts, tabs, pagination, and representative module redesigns belong to later approved Issue #52 checkpoints.
+The synthetic API-free shell specimen is available only through `apps/web/app-shell.html` during development. It uses placeholder identity and content, is not linked from product navigation, and is excluded from the normal production build. Modal/drawer frameworks beyond the shell navigation, tabs, and the remaining representative module redesigns belong to later approved Issue #52 checkpoints.
+
+## Reporting representative surface
+
+The Recruitment/Reporting dashboard is the first representative surface built with this system, and it is where the data rules above are first proven in production code. It adds no new visual vocabulary: every color, space, radius, and type size comes from the tokens already defined here.
+
+- **KPI hierarchy, not a tile grid.** A reporting page states a small number of primary measurements at display size, then keeps supporting measurements available at a lower weight. Twelve equal tiles are not a hierarchy. Semantic color appears only where a number means something is wrong; an ordinary positive count stays neutral.
+- **Filters are one region, not a card.** The filter toolbar sits between two one-pixel rules with its controls on a wrapping grid and its actions at the end. It never becomes a nested surface, and its actions take a full `--hit-target-min` in touch contexts.
+- **Distributions and trends obey section N.** The pipeline distribution pairs each localized state label with its count, its share, and a proportional bar; the bar is support, and the text carries the data. Weekly trends use `--color-chart-1` through `5` in order as small multiples, one labelled row per metric, drawn against one shared maximum so the rows stay comparable rather than each being stretched to its own scale. Both are plain CSS and SVG: a charting dependency is a design-system decision, not a module one.
+- **Dense tables contain their own overflow.** A wide data table scrolls inside its region, never the page, and keeps real `<th>` column headers and server-driven pagination.
+- **Loading, failure, and emptiness are three different states.** They never share one blank area, and no metric renders a zero while its value is still unknown.
+
+Its development-only review surface is `apps/web/reporting.html`. It renders the real dashboard components inside the real shell and locale provider with synthetic data, makes no request, is not linked from product navigation, and is excluded from the production build.
 
 For this AppShell checkpoint, the persistent sidebar switches to the off-canvas navigation at and below 900px (`56.25rem`); 1024px remains the persistent laptop shell. The JavaScript media query and CSS breakpoint must stay identical.
