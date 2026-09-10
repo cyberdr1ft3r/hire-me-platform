@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** Issue #52 representative surfaces. The Recruitment/Reporting dashboard (Issue #56) is the first one, built on the merged UI-DNA, AppShell, PageHeader, and localization foundations.
 **Health:** `main` is at `938979bf7646a98a57d0cc3da82d518acafdf13a`, the merge commit for Issue #58 / PR #59. Issue #56 is implemented on branch `design/reporting-dashboard-v1`, and current `main` is integrated without conflicts.
-**Current blocker:** Complete post-integration local validation, obtain green exact-head CI, and complete the Reporting visual review. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
-**Next executable development task:** Validate the integrated Reporting head, update draft PR #57 with exact-head evidence, and perform the EN/FR visual gate; keep it open/unmerged.
+**Current blocker:** Maintainer/ChatGPT visual review of the integrated Reporting representative surface. Candidate workspace and Public Opportunity redesigns do not begin until Reporting is approved.
+**Next executable development task:** Review draft PR #57 at `http://127.0.0.1:5173/reporting.html` in English and French; keep it open/unmerged.
 
 ## Active work
 
@@ -37,7 +37,7 @@ Status owner: repository maintainer
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
 | Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; the Reporting representative surface is in review under Issue #56. Candidate workspace and Public Opportunity redesigns not started |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
-| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`; current `main` integrated and post-integration validation pending |
+| Issue #56 | Open | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Implemented on `design/reporting-dashboard-v1`; draft PR #57 corrected after technical review `5164555554`; current `main` integrated; post-integration validation and exact-head CI green |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
 ## Issue #56 Verification State
@@ -50,10 +50,12 @@ Status owner: repository maintainer
 - Switching language re-renders labels and `Intl` formatting only; the report is not refetched.
 - Drilldown paging replaces the table alone and does not refetch the aggregates; applying filters restarts the report at page 1. A monotonic request-sequence guard discards any page response, success or failure, whose report generation (filters, retry, reset, session) or page request has been superseded, and deterministic deferred-promise tests prove it.
 - CSV export sends the current filter-control values, exactly as merged `main` did, without reloading the dashboard.
-- `pnpm install --frozen-lockfile`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build` all passed locally. Test totals: contracts 23, API 67, web 149 (was 121 on `main`).
+- Post-integration local validation passed on head `3874f4f54f5ee5927bd20e63e80dbc196391e29f`: `pnpm install --frozen-lockfile`, `prisma:validate`, `prisma:generate`, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, `lint`, `typecheck`, `test`, and `build`. Test totals: contracts 23/23, API 78/78, web 149/149.
 - The production build contains only `index.html`; the development-only `reporting.html` review surface is excluded.
 - Reviewed at 1440, 1024, 900, 800, 430, and 390 px in both languages with no whole-page horizontal overflow; drilldown overflow stays inside the data region.
-- Issue #58 / PR #59 merged into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a` and was integrated without conflicts. The inherited delta is limited to `line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`; Reporting authored no API, contract, Prisma, or migration changes. Full post-integration validation and exact-head CI evidence remain pending.
+- Issue #58 / PR #59 merged into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a` and was integrated without conflicts. The inherited delta is limited to `line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`; Reporting authored no API, contract, Prisma, or migration changes.
+- Exact-head GitHub Actions run `34481793348` at `3874f4f54f5ee5927bd20e63e80dbc196391e29f` passed Quality checks, PostgreSQL Docker Compose health, and Database migration, seed, and integration tests with 306/306 PostgreSQL integration tests.
+- Visual evidence from the integrated head: English overview, French same-mount language switch (`<html lang="fr">`, zero `.legacy-english-content` around Reporting), and French empty-result preview at `reporting.html`.
 
 ## Completed foundation work
 
@@ -426,9 +428,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Complete post-integration validation and exact-head CI for draft PR #57.
-2. Review the bilingual Reporting surface at `http://127.0.0.1:5173/reporting.html` in English and French at the required responsive widths.
-3. Keep PR #57 open, draft, and unmerged. Candidate and Public Opportunity redesigns remain blocked until Reporting is accepted.
+1. Review the bilingual Reporting surface at `http://127.0.0.1:5173/reporting.html` in English and French at the required responsive widths.
+2. Keep PR #57 open, draft, and unmerged. Candidate and Public Opportunity redesigns remain blocked until Reporting is accepted.
 
 ## Status Update Rules
 

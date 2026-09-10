@@ -12,7 +12,9 @@ Last updated: 2026-09-10
 - Reporting presentation moved out of `App.tsx` into `apps/web/src/reporting/`. No other module was moved and no unrelated refactor was performed.
 - Technical review `5164555554` raised three corrections, all resolved on this branch: stale drilldown page responses are discarded through a request-sequence guard, the language-switch test now switches locale on one mounted dashboard, and CSV export again sends the current filter-control values as merged `main` did.
 - Issue #58 is complete through merged PR #59. Its inherited delta is limited to `apps/api/src/document-generation/renderers/line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`. The fix keeps the original preservation assertion, adds no timeout/retry/skip, and passed exact-head run `34468919515`.
-- The integrated Reporting head still needs the full local validation suite, refreshed visual evidence, an updated PR description, and green exact-head CI.
+- Post-integration validation is complete on head `3874f4f54f5ee5927bd20e63e80dbc196391e29f`. Local totals: contracts 23/23, API 78/78, web 149/149. Exact-head GitHub Actions run `34481793348` passed all jobs, including 306/306 PostgreSQL integration tests.
+- Visual evidence from the integrated head is available: English overview, French same-mount language switch, and French empty-result preview at `reporting.html`.
+- The maintainer/ChatGPT visual gate is the remaining blocker before Candidate or Public Opportunity work begins.
 
 ## Review target
 
@@ -39,7 +41,7 @@ Then confirm the language-of-content boundary. With French active, `/reporting` 
 
 ## Completion conditions
 
-- Full post-integration local quality gates and exact-head GitHub Actions are green.
+- Full post-integration local quality gates and exact-head GitHub Actions are green on `3874f4f54f5ee5927bd20e63e80dbc196391e29f`.
 - The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`; no chart library, UI framework, or i18n framework was added.
 - Reporting endpoints, KPI definitions, authorization, record scope, filter semantics, the pagination contract, and CSV generation are provably unchanged.
 - The production build contains no development preview page.
@@ -54,6 +56,6 @@ Do not begin the Candidate workspace or the Public Opportunity redesign until th
 
 - Read `AGENTS.md`, Issue #52, Issue #56, the Reporting PR review history, and the project-memory files.
 - Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
-- Run the full repository validation suite after the `main` integration and record exact test totals.
-- Regenerate the EN/FR responsive visual evidence from the integrated head and update PR #57.
+- Re-run the full repository validation suite only if the branch head changes again.
+- Use the refreshed EN/FR visual evidence from the integrated head during maintainer/ChatGPT review.
 - Keep any requested correction inside the Reporting boundary: `apps/web/src/reporting`, `apps/web/src/reporting-preview`, the `reporting.*` and reporting-owned `domain.*` dictionary entries, and the design/project documentation.
