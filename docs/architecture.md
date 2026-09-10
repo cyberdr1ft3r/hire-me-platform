@@ -391,12 +391,16 @@ control characters but never truncates or substitutes. PDF text wraps across lin
 pages, and text is laid out by wrapping in logical order first and applying the
 bidirectional reordering per display line afterwards, which is the sequence UAX #9
 prescribes. A token wider than the line is split at the longest prefix the shaped width
-measurement accepts, found by a galloping search followed by a binary search, so the work
-for an unbroken value such as a long reference or URL grows roughly linearly with its
-length instead of cubically, and every accepted split is one the real shaping measured.
-That bound comes from the search alone; no value is shortened to achieve it. Text in a
-script no bundled face covers is refused rather than corrupted, while the Word output
-carries full Unicode.
+measurement accepts. Prefix width is not assumed monotonic: Arabic joining in the bundled
+Noto face can make a longer prefix narrower. The splitter uses galloping and binary search
+for a provisional boundary, then checks forward in finite six-grapheme shaping spans and
+resumes from any recovered fit. Six covers the largest GSUB contextual/ligature input in
+the bundled faces (the corresponding GPOS maximum is two); combining marks remain with
+their grapheme. The prior chunk size seeds the next search, so an unbroken value such as a
+long reference grows roughly linearly instead of rescanning the whole remainder for every
+line. Every accepted split is measured by the real shaper and no value is shortened to
+achieve the bound. Text in a script no bundled face covers is refused rather than
+corrupted, while the Word output carries full Unicode.
 
 Provenance is bounded and structured on the version itself: template id, template version,
 language, output family, size, and checksum. Audit metadata carries the document, version,

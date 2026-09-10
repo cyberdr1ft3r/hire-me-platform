@@ -1,6 +1,10 @@
+import PDFDocument from 'pdfkit';
 import { describe, expect, it } from 'vitest';
 
+import { fontAsset, fontBytes } from './font-registry.js';
 import { splitUnbrokenToken } from './line-breaking.js';
+import { ShapedTextWriter } from './pdf-text-mapping.js';
+import { runGroups, visualRuns } from './text-runs.js';
 
 /**
  * The long-token splitter, driven by deterministic width models instead of a font.
@@ -11,6 +15,22 @@ import { splitUnbrokenToken } from './line-breaking.js';
  */
 
 type WidthModel = (text: string) => number;
+
+function productionMeasure() {
+  const pdf = new PDFDocument({ autoFirstPage: false });
+  for (const script of ['latin', 'arabic'] as const) {
+    pdf.registerFont(fontAsset(script, 'regular').id, fontBytes(script, 'regular'));
+  }
+  const writer = new ShapedTextWriter(pdf);
+  return (text: string, base: 'ltr' | 'rtl' = 'ltr'): number =>
+    runGroups(visualRuns(text, 'regular', base)).reduce(
+      (total, group) =>
+        total + writer.measure(fontAsset(group.script, 'regular').id, 10, group.segments),
+      0,
+    );
+}
+
+const measureProductionText = productionMeasure();
 
 /** Wraps a width model as a `fits` check that records every measurement it performs. */
 function countingFits(width: WidthModel, limit: number) {
@@ -126,6 +146,56 @@ describe('splitUnbrokenToken', () => {
     }
   });
 
+  it('keeps a longer fitting prefix when the first character alone rejects', () => {
+    const { fits } = countingFits(contextualWidth, 4);
+
+    expect(splitUnbrokenToken('xa', fits)).toEqual(['xa']);
+  });
+
+  it('does not stop at a rejected prefix when a later prefix fits', () => {
+    const recoveringWidth: WidthModel = (text) => {
+      if (text === 'ab') {
+        return 6;
+      }
+      if (text === 'abc' || text === 'abcd') {
+        return 4;
+      }
+      return text.length;
+    };
+    const { fits } = countingFits(recoveringWidth, 4);
+
+    expect(splitUnbrokenToken('abcde', fits)).toEqual(['abcd', 'e']);
+  });
+
+  it('handles a rejected-shorter, accepted-longer prefix from the production Arabic shaper', () => {
+    const isolated = measureProductionText('ئ', 'rtl');
+    const joined = measureProductionText('ئآ', 'rtl');
+    const limit = (isolated + joined) / 2;
+
+    expect(isolated).toBeGreaterThan(joined);
+    expect(splitUnbrokenToken('ئآ', (text) => measureProductionText(text, 'rtl') <= limit)).toEqual(
+      ['ئآ'],
+    );
+  });
+
+  it('measures supported shaping categories through the production writer', () => {
+    const cases = [
+      { base: 'ltr' as const, text: 'ToAV' },
+      { base: 'ltr' as const, text: 'fi' },
+      { base: 'ltr' as const, text: 'ffi' },
+      { base: 'ltr' as const, text: 'ffl' },
+      { base: 'rtl' as const, text: 'شركةالأطلس' },
+      { base: 'ltr' as const, text: 'HireMeشركة2026' },
+      { base: 'ltr' as const, text: 'A\u0301e\u0327' },
+      { base: 'rtl' as const, text: '٠١٢٣' },
+    ];
+
+    for (const { base, text } of cases) {
+      const width = measureProductionText(text, base);
+      expect(Number.isFinite(width) && width >= 0).toBe(true);
+    }
+  });
+
   it('still emits a character wider than the whole line instead of dropping it', () => {
     const token = 'WWW';
     const { fits } = countingFits(unevenWidth, 2);
@@ -158,5 +228,26 @@ describe('splitUnbrokenToken', () => {
     // No candidate is ever much longer than a line, so no measurement reshapes the whole
     // remaining token.
     expect(Math.max(...measured.map((text) => text.length))).toBeLessThanOrEqual(2 * limit);
+  });
+
+  it('keeps measuring work near-linear when the token length doubles to 1200 characters', () => {
+    const measure = (length: number) => {
+      const token = 'A'.repeat(length);
+      const { fits, measured } = countingFits((text) => text.length, 50);
+      const chunks = splitUnbrokenToken(token, fits);
+      expectLosslessFittingChunks(
+        token,
+        chunks,
+        new Set(measured.filter((text) => text.length <= 50)),
+      );
+      return { chunks, measurements: measured.length };
+    };
+    const shorter = measure(600);
+    const longer = measure(1200);
+
+    expect(shorter.measurements).toBe(86);
+    expect(longer.measurements).toBe(170);
+    expect(longer.measurements).toBeLessThanOrEqual(shorter.measurements * 2);
+    expect(longer.chunks).toHaveLength(shorter.chunks.length * 2);
   });
 });

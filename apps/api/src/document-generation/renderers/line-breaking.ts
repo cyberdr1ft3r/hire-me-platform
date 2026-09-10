@@ -6,14 +6,13 @@
  * contextual forms, and bidirectional runs are all accounted for. Nothing here estimates
  * a width: every chunk is chosen only after `fits` has accepted that exact text.
  *
- * Each chunk is the longest fitting prefix of what remains, found by a galloping search
- * (lengths 1, 2, 4, 8, … until one stops fitting) followed by a binary search between the
- * last length that fit and the first that did not. The search never measures a candidate
- * more than about twice as long as the chunk it settles on, so the work for a very long
- * unbroken value grows roughly linearly with its length. Measuring every shorter prefix of
- * the whole remainder instead — which is what this replaces — shapes on the order of the
- * cube of the token length, and a user-supplied value of a few thousand characters without
- * a space would occupy the renderer for minutes.
+ * Each chunk starts with a galloping search (lengths 1, 2, 4, 8, …) and binary refinement.
+ * Font shaping is not monotonic: appending an Arabic character can replace a wider isolated
+ * form with narrower joined forms. A bounded forward recovery pass therefore checks beyond
+ * the provisional boundary and resumes whenever a later prefix fits. Six grapheme clusters
+ * cover the largest contextual or ligature input in the bundled Noto faces; marks stay with
+ * their base cluster. This preserves the production shaper's longest-fitting-prefix result
+ * without measuring every shorter prefix of the whole remainder.
  *
  * Invariants:
  *
@@ -25,38 +24,80 @@
 export function splitUnbrokenToken(token: string, fits: (text: string) => boolean): string[] {
   const chunks: string[] = [];
   let remainder = token;
+  let suggestedLength = 1;
   while (remainder.length > 0) {
-    const take = longestFittingPrefix(remainder, fits);
-    chunks.push(remainder.slice(0, take));
-    remainder = remainder.slice(take);
+    const prefix = longestFittingPrefix(remainder, fits, suggestedLength);
+    chunks.push(remainder.slice(0, prefix.end));
+    remainder = remainder.slice(prefix.end);
+    suggestedLength = prefix.graphemes;
   }
   return chunks;
 }
 
+/** Largest contextual/ligature span encoded by the bundled Noto faces. */
+const contextualRecoverySpan = 6;
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
 /**
  * Length, at least 1, of the longest prefix of `text` that `fits` accepts.
  *
- * Widths grow as text is added, so the prefixes that fit form a contiguous range starting
- * at the shortest one. The search relies on that only to decide where to look; whatever
- * length it returns above 1 is one that `fits` explicitly accepted.
+ * Galloping and binary refinement locate a provisional fit efficiently. Those probes are
+ * only a search hint: the production font's finite contextual span is checked explicitly
+ * before the result is settled, and every returned multi-grapheme prefix was accepted by
+ * `fits` itself.
  */
-function longestFittingPrefix(text: string, fits: (text: string) => boolean): number {
-  const prefixFits = (length: number): boolean => fits(text.slice(0, length));
+function longestFittingPrefix(
+  text: string,
+  fits: (text: string) => boolean,
+  suggestedLength: number,
+): { end: number; graphemes: number } {
+  const boundaries = [...graphemeSegmenter.segment(text)].map(
+    ({ index, segment }) => index + segment.length,
+  );
+  const measured = new Map<number, boolean>();
+  const prefixFits = (length: number): boolean => {
+    const cached = measured.get(length);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const accepted = fits(text.slice(0, boundaries[length - 1]));
+    measured.set(length, accepted);
+    return accepted;
+  };
+  const prefixCount = boundaries.length;
 
   // `fitting` is the longest length accepted so far (0 when none has been); `overflowing`
-  // is the shortest length rejected so far (`text.length + 1` when none has been).
+  // is the shortest length rejected so far (`prefixCount + 1` when none has been).
   let fitting = 0;
-  let overflowing = text.length + 1;
+  let overflowing = prefixCount + 1;
 
-  for (let probe = 1; probe <= text.length; probe = Math.min(probe * 2, text.length)) {
-    if (!prefixFits(probe)) {
-      overflowing = probe;
-      break;
-    }
+  // A settled chunk is a strong size hint for the next remainder. Confirm it and its
+  // immediate successor before galloping further; uniform long tokens then need no new
+  // binary search for every line.
+  let probe = Math.min(Math.max(suggestedLength, 1), prefixCount);
+  if (prefixFits(probe)) {
     fitting = probe;
-    if (probe === text.length) {
-      return probe;
+    if (probe === prefixCount) {
+      return { end: boundaries[probe - 1] ?? text.length, graphemes: probe };
     }
+    probe += 1;
+    if (prefixFits(probe)) {
+      fitting = probe;
+      for (probe = Math.min(probe * 2, prefixCount); ; probe = Math.min(probe * 2, prefixCount)) {
+        if (!prefixFits(probe)) {
+          overflowing = probe;
+          break;
+        }
+        fitting = probe;
+        if (probe === prefixCount) {
+          return { end: boundaries[probe - 1] ?? text.length, graphemes: probe };
+        }
+      }
+    } else {
+      overflowing = probe;
+    }
+  } else {
+    overflowing = probe;
   }
 
   while (overflowing - fitting > 1) {
@@ -68,6 +109,25 @@ function longestFittingPrefix(text: string, fits: (text: string) => boolean): nu
     }
   }
 
-  // A first character wider than the whole line still has to be drawn somewhere.
-  return Math.max(fitting, 1);
+  // Binary search can stop before a later fitting prefix when contextual shaping makes a
+  // shorter prefix wider. Scan one finite shaping span beyond the provisional result; if
+  // a fit recovers, repeat from the furthest recovered point until a whole span rejects.
+  let recovered = fitting;
+  while (recovered < prefixCount) {
+    const end = Math.min(recovered + contextualRecoverySpan, prefixCount);
+    let furthest = recovered;
+    for (let candidate = recovered + 1; candidate <= end; candidate += 1) {
+      if (prefixFits(candidate)) {
+        furthest = candidate;
+      }
+    }
+    if (furthest === recovered) {
+      break;
+    }
+    recovered = furthest;
+  }
+
+  // A first grapheme wider than the whole line still has to be drawn somewhere.
+  const graphemes = Math.max(recovered, 1);
+  return { end: boundaries[graphemes - 1] ?? text.length, graphemes };
 }

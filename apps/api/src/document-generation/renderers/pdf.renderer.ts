@@ -85,9 +85,10 @@ function measureGroups(
  * wrapping afterwards would lay right-to-left words out left to right, which reads as
  * scrambled Arabic even though every glyph is correct.
  *
- * A token wider than the line is split at a character boundary rather than clipped, so no
- * authoritative text is ever lost. `splitUnbrokenToken` chooses each split with a bounded
- * search, and every candidate it accepts is measured here, shaped exactly as it is drawn.
+ * A token wider than the line is split at a grapheme boundary rather than clipped, so no
+ * authoritative text is ever lost. `splitUnbrokenToken` combines a bounded search with a
+ * finite contextual-recovery pass, and every candidate it accepts is measured here,
+ * shaped exactly as it is drawn.
  */
 function layoutLine(
   writer: ShapedTextWriter,
