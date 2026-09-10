@@ -6,16 +6,17 @@ Last updated: 2026-09-10
 
 - Authoritative `main` is `938979bf7646a98a57d0cc3da82d518acafdf13a`, the PR #59 merge commit for the Issue #58 bounded PDF line-breaking correction.
 - Issue #52 remains open for its representative-surface checkpoints. PR #53 and PR #55 are merged and closed.
-- Issue #56 and draft PR #57 are open on `design/reporting-dashboard-v1` at head `a41acc85ba55558b79265724ad08968feed84079`. Current `main` is integrated without conflicts. Do not merge or deploy them.
+- Issue #56 and draft PR #57 are open on `design/reporting-dashboard-v1`; the latest code commit is `99eaa3a158f05e270e8ba2b90c916a14326fe7e2`. Current `main` is integrated without conflicts. Do not merge or deploy them.
 - Visual review `5168036411` corrections are implemented: one shared visible weekly trend x-axis below the small multiples, shorter EN/FR default filter option labels, and `lang={locale}` on native date inputs. Chromium still renders `mm/dd/yyyy` in the date mask despite `lang="fr"`; documented as browser-native presentation.
+- Visual re-review `5168423918` approved desktop Reporting and raised one mobile axis correction, now implemented: selected axis labels may extend into the empty neighbouring bucket cells (first start-aligned, middle centered, last end-aligned, no ellipsis), and below a 36rem axis width a container query shows the compact localized day-and-month form of the same bucket dates (`1 juin`, `22 juin`, `3 août`, `24 août`). Desktop keeps full dates. The exact 900 px AppShell was verified working (Menu visible, focusable, drawer opens and closes); no AppShell change was made.
 - Issue #56 redesigns the Recruitment/Reporting dashboard as the first representative surface. It is presentation work only: no API, contract, Prisma, KPI, authorization, record-scope, filter-semantic, or CSV change was made.
 - Reporting is now fully bilingual, so it left `deferredEnglishRoutes`. Every other deferred route still declares `lang="en"` through the shared `LegacyEnglishContent` boundary.
 - Reporting presentation moved out of `App.tsx` into `apps/web/src/reporting/`. No other module was moved and no unrelated refactor was performed.
 - Technical review `5164555554` raised three corrections, all resolved on this branch: stale drilldown page responses are discarded through a request-sequence guard, the language-switch test now switches locale on one mounted dashboard, and CSV export again sends the current filter-control values as merged `main` did.
 - Issue #58 is complete through merged PR #59. Its inherited delta is limited to `apps/api/src/document-generation/renderers/line-breaking.ts`, `line-breaking.test.ts`, `pdf.renderer.ts`, and `docs/architecture.md`.
-- Post-visual-review local validation is complete on head `a41acc85ba55558b79265724ad08968feed84079`. Local totals: contracts 23/23, API 78/78, web 158/158. Exact-head GitHub Actions run `34487367923` passed all jobs, including 306/306 PostgreSQL integration tests.
-- Refreshed EN/FR visual evidence from the visual-review head is available at `reporting.html` across 1440, 1024, 900, 800, 430, and 390 px, including trends with the shared axis, drilldown, pagination, and mobile drawer open/closed.
-- The maintainer/ChatGPT visual re-review gate is the remaining blocker before Candidate or Public Opportunity work begins.
+- Post-re-review local validation on `99eaa3a158f05e270e8ba2b90c916a14326fe7e2`: `format:check`, `git diff --check`, `check:styles`, `lint`, `typecheck`, web tests 159/159, and `build` pass. Locally the web run intermittently exits 1 on one unhandled rejection from `src/i18n/content-language.test.tsx`, where a finished App test's late task request escapes its restored `fetch` mock and reaches a parallel agent's API on port 3000; it does not involve Reporting and is tracked as separate follow-up work.
+- Refreshed FR visual evidence from the re-review head: 390 and 430 px lower Reporting area, 900 px top with the Menu trigger, and 1440 px lower Reporting area.
+- The final maintainer/ChatGPT Reporting approval is the remaining blocker before Candidate or Public Opportunity work begins.
 
 ## Review target
 
@@ -32,7 +33,7 @@ Open `http://127.0.0.1:5173/reporting.html`. It is a synthetic, API-free surface
 - the filter toolbar: five controls (start, end, client, mission, recruiter) as one functional region between two rules, with shortened default option labels and `Apply filters` / `Appliquer les filtres` and `Reset filters` / `Réinitialiser les filtres`;
 - the KPI band: six primary metrics as a measurement strip and six supporting metrics at lower weight, with semantic color only on overdue missions;
 - the pipeline distribution: localized state labels, count, share, and a proportional bar, ordered by size, where the bar is never the only channel;
-- the weekly trends: one labelled row per metric using chart tokens 1–5 in order, one shared maximum so rows stay comparable, one shared visible x-axis below the group with first/25%/75%/last bucket labels, and the complete weekly counts available as a text alternative;
+- the weekly trends: one labelled row per metric using chart tokens 1–5 in order, one shared maximum so rows stay comparable, one shared visible x-axis below the group with first/25%/75%/last bucket labels (compact day-and-month dates on a narrow axis), and the complete weekly counts available as a text alternative;
 - the drilldown: a dense seven-column table with real `<th>` headers, contained horizontal overflow, and working `Previous` / `Page X` / `Next` paging;
 - the `Preview dataset` switch, which swaps a representative dataset for an empty one so the empty states can be reviewed;
 - the language control, which must change labels and `Intl` formatting without reloading the page or refetching the report;
@@ -42,7 +43,7 @@ Then confirm the language-of-content boundary. With French active, `/reporting` 
 
 ## Completion conditions
 
-- Full post-visual-review local quality gates and exact-head GitHub Actions are green on `a41acc85ba55558b79265724ad08968feed84079`.
+- Local quality gates and exact-head GitHub Actions are green on the branch head that follows `99eaa3a158f05e270e8ba2b90c916a14326fe7e2`.
 - The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`; no chart library, UI framework, or i18n framework was added.
 - Reporting endpoints, KPI definitions, authorization, record scope, filter semantics, the pagination contract, and CSV generation are provably unchanged.
 - The production build contains no development preview page.
@@ -58,5 +59,5 @@ Do not begin the Candidate workspace or the Public Opportunity redesign until th
 - Read `AGENTS.md`, Issue #52, Issue #56, the Reporting PR review history, and the project-memory files.
 - Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
 - Re-run the full repository validation suite only if the branch head changes again.
-- Use the refreshed EN/FR visual evidence from head `a41acc85ba55558b79265724ad08968feed84079` during maintainer/ChatGPT visual re-review.
+- Use the refreshed FR visual evidence from code commit `99eaa3a158f05e270e8ba2b90c916a14326fe7e2` during the final maintainer/ChatGPT Reporting approval.
 - Keep any requested correction inside the Reporting boundary: `apps/web/src/reporting`, `apps/web/src/reporting-preview`, the `reporting.*` and reporting-owned `domain.*` dictionary entries, and the design/project documentation.
