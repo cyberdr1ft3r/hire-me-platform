@@ -1,0 +1,428 @@
+import type {
+  CandidateCreateRequest,
+  CandidateDetail,
+  CandidateUpdateRequest,
+} from '@hire-me/contracts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import {
+  archiveCandidate,
+  createCandidate,
+  createCandidateEducation,
+  createCandidateLanguage,
+  createCandidateSkill,
+  createCandidateWorkExperience,
+  getCandidate,
+  listCandidates,
+  updateCandidate,
+  updateCandidateStatus,
+} from '../api.js';
+import { useI18n } from '../i18n/index.js';
+import { resolveCandidateAccess } from './candidate-access.js';
+import { classifyCandidateFailure, type CandidateFailure } from './candidate-errors.js';
+import { candidateStatusLabelKey } from './candidate-labels.js';
+import {
+  CANDIDATE_LIST_PAGE_SIZE,
+  EMPTY_CANDIDATE_FILTERS,
+  type CandidateCreateValues,
+  type CandidateDetailState,
+  type CandidateFeedback,
+  type CandidateFilterValues,
+  type CandidateFormOutcome,
+  type CandidateLifecycleTarget,
+  type CandidateListState,
+  type CandidatePendingAction,
+  type CandidateProfileValues,
+  type CandidateRecordInput,
+} from './candidate-state.js';
+import { CandidateWorkspace } from './CandidateWorkspace.js';
+
+/** An optional field: trimmed, or omitted when empty, exactly as before. */
+function optional(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** A clearable field: trimmed, or `null` when empty, exactly as before. */
+function nullable(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * The create body the workspace has always sent: seven approved fields, the
+ * name as entered, everything else trimmed or omitted. It never carries
+ * lifecycle, compensation, or consent fields.
+ */
+export function toCandidateCreateRequest(values: CandidateCreateValues): CandidateCreateRequest {
+  return {
+    displayName: values.displayName,
+    email: optional(values.email),
+    phone: optional(values.phone),
+    city: optional(values.city),
+    country: optional(values.country),
+    currentJobTitle: optional(values.currentJobTitle),
+    source: optional(values.source),
+  };
+}
+
+/**
+ * The update body the workspace has always sent: the same eight approved
+ * master fields every time, a cleared field sent as `null`. Compensation and
+ * consent keys are never present, so an ordinary profile save can never touch
+ * them, whatever the actor's permissions.
+ */
+export function toCandidateUpdateRequest(values: CandidateProfileValues): CandidateUpdateRequest {
+  return {
+    displayName: values.displayName,
+    email: nullable(values.email),
+    phone: nullable(values.phone),
+    city: nullable(values.city),
+    country: nullable(values.country),
+    currentJobTitle: nullable(values.currentJobTitle),
+    professionalSummary: nullable(values.professionalSummary),
+    source: nullable(values.source),
+  };
+}
+
+const RECORD_ADDED_FEEDBACK = {
+  education: 'educationAdded',
+  experience: 'experienceAdded',
+  language: 'languageAdded',
+  skill: 'skillAdded',
+} as const satisfies Record<CandidateRecordInput['kind'], string>;
+
+function failureOutcome(failure: CandidateFailure): CandidateFormOutcome {
+  return failure === 'duplicateEmail'
+    ? { fieldErrors: { email: 'duplicateEmail' }, ok: false }
+    : { failure, ok: false };
+}
+
+/**
+ * Container for the Candidate workspace.
+ *
+ * It owns everything with a consequence: the authenticated reads, the applied
+ * filters, selection, every mutation, the confirmation prompts, and the
+ * permission-derived access flags. `CandidateWorkspace` below it is
+ * presentation only, so the visual work cannot change a request, a permission
+ * rule, or a filter semantic.
+ *
+ * The candidate endpoints, their payloads, their lifecycle rules, and the
+ * server-side authorization and redaction behind them are unchanged.
+ */
+export function CandidatesPanel({
+  accessToken,
+  permissions,
+}: {
+  accessToken: string;
+  permissions: string[];
+}) {
+  const { t } = useI18n();
+  const access = useMemo(() => resolveCandidateAccess(permissions), [permissions]);
+  const [filters, setFilters] = useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  const [appliedFilters, setAppliedFilters] =
+    useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  const [list, setList] = useState<CandidateListState>({ status: 'loading' });
+  const [detail, setDetail] = useState<CandidateDetailState>({ status: 'idle' });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pending, setPending] = useState<CandidatePendingAction | null>(null);
+  const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
+
+  /*
+   * Monotonic request counters. A list or detail response may commit only while
+   * it is still the latest one of its kind, so a slow response for an earlier
+   * search or an earlier selection can never overwrite a newer one. The
+   * selected id is mirrored in a ref for the same reason: a mutation that
+   * resolves after the user moved to another candidate must not replace it.
+   */
+  const listRequest = useRef(0);
+  const detailRequest = useRef(0);
+  const selectedRef = useRef<string | null>(null);
+
+  async function loadList(nextFilters: CandidateFilterValues, quiet = false): Promise<void> {
+    const request = ++listRequest.current;
+    if (!quiet) {
+      setList({ status: 'loading' });
+    }
+    try {
+      // The same query as before: page 1 of 20, search and status only.
+      const response = await listCandidates({
+        accessToken,
+        search: nextFilters.search,
+        status: nextFilters.status || undefined,
+        pageSize: CANDIDATE_LIST_PAGE_SIZE,
+      });
+      if (request === listRequest.current) {
+        setList({
+          candidates: response.candidates,
+          status: 'ready',
+          total: response.pagination.total,
+        });
+      }
+    } catch {
+      // A quiet refresh after a mutation keeps the rows already on screen.
+      if (request === listRequest.current && !quiet) {
+        setList({ status: 'error' });
+      }
+    }
+  }
+
+  /*
+   * The list reloads when the session or the applied filters change, and never
+   * because the interface language changed: switching English and French only
+   * re-renders labels and `Intl` formatting.
+   */
+  useEffect(() => {
+    void loadList(appliedFilters);
+    return () => {
+      listRequest.current += 1;
+    };
+    // `loadList` reads only `accessToken`, which is listed here.
+  }, [accessToken, appliedFilters]);
+
+  useEffect(
+    () => () => {
+      detailRequest.current += 1;
+    },
+    [accessToken],
+  );
+
+  async function loadDetail(candidateId: string, quiet = false): Promise<void> {
+    const request = ++detailRequest.current;
+    if (!quiet) {
+      setDetail({ candidateId, status: 'loading' });
+    }
+    try {
+      const response = await getCandidate(accessToken, candidateId);
+      if (request === detailRequest.current && selectedRef.current === candidateId) {
+        setDetail({ candidate: response.candidate, status: 'ready' });
+      }
+    } catch {
+      if (request === detailRequest.current && selectedRef.current === candidateId && !quiet) {
+        setDetail({ candidateId, status: 'error' });
+      }
+    }
+  }
+
+  /** Commits a fresh record from a mutation response, invalidating older reads. */
+  function commitDetail(candidate: CandidateDetail): void {
+    if (selectedRef.current !== candidate.id) {
+      return;
+    }
+    detailRequest.current += 1;
+    setDetail({ candidate, status: 'ready' });
+  }
+
+  function handleSelect(candidateId: string): void {
+    selectedRef.current = candidateId;
+    setSelectedId(candidateId);
+    setFeedback(null);
+    void loadDetail(candidateId);
+  }
+
+  function handleSearch(): void {
+    setAppliedFilters({ ...filters });
+  }
+
+  function handleResetFilters(): void {
+    setFilters({ ...EMPTY_CANDIDATE_FILTERS });
+    setAppliedFilters({ ...EMPTY_CANDIDATE_FILTERS });
+  }
+
+  function handleRetryList(): void {
+    setAppliedFilters((previous) => ({ ...previous }));
+  }
+
+  function handleRetryDetail(): void {
+    if (selectedRef.current) {
+      void loadDetail(selectedRef.current);
+    }
+  }
+
+  /**
+   * An archived-conflict means the record changed underneath the user, so the
+   * record and the list are refreshed to show its real state.
+   */
+  function refreshAfterFailure(failure: CandidateFailure, candidateId: string): void {
+    if (failure === 'archived' || failure === 'conflict') {
+      void loadDetail(candidateId, true);
+      void loadList(appliedFilters, true);
+    }
+  }
+
+  async function handleCreate(values: CandidateCreateValues): Promise<CandidateFormOutcome> {
+    setPending('create');
+    try {
+      const created = await createCandidate(accessToken, toCandidateCreateRequest(values));
+      selectedRef.current = created.candidate.id;
+      setSelectedId(created.candidate.id);
+      commitDetail(created.candidate);
+      setFeedback({ kind: 'created', tone: 'success' });
+      void loadList(appliedFilters, true);
+      return { ok: true };
+    } catch (error) {
+      return failureOutcome(classifyCandidateFailure(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function handleUpdate(values: CandidateProfileValues): Promise<CandidateFormOutcome> {
+    if (detail.status !== 'ready') {
+      return { failure: 'notFound', ok: false };
+    }
+    const current = detail.candidate;
+    setPending('update');
+    try {
+      const updated = await updateCandidate(
+        accessToken,
+        current.id,
+        toCandidateUpdateRequest(values),
+      );
+      commitDetail(updated.candidate);
+      setFeedback({ kind: 'updated', tone: 'success' });
+      void loadList(appliedFilters, true);
+      return { ok: true };
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      refreshAfterFailure(failure, current.id);
+      return failureOutcome(failure);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function handleChangeStatus(status: CandidateLifecycleTarget): Promise<void> {
+    if (detail.status !== 'ready') {
+      return;
+    }
+    const current = detail.candidate;
+    // The same explicit confirmation as before, now in the interface language.
+    if (
+      !window.confirm(
+        t('candidate.lifecycle.confirmStatus', { status: t(candidateStatusLabelKey(status)) }),
+      )
+    ) {
+      return;
+    }
+    setPending('status');
+    setFeedback(null);
+    try {
+      const updated = await updateCandidateStatus(accessToken, current.id, { status });
+      commitDetail(updated.candidate);
+      setFeedback({ kind: 'statusChanged', status, tone: 'success' });
+      void loadList(appliedFilters, true);
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      setFeedback({ failure, kind: 'failed', tone: 'danger' });
+      refreshAfterFailure(failure, current.id);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function handleArchive(): Promise<void> {
+    if (detail.status !== 'ready') {
+      return;
+    }
+    const current = detail.candidate;
+    // Archival stays a serious, explicitly confirmed action. There is no deletion.
+    if (!window.confirm(t('candidate.lifecycle.confirmArchive'))) {
+      return;
+    }
+    setPending('archive');
+    setFeedback(null);
+    try {
+      const archived = await archiveCandidate(accessToken, current.id);
+      commitDetail(archived.candidate);
+      setFeedback({ kind: 'archived', tone: 'success' });
+      void loadList(appliedFilters, true);
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      setFeedback({ failure, kind: 'failed', tone: 'danger' });
+      refreshAfterFailure(failure, current.id);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  /**
+   * Structured profile records, each with exactly the body the workspace has
+   * always sent. The record is re-read afterwards, as before, so the new row
+   * appears with its server-assigned identity and ordering.
+   */
+  async function handleAddRecord(input: CandidateRecordInput): Promise<CandidateFormOutcome> {
+    if (detail.status !== 'ready') {
+      return { failure: 'notFound', ok: false };
+    }
+    const candidateId = detail.candidate.id;
+    setPending(input.kind);
+    setFeedback(null);
+    try {
+      switch (input.kind) {
+        case 'skill':
+          await createCandidateSkill(accessToken, candidateId, {
+            name: input.values.name,
+            level: optional(input.values.level),
+          });
+          break;
+        case 'language':
+          await createCandidateLanguage(accessToken, candidateId, {
+            language: input.values.language,
+            proficiency: input.values.proficiency,
+          });
+          break;
+        case 'experience':
+          await createCandidateWorkExperience(accessToken, candidateId, {
+            employer: input.values.employer,
+            title: input.values.title,
+            startDate: optional(input.values.startDate),
+            endDate: optional(input.values.endDate),
+            isCurrent: input.values.isCurrent,
+          });
+          break;
+        case 'education':
+          await createCandidateEducation(accessToken, candidateId, {
+            institution: input.values.institution,
+            qualification: input.values.qualification,
+            field: optional(input.values.field),
+          });
+          break;
+      }
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      refreshAfterFailure(failure, candidateId);
+      setPending(null);
+      return failureOutcome(failure);
+    }
+
+    await loadDetail(candidateId, true);
+    setPending(null);
+    setFeedback({ kind: RECORD_ADDED_FEEDBACK[input.kind], tone: 'success' });
+    return { ok: true };
+  }
+
+  return (
+    <CandidateWorkspace
+      access={access}
+      appliedFilters={appliedFilters}
+      detail={detail}
+      feedback={feedback}
+      filters={filters}
+      list={list}
+      onAddRecord={handleAddRecord}
+      onArchive={() => void handleArchive()}
+      onChangeStatus={(status) => void handleChangeStatus(status)}
+      onCreate={handleCreate}
+      onFiltersChange={setFilters}
+      onResetFilters={handleResetFilters}
+      onRetryDetail={handleRetryDetail}
+      onRetryList={handleRetryList}
+      onSearch={handleSearch}
+      onSelect={handleSelect}
+      onUpdate={handleUpdate}
+      pending={pending}
+      selectedId={selectedId}
+    />
+  );
+}

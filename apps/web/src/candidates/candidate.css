@@ -1,0 +1,561 @@
+/*
+ * Candidate workspace.
+ *
+ * Every value comes from the HireMe token system: no local color, no gradient,
+ * no shadow on an ordinary surface, and no card nested inside a card. The list
+ * and the record are separated by whitespace and one-pixel rules; hierarchy is
+ * carried by type size and weight.
+ */
+
+.candidates {
+  container: candidates / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--layout-content-max);
+}
+
+/*
+ * The list and the selected record sit side by side only when the content area
+ * itself is wide enough for both. A container query rather than a viewport
+ * breakpoint, because the persistent sidebar changes the space available.
+ */
+.candidates__workspace {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+}
+
+@container candidates (min-width: 60rem) {
+  .candidates__workspace {
+    gap: var(--space-6);
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  }
+
+  .candidates__list-pane {
+    border-inline-end: var(--border-width) solid var(--color-border);
+    padding-inline-end: var(--space-6);
+  }
+}
+
+.candidates__list-pane,
+.candidates__detail-pane {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.candidates__pane-title {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+/* --- Filters ----------------------------------------------------------- */
+
+.candidate-filters {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+.candidate-filters__controls {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.candidate-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* --- List -------------------------------------------------------------- */
+
+.candidate-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.candidate-list__count,
+.candidate-list__hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+.candidate-list__rows {
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * One row per candidate. The inline-start bar is transparent until selected,
+ * so selection is a visible shape as well as a fill, never color alone.
+ */
+.candidate-list__row {
+  border-block-end: var(--border-width) solid var(--color-border);
+  border-inline-start: var(--space-1) solid transparent;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
+  position: relative;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.candidate-list__row:hover {
+  background: var(--color-table-hover);
+}
+
+.candidate-list__row[data-selected='true'] {
+  background: var(--color-table-selected);
+  border-inline-start-color: var(--color-brand);
+}
+
+.candidate-list__primary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+/*
+ * The name is the row's real button. Its pseudo-element stretches over the
+ * whole row so the row is one pointer target, while the accessible name stays
+ * the candidate's name alone.
+ */
+.candidate-list__select {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  min-height: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.candidate-list__select:hover:not(:disabled),
+.candidate-list__select:active:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-brand-pressed);
+}
+
+.candidate-list__select::after {
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+/* The focus ring moves to the stretched row outline, an equally visible replacement. */
+.candidate-list__select:focus-visible {
+  outline: none;
+}
+
+.candidate-list__select:focus-visible::after {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.candidate-list__headline {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-list__meta {
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-1);
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: 0;
+}
+
+.candidate-list__loading,
+.candidate-detail__loading {
+  padding-block: var(--space-4);
+}
+
+/* --- Create ------------------------------------------------------------ */
+
+/* One functional region between rules, not a card. */
+.candidate-create {
+  border-block: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-4);
+  padding-block: var(--space-5);
+}
+
+.candidate-create h2 {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+/* --- Record ------------------------------------------------------------ */
+
+.candidate-detail {
+  container: candidate-detail / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.candidate-detail__identity {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  justify-content: space-between;
+}
+
+.candidate-detail__heading {
+  align-content: start;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The record's own identity: a section-level heading, secondary to the page title. */
+.candidate-detail__heading h2 {
+  font-size: var(--font-size-6);
+  line-height: var(--line-height-tight);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-detail__heading h2:focus {
+  outline: none;
+}
+
+.candidate-detail__heading h2:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
+.candidate-detail__headline {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-4);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-detail__meta {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-2) var(--space-4);
+}
+
+.candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.candidate-message__text {
+  color: inherit;
+  font-size: var(--font-size-3);
+  margin-bottom: var(--space-2);
+}
+
+/* Skills and languages share a row when the record is wide enough for both. */
+.candidate-detail__pair {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@container candidate-detail (min-width: 40rem) {
+  .candidate-detail__pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* --- Sections ---------------------------------------------------------- */
+
+/*
+ * Sections, facts, and groups are stretched to the height of their row, so
+ * their own rows are packed at the start rather than spread across it.
+ */
+.candidate-section {
+  align-content: start;
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: var(--space-4);
+}
+
+.candidate-section__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+}
+
+.candidate-section h3 {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+.candidate-section h4,
+.candidate-summary h4 {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-label);
+  margin: 0;
+}
+
+.candidate-section__count {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-regular);
+}
+
+.candidate-section__description,
+.candidate-section__empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin-bottom: 0;
+}
+
+.candidate-section__empty {
+  color: var(--color-text-muted);
+}
+
+/* Structured metadata as a definition list, never as one card per field. */
+.candidate-facts {
+  display: grid;
+  gap: var(--space-3) var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  margin: 0;
+}
+
+.candidate-facts > div {
+  align-content: start;
+  display: grid;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.candidate-facts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-label);
+}
+
+.candidate-facts dd {
+  color: var(--color-text);
+  font-size: var(--font-size-3);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-facts dd[data-recorded='false'] {
+  color: var(--color-text-muted);
+}
+
+.candidate-summary {
+  display: grid;
+  gap: var(--space-1);
+  max-width: var(--layout-reading-max);
+}
+
+.candidate-summary__text {
+  color: var(--color-text);
+  font-size: var(--font-size-3);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* --- Structured records ------------------------------------------------ */
+
+.candidate-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.candidate-rows__item {
+  align-items: baseline;
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-3);
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.candidate-rows__primary {
+  color: var(--color-text);
+  flex: 1 1 auto;
+  font-weight: var(--font-weight-medium);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-rows__secondary {
+  color: var(--color-text-secondary);
+}
+
+.candidate-rows__archived,
+.candidate-timeline__current {
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-1);
+}
+
+.candidate-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.candidate-timeline__item {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+}
+
+.candidate-timeline__title {
+  color: var(--color-text);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-3);
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: 0;
+}
+
+.candidate-timeline__title strong {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.candidate-timeline__org {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.candidate-timeline__meta {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: 0;
+}
+
+.candidate-timeline__description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin-bottom: 0;
+  max-width: var(--layout-reading-max);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* --- Forms ------------------------------------------------------------- */
+
+/* A quiet grouped region for an inline form: subtle fill, no border, no shadow. */
+.candidate-form {
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-small);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.candidate-create .candidate-form {
+  background: transparent;
+  padding: 0;
+}
+
+.candidate-form__fields {
+  display: grid;
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.candidate-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* --- Restricted information ------------------------------------------- */
+
+/*
+ * The restricted area is marked by a heading, a text label, and a neutral
+ * inline-start rule: visible structure rather than alarm color, because
+ * restricted is not the same as wrong.
+ */
+.candidate-sensitive {
+  border-inline-start: var(--space-1) solid var(--color-border-strong);
+  padding-inline-start: var(--space-4);
+}
+
+.candidate-sensitive__label {
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-label);
+  padding-inline: var(--space-2);
+  text-transform: uppercase;
+}
+
+.candidate-sensitive__groups {
+  display: grid;
+  gap: var(--space-4) var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.candidate-sensitive__group {
+  align-content: start;
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* --- Responsive -------------------------------------------------------- */
+
+@media (max-width: 56.25rem) {
+  /* Touch contexts start here, so actions take a full hit target. */
+  .candidate-actions > *,
+  .candidate-filters__actions > *,
+  .candidate-form__actions > *,
+  .candidate-section__head .ui-button {
+    min-height: var(--hit-target-min);
+  }
+}
+
+@media (max-width: 30rem) {
+  .candidate-actions > *,
+  .candidate-filters__actions > *,
+  .candidate-form__actions > * {
+    flex: 1 1 auto;
+  }
+
+  .candidate-detail__heading h2 {
+    font-size: var(--font-size-5);
+  }
+}
