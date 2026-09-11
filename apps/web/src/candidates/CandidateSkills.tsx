@@ -7,11 +7,14 @@ import { CandidateFormFeedback } from './CandidateFormFeedback.js';
 import { ArchivedRecordMarker, CandidateRecordSection } from './CandidateRecordSection.js';
 
 export interface CandidateRecordSectionProps<Record> {
+  /** The workspace's single write lock: true while any Candidate write is in flight. */
   busy: boolean;
   canAdd: boolean;
   canView: boolean;
   onAdd: (input: CandidateRecordInput) => Promise<CandidateFormOutcome>;
   records: readonly Record[];
+  /** True while this section's own add request is the write in flight. */
+  submitting: boolean;
 }
 
 /** Skills as compact rows: the skill, then its recorded level. */
@@ -21,17 +24,21 @@ export function CandidateSkills({
   canView,
   onAdd,
   records,
+  submitting,
 }: CandidateRecordSectionProps<CandidateSkill>) {
   const { t } = useI18n();
 
   return (
     <CandidateRecordSection
       addLabel={t('candidate.skills.add')}
+      busy={busy}
       canAdd={canAdd}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.skills.empty')}
-      renderForm={(close) => <SkillForm busy={busy} onAdd={onAdd} onClose={close} />}
+      renderForm={(close) => (
+        <SkillForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+      )}
       title={t('candidate.skills.title')}
     >
       <ul className="candidate-rows">
@@ -51,16 +58,19 @@ function SkillForm({
   busy,
   onAdd,
   onClose,
+  submitting,
 }: {
   busy: boolean;
   onAdd: CandidateRecordSectionProps<CandidateSkill>['onAdd'];
   onClose: () => void;
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const form = useCandidateForm(
     { fields: ['name', 'level'] as const, required: ['name'] },
     (values) => onAdd({ kind: 'skill', values }),
     onClose,
+    busy,
   );
 
   return (
@@ -87,14 +97,15 @@ function SkillForm({
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button
-          loading={busy}
+          disabled={busy}
+          loading={submitting}
           loadingLabel={t('common.status.working')}
           size="compact"
           type="submit"
         >
           {t('candidate.skills.add')}
         </Button>
-        <Button disabled={busy} onClick={onClose} size="compact" variant="secondary">
+        <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}
         </Button>
       </div>

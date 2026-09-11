@@ -13,17 +13,21 @@ export function CandidateLanguages({
   canView,
   onAdd,
   records,
+  submitting,
 }: CandidateRecordSectionProps<CandidateLanguage>) {
   const { t } = useI18n();
 
   return (
     <CandidateRecordSection
       addLabel={t('candidate.languages.add')}
+      busy={busy}
       canAdd={canAdd}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.languages.empty')}
-      renderForm={(close) => <LanguageForm busy={busy} onAdd={onAdd} onClose={close} />}
+      renderForm={(close) => (
+        <LanguageForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+      )}
       title={t('candidate.languages.title')}
     >
       <ul className="candidate-rows">
@@ -43,16 +47,19 @@ function LanguageForm({
   busy,
   onAdd,
   onClose,
+  submitting,
 }: {
   busy: boolean;
   onAdd: CandidateRecordSectionProps<CandidateLanguage>['onAdd'];
   onClose: () => void;
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const form = useCandidateForm(
     { fields: ['language', 'proficiency'] as const, required: ['language', 'proficiency'] },
     (values) => onAdd({ kind: 'language', values }),
     onClose,
+    busy,
   );
 
   return (
@@ -81,14 +88,15 @@ function LanguageForm({
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button
-          loading={busy}
+          disabled={busy}
+          loading={submitting}
           loadingLabel={t('common.status.working')}
           size="compact"
           type="submit"
         >
           {t('candidate.languages.add')}
         </Button>
-        <Button disabled={busy} onClick={onClose} size="compact" variant="secondary">
+        <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}
         </Button>
       </div>

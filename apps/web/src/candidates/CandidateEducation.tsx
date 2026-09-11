@@ -14,17 +14,21 @@ export function CandidateEducation({
   canView,
   onAdd,
   records,
+  submitting,
 }: CandidateRecordSectionProps<CandidateEducationRecord>) {
   const { t } = useI18n();
 
   return (
     <CandidateRecordSection
       addLabel={t('candidate.education.add')}
+      busy={busy}
       canAdd={canAdd}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.education.empty')}
-      renderForm={(close) => <EducationForm busy={busy} onAdd={onAdd} onClose={close} />}
+      renderForm={(close) => (
+        <EducationForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+      )}
       title={t('candidate.education.title')}
     >
       <ol className="candidate-timeline">
@@ -67,10 +71,12 @@ function EducationForm({
   busy,
   onAdd,
   onClose,
+  submitting,
 }: {
   busy: boolean;
   onAdd: CandidateRecordSectionProps<CandidateEducationRecord>['onAdd'];
   onClose: () => void;
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const form = useCandidateForm(
@@ -80,6 +86,7 @@ function EducationForm({
     },
     (values) => onAdd({ kind: 'education', values }),
     onClose,
+    busy,
   );
 
   return (
@@ -113,14 +120,15 @@ function EducationForm({
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button
-          loading={busy}
+          disabled={busy}
+          loading={submitting}
           loadingLabel={t('common.status.working')}
           size="compact"
           type="submit"
         >
           {t('candidate.education.add')}
         </Button>
-        <Button disabled={busy} onClick={onClose} size="compact" variant="secondary">
+        <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}
         </Button>
       </div>

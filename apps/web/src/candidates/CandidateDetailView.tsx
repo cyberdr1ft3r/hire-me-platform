@@ -91,6 +91,7 @@ function CandidateRecord({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [editing, setEditing] = useState(false);
   const archived = candidate.status === 'ARCHIVED' || candidate.archivedAt !== null;
+  // The single write lock: while any Candidate write is in flight, no other may start.
   const busy = pending !== null;
   const headline = [
     candidate.currentJobTitle?.trim(),
@@ -190,11 +191,12 @@ function CandidateRecord({
 
       {canEdit && editing ? (
         <CandidateProfileForm
-          busy={pending === 'update'}
+          busy={busy}
           candidate={candidate}
           onCancel={closeEditor}
           onSaved={closeEditor}
           onSubmit={onUpdate}
+          submitting={pending === 'update'}
         />
       ) : (
         <CandidateProfile candidate={candidate} />
@@ -204,33 +206,37 @@ function CandidateRecord({
         <>
           <div className="candidate-detail__pair">
             <CandidateSkills
-              busy={pending === 'skill'}
+              busy={busy}
               canAdd={canAddRecords}
               canView={access.canViewProfile}
               onAdd={onAddRecord}
               records={candidate.skills}
+              submitting={pending === 'skill'}
             />
             <CandidateLanguages
-              busy={pending === 'language'}
+              busy={busy}
               canAdd={canAddRecords}
               canView={access.canViewProfile}
               onAdd={onAddRecord}
               records={candidate.languages}
+              submitting={pending === 'language'}
             />
           </div>
           <CandidateExperience
-            busy={pending === 'experience'}
+            busy={busy}
             canAdd={canAddRecords}
             canView={access.canViewProfile}
             onAdd={onAddRecord}
             records={candidate.workExperiences}
+            submitting={pending === 'experience'}
           />
           <CandidateEducation
-            busy={pending === 'education'}
+            busy={busy}
             canAdd={canAddRecords}
             canView={access.canViewProfile}
             onAdd={onAddRecord}
             records={candidate.education}
+            submitting={pending === 'education'}
           />
         </>
       ) : (

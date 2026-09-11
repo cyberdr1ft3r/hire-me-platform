@@ -14,6 +14,7 @@ import { Button } from '../ui/index.js';
  */
 export function CandidateRecordSection({
   addLabel,
+  busy,
   canAdd,
   canView,
   children,
@@ -23,6 +24,7 @@ export function CandidateRecordSection({
   title,
 }: {
   addLabel: string;
+  busy: boolean;
   canAdd: boolean;
   canView: boolean;
   children: ReactNode;
@@ -63,6 +65,7 @@ export function CandidateRecordSection({
             aria-controls={formId}
             aria-expanded={false}
             data-record-toggle=""
+            disabled={busy}
             onClick={() => setAdding(true)}
             size="compact"
             variant="secondary"

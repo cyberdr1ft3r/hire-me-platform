@@ -28,11 +28,15 @@ export function CandidateCreateForm({
   onCancel,
   onCreated,
   onSubmit,
+  submitting,
 }: {
+  /** The workspace's single write lock: true while any Candidate write is in flight. */
   busy: boolean;
   onCancel: () => void;
   onCreated: () => void;
   onSubmit: (values: CandidateCreateValues) => Promise<CandidateFormOutcome>;
+  /** True while this form's own create request is the write in flight. */
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const headingId = useId();
@@ -41,6 +45,7 @@ export function CandidateCreateForm({
     { email: ['email'], fields: CREATE_FIELDS, required: ['displayName'] },
     (values) => onSubmit(values),
     onCreated,
+    busy,
   );
 
   // Opening the form moves focus to its first field, so keyboard users land in it.
@@ -111,10 +116,15 @@ export function CandidateCreateForm({
         </div>
         <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
         <div className="candidate-form__actions">
-          <Button loading={busy} loadingLabel={t('common.status.working')} type="submit">
+          <Button
+            disabled={busy}
+            loading={submitting}
+            loadingLabel={t('common.status.working')}
+            type="submit"
+          >
             {t('candidate.actions.create')}
           </Button>
-          <Button disabled={busy} onClick={onCancel} variant="secondary">
+          <Button disabled={submitting} onClick={onCancel} variant="secondary">
             {t('candidate.actions.cancel')}
           </Button>
         </div>

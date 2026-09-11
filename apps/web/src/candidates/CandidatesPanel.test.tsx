@@ -503,3 +503,257 @@ describe('Candidate localization in the running application', () => {
     expect(screen.getByRole('button', { name: 'Rechercher' })).toBeVisible();
   });
 });
+
+/** A response the test releases explicitly, so every ordering is deterministic. */
+function deferredResponse() {
+  let release: (response: Response) => void = () => undefined;
+  const promise = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+const isSecondCandidateDetail = (call: RecordedCall) =>
+  call.method === 'GET' && call.url === `${API}/${SECOND_CANDIDATE_ID}`;
+
+/** Moves the selection to the second candidate and waits until its record is on screen. */
+async function moveToSecondCandidate() {
+  fireEvent.click(screen.getByRole('button', { name: 'Second Candidate' }));
+  return screen.findByRole('heading', { level: 2, name: 'Second Candidate' });
+}
+
+/**
+ * The single write lock is released when the write in flight settles. Both the
+ * success and the failure path end there, so waiting for the second candidate's
+ * own action to be enabled again proves the earlier write has fully resolved.
+ */
+async function waitForWriteToSettle() {
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeEnabled());
+}
+
+describe('Candidate writes stay scoped to the candidate they started on', () => {
+  it('does not show a late update success for candidate A on candidate B', async () => {
+    const update = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}` ? update.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const form = screen.getByRole('form', { name: 'Edit profile' });
+    fireEvent.change(within(form).getByLabelText('City'), { target: { value: 'Paris' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PATCH')).toBe(true));
+
+    await moveToSecondCandidate();
+    update.release(
+      jsonResponse({ candidate: syntheticCandidate({ city: 'Paris', displayName: 'Updated A' }) }),
+    );
+    await waitForWriteToSettle();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Updated A' })).toBeNull();
+    expect(screen.queryByText('Candidate updated.')).toBeNull();
+    // The server write itself was not cancelled, and the list may still refresh.
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+    expect(calls.filter((call) => call.method === 'GET' && call.url.includes('?')).length).toBe(2);
+  });
+
+  it.each([
+    ['status change', 'Mark inactive', `/${CANDIDATE_ID}/status`],
+    ['archival', 'Archive candidate', `/${CANDIDATE_ID}/archive`],
+  ])(
+    'does not show a late %s failure for candidate A on candidate B',
+    async (_label, action, path) => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const write = deferredResponse();
+      stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+        call.url === `${API}${path}` ? write.promise : undefined,
+      );
+      renderPanel(ORDINARY_PERMISSIONS);
+      await selectCandidate();
+
+      fireEvent.click(screen.getByRole('button', { name: action }));
+      await moveToSecondCandidate();
+      write.release(
+        jsonResponse({ error: { code: 'CANDIDATE_ARCHIVED', message: 'raw backend text' } }, 409),
+      );
+      await waitForWriteToSettle();
+
+      expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(
+        screen.queryByText('This candidate has been archived and can no longer be changed.'),
+      ).toBeNull();
+    },
+  );
+
+  it('does not show a late update failure for candidate A on candidate B', async () => {
+    const update = deferredResponse();
+    stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}` ? update.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    fireEvent.click(
+      within(screen.getByRole('form', { name: 'Edit profile' })).getByRole('button', {
+        name: 'Save changes',
+      }),
+    );
+    await moveToSecondCandidate();
+    update.release(jsonResponse({ error: { code: 'CANDIDATE_ARCHIVED' } }, 409));
+    await waitForWriteToSettle();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not show a late add-record success for candidate A on candidate B, or re-read A', async () => {
+    const skill = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.url === `${API}/${CANDIDATE_ID}/skills` ? skill.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add skill' }));
+    const form = screen.getByRole('form', { name: 'Add skill' });
+    fireEvent.change(within(form).getByLabelText(/^Skill/), { target: { value: 'Interviewing' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add skill' }));
+    await moveToSecondCandidate();
+    expect(calls.some(isSecondCandidateDetail)).toBe(true);
+
+    skill.release(
+      jsonResponse(
+        {
+          skill: {
+            archivedAt: null,
+            candidateId: CANDIDATE_ID,
+            createdAt: '2026-07-22T00:00:00.000Z',
+            id: 'a0000000-0000-4000-8000-000000000099',
+            lastUsed: null,
+            level: null,
+            name: 'Interviewing',
+            updatedAt: '2026-07-22T00:00:00.000Z',
+            years: null,
+          },
+        },
+        201,
+      ),
+    );
+    await waitForWriteToSettle();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByText('Skill added.')).toBeNull();
+    const candidateAReads = calls.filter(
+      (call) => call.method === 'GET' && call.url === `${API}/${CANDIDATE_ID}`,
+    );
+    expect(candidateAReads).toHaveLength(1);
+  });
+});
+
+describe('Candidate writes never overlap', () => {
+  const writeCalls = (calls: RecordedCall[]) =>
+    candidateCalls(calls).filter((call) => call.method !== 'GET');
+
+  it('locks every other write entry point while a lifecycle change is in flight', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const status = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.url.endsWith('/status') ? status.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    // Forms that were opened while nothing was pending.
+    fireEvent.click(screen.getByRole('button', { name: 'New candidate' }));
+    const createForm = screen.getByRole('form', { name: 'New candidate' });
+    fireEvent.change(within(createForm).getByLabelText(/^Full name/), {
+      target: { value: 'Overlapping Candidate' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const editForm = screen.getByRole('form', { name: 'Edit profile' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add skill' }));
+    const skillForm = screen.getByRole('form', { name: 'Add skill' });
+    fireEvent.change(within(skillForm).getByLabelText(/^Skill/), {
+      target: { value: 'Interviewing' },
+    });
+
+    // The first write starts.
+    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    await waitFor(() => expect(writeCalls(calls)).toHaveLength(1));
+
+    // No second write can start from any entry point.
+    expect(screen.getByRole('button', { name: 'New candidate' })).toBeDisabled();
+    expect(within(createForm).getByRole('button', { name: 'Create candidate' })).toBeDisabled();
+    expect(within(editForm).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    expect(within(skillForm).getByRole('button', { name: 'Add skill' })).toBeDisabled();
+    for (const name of ['Move to talent pool', 'Archive candidate']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    for (const name of ['Add language', 'Add experience', 'Add education']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+
+    // Even implicit submission from a text field is refused while the write runs.
+    fireEvent.submit(createForm);
+    fireEvent.submit(editForm);
+    fireEvent.submit(skillForm);
+    fireEvent.click(screen.getByRole('button', { name: 'Move to talent pool' }));
+    expect(writeCalls(calls)).toHaveLength(1);
+
+    // Once it settles, the lock is released and a new write may start.
+    status.release(jsonResponse({ candidate: syntheticCandidate({ status: 'INACTIVE' }) }));
+    expect(await screen.findByText('Candidate status changed to Inactive.')).toBeVisible();
+    await waitFor(() =>
+      expect(within(editForm).getByRole('button', { name: 'Save changes' })).toBeEnabled(),
+    );
+    expect(writeCalls(calls)).toHaveLength(1);
+    fireEvent.submit(skillForm);
+    await waitFor(() => expect(writeCalls(calls)).toHaveLength(2));
+    expect(writeCalls(calls)[1]?.url).toBe(`${API}/${CANDIDATE_ID}/skills`);
+  });
+
+  it('keeps the lock until an in-flight create settles, then restores focus to New candidate', async () => {
+    const create = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'POST' && call.url === API ? create.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New candidate' }));
+    const form = screen.getByRole('form', { name: 'New candidate' });
+    const name = within(form).getByLabelText(/^Full name/);
+    expect(name).toHaveFocus();
+    fireEvent.change(name, { target: { value: 'Created Candidate' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    await waitFor(() => expect(writeCalls(calls)).toHaveLength(1));
+
+    // While the create is in flight, no other write may begin.
+    for (const control of ['Edit profile', 'Mark inactive', 'Archive candidate', 'Add skill']) {
+      expect(screen.getByRole('button', { name: control })).toBeDisabled();
+    }
+
+    create.release(
+      jsonResponse(
+        {
+          candidate: syntheticCandidate({
+            displayName: 'Created Candidate',
+            id: 'a22c0929-9ac3-4d0e-ad26-760814c6465d',
+          }),
+        },
+        201,
+      ),
+    );
+
+    expect(await screen.findByText('Candidate created.')).toBeVisible();
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'New candidate' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'New candidate' })).toHaveFocus(),
+    );
+  });
+});

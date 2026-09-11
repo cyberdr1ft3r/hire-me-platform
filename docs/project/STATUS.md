@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 Status owner: repository maintainer
 
 ## Overall state
@@ -51,7 +51,8 @@ Status owner: repository maintainer
 - Actions without their permission, and every write action on an archived candidate, are hidden rather than disabled. Compensation and consent render only with their own view permissions and are read-only. Without `candidate_profile:view` the structured records are reported as unavailable, not empty.
 - Candidates is bilingual and left `deferredEnglishRoutes`; the French `/candidates` route carries no `lang="en"` boundary, and switching language does not refetch.
 - Development-only `apps/web/candidate.html` renders the real workspace with synthetic data and full, recruiter, and read-only access profiles; it is excluded from the production build.
-- Web tests went from 159 to 212; 53 are Candidate-focused.
+- Technical review `5178734523` accepted the architecture, permissions, localization, API-shape preservation, and sensitive-data design, and raised three corrections, all resolved: a write's candidate-scoped result (record, success, and failure feedback) commits only while its captured candidate/session context is still current, without cancelling the server write; one global write lock (`pending !== null`) now disables and guards every write entry point, including forms already open, so two writes cannot overlap; and a successful create closes through the same path as Cancel and returns focus to `New candidate`. Compensation and consent stay read-only by review decision.
+- Web tests went from 159 to 219; 60 are Candidate-focused.
 
 ## Issue #56 Verification State
 

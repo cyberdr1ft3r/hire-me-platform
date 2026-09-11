@@ -29,12 +29,16 @@ export function CandidateProfileForm({
   onCancel,
   onSaved,
   onSubmit,
+  submitting,
 }: {
+  /** The workspace's single write lock: true while any Candidate write is in flight. */
   busy: boolean;
   candidate: CandidateDetail;
   onCancel: () => void;
   onSaved: () => void;
   onSubmit: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
+  /** True while this form's own update request is the write in flight. */
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const headingId = useId();
@@ -43,6 +47,7 @@ export function CandidateProfileForm({
     { email: ['email'], fields: PROFILE_FIELDS, required: ['displayName'] },
     (values) => onSubmit(values),
     onSaved,
+    busy,
   );
 
   useEffect(() => {
@@ -125,10 +130,15 @@ export function CandidateProfileForm({
         />
         <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
         <div className="candidate-form__actions">
-          <Button loading={busy} loadingLabel={t('common.status.working')} type="submit">
+          <Button
+            disabled={busy}
+            loading={submitting}
+            loadingLabel={t('common.status.working')}
+            type="submit"
+          >
             {t('candidate.actions.save')}
           </Button>
-          <Button disabled={busy} onClick={onCancel} variant="secondary">
+          <Button disabled={submitting} onClick={onCancel} variant="secondary">
             {t('candidate.actions.cancel')}
           </Button>
         </div>

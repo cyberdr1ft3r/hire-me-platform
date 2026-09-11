@@ -92,6 +92,14 @@ const RECORD_ADDED_FEEDBACK = {
   skill: 'skillAdded',
 } as const satisfies Record<CandidateRecordInput['kind'], string>;
 
+/**
+ * The result a form receives for a write that could not start, or whose
+ * candidate context has moved on. The form that submitted it belongs to a
+ * record that is no longer on screen, so nothing is shown: neither the success
+ * nor the failure.
+ */
+const SUPERSEDED: CandidateFormOutcome = { ok: false };
+
 function failureOutcome(failure: CandidateFailure): CandidateFormOutcome {
   return failure === 'duplicateEmail'
     ? { fieldErrors: { email: 'duplicateEmail' }, ok: false }
@@ -139,6 +147,42 @@ export function CandidatesPanel({
   const detailRequest = useRef(0);
   const selectedRef = useRef<string | null>(null);
 
+  /*
+   * The candidate context a write belongs to. It advances whenever the
+   * selection or the session changes, and each write captures it when it
+   * starts. A write whose context has moved on still completes on the server —
+   * nothing is cancelled — but its candidate-scoped result (the record, and its
+   * success or failure feedback) is not shown on whichever candidate is now
+   * selected.
+   */
+  const contextGeneration = useRef(0);
+
+  /*
+   * One Candidate write at a time. The ref closes the gap between a click and
+   * the re-render that disables every write control, so a second write can
+   * never start while the first is still in flight.
+   */
+  const writeInFlight = useRef(false);
+
+  function captureContext(candidateId: string | null): () => boolean {
+    const generation = contextGeneration.current;
+    return () => contextGeneration.current === generation && selectedRef.current === candidateId;
+  }
+
+  function beginWrite(action: CandidatePendingAction): boolean {
+    if (writeInFlight.current) {
+      return false;
+    }
+    writeInFlight.current = true;
+    setPending(action);
+    return true;
+  }
+
+  function endWrite(): void {
+    writeInFlight.current = false;
+    setPending(null);
+  }
+
   async function loadList(nextFilters: CandidateFilterValues, quiet = false): Promise<void> {
     const request = ++listRequest.current;
     if (!quiet) {
@@ -180,9 +224,11 @@ export function CandidatesPanel({
     // `loadList` reads only `accessToken`, which is listed here.
   }, [accessToken, appliedFilters]);
 
+  // A new session, or leaving the workspace, ends every candidate context.
   useEffect(
     () => () => {
       detailRequest.current += 1;
+      contextGeneration.current += 1;
     },
     [accessToken],
   );
@@ -204,19 +250,27 @@ export function CandidatesPanel({
     }
   }
 
-  /** Commits a fresh record from a mutation response, invalidating older reads. */
-  function commitDetail(candidate: CandidateDetail): void {
-    if (selectedRef.current !== candidate.id) {
+  /**
+   * Commits a fresh record from a mutation response, invalidating older reads,
+   * but only while the write's own candidate context is still current.
+   */
+  function commitDetail(candidate: CandidateDetail, isCurrent: () => boolean): void {
+    if (!isCurrent() || selectedRef.current !== candidate.id) {
       return;
     }
     detailRequest.current += 1;
     setDetail({ candidate, status: 'ready' });
   }
 
-  function handleSelect(candidateId: string): void {
+  function select(candidateId: string): void {
+    contextGeneration.current += 1;
     selectedRef.current = candidateId;
     setSelectedId(candidateId);
     setFeedback(null);
+  }
+
+  function handleSelect(candidateId: string): void {
+    select(candidateId);
     void loadDetail(candidateId);
   }
 
@@ -243,57 +297,73 @@ export function CandidatesPanel({
    * An archived-conflict means the record changed underneath the user, so the
    * record and the list are refreshed to show its real state.
    */
-  function refreshAfterFailure(failure: CandidateFailure, candidateId: string): void {
+  function refreshAfterFailure(
+    failure: CandidateFailure,
+    candidateId: string,
+    isCurrent: () => boolean,
+  ): void {
     if (failure === 'archived' || failure === 'conflict') {
-      void loadDetail(candidateId, true);
+      if (isCurrent()) {
+        void loadDetail(candidateId, true);
+      }
       void loadList(appliedFilters, true);
     }
   }
 
   async function handleCreate(values: CandidateCreateValues): Promise<CandidateFormOutcome> {
-    setPending('create');
+    if (!beginWrite('create')) {
+      return SUPERSEDED;
+    }
+    // Creation belongs to no candidate; it only takes over the selection if the
+    // user has not selected another candidate while it was in flight.
+    const isCurrent = captureContext(selectedRef.current);
     try {
       const created = await createCandidate(accessToken, toCandidateCreateRequest(values));
-      selectedRef.current = created.candidate.id;
-      setSelectedId(created.candidate.id);
-      commitDetail(created.candidate);
-      setFeedback({ kind: 'created', tone: 'success' });
+      if (isCurrent()) {
+        select(created.candidate.id);
+        commitDetail(created.candidate, () => true);
+        setFeedback({ kind: 'created', tone: 'success' });
+      }
       void loadList(appliedFilters, true);
       return { ok: true };
     } catch (error) {
       return failureOutcome(classifyCandidateFailure(error));
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleUpdate(values: CandidateProfileValues): Promise<CandidateFormOutcome> {
-    if (detail.status !== 'ready') {
-      return { failure: 'notFound', ok: false };
+    if (detail.status !== 'ready' || !beginWrite('update')) {
+      return SUPERSEDED;
     }
     const current = detail.candidate;
-    setPending('update');
+    const isCurrent = captureContext(current.id);
     try {
       const updated = await updateCandidate(
         accessToken,
         current.id,
         toCandidateUpdateRequest(values),
       );
-      commitDetail(updated.candidate);
-      setFeedback({ kind: 'updated', tone: 'success' });
+      // The list may always refresh: it shows every candidate, not the selection.
       void loadList(appliedFilters, true);
+      if (!isCurrent()) {
+        return SUPERSEDED;
+      }
+      commitDetail(updated.candidate, isCurrent);
+      setFeedback({ kind: 'updated', tone: 'success' });
       return { ok: true };
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      refreshAfterFailure(failure, current.id);
-      return failureOutcome(failure);
+      refreshAfterFailure(failure, current.id, isCurrent);
+      return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleChangeStatus(status: CandidateLifecycleTarget): Promise<void> {
-    if (detail.status !== 'ready') {
+    if (detail.status !== 'ready' || writeInFlight.current) {
       return;
     }
     const current = detail.candidate;
@@ -301,48 +371,57 @@ export function CandidatesPanel({
     if (
       !window.confirm(
         t('candidate.lifecycle.confirmStatus', { status: t(candidateStatusLabelKey(status)) }),
-      )
+      ) ||
+      !beginWrite('status')
     ) {
       return;
     }
-    setPending('status');
+    const isCurrent = captureContext(current.id);
     setFeedback(null);
     try {
       const updated = await updateCandidateStatus(accessToken, current.id, { status });
-      commitDetail(updated.candidate);
-      setFeedback({ kind: 'statusChanged', status, tone: 'success' });
       void loadList(appliedFilters, true);
+      if (isCurrent()) {
+        commitDetail(updated.candidate, isCurrent);
+        setFeedback({ kind: 'statusChanged', status, tone: 'success' });
+      }
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      setFeedback({ failure, kind: 'failed', tone: 'danger' });
-      refreshAfterFailure(failure, current.id);
+      if (isCurrent()) {
+        setFeedback({ failure, kind: 'failed', tone: 'danger' });
+      }
+      refreshAfterFailure(failure, current.id, isCurrent);
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleArchive(): Promise<void> {
-    if (detail.status !== 'ready') {
+    if (detail.status !== 'ready' || writeInFlight.current) {
       return;
     }
     const current = detail.candidate;
     // Archival stays a serious, explicitly confirmed action. There is no deletion.
-    if (!window.confirm(t('candidate.lifecycle.confirmArchive'))) {
+    if (!window.confirm(t('candidate.lifecycle.confirmArchive')) || !beginWrite('archive')) {
       return;
     }
-    setPending('archive');
+    const isCurrent = captureContext(current.id);
     setFeedback(null);
     try {
       const archived = await archiveCandidate(accessToken, current.id);
-      commitDetail(archived.candidate);
-      setFeedback({ kind: 'archived', tone: 'success' });
       void loadList(appliedFilters, true);
+      if (isCurrent()) {
+        commitDetail(archived.candidate, isCurrent);
+        setFeedback({ kind: 'archived', tone: 'success' });
+      }
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      setFeedback({ failure, kind: 'failed', tone: 'danger' });
-      refreshAfterFailure(failure, current.id);
+      if (isCurrent()) {
+        setFeedback({ failure, kind: 'failed', tone: 'danger' });
+      }
+      refreshAfterFailure(failure, current.id, isCurrent);
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
@@ -352,11 +431,11 @@ export function CandidatesPanel({
    * appears with its server-assigned identity and ordering.
    */
   async function handleAddRecord(input: CandidateRecordInput): Promise<CandidateFormOutcome> {
-    if (detail.status !== 'ready') {
-      return { failure: 'notFound', ok: false };
+    if (detail.status !== 'ready' || !beginWrite(input.kind)) {
+      return SUPERSEDED;
     }
     const candidateId = detail.candidate.id;
-    setPending(input.kind);
+    const isCurrent = captureContext(candidateId);
     setFeedback(null);
     try {
       switch (input.kind) {
@@ -391,13 +470,20 @@ export function CandidatesPanel({
       }
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      refreshAfterFailure(failure, candidateId);
-      setPending(null);
-      return failureOutcome(failure);
+      refreshAfterFailure(failure, candidateId, isCurrent);
+      endWrite();
+      return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
     }
 
+    if (!isCurrent()) {
+      endWrite();
+      return SUPERSEDED;
+    }
     await loadDetail(candidateId, true);
-    setPending(null);
+    endWrite();
+    if (!isCurrent()) {
+      return SUPERSEDED;
+    }
     setFeedback({ kind: RECORD_ADDED_FEEDBACK[input.kind], tone: 'success' });
     return { ok: true };
   }

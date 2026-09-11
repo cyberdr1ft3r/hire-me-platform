@@ -17,17 +17,21 @@ export function CandidateExperience({
   canView,
   onAdd,
   records,
+  submitting,
 }: CandidateRecordSectionProps<CandidateWorkExperience>) {
   const { t } = useI18n();
 
   return (
     <CandidateRecordSection
       addLabel={t('candidate.experience.add')}
+      busy={busy}
       canAdd={canAdd}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.experience.empty')}
-      renderForm={(close) => <ExperienceForm busy={busy} onAdd={onAdd} onClose={close} />}
+      renderForm={(close) => (
+        <ExperienceForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+      )}
       title={t('candidate.experience.title')}
     >
       <ol className="candidate-timeline">
@@ -72,10 +76,12 @@ function ExperienceForm({
   busy,
   onAdd,
   onClose,
+  submitting,
 }: {
   busy: boolean;
   onAdd: CandidateRecordSectionProps<CandidateWorkExperience>['onAdd'];
   onClose: () => void;
+  submitting: boolean;
 }) {
   const { t } = useI18n();
   const form = useCandidateForm(
@@ -86,6 +92,7 @@ function ExperienceForm({
     ({ isCurrent, ...values }) =>
       onAdd({ kind: 'experience', values: { ...values, isCurrent: isCurrent === 'on' } }),
     onClose,
+    busy,
   );
 
   return (
@@ -127,14 +134,15 @@ function ExperienceForm({
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button
-          loading={busy}
+          disabled={busy}
+          loading={submitting}
           loadingLabel={t('common.status.working')}
           size="compact"
           type="submit"
         >
           {t('candidate.experience.add')}
         </Button>
-        <Button disabled={busy} onClick={onClose} size="compact" variant="secondary">
+        <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}
         </Button>
       </div>

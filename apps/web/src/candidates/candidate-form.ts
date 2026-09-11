@@ -95,11 +95,16 @@ function focusFirstInvalid(form: HTMLFormElement, errors: CandidateFieldErrors):
  * Shared submission behaviour for every Candidate form: read the raw control
  * values, validate them locally, hand them to the container, and show whatever
  * comes back beside the relevant field or as one safe form-level message.
+ *
+ * `blocked` is the workspace's single write lock. While any Candidate write is
+ * in flight a form cannot submit, even through implicit submission from a
+ * text field, so two writes can never overlap.
  */
 export function useCandidateForm<Field extends string>(
   spec: CandidateFormSpec<Field>,
   onSubmit: (values: Record<Field, string>, form: HTMLFormElement) => Promise<CandidateFormOutcome>,
   onSuccess?: () => void,
+  blocked = false,
 ) {
   const { t } = useI18n();
   const [errors, setErrors] = useState<CandidateFieldErrors>({});
@@ -107,6 +112,9 @@ export function useCandidateForm<Field extends string>(
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (blocked) {
+      return;
+    }
     const form = event.currentTarget;
     const values = readFormValues(form, spec.fields);
     const found = validateCandidateValues(values, spec);

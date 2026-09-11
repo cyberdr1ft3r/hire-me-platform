@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, PageHeader } from '../ui/index.js';
@@ -84,14 +84,29 @@ export function CandidateWorkspace({
   const headerRef = useRef<HTMLDivElement>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = access.canCreate;
+  // The single write lock: while any Candidate write is in flight, no other may start.
+  const mutationBusy = pending !== null;
 
+  const restoreCreateFocus = useRef(false);
+
+  /**
+   * Cancel and a successful create close the form through this one path, and
+   * focus returns to the page action that opened it — the control that held
+   * focus inside the form no longer exists.
+   */
   function closeCreate(): void {
+    restoreCreateFocus.current = true;
     setCreating(false);
-    // Focus returns to the page action that opened the form.
-    window.setTimeout(() => {
-      headerRef.current?.querySelector<HTMLButtonElement>('[data-create-toggle]')?.focus();
-    }, 0);
   }
+
+  // Focus is restored after the commit, once the trigger is rendered enabled again.
+  useEffect(() => {
+    if (!restoreCreateFocus.current || creating || mutationBusy) {
+      return;
+    }
+    restoreCreateFocus.current = false;
+    headerRef.current?.querySelector<HTMLButtonElement>('[data-create-toggle]')?.focus();
+  }, [creating, mutationBusy]);
 
   return (
     <div className="candidates">
@@ -106,7 +121,7 @@ export function CandidateWorkspace({
                 aria-controls={createRegionId}
                 aria-expanded={creating}
                 data-create-toggle=""
-                disabled={creating}
+                disabled={creating || mutationBusy}
                 onClick={() => setCreating(true)}
               >
                 {t('candidate.actions.newCandidate')}
@@ -120,10 +135,11 @@ export function CandidateWorkspace({
       {canCreate && creating ? (
         <div id={createRegionId}>
           <CandidateCreateForm
-            busy={pending === 'create'}
+            busy={mutationBusy}
             onCancel={closeCreate}
-            onCreated={() => setCreating(false)}
+            onCreated={closeCreate}
             onSubmit={onCreate}
+            submitting={pending === 'create'}
           />
         </div>
       ) : null}

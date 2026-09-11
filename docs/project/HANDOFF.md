@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ## Current situation
 
@@ -12,6 +12,7 @@ Last updated: 2026-09-10
 - Requests are identical to the previous panel. No capability was added: pagination controls, a source filter, child-record edit/remove, and compensation/consent editing stay unexposed. Unauthorized actions and every write action on an archived candidate are hidden rather than disabled. Compensation and consent render only with their own view permissions and are read-only.
 - Candidates is bilingual (`candidate.*`, `domain.candidateStatus`, `domain.consentStatus`, `preview.candidate`) and left `deferredEnglishRoutes`; only that route was removed.
 - Development-only `apps/web/candidate.html` renders the real workspace with synthetic data and full, recruiter, and read-only access profiles.
+- Technical review `5178734523` corrections are implemented: candidate-scoped write results are suppressed once the selection or session context changes (the server write still completes); one global write lock guards every write entry point; a successful create restores focus to `New candidate`. Compensation and consent remain read-only by review decision; editors would be a separate product task. The next gate is the ChatGPT technical re-review, then visual review.
 
 ## Review target
 
