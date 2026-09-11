@@ -31,6 +31,8 @@ const API = 'http://127.0.0.1:3000/v1/candidates';
 interface RecordedCall {
   body: unknown;
   method: string;
+  /** The bearer credential the request carried, so session boundaries can be asserted. */
+  token: string | null;
   url: string;
 }
 
@@ -58,7 +60,8 @@ function stubCandidateApi(permissions: readonly string[], handler?: Handler) {
     const url = input instanceof Request ? input.url : String(input);
     const method = init?.method ?? 'GET';
     const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
-    const call = { body, method, url };
+    const token = init?.headers instanceof Headers ? init.headers.get('Authorization') : null;
+    const call = { body, method, token, url };
     calls.push(call);
 
     const custom = handler?.(call);
@@ -139,6 +142,22 @@ function stubCandidateApi(permissions: readonly string[], handler?: Handler) {
 
   return { calls, fetchMock };
 }
+
+/** Candidate list responses shaped by their `search` parameter, as the server would filter. */
+function listResponseFor(url: string): Response {
+  const search = new URL(url).searchParams.get('search') ?? '';
+  const candidates = [
+    syntheticCandidate(),
+    syntheticCandidate({ displayName: 'Second Candidate', id: SECOND_CANDIDATE_ID }),
+  ].filter((candidate) => candidate.displayName.includes(search));
+  return jsonResponse({
+    candidates: candidates.map((candidate) => asServerWouldReturn(candidate, ORDINARY_PERMISSIONS)),
+    pagination: { page: 1, pageSize: 20, total: candidates.length },
+  });
+}
+
+const isListCall = (call: RecordedCall) => call.method === 'GET' && call.url.startsWith(`${API}?`);
+const searchOf = (call: RecordedCall) => new URL(call.url).searchParams.get('search');
 
 function renderPanel(permissions: readonly string[], locale: Locale = 'en') {
   return render(
@@ -755,5 +774,112 @@ describe('Candidate writes never overlap', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'New candidate' })).toHaveFocus(),
     );
+  });
+});
+
+describe('Post-write list refreshes follow the current filters and session', () => {
+  it('refreshes with the latest applied filters, not those captured when the write began', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const status = deferredResponse();
+    const heldLists: { call: RecordedCall; release: () => void }[] = [];
+    let holdLists = false;
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) => {
+      if (isListCall(call)) {
+        if (!holdLists) {
+          return listResponseFor(call.url);
+        }
+        const gate = deferredResponse();
+        heldLists.push({ call, release: () => gate.release(listResponseFor(call.url)) });
+        return gate.promise;
+      }
+      return call.url.endsWith('/status') ? status.promise : undefined;
+    });
+    renderPanel(ORDINARY_PERMISSIONS);
+    const list = await screen.findByRole('region', { name: 'Candidate list' });
+    await within(list).findByRole('button', { name: 'Second Candidate' });
+
+    // Filter A is applied, and candidate A is selected from its results.
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Synthetic' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search candidates' }));
+    await waitFor(() =>
+      expect(within(list).queryByRole('button', { name: 'Second Candidate' })).toBeNull(),
+    );
+    await selectCandidate();
+
+    // A write starts under Filter A and stays pending.
+    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
+
+    // Filter B is applied and its list resolves while the write is still pending.
+    holdLists = true;
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Second' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search candidates' }));
+    await waitFor(() => expect(heldLists).toHaveLength(1));
+    expect(searchOf(heldLists[0]!.call)).toBe('Second');
+    heldLists[0]!.release();
+    expect(await within(list).findByRole('button', { name: 'Second Candidate' })).toBeVisible();
+    expect(within(list).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
+
+    // The old write resolves. Its list refresh must use Filter B, never Filter A.
+    status.release(jsonResponse({ candidate: syntheticCandidate({ status: 'INACTIVE' }) }));
+    expect(await screen.findByText('Candidate status changed to Inactive.')).toBeVisible();
+    await waitFor(() => expect(heldLists).toHaveLength(2));
+    expect(searchOf(heldLists[1]!.call)).toBe('Second');
+    heldLists[1]!.release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Move to talent pool' })).toBeEnabled(),
+    );
+
+    // The visible rows and the controls still describe Filter B.
+    expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
+    expect(within(list).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
+    expect(screen.getByLabelText('Search')).toHaveValue('Second');
+    // Filter A was requested exactly once: when the user applied it.
+    expect(calls.filter(isListCall).map(searchOf)).toEqual([null, 'Synthetic', 'Second', 'Second']);
+  });
+
+  it('starts no post-write list request with an earlier session token', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const status = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.url.endsWith('/status') ? status.promise : undefined,
+    );
+    const panel = (token: string) => (
+      <I18nProvider initialLocale="en">
+        <CandidatesPanel accessToken={token} permissions={ORDINARY_PERMISSIONS} />
+      </I18nProvider>
+    );
+    const view = render(panel('token-a'));
+    await selectCandidate();
+
+    // The write starts in session A and stays pending.
+    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
+    expect(calls.find((call) => call.url.endsWith('/status'))?.token).toBe('Bearer token-a');
+
+    // Session B begins and performs its own list load.
+    view.rerender(panel('token-b'));
+    await waitFor(() =>
+      expect(calls.some((call) => isListCall(call) && call.token === 'Bearer token-b')).toBe(true),
+    );
+    const sessionBStart = calls.findIndex(
+      (call) => isListCall(call) && call.token === 'Bearer token-b',
+    );
+
+    // The session-A write resolves afterwards.
+    status.release(jsonResponse({ candidate: syntheticCandidate({ status: 'INACTIVE' }) }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeEnabled(),
+    );
+
+    // No request after session B began carries the session-A token.
+    const afterSessionB = candidateCalls(calls.slice(sessionBStart));
+    expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
+    expect(afterSessionB.filter(isListCall)).toHaveLength(1);
+    // The session-B list stands, and the stale session-A result stays suppressed.
+    const list = screen.getByRole('region', { name: 'Candidate list' });
+    expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeVisible();
   });
 });

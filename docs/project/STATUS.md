@@ -52,7 +52,8 @@ Status owner: repository maintainer
 - Candidates is bilingual and left `deferredEnglishRoutes`; the French `/candidates` route carries no `lang="en"` boundary, and switching language does not refetch.
 - Development-only `apps/web/candidate.html` renders the real workspace with synthetic data and full, recruiter, and read-only access profiles; it is excluded from the production build.
 - Technical review `5178734523` accepted the architecture, permissions, localization, API-shape preservation, and sensitive-data design, and raised three corrections, all resolved: a write's candidate-scoped result (record, success, and failure feedback) commits only while its captured candidate/session context is still current, without cancelling the server write; one global write lock (`pending !== null`) now disables and guards every write entry point, including forms already open, so two writes cannot overlap; and a successful create closes through the same path as Cancel and returns focus to `New candidate`. Compensation and consent stay read-only by review decision.
-- Web tests went from 159 to 219; 60 are Candidate-focused.
+- Technical re-review `5182998716` accepted those three fixes and raised one more concurrency correction, now resolved: the post-write list refresh reads the latest committed filters from a ref written synchronously when filters are applied, and runs only while the write still belongs to the current session token, so a write that resolves after new filters or a new session can neither show stale results nor reuse an earlier token. A selection change does not suppress it, and filters stay usable during a write.
+- Web tests went from 159 to 221; 62 are Candidate-focused.
 
 ## Issue #56 Verification State
 

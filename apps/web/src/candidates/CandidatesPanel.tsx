@@ -3,7 +3,7 @@ import type {
   CandidateDetail,
   CandidateUpdateRequest,
 } from '@hire-me/contracts';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   archiveCandidate,
@@ -164,6 +164,42 @@ export function CandidatesPanel({
    */
   const writeInFlight = useRef(false);
 
+  /*
+   * The latest committed list filters and the current session token.
+   *
+   * A write can resolve long after the render that started it: the user may
+   * have applied other filters meanwhile, or the session may have moved to a
+   * new token. The post-write list refresh therefore reads these refs instead
+   * of the values its own render captured. The filter ref is written in the
+   * same handler that commits the filters, so there is no window in which a
+   * refresh could still see the previous ones.
+   */
+  const appliedFiltersRef = useRef<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  const sessionToken = useRef(accessToken);
+
+  useLayoutEffect(() => {
+    sessionToken.current = accessToken;
+  }, [accessToken]);
+
+  function applyFilters(next: CandidateFilterValues): void {
+    appliedFiltersRef.current = next;
+    setAppliedFilters(next);
+  }
+
+  /**
+   * Refreshes the list after a write with the latest applied filters, but only
+   * while the write still belongs to the current session. A selection change
+   * does not suppress it: the list shows every matching candidate, not the
+   * selection. A write from an earlier session starts no request at all, so it
+   * can neither reuse that session's token nor supersede the current list.
+   */
+  function refreshListAfterWrite(session: string): void {
+    if (session !== sessionToken.current) {
+      return;
+    }
+    void loadList(appliedFiltersRef.current, true);
+  }
+
   function captureContext(candidateId: string | null): () => boolean {
     const generation = contextGeneration.current;
     return () => contextGeneration.current === generation && selectedRef.current === candidateId;
@@ -275,16 +311,16 @@ export function CandidatesPanel({
   }
 
   function handleSearch(): void {
-    setAppliedFilters({ ...filters });
+    applyFilters({ ...filters });
   }
 
   function handleResetFilters(): void {
     setFilters({ ...EMPTY_CANDIDATE_FILTERS });
-    setAppliedFilters({ ...EMPTY_CANDIDATE_FILTERS });
+    applyFilters({ ...EMPTY_CANDIDATE_FILTERS });
   }
 
   function handleRetryList(): void {
-    setAppliedFilters((previous) => ({ ...previous }));
+    applyFilters({ ...appliedFiltersRef.current });
   }
 
   function handleRetryDetail(): void {
@@ -301,12 +337,13 @@ export function CandidatesPanel({
     failure: CandidateFailure,
     candidateId: string,
     isCurrent: () => boolean,
+    session: string,
   ): void {
     if (failure === 'archived' || failure === 'conflict') {
       if (isCurrent()) {
         void loadDetail(candidateId, true);
       }
-      void loadList(appliedFilters, true);
+      refreshListAfterWrite(session);
     }
   }
 
@@ -324,7 +361,7 @@ export function CandidatesPanel({
         commitDetail(created.candidate, () => true);
         setFeedback({ kind: 'created', tone: 'success' });
       }
-      void loadList(appliedFilters, true);
+      refreshListAfterWrite(accessToken);
       return { ok: true };
     } catch (error) {
       return failureOutcome(classifyCandidateFailure(error));
@@ -346,7 +383,7 @@ export function CandidatesPanel({
         toCandidateUpdateRequest(values),
       );
       // The list may always refresh: it shows every candidate, not the selection.
-      void loadList(appliedFilters, true);
+      refreshListAfterWrite(accessToken);
       if (!isCurrent()) {
         return SUPERSEDED;
       }
@@ -355,7 +392,7 @@ export function CandidatesPanel({
       return { ok: true };
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      refreshAfterFailure(failure, current.id, isCurrent);
+      refreshAfterFailure(failure, current.id, isCurrent, accessToken);
       return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
     } finally {
       endWrite();
@@ -380,7 +417,7 @@ export function CandidatesPanel({
     setFeedback(null);
     try {
       const updated = await updateCandidateStatus(accessToken, current.id, { status });
-      void loadList(appliedFilters, true);
+      refreshListAfterWrite(accessToken);
       if (isCurrent()) {
         commitDetail(updated.candidate, isCurrent);
         setFeedback({ kind: 'statusChanged', status, tone: 'success' });
@@ -390,7 +427,7 @@ export function CandidatesPanel({
       if (isCurrent()) {
         setFeedback({ failure, kind: 'failed', tone: 'danger' });
       }
-      refreshAfterFailure(failure, current.id, isCurrent);
+      refreshAfterFailure(failure, current.id, isCurrent, accessToken);
     } finally {
       endWrite();
     }
@@ -409,7 +446,7 @@ export function CandidatesPanel({
     setFeedback(null);
     try {
       const archived = await archiveCandidate(accessToken, current.id);
-      void loadList(appliedFilters, true);
+      refreshListAfterWrite(accessToken);
       if (isCurrent()) {
         commitDetail(archived.candidate, isCurrent);
         setFeedback({ kind: 'archived', tone: 'success' });
@@ -419,7 +456,7 @@ export function CandidatesPanel({
       if (isCurrent()) {
         setFeedback({ failure, kind: 'failed', tone: 'danger' });
       }
-      refreshAfterFailure(failure, current.id, isCurrent);
+      refreshAfterFailure(failure, current.id, isCurrent, accessToken);
     } finally {
       endWrite();
     }
@@ -470,7 +507,7 @@ export function CandidatesPanel({
       }
     } catch (error) {
       const failure = classifyCandidateFailure(error);
-      refreshAfterFailure(failure, candidateId, isCurrent);
+      refreshAfterFailure(failure, candidateId, isCurrent, accessToken);
       endWrite();
       return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
     }
