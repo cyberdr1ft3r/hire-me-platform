@@ -2101,12 +2101,32 @@ export async function finalizeEvaluation(
   return EvaluationDetailResponseSchema.parse(await response.json());
 }
 
+/**
+ * A failed public opportunity request.
+ *
+ * It keeps only the HTTP status, so the public pages can choose one of their
+ * own localized messages. The response body, including the server's message
+ * text, is never read.
+ */
+export class PublicRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'PublicRequestError';
+    this.status = status;
+  }
+}
+
 export async function listPublicOpportunities(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<PublicOpportunityListResponse> {
   const response = await fetch(`${apiBaseUrl}/v1/public/opportunities`);
   if (!response.ok) {
-    throw new Error(`Public opportunities request failed with status ${response.status}`);
+    throw new PublicRequestError(
+      `Public opportunities request failed with status ${response.status}`,
+      response.status,
+    );
   }
   return PublicOpportunityListResponseSchema.parse(await response.json());
 }
@@ -2117,7 +2137,10 @@ export async function getPublicOpportunity(
 ): Promise<PublicOpportunityDetailResponse> {
   const response = await fetch(`${apiBaseUrl}/v1/public/opportunities/${publicSlug}`);
   if (!response.ok) {
-    throw new Error(`Public opportunity request failed with status ${response.status}`);
+    throw new PublicRequestError(
+      `Public opportunity request failed with status ${response.status}`,
+      response.status,
+    );
   }
   return PublicOpportunityDetailResponseSchema.parse(await response.json());
 }
@@ -2133,7 +2156,10 @@ export async function submitPublicApplication(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw new Error(`Public application request failed with status ${response.status}`);
+    throw new PublicRequestError(
+      `Public application request failed with status ${response.status}`,
+      response.status,
+    );
   }
   return PublicApplicationSubmitResponseSchema.parse(await response.json());
 }

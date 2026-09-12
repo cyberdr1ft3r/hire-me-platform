@@ -9,18 +9,21 @@ import { isLocale, LOCALE_METADATA, SUPPORTED_LOCALES, useI18n } from '../../i18
  * compact enough for the mobile drawer, and it communicates the active language
  * as its own text rather than through color. Options use each language's own
  * name and are identical in every locale. No flags: a language is not a country.
+ *
+ * The public opportunity pages reuse the same control under their own class
+ * prefix, so both surfaces share one behaviour and one stored preference.
  */
-export function LanguageSelect() {
+export function LanguageSelect({ classPrefix = 'app-shell__language' }: { classPrefix?: string }) {
   const { locale, setLocale, t } = useI18n();
   const controlId = useId();
 
   return (
-    <div className="app-shell__language">
-      <label className="app-shell__language-label" htmlFor={controlId}>
+    <div className={classPrefix}>
+      <label className={`${classPrefix}-label`} htmlFor={controlId}>
         {t('shell.language.label')}
       </label>
       <select
-        className="app-shell__language-select"
+        className={`${classPrefix}-select`}
         id={controlId}
         onChange={(event) => {
           const next = event.target.value;

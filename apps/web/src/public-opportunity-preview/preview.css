@@ -1,0 +1,13 @@
+/*
+ * Development-only chrome for the public opportunity review surface. It styles
+ * the state switch, nothing the product itself renders.
+ */
+.public-preview__switches {
+  background: var(--color-surface-subtle);
+  border-block-end: var(--border-width) solid var(--color-border);
+  padding: var(--space-3) var(--space-page-x);
+}
+
+.public-preview__switches .ui-field {
+  max-width: var(--layout-card-min);
+}

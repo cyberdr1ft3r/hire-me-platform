@@ -1,0 +1,823 @@
+/*
+ * Public opportunity pages: the public-spacious expression of HireMe.
+ *
+ * Same tokens, type, focus, and radii as the internal workspace, with a calmer
+ * canvas, a comfortable reading width, and stronger reading rhythm. Every value
+ * comes from the token system: no local color, no gradient, no shadow on an
+ * ordinary surface, and no card nested inside a card. The two contained
+ * surfaces on a detail page, key details and the application, sit side by side
+ * or one after the other, never inside each other.
+ */
+
+.public-site {
+  background: var(--color-canvas);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.public-site h1 {
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.public-site h2,
+.public-site h3 {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: break-word;
+}
+
+.public-site__skip-link {
+  background: var(--color-text);
+  color: var(--color-text-inverse);
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  position: fixed;
+  top: var(--space-3);
+  transform: translateY(calc(-100% - var(--space-4)));
+  z-index: 4;
+}
+
+.public-site__skip-link:focus {
+  color: var(--color-text-inverse);
+  transform: translateY(0);
+}
+
+/* --- Header ------------------------------------------------------------ */
+
+/* Header, content, and footer share one column so their edges align. */
+.public-site__header {
+  background: var(--color-surface);
+  border-block-end: var(--border-width) solid var(--color-border);
+  padding-inline: var(--space-page-x);
+}
+
+.public-site__bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  justify-content: space-between;
+  margin-inline: auto;
+  max-width: var(--layout-content-max);
+  min-height: var(--space-16);
+  padding-block: var(--space-2);
+}
+
+.public-site__brand {
+  align-items: center;
+  color: var(--color-text);
+  display: inline-flex;
+  gap: var(--space-3);
+  min-height: var(--hit-target-min);
+  text-decoration: none;
+}
+
+.public-site__brand:hover {
+  color: var(--color-text);
+}
+
+.public-site__brand-mark {
+  align-items: center;
+  background: var(--color-brand);
+  border-radius: var(--radius-small);
+  color: var(--color-text-inverse);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-bold);
+  height: var(--space-8);
+  justify-content: center;
+  width: var(--space-8);
+}
+
+.public-site__brand-text {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  font-size: var(--font-size-4);
+  line-height: var(--line-height-tight);
+}
+
+.public-site__brand-text span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+}
+
+.public-site__language {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.public-site__language-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+}
+
+.public-site__language-select {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  font-size: var(--font-size-3);
+  min-height: var(--hit-target-min);
+  padding-inline: var(--space-3);
+}
+
+/* --- Page frame -------------------------------------------------------- */
+
+.public-site__main {
+  flex: 1 0 auto;
+  padding: var(--space-page-y) var(--space-page-x) var(--space-16);
+}
+
+/* The skip-link target is a landmark, not a control. */
+.public-site__main:focus {
+  outline: none;
+}
+
+/* Page content shares the header's column, so the title aligns with the mark. */
+.public-site__content {
+  margin-inline: auto;
+  max-width: var(--layout-content-max);
+}
+
+.public-page {
+  max-width: var(--layout-public-max);
+  width: 100%;
+}
+
+.public-intro {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-10);
+}
+
+.public-intro__lead {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-5);
+  line-height: var(--line-height-body);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.public-site__footer {
+  border-block-start: var(--border-width) solid var(--color-border);
+  padding-inline: var(--space-page-x);
+}
+
+.public-site__footer-inner {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-3);
+  gap: var(--space-2) var(--space-6);
+  justify-content: space-between;
+  margin-inline: auto;
+  max-width: var(--layout-content-max);
+  padding-block: var(--space-4);
+}
+
+.public-site__footer-inner a {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--hit-target-min);
+}
+
+/* --- Shared states and links ------------------------------------------- */
+
+.public-state {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.public-state h1,
+.public-state h2,
+.public-state p {
+  margin: 0;
+}
+
+.public-state h2 {
+  font-size: var(--font-size-5);
+}
+
+.public-state--empty {
+  border-block: var(--border-width) solid var(--color-border);
+  padding-block: var(--space-10);
+}
+
+.public-state--page {
+  padding-block: var(--space-6) var(--space-10);
+}
+
+.public-back {
+  align-items: center;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  min-height: var(--hit-target-min);
+  text-decoration: none;
+}
+
+.public-back:hover {
+  color: var(--color-brand-hover);
+  text-decoration: underline;
+}
+
+/* A real link that reads as an action. */
+.public-link-button {
+  align-items: center;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  display: inline-flex;
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  justify-content: center;
+  line-height: var(--line-height-tight);
+  min-height: var(--control-height);
+  padding-inline: var(--space-5);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.public-link-button:hover {
+  background: var(--color-brand-subtle);
+  border-color: var(--color-brand-subtle-hover);
+  color: var(--color-brand-pressed);
+}
+
+.public-link-button--primary {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-text-inverse);
+}
+
+.public-link-button--primary:hover {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+  color: var(--color-text-inverse);
+}
+
+.public-link-button--primary:active {
+  background: var(--color-brand-pressed);
+  border-color: var(--color-brand-pressed);
+}
+
+/* --- List -------------------------------------------------------------- */
+
+.public-list__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin: 0 0 var(--space-3);
+}
+
+.public-list__rows {
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-list__row {
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+/*
+ * The row reaches slightly past the text column so its hover surface has room
+ * to breathe; page padding is never narrower than that reach.
+ */
+.public-list__item {
+  border-radius: var(--radius-medium);
+  display: grid;
+  gap: var(--space-2);
+  margin-inline: calc(-1 * var(--space-4));
+  padding: var(--space-6) var(--space-4);
+  position: relative;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.public-list__item:hover {
+  background: var(--color-surface);
+}
+
+.public-list__title {
+  font-size: var(--font-size-5);
+  line-height: var(--line-height-heading);
+  margin: 0;
+}
+
+.public-list__link {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.public-list__link:hover {
+  color: var(--color-text);
+}
+
+/* One pointer target per row; the accessible name stays the title. */
+.public-list__link::after {
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+.public-list__item:hover .public-list__link {
+  text-decoration: underline;
+  text-decoration-thickness: var(--border-width);
+}
+
+.public-list__summary {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  font-size: var(--font-size-4);
+  line-clamp: 3;
+  margin: var(--space-1) 0 0;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.public-list__cue {
+  align-items: center;
+  color: var(--color-brand);
+  display: inline-flex;
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.public-list__arrow {
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.public-list__item:hover .public-list__arrow {
+  transform: translateX(var(--space-1));
+}
+
+.public-list__loading {
+  display: grid;
+}
+
+.public-list__skeleton {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-6);
+}
+
+/* Location · work arrangement · contract type, as published. */
+.public-meta {
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-3);
+  gap: var(--space-1) var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-meta li {
+  overflow-wrap: break-word;
+}
+
+.public-meta li:not(:first-child)::before {
+  color: var(--color-text-muted);
+  content: '·';
+  padding-inline-end: var(--space-2);
+}
+
+/* --- Detail ------------------------------------------------------------ */
+
+.public-opportunity {
+  container: public-opportunity / inline-size;
+  max-width: var(--layout-content-max);
+}
+
+.public-opportunity__header {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-10);
+  max-width: var(--layout-public-max);
+}
+
+.public-opportunity__layout {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.public-opportunity__content {
+  display: grid;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/*
+ * Reading column beside key details only when the page itself is wide enough
+ * for both. Key details come first in the document, so on narrower screens
+ * they sit right after the title, before the long description.
+ */
+@container public-opportunity (min-width: 56rem) {
+  .public-opportunity__layout {
+    align-items: start;
+    gap: var(--space-12);
+    grid-template-areas: 'content facts';
+    grid-template-columns:
+      minmax(0, var(--layout-public-max))
+      minmax(var(--layout-card-min), 18rem);
+  }
+
+  .public-opportunity__content {
+    grid-area: content;
+  }
+
+  .public-facts {
+    grid-area: facts;
+    inset-block-start: var(--space-8);
+    position: sticky;
+  }
+}
+
+.public-section {
+  max-width: var(--layout-public-max);
+}
+
+.public-section h2 {
+  font-size: var(--font-size-5);
+  margin-bottom: var(--space-3);
+}
+
+.public-prose {
+  color: var(--color-text);
+  font-size: var(--font-size-4);
+  line-height: var(--line-height-body);
+  margin: 0;
+  overflow-wrap: break-word;
+  white-space: pre-line;
+}
+
+.public-facts {
+  align-self: start;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-large);
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.public-facts__title {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin: 0;
+}
+
+.public-facts__list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.public-facts__row {
+  display: grid;
+  gap: var(--space-0-5);
+}
+
+.public-facts__row dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+}
+
+.public-facts__row dd {
+  color: var(--color-text);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.public-facts .public-link-button {
+  width: 100%;
+}
+
+/*
+ * Stacked above the description on a tablet, the panel is wide, so its facts
+ * use two columns and the action returns to its natural width.
+ */
+.public-opportunity__layout > .public-facts {
+  container: public-facts / inline-size;
+}
+
+@container public-facts (min-width: 32rem) {
+  .public-facts__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .public-facts .public-link-button {
+    justify-self: start;
+    width: auto;
+  }
+}
+
+.public-detail-loading {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.public-detail-loading__title {
+  height: var(--space-8);
+  margin-bottom: var(--space-4);
+  width: 70%;
+}
+
+/* --- Application ------------------------------------------------------- */
+
+.public-apply {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-large);
+  display: grid;
+  gap: var(--space-6);
+  padding: clamp(var(--space-5), 4vw, var(--space-10));
+  scroll-margin-top: var(--space-6);
+}
+
+.public-apply__title {
+  font-size: var(--font-size-6);
+  line-height: var(--line-height-heading);
+  margin: 0;
+}
+
+.public-form {
+  container: public-form / inline-size;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.public-form__note,
+.public-form__group-hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin: 0;
+}
+
+.public-form__group {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.public-form__legend {
+  color: var(--color-text);
+  font-size: var(--font-size-5);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  margin-bottom: var(--space-4);
+  padding: 0;
+}
+
+.public-form__grid,
+.public-form__stack {
+  display: grid;
+  gap: var(--space-5) var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container public-form (min-width: 34rem) {
+  .public-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .public-form__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.public-form textarea.ui-field__control {
+  min-height: calc(var(--space-12) * 2);
+  resize: vertical;
+}
+
+.public-file {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.public-file__control {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  position: relative;
+}
+
+/*
+ * The native control stays focusable and labelled for keyboard and assistive
+ * technology; only its browser-language button text is replaced visually.
+ */
+.public-file__input {
+  height: var(--border-width);
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  min-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: var(--border-width);
+}
+
+.public-file__button {
+  align-items: center;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--control-height);
+  padding-inline: var(--space-4);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+
+.public-file__button:hover {
+  background: var(--color-brand-subtle);
+  border-color: var(--color-brand-subtle-hover);
+  color: var(--color-brand-pressed);
+}
+
+.public-file__input:focus-visible + .public-file__button {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
+.public-file[data-invalid='true'] .public-file__button {
+  border-color: var(--color-danger);
+}
+
+.public-file__name {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-consent {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.public-consent__label {
+  align-items: flex-start;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--font-size-4);
+  gap: var(--space-3);
+  line-height: var(--line-height-body);
+  min-height: var(--hit-target-min);
+}
+
+.public-consent__label input {
+  accent-color: var(--color-brand);
+  flex: 0 0 auto;
+  height: var(--space-5);
+  margin: var(--space-0-5) 0 0;
+  min-height: 0;
+  padding: 0;
+  width: var(--space-5);
+}
+
+.public-consent[data-invalid='true'] .public-consent__label input {
+  outline: var(--border-width) solid var(--color-danger);
+  outline-offset: var(--space-0-5);
+}
+
+/* Visually removed and removed from assistive technology; still in the DOM. */
+.public-form__trap {
+  clip-path: inset(50%);
+  height: var(--border-width);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--border-width);
+}
+
+.public-form__actions {
+  display: flex;
+}
+
+.public-form__actions .ui-button {
+  padding-inline: var(--space-6);
+}
+
+@container public-form (max-width: 34rem) {
+  .public-form__actions .ui-button {
+    width: 100%;
+  }
+}
+
+.public-received {
+  align-items: start;
+  background: var(--color-success-subtle);
+  border-inline-start: var(--space-1) solid var(--color-success);
+  border-radius: var(--radius-small);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-6);
+}
+
+.public-received__mark {
+  align-items: center;
+  background: var(--color-success);
+  border-radius: var(--radius-full);
+  color: var(--color-text-inverse);
+  display: inline-flex;
+  font-weight: var(--font-weight-bold);
+  height: var(--space-8);
+  justify-content: center;
+  width: var(--space-8);
+}
+
+.public-received h3 {
+  color: var(--color-text);
+  font-size: var(--font-size-5);
+  margin: 0 0 var(--space-2);
+}
+
+.public-received p {
+  color: var(--color-text);
+  margin: 0 0 var(--space-4);
+}
+
+.public-received a {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --- Narrow screens ---------------------------------------------------- */
+
+/*
+ * On a phone the mark and the language control share one row. The subtitle
+ * stays in the brand link's accessible name; only its visible text folds.
+ */
+@media (max-width: 27rem) {
+  .public-site__brand-text span {
+    clip-path: inset(50%);
+    height: var(--border-width);
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: var(--border-width);
+  }
+}
+
+@media (max-width: 40rem) {
+  .public-site__bar {
+    min-height: var(--space-12);
+  }
+
+  .public-intro {
+    margin-bottom: var(--space-8);
+  }
+
+  .public-list__item {
+    padding-block: var(--space-5);
+  }
+
+  .public-opportunity__header {
+    margin-bottom: var(--space-8);
+  }
+
+  .public-facts {
+    padding: var(--space-5);
+  }
+
+  .public-received {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
