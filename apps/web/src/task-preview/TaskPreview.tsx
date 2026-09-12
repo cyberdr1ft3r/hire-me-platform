@@ -109,7 +109,11 @@ function TaskPreviewContent() {
       <div className="task-preview__switches">
         <Select
           label={t('preview.task.dataset')}
-          onChange={(event) => setDataset(event.target.value as Dataset)}
+          onChange={(event) => {
+            const nextDataset = event.target.value as Dataset;
+            setDataset(nextDataset);
+            setSelectedId(nextDataset === 'populated' ? taskDetail.id : null);
+          }}
           value={dataset}
         >
           <option value="populated">{t('preview.task.populated')}</option>
