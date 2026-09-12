@@ -228,6 +228,13 @@
 }
 
 @media (max-width: 70rem) {
+  .tasks > .ui-page-header {
+    display: grid;
+    gap: var(--space-4);
+  }
+  .tasks > .ui-page-header .ui-page-header__actions {
+    justify-content: flex-start;
+  }
   .tasks__filter-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
