@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Issue #52 representative surfaces. Recruitment/Reporting (Issue #56) is merged through PR #57; the Candidate workspace (Issue #60) is the second surface and is in review.
-**Health:** `main` is at `922b5ecc1b7aa4724d3026a18f7015026328c847`, the PR #57 merge commit. Issue #60 is implemented on branch `design/candidate-workspace-v1`, created from that exact `main`.
-**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Candidate workspace. The Public Opportunity redesign does not begin until the Candidate workspace is approved.
-**Next executable development task:** Review the draft Candidate PR at `http://127.0.0.1:5173/candidate.html` in English and French; keep it open/unmerged.
+**Phase:** Issue #52 representative surfaces. Recruitment/Reporting (Issue #56, PR #57) and the Candidate workspace (Issue #60, PR #61) are merged; the Public Opportunity experience (Issue #62) is the third and final surface and is in review.
+**Health:** `main` is at `2a411f030a031c25cd18424059d4c8e2b1ae2842`, the PR #61 merge commit. Issue #62 is implemented on branch `design/public-opportunity-v1`, created from that exact `main`.
+**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Public Opportunity experience. Issue #52 stays open until it is approved and merged.
+**Next executable development task:** Review the draft Public Opportunity PR at `http://127.0.0.1:5173/public-opportunity.html` in English and French; keep it open/unmerged.
 
 ## Active work
 
@@ -35,11 +35,25 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; Reporting merged via PR #57 (Issue #56); the Candidate workspace is in review under Issue #60. Public Opportunity redesign not started |
+| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; Reporting merged via PR #57 (Issue #56); Candidate merged via PR #61 (Issue #60); Public Opportunity in review under Issue #62. Stays open until Public Opportunity is approved and merged |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
 | Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
-| Issue #60 | Open | Redesign the bilingual Candidate workspace as the second representative surface | Implemented on `design/candidate-workspace-v1`; draft PR open for technical and visual review; keep it open and unmerged |
+| Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
+| Issue #62 | Open | Redesign the bilingual Public Opportunity experience as the third representative surface | Implemented on `design/public-opportunity-v1`; draft PR open for technical and visual review; keep it open and unmerged |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #62 Verification State
+
+- Branch `design/public-opportunity-v1` was created from exact `main` `2a411f030a031c25cd18424059d4c8e2b1ae2842`.
+- Public presentation was extracted from `App.tsx` into `apps/web/src/public-opportunities/`: `PublicOpportunitiesPanel` and `PublicOpportunityDetailPanel` own the requests, retries, and submission; `PublicSite`, `PublicOpportunityList`, `PublicOpportunityDetail`, and `PublicApplicationForm` are presentation. `App.tsx` keeps only the two URL matches, now without the English boundary, and keys the detail by slug.
+- No API, contract, Prisma, visibility, slug, application, duplicate, anti-enumeration, upload, or rate-limit change. The only non-presentation web change: the three public client calls throw `PublicRequestError` with the HTTP status; URLs, methods, bodies, parsing, and the error message text are unchanged, and the response body is never read.
+- Rendered fields are the public contract only (see D-061). Salary and deadline render only when the API includes them; the client name renders or reads "Confidential" as before. Tests feed internal-looking extra fields and assert none reaches the DOM.
+- Every 404 shows one identical page with no slug echoed; a network or server failure is a separate retryable state.
+- The request body is identical to the previous page, including sending the typed salary figure unchanged as `salaryExpectationCents` (pre-existing unit mismatch recorded as R-035, not changed).
+- Pre-existing web defects fixed inside the presentation boundary: a server-confirmed application displayed "Application could not be submitted." because `event.currentTarget` was read after an `await` (confirmed with a throwaway test on unmodified `main`); the anti-spam field had no CSS and was visible to people; file categories the server requires were not marked required.
+- Bilingual under `publicOpportunity.*`, `domain.publicApplicationFileCategory`, and `preview.publicOpportunity`. French `/opportunities` and `/opportunities/:slug` carry no `lang="en"` region; switching language re-renders without refetching and without clearing the form.
+- Development-only `apps/web/public-opportunity.html` renders the real components with synthetic data; it is excluded from the production build.
+- Web tests went from 221 to 263; 42 are Public Opportunity-focused, and 4 existing assertions were inverted from "English boundary present" to "no English boundary", as the issue requires.
 
 ## Issue #60 Verification State
 
@@ -446,8 +460,9 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the bilingual Candidate workspace at `http://127.0.0.1:5173/candidate.html` in English and French at the required responsive widths, including the three access profiles.
-2. Keep the Candidate PR open, draft, and unmerged. The Public Opportunity redesign remains blocked until the Candidate workspace is accepted.
+1. Review the bilingual Public Opportunity experience at `http://127.0.0.1:5173/public-opportunity.html` in English and French at 1440, 1024, 800, 430, and 390 px, across the list, detail, application, received, empty, loading, failure, and not-found states.
+2. Keep the Public Opportunity PR open, draft, and unmerged. Issue #52 closes only after it is approved and merged.
+3. Decide R-035 (public salary expectation unit) as a separate scoped task.
 
 ## Status Update Rules
 

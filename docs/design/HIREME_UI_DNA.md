@@ -276,3 +276,16 @@ The Candidate workspace is the second representative surface. It proves the reco
 Its development-only review surface is `apps/web/candidate.html`. It renders the real workspace inside the real shell and locale provider with synthetic data and switchable access profiles, makes no request, is not linked from product navigation, and is excluded from the production build.
 
 For this AppShell checkpoint, the persistent sidebar switches to the off-canvas navigation at and below 900px (`56.25rem`); 1024px remains the persistent laptop shell. The JavaScript media query and CSS breakpoint must stay identical.
+
+## Public Opportunity representative surface
+
+The public opportunity list, detail, and application form are the third representative surface and the only unauthenticated one. They prove the `public-spacious` density: the same tokens, type, focus, and radii as the workspace, with a lighter frame and a stronger reading rhythm.
+
+- **A public frame, not the shell with its sidebar removed.** `PublicSite` carries the HireMe mark, the shared language control, the page, and a quiet footer. Header, content, and footer share one column so their edges align. Navigation is ordinary links, so the browser owns history and deep links.
+- **Rows, not marketing cards.** The list is a ruled column of rows: the title as the row's real link, then location, work arrangement, and contract type as published, then a summary clamped to three lines. The API's order is kept, and there is no search, filter, sort, or paging because the public list has none.
+- **Reading first, key details beside it.** The detail is a reading column at `--layout-public-max`. Key details are one contained surface with the only primary action; it sits beside the text when the page is wide enough and directly after the title otherwise, where its facts use two columns on a tablet. The application is the second contained surface, after the reading content. The two surfaces are never nested.
+- **Only published fields.** Pages render the public contract and nothing else. A value the API omits produces nothing; a hidden client name reads as confidential, as it always has; salary and deadline appear only when the API includes them. Published text is shown as written and never translated.
+- **One not-found page.** Every 404 produces the same words, because the server gives the same 404 for every reason an opportunity is not public. A network failure is a different, retryable state.
+- **A form candidates can finish.** Sections use real fieldsets and legends, labels are always visible, and fields pair up only where the form is wide enough. Validation repeats only rules the server enforces and appears beside each field, with focus moved to the first invalid one. File controls keep the native input for keyboard and assistive technology but show a localized button and the chosen file name. Success appears only after the server confirms receipt and promises nothing beyond it.
+
+Its development-only review surface is `apps/web/public-opportunity.html`. It renders the real public components inside the real locale provider, with synthetic public-contract data in each language and switchable list, detail, application, empty, loading, failure, not-found, and received states. It makes no request, is not linked from anywhere, and is excluded from the production build.

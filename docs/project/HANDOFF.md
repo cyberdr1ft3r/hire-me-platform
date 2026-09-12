@@ -1,18 +1,19 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 
 ## Current situation
 
-- Authoritative `main` is `922b5ecc1b7aa4724d3026a18f7015026328c847`, the PR #57 merge commit. Issue #56 (Reporting) is complete.
-- Issue #52 remains open for its representative-surface checkpoints. The Public Opportunity surface has not started.
-- Issue #60 redesigns the Candidate workspace on `design/candidate-workspace-v1`, created from that exact `main`. A draft PR (`Closes #60`, `Refs #52`) is open for technical and visual review. Do not merge or deploy it.
-- It is presentation work only: no candidate endpoint, contract, Prisma schema, lifecycle, duplicate, archival, authorization, audit, or redaction change. The only non-presentation web change is that `candidateRequest` in `apps/web/src/api.ts` now throws `CandidateRequestError` carrying the HTTP status and stable API error code; the server message is discarded.
-- Candidate presentation moved out of `App.tsx` into `apps/web/src/candidates/`: `CandidatesPanel` (container: reads, mutations, confirmations, request sequencing, permission-derived `CandidateAccess`) and presentation components (`CandidateWorkspace`, `CandidateList`, `CandidateFilters`, `CandidateCreateForm`, `CandidateDetailView`, `CandidateProfile`, `CandidateProfileForm`, `CandidateSkills`, `CandidateLanguages`, `CandidateExperience`, `CandidateEducation`, `CandidateSensitiveData`). No other module moved.
-- Requests are identical to the previous panel. No capability was added: pagination controls, a source filter, child-record edit/remove, and compensation/consent editing stay unexposed. Unauthorized actions and every write action on an archived candidate are hidden rather than disabled. Compensation and consent render only with their own view permissions and are read-only.
-- Candidates is bilingual (`candidate.*`, `domain.candidateStatus`, `domain.consentStatus`, `preview.candidate`) and left `deferredEnglishRoutes`; only that route was removed.
-- Development-only `apps/web/candidate.html` renders the real workspace with synthetic data and full, recruiter, and read-only access profiles.
-- Technical review `5178734523` corrections are implemented: candidate-scoped write results are suppressed once the selection or session context changes (the server write still completes); one global write lock guards every write entry point; a successful create restores focus to `New candidate`. Compensation and consent remain read-only by review decision; editors would be a separate product task. Technical re-review `5182998716` accepted them; its one further correction is implemented: post-write list refreshes use the latest applied filters and only the current session token. The next gate is the final ChatGPT technical re-review, then visual review.
+- Authoritative `main` is `2a411f030a031c25cd18424059d4c8e2b1ae2842`, the PR #61 merge commit. Issue #60 (Candidate workspace) is complete.
+- Issue #52 remains open for its last representative surface. It closes only after the Public Opportunity experience is approved and merged.
+- Issue #62 redesigns the public opportunity list, detail, and application form on `design/public-opportunity-v1`, created from that exact `main`. A draft PR (`Closes #62`, `Refs #52`) is open for technical and visual review. Do not merge or deploy it.
+- It is presentation and localization only: no public endpoint, contract, Prisma schema, visibility, slug, application, duplicate, anti-enumeration, upload, or rate-limit change. The only non-presentation web change is that the three public calls in `apps/web/src/api.ts` throw `PublicRequestError` carrying the HTTP status; the response body is never read.
+- Public presentation moved out of `App.tsx` into `apps/web/src/public-opportunities/`: `PublicOpportunitiesPanel` and `PublicOpportunityDetailPanel` (containers: requests, retries, submission, request sequencing, submission lock) and presentation components (`PublicSite`, `PublicOpportunityList`, `PublicOpportunityDetail`, `PublicApplicationForm`) plus pure helpers (`public-application.ts`, `public-opportunity-format.ts`, `public-opportunity-state.ts`). `LanguageSelect` gained an optional class prefix; its default behaviour is unchanged.
+- Only public-contract fields render. Every 404 shows the same page. The request body is identical to the previous page.
+- Pre-existing web defects fixed inside the boundary: a confirmed application used to display a failure message; the anti-spam field was visible; server-required document categories were not marked required.
+- Not changed, needs a decision: the public salary expectation is sent as typed into `salaryExpectationCents`, while internal screens divide it by 100 (R-035).
+- The public pages are bilingual (`publicOpportunity.*`, `domain.publicApplicationFileCategory`, `preview.publicOpportunity`) and carry no `lang="en"` boundary.
+- Development-only `apps/web/public-opportunity.html` renders the real components with synthetic data and switchable states (`?state=` also selects one).
 
 ## Review target
 
@@ -22,33 +23,31 @@ Run from the repository root:
 pnpm --filter @hire-me/web dev
 ```
 
-Open `http://127.0.0.1:5173/candidate.html`. Review:
+Open `http://127.0.0.1:5173/public-opportunity.html`. Review:
 
-- the `PageHeader` (`Recruitment` / `Recrutement`, `Candidates` / `Candidats`) with `New candidate` present only for `candidates:create`;
-- the list: compact rows with status, title and location, source, and last update; `aria-current` plus an inline-start bar on the selected row; the count, and the truncation hint when more than 20 match;
-- the record: secondary identity heading, status and last update, then contact and profile, source and record, skills and languages, work experience, education, and restricted information;
-- the three access profiles: restricted information disappears entirely for the recruiter profile, and every write action disappears for the read-only viewer, whose structured records are reported as unavailable;
-- the create, edit, and add-record forms with localized validation beside each field;
-- 1440, 1024, 900, 800, 430, and 390 px in French, with the drawer open and closed at 390: no clipping and no whole-page horizontal overflow.
+- the list: ruled rows with the title link, published location, work arrangement, and contract type, and the clamped summary; the count; empty, loading, and failure states;
+- the detail: back link, title and summary, key details (company or "Confidential", salary and deadline only when present) with the single primary action, then the description, skills, and application;
+- the application: fieldsets, visible labels, localized file controls, required markers, validation beside fields, the consent checkbox, and the received and not-sent states;
+- the not-found and detail-failure states;
+- 1440, 1024, 800, 430, and 390 px in French and English: no clipping and no whole-page horizontal overflow.
 
-With French active, `/candidates` must carry no `lang="en"` boundary, while a still-English module such as Tasks keeps its boundary.
+With French active, `/opportunities` and `/opportunities/:slug` must carry no `lang="en"` region, while a still-English internal module such as Tasks keeps its boundary.
 
 ## Completion conditions
 
 - Local quality gates and exact-head GitHub Actions are green on the PR head.
-- Candidate endpoints, payloads, lifecycle, archival, duplicate handling, authorization, and redaction are provably unchanged.
+- Public endpoints, payloads, visibility, anti-enumeration, slugs, and application semantics are provably unchanged.
 - The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`.
 - The production build contains no development preview page.
-- The draft Candidate PR remains draft, open, and unmerged.
+- The draft Public Opportunity PR remains draft, open, and unmerged.
 - The maintainer/ChatGPT technical and visual reviews accept the surface or request a bounded correction.
 
 ## Explicit hard stop
 
-Do not begin the Public Opportunity redesign until the Candidate workspace is accepted. Do not begin a task-pipeline surface, a legacy-module translation sweep, a server-stored locale preference, Arabic or RTL work, migration, deployment, or merge work.
+Do not begin a task-pipeline surface, a legacy-module translation sweep, a server-stored locale preference, Arabic or RTL work, the R-035 salary fix, migration, deployment, or merge work.
 
 ## Resume checklist
 
-- Read `AGENTS.md`, Issue #52, Issue #60, the Candidate PR review history, and the project-memory files.
+- Read `AGENTS.md`, Issue #52, Issue #62, the Public Opportunity PR review history, and the project-memory files.
 - Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
-- Keep any requested correction inside the Candidate boundary: `apps/web/src/candidates`, `apps/web/src/candidate-preview`, `apps/web/candidate.html`, the `candidate.*`, `domain.candidateStatus`, `domain.consentStatus`, and `preview.candidate` dictionary entries, and the design/project documentation.
-- The intermittent local late-request rejection from `src/i18n/content-language.test.tsx` is a known pre-existing multi-agent environment issue; do not change that test unless it is reproduced deterministically in an isolated environment.
+- Keep any requested correction inside the public boundary: `apps/web/src/public-opportunities`, `apps/web/src/public-opportunity-preview`, `apps/web/public-opportunity.html`, the `publicOpportunity.*`, `domain.publicApplicationFileCategory`, and `preview.publicOpportunity` dictionary entries, the public routes in `App.tsx`, the public calls in `api.ts`, and the design/project documentation.
