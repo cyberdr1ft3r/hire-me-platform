@@ -337,7 +337,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: /tasks/i }));
 
-    expect(await screen.findByRole('button', { name: 'Review candidate follow-up' })).toBeVisible();
+    expect(await screen.findByRole('button', { name: /Review candidate follow-up/ })).toBeVisible();
     expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /process reminders/i })).not.toBeInTheDocument();
   });
@@ -486,7 +486,8 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: /tasks/i }));
-    fireEvent.change(await screen.findByPlaceholderText(/task title/i), {
+    fireEvent.click(await screen.findByRole('button', { name: /new task/i }));
+    fireEvent.change(await screen.findByLabelText(/^title/i), {
       target: { value: 'Call client after interview' },
     });
     fireEvent.click(screen.getByRole('button', { name: /create task/i }));

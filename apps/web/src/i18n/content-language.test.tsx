@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App.js';
@@ -155,8 +155,8 @@ afterEach(() => {
   window.history.pushState({}, '', '/');
 });
 
-describe('deferred English modules inside a French shell', () => {
-  it('keeps the document French, the shell French, and the legacy module English', async () => {
+describe('Task workspace inside a French shell', () => {
+  it('keeps the document, shell, and bilingual Task module French', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/tasks');
     mockInternalSession();
@@ -168,24 +168,21 @@ describe('deferred English modules inside a French shell', () => {
     expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
 
-    // The module inside it is not, and says so.
-    const legacyHeading = await screen.findByRole('heading', { name: 'Tasks' });
-    expect(effectiveLanguage(legacyHeading)).toBe('en');
-    const boundary = legacyHeading.closest('[lang="en"]');
-    expect(boundary).not.toBeNull();
-    expect(boundary?.getAttribute('lang')).toBe('en');
+    const taskHeading = await screen.findByRole('heading', { name: 'Pipeline des tâches' });
+    expect(effectiveLanguage(taskHeading)).toBe('fr');
+    expect(taskHeading.closest('[lang="en"]')).toBeNull();
 
     // The shell chrome is outside that boundary.
     expect(effectiveLanguage(screen.getByRole('link', { name: 'Tâches' }))).toBe('fr');
   });
 
-  it('leaves permission behaviour untouched by the language boundary', async () => {
+  it('leaves Task permission behaviour untouched after removing the boundary', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/tasks');
     mockInternalSession(['tasks:view']);
     render(<App />);
 
-    await screen.findByRole('heading', { name: 'Tasks' });
+    await screen.findByRole('heading', { name: 'Pipeline des tâches' });
     // Only the permitted destinations are present, exactly as without the boundary.
     expect(screen.getByRole('link', { name: 'Tâches' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Candidats' })).not.toBeInTheDocument();
@@ -201,11 +198,10 @@ describe('deferred English modules inside a French shell', () => {
       'commercial',
       'documents',
       'missions',
-      'tasks',
       'training',
     ]);
-    expect(isDeferredEnglishRoute('tasks')).toBe(true);
-    // Reporting and Candidates are bilingual since their redesigns, so they left
+    expect(isDeferredEnglishRoute('tasks')).toBe(false);
+    // Reporting, Candidates, and Tasks are bilingual since their redesigns, so they left
     // the boundary and must never be announced as English inside a French
     // document again.
     expect(isDeferredEnglishRoute('reporting')).toBe(false);
@@ -321,23 +317,16 @@ describe('bilingual public routes carry no English boundary', () => {
   });
 });
 
-describe('the boundary is language metadata only', () => {
-  it('does not change the module DOM, its layout box, or its behaviour', async () => {
+describe('the Task route language boundary', () => {
+  it('renders the bilingual Task workspace directly in French', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/tasks');
     mockInternalSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Tasks' });
-    const boundary = heading.closest('.legacy-english-content');
-    expect(boundary).not.toBeNull();
-    // The panel remains the boundary's own child, so no element was inserted
-    // between the module root and its content.
-    expect(boundary?.firstElementChild).toBe(heading.closest('.admin-panel'));
-
-    // Navigating to a translated destination removes the boundary entirely.
-    fireEvent.click(screen.getByRole('link', { name: 'Vue d’ensemble' }));
-    expect(await screen.findByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
+    const heading = await screen.findByRole('heading', { name: 'Pipeline des tâches' });
+    expect(effectiveLanguage(heading)).toBe('fr');
+    expect(heading.closest('.legacy-english-content')).toBeNull();
     expect(document.querySelector('.legacy-english-content')).toBeNull();
   });
 });
