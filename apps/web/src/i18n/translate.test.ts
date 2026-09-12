@@ -96,7 +96,11 @@ describe('dictionary contract', () => {
   });
 
   it('pins which entries are count-sensitive, so runtime detection matches the dictionary', () => {
-    expect(canonicalPluralPaths).toEqual(['common.counts.candidates', 'common.pagination.results']);
+    expect(canonicalPluralPaths).toEqual([
+      'common.counts.candidates',
+      'common.pagination.results',
+      'publicOpportunity.list.count',
+    ]);
     for (const locale of SUPPORTED_LOCALES) {
       for (const key of canonicalPluralPaths) {
         expect(isPluralNode(leafAt(DICTIONARIES[locale], key))).toBe(true);

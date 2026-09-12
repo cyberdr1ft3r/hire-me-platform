@@ -268,7 +268,7 @@ describe('locale reach beyond the authenticated shell', () => {
     expect(await screen.findByText('hire-me-api is ok')).toBeVisible();
   });
 
-  it('leaves the public opportunity boundary intact under the shared provider', async () => {
+  it('renders the public opportunities in the active language under the shared provider', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/opportunities');
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
@@ -294,16 +294,16 @@ describe('locale reach beyond the authenticated shell', () => {
 
     render(<App />);
 
-    // Public copy is intentionally still English until its own redesign. The
-    // provider is active and the document language tracks the locale, so the
-    // English content must declare its own language rather than inherit French.
-    const heading = await screen.findByRole('heading', { name: 'Open roles' });
+    // The public pages are bilingual since Issue #62: they follow the shared
+    // provider, inherit the document language, and declare no English region.
+    const heading = await screen.findByRole('heading', { name: 'Postes à pourvoir' });
     expect(heading).toBeVisible();
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
-    expect(heading.closest('[lang]')).toHaveAttribute('lang', 'en');
+    expect(heading.closest('[lang]')).toBe(document.documentElement);
+    expect(await screen.findByText('Aucun poste à pourvoir pour le moment')).toBeVisible();
   });
 
   it('denies an unauthorized direct route in the active language', async () => {

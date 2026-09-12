@@ -261,16 +261,22 @@ describe('translated surfaces carry no English override', () => {
   });
 });
 
-describe('deferred English public routes', () => {
-  it('marks the public opportunity list as English while the document stays French', async () => {
+// The public opportunity pages became bilingual in Issue #62, so their English
+// boundary was removed. They must never be announced as English again inside
+// a French document.
+describe('bilingual public routes carry no English boundary', () => {
+  it('keeps the French public opportunity list inside the document language', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/opportunities');
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Open roles' });
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Postes à pourvoir' });
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
-    expect(effectiveLanguage(heading)).toBe('en');
+    expect(effectiveLanguage(heading)).toBe('fr');
+    expect(await screen.findByRole('link', { name: 'Synthetic public role' })).toBeVisible();
+    expect(document.querySelector('.legacy-english-content')).toBeNull();
+    expect(document.querySelector('[lang="en"]')).toBeNull();
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();
@@ -279,31 +285,38 @@ describe('deferred English public routes', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('marks the public opportunity detail as English while the document stays French', async () => {
+  it('keeps the French public opportunity detail and form inside the document language', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/opportunities/synthetic-role');
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Synthetic public role' });
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Synthetic public role',
+    });
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
-    expect(effectiveLanguage(heading)).toBe('en');
+    expect(effectiveLanguage(heading)).toBe('fr');
+    const form = screen.getByRole('form', { name: 'Postuler à cette offre' });
+    expect(effectiveLanguage(form)).toBe('fr');
+    expect(document.querySelector('.legacy-english-content')).toBeNull();
+    expect(document.querySelector('[lang="en"]')).toBeNull();
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();
   });
 
-  it('keeps the shared locale preference working across the public boundary', async () => {
+  it('follows the shared stored locale preference on the public pages', async () => {
     restoreLanguage = stubBrowserLanguage('en-US');
     window.localStorage.setItem(LOCALE_STORAGE_KEY, 'fr');
     window.history.pushState({}, '', '/opportunities');
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Open roles' });
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Postes à pourvoir' });
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
-    expect(effectiveLanguage(heading)).toBe('en');
-    // The public page did not touch the stored preference.
+    expect(effectiveLanguage(heading)).toBe('fr');
+    // Loading the public page did not touch the stored preference.
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('fr');
   });
 });

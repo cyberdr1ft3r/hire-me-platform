@@ -386,6 +386,135 @@ export const enMessages = {
     },
   },
   /**
+   * The public opportunity pages and their application form. Every string here
+   * is presentation only: nothing is sent to the API, and no business rule reads
+   * it. Opportunity content itself (title, location, and so on) is the staff's
+   * own public text and is shown exactly as published, never translated.
+   */
+  publicOpportunity: {
+    application: {
+      consent: 'I consent to HireMe processing this application.',
+      description: 'Fields marked * are required.',
+      fields: {
+        availability: 'Availability',
+        city: 'City',
+        country: 'Country',
+        currentPosition: 'Current position',
+        email: 'Email',
+        experienceYears: 'Years of experience',
+        fullName: 'Full name',
+        languages: 'Languages',
+        motivation: 'Motivation',
+        phone: 'Phone',
+        professionalLinks: 'Professional links',
+        salaryAmount: 'Amount',
+        salaryCurrency: 'Currency',
+        skills: 'Skills',
+      },
+      files: {
+        choose: 'Choose a file',
+        none: 'No file selected',
+      },
+      hints: {
+        availability: 'For example, your notice period or earliest start date',
+        documents: 'Accepted formats: {types}. Up to {fileSize} per file and {totalSize} in total.',
+        professionalLinks: 'LinkedIn, portfolio, or personal website',
+        salaryCurrency: 'Three-letter code, for example EUR or MAD',
+      },
+      sections: {
+        about: 'About you',
+        documents: 'Documents',
+        experience: 'Experience',
+        motivation: 'Links and motivation',
+        salary: 'Salary expectation',
+      },
+      submit: 'Submit application',
+      submitting: 'Submitting…',
+      title: 'Apply for this role',
+    },
+    detail: {
+      about: 'About the role',
+      apply: 'Apply now',
+      back: 'All open roles',
+      keyDetails: 'Key details',
+      loadingTitle: 'Opportunity',
+      skills: 'Skills',
+    },
+    empty: {
+      body: 'New opportunities are published on this page.',
+      title: 'No open roles at the moment',
+    },
+    feedback: {
+      browseRoles: 'Browse other open roles',
+      failure: {
+        failed: 'Your application could not be sent. Check your connection and try again.',
+        invalid:
+          'Some information could not be accepted. Check your details and documents, then try again.',
+        rateLimited: 'Too many attempts in a short time. Wait a minute, then try again.',
+        unavailable: 'This opportunity is no longer accepting applications.',
+      },
+      failureTitle: 'Application not sent',
+      receivedBody:
+        'Thank you. Your application has been received and will be reviewed if this opportunity is still available.',
+      receivedTitle: 'Application received',
+    },
+    fields: {
+      company: 'Company',
+      deadline: 'Apply by',
+      engagementType: 'Contract type',
+      experienceLevel: 'Experience level',
+      location: 'Location',
+      salary: 'Salary',
+      workArrangement: 'Work arrangement',
+    },
+    fileTypes: {
+      jpeg: 'JPEG',
+      pdf: 'PDF',
+      png: 'PNG',
+      text: 'plain text',
+    },
+    list: {
+      count: plural({ one: '{count} open role', other: '{count} open roles' }),
+      description: 'Browse the roles currently open and apply online.',
+      title: 'Open roles',
+      viewOpportunity: 'View opportunity',
+    },
+    site: {
+      brandSubtitle: 'Opportunities',
+      skipToMain: 'Skip to main content',
+    },
+    states: {
+      detailError: 'We couldn’t load this opportunity. Check your connection and try again.',
+      detailErrorTitle: 'Opportunity unavailable right now',
+      listError: 'We couldn’t load the open roles. Check your connection and try again.',
+      listErrorTitle: 'Open roles unavailable',
+      loadingDetail: 'Loading opportunity…',
+      loadingList: 'Loading open roles…',
+      notFound: 'It may have closed, or the link may be incorrect.',
+      notFoundTitle: 'This opportunity is not available',
+    },
+    validation: {
+      consent: 'Your consent is needed to submit this application.',
+      email: 'Enter a valid email address.',
+      experienceYears: 'Enter a whole number from 0 to 80.',
+      fileRequired: 'Add this document to apply.',
+      fileSize: 'This file is larger than {size}.',
+      fileTotal: 'Together, these files are larger than {size}.',
+      fileType: 'This file type is not accepted.',
+      required: 'This field is required.',
+      summary: 'Correct the highlighted fields, then submit again.',
+      summaryTitle: 'Check your application',
+      wholeNumber: 'Enter a whole number, without spaces or symbols.',
+    },
+    values: {
+      confidentialCompany: 'Confidential',
+      deadline: '{date} UTC',
+      salaryFrom: 'From {amount}',
+      salaryRange: '{min} – {max}',
+      salaryUpTo: 'Up to {amount}',
+    },
+  },
+  /**
    * Presentation labels for language-neutral values owned by the API, the
    * database, and the shared contracts. The stored value never changes; only its
    * label does, and a label is never sent back to the API or used in a branch.
@@ -426,6 +555,12 @@ export const enMessages = {
       WAITING: 'Waiting',
       WITHDRAWN: 'Withdrawn',
     },
+    publicApplicationFileCategory: {
+      ADDITIONAL: 'Additional document',
+      CERTIFICATION: 'Certification',
+      CV: 'CV',
+      DIPLOMA: 'Diploma',
+    },
     recordState: {
       ACTIVE: 'Active',
       ARCHIVED: 'Archived',
@@ -462,6 +597,19 @@ export const enMessages = {
     kicker: 'Neutral content region',
     owner: 'Owner',
     ownerValue: 'Example team',
+    publicOpportunity: {
+      detail: 'Opportunity detail',
+      detailError: 'Detail request failure',
+      detailLoading: 'Detail loading',
+      empty: 'No open roles',
+      list: 'Open roles list',
+      listError: 'List request failure',
+      listLoading: 'List loading',
+      notFound: 'Opportunity not available',
+      received: 'Application received',
+      state: 'Preview state',
+      submissionFailed: 'Application not sent',
+    },
     paragraph:
       'This placeholder demonstrates spacing and hierarchy without reproducing a future module design or using real business data.',
     reference: 'Reference',

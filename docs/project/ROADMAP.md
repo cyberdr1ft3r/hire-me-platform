@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-10
+Last updated: 2026-09-12
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -114,15 +114,16 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 ## Phase 7a - HireMe UI/UX v1
 
-**State:** Foundations and the Recruitment/Reporting surface merged (Issue #56 / PR #57); the Candidate workspace representative surface is in review under Issue #60
+**State:** Foundations, Recruitment/Reporting (Issue #56 / PR #57), and the Candidate workspace (Issue #60 / PR #61) are merged; the Public Opportunity surface is in review under Issue #62
 
 - Canonical HireMe UI-DNA, semantic CSS tokens, typography, spacing, radius, elevation, motion, density, responsive, interaction, composition, data-visualization, accessibility, and raw-value rules.
 - Development-only, synthetic, API-free preview and the minimum primitives needed to review the visual language.
 - Internal compact, internal standard, and public spacious expressions share one brand and semantic system.
 - Authenticated internal AppShell and PageHeader checkpoint: permission-aware grouped navigation, safe session chrome, responsive off-canvas behavior, and development-only synthetic review entry without changing module business logic.
 - The bilingual Recruitment/Reporting dashboard is the first representative production surface. It preserves reporting calculations, contracts, authorization, record scope, filters, pagination, CSV behavior, and persistence while proving the approved KPI, visualization, filter, dense-table, responsive, accessibility, and state patterns.
-- The bilingual Candidate workspace is the second representative surface (Issue #60). It preserves candidate endpoints, payloads, lifecycle, archival, duplicate handling, authorization, and redaction while proving dense record-detail hierarchy, structured forms, and sensitive permission boundaries.
-- Hard stop before the Public Opportunity experience or broader production migration until the Candidate workspace is approved; broader module rollout remains follow-up work.
+- The bilingual Candidate workspace is the second representative surface (Issue #60, merged through PR #61). It preserves candidate endpoints, payloads, lifecycle, archival, duplicate handling, authorization, and redaction while proving dense record-detail hierarchy, structured forms, and sensitive permission boundaries.
+- The bilingual public opportunity list, detail, and application form are the third and final representative surface (Issue #62). They preserve every public endpoint, the public field allow-list, visibility and anti-enumeration behaviour, slugs, and application semantics while proving the public-spacious expression, and they remove the public English boundary.
+- Issue #52 closes only after the Public Opportunity surface is approved and merged. Broader module-by-module rollout follows as separate issues; the task pipeline and legacy-module translation are not started.
 
 ## Phase 8 - Commercial and operational accounting
 
