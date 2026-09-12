@@ -78,7 +78,7 @@ describe('authenticated AppShell integration', () => {
     expect(overview).toHaveAttribute('aria-current', 'page');
     fireEvent.click(screen.getByRole('link', { name: 'Tasks' }));
     expect(window.location.pathname).toBe('/tasks');
-    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Task pipeline' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Tasks' })).toHaveAttribute('aria-current', 'page');
 
     act(() => {

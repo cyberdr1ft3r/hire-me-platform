@@ -84,6 +84,7 @@ import {
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
   TaskStatusChangeRequestSchema,
+  TaskUpdateRequestSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -216,6 +217,7 @@ import {
   type TaskReminderDetailResponse,
   type TaskReminderProcessResponse,
   type TaskStatusChangeRequest,
+  type TaskUpdateRequest,
   TrainingEnrollmentDetailResponseSchema,
   TrainingEnrollmentListResponseSchema,
   TrainingParticipationDetailResponseSchema,
@@ -2280,6 +2282,31 @@ export async function createTask(
   return TaskDetailResponseSchema.parse(await response.json());
 }
 
+export async function getTask(
+  accessToken: string,
+  taskId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const response = await taskRequest(accessToken, `/${taskId}`, {}, apiBaseUrl);
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTask(
+  accessToken: string,
+  taskId: string,
+  input: TaskUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
 export async function updateTaskStatus(
   accessToken: string,
   taskId: string,
@@ -2358,6 +2385,22 @@ export async function createTaskReminder(
     apiBaseUrl,
   );
   return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTask(
+  accessToken: string,
+  taskId: string,
+  reason: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskStatusChangeRequestSchema.partial({ status: true }).parse({ reason });
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/archive`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
 }
 
 export async function processDueTaskReminders(

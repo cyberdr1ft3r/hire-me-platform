@@ -5,10 +5,10 @@ Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Issue #52 representative surfaces. Recruitment/Reporting (Issue #56, PR #57) and the Candidate workspace (Issue #60, PR #61) are merged; the Public Opportunity experience (Issue #62) is the third and final surface and is in review.
-**Health:** `main` is at `2a411f030a031c25cd18424059d4c8e2b1ae2842`, the PR #61 merge commit. Issue #62 is implemented on branch `design/public-opportunity-v1`, created from that exact `main`.
-**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Public Opportunity experience. Issue #52 stays open until it is approved and merged.
-**Next executable development task:** Review the draft Public Opportunity PR at `http://127.0.0.1:5173/public-opportunity.html` in English and French; keep it open/unmerged.
+**Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
+**Health:** `main` is at `077024b96346229368cf88dd264c6d4d91931564`, including merged Public Opportunity PR #63. Issue #64 is implemented on `design/task-pipeline-v1` from that exact base.
+**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Task Pipeline workspace.
+**Next executable development task:** Review the draft Task Pipeline PR and its development-only `task.html` evidence; keep it open, draft, unmerged, and undeployed.
 
 ## Active work
 
@@ -35,12 +35,23 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; Reporting merged via PR #57 (Issue #56); Candidate merged via PR #61 (Issue #60); Public Opportunity in review under Issue #62. Stays open until Public Opportunity is approved and merged |
+| Issue #52 | Complete | Establish HireMe UI/UX v1 foundations and representative surfaces | Foundations, Reporting, Candidate, and Public Opportunity are merged; module rollout proceeds in separate issues |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
 | Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
 | Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
-| Issue #62 | Open | Redesign the bilingual Public Opportunity experience as the third representative surface | Implemented on `design/public-opportunity-v1`; draft PR open for technical and visual review; keep it open and unmerged |
+| Issue #62 | Complete | Redesign the bilingual Public Opportunity experience as the third representative surface | Merged through PR #63 into `main` as `077024b96346229368cf88dd264c6d4d91931564` |
+| Issue #64 | Open | Redesign the bilingual Task Pipeline as a daily operational workspace | Implemented on `design/task-pipeline-v1`; draft PR and exact-head technical/visual review required; keep open and unmerged |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #64 Verification State
+
+- Branch `design/task-pipeline-v1` was created from exact `main` `077024b96346229368cf88dd264c6d4d91931564`.
+- Task presentation was extracted from `App.tsx` into `apps/web/src/tasks/`: `TasksPanel` owns requests, mutations, filters, selection, concurrency guards, and permission-derived access; `TaskWorkspace` receives state and callbacks as props. `App.tsx` keeps only the route switch.
+- No API contract, Prisma schema, lifecycle, visibility, assignment, reminder, comment, due-date, audit, or archival semantic changed. The web client gained only existing task detail, task update, and task archive calls needed by the operational detail.
+- The queue/detail workspace preserves supported search, status, priority, owner, and assignee filters and page size 25; it exposes localized status/priority labels while sending stored enum values.
+- One synchronous write lock prevents overlapping mutations. Monotonic list/detail/notification request guards, selected-task generations, and session-token guards prevent late reads or write feedback from crossing task, filter, or session contexts. Post-write refreshes use the latest applied filters.
+- Tasks is bilingual under `task.*` and `domain.taskStatus` / `domain.taskPriority`, has left `deferredEnglishRoutes`, and switches locale on the same mount without refetching or clearing an open create form.
+- Development-only `apps/web/task.html` renders the real `TaskWorkspace`, `I18nProvider`, and `AppShell` with synthetic data and is excluded from the production build.
 
 ## Issue #62 Verification State
 
@@ -460,8 +471,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the bilingual Public Opportunity experience at `http://127.0.0.1:5173/public-opportunity.html` in English and French at 1440, 1024, 800, 430, and 390 px, across the list, detail, application, received, empty, loading, failure, and not-found states.
-2. Keep the Public Opportunity PR open, draft, and unmerged. Issue #52 closes only after it is approved and merged.
+1. Review the bilingual Task Pipeline at `http://127.0.0.1:5173/task.html` across the required operational states and viewport widths.
+2. Keep the Issue #64 PR open, draft, unmerged, and undeployed; do not start Clients or Missions.
 3. Decide R-035 (public salary expectation unit) as a separate scoped task.
 
 ## Status Update Rules
