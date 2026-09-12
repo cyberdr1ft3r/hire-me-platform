@@ -197,7 +197,6 @@ describe('deferred English modules inside a French shell', () => {
     expect([...deferredEnglishRoutes].sort()).toEqual([
       'accounting',
       'admin',
-      'candidates',
       'clients',
       'commercial',
       'documents',
@@ -206,9 +205,11 @@ describe('deferred English modules inside a French shell', () => {
       'training',
     ]);
     expect(isDeferredEnglishRoute('tasks')).toBe(true);
-    // Reporting is bilingual since its redesign, so it left the boundary and
-    // must never be announced as English inside a French document again.
+    // Reporting and Candidates are bilingual since their redesigns, so they left
+    // the boundary and must never be announced as English inside a French
+    // document again.
     expect(isDeferredEnglishRoute('reporting')).toBe(false);
+    expect(isDeferredEnglishRoute('candidates')).toBe(false);
     // The Overview page is translated, so it is never marked as English content.
     expect(isDeferredEnglishRoute('home')).toBe(false);
   });

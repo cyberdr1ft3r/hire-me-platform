@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './App.js';
@@ -910,16 +910,20 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
-    expect(await screen.findByRole('heading', { name: /candidates/i })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: /candidates/i })).toBeVisible();
     expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
 
-    fireEvent.change(screen.getByPlaceholderText(/candidate name/i), {
+    // The redesigned workspace opens creation from the page action, and its
+    // fields carry real labels instead of placeholders.
+    fireEvent.click(screen.getByRole('button', { name: /new candidate/i }));
+    const createForm = screen.getByRole('form', { name: /new candidate/i });
+    fireEvent.change(within(createForm).getByLabelText(/full name/i), {
       target: { value: 'Created Candidate' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/candidate email/i), {
+    fireEvent.change(within(createForm).getByLabelText(/email/i), {
       target: { value: 'created.candidate@example.test' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /create candidate/i }));
+    fireEvent.click(within(createForm).getByRole('button', { name: /create candidate/i }));
 
     expect(await screen.findByText('Candidate created.')).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(

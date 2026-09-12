@@ -262,4 +262,17 @@ The Recruitment/Reporting dashboard is the first representative surface built wi
 
 Its development-only review surface is `apps/web/reporting.html`. It renders the real dashboard components inside the real shell and locale provider with synthetic data, makes no request, is not linked from product navigation, and is excluded from the production build.
 
+## Candidate representative surface
+
+The Candidate workspace is the second representative surface. It proves the record-detail rules above on dense, permission-sensitive data, again without new visual vocabulary.
+
+- **List beside record, not a card grid.** Candidates are compact rows — name, lifecycle status, title and location, source and last update — with the name as the row's real button and the whole row as its pointer target. The selected row carries `aria-current` and a visible inline-start bar, so selection is never color alone. The list and the record sit side by side only when the content area, measured by a container query, is wide enough; otherwise they stack.
+- **The record keeps a secondary identity.** The page title stays the module name. The selected candidate is a section-level heading with its title, location, status, and last update beneath it, never a profile hero.
+- **Structured metadata is a definition list.** Contact, profile, and provenance fields are `dt`/`dd` pairs on a wrapping grid, and a value that is not recorded says so instead of leaving an ambiguous blank.
+- **Repeated records are rows and timelines.** Skills and languages are compact label/value rows; work experience and education are chronological timelines shown with their dates as recorded. Adding a record opens a quiet inline form behind a disclosure.
+- **Restricted information is structure, not alarm.** Compensation and consent sit in one section marked by a heading, a text label, and a neutral inline-start rule. It is rendered only when the permission is held; there is no placeholder that would disclose it exists.
+- **Permission-hidden means absent.** Create, edit, lifecycle, archive, and add-record actions do not render without their permission, and no write action renders on an archived record.
+
+Its development-only review surface is `apps/web/candidate.html`. It renders the real workspace inside the real shell and locale provider with synthetic data and switchable access profiles, makes no request, is not linked from product navigation, and is excluded from the production build.
+
 For this AppShell checkpoint, the persistent sidebar switches to the off-canvas navigation at and below 900px (`56.25rem`); 1024px remains the persistent laptop shell. The JavaScript media query and CSS breakpoint must stay identical.

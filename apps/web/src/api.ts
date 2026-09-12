@@ -1245,6 +1245,46 @@ export async function downloadDocumentVersion(
   return response.blob();
 }
 
+/**
+ * A failed candidate request.
+ *
+ * It carries the HTTP status and, when the API supplied one, its stable error
+ * code, so the Candidate workspace can tell a duplicate email from an archived
+ * candidate. The server's free-text message is deliberately not kept: the
+ * interface shows its own localized copy and never raw backend text.
+ */
+export class CandidateRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Candidate request failed with status ${status}`);
+    this.name = 'CandidateRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const CANDIDATE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,79}$/;
+
+async function readCandidateErrorCode(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = await response.json();
+    if (typeof body !== 'object' || body === null || !('error' in body)) {
+      return null;
+    }
+    const error: unknown = body.error;
+    if (typeof error !== 'object' || error === null || !('code' in error)) {
+      return null;
+    }
+    return typeof error.code === 'string' && CANDIDATE_ERROR_CODE.test(error.code)
+      ? error.code
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function candidateRequest(
   accessToken: string,
   path: string,
@@ -1264,7 +1304,7 @@ async function candidateRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Candidate request failed with status ${response.status}`);
+    throw new CandidateRequestError(response.status, await readCandidateErrorCode(response));
   }
 
   return response;
