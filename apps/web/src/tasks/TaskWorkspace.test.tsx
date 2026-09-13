@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TaskDetail } from '@hire-me/contracts';
@@ -9,11 +10,19 @@ import {
   TASK_BOARD_COLUMNS,
   boardState,
   resolveTaskAccess,
+  taskListQuery,
   type LoadOptions,
+  type PickerOption,
+  type TaskAccess,
   type TaskBoardState,
+  type TaskFilters,
 } from './task-state.js';
 import {
   AMINA_ID,
+  MISSION_A_ID,
+  MISSION_B_ID,
+  MISSION_CANDIDATE_A_ID,
+  MISSION_CANDIDATE_B_ID,
   OMAR_ID,
   OMAR_SALES_ID,
   TASK_A_ID,
@@ -963,5 +972,166 @@ describe('Task notifications and created-by-me', () => {
     const french = screen.getByLabelText('Afficher');
     expect(french).toHaveValue('createdByMe');
     expect(within(french).getByRole('option', { name: 'Que j’ai créées' })).toBeInTheDocument();
+  });
+});
+
+describe('Task filters for owner, assignee, and mission candidate', () => {
+  const idle = { detail: { status: 'idle' as const }, selectedId: null };
+  const missions = [
+    { detail: 'Client A', id: MISSION_A_ID, label: 'Data engineer mission' },
+    { detail: 'Client B', id: MISSION_B_ID, label: 'Finance controller mission' },
+  ];
+  const candidates: Record<string, PickerOption[]> = {
+    [MISSION_A_ID]: [
+      { detail: 'nadia.alaoui@example.test', id: MISSION_CANDIDATE_A_ID, label: 'Nadia Alaoui' },
+    ],
+    [MISSION_B_ID]: [
+      { detail: 'sara.chraibi@example.test', id: MISSION_CANDIDATE_B_ID, label: 'Sara Chraibi' },
+    ],
+  };
+  const optionsFor = vi.fn<LoadOptions>((source) =>
+    Promise.resolve(
+      source.type === 'missionCandidate'
+        ? (candidates[source.missionId] ?? [])
+        : source.type === 'record'
+          ? missions
+          : people,
+    ),
+  );
+
+  /** Holds the filters the way the container does, so selections are controlled. */
+  function Controlled({
+    access,
+    onFilters,
+  }: {
+    access: TaskAccess;
+    onFilters: (f: TaskFilters) => void;
+  }) {
+    const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
+    return (
+      <TaskWorkspace
+        {...props({
+          ...idle,
+          access,
+          filters,
+          loadOptions: optionsFor,
+          onFiltersChange: (next) => {
+            setFilters(next);
+            onFilters(next);
+          },
+          onResetFilters: () => setFilters(EMPTY_TASK_FILTERS),
+        })}
+      />
+    );
+  }
+
+  it('offers owner and assignee filters to a viewer without assignment rights, from the filter-only lookup', async () => {
+    const loadOptions = vi.fn<LoadOptions>(() => Promise.resolve(people));
+    const onFiltersChange = vi.fn();
+    renderWorkspace(
+      props({ ...idle, access: resolveTaskAccess(['tasks:view']), loadOptions, onFiltersChange }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const owner = screen.getByLabelText('Owner');
+    await waitFor(() =>
+      expect(
+        within(owner).getByRole('option', { name: 'Omar Tazi · omar.tazi.sales@example.test' }),
+      ).toHaveValue(OMAR_SALES_ID),
+    );
+    expect(screen.getByLabelText('Assignee')).toBeInTheDocument();
+    const sources = loadOptions.mock.calls.map(([source]) => source);
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        { role: 'owner', type: 'filterPerson' },
+        { role: 'assignee', type: 'filterPerson' },
+      ]),
+    );
+    // The assign-gated write lookup is never used for filtering.
+    expect(sources.some((source) => source.type === 'person')).toBe(false);
+    fireEvent.change(owner, { target: { value: OMAR_SALES_ID } });
+    const chosen = onFiltersChange.mock.calls.at(-1)![0] as TaskFilters;
+    expect(chosen.owner?.id).toBe(OMAR_SALES_ID);
+    expect(document.body.textContent).not.toMatch(UUID_PATTERN);
+  });
+
+  it('offers the mission-candidate filter only with mission and mission-candidate read access', () => {
+    const kindsFor = (permissions: string[]) => {
+      const view = renderWorkspace(props({ ...idle, access: resolveTaskAccess(permissions) }));
+      fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+      const select = screen.queryByLabelText('Linked to');
+      const kinds = select
+        ? within(select)
+            .getAllByRole('option')
+            .map((option) => option.getAttribute('value'))
+        : [];
+      view.unmount();
+      return kinds;
+    };
+    expect(kindsFor(['tasks:view', 'missions:view'])).toEqual(['', 'mission']);
+    expect(kindsFor(['tasks:view', 'mission_candidates:view'])).toEqual([]);
+    expect(kindsFor(['tasks:view', 'missions:view', 'mission_candidates:view'])).toEqual([
+      '',
+      'mission',
+      'missionCandidate',
+    ]);
+  });
+
+  it('chooses a mission then one of its candidates by name, clearing the candidate when the mission changes', async () => {
+    const onFilters = vi.fn<(filters: TaskFilters) => void>();
+    render(
+      <I18nProvider initialLocale="en">
+        <Controlled
+          access={resolveTaskAccess(['tasks:view', 'missions:view', 'mission_candidates:view'])}
+          onFilters={onFilters}
+        />
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const kind = screen.getByLabelText('Linked to');
+    expect(within(kind).getByRole('option', { name: 'Mission candidate' })).toBeInTheDocument();
+    fireEvent.change(kind, { target: { value: 'missionCandidate' } });
+    const mission = screen.getByLabelText('Mission');
+    await waitFor(() =>
+      expect(
+        within(mission).getByRole('option', { name: 'Data engineer mission · Client A' }),
+      ).toHaveValue(MISSION_A_ID),
+    );
+    fireEvent.change(mission, { target: { value: MISSION_A_ID } });
+    const candidate = screen.getByLabelText('Candidate in mission');
+    await waitFor(() =>
+      expect(
+        within(candidate).getByRole('option', { name: 'Nadia Alaoui · nadia.alaoui@example.test' }),
+      ).toHaveValue(MISSION_CANDIDATE_A_ID),
+    );
+    expect(optionsFor).toHaveBeenCalledWith(
+      { missionId: MISSION_A_ID, type: 'missionCandidate' },
+      '',
+    );
+    fireEvent.change(candidate, { target: { value: MISSION_CANDIDATE_A_ID } });
+    const chosen = onFilters.mock.calls.at(-1)![0];
+    expect(chosen.context).toEqual({
+      kind: 'missionCandidate',
+      mission: missions[0],
+      option: candidates[MISSION_A_ID]![0],
+    });
+    // The list query carries only the mission-candidate ID.
+    const query = taskListQuery(chosen, { page: 1 });
+    expect(query.missionCandidateId).toBe(MISSION_CANDIDATE_A_ID);
+    expect(query.recruitmentMissionId).toBeUndefined();
+    expect(document.body.textContent).not.toMatch(UUID_PATTERN);
+
+    fireEvent.change(screen.getByLabelText('Mission'), { target: { value: MISSION_B_ID } });
+    const cleared = onFilters.mock.calls.at(-1)![0];
+    expect(cleared.context).toEqual({
+      kind: 'missionCandidate',
+      mission: missions[1],
+      option: null,
+    });
+    expect(taskListQuery(cleared, { page: 1 }).missionCandidateId).toBeUndefined();
+    expect(screen.getByLabelText('Candidate in mission')).toHaveValue('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+    await waitFor(() => expect(screen.getByLabelText('Linked to')).toHaveValue(''));
+    expect(screen.queryByLabelText('Candidate in mission')).not.toBeInTheDocument();
   });
 });

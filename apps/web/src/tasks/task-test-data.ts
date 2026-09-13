@@ -1,5 +1,7 @@
 import type {
   AuthenticatedUser,
+  MissionCandidateSummary,
+  MissionSummary,
   Notification,
   TaskDetail,
   TaskSummary,
@@ -144,6 +146,90 @@ export function taskNotification(overrides: Partial<Notification> = {}): Notific
     type: 'tasks.overdue',
     updatedAt: '2026-09-12T08:00:00.000Z',
     ...overrides,
+  };
+}
+
+export const MISSION_A_ID = 'eeeeeeee-eeee-4eee-8eee-000000000001';
+export const MISSION_B_ID = 'eeeeeeee-eeee-4eee-8eee-000000000002';
+export const MISSION_CANDIDATE_A_ID = 'ffffffff-ffff-4fff-8fff-000000000001';
+export const MISSION_CANDIDATE_B_ID = 'ffffffff-ffff-4fff-8fff-000000000002';
+
+/** A synthetic mission as the mission list returns it. */
+export function taskMission(id: string, title: string, clientName: string): MissionSummary {
+  return {
+    applicationDeadline: null,
+    archivedAt: null,
+    clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    clientName,
+    closedAt: null,
+    closureReason: null,
+    commercial: null,
+    createdAt: '2026-09-01T08:00:00.000Z',
+    description: null,
+    engagementType: null,
+    filledPlacementCount: 0,
+    id,
+    location: null,
+    numberOfPositions: 1,
+    priority: 'NORMAL',
+    requirements: null,
+    state: 'ACTIVE',
+    targetStartDate: null,
+    title,
+    updatedAt: '2026-09-01T08:00:00.000Z',
+    workArrangement: null,
+  };
+}
+
+/** A synthetic candidate within a mission, as the mission-candidate list returns it. */
+export function taskMissionCandidate(
+  id: string,
+  missionId: string,
+  displayName: string,
+  email: string,
+): MissionCandidateSummary {
+  return {
+    archivedAt: null,
+    candidate: {
+      archivedAt: null,
+      availabilityNotice: null,
+      city: null,
+      compensation: null,
+      consent: null,
+      country: null,
+      createdAt: '2026-09-01T08:00:00.000Z',
+      currentJobTitle: null,
+      displayName,
+      email,
+      firstName: null,
+      id: id.replace('ffffffff', 'abababab'),
+      lastName: null,
+      linkedinUrl: null,
+      normalizedEmail: email,
+      phone: null,
+      professionalSummary: null,
+      source: null,
+      sourceDetail: null,
+      status: 'ACTIVE',
+      updatedAt: '2026-09-01T08:00:00.000Z',
+    },
+    candidateId: id.replace('ffffffff', 'abababab'),
+    clientVisible: false,
+    createdAt: '2026-09-01T08:00:00.000Z',
+    id,
+    internalNotes: null,
+    missionId,
+    outcomeReason: null,
+    placementConfirmedAt: null,
+    presentedAt: null,
+    priority: 'NORMAL',
+    rank: null,
+    responsibleRecruiterDisplayName: 'Task Operator',
+    responsibleRecruiterUserId: USER_ID,
+    source: null,
+    sourceContext: null,
+    state: 'NEW',
+    updatedAt: '2026-09-01T08:00:00.000Z',
   };
 }
 

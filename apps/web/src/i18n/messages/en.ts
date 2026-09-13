@@ -476,6 +476,7 @@ export const enMessages = {
         client: 'Client',
         document: 'Document',
         mission: 'Mission',
+        missionCandidate: 'Mission candidate',
       },
       none: 'Not linked',
       record: 'Linked record',

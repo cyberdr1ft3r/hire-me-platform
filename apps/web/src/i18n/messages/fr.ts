@@ -484,6 +484,7 @@ export const frMessages: Messages = {
         client: 'Client',
         document: 'Document',
         mission: 'Mission',
+        missionCandidate: 'Candidat de mission',
       },
       none: 'Aucun lien',
       record: 'Élément lié',

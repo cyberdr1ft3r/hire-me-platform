@@ -17,7 +17,7 @@ import {
   type LoadOptions,
   type PickerOption,
   type TaskAccess,
-  type TaskContextKind,
+  type TaskContextFilterKind,
   type TaskFilters,
   type TaskView,
 } from './task-state.js';
@@ -40,8 +40,12 @@ function scopeOf(filters: TaskFilters, meId: string): Scope {
  * "Show" offers the everyday views (assigned to me, owned by me) and writes the
  * same owner/assignee filters the people pickers write, so the two never
  * disagree. "Created by me" is the API's self-only creator filter, so no
- * creator ID is ever chosen or sent. Owner and assignee pickers use the Task
- * people lookup and are only offered to actors who may assign work.
+ * creator ID is ever chosen or sent.
+ *
+ * Owner and assignee pickers are offered to every Task viewer. They use the
+ * filter-only people lookup, which lists only owners or active assignees of
+ * tasks the actor can already see, and grants no assignment capability; the
+ * write selectors in the task detail keep the assign-gated lookup.
  */
 export function TaskFilterBar({
   access,
@@ -68,6 +72,8 @@ export function TaskFilterBar({
 }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  // Reset also returns the linked-record type selector to "any record".
+  const [resets, setResets] = useState(0);
   const scope = scopeOf(filters, me.id);
 
   function setScope(next: Scope): void {
@@ -168,30 +174,26 @@ export function TaskFilterBar({
 
       {expanded ? (
         <div className="task-filters__more">
-          {access.canAssign ? (
-            <>
-              <SearchPicker
-                emptyLabel={t('task.filters.anyone')}
-                hint={t('task.picker.searchPeopleHint')}
-                label={t('task.fields.owner')}
-                loadOptions={loadOptions}
-                onChange={(owner) => onChange({ ...filters, owner })}
-                source={{ purpose: 'owner', type: 'person' }}
-                sourceKey={`${optionsKey}:filter-owner`}
-                value={filters.owner}
-              />
-              <SearchPicker
-                emptyLabel={t('task.filters.anyone')}
-                hint={t('task.picker.searchPeopleHint')}
-                label={t('task.fields.assignee')}
-                loadOptions={loadOptions}
-                onChange={(assignee) => onChange({ ...filters, assignee })}
-                source={{ purpose: 'assignee', type: 'person' }}
-                sourceKey={`${optionsKey}:filter-assignee`}
-                value={filters.assignee}
-              />
-            </>
-          ) : null}
+          <SearchPicker
+            emptyLabel={t('task.filters.anyone')}
+            hint={t('task.picker.searchPeopleHint')}
+            label={t('task.fields.owner')}
+            loadOptions={loadOptions}
+            onChange={(owner) => onChange({ ...filters, owner })}
+            source={{ role: 'owner', type: 'filterPerson' }}
+            sourceKey={`${optionsKey}:filter-owner`}
+            value={filters.owner}
+          />
+          <SearchPicker
+            emptyLabel={t('task.filters.anyone')}
+            hint={t('task.picker.searchPeopleHint')}
+            label={t('task.fields.assignee')}
+            loadOptions={loadOptions}
+            onChange={(assignee) => onChange({ ...filters, assignee })}
+            source={{ role: 'assignee', type: 'filterPerson' }}
+            sourceKey={`${optionsKey}:filter-assignee`}
+            value={filters.assignee}
+          />
           <TextField
             label={t('task.fields.dueFrom')}
             onChange={(event) => onChange({ ...filters, dueFrom: event.target.value })}
@@ -204,10 +206,11 @@ export function TaskFilterBar({
             type="date"
             value={filters.dueTo}
           />
-          {access.contextKinds.length ? (
+          {access.contextFilterKinds.length ? (
             <ContextFilter
               filters={filters}
-              kinds={access.contextKinds}
+              key={resets}
+              kinds={access.contextFilterKinds}
               loadOptions={loadOptions}
               onChange={onChange}
               optionsKey={optionsKey}
@@ -229,7 +232,14 @@ export function TaskFilterBar({
           {expanded ? t('task.actions.fewerFilters') : t('task.actions.moreFilters')}
         </Button>
         {hasTaskFilters(appliedFilters) || hasTaskFilters(filters) ? (
-          <Button onClick={onReset} size="compact" variant="quiet">
+          <Button
+            onClick={() => {
+              setResets((value) => value + 1);
+              onReset();
+            }}
+            size="compact"
+            variant="quiet"
+          >
             {t('task.actions.reset')}
           </Button>
         ) : null}
@@ -238,6 +248,11 @@ export function TaskFilterBar({
   );
 }
 
+/**
+ * Filter by one linked record, chosen by name. A candidate within a mission is
+ * chosen mission first, then among that mission's candidates only; changing
+ * the mission clears the candidate. Only the chosen record's ID is sent.
+ */
 function ContextFilter({
   filters,
   kinds,
@@ -246,21 +261,21 @@ function ContextFilter({
   optionsKey,
 }: {
   filters: TaskFilters;
-  kinds: readonly TaskContextKind[];
+  kinds: readonly TaskContextFilterKind[];
   loadOptions: LoadOptions;
   onChange: (filters: TaskFilters) => void;
   optionsKey: string;
 }) {
   const { t } = useI18n();
-  const [kind, setKind] = useState<TaskContextKind | ''>(filters.context?.kind ?? '');
+  const [kind, setKind] = useState<TaskContextFilterKind | ''>(filters.context?.kind ?? '');
+  const context = filters.context;
 
   return (
     <div className="task-filters__context">
       <Select
         label={t('task.filters.contextKind')}
         onChange={(event) => {
-          const next = event.target.value as TaskContextKind | '';
-          setKind(next);
+          setKind(event.target.value as TaskContextFilterKind | '');
           onChange({ ...filters, context: null });
         }}
         value={kind}
@@ -272,7 +287,38 @@ function ContextFilter({
           </option>
         ))}
       </Select>
-      {kind ? (
+      {kind === 'missionCandidate' ? (
+        <>
+          <SearchPicker
+            emptyLabel={t('task.filters.anyRecord')}
+            hint={t('task.picker.searchRecordsHint')}
+            label={t('task.context.kinds.mission')}
+            loadOptions={loadOptions}
+            // A new mission always starts without a candidate.
+            onChange={(mission) =>
+              onChange({
+                ...filters,
+                context: mission ? { kind: 'missionCandidate', mission, option: null } : null,
+              })
+            }
+            source={{ kind: 'mission', type: 'record' }}
+            sourceKey={`${optionsKey}:filter-context:missionCandidate:mission`}
+            value={context?.kind === 'missionCandidate' ? context.mission : null}
+          />
+          {context?.kind === 'missionCandidate' ? (
+            <SearchPicker
+              emptyLabel={t('task.filters.anyRecord')}
+              hint={t('task.picker.searchPeopleHint')}
+              label={t('task.context.fields.missionCandidateId')}
+              loadOptions={loadOptions}
+              onChange={(option) => onChange({ ...filters, context: { ...context, option } })}
+              source={{ missionId: context.mission.id, type: 'missionCandidate' }}
+              sourceKey={`${optionsKey}:filter-context:missionCandidate:${context.mission.id}`}
+              value={context.option}
+            />
+          ) : null}
+        </>
+      ) : kind ? (
         <SearchPicker
           emptyLabel={t('task.filters.anyRecord')}
           hint={t('task.picker.searchRecordsHint')}
@@ -281,7 +327,7 @@ function ContextFilter({
           onChange={(option) => onChange({ ...filters, context: option ? { kind, option } : null })}
           source={{ kind, type: 'record' }}
           sourceKey={`${optionsKey}:filter-context:${kind}`}
-          value={filters.context?.kind === kind ? filters.context.option : null}
+          value={context?.kind === kind ? context.option : null}
         />
       ) : null}
     </div>

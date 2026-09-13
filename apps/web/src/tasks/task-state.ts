@@ -3,6 +3,7 @@ import type {
   TaskListQuery,
   TaskPriority,
   TaskStatus,
+  TaskFilterUserRole,
   TaskSummary,
   TaskUserOptionPurpose,
 } from '@hire-me/contracts';
@@ -75,20 +76,29 @@ export interface PickerOption {
 }
 
 /**
- * Where a selector's options come from. People come from the purpose-scoped
- * Task lookup; linked records come from each module's own list endpoint.
+ * Where a selector's options come from. People for a write come from the
+ * purpose-scoped Task lookup; people for a list filter come from the
+ * filter-only lookup, limited to owners or active assignees of visible tasks;
+ * linked records come from each module's own list endpoint.
  */
 export type OptionSource =
   | { type: 'person'; purpose: TaskUserOptionPurpose; taskId?: string }
+  | { type: 'filterPerson'; role: TaskFilterUserRole }
   | { type: 'record'; kind: TaskContextKind }
   | { type: 'missionCandidate'; missionId: string };
 
 export type LoadOptions = (source: OptionSource, search: string) => Promise<PickerOption[]>;
 
-export interface TaskContextFilter {
-  kind: TaskContextKind;
-  option: PickerOption;
-}
+/**
+ * Linked-record kinds the list can be filtered by: every record kind, plus a
+ * candidate within a mission, chosen mission first.
+ */
+export type TaskContextFilterKind = TaskContextKind | 'missionCandidate';
+
+export type TaskContextFilter =
+  | { kind: TaskContextKind; option: PickerOption }
+  /** `option` stays empty until a candidate of the chosen mission is picked. */
+  | { kind: 'missionCandidate'; mission: PickerOption; option: PickerOption | null };
 
 export interface TaskFilters {
   assignee: PickerOption | null;
@@ -164,10 +174,17 @@ export function taskListQuery(
     priority: filters.priority || undefined,
     search: filters.search.trim() || undefined,
     status,
-    ...(filters.context
-      ? { [TASK_CONTEXT_FIELD[filters.context.kind]]: filters.context.option.id }
-      : {}),
+    ...contextQuery(filters.context),
   };
+}
+
+/** A candidate within a mission filters by `missionCandidateId`, once one is chosen. */
+function contextQuery(context: TaskContextFilter | null): Partial<TaskListQuery> {
+  if (!context) return {};
+  if (context.kind === 'missionCandidate') {
+    return context.option ? { missionCandidateId: context.option.id } : {};
+  }
+  return { [TASK_CONTEXT_FIELD[context.kind]]: context.option.id };
 }
 
 export type TaskColumnState =
@@ -225,6 +242,11 @@ export interface TaskAccess {
   canViewNotifications: boolean;
   /** Linked-record kinds whose own list the actor may read, for selectors and filters. */
   contextKinds: readonly TaskContextKind[];
+  /**
+   * Kinds the list can be filtered by: the record kinds above, plus a candidate
+   * within a mission when the actor may read both missions and their candidates.
+   */
+  contextFilterKinds: readonly TaskContextFilterKind[];
   canViewMissionCandidates: boolean;
 }
 
@@ -237,7 +259,10 @@ const CONTEXT_PERMISSION: Readonly<Record<TaskContextKind, string>> = {
 
 export function resolveTaskAccess(permissions: readonly string[]): TaskAccess {
   const has = (permission: string) => permissions.includes(permission);
+  const contextKinds = TASK_CONTEXT_KINDS.filter((kind) => has(CONTEXT_PERMISSION[kind]));
+  const missionCandidates = has('missions:view') && has('mission_candidates:view');
   return {
+    contextFilterKinds: missionCandidates ? [...contextKinds, 'missionCandidate'] : contextKinds,
     canArchive: has('tasks:archive'),
     canAssign: has('tasks:assign'),
     canComment: has('tasks:comment'),
@@ -249,7 +274,7 @@ export function resolveTaskAccess(permissions: readonly string[]): TaskAccess {
     canViewAll: has('tasks:view_all'),
     canViewMissionCandidates: has('mission_candidates:view'),
     canViewNotifications: has('notifications:view_own'),
-    contextKinds: TASK_CONTEXT_KINDS.filter((kind) => has(CONTEXT_PERMISSION[kind])),
+    contextKinds,
   };
 }
 

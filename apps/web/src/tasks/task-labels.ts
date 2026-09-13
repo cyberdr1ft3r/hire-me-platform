@@ -8,7 +8,7 @@ import type {
 
 import type { PlainMessageKey } from '../i18n/index.js';
 import type { StatusTone } from '../ui/index.js';
-import type { TaskContextKind, TaskDueFilter, TaskSort } from './task-state.js';
+import type { TaskContextFilterKind, TaskDueFilter, TaskSort } from './task-state.js';
 
 /**
  * Presentation labels for language-neutral Task values.
@@ -41,7 +41,7 @@ export function taskContextFieldLabelKey(field: TaskContextField): PlainMessageK
   return `task.context.fields.${field}`;
 }
 
-export function taskContextKindLabelKey(kind: TaskContextKind): PlainMessageKey {
+export function taskContextKindLabelKey(kind: TaskContextFilterKind): PlainMessageKey {
   return `task.context.kinds.${kind}`;
 }
 

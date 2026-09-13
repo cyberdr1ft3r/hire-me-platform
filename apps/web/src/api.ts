@@ -79,6 +79,7 @@ import {
   TaskCommentUpdateRequestSchema,
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
+  TaskFilterUserOptionsQuerySchema,
   TaskListResponseSchema,
   TaskListQuerySchema,
   TaskOwnerChangeRequestSchema,
@@ -217,6 +218,7 @@ import {
   type TaskCommentUpdateRequest,
   type TaskCreateRequest,
   type TaskDetailResponse,
+  type TaskFilterUserOptionsQuery,
   type TaskListResponse,
   type TaskListQuery,
   type TaskOwnerChangeRequest,
@@ -2309,6 +2311,28 @@ export async function listTaskUserOptions(
   const response = await taskRequest(
     accessToken,
     `/user-options?${parameters.toString()}`,
+    {},
+    apiBaseUrl,
+  );
+  return TaskUserOptionsResponseSchema.parse(await response.json());
+}
+
+/**
+ * People a Task viewer may filter by: owners (`role=owner`) or active assignees
+ * (`role=assignee`) of tasks the actor can already see. Needs only Task view
+ * permission and grants nothing; the chosen `id` becomes the list filter.
+ */
+export async function listTaskFilterUserOptions(
+  accessToken: string,
+  query: TaskFilterUserOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskUserOptionsResponse> {
+  const parsed = TaskFilterUserOptionsQuerySchema.parse(query);
+  const parameters = new URLSearchParams({ role: parsed.role });
+  if (parsed.search) parameters.set('search', parsed.search);
+  const response = await taskRequest(
+    accessToken,
+    `/filter-user-options?${parameters.toString()}`,
     {},
     apiBaseUrl,
   );

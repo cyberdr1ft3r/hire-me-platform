@@ -25,7 +25,8 @@ import { TaskWorkspace } from '../tasks/TaskWorkspace.js';
  * search a fixed synthetic list, and writes resolve locally. It is not linked
  * from product navigation and is excluded from the production build.
  *
- * `?task=<id>` opens a task and `?view=list` starts in the list, for review
+ * `?task=<id>` opens a task, `?view=list` starts in the list, and
+ * `?access=view` renders a Task viewer without assignment rights, for review
  * captures.
  */
 type Dataset = 'empty' | 'filtered' | 'populated';
@@ -71,6 +72,35 @@ const MISSIONS: PickerOption[] = [
     label: 'Synthetic finance controller mission',
   },
 ];
+
+/** Candidates within each synthetic mission, as the mission-candidate list returns them. */
+const MISSION_CANDIDATES: Readonly<Record<string, PickerOption[]>> = {
+  [MISSIONS[0]!.id]: [
+    {
+      detail: 'nadia.alaoui@example.test',
+      id: 'dddddddd-dddd-4ddd-8ddd-000000000001',
+      label: 'Nadia Alaoui',
+    },
+    {
+      detail: 'youssef.bennani@example.test',
+      id: 'dddddddd-dddd-4ddd-8ddd-000000000002',
+      label: 'Youssef Bennani',
+    },
+  ],
+  [MISSIONS[1]!.id]: [
+    {
+      detail: 'sara.chraibi@example.test',
+      id: 'dddddddd-dddd-4ddd-8ddd-000000000003',
+      label: 'Sara Chraibi',
+    },
+  ],
+};
+
+/** Synthetic owners and active assignees of the visible tasks, for the filter-only lookup. */
+const FILTER_PEOPLE: Readonly<Record<'assignee' | 'owner', PickerOption[]>> = {
+  assignee: [PEOPLE[1]!, PEOPLE[2]!, PEOPLE.at(-1)!],
+  owner: [PEOPLE[0]!, PEOPLE[1]!, PEOPLE.at(-1)!],
+};
 
 function summary(overrides: Partial<TaskSummary>): TaskSummary {
   return { ...taskSummary, ...overrides };
@@ -189,9 +219,13 @@ const loadOptions: LoadOptions = (source, search) => {
   const pool =
     source.type === 'person'
       ? PEOPLE
-      : source.type === 'record' && source.kind === 'mission'
-        ? MISSIONS
-        : [];
+      : source.type === 'filterPerson'
+        ? FILTER_PEOPLE[source.role]
+        : source.type === 'missionCandidate'
+          ? (MISSION_CANDIDATES[source.missionId] ?? [])
+          : source.type === 'record' && source.kind === 'mission'
+            ? MISSIONS
+            : [];
   return Promise.resolve(
     pool.filter((option) =>
       `${option.label} ${option.detail ?? ''}`.toLowerCase().includes(needle),
@@ -228,7 +262,12 @@ function TaskPreviewContent() {
   const [applied, setApplied] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(params.get('task'));
   const access = useMemo(
-    () => resolveTaskAccess([...taskUser.permissions, 'tasks:view_all', 'missions:view']),
+    () =>
+      resolveTaskAccess(
+        params.get('access') === 'view'
+          ? ['tasks:view', 'missions:view', 'mission_candidates:view', 'notifications:view_own']
+          : [...taskUser.permissions, 'tasks:view_all', 'missions:view', 'mission_candidates:view'],
+      ),
     [],
   );
   const effective = dataset === 'filtered' ? { ...applied, search: 'no synthetic match' } : applied;

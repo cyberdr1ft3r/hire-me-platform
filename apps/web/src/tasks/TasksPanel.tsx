@@ -1,4 +1,10 @@
-import type { AuthenticatedUser, Notification, TaskDetail, TaskStatus } from '@hire-me/contracts';
+import type {
+  AuthenticatedUser,
+  Notification,
+  TaskDetail,
+  TaskStatus,
+  TaskUserOptionsResponse,
+} from '@hire-me/contracts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -22,6 +28,7 @@ import {
   listMissionCandidates,
   listMissions,
   listNotifications,
+  listTaskFilterUserOptions,
   listTaskUserOptions,
   listTasks,
   markAllNotificationsRead,
@@ -573,19 +580,24 @@ export function TasksPanel({
   const loadOptions = useCallback<LoadOptions>(
     (source: OptionSource, search: string) => {
       const query = search || undefined;
+      const people = (response: TaskUserOptionsResponse): PickerOption[] =>
+        response.users.map((person) => ({
+          detail: person.email,
+          id: person.id,
+          label: person.displayName,
+          self: person.id === user.id,
+        }));
       switch (source.type) {
         case 'person':
           return listTaskUserOptions(accessToken, {
             purpose: source.purpose,
             search: query,
             taskId: source.taskId,
-          }).then((response) =>
-            response.users.map((person) => ({
-              detail: person.email,
-              id: person.id,
-              label: person.displayName,
-              self: person.id === user.id,
-            })),
+          }).then(people);
+        case 'filterPerson':
+          // Filter-only: owners or active assignees of tasks the actor can see.
+          return listTaskFilterUserOptions(accessToken, { role: source.role, search: query }).then(
+            people,
           );
         case 'missionCandidate':
           return listMissionCandidates(accessToken, source.missionId).then((response) =>

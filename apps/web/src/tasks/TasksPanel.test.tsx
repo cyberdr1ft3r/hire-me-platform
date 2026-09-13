@@ -7,11 +7,18 @@ import type { AuthenticatedUser, Notification, TaskDetail, TaskSummary } from '@
 import { I18nProvider, useI18n } from '../i18n/index.js';
 import {
   AMINA_ID,
+  MISSION_A_ID,
+  MISSION_B_ID,
+  MISSION_CANDIDATE_A_ID,
+  MISSION_CANDIDATE_B_ID,
   OMAR_ID,
   OMAR_SALES_ID,
   TASK_A_ID,
   TASK_B_ID,
+  UUID_PATTERN,
   taskDetail,
+  taskMission,
+  taskMissionCandidate,
   taskNotification,
   taskPeople,
   taskSummary,
@@ -1010,6 +1017,200 @@ describe('Created by me', () => {
       expect(parameters.get('assigneeUserId')).toBeNull();
       expect(parameters.has('createdByUserId')).toBe(false);
       expect(call.url).not.toContain(taskUser.id);
+    }
+  });
+});
+
+describe('Owner and assignee filters for a viewer without assignment rights', () => {
+  const viewer: AuthenticatedUser = {
+    ...taskUser,
+    permissions: ['tasks:view', 'notifications:view_own'],
+  };
+
+  it('filters by owner and assignee chosen by name from the filter-only lookup', async () => {
+    const calls = mockApi((url) =>
+      url.includes('/v1/tasks/filter-user-options')
+        ? Promise.resolve(json({ users: taskPeople }))
+        : undefined,
+    );
+    renderPanel('task-token', viewer);
+    await screen.findByRole('button', { name: 'Review candidate follow-up' });
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const owner = screen.getByLabelText('Owner');
+    await waitFor(() =>
+      expect(
+        within(owner).getByRole('option', { name: 'Omar Tazi · omar.tazi.sales@example.test' }),
+      ).toHaveValue(OMAR_SALES_ID),
+    );
+    fireEvent.change(owner, { target: { value: OMAR_SALES_ID } });
+    const assignee = screen.getByLabelText('Assignee');
+    await waitFor(() =>
+      expect(
+        within(assignee).getByRole('option', {
+          name: 'Amina Berrada · amina.berrada@example.test',
+        }),
+      ).toHaveValue(AMINA_ID),
+    );
+    fireEvent.change(assignee, { target: { value: AMINA_ID } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    const filtered = () =>
+      listCalls(calls).filter((call) => {
+        const parameters = new URL(call.url).searchParams;
+        return (
+          parameters.get('ownerUserId') === OMAR_SALES_ID &&
+          parameters.get('assigneeUserId') === AMINA_ID
+        );
+      });
+    await waitFor(() => expect(filtered()).toHaveLength(5));
+
+    // Only the filter-only lookup was asked, once per role; never the assign-gated one.
+    const lookups = calls.filter((call) => call.url.includes('user-options'));
+    expect(lookups.map((call) => new URL(call.url).pathname)).toEqual([
+      '/v1/tasks/filter-user-options',
+      '/v1/tasks/filter-user-options',
+    ]);
+    expect(lookups.map((call) => new URL(call.url).searchParams.get('role')).sort()).toEqual([
+      'assignee',
+      'owner',
+    ]);
+    expect(document.body.textContent).not.toMatch(UUID_PATTERN);
+
+    // Filtering grants nothing: the detail still offers no ownership or assignment change.
+    const dialog = await openTask();
+    await within(dialog).findByText('Client asked for a response before noon.');
+    expect(within(dialog).queryByRole('button', { name: 'Change owner' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Add assignee' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument();
+  });
+});
+
+describe('Mission-candidate context filter', () => {
+  const missionA = taskMission(MISSION_A_ID, 'Data engineer mission', 'Client A');
+  const missionB = taskMission(MISSION_B_ID, 'Finance controller mission', 'Client B');
+  const candidateA = taskMissionCandidate(
+    MISSION_CANDIDATE_A_ID,
+    MISSION_A_ID,
+    'Nadia Alaoui',
+    'nadia.alaoui@example.test',
+  );
+  const candidateB = taskMissionCandidate(
+    MISSION_CANDIDATE_B_ID,
+    MISSION_B_ID,
+    'Sara Chraibi',
+    'sara.chraibi@example.test',
+  );
+  const recruiter: AuthenticatedUser = {
+    ...taskUser,
+    permissions: [...taskUser.permissions, 'missions:view', 'mission_candidates:view'],
+  };
+  const pagination = { page: 1, pageSize: 20, total: 2 };
+
+  function mockMissions() {
+    return mockApi((url) => {
+      if (url.includes('/v1/missions?')) {
+        return Promise.resolve(json({ missions: [missionA, missionB], pagination }));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`)) {
+        return Promise.resolve(json({ candidates: [candidateA], pagination }));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_B_ID}/candidates`)) {
+        return Promise.resolve(json({ candidates: [candidateB], pagination }));
+      }
+      return undefined;
+    });
+  }
+
+  function Harness() {
+    const { locale, setLocale } = useI18n();
+    return (
+      <>
+        <TasksPanel accessToken="task-token" user={recruiter} />
+        <button onClick={() => setLocale(locale === 'en' ? 'fr' : 'en')}>switch</button>
+      </>
+    );
+  }
+
+  async function chooseMission(label: string, missionId: string) {
+    const mission = screen.getByLabelText(label);
+    await waitFor(() =>
+      expect(
+        within(mission)
+          .getAllByRole('option')
+          .map((option) => option.getAttribute('value')),
+      ).toContain(missionId),
+    );
+    fireEvent.change(mission, { target: { value: missionId } });
+  }
+
+  it('filters by a candidate chosen within a chosen mission, sending only missionCandidateId', async () => {
+    const calls = mockMissions();
+    render(
+      <I18nProvider initialLocale="en">
+        <Harness />
+      </I18nProvider>,
+    );
+    await screen.findByRole('button', { name: 'Review candidate follow-up' });
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    fireEvent.change(screen.getByLabelText('Linked to'), {
+      target: { value: 'missionCandidate' },
+    });
+    // The candidate choice appears only once a mission is chosen.
+    expect(screen.queryByLabelText('Candidate in mission')).not.toBeInTheDocument();
+    await chooseMission('Mission', MISSION_A_ID);
+    expect(
+      within(screen.getByLabelText('Mission')).getByRole('option', {
+        name: 'Data engineer mission · Client A',
+      }),
+    ).toBeInTheDocument();
+    const candidate = screen.getByLabelText('Candidate in mission');
+    await waitFor(() =>
+      expect(
+        within(candidate).getByRole('option', { name: 'Nadia Alaoui · nadia.alaoui@example.test' }),
+      ).toHaveValue(MISSION_CANDIDATE_A_ID),
+    );
+    // Only candidates of the chosen mission are offered.
+    expect(within(candidate).queryByRole('option', { name: /Sara Chraibi/ })).toBeNull();
+    fireEvent.change(candidate, { target: { value: MISSION_CANDIDATE_A_ID } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    const byCandidate = () =>
+      listCalls(calls).filter((call) =>
+        call.url.includes(`missionCandidateId=${MISSION_CANDIDATE_A_ID}`),
+      );
+    await waitFor(() => expect(byCandidate()).toHaveLength(5));
+    for (const call of byCandidate()) {
+      expect(new URL(call.url).searchParams.has('recruitmentMissionId')).toBe(false);
+    }
+    expect(document.body.textContent).not.toMatch(UUID_PATTERN);
+
+    // Switching language keeps both choices and asks for nothing again.
+    const before = calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'switch' }));
+    expect(await screen.findByRole('heading', { name: 'Pipeline des tâches' })).toBeVisible();
+    expect(screen.getByLabelText('Mission')).toHaveValue(MISSION_A_ID);
+    expect(screen.getByLabelText('Candidat de la mission')).toHaveValue(MISSION_CANDIDATE_A_ID);
+    expect(calls.length).toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: 'switch' }));
+    await screen.findByRole('heading', { name: 'Task pipeline' });
+
+    // Another mission clears the candidate of the first one.
+    await chooseMission('Mission', MISSION_B_ID);
+    const next = screen.getByLabelText('Candidate in mission');
+    expect(next).toHaveValue('');
+    await waitFor(() =>
+      expect(within(next).getByRole('option', { name: /Sara Chraibi/ })).toBeInTheDocument(),
+    );
+    expect(within(next).queryByRole('option', { name: /Nadia Alaoui/ })).toBeNull();
+
+    // Reset clears the mission, the candidate, and the linked-record type.
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+    await waitFor(() => expect(screen.getByLabelText('Linked to')).toHaveValue(''));
+    expect(screen.queryByLabelText('Mission')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Candidate in mission')).not.toBeInTheDocument();
+    const after = calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    await waitFor(() => expect(listCalls(calls.slice(after))).toHaveLength(5));
+    for (const call of listCalls(calls.slice(after))) {
+      expect(call.url).not.toContain('missionCandidateId');
     }
   });
 });
