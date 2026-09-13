@@ -12,6 +12,7 @@ import {
   TaskListResponseSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
+  TaskUserOptionsResponseSchema,
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
@@ -27,6 +28,7 @@ import {
   TaskReminderStatus,
   TaskStatus,
   UserStatus,
+  UserType,
 } from '../src/persistence/prisma/generated-client.js';
 
 const prisma = new PrismaClient();
@@ -543,6 +545,86 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(body.tasks).toHaveLength(1);
     expect(body.tasks[0]?.id).toBe(matchingTask.id);
     expect(body.pageInfo).toEqual({ page: 1, pageSize: 10, total: 1, hasNextPage: false });
+  });
+
+  it('filters to tasks the authenticated actor created, bound to the actor and visibility', async () => {
+    const create = async (token: string, title: string, owner: string): Promise<string> => {
+      const response = await fetch(`${baseUrl}/v1/tasks`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ title, ownerUserId: owner, assigneeUserIds: [] }),
+      });
+      expect(response.status).toBe(201);
+      return TaskDetailResponseSchema.parse(await response.json()).task.id;
+    };
+    // Created by the owner but owned by someone else, so ownership cannot explain a match.
+    const first = await create(ownerToken, 'Issue31 created-by-me-needle first', assigneeUserId);
+    const second = await create(ownerToken, 'Issue31 created-by-me-needle second', assigneeUserId);
+    // Created by someone else and owned by the owner, so it is visible but not created by them.
+    const foreign = await create(
+      assigneeToken,
+      'Issue31 created-by-me-needle foreign',
+      ownerUserId,
+    );
+    const scoped = await create(
+      createOnlyToken,
+      'Issue31 created-by-me-needle scoped',
+      createOnlyUserId,
+    );
+
+    const list = async (token: string, query: string) => {
+      const response = await fetch(`${baseUrl}/v1/tasks?search=created-by-me-needle&${query}`, {
+        headers: authHeaders(token),
+      });
+      expect(response.status).toBe(200);
+      return TaskListResponseSchema.parse(await response.json());
+    };
+
+    const everything = await list(ownerToken, 'pageSize=10');
+    expect(everything.tasks.map((task) => task.id)).toEqual(
+      expect.arrayContaining([first, second, foreign]),
+    );
+
+    const mine = await list(ownerToken, 'createdByMe=true&sortBy=createdAt&pageSize=10');
+    const mineIds = mine.tasks.map((task) => task.id);
+    expect([...mineIds].sort()).toEqual([first, second].sort());
+
+    // A creator ID in the query cannot redirect the filter to someone else.
+    const redirected = await list(
+      ownerToken,
+      `createdByMe=true&createdByUserId=${assigneeUserId}&sortBy=createdAt&pageSize=10`,
+    );
+    expect(redirected.tasks.map((task) => task.id)).toEqual(mineIds);
+
+    const theirs = await list(assigneeToken, 'createdByMe=true&pageSize=10');
+    expect(theirs.tasks.map((task) => task.id)).toEqual([foreign]);
+
+    // Scoped visibility still applies: the create-only actor sees only its own task.
+    const scopedMine = await list(createOnlyToken, 'createdByMe=true&pageSize=10');
+    expect(scopedMine.tasks.map((task) => task.id)).toEqual([scoped]);
+    const limitedMine = await list(limitedToken, 'createdByMe=true&pageSize=10');
+    expect(limitedMine.tasks).toEqual([]);
+
+    // Combines with other filters and paginates deterministically.
+    const firstPage = await list(ownerToken, 'createdByMe=true&sortBy=createdAt&pageSize=1&page=1');
+    const secondPage = await list(
+      ownerToken,
+      'createdByMe=true&sortBy=createdAt&pageSize=1&page=2',
+    );
+    expect(firstPage.tasks.map((task) => task.id)).toEqual([mineIds[0]]);
+    expect(firstPage.pageInfo).toEqual({ page: 1, pageSize: 1, total: 2, hasNextPage: true });
+    expect(secondPage.tasks.map((task) => task.id)).toEqual([mineIds[1]]);
+    expect(secondPage.pageInfo).toEqual({ page: 2, pageSize: 1, total: 2, hasNextPage: false });
+    const open = await list(ownerToken, 'createdByMe=true&status=OPEN&priority=NORMAL&pageSize=10');
+    expect(open.pageInfo.total).toBe(2);
+    const completed = await list(ownerToken, 'createdByMe=true&status=COMPLETED&pageSize=10');
+    expect(completed.tasks).toEqual([]);
+
+    const invalid = await fetch(`${baseUrl}/v1/tasks?createdByMe=maybe`, {
+      headers: authHeaders(ownerToken),
+    });
+    expect(invalid.status).toBe(400);
+    expect(await readErrorCode(invalid)).toBe('INVALID_TASK_LIST_QUERY');
   });
 
   it('records owner changes through the dedicated owner endpoint without duplicate side effects', async () => {
@@ -1126,6 +1208,259 @@ describe('internal task management, reminders, comments, and notifications', () 
       },
     });
     expect(ownerMentionNotifications).toBe(0);
+  });
+
+  it('lists people for Task selectors by purpose without exposing account internals', async () => {
+    const suspendedUser = await prisma.user.create({
+      data: {
+        displayName: 'Synthetic suspended option',
+        email: 'suspended-option@tasks.test',
+        normalizedEmail: 'suspended-option@tasks.test',
+        status: UserStatus.SUSPENDED,
+      },
+    });
+    const clientUser = await prisma.user.create({
+      data: {
+        displayName: 'Synthetic client option',
+        email: 'client-option@tasks.test',
+        normalizedEmail: 'client-option@tasks.test',
+        status: UserStatus.ACTIVE,
+        userType: UserType.CLIENT,
+      },
+    });
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 user option task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const options = (token: string, query: string) =>
+      fetch(`${baseUrl}/v1/tasks/user-options?${query}`, { headers: authHeaders(token) });
+
+    const assignable = await options(ownerToken, 'purpose=assignee&search=tasks.test');
+    expect(assignable.status).toBe(200);
+    const assignableUsers = TaskUserOptionsResponseSchema.parse(await assignable.json()).users;
+    const assignableIds = assignableUsers.map((user) => user.id);
+    expect(assignableIds).toEqual(expect.arrayContaining([ownerUserId, assigneeUserId]));
+    expect(assignableIds).toEqual(expect.arrayContaining([limitedUserId]));
+    // Only eligible identities, and only the three fields a selector needs.
+    expect(assignableIds).not.toContain(suspendedUser.id);
+    expect(assignableIds).not.toContain(clientUser.id);
+    for (const user of assignableUsers) {
+      expect(Object.keys(user).sort()).toEqual(['displayName', 'email', 'id']);
+    }
+    const names = assignableUsers.map((user) => user.displayName);
+    expect(names).toEqual([...names].sort((left, right) => left.localeCompare(right)));
+
+    const narrowed = TaskUserOptionsResponseSchema.parse(
+      await (await options(ownerToken, 'purpose=owner&search=assignee%40tasks')).json(),
+    ).users;
+    expect(narrowed.map((user) => user.id)).toEqual([assigneeUserId]);
+
+    // Mention and reminder options require the task and only offer people who can see it.
+    const withoutTask = await options(ownerToken, 'purpose=mention');
+    expect(withoutTask.status).toBe(400);
+    expect(await readErrorCode(withoutTask)).toBe('TASK_USER_OPTIONS_TASK_REQUIRED');
+    for (const purpose of ['mention', 'reminder']) {
+      const response = await options(
+        ownerToken,
+        `purpose=${purpose}&taskId=${task.id}&search=tasks.test`,
+      );
+      expect(response.status).toBe(200);
+      const ids = TaskUserOptionsResponseSchema.parse(await response.json()).users.map(
+        (user) => user.id,
+      );
+      expect(ids).toEqual(expect.arrayContaining([ownerUserId, assigneeUserId]));
+      expect(ids).not.toContain(limitedUserId);
+      expect(ids).not.toContain(suspendedUser.id);
+    }
+
+    // A task the actor cannot see is indistinguishable from one that does not exist.
+    const hiddenTask = await options(limitedToken, `purpose=mention&taskId=${task.id}`);
+    expect(hiddenTask.status).toBe(404);
+    expect(await readErrorCode(hiddenTask)).toBe('TASK_NOT_FOUND');
+
+    // Each purpose carries the permission of the write it prepares.
+    const noAssign = await options(createOnlyToken, 'purpose=assignee');
+    expect(noAssign.status).toBe(403);
+    expect(await readErrorCode(noAssign)).toBe('TASKS_ASSIGN_REQUIRED');
+    const noReminders = await options(createOnlyToken, 'purpose=reminder');
+    expect(noReminders.status).toBe(403);
+    expect(await readErrorCode(noReminders)).toBe('TASKS_REMINDERS_MANAGE_REQUIRED');
+    const noTasks = await options(noTaskToken, 'purpose=assignee');
+    expect(noTasks.status).toBe(403);
+    const invalid = await options(ownerToken, 'purpose=everyone');
+    expect(invalid.status).toBe(400);
+    expect(await readErrorCode(invalid)).toBe('INVALID_TASK_USER_OPTIONS_QUERY');
+  });
+
+  it('lists filter-only people from visible tasks to a viewer without assignment rights', async () => {
+    // These people never sign in, so they need no credential or role: owners and
+    // assignees only have to be active internal users.
+    const identity = async (email: string) =>
+      (
+        await prisma.user.create({
+          data: {
+            displayName: `Synthetic ${email}`,
+            email,
+            normalizedEmail: email,
+            status: UserStatus.ACTIVE,
+          },
+        })
+      ).id;
+    const visibleOwner = await identity('filter-owner-visible@tasks.test');
+    const hiddenOwner = await identity('filter-owner-hidden@tasks.test');
+    const activeAssignee = await identity('filter-assignee-active@tasks.test');
+    const removedAssignee = await identity('filter-assignee-removed@tasks.test');
+    const archivedAssignee = await identity('filter-assignee-archived@tasks.test');
+    const hiddenAssignee = await identity('filter-assignee-hidden@tasks.test');
+    const createTask = async (title: string, owner: string, assignees: string[]) => {
+      const response = await fetch(`${baseUrl}/v1/tasks`, {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ title, ownerUserId: owner, assigneeUserIds: assignees }),
+      });
+      expect(response.status).toBe(201);
+      return TaskDetailResponseSchema.parse(await response.json()).task;
+    };
+    // The create-only viewer sees this task only because it is an active assignee.
+    const visible = await createTask('Issue31 filter options visible task', visibleOwner, [
+      createOnlyUserId,
+      activeAssignee,
+      removedAssignee,
+      archivedAssignee,
+    ]);
+    const hidden = await createTask('Issue31 filter options hidden task', hiddenOwner, [
+      hiddenAssignee,
+    ]);
+    const removal = visible.assignments.find((row) => row.userId === removedAssignee)!;
+    const removed = await fetch(
+      `${baseUrl}/v1/tasks/${visible.id}/assignments/${removal.id}/remove`,
+      {
+        method: 'POST',
+        headers: authHeaders(ownerToken),
+        body: JSON.stringify({ reason: 'Synthetic removal for filter options.' }),
+      },
+    );
+    expect(removed.status).toBe(201);
+    await prisma.taskAssignment.updateMany({
+      where: { taskId: visible.id, userId: archivedAssignee },
+      data: { archivedAt: new Date() },
+    });
+
+    const filterOptions = (token: string, query: string) =>
+      fetch(`${baseUrl}/v1/tasks/filter-user-options?${query}`, { headers: authHeaders(token) });
+    const ids = async (token: string, query: string) => {
+      const response = await filterOptions(token, query);
+      expect(response.status).toBe(200);
+      const users = TaskUserOptionsResponseSchema.parse(await response.json()).users;
+      for (const user of users) {
+        expect(Object.keys(user).sort()).toEqual(['displayName', 'email', 'id']);
+      }
+      return users.map((user) => user.id);
+    };
+
+    // A viewer without tasks:assign gets owners and active assignees of its visible tasks only.
+    const viewerOwners = await ids(createOnlyToken, 'role=owner&search=filter-');
+    expect(viewerOwners).toEqual([visibleOwner]);
+    const viewerAssignees = await ids(createOnlyToken, 'role=assignee&search=filter-');
+    expect(viewerAssignees).toEqual([activeAssignee]);
+    // The exact raw response holds nothing beyond the three identity fields.
+    const raw = (await (
+      await filterOptions(createOnlyToken, 'role=owner&search=filter-owner-visible')
+    ).json()) as { users: Record<string, unknown>[] };
+    expect(Object.keys(raw)).toEqual(['users']);
+    expect(raw.users.map((user) => Object.keys(user).sort())).toEqual([
+      ['displayName', 'email', 'id'],
+    ]);
+
+    // The same viewer still cannot assign, change ownership, or use the write lookup.
+    const assign = await fetch(`${baseUrl}/v1/tasks/${visible.id}/assignments`, {
+      method: 'POST',
+      headers: authHeaders(createOnlyToken),
+      body: JSON.stringify({ userId: activeAssignee }),
+    });
+    expect(assign.status).toBe(403);
+    const changeOwner = await fetch(`${baseUrl}/v1/tasks/${visible.id}/owner`, {
+      method: 'POST',
+      headers: authHeaders(createOnlyToken),
+      body: JSON.stringify({ ownerUserId: activeAssignee }),
+    });
+    expect(changeOwner.status).toBe(403);
+    const writeLookup = await fetch(`${baseUrl}/v1/tasks/user-options?purpose=owner`, {
+      headers: authHeaders(createOnlyToken),
+    });
+    expect(writeLookup.status).toBe(403);
+    expect(await readErrorCode(writeLookup)).toBe('TASKS_ASSIGN_REQUIRED');
+
+    // A manager who oversees all tasks sees the wider visible set, still owners or active assignees only.
+    const managerOwners = await ids(broadManagerToken, 'role=owner&search=filter-');
+    expect([...managerOwners].sort()).toEqual([hiddenOwner, visibleOwner].sort());
+    const managerAssignees = await ids(broadManagerToken, 'role=assignee&search=filter-');
+    expect([...managerAssignees].sort()).toEqual([activeAssignee, hiddenAssignee].sort());
+    for (const excluded of [removedAssignee, archivedAssignee]) {
+      expect(managerAssignees).not.toContain(excluded);
+    }
+
+    // The chosen ID still filters the list through the normal visibility rule.
+    const byAssignee = TaskListResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks?assigneeUserId=${activeAssignee}&pageSize=100`, {
+          headers: authHeaders(createOnlyToken),
+        })
+      ).json(),
+    );
+    expect(byAssignee.tasks.map((task) => task.id)).toEqual([visible.id]);
+    const byHiddenOwner = TaskListResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/tasks?ownerUserId=${hiddenOwner}&pageSize=100`, {
+          headers: authHeaders(createOnlyToken),
+        })
+      ).json(),
+    );
+    expect(byHiddenOwner.tasks).toEqual([]);
+    expect(hidden.id).not.toBe(visible.id);
+
+    // Search narrows, and at most 20 people are returned in name order.
+    expect(await ids(broadManagerToken, 'role=owner&search=filter-owner-hidden')).toEqual([
+      hiddenOwner,
+    ]);
+    const bulk = Array.from({ length: 22 }, (_, index) => ({
+      displayName: `Synthetic bulk assignee ${String(index).padStart(2, '0')}`,
+      email: `bulk-assignee-${index}@tasks.test`,
+    }));
+    await prisma.user.createMany({
+      data: bulk.map((person) => ({
+        ...person,
+        normalizedEmail: person.email,
+        status: UserStatus.ACTIVE,
+      })),
+    });
+    const bulkTask = await createTask('Issue31 filter options bulk task', ownerUserId, []);
+    const bulkUsers = await prisma.user.findMany({
+      where: { normalizedEmail: { startsWith: 'bulk-assignee-' } },
+      select: { id: true },
+    });
+    await prisma.taskAssignment.createMany({
+      data: bulkUsers.map((user) => ({ taskId: bulkTask.id, userId: user.id })),
+    });
+    const bounded = await filterOptions(broadManagerToken, 'role=assignee&search=bulk-assignee');
+    const boundedUsers = TaskUserOptionsResponseSchema.parse(await bounded.json()).users;
+    expect(boundedUsers).toHaveLength(20);
+    expect(boundedUsers.map((user) => user.displayName)).toEqual(
+      bulk.slice(0, 20).map((person) => person.displayName),
+    );
+
+    // Task view is required, and only the two filter roles exist.
+    const noTasks = await filterOptions(noTaskToken, 'role=owner');
+    expect(noTasks.status).toBe(403);
+    const invalid = await filterOptions(createOnlyToken, 'role=mention');
+    expect(invalid.status).toBe(400);
+    expect(await readErrorCode(invalid)).toBe('INVALID_TASK_FILTER_USER_OPTIONS_QUERY');
   });
 
   it('rejects comment creation when concurrent assignment removal removes actor visibility', async () => {

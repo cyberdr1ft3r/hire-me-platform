@@ -23,12 +23,16 @@ import type {
   TaskReminderProcessResponse,
   TaskReminderUpdateRequest,
   TaskStatusChangeRequest,
+  TaskFilterUserOptionsQuery,
   TaskUpdateRequest,
+  TaskUserOptionsQuery,
+  TaskUserOptionsResponse,
 } from '@hire-me/contracts';
+import { TASK_USER_OPTION_LIMIT } from '@hire-me/contracts';
 
 import { TaskAuditService } from './task-audit.service.js';
 import { TASK_PERMISSIONS } from './task-permissions.js';
-import { conflict, forbidden, notFound } from './task.errors.js';
+import { badRequest, conflict, forbidden, notFound } from './task.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -78,6 +82,13 @@ type TaskAccess = {
   remindersManage: boolean;
   archive: boolean;
 };
+
+/**
+ * Mention and reminder options must each pass a task-visibility check. Scanning
+ * a bounded number of matching users keeps one lookup's cost fixed; a more
+ * specific search reaches people further down the alphabet.
+ */
+const TASK_USER_OPTION_SCAN_LIMIT = 60;
 
 const terminalStatuses = new Set<TaskStatus>([
   TaskStatus.COMPLETED,
@@ -160,7 +171,7 @@ export class TasksService {
   async listTasks(actorUserId: string, query: TaskListQuery): Promise<TaskListResponse> {
     const access = await this.resolveAccess(actorUserId);
     const where = {
-      AND: [this.visibleTaskWhere(actorUserId, access), this.taskFilterWhere(query)],
+      AND: [this.visibleTaskWhere(actorUserId, access), this.taskFilterWhere(query, actorUserId)],
     };
     const pageSize = query.pageSize;
     const skip = (query.page - 1) * pageSize;
@@ -189,6 +200,122 @@ export class TasksService {
   async getTask(taskId: string, actorUserId: string): Promise<TaskDetailResponse> {
     const task = await this.requireVisibleTask(taskId, actorUserId);
     return { task: await this.toTaskDetail(task, actorUserId) };
+  }
+
+  /**
+   * People a Task operator may choose for one specific write, so the interface
+   * never asks for a user ID.
+   *
+   * Each purpose carries the permission of the write it prepares, and returns
+   * only users that write would accept: active, internal, non-archived users,
+   * and for mentions and reminders only users who can already view the task.
+   * The response is bounded and carries no role, permission, session, or
+   * sign-in information. The write endpoints still validate everything.
+   */
+  async listUserOptions(
+    actorUserId: string,
+    query: TaskUserOptionsQuery,
+  ): Promise<TaskUserOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    if (query.purpose === 'owner' || query.purpose === 'assignee') {
+      this.assertAccess(access.assign, 'TASKS_ASSIGN_REQUIRED', 'Assign permission is required.');
+    } else if (query.purpose === 'mention') {
+      this.assertAccess(
+        access.comment,
+        'TASKS_COMMENT_REQUIRED',
+        'Task comment permission is required.',
+      );
+    } else {
+      this.assertAccess(
+        access.remindersManage,
+        'TASKS_REMINDERS_MANAGE_REQUIRED',
+        'Task reminder permission is required.',
+      );
+    }
+    const needsTaskAccess = query.purpose === 'mention' || query.purpose === 'reminder';
+    if (needsTaskAccess && !query.taskId) {
+      throw badRequest('TASK_USER_OPTIONS_TASK_REQUIRED', 'A task is required for this lookup.');
+    }
+    if (query.taskId) {
+      await this.requireVisibleTask(query.taskId, actorUserId, access);
+    }
+
+    const search = query.search;
+    const candidates = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        userType: UserType.INTERNAL,
+        archivedAt: null,
+        ...(search
+          ? {
+              OR: [
+                { displayName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: { id: true, displayName: true, email: true },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: needsTaskAccess ? TASK_USER_OPTION_SCAN_LIMIT : TASK_USER_OPTION_LIMIT,
+    });
+
+    const users: TaskUserOptionsResponse['users'] = [];
+    for (const candidate of candidates) {
+      if (users.length >= TASK_USER_OPTION_LIMIT) {
+        break;
+      }
+      if (needsTaskAccess && !(await this.canViewTask(query.taskId!, candidate.id))) {
+        continue;
+      }
+      users.push(candidate);
+    }
+    return { users };
+  }
+
+  /**
+   * People a Task viewer may filter the list by, without any assignment
+   * permission. Only identities already represented on the actor's visible
+   * tasks are returned, through the same visibility predicate as the list:
+   * owners of visible tasks, or users with an active, non-archived assignment
+   * on a visible task. It is bounded, carries only id/name/email, and grants
+   * nothing: every write still checks its own permission.
+   */
+  async listFilterUserOptions(
+    actorUserId: string,
+    query: TaskFilterUserOptionsQuery,
+  ): Promise<TaskUserOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertAccess(access.view, 'TASKS_VIEW_REQUIRED', 'Task view permission is required.');
+    const visible = this.visibleTaskWhere(actorUserId, access);
+    const represented: Prisma.UserWhereInput =
+      query.role === 'owner'
+        ? { ownedTasks: { some: visible } }
+        : {
+            taskAssignments: {
+              some: { status: TaskAssignmentStatus.ACTIVE, archivedAt: null, task: visible },
+            },
+          };
+    const search = query.search;
+    const users = await this.prisma.user.findMany({
+      where: {
+        AND: [
+          represented,
+          search
+            ? {
+                OR: [
+                  { displayName: { contains: search, mode: 'insensitive' } },
+                  { email: { contains: search, mode: 'insensitive' } },
+                ],
+              }
+            : {},
+        ],
+      },
+      select: { id: true, displayName: true, email: true },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: TASK_USER_OPTION_LIMIT,
+    });
+    return { users };
   }
 
   async createTask(
@@ -2001,8 +2128,13 @@ export class TasksService {
     return count > 0;
   }
 
-  private taskFilterWhere(query: TaskListQuery): Prisma.TaskWhereInput {
+  private taskFilterWhere(query: TaskListQuery, actorUserId: string): Prisma.TaskWhereInput {
     const filters: Prisma.TaskWhereInput[] = [];
+    // Self-only: the creator is always the authenticated actor, never a value
+    // from the request, and the visibility predicate still applies.
+    if (query.createdByMe) {
+      filters.push({ createdByUserId: actorUserId });
+    }
     if (query.status) {
       filters.push({ status: query.status });
     }

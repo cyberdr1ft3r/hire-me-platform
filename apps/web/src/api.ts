@@ -73,17 +73,24 @@ import {
   ReportingSummaryResponseSchema,
   ReportingTrendsResponseSchema,
   TaskAssignmentCreateRequestSchema,
+  TaskAssignmentRemoveRequestSchema,
   TaskCommentCreateRequestSchema,
   TaskCommentDetailResponseSchema,
+  TaskCommentUpdateRequestSchema,
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
+  TaskFilterUserOptionsQuerySchema,
   TaskListResponseSchema,
   TaskListQuerySchema,
   TaskOwnerChangeRequestSchema,
   TaskReminderCreateRequestSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
+  TaskReminderUpdateRequestSchema,
   TaskStatusChangeRequestSchema,
+  TaskUpdateRequestSchema,
+  TaskUserOptionsQuerySchema,
+  TaskUserOptionsResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -205,17 +212,24 @@ import {
   type ReportingSummaryResponse,
   type ReportingTrendsResponse,
   type TaskAssignmentCreateRequest,
+  type TaskAssignmentRemoveRequest,
   type TaskCommentCreateRequest,
   type TaskCommentDetailResponse,
+  type TaskCommentUpdateRequest,
   type TaskCreateRequest,
   type TaskDetailResponse,
+  type TaskFilterUserOptionsQuery,
   type TaskListResponse,
   type TaskListQuery,
   type TaskOwnerChangeRequest,
   type TaskReminderCreateRequest,
   type TaskReminderDetailResponse,
   type TaskReminderProcessResponse,
+  type TaskReminderUpdateRequest,
   type TaskStatusChangeRequest,
+  type TaskUpdateRequest,
+  type TaskUserOptionsQuery,
+  type TaskUserOptionsResponse,
   TrainingEnrollmentDetailResponseSchema,
   TrainingEnrollmentListResponseSchema,
   TrainingParticipationDetailResponseSchema,
@@ -2280,6 +2294,76 @@ export async function createTask(
   return TaskDetailResponseSchema.parse(await response.json());
 }
 
+/**
+ * People the actor may choose for one Task write (owner, assignee, mention, or
+ * reminder recipient). The chosen option's `id` is what the write sends; the
+ * interface shows the name and email.
+ */
+export async function listTaskUserOptions(
+  accessToken: string,
+  query: TaskUserOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskUserOptionsResponse> {
+  const parsed = TaskUserOptionsQuerySchema.parse(query);
+  const parameters = new URLSearchParams({ purpose: parsed.purpose });
+  if (parsed.taskId) parameters.set('taskId', parsed.taskId);
+  if (parsed.search) parameters.set('search', parsed.search);
+  const response = await taskRequest(
+    accessToken,
+    `/user-options?${parameters.toString()}`,
+    {},
+    apiBaseUrl,
+  );
+  return TaskUserOptionsResponseSchema.parse(await response.json());
+}
+
+/**
+ * People a Task viewer may filter by: owners (`role=owner`) or active assignees
+ * (`role=assignee`) of tasks the actor can already see. Needs only Task view
+ * permission and grants nothing; the chosen `id` becomes the list filter.
+ */
+export async function listTaskFilterUserOptions(
+  accessToken: string,
+  query: TaskFilterUserOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskUserOptionsResponse> {
+  const parsed = TaskFilterUserOptionsQuerySchema.parse(query);
+  const parameters = new URLSearchParams({ role: parsed.role });
+  if (parsed.search) parameters.set('search', parsed.search);
+  const response = await taskRequest(
+    accessToken,
+    `/filter-user-options?${parameters.toString()}`,
+    {},
+    apiBaseUrl,
+  );
+  return TaskUserOptionsResponseSchema.parse(await response.json());
+}
+
+export async function getTask(
+  accessToken: string,
+  taskId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const response = await taskRequest(accessToken, `/${taskId}`, {}, apiBaseUrl);
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTask(
+  accessToken: string,
+  taskId: string,
+  input: TaskUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
 export async function updateTaskStatus(
   accessToken: string,
   taskId: string,
@@ -2328,6 +2412,23 @@ export async function addTaskAssignment(
   return TaskDetailResponseSchema.parse(await response.json());
 }
 
+export async function removeTaskAssignment(
+  accessToken: string,
+  taskId: string,
+  assignmentId: string,
+  input: TaskAssignmentRemoveRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskAssignmentRemoveRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/assignments/${assignmentId}/remove`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
 export async function createTaskComment(
   accessToken: string,
   taskId: string,
@@ -2339,6 +2440,40 @@ export async function createTaskComment(
     accessToken,
     `/${taskId}/comments`,
     { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
+/** Edits a comment's text. Mentions are not part of the edit and stay as they were. */
+export async function updateTaskComment(
+  accessToken: string,
+  taskId: string,
+  commentId: string,
+  input: TaskCommentUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const parsed = TaskCommentUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments/${commentId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
+/** Archives a comment: it is hidden from the task, never deleted. */
+export async function archiveTaskComment(
+  accessToken: string,
+  taskId: string,
+  commentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments/${commentId}/archive`,
+    { method: 'POST' },
     apiBaseUrl,
   );
   return TaskCommentDetailResponseSchema.parse(await response.json());
@@ -2358,6 +2493,55 @@ export async function createTaskReminder(
     apiBaseUrl,
   );
   return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTaskReminder(
+  accessToken: string,
+  taskId: string,
+  reminderId: string,
+  input: TaskReminderUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const parsed = TaskReminderUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders/${reminderId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+/** Cancels a reminder so it is never delivered; the record is kept. */
+export async function cancelTaskReminder(
+  accessToken: string,
+  taskId: string,
+  reminderId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders/${reminderId}/cancel`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTask(
+  accessToken: string,
+  taskId: string,
+  reason: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskStatusChangeRequestSchema.partial({ status: true }).parse({ reason });
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/archive`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
 }
 
 export async function processDueTaskReminders(

@@ -1,0 +1,10 @@
+/* Development-only controls; the workspace itself uses production Task styles. */
+.task-preview__switches {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(var(--layout-card-min), 1fr));
+  margin-block-end: var(--space-6);
+  max-width: calc(var(--layout-card-min) * 2 + var(--space-3));
+  padding-block-end: var(--space-4);
+}

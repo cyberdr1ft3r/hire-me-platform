@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 Status owner: repository maintainer
 
 ## Overall state
 
-**Phase:** Issue #52 representative surfaces. Recruitment/Reporting (Issue #56, PR #57) and the Candidate workspace (Issue #60, PR #61) are merged; the Public Opportunity experience (Issue #62) is the third and final surface and is in review.
-**Health:** `main` is at `2a411f030a031c25cd18424059d4c8e2b1ae2842`, the PR #61 merge commit. Issue #62 is implemented on branch `design/public-opportunity-v1`, created from that exact `main`.
-**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Public Opportunity experience. Issue #52 stays open until it is approved and merged.
-**Next executable development task:** Review the draft Public Opportunity PR at `http://127.0.0.1:5173/public-opportunity.html` in English and French; keep it open/unmerged.
+**Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
+**Health:** `main` is at `077024b96346229368cf88dd264c6d4d91931564`, including merged Public Opportunity PR #63. Issue #64 is implemented on `design/task-pipeline-v1` from that exact base.
+**Current blocker:** ChatGPT final-final Task conformance review of PR #65 (review `5191521437` corrections; drift audit Issue #66, D-UX-01 to D-UX-04), then visual review.
+**Next executable development task:** Final-final Task conformance review of the draft Task Pipeline PR #65 and its development-only `task.html` evidence; keep it open, draft, unmerged, and undeployed. After Task, the drift audit continues with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
 
 ## Active work
 
@@ -35,12 +35,30 @@ Status owner: repository maintainer
 | Issue #39 | Complete | Implement payments, expenses, client balances, and profitability accounting | Merged via PR #47 into `main` as `54def73831df9b6cd7b0064171c52dff9b55e2ac` |
 | Issue #48 | Complete | Reconcile project memory after the accounting merge | Merged via PR #50 into `main` as `2ad1a551023a8b0acaa01d9bea05435e3aaaec6a` |
 | Issue #49 | Complete | Implement template-driven document and business-output generation | Merged through PR #51 into `main` as `e2879b38c54dcc1b42b85aa345680260487454dc` |
-| Issue #52 | Open | Establish HireMe UI/UX v1 foundations and later representative surfaces | Tasks 1–2 merged via PR #53; Reporting merged via PR #57 (Issue #56); Candidate merged via PR #61 (Issue #60); Public Opportunity in review under Issue #62. Stays open until Public Opportunity is approved and merged |
+| Issue #52 | Complete | Establish HireMe UI/UX v1 foundations and representative surfaces | Foundations, Reporting, Candidate, and Public Opportunity are merged; module rollout proceeds in separate issues |
 | Issue #54 | Complete | Add the English/French localization foundation to the web interface | Merged via PR #55 into `main` as `6e6cf6fd499800ed019a9c0d82680bde8b275f2e` |
 | Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
 | Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
-| Issue #62 | Open | Redesign the bilingual Public Opportunity experience as the third representative surface | Implemented on `design/public-opportunity-v1`; draft PR open for technical and visual review; keep it open and unmerged |
+| Issue #62 | Complete | Redesign the bilingual Public Opportunity experience as the third representative surface | Merged through PR #63 into `main` as `077024b96346229368cf88dd264c6d4d91931564` |
+| Issue #64 | Open | Redesign the bilingual Task Pipeline as a daily operational workspace | Lightweight status board with name-based selectors and the Issue #31 conformance corrections on `design/task-pipeline-v1` (PR #65, draft); final-final Task conformance review required; keep open and unmerged |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 recorded; Candidate, Reporting, Public Opportunity, and foundation audits follow |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #64 Verification State
+
+- Branch `design/task-pipeline-v1` was created from exact `main` `077024b96346229368cf88dd264c6d4d91931564`.
+- Task presentation was extracted from `App.tsx` into `apps/web/src/tasks/`: `TasksPanel` owns requests, mutations, filters, selection, concurrency guards, and permission-derived access; `TaskWorkspace` receives state and callbacks as props. `App.tsx` keeps only the route switch.
+- No API contract, Prisma schema, lifecycle, visibility, assignment, reminder, comment, due-date, audit, or archival semantic changed. The web client gained only existing task detail, task update, and task archive calls needed by the operational detail.
+- Technical review `5187700373` and drift audit Issue #66 (now high priority) redirected the surface. The default view is now a lightweight board over the stored statuses (To do, In progress, Waiting, Blocked, Completed); canceled and archived work is in a compact paginated list view. No drag and drop: moves go through the task detail and offer only server-allowed transitions with the server's reason rules. See D-062.
+- Each board column reads its own page of the existing list endpoint (page size 25, server sorting, "show more"). Cards show title, priority, due state, owner, assignee state, and linked-record type; a modal detail drawer holds workflow, edit, people, comments, reminders, and archive.
+- No operator types an ID. With maintainer approval, a narrowly scoped `GET /v1/tasks/user-options` returns `id`, `displayName`, and `email` for active internal non-archived users (at most 20), gated per purpose by `tasks:assign`, `tasks:comment`, or `tasks:reminders:manage`; mention and reminder options are limited to users who can view the task. Linked records are chosen through existing permission-gated lists (client, candidate, mission and candidate in mission, document), for creation and for filtering. Together with the filter-only people lookup and the self-only `createdByMe` list filter below, these are the only API/contract additions.
+- Restored Issue #31 views: assigned to me, owned by me, created by me, due soon, overdue, owner, assignee, due range, linked record, priority, and status and sort in the list. Created by me is a self-only `createdByMe` list filter that the server binds to the authenticated actor (no creator ID is accepted) and combines with the visibility rule and every other filter. Deferred: related-task links from other workspaces (Clients/Missions not started).
+- Conformance pass after review `5189033578`, through existing endpoints only: the detail removes an active assignee with the reason the API requires, edits a comment's text (mentions unchanged) or archives it for the author or a `tasks:view_all` manager, and reschedules or cancels pending and failed reminders; a notification that names a task opens it in the same drawer through the normal task read, so a hidden or deleted task fails with the same generic message; the inbox shows a real unread count from the scoped list (`status=UNREAD`, `pageSize=1`) separate from the filtered count. Every write keeps the operation-owned lock, session and selection guards, and generic failure feedback.
+- Final corrections after review `5191521437`: owner and assignee filters are available to every Task viewer through `GET /v1/tasks/filter-user-options?role=owner|assignee&search=` needs only `tasks:view` and returns at most 20 `id`, `displayName`, and `email` entries, limited to owners (`role=owner`) or users with an active, non-archived assignment (`role=assignee`) on tasks visible to the actor under the normal Task visibility rule, while the write selectors keep `tasks:assign`; the linked-record filter adds a candidate within a mission, chosen mission first through the existing mission and mission-candidate lists, sending only `missionCandidateId`.
+- Manual reminder delivery moved from the page header into a collapsed diagnostic for managers holding `tasks:reminders:manage` and `tasks:view_all`; no scheduler exists (R-036).
+- Review blockers fixed: operation-owned write lock (an old session's completion can neither unlock nor report into a new session's write); notification refresh reads the latest committed filter; due dates use local date-time components and an untouched due date is not re-sent; reminder statuses, notification statuses and types, and linked-record fields are localized; every write control is disabled while any write holds the lock.
+- Tasks is bilingual, has left `deferredEnglishRoutes`, and switches locale on the same mount without refetching or clearing an open create form.
+- Development-only `apps/web/task.html` renders the real `TaskWorkspace`, `I18nProvider`, and `AppShell` with synthetic data (`?task=` opens a task, `?view=list` the list) and is excluded from the production build.
 
 ## Issue #62 Verification State
 
@@ -460,9 +478,11 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the bilingual Public Opportunity experience at `http://127.0.0.1:5173/public-opportunity.html` in English and French at 1440, 1024, 800, 430, and 390 px, across the list, detail, application, received, empty, loading, failure, and not-found states.
-2. Keep the Public Opportunity PR open, draft, and unmerged. Issue #52 closes only after it is approved and merged.
-3. Decide R-035 (public salary expectation unit) as a separate scoped task.
+1. Run the final-final Task conformance review at `http://127.0.0.1:5173/task.html` (board, detail drawer with assignee removal, comment edit/archive, reminder reschedule/cancel, selectors, list view, notifications with Open task and the unread count, Show: Created by me, owner and assignee filters for a viewer without `tasks:assign` (`task.html?access=view`), and the mission-candidate filter).
+2. Keep the Issue #64 PR open, draft, unmerged, and undeployed; do not start Clients or Missions.
+3. Open a scheduler issue for Task reminder delivery (R-036).
+4. Continue drift audit Issue #66 with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
+5. Decide R-035 (public salary expectation unit) as a separate scoped task.
 
 ## Status Update Rules
 

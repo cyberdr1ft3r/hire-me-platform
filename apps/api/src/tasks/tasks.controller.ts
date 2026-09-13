@@ -23,6 +23,7 @@ import {
   TaskCommentUpdateRequestSchema,
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
+  TaskFilterUserOptionsQuerySchema,
   TaskListResponseSchema,
   TaskListQuerySchema,
   TaskOwnerChangeRequestSchema,
@@ -33,6 +34,8 @@ import {
   TaskReminderUpdateRequestSchema,
   TaskStatusChangeRequestSchema,
   TaskUpdateRequestSchema,
+  TaskUserOptionsQuerySchema,
+  TaskUserOptionsResponseSchema,
 } from '@hire-me/contracts';
 import { z } from 'zod';
 
@@ -59,6 +62,36 @@ export class TasksController {
       throw badRequest('INVALID_TASK_LIST_QUERY', 'Invalid task list query.');
     }
     return TaskListResponseSchema.parse(await this.tasks.listTasks(request.user!.id, parsed.data));
+  }
+
+  // Declared before `:taskId` so the literal path is never parsed as an ID.
+  @Get('user-options')
+  @RequirePermissions(TASK_PERMISSIONS.TASKS_VIEW)
+  async listUserOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = TaskUserOptionsQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest('INVALID_TASK_USER_OPTIONS_QUERY', 'Invalid task user options query.');
+    }
+    return TaskUserOptionsResponseSchema.parse(
+      await this.tasks.listUserOptions(request.user!.id, parsed.data),
+    );
+  }
+
+  // Filter-only people: owners or active assignees of the actor's visible tasks.
+  // Declared before `:taskId` for the same reason as `user-options`.
+  @Get('filter-user-options')
+  @RequirePermissions(TASK_PERMISSIONS.TASKS_VIEW)
+  async listFilterUserOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = TaskFilterUserOptionsQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TASK_FILTER_USER_OPTIONS_QUERY',
+        'Invalid task filter user options query.',
+      );
+    }
+    return TaskUserOptionsResponseSchema.parse(
+      await this.tasks.listFilterUserOptions(request.user!.id, parsed.data),
+    );
   }
 
   @Post()

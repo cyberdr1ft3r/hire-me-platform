@@ -1,53 +1,40 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ## Current situation
 
-- Authoritative `main` is `2a411f030a031c25cd18424059d4c8e2b1ae2842`, the PR #61 merge commit. Issue #60 (Candidate workspace) is complete.
-- Issue #52 remains open for its last representative surface. It closes only after the Public Opportunity experience is approved and merged.
-- Issue #62 redesigns the public opportunity list, detail, and application form on `design/public-opportunity-v1`, created from that exact `main`. A draft PR (`Closes #62`, `Refs #52`) is open for technical and visual review. Do not merge or deploy it.
-- It is presentation and localization only: no public endpoint, contract, Prisma schema, visibility, slug, application, duplicate, anti-enumeration, upload, or rate-limit change. The only non-presentation web change is that the three public calls in `apps/web/src/api.ts` throw `PublicRequestError` carrying the HTTP status; the response body is never read.
-- Public presentation moved out of `App.tsx` into `apps/web/src/public-opportunities/`: `PublicOpportunitiesPanel` and `PublicOpportunityDetailPanel` (containers: requests, retries, submission, request sequencing, submission lock) and presentation components (`PublicSite`, `PublicOpportunityList`, `PublicOpportunityDetail`, `PublicApplicationForm`) plus pure helpers (`public-application.ts`, `public-opportunity-format.ts`, `public-opportunity-state.ts`). `LanguageSelect` gained an optional class prefix; its default behaviour is unchanged.
-- Only public-contract fields render. Every 404 shows the same page. The request body is identical to the previous page.
-- Pre-existing web defects fixed inside the boundary: a confirmed application used to display a failure message; the anti-spam field was visible; server-required document categories were not marked required.
-- Not changed, needs a decision: the public salary expectation is sent as typed into `salaryExpectationCents`, while internal screens divide it by 100 (R-035).
-- The public pages are bilingual (`publicOpportunity.*`, `domain.publicApplicationFileCategory`, `preview.publicOpportunity`) and carry no `lang="en"` boundary.
-- Development-only `apps/web/public-opportunity.html` renders the real components with synthetic data and switchable states (`?state=` also selects one).
+- Authoritative `main` is `077024b96346229368cf88dd264c6d4d91931564`, including merged Public Opportunity PR #63. The Issue #52 representative milestone is complete.
+- Issue #64 redesigns Tasks on `design/task-pipeline-v1`, draft PR #65. Keep it draft, open, unmerged, and undeployed. Do not start Clients or Missions.
+- Drift audit Issue #66 is high priority. Technical review `5187700373` blockers and the Task drift items D-UX-01 to D-UX-04 are corrected on the PR. Review `5189033578` found remaining Issue #31 drift (assignee removal, comment edit/archive, reminder reschedule/cancel, notification-to-task navigation, a real unread count, created by me); all six are corrected. Final review `5191521437` found two more (no mission-candidate filter; owner/assignee filters hidden from viewers without `tasks:assign`); both are corrected and the superseding D-UX-03 matrix is in Issue #66. The next gate is the ChatGPT final-final Task conformance review, then visual review.
+- The default Task view is a lightweight board: one column per stored status (To do/`OPEN`, In progress, Waiting, Blocked, Completed). Canceled and archived work is in the compact list view. There is no drag and drop; a task moves through its detail drawer using server-allowed transitions and the server's reason rules.
+- No operator types an ID. Owner, assignee, mention, and reminder-recipient choices use the new `GET /v1/tasks/user-options` (approved by the maintainer as a narrowly scoped addition). Linked records use existing permission-gated lists. See D-062, R-037, and `docs/permissions.md`.
+- Restored Issue #31 views: assigned to me, owned by me, created by me, due soon, overdue, owner, assignee, due range, linked record, pagination, sorting. Created by me is a self-only `createdByMe` list filter that the server binds to the authenticated actor (no creator ID is accepted) and combines with the visibility rule and every other filter. Owner and assignee filters work for any Task viewer through `GET /v1/tasks/filter-user-options?role=owner|assignee&search=` needs only `tasks:view` and returns at most 20 `id`, `displayName`, and `email` entries, limited to owners (`role=owner`) or users with an active, non-archived assignment (`role=assignee`) on tasks visible to the actor under the normal Task visibility rule. The linked-record filter includes a candidate within a mission (mission first, then its candidates), sending only `missionCandidateId`. Deferred: related-task links from Clients/Missions/Candidate workspaces (those modules are not started).
+- The detail manages child records through existing endpoints only: remove an active assignee (reason required), edit a comment's text or archive it (author, or `tasks:view_all`; refusals reported generically), reschedule or cancel pending and failed reminders. A notification that names a task opens it in the same drawer through the normal task read. The unread count is its own read (`status=UNREAD`, `pageSize=1`), independent of the notification filter.
+- Manual reminder delivery is a collapsed diagnostic for managers holding `tasks:reminders:manage` and `tasks:view_all`. No scheduler exists (R-036); a scheduler needs its own issue.
+- `TasksPanel` owns every read, write, and guard: per-column board reads with a board generation, list and detail request numbers, a selection generation, session checks, an operation-owned global write lock, and a latest-filter ref for notifications. Presentation lives in `TaskWorkspace`, `TaskBoard`, `TaskListView`, `TaskFilters`, `TaskCreateForm`, `TaskDetail` (drawer), `TaskPickers`, and `TaskNotifications`.
+- Development-only `apps/web/task.html` renders the real workspace with synthetic data; `?task=<id>` opens a task and `?view=list` starts in the list.
 
 ## Review target
 
-Run from the repository root:
+Run `pnpm --filter @hire-me/web dev`, then open `http://127.0.0.1:5173/task.html`.
 
-```text
-pnpm --filter @hire-me/web dev
-```
-
-Open `http://127.0.0.1:5173/public-opportunity.html`. Review:
-
-- the list: ruled rows with the title link, published location, work arrangement, and contract type, and the clamped summary; the count; empty, loading, and failure states;
-- the detail: back link, title and summary, key details (company or "Confidential", salary and deadline only when present) with the single primary action, then the description, skills, and application;
-- the application: fieldsets, visible labels, localized file controls, required markers, validation beside fields, the consent checkbox, and the received and not-sent states;
-- the not-found and detail-failure states;
-- 1440, 1024, 800, 430, and 390 px in French and English: no clipping and no whole-page horizontal overflow.
-
-With French active, `/opportunities` and `/opportunities/:slug` must carry no `lang="en"` region, while a still-English internal module such as Tasks keeps its boundary.
+Review the board columns and cards, the column switcher on phones, the detail drawer (workflow move, edit, people selectors and assignee removal, comments with mentions, edit and archive, reminders with reschedule and cancel, archive), the list view with pagination and closed statuses, filters (show including created by me, due, priority, sort, more filters), notifications with the unread count and Open task, and the diagnostic. Check EN/FR at 1440, 1024, 900, 800, 430, and 390 px; whole-page `scrollWidth` must equal `clientWidth`.
 
 ## Completion conditions
 
-- Local quality gates and exact-head GitHub Actions are green on the PR head.
-- Public endpoints, payloads, visibility, anti-enumeration, slugs, and application semantics are provably unchanged.
-- The web dependency set is still React, ReactDOM, Vite, and `@hire-me/contracts`.
-- The production build contains no development preview page.
-- The draft Public Opportunity PR remains draft, open, and unmerged.
-- The maintainer/ChatGPT technical and visual reviews accept the surface or request a bounded correction.
+- Every Issue #64 validation command and exact-head GitHub Actions run is green, including the PostgreSQL integration test for the people lookup.
+- Existing Task and notification endpoints, permissions, lifecycle, scope, assignment, due-date, comment, reminder, audit, and archive semantics are unchanged.
+- The production build contains only `index.html`.
+- Issue #66 records KEEP, CORRECT, or DEFER for D-UX-01 to D-UX-04 and stays open.
+- Technical and visual reviewers accept the implementation or request a bounded correction.
 
 ## Explicit hard stop
 
-Do not begin a task-pipeline surface, a legacy-module translation sweep, a server-stored locale preference, Arabic or RTL work, the R-035 salary fix, migration, deployment, or merge work.
+Do not begin Clients, Missions, UI-DNA v1.1, global visual-identity refinement, a reminder scheduler, further backend Task expansion, migration, deployment, or merge work. Do not smuggle unrelated drift fixes into this PR.
 
 ## Resume checklist
 
-- Read `AGENTS.md`, Issue #52, Issue #62, the Public Opportunity PR review history, and the project-memory files.
-- Fetch `origin`; verify `main`, the branch head, the draft PR state, and exact-head CI.
-- Keep any requested correction inside the public boundary: `apps/web/src/public-opportunities`, `apps/web/src/public-opportunity-preview`, `apps/web/public-opportunity.html`, the `publicOpportunity.*`, `domain.publicApplicationFileCategory`, and `preview.publicOpportunity` dictionary entries, the public routes in `App.tsx`, the public calls in `api.ts`, and the design/project documentation.
+- Read `AGENTS.md`, Issue #64, Issue #66, PR #65 review history, and the project-memory files.
+- Fetch `origin`; verify base, branch head, draft PR state, and exact-head CI.
+- Keep corrections inside `apps/web/src/tasks`, `apps/web/src/task-preview`, `apps/web/task.html`, the Task API client methods, the people lookups and the `createdByMe` filter (`apps/api/src/tasks`, `packages/contracts/src/tasks.ts`, `apps/api/test/tasks.integration.test.ts`), Task translations and tests, and project documentation.
