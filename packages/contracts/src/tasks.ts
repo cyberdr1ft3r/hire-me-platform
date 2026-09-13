@@ -290,6 +290,20 @@ export const TaskUserOptionsResponseSchema = z.object({
   users: z.array(TaskUserOptionSchema).max(TASK_USER_OPTION_LIMIT),
 });
 
+/**
+ * People a Task viewer may filter the list by. Unlike the write-oriented
+ * user-options purposes, this needs only `tasks:view` and never lists anyone
+ * beyond the actor's visible tasks: owners of visible tasks for `owner`, and
+ * active assignees of visible tasks for `assignee`. It grants no assignment
+ * capability. The response is the same bounded id/name/email shape.
+ */
+export const TaskFilterUserRoleSchema = z.enum(['owner', 'assignee']);
+
+export const TaskFilterUserOptionsQuerySchema = z.object({
+  role: TaskFilterUserRoleSchema,
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
 export const NotificationListQuerySchema = z.object({
   status: NotificationStatusSchema.exclude(['ARCHIVED']).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -356,5 +370,7 @@ export type TaskUserOptionPurpose = z.infer<typeof TaskUserOptionPurposeSchema>;
 export type TaskUserOptionsQuery = z.infer<typeof TaskUserOptionsQuerySchema>;
 export type TaskUserOption = z.infer<typeof TaskUserOptionSchema>;
 export type TaskUserOptionsResponse = z.infer<typeof TaskUserOptionsResponseSchema>;
+export type TaskFilterUserRole = z.infer<typeof TaskFilterUserRoleSchema>;
+export type TaskFilterUserOptionsQuery = z.infer<typeof TaskFilterUserOptionsQuerySchema>;
 export type NotificationReadAllRequest = z.infer<typeof NotificationReadAllRequestSchema>;
 export type NotificationReadAllResponse = z.infer<typeof NotificationReadAllResponseSchema>;

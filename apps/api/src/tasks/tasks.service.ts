@@ -23,6 +23,7 @@ import type {
   TaskReminderProcessResponse,
   TaskReminderUpdateRequest,
   TaskStatusChangeRequest,
+  TaskFilterUserOptionsQuery,
   TaskUpdateRequest,
   TaskUserOptionsQuery,
   TaskUserOptionsResponse,
@@ -269,6 +270,51 @@ export class TasksService {
       }
       users.push(candidate);
     }
+    return { users };
+  }
+
+  /**
+   * People a Task viewer may filter the list by, without any assignment
+   * permission. Only identities already represented on the actor's visible
+   * tasks are returned, through the same visibility predicate as the list:
+   * owners of visible tasks, or users with an active, non-archived assignment
+   * on a visible task. It is bounded, carries only id/name/email, and grants
+   * nothing: every write still checks its own permission.
+   */
+  async listFilterUserOptions(
+    actorUserId: string,
+    query: TaskFilterUserOptionsQuery,
+  ): Promise<TaskUserOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertAccess(access.view, 'TASKS_VIEW_REQUIRED', 'Task view permission is required.');
+    const visible = this.visibleTaskWhere(actorUserId, access);
+    const represented: Prisma.UserWhereInput =
+      query.role === 'owner'
+        ? { ownedTasks: { some: visible } }
+        : {
+            taskAssignments: {
+              some: { status: TaskAssignmentStatus.ACTIVE, archivedAt: null, task: visible },
+            },
+          };
+    const search = query.search;
+    const users = await this.prisma.user.findMany({
+      where: {
+        AND: [
+          represented,
+          search
+            ? {
+                OR: [
+                  { displayName: { contains: search, mode: 'insensitive' } },
+                  { email: { contains: search, mode: 'insensitive' } },
+                ],
+              }
+            : {},
+        ],
+      },
+      select: { id: true, displayName: true, email: true },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: TASK_USER_OPTION_LIMIT,
+    });
     return { users };
   }
 
