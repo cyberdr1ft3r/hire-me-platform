@@ -204,7 +204,7 @@ Issue #29 implements the internal offer-to-placement lifecycle under mission-can
 
 Issue #31 implements the authenticated internal task-management layer:
 
-- `/v1/tasks` and `/v1/notifications` endpoints for visible task listing/detail, task creation, assignment changes, lifecycle transitions, comments, explicit mentions, reminders, reminder processing, own-notification read/archive actions, and a purpose-scoped people lookup (`/v1/tasks/user-options`) so the interface selects users by name while sending only their IDs
+- `/v1/tasks` and `/v1/notifications` endpoints for visible task listing/detail, task creation, assignment changes, lifecycle transitions, comments, explicit mentions, reminders, reminder processing, own-notification read/archive actions, a purpose-scoped people lookup (`/v1/tasks/user-options`) so the interface selects users by name while sending only their IDs, and a self-only `createdByMe` list filter bound to the authenticated actor
 - shared Zod contracts in `packages/contracts` with no Prisma imports
 - API-owned Prisma access through the Nest `PrismaService` and explicit generated-client boundary exports for task, reminder, comment, notification, and event enums
 - one accountable task owner plus normalized `TaskAssignment` rows for multiple assignees and assignment history; legacy `Task.assigneeUserId` remains a compatibility field
