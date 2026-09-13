@@ -100,7 +100,8 @@ describe('dictionary contract', () => {
       'common.counts.candidates',
       'common.pagination.results',
       'publicOpportunity.list.count',
-      'task.list.assignees',
+      'task.board.columnCount',
+      'task.card.assignees',
     ]);
     for (const locale of SUPPORTED_LOCALES) {
       for (const key of canonicalPluralPaths) {

@@ -262,46 +262,51 @@ describe('App', () => {
       }
 
       if (url.includes('/v1/tasks') && init?.method !== 'POST') {
+        // The board reads one page per status column; this task is only in To do.
+        const status = new URL(url).searchParams.get('status');
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              tasks: [
-                {
-                  id: '11111111-1111-4111-8111-111111111111',
-                  title: 'Review candidate follow-up',
-                  description: null,
-                  status: 'OPEN',
-                  priority: 'NORMAL',
-                  startAt: null,
-                  dueAt: null,
-                  timezone: null,
-                  ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
-                  ownerDisplayName: 'Read Only Task User',
-                  assigneeUserIds: [],
-                  context: {
-                    candidateId: null,
-                    clientId: null,
-                    clientContactId: null,
-                    recruitmentMissionId: null,
-                    missionRecruiterId: null,
-                    missionCandidateId: null,
-                    interviewId: null,
-                    recruitmentOfferId: null,
-                    recruitmentOfferVersionId: null,
-                    missionPlacementId: null,
-                    trainingProgramId: null,
-                    trainingSessionId: null,
-                    trainingEnrollmentId: null,
-                    trainingSessionParticipationId: null,
-                    documentId: null,
-                  },
-                  completedAt: null,
-                  canceledAt: null,
-                  archivedAt: null,
-                  createdAt: '2026-07-21T10:00:00.000Z',
-                  updatedAt: '2026-07-21T10:00:00.000Z',
-                },
-              ],
+              tasks:
+                status && status !== 'OPEN'
+                  ? []
+                  : [
+                      {
+                        id: '11111111-1111-4111-8111-111111111111',
+                        title: 'Review candidate follow-up',
+                        description: null,
+                        status: 'OPEN',
+                        priority: 'NORMAL',
+                        startAt: null,
+                        dueAt: null,
+                        timezone: null,
+                        ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
+                        ownerDisplayName: 'Read Only Task User',
+                        assigneeUserIds: [],
+                        context: {
+                          candidateId: null,
+                          clientId: null,
+                          clientContactId: null,
+                          recruitmentMissionId: null,
+                          missionRecruiterId: null,
+                          missionCandidateId: null,
+                          interviewId: null,
+                          recruitmentOfferId: null,
+                          recruitmentOfferVersionId: null,
+                          missionPlacementId: null,
+                          trainingProgramId: null,
+                          trainingSessionId: null,
+                          trainingEnrollmentId: null,
+                          trainingSessionParticipationId: null,
+                          documentId: null,
+                        },
+                        completedAt: null,
+                        canceledAt: null,
+                        archivedAt: null,
+                        createdAt: '2026-07-21T10:00:00.000Z',
+                        updatedAt: '2026-07-21T10:00:00.000Z',
+                      },
+                    ],
               pageInfo: { page: 1, pageSize: 25, total: 1, hasNextPage: false },
             }),
             { headers: { 'Content-Type': 'application/json' } },

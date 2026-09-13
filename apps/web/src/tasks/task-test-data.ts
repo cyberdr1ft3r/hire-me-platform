@@ -1,4 +1,10 @@
-import type { AuthenticatedUser, TaskDetail, TaskSummary } from '@hire-me/contracts';
+import type {
+  AuthenticatedUser,
+  Notification,
+  TaskDetail,
+  TaskSummary,
+  TaskUserOption,
+} from '@hire-me/contracts';
 
 export const TASK_A_ID = '11111111-1111-4111-8111-111111111111';
 export const TASK_B_ID = '22222222-2222-4222-8222-222222222222';
@@ -105,3 +111,41 @@ export const taskDetail: TaskDetail = {
     },
   ],
 };
+
+export const AMINA_ID = 'cccccccc-cccc-4ccc-8ccc-000000000001';
+export const OMAR_ID = 'cccccccc-cccc-4ccc-8ccc-000000000002';
+export const OMAR_SALES_ID = 'cccccccc-cccc-4ccc-8ccc-000000000003';
+
+/** Synthetic colleagues; two share a name so disambiguation by email is visible. */
+export const taskPeople: TaskUserOption[] = [
+  { displayName: 'Amina Berrada', email: 'amina.berrada@example.test', id: AMINA_ID },
+  { displayName: 'Omar Tazi', email: 'omar.tazi@example.test', id: OMAR_ID },
+  { displayName: 'Omar Tazi', email: 'omar.tazi.sales@example.test', id: OMAR_SALES_ID },
+];
+
+export function taskNotification(overrides: Partial<Notification> = {}): Notification {
+  return {
+    actorUserId: null,
+    archivedAt: null,
+    bodySummary: 'A task is overdue.',
+    createdAt: '2026-09-12T08:00:00.000Z',
+    documentId: null,
+    id: '77777777-7777-4777-8777-777777777777',
+    interviewId: null,
+    missionCandidateId: null,
+    readAt: null,
+    recipientUserId: USER_ID,
+    recruitmentMissionId: null,
+    status: 'UNREAD',
+    taskId: TASK_A_ID,
+    title: 'Task overdue',
+    trainingEnrollmentId: null,
+    trainingSessionId: null,
+    type: 'tasks.overdue',
+    updatedAt: '2026-09-12T08:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** Matches any UUID, to prove none is rendered as human-facing text. */
+export const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;

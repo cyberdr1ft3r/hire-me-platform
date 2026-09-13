@@ -85,6 +85,8 @@ import {
   TaskReminderProcessResponseSchema,
   TaskStatusChangeRequestSchema,
   TaskUpdateRequestSchema,
+  TaskUserOptionsQuerySchema,
+  TaskUserOptionsResponseSchema,
   type AuthResponse,
   type HealthResponse,
   type MeResponse,
@@ -218,6 +220,8 @@ import {
   type TaskReminderProcessResponse,
   type TaskStatusChangeRequest,
   type TaskUpdateRequest,
+  type TaskUserOptionsQuery,
+  type TaskUserOptionsResponse,
   TrainingEnrollmentDetailResponseSchema,
   TrainingEnrollmentListResponseSchema,
   TrainingParticipationDetailResponseSchema,
@@ -2280,6 +2284,29 @@ export async function createTask(
     apiBaseUrl,
   );
   return TaskDetailResponseSchema.parse(await response.json());
+}
+
+/**
+ * People the actor may choose for one Task write (owner, assignee, mention, or
+ * reminder recipient). The chosen option's `id` is what the write sends; the
+ * interface shows the name and email.
+ */
+export async function listTaskUserOptions(
+  accessToken: string,
+  query: TaskUserOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskUserOptionsResponse> {
+  const parsed = TaskUserOptionsQuerySchema.parse(query);
+  const parameters = new URLSearchParams({ purpose: parsed.purpose });
+  if (parsed.taskId) parameters.set('taskId', parsed.taskId);
+  if (parsed.search) parameters.set('search', parsed.search);
+  const response = await taskRequest(
+    accessToken,
+    `/user-options?${parameters.toString()}`,
+    {},
+    apiBaseUrl,
+  );
+  return TaskUserOptionsResponseSchema.parse(await response.json());
 }
 
 export async function getTask(
