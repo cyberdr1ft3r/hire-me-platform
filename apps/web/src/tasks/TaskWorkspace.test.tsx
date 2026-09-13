@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { TaskDetail } from '@hire-me/contracts';
+
 import { I18nProvider } from '../i18n/index.js';
 import {
   EMPTY_TASK_FILTERS,
@@ -14,6 +16,7 @@ import {
   AMINA_ID,
   OMAR_ID,
   OMAR_SALES_ID,
+  TASK_A_ID,
   UUID_PATTERN,
   taskDetail,
   taskNotification,
@@ -68,15 +71,19 @@ function props(overrides: Partial<TaskWorkspaceProps> = {}): TaskWorkspaceProps 
     loadOptions,
     notificationStatus: '',
     notificationTotal: 0,
+    notificationUnread: null,
     notifications: [],
     onAddAssignment: vi.fn().mockResolvedValue(true),
     onAddComment: vi.fn().mockResolvedValue(true),
     onAddReminder: vi.fn().mockResolvedValue(true),
     onApplyFilters: vi.fn(),
     onArchive: vi.fn().mockResolvedValue(true),
+    onArchiveComment: vi.fn().mockResolvedValue(true),
+    onCancelReminder: vi.fn().mockResolvedValue(true),
     onChangeOwner: vi.fn().mockResolvedValue(true),
     onCloseDetail: vi.fn(),
     onCreate: vi.fn().mockResolvedValue(true),
+    onEditComment: vi.fn().mockResolvedValue(true),
     onFiltersChange: vi.fn(),
     onListPage: vi.fn(),
     onLoadMore: vi.fn(),
@@ -84,7 +91,10 @@ function props(overrides: Partial<TaskWorkspaceProps> = {}): TaskWorkspaceProps 
     onNotificationFilter: vi.fn(),
     onNotificationRead: vi.fn(),
     onNotificationsReadAll: vi.fn(),
+    onOpenTask: vi.fn(),
     onProcessReminders: vi.fn(),
+    onRemoveAssignment: vi.fn().mockResolvedValue(true),
+    onRescheduleReminder: vi.fn().mockResolvedValue(true),
     onResetFilters: vi.fn(),
     onRetryBoard: vi.fn(),
     onRetryDetail: vi.fn(),
@@ -623,5 +633,335 @@ describe('Task detail dialog and global write lock', () => {
     const header = screen.getByRole('heading', { level: 1 }).closest('header')!;
     expect(within(header).queryByRole('button', { name: /reminders/i })).not.toBeInTheDocument();
     expect(screen.getByText('Reminder delivery')).toBeInTheDocument();
+  });
+});
+
+describe('Task detail management actions', () => {
+  const OMAR_ASSIGNMENT_ID = '33333333-3333-4333-8333-000000000002';
+  const AMINA_COMMENT_ID = '44444444-4444-4444-8444-000000000002';
+  const reminder = taskDetail.reminders[0]!;
+  const managed: TaskDetail = {
+    ...taskDetail,
+    assigneeUserIds: [taskUser.id, OMAR_ID],
+    assignments: [
+      ...taskDetail.assignments,
+      {
+        ...taskDetail.assignments[0]!,
+        id: OMAR_ASSIGNMENT_ID,
+        userDisplayName: 'Omar Tazi',
+        userId: OMAR_ID,
+      },
+    ],
+    comments: [
+      ...taskDetail.comments,
+      {
+        ...taskDetail.comments[0]!,
+        authorDisplayName: 'Amina Berrada',
+        authorUserId: AMINA_ID,
+        body: 'The client confirmed by phone.',
+        editedAt: '2026-09-10T11:20:00.000Z',
+        id: AMINA_COMMENT_ID,
+        status: 'EDITED',
+      },
+    ],
+    reminders: [
+      reminder,
+      { ...reminder, id: '55555555-5555-4555-8555-000000000002', status: 'SENT' },
+      { ...reminder, id: '55555555-5555-4555-8555-000000000003', status: 'FAILED' },
+      { ...reminder, id: '55555555-5555-4555-8555-000000000004', status: 'CANCELED' },
+      { ...reminder, id: '55555555-5555-4555-8555-000000000005', status: 'PROCESSING' },
+    ],
+  };
+  const ready = (task: TaskDetail = managed) => ({ status: 'ready' as const, task });
+  const reminderList = () => dialog().querySelector<HTMLElement>('.tasks__reminders')!;
+  const rerenderWith = (view: ReturnType<typeof renderWorkspace>, value: TaskWorkspaceProps) =>
+    view.rerender(
+      <I18nProvider initialLocale="en">
+        <TaskWorkspace {...value} />
+      </I18nProvider>,
+    );
+
+  it('lists each active assignee and removes one only with the reason the API requires', () => {
+    const onRemoveAssignment = vi.fn().mockResolvedValue(true);
+    renderWorkspace(props({ detail: ready(), onRemoveAssignment }));
+    const assignees = dialog().querySelector<HTMLElement>('.task-assignees')!;
+    expect(
+      within(assignees)
+        .getAllByRole('listitem')
+        .map((item) => item.firstChild?.textContent),
+    ).toEqual(['Task Operator', 'Omar Tazi']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Omar Tazi' }));
+    const form = screen.getByRole('form', { name: 'Remove Omar Tazi' });
+    expect(within(form).getByText('Remove Omar Tazi from this task?')).toBeVisible();
+    const reason = within(form).getByLabelText(/^Reason/);
+    expect(reason).toBeRequired();
+    expect(reason).toHaveFocus();
+    fireEvent.submit(form);
+    expect(onRemoveAssignment).not.toHaveBeenCalled();
+
+    fireEvent.change(reason, { target: { value: 'No longer on the account.' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Remove assignee' }));
+    expect(onRemoveAssignment).toHaveBeenCalledWith({
+      assignmentId: OMAR_ASSIGNMENT_ID,
+      reason: 'No longer on the account.',
+    });
+    // The operator sees names only; the assignment ID never reaches the page text.
+    expect(document.body.textContent).not.toMatch(UUID_PATTERN);
+  });
+
+  it('returns focus to the row action that opened a row form when it is dismissed', async () => {
+    renderWorkspace(props({ detail: ready() }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Omar Tazi' }));
+    fireEvent.click(
+      within(screen.getByRole('form', { name: 'Remove Omar Tazi' })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Remove Omar Tazi' })).toHaveFocus(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archive comment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep comment' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Archive comment' })).toHaveFocus(),
+    );
+
+    fireEvent.click(within(reminderList()).getAllByRole('button', { name: 'Reschedule' })[0]!);
+    fireEvent.click(
+      within(screen.getByRole('form', { name: 'Reschedule' })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(reminderList()).getAllByRole('button', { name: 'Reschedule' })[0],
+      ).toHaveFocus(),
+    );
+  });
+
+  it('offers no removal without assign permission or on a closed task', () => {
+    const view = renderWorkspace(
+      props({
+        access: resolveTaskAccess(taskUser.permissions.filter((code) => code !== 'tasks:assign')),
+        detail: ready(),
+      }),
+    );
+    expect(within(dialog()).getByText('Omar Tazi')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument();
+    rerenderWith(view, props({ detail: ready({ ...managed, status: 'COMPLETED' }) }));
+    expect(screen.queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument();
+  });
+
+  it('offers comment edit and archive to the author, and to others only with oversight of all tasks', () => {
+    const view = renderWorkspace(props({ detail: ready() }));
+    expect(screen.getAllByRole('button', { name: 'Edit comment' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Archive comment' })).toHaveLength(1);
+    expect(within(dialog()).getByText('Edited')).toBeVisible();
+    rerenderWith(
+      view,
+      props({
+        access: resolveTaskAccess([...taskUser.permissions, 'tasks:view_all']),
+        detail: ready(),
+      }),
+    );
+    expect(screen.getAllByRole('button', { name: 'Edit comment' })).toHaveLength(2);
+    rerenderWith(
+      view,
+      props({
+        access: resolveTaskAccess(taskUser.permissions.filter((code) => code !== 'tasks:comment')),
+        detail: ready(),
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Edit comment' })).not.toBeInTheDocument();
+    rerenderWith(view, props({ detail: ready({ ...managed, status: 'CANCELED' }) }));
+    expect(screen.queryByRole('button', { name: 'Archive comment' })).not.toBeInTheDocument();
+  });
+
+  it('edits only the comment text and archives only after confirmation', async () => {
+    const onEditComment = vi.fn().mockResolvedValue(true);
+    const onArchiveComment = vi.fn().mockResolvedValue(true);
+    renderWorkspace(props({ detail: ready(), onArchiveComment, onEditComment }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment' }));
+    const form = screen.getByRole('form', { name: 'Edit comment' });
+    const body = within(form).getByLabelText(/^Comment/);
+    expect(body).toHaveValue('Client asked for a response before noon.');
+    expect(body).toHaveFocus();
+    expect(
+      within(form).getByText('Only the text changes. Mentions stay as they were.'),
+    ).toBeVisible();
+    fireEvent.change(body, { target: { value: 'Client wants a reply today.' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save comment' }));
+    expect(onEditComment).toHaveBeenCalledWith({
+      body: 'Client wants a reply today.',
+      commentId: taskDetail.comments[0]!.id,
+    });
+    // The edit form closes once the save succeeds.
+    await waitFor(() =>
+      expect(screen.queryByRole('form', { name: 'Edit comment' })).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archive comment' }));
+    let confirm = screen.getByRole('form', { name: 'Archive comment' });
+    expect(
+      within(confirm).getByText('Archive this comment? It is hidden from the task, not deleted.'),
+    ).toBeVisible();
+    expect(within(confirm).getByRole('button', { name: 'Keep comment' })).toHaveFocus();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Keep comment' }));
+    expect(onArchiveComment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Archive comment' }));
+    confirm = screen.getByRole('form', { name: 'Archive comment' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Archive comment' }));
+    expect(onArchiveComment).toHaveBeenCalledWith(taskDetail.comments[0]!.id);
+  });
+
+  it('offers reschedule and cancel only for pending and failed reminders, with translated states', () => {
+    const view = renderWorkspace(props({ detail: ready() }));
+    const list = reminderList();
+    expect(within(list).getAllByRole('button', { name: 'Reschedule' })).toHaveLength(2);
+    expect(within(list).getAllByRole('button', { name: 'Cancel reminder' })).toHaveLength(2);
+    for (const label of ['Scheduled', 'Sent', 'Failed', 'Canceled', 'Sending']) {
+      expect(within(list).getByText(label)).toBeVisible();
+    }
+    view.unmount();
+    const frenchView = renderWorkspace(props({ detail: ready() }), 'fr');
+    const french = reminderList();
+    expect(within(french).getAllByRole('button', { name: 'Reprogrammer' })).toHaveLength(2);
+    expect(within(french).getAllByRole('button', { name: 'Annuler le rappel' })).toHaveLength(2);
+    for (const label of ['Programmé', 'Envoyé', 'En échec', 'Annulé', 'En cours d’envoi']) {
+      expect(within(french).getByText(label)).toBeVisible();
+    }
+    for (const raw of ['PENDING', 'SENT', 'FAILED', 'CANCELED', 'PROCESSING']) {
+      expect(french.textContent).not.toContain(raw);
+    }
+    frenchView.unmount();
+    renderWorkspace(
+      props({
+        access: resolveTaskAccess(
+          taskUser.permissions.filter((code) => code !== 'tasks:reminders:manage'),
+        ),
+        detail: ready(),
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel reminder' })).not.toBeInTheDocument();
+  });
+
+  it('cancels a reminder only after confirmation, sending its ID', () => {
+    const onCancelReminder = vi.fn().mockResolvedValue(true);
+    renderWorkspace(props({ detail: ready(taskDetail), onCancelReminder }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel reminder' }));
+    const confirm = screen.getByRole('form', { name: 'Cancel reminder' });
+    expect(
+      within(confirm).getByText('Cancel this reminder? It will not be sent. The record is kept.'),
+    ).toBeVisible();
+    expect(onCancelReminder).not.toHaveBeenCalled();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel reminder' }));
+    expect(onCancelReminder).toHaveBeenCalledWith(reminder.id);
+  });
+
+  it('disables every new row action, and forms already open, while any write owns the lock', () => {
+    const view = renderWorkspace(props({ detail: ready() }));
+    fireEvent.click(within(reminderList()).getAllByRole('button', { name: 'Reschedule' })[0]!);
+    expect(screen.getByRole('button', { name: 'Save new time' })).toBeEnabled();
+    rerenderWith(view, props({ detail: ready(), pending: 'comment' }));
+    expect(screen.getByRole('button', { name: 'Save new time' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save new time' })).not.toHaveAttribute('aria-busy');
+    expect(screen.getByRole('button', { name: 'Remove Omar Tazi' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Edit comment' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Archive comment' })).toBeDisabled();
+    for (const button of within(reminderList()).getAllByRole('button', {
+      name: 'Cancel reminder',
+    })) {
+      expect(button).toBeDisabled();
+    }
+    rerenderWith(view, props({ detail: ready(), pending: 'rescheduleReminder' }));
+    expect(screen.getByRole('button', { name: 'Save new time' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+  });
+});
+
+describe('Task notifications and created-by-me', () => {
+  const idle = { detail: { status: 'idle' as const }, selectedId: null };
+
+  it('opens a notification’s task and keeps the unread count apart from the filtered count', () => {
+    const onOpenTask = vi.fn();
+    const view = renderWorkspace(
+      props({
+        ...idle,
+        notificationStatus: 'READ',
+        notificationTotal: 2,
+        notificationUnread: 4,
+        notifications: [
+          taskNotification({ status: 'READ' }),
+          taskNotification({
+            id: '88888888-8888-4888-8888-888888888888',
+            status: 'READ',
+            taskId: null,
+            type: 'tasks.comment.mention',
+          }),
+        ],
+        onOpenTask,
+      }),
+    );
+    expect(screen.getByText('4 unread notifications')).toBeVisible();
+    expect(screen.getByText('2 notifications shown')).toBeVisible();
+    // Only a notification that names a task can open one.
+    const open = screen.getAllByRole('button', { name: 'Open task' });
+    expect(open).toHaveLength(1);
+    fireEvent.click(open[0]!);
+    expect(onOpenTask).toHaveBeenCalledWith(TASK_A_ID);
+
+    view.unmount();
+    renderWorkspace(
+      props({
+        ...idle,
+        notificationTotal: 1,
+        notificationUnread: 1,
+        notifications: [taskNotification()],
+      }),
+      'fr',
+    );
+    expect(screen.getByText('1 notification non lue')).toBeVisible();
+    expect(screen.getByText('1 notification affichée')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Ouvrir la tâche' })).toBeVisible();
+  });
+
+  it('shows no unread count before it is known', () => {
+    renderWorkspace(props({ ...idle, notificationUnread: null }));
+    expect(screen.queryByText(/unread notification/)).not.toBeInTheDocument();
+  });
+
+  it('offers Created by me in Show as a self-only filter that clears the people filters', () => {
+    const onFiltersChange = vi.fn();
+    const me = { detail: taskUser.email, id: taskUser.id, label: taskUser.displayName, self: true };
+    const view = renderWorkspace(
+      props({ ...idle, filters: { ...EMPTY_TASK_FILTERS, owner: me }, onFiltersChange }),
+    );
+    const show = screen.getByLabelText('Show');
+    expect(
+      within(show)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['All tasks I can see', 'Assigned to me', 'Owned by me', 'Created by me']);
+    fireEvent.change(show, { target: { value: 'createdByMe' } });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      ...EMPTY_TASK_FILTERS,
+      assignee: null,
+      createdByMe: true,
+      owner: null,
+    });
+    view.unmount();
+    renderWorkspace(
+      props({ ...idle, filters: { ...EMPTY_TASK_FILTERS, createdByMe: true } }),
+      'fr',
+    );
+    const french = screen.getByLabelText('Afficher');
+    expect(french).toHaveValue('createdByMe');
+    expect(within(french).getByRole('option', { name: 'Que j’ai créées' })).toBeInTheDocument();
   });
 });

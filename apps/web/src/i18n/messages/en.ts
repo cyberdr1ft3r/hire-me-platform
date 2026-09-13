@@ -412,6 +412,13 @@ export const enMessages = {
       retry: 'Try again',
       save: 'Save changes',
     },
+    assignees: {
+      confirmRemove: 'Remove assignee',
+      reasonHint: 'Required. It is recorded in the task history.',
+      remove: 'Remove',
+      removeConfirm: 'Remove {name} from this task?',
+      removeNamed: 'Remove {name}',
+    },
     board: {
       columnCount: plural({ one: '{count} task', other: '{count} tasks' }),
       columnEmpty: 'No tasks here.',
@@ -432,10 +439,17 @@ export const enMessages = {
       status: 'Status: {status}',
     },
     comments: {
+      archive: 'Archive comment',
+      archiveConfirm: 'Archive this comment? It is hidden from the task, not deleted.',
       body: 'Comment',
       empty: 'No comments yet.',
+      edit: 'Edit comment',
+      editHint: 'Only the text changes. Mentions stay as they were.',
+      edited: 'Edited',
+      keep: 'Keep comment',
       mentions: 'Mention people',
       mentionsHint: 'Mentioned people are notified. Only people who can see this task are listed.',
+      save: 'Save comment',
       title: 'Comments',
     },
     context: {
@@ -489,12 +503,17 @@ export const enMessages = {
     feedback: {
       archived: 'Task archived.',
       assignmentAdded: 'Assignee added.',
+      assignmentRemoved: 'Assignee removed.',
       commentAdded: 'Comment added.',
+      commentArchived: 'Comment archived.',
+      commentEdited: 'Comment updated.',
       created: 'Task created.',
       errorTitle: 'Action failed',
       failed: 'The action could not be completed. Check the task and try again.',
       ownerChanged: 'Task owner changed.',
       reminderAdded: 'Reminder scheduled.',
+      reminderCanceled: 'Reminder canceled.',
+      reminderRescheduled: 'Reminder rescheduled.',
       remindersProcessed: '{delivered} reminders delivered; {overdue} overdue notices created.',
       statusChanged: 'Task moved to {status}.',
       successTitle: 'Done',
@@ -533,6 +552,7 @@ export const enMessages = {
       scope: {
         all: 'All tasks I can see',
         assignedToMe: 'Assigned to me',
+        createdByMe: 'Created by me',
         custom: 'Selected people',
         ownedByMe: 'Owned by me',
       },
@@ -557,6 +577,11 @@ export const enMessages = {
     notifications: {
       anyStatus: 'Any status',
       empty: 'No notifications.',
+      openTask: 'Open task',
+      shown: plural({
+        one: '{count} notification shown',
+        other: '{count} notifications shown',
+      }),
       status: 'Notification status',
       title: 'Notifications',
       types: {
@@ -566,6 +591,10 @@ export const enMessages = {
         ownerChanged: { body: 'You are now the owner of a task.', title: 'Task ownership changed' },
         reminderDue: { body: 'A task reminder is due.', title: 'Task reminder' },
       },
+      unread: plural({
+        one: '{count} unread notification',
+        other: '{count} unread notifications',
+      }),
     },
     picker: {
       choose: 'Choose…',
@@ -579,9 +608,15 @@ export const enMessages = {
       you: '{name} (you)',
     },
     reminders: {
+      cancel: 'Cancel reminder',
+      cancelConfirm: 'Cancel this reminder? It will not be sent. The record is kept.',
       empty: 'No reminders scheduled.',
+      keep: 'Keep reminder',
+      newTime: 'New reminder date and time',
       recipient: 'Recipient',
       remindAt: 'Reminder date and time',
+      reschedule: 'Reschedule',
+      saveTime: 'Save new time',
       title: 'Reminders',
     },
     states: {

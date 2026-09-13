@@ -102,6 +102,8 @@ describe('dictionary contract', () => {
       'publicOpportunity.list.count',
       'task.board.columnCount',
       'task.card.assignees',
+      'task.notifications.shown',
+      'task.notifications.unread',
     ]);
     for (const locale of SUPPORTED_LOCALES) {
       for (const key of canonicalPluralPaths) {

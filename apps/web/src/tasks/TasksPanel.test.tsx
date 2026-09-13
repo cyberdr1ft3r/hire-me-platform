@@ -86,6 +86,13 @@ function mockApi(route: Route = () => undefined, tasks: TaskSummary[] = [taskSum
 
 const listCalls = (calls: Call[]) => calls.filter((call) => call.url.includes('/v1/tasks?'));
 
+/** The unread-count read: unread notifications only, one row, for its total. */
+function isUnreadCountRead(call: Call): boolean {
+  if (!call.url.includes('/v1/notifications?')) return false;
+  const parameters = new URL(call.url).searchParams;
+  return parameters.get('status') === 'UNREAD' && parameters.get('pageSize') === '1';
+}
+
 function renderPanel(token = 'task-token', user: AuthenticatedUser = taskUser) {
   return render(
     <I18nProvider initialLocale="en">
@@ -409,8 +416,13 @@ describe('Task write lifecycle across sessions and filters', () => {
         true,
       ),
     );
-    const refreshes = calls.slice(before).filter((call) => call.url.includes('/v1/notifications?'));
+    const reads = calls.slice(before).filter((call) => call.url.includes('/v1/notifications?'));
+    // The unread count is its own read (unread only, one row); every list refresh
+    // uses the latest filter.
+    const refreshes = reads.filter((call) => !isUnreadCountRead(call));
+    expect(refreshes.length).toBeGreaterThan(0);
     expect(refreshes.every((call) => call.url.includes('status=READ'))).toBe(true);
+    expect(reads.some(isUnreadCountRead)).toBe(true);
     expect(screen.getByText('Mentioned in a task')).toBeVisible();
     expect(screen.queryByText('Task overdue')).not.toBeInTheDocument();
   });
@@ -583,4 +595,421 @@ it('switches locale on the same mount without refetching or clearing the open cr
   expect(screen.getByDisplayValue('Draft in progress')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'À faire' })).toBeVisible();
   expect(calls.length).toBe(before);
+});
+
+describe('Task detail management through the existing endpoints', () => {
+  const OMAR_ASSIGNMENT_ID = '33333333-3333-4333-8333-000000000002';
+  const COMMENT_ID = taskDetail.comments[0]!.id;
+  const REMINDER_ID = taskDetail.reminders[0]!.id;
+  const withOmar: TaskDetail = {
+    ...taskDetail,
+    assigneeUserIds: [taskUser.id, OMAR_ID],
+    assignments: [
+      ...taskDetail.assignments,
+      {
+        ...taskDetail.assignments[0]!,
+        id: OMAR_ASSIGNMENT_ID,
+        userDisplayName: 'Omar Tazi',
+        userId: OMAR_ID,
+      },
+    ],
+  };
+  const failure = (status: number, code: string) =>
+    json({ error: { code, message: 'Refused by the synthetic API.' } }, status);
+  const isGet = (init: RequestInit | undefined) => (init?.method ?? 'GET') === 'GET';
+
+  async function openLoaded() {
+    const dialog = await openTask();
+    await within(dialog).findByText('Client asked for a response before noon.');
+    return dialog;
+  }
+
+  it('removes one assignee by name with the required reason, once, by assignment ID', async () => {
+    const removal = deferred<Response>();
+    let removals = 0;
+    const calls = mockApi((url, init) => {
+      if (url.endsWith(`/v1/tasks/${TASK_A_ID}`) && isGet(init)) {
+        return Promise.resolve(detail(withOmar));
+      }
+      if (url.endsWith(`/assignments/${OMAR_ASSIGNMENT_ID}/remove`) && init?.method === 'POST') {
+        removals += 1;
+        return removal.promise;
+      }
+      return undefined;
+    });
+    renderPanel();
+    const dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove Omar Tazi' }));
+    const form = within(dialog).getByRole('form', { name: 'Remove Omar Tazi' });
+    fireEvent.submit(form);
+    expect(removals).toBe(0);
+    fireEvent.change(within(form).getByLabelText(/^Reason/), {
+      target: { value: 'Moved to another client.' },
+    });
+    const submit = within(form).getByRole('button', { name: 'Remove assignee' });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+    fireEvent.submit(form);
+    expect(removals).toBe(1);
+    const request = calls.find((call) => call.url.endsWith('/remove'))!;
+    expect(request.url).toContain(
+      `/v1/tasks/${TASK_A_ID}/assignments/${OMAR_ASSIGNMENT_ID}/remove`,
+    );
+    expect(request.body).toEqual({ reason: 'Moved to another client.' });
+
+    await act(async () => {
+      removal.resolve(detail(taskDetail));
+      await removal.promise;
+    });
+    expect(await screen.findByText('Assignee removed.')).toBeVisible();
+    expect(
+      within(screen.getByRole('dialog')).queryByRole('button', { name: 'Remove Omar Tazi' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('edits a comment’s text only and archives a comment, re-reading the task each time', async () => {
+    let current: TaskDetail = taskDetail;
+    const calls = mockApi((url, init) => {
+      if (url.endsWith(`/v1/tasks/${TASK_A_ID}`) && isGet(init)) {
+        return Promise.resolve(detail(current));
+      }
+      if (url.endsWith(`/comments/${COMMENT_ID}`) && init?.method === 'PATCH') {
+        const edited = {
+          ...taskDetail.comments[0]!,
+          body: 'Client wants a reply today.',
+          status: 'EDITED' as const,
+        };
+        current = { ...taskDetail, comments: [edited] };
+        return Promise.resolve(json({ comment: edited }));
+      }
+      if (url.endsWith(`/comments/${COMMENT_ID}/archive`) && init?.method === 'POST') {
+        const archived = { ...current.comments[0]!, status: 'ARCHIVED' as const };
+        current = { ...taskDetail, comments: [] };
+        return Promise.resolve(json({ comment: archived }));
+      }
+      return undefined;
+    });
+    renderPanel();
+    const dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit comment' }));
+    const form = within(dialog).getByRole('form', { name: 'Edit comment' });
+    fireEvent.change(within(form).getByLabelText(/^Comment/), {
+      target: { value: 'Client wants a reply today.' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save comment' }));
+    // Only the text is sent; the comment's mentions are not part of an edit.
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        body: 'Client wants a reply today.',
+      }),
+    );
+    expect(await screen.findByText('Comment updated.')).toBeVisible();
+    expect(await within(dialog).findByText('Client wants a reply today.')).toBeVisible();
+    expect(within(dialog).getByText('Edited')).toBeVisible();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive comment' }));
+    const confirm = within(dialog).getByRole('form', { name: 'Archive comment' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Archive comment' }));
+    expect(await screen.findByText('Comment archived.')).toBeVisible();
+    expect(
+      calls.some(
+        (call) => call.method === 'POST' && call.url.endsWith(`/comments/${COMMENT_ID}/archive`),
+      ),
+    ).toBe(true);
+    expect(await within(dialog).findByText('No comments yet.')).toBeVisible();
+  });
+
+  it('reports a refused comment action generically and keeps the comment', async () => {
+    mockApi((url, init) =>
+      url.endsWith(`/comments/${COMMENT_ID}/archive`) && init?.method === 'POST'
+        ? Promise.resolve(failure(403, 'TASK_COMMENT_AUTHOR_REQUIRED'))
+        : undefined,
+    );
+    renderPanel();
+    const dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive comment' }));
+    const confirm = within(dialog).getByRole('form', { name: 'Archive comment' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Archive comment' }));
+    expect(
+      await screen.findByText('The action could not be completed. Check the task and try again.'),
+    ).toBeVisible();
+    expect(document.body.textContent).not.toMatch(/author|TASK_COMMENT|403|Refused/i);
+    expect(within(dialog).getByText('Client asked for a response before noon.')).toBeVisible();
+  });
+
+  it('drops a comment edit result that returns after the session changed', async () => {
+    const edit = deferred<Response>();
+    mockApi((url, init) =>
+      url.endsWith(`/comments/${COMMENT_ID}`) && init?.method === 'PATCH'
+        ? edit.promise
+        : undefined,
+    );
+    const view = renderPanel('token-a');
+    let dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit comment' }));
+    const form = within(dialog).getByRole('form', { name: 'Edit comment' });
+    fireEvent.change(within(form).getByLabelText(/^Comment/), { target: { value: 'Late text.' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save comment' }));
+    view.rerender(
+      <I18nProvider initialLocale="en">
+        <TasksPanel accessToken="token-b" user={taskUser} />
+      </I18nProvider>,
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    dialog = await openLoaded();
+    await act(async () => {
+      edit.resolve(json({ comment: { ...taskDetail.comments[0]!, body: 'Late text.' } }));
+      await edit.promise;
+    });
+    expect(screen.queryByText('Comment updated.')).not.toBeInTheDocument();
+    // Session B was never locked by session A's edit.
+    expect(within(dialog).getByRole('button', { name: 'Edit comment' })).toBeEnabled();
+  });
+
+  it('reschedules and cancels a pending reminder, converting local time to an instant', async () => {
+    let current: TaskDetail = taskDetail;
+    const calls = mockApi((url, init) => {
+      if (url.endsWith(`/v1/tasks/${TASK_A_ID}`) && isGet(init)) {
+        return Promise.resolve(detail(current));
+      }
+      if (url.endsWith(`/reminders/${REMINDER_ID}`) && init?.method === 'PATCH') {
+        const { remindAt } = JSON.parse(init.body as string) as { remindAt: string };
+        current = { ...taskDetail, reminders: [{ ...taskDetail.reminders[0]!, remindAt }] };
+        return Promise.resolve(json({ reminder: current.reminders[0] }));
+      }
+      if (url.endsWith(`/reminders/${REMINDER_ID}/cancel`) && init?.method === 'POST') {
+        current = {
+          ...taskDetail,
+          reminders: [{ ...current.reminders[0]!, status: 'CANCELED' }],
+        };
+        return Promise.resolve(json({ reminder: current.reminders[0] }));
+      }
+      return undefined;
+    });
+    renderPanel();
+    const dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reschedule' }));
+    const form = within(dialog).getByRole('form', { name: 'Reschedule' });
+    fireEvent.change(within(form).getByLabelText(/^New reminder date and time/), {
+      target: { value: '2026-09-21T08:15' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save new time' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        remindAt: new Date('2026-09-21T08:15').toISOString(),
+      }),
+    );
+    expect(await screen.findByText('Reminder rescheduled.')).toBeVisible();
+
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Cancel reminder' }));
+    const confirm = within(dialog).getByRole('form', { name: 'Cancel reminder' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel reminder' }));
+    expect(await screen.findByText('Reminder canceled.')).toBeVisible();
+    expect(
+      calls.some(
+        (call) => call.method === 'POST' && call.url.endsWith(`/reminders/${REMINDER_ID}/cancel`),
+      ),
+    ).toBe(true);
+    // A canceled reminder is kept, shown with its translated state, and offers no action.
+    const reminders = dialog.querySelector<HTMLElement>('.tasks__reminders')!;
+    expect(await within(reminders).findByText('Canceled')).toBeVisible();
+    expect(within(reminders).queryByRole('button', { name: 'Reschedule' })).not.toBeInTheDocument();
+  });
+
+  it('drops a reminder cancel result once another task is selected', async () => {
+    const cancel = deferred<Response>();
+    const taskB = { ...taskDetail, id: TASK_B_ID, reminders: [], title: 'Prepare interview notes' };
+    mockApi(
+      (url, init) => {
+        if (url.endsWith(`/reminders/${REMINDER_ID}/cancel`) && init?.method === 'POST') {
+          return cancel.promise;
+        }
+        if (url.endsWith(`/v1/tasks/${TASK_B_ID}`)) return Promise.resolve(detail(taskB));
+        return undefined;
+      },
+      [taskSummary, { ...taskSummary, id: TASK_B_ID, title: taskB.title }],
+    );
+    renderPanel();
+    const dialog = await openLoaded();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel reminder' }));
+    const confirm = within(dialog).getByRole('form', { name: 'Cancel reminder' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel reminder' }));
+    closeTask();
+    await openTask('Prepare interview notes');
+    await screen.findByRole('heading', { level: 2, name: 'Prepare interview notes' });
+    await act(async () => {
+      cancel.resolve(json({ reminder: { ...taskDetail.reminders[0]!, status: 'CANCELED' } }));
+      await cancel.promise;
+    });
+    expect(screen.queryByText('Reminder canceled.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Prepare interview notes' }),
+    ).toBeVisible();
+  });
+});
+
+describe('Task notification inbox', () => {
+  const countPage = (total: number) =>
+    json({
+      notifications: [],
+      pageInfo: { hasNextPage: total > 1, page: 1, pageSize: 1, total },
+    });
+  const isCountUrl = (url: string) => isUnreadCountRead({ body: undefined, method: 'GET', url });
+
+  it('opens a notification’s task in the usual detail through the task read', async () => {
+    const calls = mockApi(
+      (url) =>
+        url.includes('/v1/notifications')
+          ? Promise.resolve(notificationPage([taskNotification()]))
+          : undefined,
+      [],
+    );
+    renderPanel();
+    const open = await screen.findByRole('button', { name: 'Open task' });
+    fireEvent.click(open);
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByRole('heading', { level: 2, name: 'Review candidate follow-up' }),
+    ).toBeVisible();
+    expect(
+      calls.some((call) => call.method === 'GET' && call.url.endsWith(`/v1/tasks/${TASK_A_ID}`)),
+    ).toBe(true);
+    closeTask();
+    // The task is not on the board, so focus goes back to the notification's action.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open task' })).toHaveFocus());
+  });
+
+  it('fails safely, without saying why, when the task is no longer available', async () => {
+    mockApi((url) => {
+      if (url.includes('/v1/notifications')) {
+        return Promise.resolve(notificationPage([taskNotification()]));
+      }
+      if (url.endsWith(`/v1/tasks/${TASK_A_ID}`)) {
+        return Promise.resolve(
+          json({ error: { code: 'TASK_NOT_FOUND', message: 'Task was not found.' } }, 404),
+        );
+      }
+      return undefined;
+    }, []);
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Open task' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByRole('heading', { level: 2, name: 'Unable to load this task.' }),
+    ).toBeVisible();
+    expect(document.body.textContent).not.toMatch(/not found|deleted|TASK_NOT_FOUND|404/i);
+  });
+
+  it('never opens an old session’s notification task in a new session', async () => {
+    const oldRead = deferred<Response>();
+    let reads = 0;
+    mockApi((url) => {
+      if (url.includes('/v1/notifications')) {
+        return Promise.resolve(notificationPage([taskNotification()]));
+      }
+      if (url.endsWith(`/v1/tasks/${TASK_A_ID}`)) {
+        reads += 1;
+        return reads === 1 ? oldRead.promise : Promise.resolve(detail());
+      }
+      return undefined;
+    }, []);
+    const view = renderPanel('token-a');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open task' }));
+    await screen.findByRole('dialog');
+    view.rerender(
+      <I18nProvider initialLocale="en">
+        <TasksPanel accessToken="token-b" user={taskUser} />
+      </I18nProvider>,
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await act(async () => {
+      oldRead.resolve(detail());
+      await oldRead.promise;
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Review candidate follow-up')).not.toBeInTheDocument();
+  });
+
+  it('shows the real unread count whatever the notification filter shows', async () => {
+    const read = taskNotification({
+      id: '88888888-8888-4888-8888-888888888888',
+      status: 'READ',
+      type: 'tasks.comment.mention',
+    });
+    const calls = mockApi((url) => {
+      if (!url.includes('/v1/notifications')) return undefined;
+      if (isCountUrl(url)) return Promise.resolve(countPage(3));
+      return Promise.resolve(notificationPage([read]));
+    });
+    renderPanel();
+    expect(await screen.findByText('3 unread notifications')).toBeVisible();
+    expect(screen.getByText('1 notification shown')).toBeVisible();
+    const counts = calls.filter(isUnreadCountRead).length;
+    expect(counts).toBe(1);
+    fireEvent.change(screen.getByLabelText('Notification status'), { target: { value: 'READ' } });
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) => call.url.includes('/v1/notifications?') && call.url.includes('status=READ'),
+        ),
+      ).toBe(true),
+    );
+    // Changing what the list shows neither refetches nor changes the unread total.
+    expect(calls.filter(isUnreadCountRead)).toHaveLength(counts);
+    expect(screen.getByText('3 unread notifications')).toBeVisible();
+  });
+
+  it('refreshes the unread count after a read and ignores an old session’s count', async () => {
+    const oldCount = deferred<Response>();
+    let countReads = 0;
+    let unread = 2;
+    mockApi((url, init) => {
+      if (url.includes('/v1/notifications/') && init?.method === 'POST') {
+        unread = 1;
+        return Promise.resolve(json({ notification: { ...taskNotification(), status: 'READ' } }));
+      }
+      if (!url.includes('/v1/notifications')) return undefined;
+      if (isCountUrl(url)) {
+        countReads += 1;
+        return countReads === 1 ? oldCount.promise : Promise.resolve(countPage(unread));
+      }
+      return Promise.resolve(notificationPage([taskNotification()]));
+    });
+    const view = renderPanel('token-a');
+    await screen.findByRole('button', { name: 'Mark read' });
+    view.rerender(
+      <I18nProvider initialLocale="en">
+        <TasksPanel accessToken="token-b" user={taskUser} />
+      </I18nProvider>,
+    );
+    expect(await screen.findByText('2 unread notifications')).toBeVisible();
+    await act(async () => {
+      oldCount.resolve(countPage(9));
+      await oldCount.promise;
+    });
+    expect(screen.queryByText('9 unread notifications')).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark read' }));
+    expect(await screen.findByText('1 unread notification')).toBeVisible();
+  });
+});
+
+describe('Created by me', () => {
+  it('asks the API for the actor’s own created tasks without sending any creator ID', async () => {
+    const calls = mockApi();
+    renderPanel();
+    await screen.findByRole('button', { name: 'Review candidate follow-up' });
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'createdByMe' } });
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: 'URGENT' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    const mine = () => listCalls(calls).filter((call) => call.url.includes('createdByMe=true'));
+    await waitFor(() => expect(mine()).toHaveLength(5));
+    for (const call of mine()) {
+      const parameters = new URL(call.url).searchParams;
+      expect(parameters.get('priority')).toBe('URGENT');
+      expect(parameters.get('ownerUserId')).toBeNull();
+      expect(parameters.get('assigneeUserId')).toBeNull();
+      expect(parameters.has('createdByUserId')).toBe(false);
+      expect(call.url).not.toContain(taskUser.id);
+    }
+  });
 });

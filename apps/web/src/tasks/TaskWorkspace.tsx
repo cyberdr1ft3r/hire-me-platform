@@ -1,11 +1,11 @@
-import type { Notification, TaskStatus } from '@hire-me/contracts';
+import type { Notification } from '@hire-me/contracts';
 import { useEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage, PageHeader } from '../ui/index.js';
 import { TaskBoard } from './TaskBoard.js';
 import { TaskCreateForm, type TaskCreateValues } from './TaskCreateForm.js';
-import { TaskDetailPanel, type TaskUpdateValues } from './TaskDetail.js';
+import { TaskDetailPanel, type TaskDetailActions } from './TaskDetail.js';
 import { TaskFilterBar } from './TaskFilters.js';
 import { TaskListView } from './TaskListView.js';
 import {
@@ -29,7 +29,7 @@ import {
 } from './task-state.js';
 import './task.css';
 
-export interface TaskWorkspaceProps {
+export interface TaskWorkspaceProps extends TaskDetailActions {
   access: TaskAccess;
   appliedFilters: TaskFilters;
   board: TaskBoardState;
@@ -42,18 +42,15 @@ export interface TaskWorkspaceProps {
   loadOptions: LoadOptions;
   notificationStatus: NotificationFilter;
   notificationTotal: number;
+  /** The unread total, independent of the notification filter; `null` until known. */
+  notificationUnread: number | null;
   notifications: Notification[];
   /** Changes when the session changes, so every selector reloads its options. */
   optionsKey: string;
   pending: string | null;
   selectedId: string | null;
   view: TaskView;
-  onAddAssignment: (values: { reason: string | null; userId: string }) => Promise<boolean>;
-  onAddComment: (values: { body: string; mentionedUserIds: string[] }) => Promise<boolean>;
-  onAddReminder: (values: { recipientUserId: string; remindAt: string }) => Promise<boolean>;
   onApplyFilters: () => void;
-  onArchive: (reason: string) => Promise<boolean>;
-  onChangeOwner: (values: { ownerUserId: string; reason: string | null }) => Promise<boolean>;
   onCloseDetail: () => void;
   onCreate: (values: TaskCreateValues) => Promise<boolean>;
   onFiltersChange: (filters: TaskFilters) => void;
@@ -63,14 +60,14 @@ export interface TaskWorkspaceProps {
   onNotificationFilter: (status: NotificationFilter) => void;
   onNotificationRead: (id: string) => void;
   onNotificationsReadAll: () => void;
+  /** Opens a notification's task in the detail, through the normal task read. */
+  onOpenTask: (taskId: string) => void;
   onProcessReminders: () => void;
   onResetFilters: () => void;
   onRetryBoard: () => void;
   onRetryDetail: () => void;
   onRetryList: () => void;
   onSelect: (id: string) => void;
-  onTransition: (status: TaskStatus, reason: string | null) => Promise<boolean>;
-  onUpdate: (values: TaskUpdateValues) => Promise<boolean>;
   onViewChange: (view: TaskView) => void;
 }
 
@@ -218,10 +215,12 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
             notifications={props.notifications}
             onArchive={props.onNotificationArchive}
             onFilter={props.onNotificationFilter}
+            onOpenTask={props.onOpenTask}
             onRead={props.onNotificationRead}
             onReadAll={props.onNotificationsReadAll}
             pending={props.pending}
             total={props.notificationTotal}
+            unreadCount={props.notificationUnread}
           />
         ) : null}
 
@@ -237,6 +236,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
       <TaskDetailPanel
         access={props.access}
         contextLabels={props.contextLabels}
+        currentUserId={props.currentUser.id}
         detail={props.detail}
         feedback={props.feedback?.scope === 'task' ? props.feedback : null}
         loadOptions={props.loadOptions}
@@ -244,8 +244,13 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
         onAddComment={props.onAddComment}
         onAddReminder={props.onAddReminder}
         onArchive={props.onArchive}
+        onArchiveComment={props.onArchiveComment}
+        onCancelReminder={props.onCancelReminder}
         onChangeOwner={props.onChangeOwner}
         onClose={props.onCloseDetail}
+        onEditComment={props.onEditComment}
+        onRemoveAssignment={props.onRemoveAssignment}
+        onRescheduleReminder={props.onRescheduleReminder}
         onRetry={props.onRetryDetail}
         onTransition={props.onTransition}
         onUpdate={props.onUpdate}

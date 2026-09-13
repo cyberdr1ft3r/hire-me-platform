@@ -23,10 +23,11 @@ import {
 } from './task-state.js';
 import { SearchPicker } from './TaskPickers.js';
 
-type Scope = 'all' | 'assignedToMe' | 'ownedByMe' | 'custom';
+type Scope = 'all' | 'assignedToMe' | 'ownedByMe' | 'createdByMe' | 'custom';
 
 function scopeOf(filters: TaskFilters, meId: string): Scope {
-  if (!filters.owner && !filters.assignee) return 'all';
+  if (!filters.owner && !filters.assignee) return filters.createdByMe ? 'createdByMe' : 'all';
+  if (filters.createdByMe) return 'custom';
   if (!filters.owner && filters.assignee?.id === meId) return 'assignedToMe';
   if (!filters.assignee && filters.owner?.id === meId) return 'ownedByMe';
   return 'custom';
@@ -38,8 +39,9 @@ function scopeOf(filters: TaskFilters, meId: string): Scope {
  *
  * "Show" offers the everyday views (assigned to me, owned by me) and writes the
  * same owner/assignee filters the people pickers write, so the two never
- * disagree. Owner and assignee pickers use the Task people lookup and are only
- * offered to actors who may assign work.
+ * disagree. "Created by me" is the API's self-only creator filter, so no
+ * creator ID is ever chosen or sent. Owner and assignee pickers use the Task
+ * people lookup and are only offered to actors who may assign work.
  */
 export function TaskFilterBar({
   access,
@@ -69,9 +71,11 @@ export function TaskFilterBar({
   const scope = scopeOf(filters, me.id);
 
   function setScope(next: Scope): void {
-    if (next === 'assignedToMe') onChange({ ...filters, assignee: me, owner: null });
-    else if (next === 'ownedByMe') onChange({ ...filters, assignee: null, owner: me });
-    else if (next === 'all') onChange({ ...filters, assignee: null, owner: null });
+    const people = { assignee: null, createdByMe: false, owner: null };
+    if (next === 'assignedToMe') onChange({ ...filters, ...people, assignee: me });
+    else if (next === 'ownedByMe') onChange({ ...filters, ...people, owner: me });
+    else if (next === 'createdByMe') onChange({ ...filters, ...people, createdByMe: true });
+    else if (next === 'all') onChange({ ...filters, ...people });
   }
 
   return (
@@ -99,6 +103,7 @@ export function TaskFilterBar({
           <option value="all">{t('task.filters.scope.all')}</option>
           <option value="assignedToMe">{t('task.filters.scope.assignedToMe')}</option>
           <option value="ownedByMe">{t('task.filters.scope.ownedByMe')}</option>
+          <option value="createdByMe">{t('task.filters.scope.createdByMe')}</option>
           {scope === 'custom' ? (
             <option disabled value="custom">
               {t('task.filters.scope.custom')}

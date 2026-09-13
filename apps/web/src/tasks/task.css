@@ -54,7 +54,7 @@
   grid-column: 1 / -1;
 }
 
-.tasks__section-heading span,
+.tasks__section-heading > span,
 .task-column__count,
 .task-card__people,
 .task-card__context,
@@ -615,6 +615,53 @@
   background: var(--color-danger-subtle);
 }
 
+.task-record__facts > .task-record__fact--wide {
+  grid-column: 1 / -1;
+}
+
+.task-assignees {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task-assignees li,
+.task-record__row-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.task-assignees li {
+  justify-content: space-between;
+}
+
+/* A form opened under one row fills the row, whatever the row's layout. */
+.task-record__inline {
+  flex-basis: 100%;
+  margin-block-start: var(--space-2);
+}
+
+.task-record__inline p {
+  margin: 0;
+}
+
+.task-record__note {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-1);
+}
+
+.tasks__reminders .task-record__row-actions {
+  flex-basis: 100%;
+}
+
+.tasks__timeline li > .task-record__row-actions {
+  justify-content: flex-start;
+}
+
 .tasks__timeline li,
 .tasks__reminders li,
 .tasks__notification-list li {
@@ -631,6 +678,13 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   justify-content: space-between;
+}
+
+.tasks__heading-group {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .tasks__notification-list li > div {

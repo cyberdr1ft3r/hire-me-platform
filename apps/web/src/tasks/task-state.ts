@@ -93,6 +93,8 @@ export interface TaskContextFilter {
 export interface TaskFilters {
   assignee: PickerOption | null;
   context: TaskContextFilter | null;
+  /** Only tasks the signed-in actor created; the server binds it to the actor. */
+  createdByMe: boolean;
   due: TaskDueFilter;
   dueFrom: string;
   dueTo: string;
@@ -107,6 +109,7 @@ export interface TaskFilters {
 export const EMPTY_TASK_FILTERS: TaskFilters = {
   assignee: null,
   context: null,
+  createdByMe: false,
   due: '',
   dueFrom: '',
   dueTo: '',
@@ -127,6 +130,7 @@ export function hasTaskFilters(filters: TaskFilters): boolean {
     Boolean(filters.dueTo) ||
     filters.owner !== null ||
     filters.assignee !== null ||
+    filters.createdByMe ||
     filters.context !== null
   );
 }
@@ -149,6 +153,7 @@ export function taskListQuery(
   return {
     ...SORT_QUERY[filters.sort],
     assigneeUserId: filters.assignee?.id,
+    createdByMe: filters.createdByMe ? true : undefined,
     dueFrom: filters.dueFrom ? dateInputStartIso(filters.dueFrom) : undefined,
     dueSoon: filters.due === 'dueSoon' ? true : undefined,
     dueTo: filters.dueTo ? dateInputEndIso(filters.dueTo) : undefined,

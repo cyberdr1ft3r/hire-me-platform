@@ -12,6 +12,11 @@ export type NotificationFilter = '' | 'UNREAD' | 'READ';
  * The current user's own notifications. Known task notification types are
  * worded in the interface language from their stable `type`; the status is a
  * localized label for the stored value, never the raw enum.
+ *
+ * Two different counts are shown and named: the unread count (always the
+ * unread total, whatever the filter) and how many notifications the current
+ * filter matches. A notification about a task can open that task in the usual
+ * detail; the task's own read decides whether it is still available.
  */
 export function TaskNotifications({
   access,
@@ -20,10 +25,12 @@ export function TaskNotifications({
   notifications,
   onArchive,
   onFilter,
+  onOpenTask,
   onRead,
   onReadAll,
   pending,
   total,
+  unreadCount,
 }: {
   access: TaskAccess;
   busy: boolean;
@@ -31,10 +38,13 @@ export function TaskNotifications({
   notifications: Notification[];
   onArchive: (id: string) => void;
   onFilter: (status: NotificationFilter) => void;
+  onOpenTask: (taskId: string) => void;
   onRead: (id: string) => void;
   onReadAll: () => void;
   pending: string | null;
   total: number;
+  /** `null` until the unread total is known. */
+  unreadCount: number | null;
 }) {
   const { formatDateTime, t } = useI18n();
   const headingId = useId();
@@ -42,8 +52,15 @@ export function TaskNotifications({
   return (
     <section aria-labelledby={headingId} className="tasks__notifications">
       <div className="tasks__section-heading">
-        <h2 id={headingId}>{t('task.notifications.title')}</h2>
-        <span>{total}</span>
+        <div className="tasks__heading-group">
+          <h2 id={headingId}>{t('task.notifications.title')}</h2>
+          {unreadCount !== null ? (
+            <StatusBadge tone={unreadCount > 0 ? 'info' : 'neutral'}>
+              {t('task.notifications.unread', { count: unreadCount })}
+            </StatusBadge>
+          ) : null}
+        </div>
+        <span>{t('task.notifications.shown', { count: total })}</span>
       </div>
       <div className="tasks__filter-actions">
         <Select
@@ -84,6 +101,16 @@ export function TaskNotifications({
                 <StatusBadge tone={notification.status === 'UNREAD' ? 'info' : 'neutral'}>
                   {t(notificationStatusLabelKey(notification.status))}
                 </StatusBadge>
+                {notification.taskId ? (
+                  <Button
+                    data-task-opener={notification.taskId}
+                    onClick={() => onOpenTask(notification.taskId!)}
+                    size="compact"
+                    variant="secondary"
+                  >
+                    {t('task.notifications.openTask')}
+                  </Button>
+                ) : null}
                 {notification.status === 'UNREAD' && access.canManageNotifications ? (
                   <Button
                     disabled={busy}

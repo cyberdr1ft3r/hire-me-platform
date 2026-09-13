@@ -5,6 +5,8 @@ import {
   addTaskAssignment,
   archiveNotification,
   archiveTask,
+  archiveTaskComment,
+  cancelTaskReminder,
   changeTaskOwner,
   createTask,
   createTaskComment,
@@ -25,7 +27,10 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   processDueTaskReminders,
+  removeTaskAssignment,
   updateTask,
+  updateTaskComment,
+  updateTaskReminder,
   updateTaskStatus,
 } from '../api.js';
 import { useI18n } from '../i18n/index.js';
@@ -69,6 +74,8 @@ const OPTION_PAGE_SIZE = 20;
  * - A task-scoped result commits only while its task is still the selection.
  * - Post-write refreshes read the latest committed filters, never the filters
  *   captured when the write began.
+ * - The unread notification count is its own read (unread only, one row, the
+ *   total), so it stays correct whatever the notification filter shows.
  *
  * The locale is never an effect dependency: switching language re-renders and
  * never refetches.
@@ -98,6 +105,7 @@ export function TasksPanel({
   const [contextLabels, setContextLabels] = useState<Record<string, string | null>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationTotal, setNotificationTotal] = useState(0);
+  const [notificationUnread, setNotificationUnread] = useState<number | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<NotificationFilter>('');
   const [pending, setPending] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<TaskFeedback | null>(null);
@@ -107,6 +115,7 @@ export function TasksPanel({
   const listRequest = useRef(0);
   const detailRequest = useRef(0);
   const notificationRequest = useRef(0);
+  const unreadRequest = useRef(0);
   const selectedRef = useRef<string | null>(null);
   const selectionGeneration = useRef(0);
   const appliedFiltersRef = useRef<TaskFilters>(EMPTY_TASK_FILTERS);
@@ -126,6 +135,7 @@ export function TasksPanel({
       listRequest.current += 1;
       detailRequest.current += 1;
       notificationRequest.current += 1;
+      unreadRequest.current += 1;
       selectionGeneration.current += 1;
       selectedRef.current = null;
       writeOwner.current = null;
@@ -135,6 +145,7 @@ export function TasksPanel({
       setContextLabels({});
       setNotifications([]);
       setNotificationTotal(0);
+      setNotificationUnread(null);
       setPending(null);
       setFeedback(null);
       setSessionGeneration((value) => value + 1);
@@ -319,7 +330,7 @@ export function TasksPanel({
       });
   }
 
-  function refreshNotifications(): void {
+  function loadNotificationList(): void {
     if (!access.canViewNotifications) return;
     const request = ++notificationRequest.current;
     const token = accessToken;
@@ -332,6 +343,24 @@ export function TasksPanel({
         setNotificationTotal(response.pageInfo.total);
       })
       .catch(() => undefined);
+  }
+
+  /** The unread total from the same scoped list, whatever the filter shows. */
+  function loadUnreadCount(): void {
+    if (!access.canViewNotifications) return;
+    const request = ++unreadRequest.current;
+    const token = accessToken;
+    listNotifications(token, { page: 1, pageSize: 1, status: 'UNREAD' })
+      .then((response) => {
+        if (request !== unreadRequest.current || !isSession(token)) return;
+        setNotificationUnread(response.pageInfo.total);
+      })
+      .catch(() => undefined);
+  }
+
+  function refreshNotifications(): void {
+    loadNotificationList();
+    loadUnreadCount();
   }
 
   function reloadCurrentView(quiet = false): void {
@@ -348,8 +377,13 @@ export function TasksPanel({
   }, [accessToken, appliedFilters, view, listPage]);
 
   useEffect(() => {
-    refreshNotifications();
+    loadNotificationList();
   }, [accessToken, access.canViewNotifications, notificationStatus]);
+
+  // Not tied to the filter: changing what the list shows never changes the unread total.
+  useEffect(() => {
+    loadUnreadCount();
+  }, [accessToken, access.canViewNotifications]);
 
   // --- Selection -----------------------------------------------------------
 
@@ -628,6 +662,7 @@ export function TasksPanel({
       loadOptions={loadOptions}
       notificationStatus={notificationStatus}
       notificationTotal={notificationTotal}
+      notificationUnread={notificationUnread}
       notifications={notifications}
       onAddAssignment={(values) =>
         mutateSelected(
@@ -668,6 +703,22 @@ export function TasksPanel({
           () => t('task.feedback.archived'),
         )
       }
+      onArchiveComment={(commentId) =>
+        mutateChild(
+          'archiveComment',
+          (taskId) => archiveTaskComment(accessToken, taskId, commentId),
+          t('task.feedback.commentArchived'),
+          false,
+        )
+      }
+      onCancelReminder={(reminderId) =>
+        mutateChild(
+          'cancelReminder',
+          (taskId) => cancelTaskReminder(accessToken, taskId, reminderId),
+          t('task.feedback.reminderCanceled'),
+          false,
+        )
+      }
       onChangeOwner={(values) =>
         mutateSelected(
           'owner',
@@ -680,6 +731,16 @@ export function TasksPanel({
       }
       onCloseDetail={closeDetail}
       onCreate={handleCreate}
+      onEditComment={(values) =>
+        mutateChild(
+          'editComment',
+          // Only the text is sent: the comment's mentions stay as they were.
+          (taskId) =>
+            updateTaskComment(accessToken, taskId, values.commentId, { body: values.body }),
+          t('task.feedback.commentEdited'),
+          false,
+        )
+      }
       onFiltersChange={setFilters}
       onListPage={(page) => {
         listPageRef.current = page;
@@ -699,6 +760,8 @@ export function TasksPanel({
       onNotificationsReadAll={() =>
         pageWrite('notifications', () => markAllNotificationsRead(accessToken))
       }
+      // The notification only says which task; the task read decides access.
+      onOpenTask={select}
       onProcessReminders={() => {
         const operation = begin('process-reminders');
         if (operation === null) return;
@@ -729,6 +792,27 @@ export function TasksPanel({
         setListPage(1);
         setAppliedFilters(appliedFiltersRef.current);
       }}
+      onRemoveAssignment={(values) =>
+        mutateSelected(
+          'removeAssignment',
+          (taskId) =>
+            removeTaskAssignment(accessToken, taskId, values.assignmentId, {
+              reason: values.reason,
+            }),
+          () => t('task.feedback.assignmentRemoved'),
+        )
+      }
+      onRescheduleReminder={(values) =>
+        mutateChild(
+          'rescheduleReminder',
+          (taskId) =>
+            updateTaskReminder(accessToken, taskId, values.reminderId, {
+              remindAt: values.remindAt,
+            }),
+          t('task.feedback.reminderRescheduled'),
+          false,
+        )
+      }
       onRetryBoard={() => loadBoard(appliedFiltersRef.current)}
       onRetryDetail={() => {
         if (selectedRef.current) loadDetail(selectedRef.current);

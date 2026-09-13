@@ -14,7 +14,7 @@ import {
   type TaskFilters,
   type TaskView,
 } from '../tasks/task-state.js';
-import { taskDetail, taskSummary, taskUser } from '../tasks/task-test-data.js';
+import { taskDetail, taskNotification, taskSummary, taskUser } from '../tasks/task-test-data.js';
 import { TaskWorkspace } from '../tasks/TaskWorkspace.js';
 
 /**
@@ -120,30 +120,67 @@ const TASKS: TaskSummary[] = [
 ];
 
 const notifications: Notification[] = [
-  {
-    actorUserId: null,
-    archivedAt: null,
-    bodySummary: 'A task is overdue.',
-    createdAt: '2026-09-12T08:00:00.000Z',
-    documentId: null,
-    id: '77777777-7777-4777-8777-777777777777',
-    interviewId: null,
-    missionCandidateId: null,
-    readAt: null,
-    recipientUserId: taskUser.id,
-    recruitmentMissionId: null,
-    status: 'UNREAD',
-    taskId: taskDetail.id,
-    title: 'Task overdue',
-    trainingEnrollmentId: null,
-    trainingSessionId: null,
-    type: 'tasks.overdue',
-    updatedAt: '2026-09-12T08:00:00.000Z',
-  },
+  taskNotification(),
+  taskNotification({
+    bodySummary: 'You were mentioned in a task comment.',
+    createdAt: '2026-09-11T15:30:00.000Z',
+    id: '77777777-7777-4777-8777-000000000002',
+    readAt: '2026-09-11T16:00:00.000Z',
+    status: 'READ',
+    taskId: TASKS[2]!.id,
+    title: 'Mentioned in a task',
+    type: 'tasks.comment.mention',
+  }),
 ];
 
+/** The review task: two assignees, an own and an edited comment, reminders in several states. */
+const reviewDetail: TaskDetail = {
+  ...taskDetail,
+  assigneeUserIds: [taskUser.id, PEOPLE[1]!.id],
+  assignments: [
+    ...taskDetail.assignments,
+    {
+      ...taskDetail.assignments[0]!,
+      id: '33333333-3333-4333-8333-000000000002',
+      userDisplayName: PEOPLE[1]!.label,
+      userId: PEOPLE[1]!.id,
+    },
+  ],
+  comments: [
+    ...taskDetail.comments,
+    {
+      ...taskDetail.comments[0]!,
+      authorDisplayName: PEOPLE[1]!.label,
+      authorUserId: PEOPLE[1]!.id,
+      body: 'The client confirmed by phone; waiting for the written reply.',
+      createdAt: '2026-09-10T11:00:00.000Z',
+      editedAt: '2026-09-10T11:20:00.000Z',
+      id: '44444444-4444-4444-8444-000000000002',
+      status: 'EDITED',
+    },
+  ],
+  reminders: [
+    ...taskDetail.reminders,
+    {
+      ...taskDetail.reminders[0]!,
+      id: '55555555-5555-4555-8555-000000000002',
+      recipientDisplayName: PEOPLE[1]!.label,
+      recipientUserId: PEOPLE[1]!.id,
+      remindAt: '2026-09-10T16:00:00.000Z',
+      status: 'SENT',
+    },
+    {
+      ...taskDetail.reminders[0]!,
+      failureReason: 'Synthetic delivery failure.',
+      id: '55555555-5555-4555-8555-000000000003',
+      remindAt: '2026-09-12T08:00:00.000Z',
+      status: 'FAILED',
+    },
+  ],
+};
+
 function detailFor(task: TaskSummary): TaskDetail {
-  if (task.id === taskDetail.id) return taskDetail;
+  if (task.id === taskDetail.id) return reviewDetail;
   return { ...taskDetail, ...task, assignments: [], comments: [], history: [], reminders: [] };
 }
 
@@ -168,7 +205,9 @@ function matches(filters: TaskFilters, task: TaskSummary): boolean {
     (!search || task.title.toLowerCase().includes(search)) &&
     (!filters.priority || task.priority === filters.priority) &&
     (!filters.owner || task.ownerUserId === filters.owner.id) &&
-    (!filters.assignee || task.assigneeUserIds.includes(filters.assignee.id))
+    (!filters.assignee || task.assigneeUserIds.includes(filters.assignee.id)) &&
+    // Synthetic rule: the signed-in operator created the tasks shown as theirs.
+    (!filters.createdByMe || task.ownerDisplayName === taskUser.displayName)
   );
 }
 
@@ -248,15 +287,19 @@ function TaskPreviewContent() {
         loadOptions={loadOptions}
         notificationStatus=""
         notificationTotal={notifications.length}
+        notificationUnread={notifications.filter((item) => item.status === 'UNREAD').length}
         notifications={notifications}
         onAddAssignment={ok}
         onAddComment={ok}
         onAddReminder={ok}
         onApplyFilters={() => setApplied(filters)}
         onArchive={ok}
+        onArchiveComment={ok}
+        onCancelReminder={ok}
         onChangeOwner={ok}
         onCloseDetail={() => setSelectedId(null)}
         onCreate={ok}
+        onEditComment={ok}
         onFiltersChange={setFilters}
         onListPage={() => undefined}
         onLoadMore={() => undefined}
@@ -264,7 +307,10 @@ function TaskPreviewContent() {
         onNotificationFilter={() => undefined}
         onNotificationRead={() => undefined}
         onNotificationsReadAll={() => undefined}
+        onOpenTask={setSelectedId}
         onProcessReminders={() => undefined}
+        onRemoveAssignment={ok}
+        onRescheduleReminder={ok}
         onResetFilters={() => {
           setFilters(EMPTY_TASK_FILTERS);
           setApplied(EMPTY_TASK_FILTERS);

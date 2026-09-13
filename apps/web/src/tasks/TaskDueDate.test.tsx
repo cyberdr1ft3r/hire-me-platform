@@ -59,6 +59,7 @@ function panelProps(overrides: Partial<TaskDetailPanelProps> = {}): TaskDetailPa
   return {
     access: resolveTaskAccess(taskUser.permissions),
     contextLabels: {},
+    currentUserId: taskUser.id,
     detail: { status: 'ready', task: { ...taskDetail, dueAt: DUE } },
     feedback: null,
     loadOptions: () => Promise.resolve([]),
@@ -66,8 +67,13 @@ function panelProps(overrides: Partial<TaskDetailPanelProps> = {}): TaskDetailPa
     onAddComment: vi.fn().mockResolvedValue(true),
     onAddReminder: vi.fn().mockResolvedValue(true),
     onArchive: vi.fn().mockResolvedValue(true),
+    onArchiveComment: vi.fn().mockResolvedValue(true),
+    onCancelReminder: vi.fn().mockResolvedValue(true),
     onChangeOwner: vi.fn().mockResolvedValue(true),
     onClose: vi.fn(),
+    onEditComment: vi.fn().mockResolvedValue(true),
+    onRemoveAssignment: vi.fn().mockResolvedValue(true),
+    onRescheduleReminder: vi.fn().mockResolvedValue(true),
     onRetry: vi.fn(),
     onTransition: vi.fn().mockResolvedValue(true),
     onUpdate: vi.fn().mockResolvedValue(true),
@@ -113,6 +119,36 @@ describe('editing a task keeps its due instant', () => {
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     expect((onUpdate.mock.calls[0]![0] as { dueAt: unknown }).dueAt).toBe(
       '2026-09-15T16:00:00.000Z',
+    );
+  });
+});
+
+describe('rescheduling a reminder uses local time', () => {
+  it('shows the reminder in local time and sends the instant the new local time denotes', async () => {
+    const onRescheduleReminder = vi.fn().mockResolvedValue(true);
+    const reminder = { ...taskDetail.reminders[0]!, remindAt: '2026-09-15T07:30:00.000Z' };
+    render(
+      <I18nProvider initialLocale="en">
+        <TaskDetailPanel
+          {...panelProps({
+            detail: { status: 'ready', task: { ...taskDetail, reminders: [reminder] } },
+            onRescheduleReminder,
+          })}
+        />
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reschedule' }));
+    const form = screen.getByRole('form', { name: 'Reschedule' });
+    const field = within(form).getByLabelText(/^New reminder date and time/);
+    // 07:30 UTC is 09:30 in Paris in September.
+    expect(field).toHaveValue('2026-09-15T09:30');
+    fireEvent.change(field, { target: { value: '2026-09-16T08:15' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save new time' }));
+    await waitFor(() =>
+      expect(onRescheduleReminder).toHaveBeenCalledWith({
+        remindAt: '2026-09-16T06:15:00.000Z',
+        reminderId: reminder.id,
+      }),
     );
   });
 });

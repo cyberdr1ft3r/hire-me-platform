@@ -414,6 +414,13 @@ export const frMessages: Messages = {
       retry: 'Réessayer',
       save: 'Enregistrer les modifications',
     },
+    assignees: {
+      confirmRemove: 'Retirer la personne',
+      reasonHint: 'Obligatoire. Il est enregistré dans l’historique de la tâche.',
+      remove: 'Retirer',
+      removeConfirm: 'Retirer {name} de cette tâche ?',
+      removeNamed: 'Retirer {name}',
+    },
     board: {
       columnCount: plural({
         many: '{count} de tâches',
@@ -439,11 +446,18 @@ export const frMessages: Messages = {
       status: 'Statut : {status}',
     },
     comments: {
+      archive: 'Archiver le commentaire',
+      archiveConfirm: 'Archiver ce commentaire ? Il est masqué dans la tâche, pas supprimé.',
       body: 'Commentaire',
       empty: 'Aucun commentaire pour le moment.',
+      edit: 'Modifier le commentaire',
+      editHint: 'Seul le texte change. Les mentions restent inchangées.',
+      edited: 'Modifié',
+      keep: 'Conserver le commentaire',
       mentions: 'Mentionner des personnes',
       mentionsHint:
         'Les personnes mentionnées sont notifiées. Seules les personnes qui voient cette tâche sont proposées.',
+      save: 'Enregistrer le commentaire',
       title: 'Commentaires',
     },
     context: {
@@ -497,12 +511,17 @@ export const frMessages: Messages = {
     feedback: {
       archived: 'Tâche archivée.',
       assignmentAdded: 'Personne assignée ajoutée.',
+      assignmentRemoved: 'Personne assignée retirée.',
       commentAdded: 'Commentaire ajouté.',
+      commentArchived: 'Commentaire archivé.',
+      commentEdited: 'Commentaire modifié.',
       created: 'Tâche créée.',
       errorTitle: 'Échec de l’action',
       failed: 'L’action n’a pas pu aboutir. Vérifiez la tâche et réessayez.',
       ownerChanged: 'Responsable de la tâche modifié.',
       reminderAdded: 'Rappel programmé.',
+      reminderCanceled: 'Rappel annulé.',
+      reminderRescheduled: 'Rappel reprogrammé.',
       remindersProcessed: '{delivered} rappels envoyés ; {overdue} avis de retard créés.',
       statusChanged: 'Tâche déplacée vers « {status} ».',
       successTitle: 'C’est fait',
@@ -541,6 +560,7 @@ export const frMessages: Messages = {
       scope: {
         all: 'Toutes les tâches visibles',
         assignedToMe: 'Qui me sont assignées',
+        createdByMe: 'Que j’ai créées',
         custom: 'Personnes sélectionnées',
         ownedByMe: 'Dont je suis responsable',
       },
@@ -566,6 +586,12 @@ export const frMessages: Messages = {
     notifications: {
       anyStatus: 'Tout statut',
       empty: 'Aucune notification.',
+      openTask: 'Ouvrir la tâche',
+      shown: plural({
+        many: '{count} de notifications affichées',
+        one: '{count} notification affichée',
+        other: '{count} notifications affichées',
+      }),
       status: 'Statut des notifications',
       title: 'Notifications',
       types: {
@@ -581,6 +607,11 @@ export const frMessages: Messages = {
         },
         reminderDue: { body: 'Un rappel de tâche est échu.', title: 'Rappel de tâche' },
       },
+      unread: plural({
+        many: '{count} de notifications non lues',
+        one: '{count} notification non lue',
+        other: '{count} notifications non lues',
+      }),
     },
     picker: {
       choose: 'Choisir…',
@@ -594,9 +625,15 @@ export const frMessages: Messages = {
       you: '{name} (vous)',
     },
     reminders: {
+      cancel: 'Annuler le rappel',
+      cancelConfirm: 'Annuler ce rappel ? Il ne sera pas envoyé. L’enregistrement est conservé.',
       empty: 'Aucun rappel programmé.',
+      keep: 'Conserver le rappel',
+      newTime: 'Nouvelle date et heure du rappel',
       recipient: 'Destinataire',
       remindAt: 'Date et heure du rappel',
+      reschedule: 'Reprogrammer',
+      saveTime: 'Enregistrer le nouvel horaire',
       title: 'Rappels',
     },
     states: {

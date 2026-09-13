@@ -73,8 +73,10 @@ import {
   ReportingSummaryResponseSchema,
   ReportingTrendsResponseSchema,
   TaskAssignmentCreateRequestSchema,
+  TaskAssignmentRemoveRequestSchema,
   TaskCommentCreateRequestSchema,
   TaskCommentDetailResponseSchema,
+  TaskCommentUpdateRequestSchema,
   TaskCreateRequestSchema,
   TaskDetailResponseSchema,
   TaskListResponseSchema,
@@ -83,6 +85,7 @@ import {
   TaskReminderCreateRequestSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
+  TaskReminderUpdateRequestSchema,
   TaskStatusChangeRequestSchema,
   TaskUpdateRequestSchema,
   TaskUserOptionsQuerySchema,
@@ -208,8 +211,10 @@ import {
   type ReportingSummaryResponse,
   type ReportingTrendsResponse,
   type TaskAssignmentCreateRequest,
+  type TaskAssignmentRemoveRequest,
   type TaskCommentCreateRequest,
   type TaskCommentDetailResponse,
+  type TaskCommentUpdateRequest,
   type TaskCreateRequest,
   type TaskDetailResponse,
   type TaskListResponse,
@@ -218,6 +223,7 @@ import {
   type TaskReminderCreateRequest,
   type TaskReminderDetailResponse,
   type TaskReminderProcessResponse,
+  type TaskReminderUpdateRequest,
   type TaskStatusChangeRequest,
   type TaskUpdateRequest,
   type TaskUserOptionsQuery,
@@ -2382,6 +2388,23 @@ export async function addTaskAssignment(
   return TaskDetailResponseSchema.parse(await response.json());
 }
 
+export async function removeTaskAssignment(
+  accessToken: string,
+  taskId: string,
+  assignmentId: string,
+  input: TaskAssignmentRemoveRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskDetailResponse> {
+  const parsed = TaskAssignmentRemoveRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/assignments/${assignmentId}/remove`,
+    { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskDetailResponseSchema.parse(await response.json());
+}
+
 export async function createTaskComment(
   accessToken: string,
   taskId: string,
@@ -2398,6 +2421,40 @@ export async function createTaskComment(
   return TaskCommentDetailResponseSchema.parse(await response.json());
 }
 
+/** Edits a comment's text. Mentions are not part of the edit and stay as they were. */
+export async function updateTaskComment(
+  accessToken: string,
+  taskId: string,
+  commentId: string,
+  input: TaskCommentUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const parsed = TaskCommentUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments/${commentId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
+/** Archives a comment: it is hidden from the task, never deleted. */
+export async function archiveTaskComment(
+  accessToken: string,
+  taskId: string,
+  commentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskCommentDetailResponse> {
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/comments/${commentId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return TaskCommentDetailResponseSchema.parse(await response.json());
+}
+
 export async function createTaskReminder(
   accessToken: string,
   taskId: string,
@@ -2409,6 +2466,39 @@ export async function createTaskReminder(
     accessToken,
     `/${taskId}/reminders`,
     { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTaskReminder(
+  accessToken: string,
+  taskId: string,
+  reminderId: string,
+  input: TaskReminderUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const parsed = TaskReminderUpdateRequestSchema.parse(input);
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders/${reminderId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return TaskReminderDetailResponseSchema.parse(await response.json());
+}
+
+/** Cancels a reminder so it is never delivered; the record is kept. */
+export async function cancelTaskReminder(
+  accessToken: string,
+  taskId: string,
+  reminderId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TaskReminderDetailResponse> {
+  const response = await taskRequest(
+    accessToken,
+    `/${taskId}/reminders/${reminderId}/cancel`,
+    { method: 'POST' },
     apiBaseUrl,
   );
   return TaskReminderDetailResponseSchema.parse(await response.json());
