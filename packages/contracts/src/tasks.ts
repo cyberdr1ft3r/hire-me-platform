@@ -187,6 +187,12 @@ export const TaskListQuerySchema = z.object({
   priority: TaskPrioritySchema.optional(),
   ownerUserId: z.string().uuid().optional(),
   assigneeUserId: z.string().uuid().optional(),
+  /**
+   * Only tasks the authenticated actor created. It is bound to the actor on the
+   * server, so no creator ID is ever sent, and it narrows the actor's visible
+   * tasks like every other filter.
+   */
+  createdByMe: QueryBooleanSchema.optional(),
   dueFrom: z.string().datetime().optional(),
   dueTo: z.string().datetime().optional(),
   overdue: QueryBooleanSchema.optional(),

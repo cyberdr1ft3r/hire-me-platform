@@ -547,6 +547,86 @@ describe('internal task management, reminders, comments, and notifications', () 
     expect(body.pageInfo).toEqual({ page: 1, pageSize: 10, total: 1, hasNextPage: false });
   });
 
+  it('filters to tasks the authenticated actor created, bound to the actor and visibility', async () => {
+    const create = async (token: string, title: string, owner: string): Promise<string> => {
+      const response = await fetch(`${baseUrl}/v1/tasks`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ title, ownerUserId: owner, assigneeUserIds: [] }),
+      });
+      expect(response.status).toBe(201);
+      return TaskDetailResponseSchema.parse(await response.json()).task.id;
+    };
+    // Created by the owner but owned by someone else, so ownership cannot explain a match.
+    const first = await create(ownerToken, 'Issue31 created-by-me-needle first', assigneeUserId);
+    const second = await create(ownerToken, 'Issue31 created-by-me-needle second', assigneeUserId);
+    // Created by someone else and owned by the owner, so it is visible but not created by them.
+    const foreign = await create(
+      assigneeToken,
+      'Issue31 created-by-me-needle foreign',
+      ownerUserId,
+    );
+    const scoped = await create(
+      createOnlyToken,
+      'Issue31 created-by-me-needle scoped',
+      createOnlyUserId,
+    );
+
+    const list = async (token: string, query: string) => {
+      const response = await fetch(`${baseUrl}/v1/tasks?search=created-by-me-needle&${query}`, {
+        headers: authHeaders(token),
+      });
+      expect(response.status).toBe(200);
+      return TaskListResponseSchema.parse(await response.json());
+    };
+
+    const everything = await list(ownerToken, 'pageSize=10');
+    expect(everything.tasks.map((task) => task.id)).toEqual(
+      expect.arrayContaining([first, second, foreign]),
+    );
+
+    const mine = await list(ownerToken, 'createdByMe=true&sortBy=createdAt&pageSize=10');
+    const mineIds = mine.tasks.map((task) => task.id);
+    expect([...mineIds].sort()).toEqual([first, second].sort());
+
+    // A creator ID in the query cannot redirect the filter to someone else.
+    const redirected = await list(
+      ownerToken,
+      `createdByMe=true&createdByUserId=${assigneeUserId}&sortBy=createdAt&pageSize=10`,
+    );
+    expect(redirected.tasks.map((task) => task.id)).toEqual(mineIds);
+
+    const theirs = await list(assigneeToken, 'createdByMe=true&pageSize=10');
+    expect(theirs.tasks.map((task) => task.id)).toEqual([foreign]);
+
+    // Scoped visibility still applies: the create-only actor sees only its own task.
+    const scopedMine = await list(createOnlyToken, 'createdByMe=true&pageSize=10');
+    expect(scopedMine.tasks.map((task) => task.id)).toEqual([scoped]);
+    const limitedMine = await list(limitedToken, 'createdByMe=true&pageSize=10');
+    expect(limitedMine.tasks).toEqual([]);
+
+    // Combines with other filters and paginates deterministically.
+    const firstPage = await list(ownerToken, 'createdByMe=true&sortBy=createdAt&pageSize=1&page=1');
+    const secondPage = await list(
+      ownerToken,
+      'createdByMe=true&sortBy=createdAt&pageSize=1&page=2',
+    );
+    expect(firstPage.tasks.map((task) => task.id)).toEqual([mineIds[0]]);
+    expect(firstPage.pageInfo).toEqual({ page: 1, pageSize: 1, total: 2, hasNextPage: true });
+    expect(secondPage.tasks.map((task) => task.id)).toEqual([mineIds[1]]);
+    expect(secondPage.pageInfo).toEqual({ page: 2, pageSize: 1, total: 2, hasNextPage: false });
+    const open = await list(ownerToken, 'createdByMe=true&status=OPEN&priority=NORMAL&pageSize=10');
+    expect(open.pageInfo.total).toBe(2);
+    const completed = await list(ownerToken, 'createdByMe=true&status=COMPLETED&pageSize=10');
+    expect(completed.tasks).toEqual([]);
+
+    const invalid = await fetch(`${baseUrl}/v1/tasks?createdByMe=maybe`, {
+      headers: authHeaders(ownerToken),
+    });
+    expect(invalid.status).toBe(400);
+    expect(await readErrorCode(invalid)).toBe('INVALID_TASK_LIST_QUERY');
+  });
+
   it('records owner changes through the dedicated owner endpoint without duplicate side effects', async () => {
     const created = await fetch(`${baseUrl}/v1/tasks`, {
       method: 'POST',

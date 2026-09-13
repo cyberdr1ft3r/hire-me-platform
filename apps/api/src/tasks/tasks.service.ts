@@ -170,7 +170,7 @@ export class TasksService {
   async listTasks(actorUserId: string, query: TaskListQuery): Promise<TaskListResponse> {
     const access = await this.resolveAccess(actorUserId);
     const where = {
-      AND: [this.visibleTaskWhere(actorUserId, access), this.taskFilterWhere(query)],
+      AND: [this.visibleTaskWhere(actorUserId, access), this.taskFilterWhere(query, actorUserId)],
     };
     const pageSize = query.pageSize;
     const skip = (query.page - 1) * pageSize;
@@ -2082,8 +2082,13 @@ export class TasksService {
     return count > 0;
   }
 
-  private taskFilterWhere(query: TaskListQuery): Prisma.TaskWhereInput {
+  private taskFilterWhere(query: TaskListQuery, actorUserId: string): Prisma.TaskWhereInput {
     const filters: Prisma.TaskWhereInput[] = [];
+    // Self-only: the creator is always the authenticated actor, never a value
+    // from the request, and the visibility predicate still applies.
+    if (query.createdByMe) {
+      filters.push({ createdByUserId: actorUserId });
+    }
     if (query.status) {
       filters.push({ status: query.status });
     }
