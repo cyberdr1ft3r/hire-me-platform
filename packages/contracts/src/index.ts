@@ -575,6 +575,11 @@ export {
   TaskSummarySchema,
   TaskUpdateRequestSchema,
   TaskSortBySchema,
+  TASK_USER_OPTION_LIMIT,
+  TaskUserOptionPurposeSchema,
+  TaskUserOptionSchema,
+  TaskUserOptionsQuerySchema,
+  TaskUserOptionsResponseSchema,
 } from './tasks.js';
 export type {
   Notification,
@@ -607,6 +612,10 @@ export type {
   TaskStatusChangeRequest,
   TaskSummary,
   TaskUpdateRequest,
+  TaskUserOption,
+  TaskUserOptionPurpose,
+  TaskUserOptionsQuery,
+  TaskUserOptionsResponse,
 } from './tasks.js';
 export {
   TrainingAttendanceCorrectionRequestSchema,

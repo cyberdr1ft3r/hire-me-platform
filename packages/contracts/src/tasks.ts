@@ -252,6 +252,38 @@ export const TaskReminderProcessResponseSchema = z.object({
   overdueNotificationsCreated: z.number().int().nonnegative(),
 });
 
+/**
+ * Why a Task operator is choosing a person. Each purpose has its own permission
+ * and eligibility rule on the server, mirroring the write it prepares:
+ * owner/assignee need `tasks:assign`; mention needs `tasks:comment`; reminder
+ * needs `tasks:reminders:manage`. Mention and reminder options are limited to
+ * people who can already view the task.
+ */
+export const TaskUserOptionPurposeSchema = z.enum(['owner', 'assignee', 'mention', 'reminder']);
+
+export const TASK_USER_OPTION_LIMIT = 20;
+
+export const TaskUserOptionsQuerySchema = z.object({
+  purpose: TaskUserOptionPurposeSchema,
+  taskId: z.string().uuid().optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+/**
+ * The only identity fields a Task operator needs to recognise a colleague: the
+ * name, and the work email to tell two people with the same name apart. The ID
+ * is the value sent back to the Task API; it is never shown as the choice.
+ */
+export const TaskUserOptionSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string(),
+});
+
+export const TaskUserOptionsResponseSchema = z.object({
+  users: z.array(TaskUserOptionSchema).max(TASK_USER_OPTION_LIMIT),
+});
+
 export const NotificationListQuerySchema = z.object({
   status: NotificationStatusSchema.exclude(['ARCHIVED']).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -314,5 +346,9 @@ export type TaskReminderDetailResponse = z.infer<typeof TaskReminderDetailRespon
 export type NotificationListResponse = z.infer<typeof NotificationListResponseSchema>;
 export type NotificationDetailResponse = z.infer<typeof NotificationDetailResponseSchema>;
 export type NotificationListQuery = z.infer<typeof NotificationListQuerySchema>;
+export type TaskUserOptionPurpose = z.infer<typeof TaskUserOptionPurposeSchema>;
+export type TaskUserOptionsQuery = z.infer<typeof TaskUserOptionsQuerySchema>;
+export type TaskUserOption = z.infer<typeof TaskUserOptionSchema>;
+export type TaskUserOptionsResponse = z.infer<typeof TaskUserOptionsResponseSchema>;
 export type NotificationReadAllRequest = z.infer<typeof NotificationReadAllRequestSchema>;
 export type NotificationReadAllResponse = z.infer<typeof NotificationReadAllResponseSchema>;

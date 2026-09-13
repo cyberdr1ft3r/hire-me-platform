@@ -12,6 +12,7 @@ import {
   TaskListResponseSchema,
   TaskReminderDetailResponseSchema,
   TaskReminderProcessResponseSchema,
+  TaskUserOptionsResponseSchema,
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
@@ -27,6 +28,7 @@ import {
   TaskReminderStatus,
   TaskStatus,
   UserStatus,
+  UserType,
 } from '../src/persistence/prisma/generated-client.js';
 
 const prisma = new PrismaClient();
@@ -1126,6 +1128,94 @@ describe('internal task management, reminders, comments, and notifications', () 
       },
     });
     expect(ownerMentionNotifications).toBe(0);
+  });
+
+  it('lists people for Task selectors by purpose without exposing account internals', async () => {
+    const suspendedUser = await prisma.user.create({
+      data: {
+        displayName: 'Synthetic suspended option',
+        email: 'suspended-option@tasks.test',
+        normalizedEmail: 'suspended-option@tasks.test',
+        status: UserStatus.SUSPENDED,
+      },
+    });
+    const clientUser = await prisma.user.create({
+      data: {
+        displayName: 'Synthetic client option',
+        email: 'client-option@tasks.test',
+        normalizedEmail: 'client-option@tasks.test',
+        status: UserStatus.ACTIVE,
+        userType: UserType.CLIENT,
+      },
+    });
+    const created = await fetch(`${baseUrl}/v1/tasks`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({
+        title: 'Issue31 user option task',
+        ownerUserId,
+        assigneeUserIds: [assigneeUserId],
+      }),
+    });
+    const task = TaskDetailResponseSchema.parse(await created.json()).task;
+    const options = (token: string, query: string) =>
+      fetch(`${baseUrl}/v1/tasks/user-options?${query}`, { headers: authHeaders(token) });
+
+    const assignable = await options(ownerToken, 'purpose=assignee&search=tasks.test');
+    expect(assignable.status).toBe(200);
+    const assignableUsers = TaskUserOptionsResponseSchema.parse(await assignable.json()).users;
+    const assignableIds = assignableUsers.map((user) => user.id);
+    expect(assignableIds).toEqual(expect.arrayContaining([ownerUserId, assigneeUserId]));
+    expect(assignableIds).toEqual(expect.arrayContaining([limitedUserId]));
+    // Only eligible identities, and only the three fields a selector needs.
+    expect(assignableIds).not.toContain(suspendedUser.id);
+    expect(assignableIds).not.toContain(clientUser.id);
+    for (const user of assignableUsers) {
+      expect(Object.keys(user).sort()).toEqual(['displayName', 'email', 'id']);
+    }
+    const names = assignableUsers.map((user) => user.displayName);
+    expect(names).toEqual([...names].sort((left, right) => left.localeCompare(right)));
+
+    const narrowed = TaskUserOptionsResponseSchema.parse(
+      await (await options(ownerToken, 'purpose=owner&search=assignee%40tasks')).json(),
+    ).users;
+    expect(narrowed.map((user) => user.id)).toEqual([assigneeUserId]);
+
+    // Mention and reminder options require the task and only offer people who can see it.
+    const withoutTask = await options(ownerToken, 'purpose=mention');
+    expect(withoutTask.status).toBe(400);
+    expect(await readErrorCode(withoutTask)).toBe('TASK_USER_OPTIONS_TASK_REQUIRED');
+    for (const purpose of ['mention', 'reminder']) {
+      const response = await options(
+        ownerToken,
+        `purpose=${purpose}&taskId=${task.id}&search=tasks.test`,
+      );
+      expect(response.status).toBe(200);
+      const ids = TaskUserOptionsResponseSchema.parse(await response.json()).users.map(
+        (user) => user.id,
+      );
+      expect(ids).toEqual(expect.arrayContaining([ownerUserId, assigneeUserId]));
+      expect(ids).not.toContain(limitedUserId);
+      expect(ids).not.toContain(suspendedUser.id);
+    }
+
+    // A task the actor cannot see is indistinguishable from one that does not exist.
+    const hiddenTask = await options(limitedToken, `purpose=mention&taskId=${task.id}`);
+    expect(hiddenTask.status).toBe(404);
+    expect(await readErrorCode(hiddenTask)).toBe('TASK_NOT_FOUND');
+
+    // Each purpose carries the permission of the write it prepares.
+    const noAssign = await options(createOnlyToken, 'purpose=assignee');
+    expect(noAssign.status).toBe(403);
+    expect(await readErrorCode(noAssign)).toBe('TASKS_ASSIGN_REQUIRED');
+    const noReminders = await options(createOnlyToken, 'purpose=reminder');
+    expect(noReminders.status).toBe(403);
+    expect(await readErrorCode(noReminders)).toBe('TASKS_REMINDERS_MANAGE_REQUIRED');
+    const noTasks = await options(noTaskToken, 'purpose=assignee');
+    expect(noTasks.status).toBe(403);
+    const invalid = await options(ownerToken, 'purpose=everyone');
+    expect(invalid.status).toBe(400);
+    expect(await readErrorCode(invalid)).toBe('INVALID_TASK_USER_OPTIONS_QUERY');
   });
 
   it('rejects comment creation when concurrent assignment removal removes actor visibility', async () => {

@@ -33,6 +33,8 @@ import {
   TaskReminderUpdateRequestSchema,
   TaskStatusChangeRequestSchema,
   TaskUpdateRequestSchema,
+  TaskUserOptionsQuerySchema,
+  TaskUserOptionsResponseSchema,
 } from '@hire-me/contracts';
 import { z } from 'zod';
 
@@ -59,6 +61,19 @@ export class TasksController {
       throw badRequest('INVALID_TASK_LIST_QUERY', 'Invalid task list query.');
     }
     return TaskListResponseSchema.parse(await this.tasks.listTasks(request.user!.id, parsed.data));
+  }
+
+  // Declared before `:taskId` so the literal path is never parsed as an ID.
+  @Get('user-options')
+  @RequirePermissions(TASK_PERMISSIONS.TASKS_VIEW)
+  async listUserOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = TaskUserOptionsQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest('INVALID_TASK_USER_OPTIONS_QUERY', 'Invalid task user options query.');
+    }
+    return TaskUserOptionsResponseSchema.parse(
+      await this.tasks.listUserOptions(request.user!.id, parsed.data),
+    );
   }
 
   @Post()
