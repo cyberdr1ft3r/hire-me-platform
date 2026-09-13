@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
 **Health:** `main` is at `077024b96346229368cf88dd264c6d4d91931564`, including merged Public Opportunity PR #63. Issue #64 is implemented on `design/task-pipeline-v1` from that exact base.
-**Current blocker:** ChatGPT technical review and maintainer/ChatGPT visual review of the Task Pipeline workspace.
-**Next executable development task:** Review the draft Task Pipeline PR and its development-only `task.html` evidence; keep it open, draft, unmerged, and undeployed.
+**Current blocker:** ChatGPT drift and technical re-review of the corrected Task Pipeline board (drift audit Issue #66, D-UX-01 to D-UX-04), then visual review.
+**Next executable development task:** Re-review the draft Task Pipeline PR #65 and its development-only `task.html` evidence; keep it open, draft, unmerged, and undeployed. After Task, the drift audit continues with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
 
 ## Active work
 
@@ -40,7 +40,8 @@ Status owner: repository maintainer
 | Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
 | Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
 | Issue #62 | Complete | Redesign the bilingual Public Opportunity experience as the third representative surface | Merged through PR #63 into `main` as `077024b96346229368cf88dd264c6d4d91931564` |
-| Issue #64 | Open | Redesign the bilingual Task Pipeline as a daily operational workspace | Implemented on `design/task-pipeline-v1`; draft PR and exact-head technical/visual review required; keep open and unmerged |
+| Issue #64 | Open | Redesign the bilingual Task Pipeline as a daily operational workspace | Corrected to a lightweight status board with name-based selectors on `design/task-pipeline-v1` (PR #65, draft); drift and technical re-review required; keep open and unmerged |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 recorded; Candidate, Reporting, Public Opportunity, and foundation audits follow |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
 ## Issue #64 Verification State
@@ -48,10 +49,14 @@ Status owner: repository maintainer
 - Branch `design/task-pipeline-v1` was created from exact `main` `077024b96346229368cf88dd264c6d4d91931564`.
 - Task presentation was extracted from `App.tsx` into `apps/web/src/tasks/`: `TasksPanel` owns requests, mutations, filters, selection, concurrency guards, and permission-derived access; `TaskWorkspace` receives state and callbacks as props. `App.tsx` keeps only the route switch.
 - No API contract, Prisma schema, lifecycle, visibility, assignment, reminder, comment, due-date, audit, or archival semantic changed. The web client gained only existing task detail, task update, and task archive calls needed by the operational detail.
-- The queue/detail workspace preserves supported search, status, priority, owner, and assignee filters and page size 25; it exposes localized status/priority labels while sending stored enum values.
-- One synchronous write lock prevents overlapping mutations. Monotonic list/detail/notification request guards, selected-task generations, and session-token guards prevent late reads or write feedback from crossing task, filter, or session contexts. Post-write refreshes use the latest applied filters.
-- Tasks is bilingual under `task.*` and `domain.taskStatus` / `domain.taskPriority`, has left `deferredEnglishRoutes`, and switches locale on the same mount without refetching or clearing an open create form.
-- Development-only `apps/web/task.html` renders the real `TaskWorkspace`, `I18nProvider`, and `AppShell` with synthetic data and is excluded from the production build.
+- Technical review `5187700373` and drift audit Issue #66 (now high priority) redirected the surface. The default view is now a lightweight board over the stored statuses (To do, In progress, Waiting, Blocked, Completed); canceled and archived work is in a compact paginated list view. No drag and drop: moves go through the task detail and offer only server-allowed transitions with the server's reason rules. See D-062.
+- Each board column reads its own page of the existing list endpoint (page size 25, server sorting, "show more"). Cards show title, priority, due state, owner, assignee state, and linked-record type; a modal detail drawer holds workflow, edit, people, comments, reminders, and archive.
+- No operator types an ID. With maintainer approval, a narrowly scoped `GET /v1/tasks/user-options` returns `id`, `displayName`, and `email` for active internal non-archived users (at most 20), gated per purpose by `tasks:assign`, `tasks:comment`, or `tasks:reminders:manage`; mention and reminder options are limited to users who can view the task. Linked records are chosen through existing permission-gated lists (client, candidate, mission and candidate in mission, document). This is the only API/contract change.
+- Restored Issue #31 views using existing filters: assigned to me, owned by me, due soon, overdue, owner, assignee, due range, linked record, priority, and status and sort in the list. Deferred: created-by-me (no API filter) and related-task links from other workspaces (Clients/Missions not started).
+- Manual reminder delivery moved from the page header into a collapsed diagnostic for managers holding `tasks:reminders:manage` and `tasks:view_all`; no scheduler exists (R-036).
+- Review blockers fixed: operation-owned write lock (an old session's completion can neither unlock nor report into a new session's write); notification refresh reads the latest committed filter; due dates use local date-time components and an untouched due date is not re-sent; reminder statuses, notification statuses and types, and linked-record fields are localized; every write control is disabled while any write holds the lock.
+- Tasks is bilingual, has left `deferredEnglishRoutes`, and switches locale on the same mount without refetching or clearing an open create form.
+- Development-only `apps/web/task.html` renders the real `TaskWorkspace`, `I18nProvider`, and `AppShell` with synthetic data (`?task=` opens a task, `?view=list` the list) and is excluded from the production build.
 
 ## Issue #62 Verification State
 
@@ -471,8 +476,10 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Review the bilingual Task Pipeline at `http://127.0.0.1:5173/task.html` across the required operational states and viewport widths.
+1. Re-review the Task Pipeline board at `http://127.0.0.1:5173/task.html` (board, detail drawer, selectors, list view) across the required widths.
 2. Keep the Issue #64 PR open, draft, unmerged, and undeployed; do not start Clients or Missions.
+3. Open a scheduler issue for Task reminder delivery (R-036).
+4. Continue drift audit Issue #66 with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
 3. Decide R-035 (public salary expectation unit) as a separate scoped task.
 
 ## Status Update Rules
