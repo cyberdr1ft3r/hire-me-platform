@@ -45,18 +45,21 @@ function renderWorkspace(
     detail: { candidate: shaped, status: 'ready' },
     feedback: null,
     filters: EMPTY_CANDIDATE_FILTERS,
-    list: { candidates: [shaped], status: 'ready', total: 1 },
+    list: { candidates: [shaped], page: 1, pageSize: 20, status: 'ready', total: 1 },
     onAddRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
     onArchive: vi.fn(),
+    onArchiveRecord: vi.fn(() => Promise.resolve(true)),
     onChangeStatus: vi.fn(),
     onCreate: vi.fn(() => Promise.resolve({ ok: true as const })),
     onFiltersChange: vi.fn(),
+    onPage: vi.fn(),
     onResetFilters: vi.fn(),
     onRetryDetail: vi.fn(),
     onRetryList: vi.fn(),
     onSearch: vi.fn(),
     onSelect: vi.fn(),
     onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
+    onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
     pending: null,
     selectedId: shaped.id,
     ...overrides,
@@ -371,14 +374,22 @@ describe('Candidate workspace states', () => {
     expect(props.onRetryList).toHaveBeenCalledTimes(1);
   });
 
+  const emptyPage: CandidateListState = {
+    candidates: [],
+    page: 1,
+    pageSize: 20,
+    status: 'ready',
+    total: 0,
+  };
+
   it('distinguishes an empty workspace from a search without matches', () => {
-    renderWorkspace([P.view], ready({ candidates: [], status: 'ready', total: 0 }));
+    renderWorkspace([P.view], ready(emptyPage));
     expect(screen.getByRole('heading', { name: 'No candidates yet' })).toBeVisible();
     cleanup();
 
-    const filtered = { search: 'nobody', status: '' as const };
+    const filtered = { ...EMPTY_CANDIDATE_FILTERS, search: 'nobody' };
     const props = renderWorkspace([P.view], {
-      ...ready({ candidates: [], status: 'ready', total: 0 }),
+      ...ready(emptyPage),
       appliedFilters: filtered,
       filters: filtered,
     });
@@ -388,15 +399,54 @@ describe('Candidate workspace states', () => {
     expect(props.onResetFilters).toHaveBeenCalledTimes(1);
   });
 
-  it('states when only the most recent matches are listed', () => {
+  /*
+   * Issue #67 (D-CAND-01) supersedes the former "only the most recent matches"
+   * notice: the list is now one server page, stated with its page and range.
+   */
+  it('states the server page and range, and asks for the neighbouring pages', () => {
+    const rows = Array.from({ length: 20 }, (_, index) =>
+      syntheticCandidate({
+        displayName: `Candidate ${index + 21}`,
+        id: `00000000-0000-4000-8000-${String(index + 21).padStart(12, '0')}`,
+      }),
+    );
+    const props = renderWorkspace(
+      [P.view],
+      ready({ candidates: rows, page: 2, pageSize: 20, status: 'ready', total: 45 }),
+    );
+    const pages = screen.getByRole('navigation', { name: 'Candidate pages' });
+    expect(within(pages).getByText('Page 2 of 3')).toBeVisible();
+    expect(within(pages).getByText('21–40 of 45')).toBeVisible();
+    fireEvent.click(within(pages).getByRole('button', { name: 'Next page' }));
+    fireEvent.click(within(pages).getByRole('button', { name: 'Previous page' }));
+    expect(props.onPage).toHaveBeenNthCalledWith(1, 3);
+    expect(props.onPage).toHaveBeenNthCalledWith(2, 1);
+  });
+
+  it('disables the page controls at the boundaries and hides them for one page', () => {
     const candidate = syntheticCandidate();
-    renderWorkspace([P.view], ready({ candidates: [candidate], status: 'ready', total: 45 }));
-    expect(screen.getByText('Showing 1 of 45')).toBeVisible();
-    expect(
-      screen.getByText(
-        'Only the 1 most recent matches are listed. Refine the search to narrow it.',
-      ),
-    ).toBeVisible();
+    renderWorkspace(
+      [P.view],
+      ready({ candidates: [candidate], page: 1, pageSize: 20, status: 'ready', total: 21 }),
+    );
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
+    cleanup();
+
+    renderWorkspace(
+      [P.view],
+      ready({ candidates: [candidate], page: 2, pageSize: 20, status: 'ready', total: 21 }),
+    );
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByText('Page 2 of 2')).toBeVisible();
+    cleanup();
+
+    renderWorkspace(
+      [P.view],
+      ready({ candidates: [candidate], page: 1, pageSize: 20, status: 'ready', total: 1 }),
+    );
+    expect(screen.getByText('Page 1 of 1')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
   });
 
   it('shows no-selection, detail loading, and detail failure distinctly', () => {
@@ -515,6 +565,218 @@ describe('Candidate forms', () => {
     await waitFor(() => expect(screen.queryByRole('form', { name: 'Edit profile' })).toBeNull());
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ city: 'Paris', displayName: 'Synthetic Candidate' }),
+    );
+  });
+});
+
+describe('Candidate source filter and labels', () => {
+  it('offers only the platform source and an exact recorded source, with neutral values', () => {
+    const props = renderWorkspace([P.view]);
+    const source = screen.getByLabelText('Source');
+    expect(
+      Array.from(source.querySelectorAll('option'), (option) => [option.value, option.textContent]),
+    ).toEqual([
+      ['', 'Any source'],
+      ['publicApplication', 'Public application'],
+      ['recorded', 'Other recorded source'],
+    ]);
+    // The free-text field appears only for a recorded source.
+    expect(screen.queryByLabelText('Recorded source')).toBeNull();
+    fireEvent.change(source, { target: { value: 'recorded' } });
+    expect(props.onFiltersChange).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceMode: 'recorded' }),
+    );
+    cleanup();
+
+    renderWorkspace(
+      [P.view],
+      { filters: { ...EMPTY_CANDIDATE_FILTERS, sourceMode: 'recorded', sourceText: 'LinkedIn' } },
+      { locale: 'fr' },
+    );
+    expect(
+      Array.from(screen.getByLabelText('Source').querySelectorAll('option'), (option) => [
+        option.value,
+        option.textContent,
+      ]),
+    ).toEqual([
+      ['', 'Toutes les sources'],
+      ['publicApplication', 'Candidature en ligne'],
+      ['recorded', 'Autre source enregistrée'],
+    ]);
+    expect(screen.getByLabelText('Source enregistrée')).toHaveValue('LinkedIn');
+  });
+
+  it('names the platform source in each language and shows other sources as recorded', () => {
+    const fromApplication = syntheticCandidate({ source: 'public_application' });
+    const typed = syntheticCandidate({
+      displayName: 'Typed Source',
+      id: '00000000-0000-4000-8000-000000000067',
+      source: 'LinkedIn',
+    });
+    renderWorkspace(
+      [P.view],
+      {
+        list: {
+          candidates: [fromApplication, typed],
+          page: 1,
+          pageSize: 20,
+          status: 'ready',
+          total: 2,
+        },
+      },
+      { candidate: fromApplication },
+    );
+    expect(screen.getAllByText('Public application').length).toBeGreaterThanOrEqual(2);
+    const rows = within(screen.getByRole('region', { name: 'Candidate list' })).getAllByRole(
+      'listitem',
+    );
+    expect(within(rows[0]!).getByText('Public application')).toBeVisible();
+    expect(within(rows[1]!).getByText('LinkedIn')).toBeVisible();
+    expect(document.body.textContent).not.toContain('public_application');
+    cleanup();
+
+    renderWorkspace([P.view], {}, { candidate: fromApplication, locale: 'fr' });
+    expect(screen.getAllByText('Candidature en ligne').length).toBeGreaterThanOrEqual(1);
+    expect(document.body.textContent).not.toContain('public_application');
+  });
+});
+
+describe('Candidate structured record maintenance', () => {
+  const editNames = [
+    'Edit Sourcing',
+    'Edit French',
+    'Edit Senior Recruiter · Example Talent',
+    'Edit Junior Recruiter · Example Staffing',
+    'Edit MSc Work Psychology · Example University',
+  ];
+
+  it('offers Edit and Archive on each active record only with candidate_profile:manage', () => {
+    renderWorkspace([P.view, P.profileView]);
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Archive (?!candidate)/ })).toBeNull();
+    cleanup();
+
+    renderWorkspace([P.view, P.profileView, P.profileManage]);
+    for (const name of editNames) {
+      expect(screen.getByRole('button', { name })).toBeVisible();
+      expect(screen.getByRole('button', { name: name.replace('Edit', 'Archive') })).toBeVisible();
+    }
+    // The visible text stays short; the accessible name says which record it acts on.
+    expect(screen.getByRole('button', { name: 'Edit Sourcing' })).toHaveTextContent(/^Edit$/);
+  });
+
+  it('offers nothing on an archived record, and nothing on an archived candidate', () => {
+    const candidate = syntheticCandidate();
+    candidate.skills = candidate.skills.map((skill) => ({
+      ...skill,
+      archivedAt: '2026-07-22T00:00:00.000Z',
+    }));
+    renderWorkspace(ORDINARY_PERMISSIONS, {}, { candidate });
+    const skills = screen.getByRole('region', { name: /^Skills/ });
+    expect(within(skills).getByText('Archived')).toBeVisible();
+    expect(within(skills).queryByRole('button', { name: /Sourcing/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit French' })).toBeVisible();
+    cleanup();
+
+    renderWorkspace(
+      ORDINARY_PERMISSIONS,
+      {},
+      {
+        candidate: syntheticCandidate({
+          archivedAt: '2026-07-22T00:00:00.000Z',
+          status: 'ARCHIVED',
+        }),
+      },
+    );
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Archive French' })).toBeNull();
+  });
+
+  it('pre-fills each edit form and submits the edited values for that record only', async () => {
+    const props = renderWorkspace(ORDINARY_PERMISSIONS);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sourcing' }));
+    const skill = screen.getByRole('form', { name: 'Edit Sourcing' });
+    expect(within(skill).getByLabelText(/^Skill/)).toHaveValue('Sourcing');
+    expect(within(skill).getByLabelText('Level')).toHaveValue('Advanced');
+    fireEvent.change(within(skill).getByLabelText('Level'), { target: { value: 'Expert' } });
+    fireEvent.click(within(skill).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(props.onUpdateRecord).toHaveBeenCalledWith({
+        kind: 'skill',
+        recordId: 'a0000000-0000-4000-8000-000000000001',
+        values: { level: 'Expert', name: 'Sourcing' },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Senior Recruiter · Example Talent' }));
+    const experience = screen.getByRole('form', { name: 'Edit Senior Recruiter · Example Talent' });
+    expect(within(experience).getByLabelText('Employer *')).toHaveValue('Example Talent');
+    expect(within(experience).getByLabelText('Start date')).toHaveValue('2020-01');
+    expect(within(experience).getByLabelText('End date')).toHaveValue('');
+    expect(within(experience).getByLabelText('Current role')).toBeChecked();
+    fireEvent.click(within(experience).getByRole('button', { name: 'Cancel' }));
+    expect(props.onUpdateRecord).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Edit Senior Recruiter · Example Talent' }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it('asks the container to archive the record, naming it rather than its ID', () => {
+    const props = renderWorkspace(ORDINARY_PERMISSIONS);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Archive MSc Work Psychology · Example University' }),
+    );
+    expect(props.onArchiveRecord).toHaveBeenCalledWith({
+      kind: 'education',
+      recordId: 'e0000000-0000-4000-8000-000000000001',
+    });
+    expect(document.body.textContent).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
+  });
+
+  it('disables record actions while any write is in flight and shows progress on its row only', () => {
+    renderWorkspace(ORDINARY_PERMISSIONS, {
+      pending: 'record:c0000000-0000-4000-8000-000000000001',
+    });
+    const languages = screen.getByRole('region', { name: /^Languages/ });
+    expect(within(languages).getByRole('button', { name: 'Archive French' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Archive Sourcing' })).not.toHaveAttribute(
+      'aria-busy',
+    );
+    for (const name of [...editNames, 'Archive Sourcing', 'Add skill']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+  });
+
+  it('names record actions and their feedback in French', () => {
+    renderWorkspace(
+      ORDINARY_PERMISSIONS,
+      { feedback: { kind: 'recordUpdated', record: 'skill', tone: 'success' } },
+      { locale: 'fr' },
+    );
+    expect(screen.getByRole('button', { name: 'Modifier Sourcing' })).toHaveTextContent(
+      /^Modifier$/,
+    );
+    expect(screen.getByRole('button', { name: 'Archiver Sourcing' })).toHaveTextContent(
+      /^Archiver$/,
+    );
+    expect(screen.getByText('Compétence mise à jour.')).toBeVisible();
+    cleanup();
+
+    renderWorkspace(
+      ORDINARY_PERMISSIONS,
+      { feedback: { failure: 'recordUnavailable', kind: 'failed', tone: 'danger' } },
+      { locale: 'fr' },
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Cet élément a changé ou n’est plus disponible. Le profil a été actualisé.',
     );
   });
 });

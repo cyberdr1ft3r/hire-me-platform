@@ -175,7 +175,7 @@ export const PREVIEW_CANDIDATES: readonly CandidateDetail[] = [
     country: 'Morocco',
     currentJobTitle: 'Data Analyst',
     email: 'omar.example@example.test',
-    source: 'Public opportunity',
+    source: 'public_application',
     status: 'TALENT_POOL',
   }),
   candidate(3, {
@@ -214,7 +214,29 @@ export const PREVIEW_CANDIDATES: readonly CandidateDetail[] = [
     city: 'Paris',
     country: 'France',
     currentJobTitle: 'Développeur full-stack confirmé',
-    source: 'Public opportunity',
+    source: 'public_application',
+  }),
+];
+
+const GENERATED_TITLES = ['Data Analyst', 'Sales Engineer', 'HR Assistant', 'QA Engineer'];
+const GENERATED_SOURCES = ['public_application', 'LinkedIn', 'Referral', null];
+
+/**
+ * A larger synthetic set for reviewing pagination: the representative records
+ * plus generated ones, enough for three pages of 20.
+ */
+export const PREVIEW_MANY_CANDIDATES: readonly CandidateDetail[] = [
+  ...PREVIEW_CANDIDATES,
+  ...Array.from({ length: 38 }, (_, offset) => {
+    const index = offset + 8;
+    return candidate(index, {
+      city: offset % 2 === 0 ? 'Casablanca' : 'Lyon',
+      country: offset % 2 === 0 ? 'Morocco' : 'France',
+      currentJobTitle: GENERATED_TITLES[offset % GENERATED_TITLES.length]!,
+      displayName: `Synthetic Candidate ${String(index).padStart(2, '0')}`,
+      source: GENERATED_SOURCES[offset % GENERATED_SOURCES.length]!,
+      status: offset % 5 === 0 ? 'TALENT_POOL' : 'ACTIVE',
+    });
   }),
 ];
 

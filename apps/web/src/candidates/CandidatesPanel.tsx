@@ -1,12 +1,20 @@
 import type {
   CandidateCreateRequest,
   CandidateDetail,
+  CandidateEducationUpdateRequest,
+  CandidateLanguageUpdateRequest,
+  CandidateSkillUpdateRequest,
   CandidateUpdateRequest,
+  CandidateWorkExperienceUpdateRequest,
 } from '@hire-me/contracts';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   archiveCandidate,
+  archiveCandidateEducation,
+  archiveCandidateLanguage,
+  archiveCandidateSkill,
+  archiveCandidateWorkExperience,
   createCandidate,
   createCandidateEducation,
   createCandidateLanguage,
@@ -15,25 +23,37 @@ import {
   getCandidate,
   listCandidates,
   updateCandidate,
+  updateCandidateEducation,
+  updateCandidateLanguage,
+  updateCandidateSkill,
   updateCandidateStatus,
+  updateCandidateWorkExperience,
 } from '../api.js';
 import { useI18n } from '../i18n/index.js';
 import { resolveCandidateAccess } from './candidate-access.js';
 import { classifyCandidateFailure, type CandidateFailure } from './candidate-errors.js';
+import { candidateRecordLabel } from './candidate-format.js';
 import { candidateStatusLabelKey } from './candidate-labels.js';
 import {
   CANDIDATE_LIST_PAGE_SIZE,
   EMPTY_CANDIDATE_FILTERS,
+  FIRST_CANDIDATE_PAGE,
+  candidatePageCount,
+  candidateSourceQuery,
+  recordPendingAction,
   type CandidateCreateValues,
   type CandidateDetailState,
   type CandidateFeedback,
   type CandidateFilterValues,
   type CandidateFormOutcome,
   type CandidateLifecycleTarget,
+  type CandidateListQuery,
   type CandidateListState,
   type CandidatePendingAction,
   type CandidateProfileValues,
   type CandidateRecordInput,
+  type CandidateRecordRef,
+  type CandidateRecordUpdate,
 } from './candidate-state.js';
 import { CandidateWorkspace } from './CandidateWorkspace.js';
 
@@ -85,6 +105,98 @@ export function toCandidateUpdateRequest(values: CandidateProfileValues): Candid
   };
 }
 
+/**
+ * The partial update for one structured record: only the fields its form
+ * edits, and of those only the ones whose value changed. A cleared optional
+ * field is sent as `null`; fields the form does not show are never sent, so
+ * they keep their recorded value. `null` means the record is no longer on
+ * screen; an empty body means there is nothing to save.
+ */
+type RecordUpdateRequest =
+  | { body: CandidateEducationUpdateRequest; kind: 'education' }
+  | { body: CandidateLanguageUpdateRequest; kind: 'language' }
+  | { body: CandidateSkillUpdateRequest; kind: 'skill' }
+  | { body: CandidateWorkExperienceUpdateRequest; kind: 'experience' };
+
+function changed<Value>(next: Value, current: Value): Value | undefined {
+  return next === current ? undefined : next;
+}
+
+function withoutUnchanged<Body extends object>(body: Body): Body {
+  return Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined),
+  ) as Body;
+}
+
+export function recordUpdateRequest(
+  candidate: CandidateDetail,
+  update: CandidateRecordUpdate,
+): RecordUpdateRequest | null {
+  switch (update.kind) {
+    case 'skill': {
+      const current = candidate.skills.find((record) => record.id === update.recordId);
+      if (!current || current.archivedAt) return null;
+      return {
+        body: withoutUnchanged({
+          level: changed(nullable(update.values.level), current.level),
+          name: changed(update.values.name.trim(), current.name),
+        }),
+        kind: 'skill',
+      };
+    }
+    case 'language': {
+      const current = candidate.languages.find((record) => record.id === update.recordId);
+      if (!current || current.archivedAt) return null;
+      return {
+        body: withoutUnchanged({
+          language: changed(update.values.language.trim(), current.language),
+          proficiency: changed(update.values.proficiency.trim(), current.proficiency),
+        }),
+        kind: 'language',
+      };
+    }
+    case 'experience': {
+      const current = candidate.workExperiences.find((record) => record.id === update.recordId);
+      if (!current || current.archivedAt) return null;
+      return {
+        body: withoutUnchanged({
+          employer: changed(update.values.employer.trim(), current.employer),
+          endDate: changed(nullable(update.values.endDate), current.endDate),
+          isCurrent: changed(update.values.isCurrent, current.isCurrent),
+          startDate: changed(nullable(update.values.startDate), current.startDate),
+          title: changed(update.values.title.trim(), current.title),
+        }),
+        kind: 'experience',
+      };
+    }
+    case 'education': {
+      const current = candidate.education.find((record) => record.id === update.recordId);
+      if (!current || current.archivedAt) return null;
+      return {
+        body: withoutUnchanged({
+          field: changed(nullable(update.values.field), current.field),
+          institution: changed(update.values.institution.trim(), current.institution),
+          qualification: changed(update.values.qualification.trim(), current.qualification),
+        }),
+        kind: 'education',
+      };
+    }
+  }
+}
+
+function findActiveRecord(candidate: CandidateDetail, ref: CandidateRecordRef) {
+  const records =
+    ref.kind === 'skill'
+      ? candidate.skills
+      : ref.kind === 'language'
+        ? candidate.languages
+        : ref.kind === 'experience'
+          ? candidate.workExperiences
+          : candidate.education;
+  const record = records.find((entry) => entry.id === ref.recordId);
+  return record && record.archivedAt === null ? record : null;
+}
+
 const RECORD_ADDED_FEEDBACK = {
   education: 'educationAdded',
   experience: 'experienceAdded',
@@ -128,8 +240,8 @@ export function CandidatesPanel({
   const { t } = useI18n();
   const access = useMemo(() => resolveCandidateAccess(permissions), [permissions]);
   const [filters, setFilters] = useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
-  const [appliedFilters, setAppliedFilters] =
-    useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  // The filters and page the displayed list was requested with.
+  const [appliedQuery, setAppliedQuery] = useState<CandidateListQuery>(FIRST_CANDIDATE_PAGE);
   const [list, setList] = useState<CandidateListState>({ status: 'loading' });
   const [detail, setDetail] = useState<CandidateDetailState>({ status: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -165,7 +277,7 @@ export function CandidatesPanel({
   const writeInFlight = useRef(false);
 
   /*
-   * The latest committed list filters and the current session token.
+   * The latest committed list query (filters and page) and the current session token.
    *
    * A write can resolve long after the render that started it: the user may
    * have applied other filters meanwhile, or the session may have moved to a
@@ -174,16 +286,16 @@ export function CandidatesPanel({
    * same handler that commits the filters, so there is no window in which a
    * refresh could still see the previous ones.
    */
-  const appliedFiltersRef = useRef<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  const appliedQueryRef = useRef<CandidateListQuery>(FIRST_CANDIDATE_PAGE);
   const sessionToken = useRef(accessToken);
 
   useLayoutEffect(() => {
     sessionToken.current = accessToken;
   }, [accessToken]);
 
-  function applyFilters(next: CandidateFilterValues): void {
-    appliedFiltersRef.current = next;
-    setAppliedFilters(next);
+  function applyQuery(next: CandidateListQuery): void {
+    appliedQueryRef.current = next;
+    setAppliedQuery(next);
   }
 
   /**
@@ -197,7 +309,7 @@ export function CandidatesPanel({
     if (session !== sessionToken.current) {
       return;
     }
-    void loadList(appliedFiltersRef.current, true);
+    void loadList(appliedQueryRef.current, true);
   }
 
   function captureContext(candidateId: string | null): () => boolean {
@@ -219,26 +331,35 @@ export function CandidatesPanel({
     setPending(null);
   }
 
-  async function loadList(nextFilters: CandidateFilterValues, quiet = false): Promise<void> {
+  async function loadList(query: CandidateListQuery, quiet = false): Promise<void> {
     const request = ++listRequest.current;
     if (!quiet) {
       setList({ status: 'loading' });
     }
     try {
-      // The same query as before: page 1 of 20, search and status only.
+      // One server page of the matches; search, status, and source combine on the server.
       const response = await listCandidates({
         accessToken,
-        search: nextFilters.search,
-        status: nextFilters.status || undefined,
+        page: query.page,
         pageSize: CANDIDATE_LIST_PAGE_SIZE,
+        search: query.filters.search,
+        source: candidateSourceQuery(query.filters),
+        status: query.filters.status || undefined,
       });
-      if (request === listRequest.current) {
-        setList({
-          candidates: response.candidates,
-          status: 'ready',
-          total: response.pagination.total,
-        });
+      if (request !== listRequest.current) {
+        return;
       }
+      const { page, pageSize, total } = response.pagination;
+      /*
+       * A write can empty the page on screen, for example by archiving its only
+       * row under a status filter. The list then moves to the last page that
+       * still has matches instead of showing an empty page.
+       */
+      if (response.candidates.length === 0 && total > 0 && page > 1) {
+        applyQuery({ ...query, page: Math.min(page - 1, candidatePageCount(total, pageSize)) });
+        return;
+      }
+      setList({ candidates: response.candidates, page, pageSize, status: 'ready', total });
     } catch {
       // A quiet refresh after a mutation keeps the rows already on screen.
       if (request === listRequest.current && !quiet) {
@@ -253,12 +374,12 @@ export function CandidatesPanel({
    * re-renders labels and `Intl` formatting.
    */
   useEffect(() => {
-    void loadList(appliedFilters);
+    void loadList(appliedQuery);
     return () => {
       listRequest.current += 1;
     };
     // `loadList` reads only `accessToken`, which is listed here.
-  }, [accessToken, appliedFilters]);
+  }, [accessToken, appliedQuery]);
 
   // A new session, or leaving the workspace, ends every candidate context.
   useEffect(
@@ -310,17 +431,22 @@ export function CandidatesPanel({
     void loadDetail(candidateId);
   }
 
+  // New filters always start from the first page.
   function handleSearch(): void {
-    applyFilters({ ...filters });
+    applyQuery({ filters: { ...filters }, page: 1 });
+  }
+
+  function handlePage(page: number): void {
+    applyQuery({ filters: appliedQueryRef.current.filters, page: Math.max(1, page) });
   }
 
   function handleResetFilters(): void {
     setFilters({ ...EMPTY_CANDIDATE_FILTERS });
-    applyFilters({ ...EMPTY_CANDIDATE_FILTERS });
+    applyQuery({ filters: { ...EMPTY_CANDIDATE_FILTERS }, page: 1 });
   }
 
   function handleRetryList(): void {
-    applyFilters({ ...appliedFiltersRef.current });
+    applyQuery({ ...appliedQueryRef.current });
   }
 
   function handleRetryDetail(): void {
@@ -344,6 +470,10 @@ export function CandidatesPanel({
         void loadDetail(candidateId, true);
       }
       refreshListAfterWrite(session);
+    }
+    // A structured record that changed underneath only needs the record re-read.
+    if (failure === 'recordUnavailable' && isCurrent()) {
+      void loadDetail(candidateId, true);
     }
   }
 
@@ -525,25 +655,151 @@ export function CandidatesPanel({
     return { ok: true };
   }
 
+  /**
+   * Edits one structured record in place with a partial update of the fields
+   * that changed. Nothing changed means nothing is sent. Like an addition, the
+   * record is re-read afterwards, and a result whose candidate context has
+   * moved on is neither shown nor re-read.
+   */
+  async function handleUpdateRecord(update: CandidateRecordUpdate): Promise<CandidateFormOutcome> {
+    if (detail.status !== 'ready') {
+      return SUPERSEDED;
+    }
+    const candidateId = detail.candidate.id;
+    const request = recordUpdateRequest(detail.candidate, update);
+    if (!request) {
+      return SUPERSEDED;
+    }
+    if (Object.keys(request.body).length === 0) {
+      return { ok: true };
+    }
+    if (!beginWrite(recordPendingAction(update.recordId))) {
+      return SUPERSEDED;
+    }
+    const isCurrent = captureContext(candidateId);
+    setFeedback(null);
+    try {
+      switch (request.kind) {
+        case 'skill':
+          await updateCandidateSkill(accessToken, candidateId, update.recordId, request.body);
+          break;
+        case 'language':
+          await updateCandidateLanguage(accessToken, candidateId, update.recordId, request.body);
+          break;
+        case 'experience':
+          await updateCandidateWorkExperience(
+            accessToken,
+            candidateId,
+            update.recordId,
+            request.body,
+          );
+          break;
+        case 'education':
+          await updateCandidateEducation(accessToken, candidateId, update.recordId, request.body);
+          break;
+      }
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      refreshAfterFailure(failure, candidateId, isCurrent, accessToken);
+      endWrite();
+      return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
+    }
+
+    if (!isCurrent()) {
+      endWrite();
+      return SUPERSEDED;
+    }
+    await loadDetail(candidateId, true);
+    endWrite();
+    if (!isCurrent()) {
+      return SUPERSEDED;
+    }
+    setFeedback({ kind: 'recordUpdated', record: update.kind, tone: 'success' });
+    return { ok: true };
+  }
+
+  /**
+   * Archives one structured record after confirmation. The server keeps the row
+   * as history, marked archived; nothing is deleted. Resolves true only when the
+   * archival succeeded for the candidate still on screen.
+   */
+  async function handleArchiveRecord(ref: CandidateRecordRef): Promise<boolean> {
+    if (detail.status !== 'ready' || writeInFlight.current) {
+      return false;
+    }
+    const candidateId = detail.candidate.id;
+    const record = findActiveRecord(detail.candidate, ref);
+    if (
+      !record ||
+      !window.confirm(
+        t('candidate.records.confirmArchive', { record: candidateRecordLabel(record) }),
+      ) ||
+      !beginWrite(recordPendingAction(ref.recordId))
+    ) {
+      return false;
+    }
+    const isCurrent = captureContext(candidateId);
+    setFeedback(null);
+    try {
+      switch (ref.kind) {
+        case 'skill':
+          await archiveCandidateSkill(accessToken, candidateId, ref.recordId);
+          break;
+        case 'language':
+          await archiveCandidateLanguage(accessToken, candidateId, ref.recordId);
+          break;
+        case 'experience':
+          await archiveCandidateWorkExperience(accessToken, candidateId, ref.recordId);
+          break;
+        case 'education':
+          await archiveCandidateEducation(accessToken, candidateId, ref.recordId);
+          break;
+      }
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      if (isCurrent()) {
+        setFeedback({ failure, kind: 'failed', tone: 'danger' });
+      }
+      refreshAfterFailure(failure, candidateId, isCurrent, accessToken);
+      endWrite();
+      return false;
+    }
+
+    if (!isCurrent()) {
+      endWrite();
+      return false;
+    }
+    await loadDetail(candidateId, true);
+    endWrite();
+    if (!isCurrent()) {
+      return false;
+    }
+    setFeedback({ kind: 'recordArchived', record: ref.kind, tone: 'success' });
+    return true;
+  }
+
   return (
     <CandidateWorkspace
       access={access}
-      appliedFilters={appliedFilters}
+      appliedFilters={appliedQuery.filters}
       detail={detail}
       feedback={feedback}
       filters={filters}
       list={list}
       onAddRecord={handleAddRecord}
       onArchive={() => void handleArchive()}
+      onArchiveRecord={handleArchiveRecord}
       onChangeStatus={(status) => void handleChangeStatus(status)}
       onCreate={handleCreate}
       onFiltersChange={setFilters}
+      onPage={handlePage}
       onResetFilters={handleResetFilters}
       onRetryDetail={handleRetryDetail}
       onRetryList={handleRetryList}
       onSearch={handleSearch}
       onSelect={handleSelect}
       onUpdate={handleUpdate}
+      onUpdateRecord={handleUpdateRecord}
       pending={pending}
       selectedId={selectedId}
     />

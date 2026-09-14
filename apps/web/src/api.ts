@@ -135,15 +135,19 @@ import {
   type CandidateDetailResponse,
   type CandidateEducationCreateRequest,
   type CandidateEducationDetailResponse,
+  type CandidateEducationUpdateRequest,
   type CandidateLanguageCreateRequest,
   type CandidateLanguageDetailResponse,
+  type CandidateLanguageUpdateRequest,
   type CandidateListResponse,
   type CandidateSkillCreateRequest,
   type CandidateSkillDetailResponse,
+  type CandidateSkillUpdateRequest,
   type CandidateStatusUpdateRequest,
   type CandidateUpdateRequest,
   type CandidateWorkExperienceCreateRequest,
   type CandidateWorkExperienceDetailResponse,
+  type CandidateWorkExperienceUpdateRequest,
   type MissionAssignmentCreateRequest,
   type MissionAssignmentDetailResponse,
   type MissionAssignmentListResponse,
@@ -1472,6 +1476,135 @@ export async function createCandidateEducation(
     accessToken,
     `/${candidateId}/education`,
     { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateEducationDetailResponseSchema.parse(await response.json());
+}
+
+/*
+ * Structured profile records are maintained in place: a partial update, or an
+ * archival that keeps the row as history. There is no deletion endpoint.
+ */
+
+export async function updateCandidateSkill(
+  accessToken: string,
+  candidateId: string,
+  skillId: string,
+  input: CandidateSkillUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateSkillDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/skills/${skillId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateSkillDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCandidateSkill(
+  accessToken: string,
+  candidateId: string,
+  skillId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateSkillDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/skills/${skillId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return CandidateSkillDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCandidateLanguage(
+  accessToken: string,
+  candidateId: string,
+  languageId: string,
+  input: CandidateLanguageUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateLanguageDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/languages/${languageId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateLanguageDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCandidateLanguage(
+  accessToken: string,
+  candidateId: string,
+  languageId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateLanguageDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/languages/${languageId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return CandidateLanguageDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCandidateWorkExperience(
+  accessToken: string,
+  candidateId: string,
+  workExperienceId: string,
+  input: CandidateWorkExperienceUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateWorkExperienceDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/work-experiences/${workExperienceId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateWorkExperienceDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCandidateWorkExperience(
+  accessToken: string,
+  candidateId: string,
+  workExperienceId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateWorkExperienceDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/work-experiences/${workExperienceId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return CandidateWorkExperienceDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateCandidateEducation(
+  accessToken: string,
+  candidateId: string,
+  educationId: string,
+  input: CandidateEducationUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateEducationDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/education/${educationId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CandidateEducationDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveCandidateEducation(
+  accessToken: string,
+  candidateId: string,
+  educationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CandidateEducationDetailResponse> {
+  const response = await candidateRequest(
+    accessToken,
+    `/${candidateId}/education/${educationId}/archive`,
+    { method: 'POST' },
     apiBaseUrl,
   );
   return CandidateEducationDetailResponseSchema.parse(await response.json());

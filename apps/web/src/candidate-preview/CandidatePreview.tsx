@@ -1,19 +1,27 @@
+import type { CandidateDetail } from '@hire-me/contracts';
 import { useMemo, useState } from 'react';
 
 import {
+  CANDIDATE_LIST_PAGE_SIZE,
   CandidateWorkspace,
   EMPTY_CANDIDATE_FILTERS,
+  candidateSourceQuery,
   resolveCandidateAccess,
   type CandidateDetailState,
+  type CandidateFeedback,
   type CandidateFilterValues,
   type CandidateFormOutcome,
+  type CandidateListQuery,
   type CandidateListState,
+  type CandidateRecordRef,
+  type CandidateRecordUpdate,
 } from '../candidates/index.js';
 import { I18nProvider, useI18n } from '../i18n/index.js';
 import { Select } from '../ui/index.js';
 import { AppShell } from '../ui/shell/AppShell.js';
 import {
   PREVIEW_CANDIDATES,
+  PREVIEW_MANY_CANDIDATES,
   PREVIEW_PERMISSIONS,
   previewUser,
   shapeForAccess,
@@ -30,8 +38,12 @@ import {
  *
  * It performs no request of any kind and contains only synthetic records. It
  * is not linked from product navigation and is excluded from the production
- * build. Search and selection work locally; a submitted form only reports
- * success, because there is no API behind it.
+ * build. Search, source, status, and paging work locally over the synthetic
+ * set in place of the server; a structured record can be edited or archived
+ * locally so both flows can be reviewed. Other forms only report success,
+ * because there is no API behind them.
+ *
+ * `?dataset=many` starts with enough candidates for three pages.
  */
 export function CandidatePreview() {
   return (
@@ -41,12 +53,18 @@ export function CandidatePreview() {
   );
 }
 
-type PreviewDataset = 'empty' | 'populated';
+type PreviewDataset = 'empty' | 'many' | 'populated';
 
 const ACCEPTED: Promise<CandidateFormOutcome> = Promise.resolve({ ok: true });
 
-function matches(filters: CandidateFilterValues, record: (typeof PREVIEW_CANDIDATES)[number]) {
+function datasetRecords(dataset: PreviewDataset): CandidateDetail[] {
+  if (dataset === 'empty') return [];
+  return [...(dataset === 'many' ? PREVIEW_MANY_CANDIDATES : PREVIEW_CANDIDATES)];
+}
+
+function matches(filters: CandidateFilterValues, record: CandidateDetail) {
   const search = filters.search.trim().toLowerCase();
+  const source = candidateSourceQuery(filters)?.toLowerCase();
   const haystack = [
     record.displayName,
     record.email,
@@ -58,31 +76,131 @@ function matches(filters: CandidateFilterValues, record: (typeof PREVIEW_CANDIDA
     .join(' ')
     .toLowerCase();
   return (
-    (!filters.status || record.status === filters.status) && (!search || haystack.includes(search))
+    (!filters.status || record.status === filters.status) &&
+    (!source || record.source?.toLowerCase() === source) &&
+    (!search || haystack.includes(search))
   );
+}
+
+function nullable(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Applies a structured-record edit to a synthetic candidate, as the API would. */
+function applyUpdate(record: CandidateDetail, update: CandidateRecordUpdate): CandidateDetail {
+  switch (update.kind) {
+    case 'skill':
+      return {
+        ...record,
+        skills: record.skills.map((entry) =>
+          entry.id === update.recordId
+            ? { ...entry, level: nullable(update.values.level), name: update.values.name.trim() }
+            : entry,
+        ),
+      };
+    case 'language':
+      return {
+        ...record,
+        languages: record.languages.map((entry) =>
+          entry.id === update.recordId
+            ? {
+                ...entry,
+                language: update.values.language.trim(),
+                proficiency: update.values.proficiency.trim(),
+              }
+            : entry,
+        ),
+      };
+    case 'experience':
+      return {
+        ...record,
+        workExperiences: record.workExperiences.map((entry) =>
+          entry.id === update.recordId
+            ? {
+                ...entry,
+                employer: update.values.employer.trim(),
+                endDate: nullable(update.values.endDate),
+                isCurrent: update.values.isCurrent,
+                startDate: nullable(update.values.startDate),
+                title: update.values.title.trim(),
+              }
+            : entry,
+        ),
+      };
+    case 'education':
+      return {
+        ...record,
+        education: record.education.map((entry) =>
+          entry.id === update.recordId
+            ? {
+                ...entry,
+                field: nullable(update.values.field),
+                institution: update.values.institution.trim(),
+                qualification: update.values.qualification.trim(),
+              }
+            : entry,
+        ),
+      };
+  }
+}
+
+/** Marks a synthetic structured record archived; it stays as history. */
+function applyArchive(record: CandidateDetail, ref: CandidateRecordRef): CandidateDetail {
+  const archivedAt = new Date().toISOString();
+  const archive = <Row extends { archivedAt: string | null; id: string }>(rows: Row[]) =>
+    rows.map((row) => (row.id === ref.recordId ? { ...row, archivedAt } : row));
+  switch (ref.kind) {
+    case 'skill':
+      return { ...record, skills: archive(record.skills) };
+    case 'language':
+      return { ...record, languages: archive(record.languages) };
+    case 'experience':
+      return { ...record, workExperiences: archive(record.workExperiences) };
+    case 'education':
+      return { ...record, education: archive(record.education) };
+  }
 }
 
 function CandidatePreviewContent() {
   const { t } = useI18n();
-  const [dataset, setDataset] = useState<PreviewDataset>('populated');
+  const initialDataset: PreviewDataset =
+    new URLSearchParams(window.location.search).get('dataset') === 'many' ? 'many' : 'populated';
+  const [dataset, setDataset] = useState<PreviewDataset>(initialDataset);
+  const [records, setRecords] = useState<CandidateDetail[]>(() => datasetRecords(initialDataset));
   const [profile, setProfile] = useState<PreviewAccessProfile>('full');
   const [filters, setFilters] = useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
-  const [applied, setApplied] = useState<CandidateFilterValues>(EMPTY_CANDIDATE_FILTERS);
+  const [query, setQuery] = useState<CandidateListQuery>({
+    filters: EMPTY_CANDIDATE_FILTERS,
+    page: 1,
+  });
+  const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(PREVIEW_CANDIDATES[0]?.id ?? null);
 
   const permissions = PREVIEW_PERMISSIONS[profile];
   const access = useMemo(() => resolveCandidateAccess(permissions), [permissions]);
-  const source = dataset === 'empty' ? [] : PREVIEW_CANDIDATES;
-  const visible = source.filter((record) => matches(applied, record));
+  const visible = records.filter((record) => matches(query.filters, record));
+  const start = (query.page - 1) * CANDIDATE_LIST_PAGE_SIZE;
   const list: CandidateListState = {
-    candidates: visible.map((record) => shapeForAccess(record, permissions)),
+    // The preview stands in for the server page; production never slices in the browser.
+    candidates: visible
+      .slice(start, start + CANDIDATE_LIST_PAGE_SIZE)
+      .map((record) => shapeForAccess(record, permissions)),
+    page: query.page,
+    pageSize: CANDIDATE_LIST_PAGE_SIZE,
     status: 'ready',
     total: visible.length,
   };
-  const selected = source.find((record) => record.id === selectedId);
+  const selected = records.find((record) => record.id === selectedId);
   const detail: CandidateDetailState = selected
     ? { candidate: shapeForAccess(selected, permissions), status: 'ready' }
     : { status: 'idle' };
+
+  function updateSelected(change: (record: CandidateDetail) => CandidateDetail): void {
+    setRecords((current) =>
+      current.map((record) => (record.id === selectedId ? change(record) : record)),
+    );
+  }
 
   return (
     <AppShell
@@ -96,10 +214,18 @@ function CandidatePreviewContent() {
       <div className="candidate-preview__switches">
         <Select
           label={t('preview.candidate.dataset')}
-          onChange={(event) => setDataset(event.target.value === 'empty' ? 'empty' : 'populated')}
+          onChange={(event) => {
+            const next = event.target.value;
+            const value: PreviewDataset = next === 'empty' || next === 'many' ? next : 'populated';
+            setDataset(value);
+            setRecords(datasetRecords(value));
+            setQuery({ filters: EMPTY_CANDIDATE_FILTERS, page: 1 });
+            setFilters(EMPTY_CANDIDATE_FILTERS);
+          }}
           value={dataset}
         >
           <option value="populated">{t('preview.candidate.populated')}</option>
+          <option value="many">{t('preview.candidate.many')}</option>
           <option value="empty">{t('preview.candidate.empty')}</option>
         </Select>
         <Select
@@ -117,25 +243,39 @@ function CandidatePreviewContent() {
       </div>
       <CandidateWorkspace
         access={access}
-        appliedFilters={applied}
+        appliedFilters={query.filters}
         detail={detail}
-        feedback={null}
+        feedback={feedback}
         filters={filters}
         list={list}
         onAddRecord={() => ACCEPTED}
         onArchive={() => undefined}
+        onArchiveRecord={(ref) => {
+          updateSelected((record) => applyArchive(record, ref));
+          setFeedback({ kind: 'recordArchived', record: ref.kind, tone: 'success' });
+          return Promise.resolve(true);
+        }}
         onChangeStatus={() => undefined}
         onCreate={() => ACCEPTED}
         onFiltersChange={setFilters}
+        onPage={(page) => setQuery((current) => ({ ...current, page }))}
         onResetFilters={() => {
           setFilters({ ...EMPTY_CANDIDATE_FILTERS });
-          setApplied({ ...EMPTY_CANDIDATE_FILTERS });
+          setQuery({ filters: { ...EMPTY_CANDIDATE_FILTERS }, page: 1 });
         }}
         onRetryDetail={() => undefined}
         onRetryList={() => undefined}
-        onSearch={() => setApplied({ ...filters })}
-        onSelect={setSelectedId}
+        onSearch={() => setQuery({ filters: { ...filters }, page: 1 })}
+        onSelect={(id) => {
+          setSelectedId(id);
+          setFeedback(null);
+        }}
         onUpdate={() => ACCEPTED}
+        onUpdateRecord={(update) => {
+          updateSelected((record) => applyUpdate(record, update));
+          setFeedback({ kind: 'recordUpdated', record: update.kind, tone: 'success' });
+          return ACCEPTED;
+        }}
         pending={null}
         selectedId={selectedId}
       />

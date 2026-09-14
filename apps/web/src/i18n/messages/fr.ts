@@ -275,10 +275,24 @@ export const frMessages: Messages = {
         forbidden: 'Vos droits d’accès ne permettent pas cette modification.',
         invalid: 'Certaines valeurs n’ont pas été acceptées. Vérifiez les champs puis réessayez.',
         notFound: 'Ce candidat n’est plus disponible.',
+        recordUnavailable:
+          'Cet élément a changé ou n’est plus disponible. Le profil a été actualisé.',
         unavailable: 'La modification n’a pas pu être enregistrée. Réessayez.',
       },
       failureTitle: 'Non enregistré',
       languageAdded: 'Langue ajoutée.',
+      recordArchived: {
+        education: 'Formation archivée.',
+        experience: 'Expérience archivée.',
+        language: 'Langue archivée.',
+        skill: 'Compétence archivée.',
+      },
+      recordUpdated: {
+        education: 'Formation mise à jour.',
+        experience: 'Expérience mise à jour.',
+        language: 'Langue mise à jour.',
+        skill: 'Compétence mise à jour.',
+      },
       skillAdded: 'Compétence ajoutée.',
       statusChanged: 'Statut du candidat modifié : {status}.',
       successTitle: 'Enregistré',
@@ -299,11 +313,19 @@ export const frMessages: Messages = {
       sourceDetail: 'Précision sur la source',
     },
     filters: {
+      anySource: 'Toutes les sources',
       anyStatus: 'Tous les statuts',
       region: 'Recherche de candidats',
       reset: 'Effacer la recherche',
       search: 'Rechercher',
       searchHint: 'Nom, e-mail, poste, ville ou pays',
+      source: 'Source',
+      sourceModes: {
+        publicApplication: 'Candidature en ligne',
+        recorded: 'Autre source enregistrée',
+      },
+      sourceText: 'Source enregistrée',
+      sourceTextHint: 'Telle qu’elle figure sur le profil, sans tenir compte des majuscules',
       status: 'Statut',
       submit: 'Rechercher',
     },
@@ -333,10 +355,14 @@ export const frMessages: Messages = {
       },
     },
     list: {
+      pagination: {
+        next: 'Page suivante',
+        page: 'Page {page} sur {pages}',
+        previous: 'Page précédente',
+        range: '{first} à {last} sur {total}',
+        region: 'Pages de candidats',
+      },
       region: 'Liste des candidats',
-      showing: '{shown} affichés sur {total}',
-      truncated:
-        'Seules les {shown} correspondances les plus récentes sont listées. Affinez la recherche pour réduire la liste.',
       title: 'Liste des candidats',
       updated: 'Mis à jour le {date}',
     },
@@ -354,7 +380,19 @@ export const frMessages: Messages = {
       updatedLabel: 'Dernière mise à jour',
     },
     records: {
+      archive: 'Archiver',
+      archiveLabel: 'Archiver {record}',
       archived: 'Archivé',
+      confirmArchive:
+        'Archiver « {record} » ? L’élément reste dans l’historique du profil, marqué comme archivé, et ne peut plus être modifié.',
+      edit: 'Modifier',
+      editLabel: 'Modifier {record}',
+      kinds: {
+        education: 'Formation',
+        experience: 'Expérience professionnelle',
+        language: 'Langue',
+        skill: 'Compétence',
+      },
       unavailable:
         'Les informations structurées du profil ne sont pas accessibles avec vos droits actuels.',
       unavailableTitle: 'Informations du profil',
@@ -363,6 +401,9 @@ export const frMessages: Messages = {
       description: 'Visible uniquement par les rôles autorisés à consulter ces informations.',
       label: 'Accès restreint',
       title: 'Informations restreintes',
+    },
+    source: {
+      publicApplication: 'Candidature en ligne',
     },
     skills: {
       add: 'Ajouter une compétence',
@@ -883,6 +924,7 @@ export const frMessages: Messages = {
       accessViewer: 'Consultation seule',
       dataset: 'Jeu de données de prévisualisation',
       empty: 'Aucun candidat',
+      many: 'Nombreux candidats (paginés)',
       populated: 'Candidats représentatifs',
     },
     createItem: 'Créer un élément',

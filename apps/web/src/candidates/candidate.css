@@ -78,8 +78,7 @@
   gap: var(--space-2);
 }
 
-.candidate-list__count,
-.candidate-list__hint {
+.candidate-list__count {
   color: var(--color-text-secondary);
   font-size: var(--font-size-2);
   margin-bottom: 0;
@@ -178,6 +177,40 @@
   font-size: var(--font-size-1);
   gap: var(--space-1) var(--space-3);
   margin-bottom: 0;
+}
+
+/* Server pages of the list: where the reader is, then previous and next. */
+.candidate-pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+  padding-block-start: var(--space-2);
+}
+
+.candidate-pagination__state {
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: 0;
+}
+
+.candidate-pagination__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.candidates__pane-title:focus {
+  outline: none;
+}
+
+.candidates__pane-title:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
 }
 
 .candidate-list__loading,
@@ -412,6 +445,36 @@
   color: var(--color-text-secondary);
 }
 
+/* A record's own actions sit at the end of its row and wrap below it when narrow. */
+.candidate-rows__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+
+.candidate-timeline__item > .candidate-rows__actions {
+  justify-self: start;
+  margin-inline-start: 0;
+}
+
+/* An edit form replaces its row's content at the row's full width. */
+.candidate-rows__item > .candidate-form {
+  flex: 1 1 100%;
+}
+
+/* A row takes focus after its archival; the outline appears for keyboard focus only. */
+.candidate-rows__item:focus,
+.candidate-timeline__item:focus {
+  outline: none;
+}
+
+.candidate-rows__item:focus-visible,
+.candidate-timeline__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
 .candidate-rows__archived,
 .candidate-timeline__current {
   border: var(--border-width) solid var(--color-border-strong);
@@ -543,6 +606,8 @@
   .candidate-actions > *,
   .candidate-filters__actions > *,
   .candidate-form__actions > *,
+  .candidate-pagination__actions > *,
+  .candidate-rows__actions > *,
   .candidate-section__head .ui-button {
     min-height: var(--hit-target-min);
   }
@@ -551,7 +616,8 @@
 @media (max-width: 30rem) {
   .candidate-actions > *,
   .candidate-filters__actions > *,
-  .candidate-form__actions > * {
+  .candidate-form__actions > *,
+  .candidate-pagination__actions > * {
     flex: 1 1 auto;
   }
 

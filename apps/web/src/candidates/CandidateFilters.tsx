@@ -2,17 +2,21 @@ import type { FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Select, TextField } from '../ui/index.js';
-import { CANDIDATE_STATUS_FILTER_OPTIONS, candidateStatusLabelKey } from './candidate-labels.js';
-import type { CandidateFilterValues } from './candidate-state.js';
+import {
+  CANDIDATE_STATUS_FILTER_OPTIONS,
+  candidateSourceModeLabelKey,
+  candidateStatusLabelKey,
+} from './candidate-labels.js';
+import { CANDIDATE_SOURCE_MODES, type CandidateFilterValues } from './candidate-state.js';
 
 /**
- * The two list filters this workspace has always exposed: free-text search
- * and lifecycle status. The API also accepts source, city, and country, but
- * widening the interface is a product decision rather than a visual one, so
- * they stay unexposed.
+ * One compact toolbar over the server-side candidate list: free-text search,
+ * lifecycle status, and source. Applying it always returns to the first page.
  *
- * Option values are the stored lifecycle values; only their labels are
- * localized, so a French label is never sent as a filter.
+ * Option values are stored values, never labels. The source filter offers the
+ * one source the platform records by itself (a public application) and,
+ * because every other source is free text an operator entered, a field to
+ * match a source exactly as it was recorded. No source category is invented.
  */
 export function CandidateFilters({
   busy,
@@ -75,6 +79,36 @@ export function CandidateFilters({
             </option>
           ))}
         </Select>
+        <Select
+          label={t('candidate.filters.source')}
+          name="sourceMode"
+          onChange={(event) =>
+            onChange({
+              ...values,
+              sourceMode:
+                CANDIDATE_SOURCE_MODES.find((mode) => mode === event.currentTarget.value) ?? '',
+            })
+          }
+          value={values.sourceMode}
+        >
+          <option value="">{t('candidate.filters.anySource')}</option>
+          {CANDIDATE_SOURCE_MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(candidateSourceModeLabelKey(mode))}
+            </option>
+          ))}
+        </Select>
+        {values.sourceMode === 'recorded' ? (
+          <TextField
+            autoComplete="off"
+            hint={t('candidate.filters.sourceTextHint')}
+            label={t('candidate.filters.sourceText')}
+            maxLength={120}
+            name="sourceText"
+            onChange={(event) => onChange({ ...values, sourceText: event.currentTarget.value })}
+            value={values.sourceText}
+          />
+        ) : null}
       </div>
       <div className="candidate-filters__actions">
         <Button disabled={busy} type="submit">

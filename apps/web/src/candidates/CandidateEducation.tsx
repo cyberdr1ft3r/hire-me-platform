@@ -1,18 +1,30 @@
 import { useI18n } from '../i18n/index.js';
 import { Button, TextField } from '../ui/index.js';
-import { orderEducation } from './candidate-format.js';
+import { candidateRecordLabel, orderEducation } from './candidate-format.js';
 import { CANDIDATE_FIELD_LIMITS, useCandidateForm } from './candidate-form.js';
+import {
+  recordPendingAction,
+  type CandidateFormOutcome,
+  type CandidateRecordValues,
+} from './candidate-state.js';
 import type { CandidateEducation as CandidateEducationRecord } from './candidate-types.js';
 import { CandidateFormFeedback } from './CandidateFormFeedback.js';
-import { ArchivedRecordMarker, CandidateRecordSection } from './CandidateRecordSection.js';
+import {
+  ArchivedRecordMarker,
+  CandidateRecordRow,
+  CandidateRecordSection,
+} from './CandidateRecordSection.js';
 import type { CandidateRecordSectionProps } from './CandidateSkills.js';
 
 /** Education, most recent first where recorded dates can be compared. */
 export function CandidateEducation({
   busy,
-  canAdd,
+  canManage,
   canView,
   onAdd,
+  onArchive,
+  onUpdate,
+  pending,
   records,
   submitting,
 }: CandidateRecordSectionProps<CandidateEducationRecord>) {
@@ -22,22 +34,53 @@ export function CandidateEducation({
     <CandidateRecordSection
       addLabel={t('candidate.education.add')}
       busy={busy}
-      canAdd={canAdd}
+      canAdd={canManage}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.education.empty')}
       renderForm={(close) => (
-        <EducationForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+        <EducationForm
+          busy={busy}
+          label={t('candidate.education.add')}
+          onClose={close}
+          onSubmit={(values) => onAdd({ kind: 'education', values })}
+          submitLabel={t('candidate.education.add')}
+          submitting={submitting}
+        />
       )}
       title={t('candidate.education.title')}
     >
       <ol className="candidate-timeline">
         {orderEducation(records).map((education) => {
+          const rowPending = pending === recordPendingAction(education.id);
+          const label = candidateRecordLabel(education);
           const period = [education.startDate, education.endDate]
             .map((value) => value?.trim())
             .filter(Boolean);
           return (
-            <li className="candidate-timeline__item" key={education.id}>
+            <CandidateRecordRow
+              archived={education.archivedAt !== null}
+              busy={busy}
+              canManage={canManage}
+              className="candidate-timeline__item"
+              key={education.id}
+              label={label}
+              onArchive={() => onArchive({ kind: 'education', recordId: education.id })}
+              pending={rowPending}
+              renderEdit={(close) => (
+                <EducationForm
+                  busy={busy}
+                  initial={education}
+                  label={t('candidate.records.editLabel', { record: label })}
+                  onClose={close}
+                  onSubmit={(values) =>
+                    onUpdate({ kind: 'education', recordId: education.id, values })
+                  }
+                  submitLabel={t('candidate.actions.save')}
+                  submitting={rowPending}
+                />
+              )}
+            >
               <p className="candidate-timeline__title">
                 <strong>{education.qualification}</strong>
                 <span className="candidate-timeline__org">{education.institution}</span>
@@ -59,7 +102,7 @@ export function CandidateEducation({
               {education.description ? (
                 <p className="candidate-timeline__description">{education.description}</p>
               ) : null}
-            </li>
+            </CandidateRecordRow>
           );
         })}
       </ol>
@@ -67,15 +110,22 @@ export function CandidateEducation({
   );
 }
 
+/** Adds an education entry, or edits one when `initial` is given; the fields are the same. */
 function EducationForm({
   busy,
-  onAdd,
+  initial,
+  label,
   onClose,
+  onSubmit,
+  submitLabel,
   submitting,
 }: {
   busy: boolean;
-  onAdd: CandidateRecordSectionProps<CandidateEducationRecord>['onAdd'];
+  initial?: CandidateEducationRecord;
+  label: string;
   onClose: () => void;
+  onSubmit: (values: CandidateRecordValues['education']) => Promise<CandidateFormOutcome>;
+  submitLabel: string;
   submitting: boolean;
 }) {
   const { t } = useI18n();
@@ -84,20 +134,16 @@ function EducationForm({
       fields: ['institution', 'qualification', 'field'] as const,
       required: ['institution', 'qualification'],
     },
-    (values) => onAdd({ kind: 'education', values }),
+    onSubmit,
     onClose,
     busy,
   );
 
   return (
-    <form
-      aria-label={t('candidate.education.add')}
-      className="candidate-form"
-      noValidate
-      onSubmit={form.handleSubmit}
-    >
+    <form aria-label={label} className="candidate-form" noValidate onSubmit={form.handleSubmit}>
       <div className="candidate-form__fields">
         <TextField
+          defaultValue={initial?.institution}
           error={form.errorFor('institution')}
           label={t('candidate.education.institution')}
           maxLength={CANDIDATE_FIELD_LIMITS.institution}
@@ -105,6 +151,7 @@ function EducationForm({
           required
         />
         <TextField
+          defaultValue={initial?.qualification}
           error={form.errorFor('qualification')}
           label={t('candidate.education.qualification')}
           maxLength={CANDIDATE_FIELD_LIMITS.qualification}
@@ -112,6 +159,7 @@ function EducationForm({
           required
         />
         <TextField
+          defaultValue={initial?.field ?? ''}
           label={t('candidate.education.field')}
           maxLength={CANDIDATE_FIELD_LIMITS.field}
           name="field"
@@ -126,7 +174,7 @@ function EducationForm({
           size="compact"
           type="submit"
         >
-          {t('candidate.education.add')}
+          {submitLabel}
         </Button>
         <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}

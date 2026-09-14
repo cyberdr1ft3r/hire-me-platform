@@ -1,6 +1,8 @@
 import type {
   CandidateCompensation,
   CandidateEducation,
+  CandidateLanguage,
+  CandidateSkill,
   CandidateWorkExperience,
 } from './candidate-types.js';
 
@@ -48,6 +50,25 @@ export function orderEducation(education: readonly CandidateEducation[]): Candid
   return [...education].sort((left, right) =>
     compareStartDescending(left.startDate, right.startDate),
   );
+}
+
+/**
+ * A structured record as the operator reads it, used to name its Edit and
+ * Archive actions and its archive confirmation. Never an ID.
+ */
+export function candidateRecordLabel(
+  record: CandidateEducation | CandidateLanguage | CandidateSkill | CandidateWorkExperience,
+): string {
+  if ('name' in record) {
+    return record.name;
+  }
+  if ('language' in record) {
+    return record.language;
+  }
+  if ('employer' in record) {
+    return `${record.title} · ${record.employer}`;
+  }
+  return `${record.qualification} · ${record.institution}`;
 }
 
 const CURRENCY_CODE = /^[A-Za-z]{3}$/;

@@ -15,6 +15,8 @@ import {
   type CandidatePendingAction,
   type CandidateProfileValues,
   type CandidateRecordInput,
+  type CandidateRecordRef,
+  type CandidateRecordUpdate,
 } from './candidate-state.js';
 import { CandidateCreateForm } from './CandidateCreateForm.js';
 import { CandidateDetailView } from './CandidateDetailView.js';
@@ -31,15 +33,19 @@ export interface CandidateWorkspaceProps {
   list: CandidateListState;
   onAddRecord: (input: CandidateRecordInput) => Promise<CandidateFormOutcome>;
   onArchive: () => void;
+  onArchiveRecord: (record: CandidateRecordRef) => Promise<boolean>;
   onChangeStatus: (status: CandidateLifecycleTarget) => void;
   onCreate: (values: CandidateCreateValues) => Promise<CandidateFormOutcome>;
   onFiltersChange: (filters: CandidateFilterValues) => void;
+  /** Reads another server page of the current matches. */
+  onPage: (page: number) => void;
   onResetFilters: () => void;
   onRetryDetail: () => void;
   onRetryList: () => void;
   onSearch: () => void;
   onSelect: (candidateId: string) => void;
   onUpdate: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
+  onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
   selectedId: string | null;
 }
@@ -66,15 +72,18 @@ export function CandidateWorkspace({
   list,
   onAddRecord,
   onArchive,
+  onArchiveRecord,
   onChangeStatus,
   onCreate,
   onFiltersChange,
+  onPage,
   onResetFilters,
   onRetryDetail,
   onRetryList,
   onSearch,
   onSelect,
   onUpdate,
+  onUpdateRecord,
   pending,
   selectedId,
 }: CandidateWorkspaceProps) {
@@ -82,6 +91,9 @@ export function CandidateWorkspace({
   const listHeadingId = useId();
   const createRegionId = useId();
   const headerRef = useRef<HTMLDivElement>(null);
+  const listHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Set by a page change: once the new page has settled, focus moves to the list heading.
+  const focusListAfterPage = useRef(false);
   const [creating, setCreating] = useState(false);
   const canCreate = access.canCreate;
   // The single write lock: while any Candidate write is in flight, no other may start.
@@ -107,6 +119,25 @@ export function CandidateWorkspace({
     restoreCreateFocus.current = false;
     headerRef.current?.querySelector<HTMLButtonElement>('[data-create-toggle]')?.focus();
   }, [creating, mutationBusy]);
+
+  /*
+   * The page controls are replaced while the next page loads, so the control
+   * that was pressed no longer exists. Focus moves to the list heading once the
+   * page has settled, so keyboard and screen-reader users continue from the top
+   * of the new page.
+   */
+  useEffect(() => {
+    if (!focusListAfterPage.current || list.status === 'loading') {
+      return;
+    }
+    focusListAfterPage.current = false;
+    listHeadingRef.current?.focus();
+  }, [list]);
+
+  function changePage(page: number): void {
+    focusListAfterPage.current = true;
+    onPage(page);
+  }
 
   return (
     <div className="candidates">
@@ -146,7 +177,12 @@ export function CandidateWorkspace({
 
       <div className="candidates__workspace">
         <section aria-labelledby={listHeadingId} className="candidates__list-pane">
-          <h2 className="candidates__pane-title" id={listHeadingId}>
+          <h2
+            className="candidates__pane-title"
+            id={listHeadingId}
+            ref={listHeadingRef}
+            tabIndex={-1}
+          >
             {t('candidate.list.title')}
           </h2>
           <CandidateFilters
@@ -160,6 +196,7 @@ export function CandidateWorkspace({
           <CandidateList
             filtered={hasActiveCandidateFilters(appliedFilters)}
             list={list}
+            onPage={changePage}
             onReset={onResetFilters}
             onRetry={onRetryList}
             onSelect={onSelect}
@@ -173,9 +210,11 @@ export function CandidateWorkspace({
             feedback={feedback}
             onAddRecord={onAddRecord}
             onArchive={onArchive}
+            onArchiveRecord={onArchiveRecord}
             onChangeStatus={onChangeStatus}
             onRetry={onRetryDetail}
             onUpdate={onUpdate}
+            onUpdateRecord={onUpdateRecord}
             pending={pending}
           />
         </div>

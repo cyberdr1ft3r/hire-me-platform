@@ -20,6 +20,8 @@ import type {
   CandidatePendingAction,
   CandidateProfileValues,
   CandidateRecordInput,
+  CandidateRecordRef,
+  CandidateRecordUpdate,
 } from './candidate-state.js';
 import { CandidateEducation } from './CandidateEducation.js';
 import { CandidateExperience } from './CandidateExperience.js';
@@ -35,9 +37,11 @@ export interface CandidateDetailViewProps {
   feedback: CandidateFeedback | null;
   onAddRecord: (input: CandidateRecordInput) => Promise<CandidateFormOutcome>;
   onArchive: () => void;
+  onArchiveRecord: (record: CandidateRecordRef) => Promise<boolean>;
   onChangeStatus: (status: CandidateLifecycleTarget) => void;
   onRetry: () => void;
   onUpdate: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
+  onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
 }
 
@@ -82,8 +86,10 @@ function CandidateRecord({
   feedback,
   onAddRecord,
   onArchive,
+  onArchiveRecord,
   onChangeStatus,
   onUpdate,
+  onUpdateRecord,
   pending,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
@@ -118,8 +124,18 @@ function CandidateRecord({
       ? CANDIDATE_LIFECYCLE_TARGETS.filter((status) => status !== candidate.status)
       : [];
   const canArchive = access.canArchive && !archived;
-  const canAddRecords = access.canManageProfile && !archived;
-  const showRecords = access.canViewProfile || canAddRecords;
+  // Adding, editing, and archiving structured records share one permission and rule.
+  const canManageRecords = access.canManageProfile && !archived;
+  const showRecords = access.canViewProfile || canManageRecords;
+  const recordProps = {
+    busy,
+    canManage: canManageRecords,
+    canView: access.canViewProfile,
+    onAdd: onAddRecord,
+    onArchive: onArchiveRecord,
+    onUpdate: onUpdateRecord,
+    pending,
+  };
 
   function closeEditor(): void {
     setEditing(false);
@@ -206,35 +222,23 @@ function CandidateRecord({
         <>
           <div className="candidate-detail__pair">
             <CandidateSkills
-              busy={busy}
-              canAdd={canAddRecords}
-              canView={access.canViewProfile}
-              onAdd={onAddRecord}
+              {...recordProps}
               records={candidate.skills}
               submitting={pending === 'skill'}
             />
             <CandidateLanguages
-              busy={busy}
-              canAdd={canAddRecords}
-              canView={access.canViewProfile}
-              onAdd={onAddRecord}
+              {...recordProps}
               records={candidate.languages}
               submitting={pending === 'language'}
             />
           </div>
           <CandidateExperience
-            busy={busy}
-            canAdd={canAddRecords}
-            canView={access.canViewProfile}
-            onAdd={onAddRecord}
+            {...recordProps}
             records={candidate.workExperiences}
             submitting={pending === 'experience'}
           />
           <CandidateEducation
-            busy={busy}
-            canAdd={canAddRecords}
-            canView={access.canViewProfile}
-            onAdd={onAddRecord}
+            {...recordProps}
             records={candidate.education}
             submitting={pending === 'education'}
           />
@@ -266,7 +270,9 @@ function CandidateFeedbackMessage({ feedback }: { feedback: CandidateFeedback })
         ? t('candidate.feedback.statusChanged', {
             status: t(candidateStatusLabelKey(feedback.status)),
           })
-        : t(`candidate.feedback.${feedback.kind}`)}
+        : feedback.kind === 'recordUpdated' || feedback.kind === 'recordArchived'
+          ? t(`candidate.feedback.${feedback.kind}.${feedback.record}`)
+          : t(`candidate.feedback.${feedback.kind}`)}
     </InlineMessage>
   );
 }
