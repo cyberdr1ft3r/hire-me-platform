@@ -643,4 +643,229 @@ describe('candidate master profiles', () => {
     expect(candidate.displayName).toBe('Synthetic race-update@candidates.test');
     expect(candidate.status).toBe(CandidateStatus.ARCHIVED);
   });
+
+  it('pages candidates deterministically and composes source, status, and search', async () => {
+    await createUser('paging@candidates.test', RoleName.HR_MANAGER);
+    const token = await loginAccessToken(baseUrl, 'paging@candidates.test');
+    const probes = [
+      { source: 'public_application', status: CandidateStatus.ACTIVE },
+      { source: 'LinkedIn', status: CandidateStatus.ACTIVE },
+      { source: 'public_application', status: CandidateStatus.TALENT_POOL },
+      { source: 'public_application', status: CandidateStatus.ACTIVE },
+      { source: 'LinkedIn', status: CandidateStatus.ACTIVE },
+    ];
+    const ids: string[] = [];
+    for (const [index, probe] of probes.entries()) {
+      const response = await fetch(`${baseUrl}/v1/candidates`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({
+          displayName: `Paging Probe ${index + 1}`,
+          email: `paging-probe-${index + 1}@candidates.test`,
+          source: probe.source,
+          status: probe.status,
+        }),
+      });
+      expect(response.status).toBe(201);
+      ids.push(CandidateDetailResponseSchema.parse(await response.json()).candidate.id);
+    }
+    const list = async (query: string) => {
+      const response = await fetch(`${baseUrl}/v1/candidates?${query}`, {
+        headers: authHeaders(token),
+      });
+      expect(response.status).toBe(200);
+      return CandidateListResponseSchema.parse(await response.json());
+    };
+
+    // Three server pages of two cover every probe exactly once, newest first.
+    const pages = await Promise.all(
+      [1, 2, 3].map((page) => list(`search=Paging%20Probe&pageSize=2&page=${page}`)),
+    );
+    expect(pages.map((page) => page.candidates.length)).toEqual([2, 2, 1]);
+    expect(pages.every((page) => page.pagination.total === 5)).toBe(true);
+    const paged = pages.flatMap((page) => page.candidates.map((candidate) => candidate.id));
+    expect(new Set(paged).size).toBe(5);
+    expect(paged).toEqual([...ids].reverse());
+    // The same page reads the same rows again.
+    expect(
+      (await list('search=Paging%20Probe&pageSize=2&page=2')).candidates.map((c) => c.id),
+    ).toEqual(pages[1]!.candidates.map((candidate) => candidate.id));
+    // A page past the end is empty but keeps the total, so the client can recover.
+    const beyond = await list('search=Paging%20Probe&pageSize=2&page=4');
+    expect(beyond.candidates).toEqual([]);
+    expect(beyond.pagination.total).toBe(5);
+
+    // Source is an exact match that ignores case, and it combines with status and search.
+    const applications = await list('search=Paging%20Probe&source=PUBLIC_APPLICATION');
+    expect(applications.candidates.map((candidate) => candidate.id).sort()).toEqual(
+      [ids[0], ids[2], ids[3]].sort(),
+    );
+    const activeApplications = await list(
+      'search=Paging%20Probe&source=public_application&status=ACTIVE&pageSize=1&page=2',
+    );
+    expect(activeApplications.pagination.total).toBe(2);
+    expect(activeApplications.candidates.map((candidate) => candidate.id)).toEqual([ids[0]]);
+    const partialSource = await list('search=Paging%20Probe&source=public');
+    expect(partialSource.pagination.total).toBe(0);
+  });
+
+  it('updates and archives each structured record in place, keeping archived rows as history', async () => {
+    await createUser('maintain@candidates.test', RoleName.HR_MANAGER);
+    await createUser('maintain-no-profile@candidates.test', RoleName.GUEST);
+    const token = await loginAccessToken(baseUrl, 'maintain@candidates.test');
+    const noProfileToken = await loginAccessToken(baseUrl, 'maintain-no-profile@candidates.test');
+    const candidateId = await createCandidateRecord(baseUrl, token, 'maintain@candidates.test');
+    const post = async (path: string, body: unknown) => {
+      const response = await fetch(`${baseUrl}/v1/candidates/${candidateId}/${path}`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(201);
+      return (await response.json()) as Record<string, { id: string }>;
+    };
+    const skill = (await post('skills', { name: 'Python', level: 'Advanced' })).skill!;
+    const language = (await post('languages', { language: 'French', proficiency: 'Fluent' }))
+      .language!;
+    const experience = (
+      await post('work-experiences', {
+        employer: 'Company A',
+        title: 'Data Analyst',
+        startDate: '2019-01',
+        endDate: '2021-12',
+      })
+    ).workExperience!;
+    const education = (
+      await post('education', {
+        institution: 'Example University',
+        qualification: 'Master in Data Science',
+        field: 'Statistics',
+      })
+    ).education!;
+    const patch = (path: string, body: unknown, accessToken = token) =>
+      fetch(`${baseUrl}/v1/candidates/${candidateId}/${path}`, {
+        method: 'PATCH',
+        headers: authHeaders(accessToken),
+        body: JSON.stringify(body),
+      });
+
+    // Each record is corrected in place: the same row, no duplicate.
+    const skillUpdate = await patch(`skills/${skill.id}`, { level: 'Expert' });
+    expect(CandidateSkillDetailResponseSchema.parse(await skillUpdate.json()).skill).toMatchObject({
+      id: skill.id,
+      level: 'Expert',
+      name: 'Python',
+    });
+    const languageUpdate = await patch(`languages/${language.id}`, { proficiency: 'Native' });
+    expect(
+      CandidateLanguageDetailResponseSchema.parse(await languageUpdate.json()).language.proficiency,
+    ).toBe('Native');
+    const experienceUpdate = await patch(`work-experiences/${experience.id}`, {
+      startDate: '2018-09',
+      endDate: '2021-08',
+    });
+    expect(
+      CandidateWorkExperienceDetailResponseSchema.parse(await experienceUpdate.json())
+        .workExperience,
+    ).toMatchObject({ endDate: '2021-08', id: experience.id, startDate: '2018-09' });
+    const educationUpdate = await patch(`education/${education.id}`, { field: null });
+    expect(
+      CandidateEducationDetailResponseSchema.parse(await educationUpdate.json()).education.field,
+    ).toBeNull();
+    expect(await prisma.candidateSkill.count({ where: { candidateId } })).toBe(1);
+    expect(await prisma.candidateWorkExperience.count({ where: { candidateId } })).toBe(1);
+
+    // Without candidate_profile:manage a record cannot be changed or archived.
+    const denied = await patch(`skills/${skill.id}`, { level: 'Beginner' }, noProfileToken);
+    expect(denied.status).toBe(403);
+    const deniedArchive = await fetch(
+      `${baseUrl}/v1/candidates/${candidateId}/skills/${skill.id}/archive`,
+      { method: 'POST', headers: authHeaders(noProfileToken) },
+    );
+    expect(deniedArchive.status).toBe(403);
+
+    // Archival keeps every row, marked archived, in the candidate detail.
+    const routes = [
+      ['skills', skill.id, 'CANDIDATE_SKILL_ARCHIVED', { level: 'Beginner' }],
+      ['languages', language.id, 'CANDIDATE_LANGUAGE_ARCHIVED', { proficiency: 'Basic' }],
+      [
+        'work-experiences',
+        experience.id,
+        'CANDIDATE_WORK_EXPERIENCE_ARCHIVED',
+        { title: 'Senior Data Analyst' },
+      ],
+      ['education', education.id, 'CANDIDATE_EDUCATION_ARCHIVED', { qualification: 'PhD' }],
+    ] as const;
+    for (const [path, id] of routes) {
+      const archived = await fetch(
+        `${baseUrl}/v1/candidates/${candidateId}/${path}/${id}/archive`,
+        {
+          method: 'POST',
+          headers: authHeaders(token),
+        },
+      );
+      expect(archived.status).toBe(201);
+    }
+    const detail = CandidateDetailResponseSchema.parse(
+      await (
+        await fetch(`${baseUrl}/v1/candidates/${candidateId}`, { headers: authHeaders(token) })
+      ).json(),
+    ).candidate;
+    for (const rows of [
+      detail.skills,
+      detail.languages,
+      detail.workExperiences,
+      detail.education,
+    ]) {
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.archivedAt).not.toBeNull();
+    }
+    expect(detail.skills[0]!.level).toBe('Expert');
+
+    // An archived record can be neither edited nor archived again, and nothing is deleted.
+    for (const [path, id, code, body] of routes) {
+      const edit = await patch(`${path}/${id}`, body);
+      expect(edit.status).toBe(409);
+      expect(await readErrorCode(edit)).toBe(code);
+      const again = await fetch(`${baseUrl}/v1/candidates/${candidateId}/${path}/${id}/archive`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      });
+      expect(again.status).toBe(409);
+      const deletion = await fetch(`${baseUrl}/v1/candidates/${candidateId}/${path}/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(token),
+      });
+      expect(deletion.status).toBe(404);
+    }
+    expect(await prisma.candidateSkill.count({ where: { candidateId } })).toBe(1);
+    expect(await prisma.candidateLanguage.count({ where: { candidateId } })).toBe(1);
+    expect(await prisma.candidateWorkExperience.count({ where: { candidateId } })).toBe(1);
+    expect(await prisma.candidateEducation.count({ where: { candidateId } })).toBe(1);
+
+    // Every change is audited without the record's values.
+    const audits = await prisma.auditLog.findMany({
+      where: { entityId: { in: [skill.id, language.id, experience.id, education.id] } },
+    });
+    expect(audits.map((audit) => audit.action).sort()).toEqual(
+      [
+        'candidates.education.archived',
+        'candidates.education.created',
+        'candidates.education.updated',
+        'candidates.language.archived',
+        'candidates.language.created',
+        'candidates.language.updated',
+        'candidates.skill.archived',
+        'candidates.skill.created',
+        'candidates.skill.updated',
+        'candidates.work_experience.archived',
+        'candidates.work_experience.created',
+        'candidates.work_experience.updated',
+      ].sort(),
+    );
+    const serialized = JSON.stringify(audits);
+    for (const value of ['Expert', 'Native', '2018-09', 'Master in Data Science']) {
+      expect(serialized).not.toContain(value);
+    }
+  });
 });
