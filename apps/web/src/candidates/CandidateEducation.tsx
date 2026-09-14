@@ -1,5 +1,5 @@
 import { useI18n } from '../i18n/index.js';
-import { Button, TextField } from '../ui/index.js';
+import { Button, TextArea, TextField } from '../ui/index.js';
 import { candidateRecordLabel, orderEducation } from './candidate-format.js';
 import { CANDIDATE_FIELD_LIMITS, useCandidateForm } from './candidate-form.js';
 import {
@@ -131,7 +131,14 @@ function EducationForm({
   const { t } = useI18n();
   const form = useCandidateForm(
     {
-      fields: ['institution', 'qualification', 'field'] as const,
+      fields: [
+        'institution',
+        'qualification',
+        'field',
+        'startDate',
+        'endDate',
+        'description',
+      ] as const,
       required: ['institution', 'qualification'],
     },
     onSubmit,
@@ -164,7 +171,28 @@ function EducationForm({
           maxLength={CANDIDATE_FIELD_LIMITS.field}
           name="field"
         />
+        <TextField
+          defaultValue={initial?.startDate ?? ''}
+          hint={t('candidate.education.dateHint')}
+          label={t('candidate.education.startDate')}
+          maxLength={CANDIDATE_FIELD_LIMITS.startDate}
+          name="startDate"
+        />
+        <TextField
+          defaultValue={initial?.endDate ?? ''}
+          hint={t('candidate.education.dateHint')}
+          label={t('candidate.education.endDate')}
+          maxLength={CANDIDATE_FIELD_LIMITS.endDate}
+          name="endDate"
+        />
       </div>
+      <TextArea
+        defaultValue={initial?.description ?? ''}
+        label={t('candidate.education.description')}
+        maxLength={CANDIDATE_FIELD_LIMITS.description}
+        name="description"
+        rows={3}
+      />
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button

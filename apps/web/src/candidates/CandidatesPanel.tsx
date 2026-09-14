@@ -160,6 +160,7 @@ export function recordUpdateRequest(
       if (!current || current.archivedAt) return null;
       return {
         body: withoutUnchanged({
+          description: changed(nullable(update.values.description), current.description),
           employer: changed(update.values.employer.trim(), current.employer),
           endDate: changed(nullable(update.values.endDate), current.endDate),
           isCurrent: changed(update.values.isCurrent, current.isCurrent),
@@ -174,9 +175,12 @@ export function recordUpdateRequest(
       if (!current || current.archivedAt) return null;
       return {
         body: withoutUnchanged({
+          description: changed(nullable(update.values.description), current.description),
+          endDate: changed(nullable(update.values.endDate), current.endDate),
           field: changed(nullable(update.values.field), current.field),
           institution: changed(update.values.institution.trim(), current.institution),
           qualification: changed(update.values.qualification.trim(), current.qualification),
+          startDate: changed(nullable(update.values.startDate), current.startDate),
         }),
         kind: 'education',
       };
@@ -625,6 +629,7 @@ export function CandidatesPanel({
             startDate: optional(input.values.startDate),
             endDate: optional(input.values.endDate),
             isCurrent: input.values.isCurrent,
+            description: optional(input.values.description),
           });
           break;
         case 'education':
@@ -632,6 +637,9 @@ export function CandidatesPanel({
             institution: input.values.institution,
             qualification: input.values.qualification,
             field: optional(input.values.field),
+            startDate: optional(input.values.startDate),
+            endDate: optional(input.values.endDate),
+            description: optional(input.values.description),
           });
           break;
       }

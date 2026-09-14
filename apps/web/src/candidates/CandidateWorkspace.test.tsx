@@ -780,3 +780,122 @@ describe('Candidate structured record maintenance', () => {
     );
   });
 });
+
+describe('Candidate experience description and education dates', () => {
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+  it('pre-fills the experience description and the education dates and description', () => {
+    renderWorkspace(ORDINARY_PERMISSIONS);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Senior Recruiter · Example Talent' }));
+    const experience = screen.getByRole('form', { name: 'Edit Senior Recruiter · Example Talent' });
+    const description = within(experience).getByLabelText('Description');
+    expect(description.tagName).toBe('TEXTAREA');
+    expect(description).toHaveValue('Leads technical sourcing.');
+    expect(description).toHaveAttribute('maxlength', '2000');
+    fireEvent.click(within(experience).getByRole('button', { name: 'Cancel' }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit MSc Work Psychology · Example University' }),
+    );
+    const education = screen.getByRole('form', {
+      name: 'Edit MSc Work Psychology · Example University',
+    });
+    expect(within(education).getByLabelText('Start date')).toHaveValue('2012');
+    expect(within(education).getByLabelText('End date')).toHaveValue('2014');
+    expect(within(education).getByLabelText('Start date')).toHaveAttribute('maxlength', '40');
+    expect(within(education).getByLabelText('End date')).toHaveAttribute('maxlength', '40');
+    expect(within(education).getByLabelText('Description')).toHaveValue('');
+    expect(within(education).getByLabelText('Description')).toHaveAttribute('maxlength', '2000');
+    expect(document.body.textContent).not.toMatch(UUID);
+  });
+
+  it('hands the add forms the new values as entered, for the container to shape', async () => {
+    const props = renderWorkspace(ORDINARY_PERMISSIONS);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add experience' }));
+    const experience = screen.getByRole('form', { name: 'Add experience' });
+    fireEvent.change(within(experience).getByLabelText(/^Employer/), {
+      target: { value: 'Example Co' },
+    });
+    fireEvent.change(within(experience).getByLabelText(/^Job title/), {
+      target: { value: 'Analyst' },
+    });
+    fireEvent.change(within(experience).getByLabelText('Description'), {
+      target: { value: 'Built reporting.' },
+    });
+    fireEvent.click(within(experience).getByRole('button', { name: 'Add experience' }));
+    await waitFor(() =>
+      expect(props.onAddRecord).toHaveBeenCalledWith({
+        kind: 'experience',
+        values: {
+          description: 'Built reporting.',
+          employer: 'Example Co',
+          endDate: '',
+          isCurrent: false,
+          startDate: '',
+          title: 'Analyst',
+        },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
+    const education = screen.getByRole('form', { name: 'Add education' });
+    fireEvent.change(within(education).getByLabelText(/^Institution/), {
+      target: { value: 'Example School' },
+    });
+    fireEvent.change(within(education).getByLabelText(/^Qualification/), {
+      target: { value: 'MBA' },
+    });
+    fireEvent.change(within(education).getByLabelText('Start date'), {
+      target: { value: '2018' },
+    });
+    fireEvent.change(within(education).getByLabelText('End date'), { target: { value: '2020' } });
+    fireEvent.change(within(education).getByLabelText('Description'), {
+      target: { value: 'Thesis.' },
+    });
+    fireEvent.click(within(education).getByRole('button', { name: 'Add education' }));
+    await waitFor(() =>
+      expect(props.onAddRecord).toHaveBeenLastCalledWith({
+        kind: 'education',
+        values: {
+          description: 'Thesis.',
+          endDate: '2020',
+          field: '',
+          institution: 'Example School',
+          qualification: 'MBA',
+          startDate: '2018',
+        },
+      }),
+    );
+  });
+
+  it('labels the new fields in French', () => {
+    renderWorkspace(ORDINARY_PERMISSIONS, {}, { locale: 'fr' });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Modifier Senior Recruiter · Example Talent' }),
+    );
+    const experience = screen.getByRole('form', {
+      name: 'Modifier Senior Recruiter · Example Talent',
+    });
+    expect(within(experience).getByLabelText('Description')).toHaveValue(
+      'Leads technical sourcing.',
+    );
+    fireEvent.click(within(experience).getByRole('button', { name: 'Annuler' }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Modifier MSc Work Psychology · Example University' }),
+    );
+    const education = screen.getByRole('form', {
+      name: 'Modifier MSc Work Psychology · Example University',
+    });
+    expect(within(education).getByLabelText('Date de début')).toHaveValue('2012');
+    expect(within(education).getByLabelText('Date de fin')).toHaveValue('2014');
+    expect(within(education).getByLabelText('Description')).toBeInTheDocument();
+    expect(within(education).getAllByText('Telle qu’enregistrée, par exemple 2014')).toHaveLength(
+      2,
+    );
+    expect(within(education).queryByText(/Start date|End date|As recorded/)).toBeNull();
+  });
+});

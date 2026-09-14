@@ -45,6 +45,14 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type Handler = (call: RecordedCall) => Response | Promise<Response> | undefined;
 
+/** The nullable fields a created structured record has when the request omits them. */
+const CHILD_DEFAULTS: Record<string, object> = {
+  education: { description: null, endDate: null, field: null, startDate: null },
+  languages: {},
+  skills: { lastUsed: null, level: null, years: null },
+  workExperiences: { description: null, endDate: null, isCurrent: false, startDate: null },
+};
+
 /** The nested structured-record routes, their detail collection, and response key. */
 const CHILD_ROUTES: Record<
   string,
@@ -109,6 +117,22 @@ function stubCandidateApi(permissions: readonly string[], handler?: Handler) {
     const record = id ? records.get(id) : undefined;
     // Structured records: a partial update or an archival, never a deletion.
     const child = action ? CHILD_ROUTES[action] : undefined;
+    if (record && child && !childId && method === 'POST' && action !== 'skills') {
+      const created = {
+        archivedAt: null,
+        candidateId: record.id,
+        createdAt: '2026-07-23T00:00:00.000Z',
+        id: 'd0000000-0000-4000-8000-000000000099',
+        updatedAt: '2026-07-23T00:00:00.000Z',
+        ...CHILD_DEFAULTS[child.collection],
+        ...(body as object),
+      };
+      records.set(record.id, {
+        ...record,
+        [child.collection]: [created, ...(record[child.collection] as object[])],
+      });
+      return Promise.resolve(jsonResponse({ [child.key]: created }, 201));
+    }
     if (record && child && childId) {
       const rows = record[child.collection] as { archivedAt: string | null; id: string }[];
       const existing = rows.find((row) => row.id === childId);
@@ -1505,5 +1529,279 @@ describe('Structured record maintenance', () => {
     const afterSessionB = candidateCalls(calls.slice(sessionBStart));
     expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
     expect(afterSessionB.some((call) => call.url === `${API}/${CANDIDATE_ID}`)).toBe(false);
+  });
+});
+
+/* --- Review 5195637199: experience description, education dates and description --- */
+
+const SENIOR_ROLE = 'Senior Recruiter · Example Talent';
+const DEGREE = 'MSc Work Psychology · Example University';
+
+/** Opens a record's edit form by its accessible action name. */
+function editRecord(label: string) {
+  fireEvent.click(screen.getByRole('button', { name: `Edit ${label}` }));
+  return screen.getByRole('form', { name: `Edit ${label}` });
+}
+
+async function saveAndWait(form: HTMLElement, success: string) {
+  fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+  expect(await screen.findByText(success)).toBeVisible();
+  await waitFor(() =>
+    expect(screen.queryByRole('form', { name: form.getAttribute('aria-label') ?? '' })).toBeNull(),
+  );
+}
+
+describe('Work experience description', () => {
+  it('adds an experience with its description, and omits an empty description', async () => {
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    const add = async (description: string) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add experience' }));
+      const form = screen.getByRole('form', { name: 'Add experience' });
+      fireEvent.change(within(form).getByLabelText(/^Employer/), {
+        target: { value: 'Example Co' },
+      });
+      fireEvent.change(within(form).getByLabelText(/^Job title/), { target: { value: 'Analyst' } });
+      fireEvent.change(within(form).getByLabelText('Description'), {
+        target: { value: description },
+      });
+      fireEvent.click(within(form).getByRole('button', { name: 'Add experience' }));
+      expect(await screen.findByText('Experience added.')).toBeVisible();
+      await waitFor(() =>
+        expect(screen.queryByRole('form', { name: 'Add experience' })).toBeNull(),
+      );
+    };
+    await add('  Built the weekly reporting.  ');
+    await add('   ');
+
+    const posts = recordWrites(calls).filter((call) => call.url.endsWith('/work-experiences'));
+    expect(posts.map((call) => call.body)).toEqual([
+      {
+        description: 'Built the weekly reporting.',
+        employer: 'Example Co',
+        isCurrent: false,
+        title: 'Analyst',
+      },
+      { employer: 'Example Co', isCurrent: false, title: 'Analyst' },
+    ]);
+  });
+
+  it('edits only the description, clears it with null, and sends nothing when unchanged', async () => {
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    let form = editRecord(SENIOR_ROLE);
+    expect(within(form).getByLabelText('Description')).toHaveValue('Leads technical sourcing.');
+    expect(within(form).getByLabelText('Description')).toHaveAttribute('maxlength', '2000');
+    fireEvent.change(within(form).getByLabelText('Description'), {
+      target: { value: 'Leads technical sourcing and onboarding.' },
+    });
+    await saveAndWait(form, 'Experience updated.');
+
+    form = editRecord(SENIOR_ROLE);
+    expect(within(form).getByLabelText('Description')).toHaveValue(
+      'Leads technical sourcing and onboarding.',
+    );
+    fireEvent.change(within(form).getByLabelText('Description'), { target: { value: '' } });
+    await saveAndWait(form, 'Experience updated.');
+
+    form = editRecord(SENIOR_ROLE);
+    expect(within(form).getByLabelText('Description')).toHaveValue('');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('form', { name: `Edit ${SENIOR_ROLE}` })).toBeNull(),
+    );
+
+    const path = `${API}/${CANDIDATE_ID}/work-experiences/b0000000-0000-4000-8000-000000000002`;
+    expect(recordWrites(calls).map((call) => [call.method, call.url, call.body])).toEqual([
+      ['PATCH', path, { description: 'Leads technical sourcing and onboarding.' }],
+      ['PATCH', path, { description: null }],
+    ]);
+  });
+
+  it('drops an experience description edit from an earlier session', async () => {
+    const edit = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url.includes('/work-experiences/') ? edit.promise : undefined,
+    );
+    const panel = (token: string) => (
+      <I18nProvider initialLocale="en">
+        <CandidatesPanel accessToken={token} permissions={[...ORDINARY_PERMISSIONS]} />
+      </I18nProvider>
+    );
+    const view = render(panel('token-a'));
+    await selectCandidate();
+
+    const form = editRecord(SENIOR_ROLE);
+    fireEvent.change(within(form).getByLabelText('Description'), { target: { value: 'New.' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(recordWrites(calls)).toHaveLength(1));
+
+    view.rerender(panel('token-b'));
+    await waitFor(() =>
+      expect(calls.some((call) => isListCall(call) && call.token === 'Bearer token-b')).toBe(true),
+    );
+    const sessionBStart = calls.findIndex(
+      (call) => isListCall(call) && call.token === 'Bearer token-b',
+    );
+    edit.release(
+      jsonResponse({
+        workExperience: { ...syntheticCandidate().workExperiences[1]!, description: 'New.' },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Search candidates' })).toBeEnabled(),
+    );
+
+    expect(screen.queryByText('Experience updated.')).toBeNull();
+    const afterSessionB = candidateCalls(calls.slice(sessionBStart));
+    expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
+    expect(afterSessionB.some((call) => call.url === `${API}/${CANDIDATE_ID}`)).toBe(false);
+  });
+});
+
+describe('Education dates and description', () => {
+  it('adds education with its dates and description, omitting empty optional fields', async () => {
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
+    const form = screen.getByRole('form', { name: 'Add education' });
+    fireEvent.change(within(form).getByLabelText(/^Institution/), {
+      target: { value: 'Example School' },
+    });
+    fireEvent.change(within(form).getByLabelText(/^Qualification/), {
+      target: { value: 'MBA' },
+    });
+    fireEvent.change(within(form).getByLabelText('Start date'), { target: { value: '2018' } });
+    fireEvent.change(within(form).getByLabelText('End date'), { target: { value: '2020' } });
+    fireEvent.change(within(form).getByLabelText('Description'), {
+      target: { value: 'Thesis on structured hiring.' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add education' }));
+
+    expect(await screen.findByText('Education added.')).toBeVisible();
+    const post = recordWrites(calls).find((call) => call.url.endsWith('/education'));
+    expect(post?.body).toEqual({
+      description: 'Thesis on structured hiring.',
+      endDate: '2020',
+      institution: 'Example School',
+      qualification: 'MBA',
+      startDate: '2018',
+    });
+    const education = screen.getByRole('region', { name: /^Education/ });
+    expect(within(education).getByText('Thesis on structured hiring.')).toBeVisible();
+    expect(within(education).getByText('2018 – 2020')).toBeVisible();
+  });
+
+  it('pre-fills education and sends only changed dates, a changed description, and null for cleared fields', async () => {
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    let form = editRecord(DEGREE);
+    expect(within(form).getByLabelText('Start date')).toHaveValue('2012');
+    expect(within(form).getByLabelText('End date')).toHaveValue('2014');
+    expect(within(form).getByLabelText('Description')).toHaveValue('');
+    expect(within(form).getByLabelText('Start date')).toHaveAttribute('maxlength', '40');
+    expect(within(form).getByLabelText('Description')).toHaveAttribute('maxlength', '2000');
+    fireEvent.change(within(form).getByLabelText('End date'), { target: { value: '2015' } });
+    await saveAndWait(form, 'Education updated.');
+
+    form = editRecord(DEGREE);
+    fireEvent.change(within(form).getByLabelText('Description'), {
+      target: { value: 'Organisational psychology.' },
+    });
+    await saveAndWait(form, 'Education updated.');
+
+    form = editRecord(DEGREE);
+    expect(within(form).getByLabelText('End date')).toHaveValue('2015');
+    expect(within(form).getByLabelText('Description')).toHaveValue('Organisational psychology.');
+    for (const label of ['Start date', 'End date', 'Description']) {
+      fireEvent.change(within(form).getByLabelText(label), { target: { value: '' } });
+    }
+    await saveAndWait(form, 'Education updated.');
+
+    form = editRecord(DEGREE);
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(screen.queryByRole('form', { name: `Edit ${DEGREE}` })).toBeNull());
+
+    const path = `${API}/${CANDIDATE_ID}/education/${EDUCATION_ID}`;
+    expect(recordWrites(calls).map((call) => [call.method, call.url, call.body])).toEqual([
+      ['PATCH', path, { endDate: '2015' }],
+      ['PATCH', path, { description: 'Organisational psychology.' }],
+      ['PATCH', path, { description: null, endDate: null, startDate: null }],
+    ]);
+  });
+
+  it('does not show a late education edit for candidate A on candidate B, or re-read A', async () => {
+    const edit = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url.includes('/education/') ? edit.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    const form = editRecord(DEGREE);
+    fireEvent.change(within(form).getByLabelText('Start date'), { target: { value: '2011' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(recordWrites(calls)).toHaveLength(1));
+    await moveToSecondCandidate();
+
+    edit.release(
+      jsonResponse({ education: { ...syntheticCandidate().education[0]!, startDate: '2011' } }),
+    );
+    await waitForWriteToSettle();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByText('Education updated.')).toBeNull();
+    expect(screen.queryByText('2011 – 2014')).toBeNull();
+    expect(candidateAReads(calls)).toHaveLength(1);
+  });
+
+  it('sends one education edit even when submitted twice, and locks every other write meanwhile', async () => {
+    const edit = deferredResponse();
+    const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url.includes('/education/') ? edit.promise : undefined,
+    );
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+
+    const form = editRecord(DEGREE);
+    fireEvent.change(within(form).getByLabelText('Description'), {
+      target: { value: 'Organisational psychology.' },
+    });
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await waitFor(() => expect(recordWrites(calls)).toHaveLength(1));
+
+    for (const name of [
+      `Edit ${SENIOR_ROLE}`,
+      `Archive ${SENIOR_ROLE}`,
+      'Add education',
+      'Add experience',
+      'Archive candidate',
+    ]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    expect(within(form).getByRole('button', { name: /Save changes|Working/ })).toBeDisabled();
+
+    edit.release(
+      jsonResponse({
+        education: {
+          ...syntheticCandidate().education[0]!,
+          description: 'Organisational psychology.',
+        },
+      }),
+    );
+    expect(await screen.findByText('Education updated.')).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `Archive ${SENIOR_ROLE}` })).toBeEnabled(),
+    );
+    expect(recordWrites(calls)).toHaveLength(1);
   });
 });

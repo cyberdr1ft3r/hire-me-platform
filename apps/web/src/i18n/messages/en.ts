@@ -235,10 +235,14 @@ export const enMessages = {
     },
     education: {
       add: 'Add education',
+      dateHint: 'As recorded, for example 2014',
+      description: 'Description',
       empty: 'No education recorded.',
+      endDate: 'End date',
       field: 'Field of study',
       institution: 'Institution',
       qualification: 'Qualification',
+      startDate: 'Start date',
       title: 'Education',
     },
     empty: {
@@ -252,6 +256,7 @@ export const enMessages = {
     experience: {
       add: 'Add experience',
       current: 'Current role',
+      description: 'Description',
       employer: 'Employer',
       empty: 'No work experience recorded.',
       endDate: 'End date',

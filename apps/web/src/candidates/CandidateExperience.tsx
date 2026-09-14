@@ -1,5 +1,5 @@
 import { useI18n } from '../i18n/index.js';
-import { Button, Checkbox, TextField } from '../ui/index.js';
+import { Button, Checkbox, TextArea, TextField } from '../ui/index.js';
 import { candidateRecordLabel, orderWorkExperiences } from './candidate-format.js';
 import { CANDIDATE_FIELD_LIMITS, useCandidateForm } from './candidate-form.js';
 import {
@@ -138,7 +138,7 @@ function ExperienceForm({
   const { t } = useI18n();
   const form = useCandidateForm(
     {
-      fields: ['employer', 'title', 'startDate', 'endDate', 'isCurrent'] as const,
+      fields: ['employer', 'title', 'startDate', 'endDate', 'isCurrent', 'description'] as const,
       required: ['employer', 'title'],
     },
     ({ isCurrent, ...values }) => onSubmit({ ...values, isCurrent: isCurrent === 'on' }),
@@ -184,6 +184,13 @@ function ExperienceForm({
         defaultChecked={initial?.isCurrent ?? false}
         label={t('candidate.experience.isCurrent')}
         name="isCurrent"
+      />
+      <TextArea
+        defaultValue={initial?.description ?? ''}
+        label={t('candidate.experience.description')}
+        maxLength={CANDIDATE_FIELD_LIMITS.description}
+        name="description"
+        rows={3}
       />
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">

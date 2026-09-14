@@ -233,10 +233,14 @@ export const frMessages: Messages = {
     },
     education: {
       add: 'Ajouter une formation',
+      dateHint: 'Telle qu’enregistrée, par exemple 2014',
+      description: 'Description',
       empty: 'Aucune formation renseignée.',
+      endDate: 'Date de fin',
       field: 'Domaine d’études',
       institution: 'Établissement',
       qualification: 'Diplôme',
+      startDate: 'Date de début',
       title: 'Formation',
     },
     empty: {
@@ -251,6 +255,7 @@ export const frMessages: Messages = {
     experience: {
       add: 'Ajouter une expérience',
       current: 'Poste actuel',
+      description: 'Description',
       employer: 'Employeur',
       empty: 'Aucune expérience professionnelle renseignée.',
       endDate: 'Date de fin',

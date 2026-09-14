@@ -119,6 +119,7 @@ function applyUpdate(record: CandidateDetail, update: CandidateRecordUpdate): Ca
           entry.id === update.recordId
             ? {
                 ...entry,
+                description: nullable(update.values.description),
                 employer: update.values.employer.trim(),
                 endDate: nullable(update.values.endDate),
                 isCurrent: update.values.isCurrent,
@@ -135,9 +136,12 @@ function applyUpdate(record: CandidateDetail, update: CandidateRecordUpdate): Ca
           entry.id === update.recordId
             ? {
                 ...entry,
+                description: nullable(update.values.description),
+                endDate: nullable(update.values.endDate),
                 field: nullable(update.values.field),
                 institution: update.values.institution.trim(),
                 qualification: update.values.qualification.trim(),
+                startDate: nullable(update.values.startDate),
               }
             : entry,
         ),

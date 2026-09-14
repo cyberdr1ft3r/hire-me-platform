@@ -15,6 +15,7 @@ export const CANDIDATE_FIELD_LIMITS = {
   city: 120,
   country: 120,
   currentJobTitle: 160,
+  description: 2000,
   displayName: 180,
   email: 254,
   employer: 180,

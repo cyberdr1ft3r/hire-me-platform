@@ -174,8 +174,16 @@ export interface CandidateProfileValues extends CandidateCreateValues {
 
 /** The values each structured record form holds: the same fields to add and to edit. */
 export interface CandidateRecordValues {
-  education: { field: string; institution: string; qualification: string };
+  education: {
+    description: string;
+    endDate: string;
+    field: string;
+    institution: string;
+    qualification: string;
+    startDate: string;
+  };
   experience: {
+    description: string;
     employer: string;
     endDate: string;
     isCurrent: boolean;
