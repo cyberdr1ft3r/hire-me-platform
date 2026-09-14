@@ -13,7 +13,8 @@ Last updated: 2026-09-14
   - Search, status, and source combine on the server.
 - **Source filter.** It offers the platform's own `public_application` value, labelled "Public application" / "Candidature en ligne", and an exact recorded source (free text, matched ignoring case). No category is invented (D-063, R-038).
 - **Structured records (D-CAND-02).** Each active skill, language, work experience, and education row offers Edit and Archive to `candidate_profile:manage` holders on a non-archived candidate.
-  - Edit is pre-filled and sends a partial update of only the changed fields its form owns.
+  - Edit is pre-filled and sends a partial update of only the changed fields its form owns; a cleared optional field is sent as `null`.
+  - The forms cover the work-experience description and the education dates and description (review `5195637199`). Skill years and last used are not exposed.
   - Archive is confirmed and keeps the row as history. There is no deletion and no restore.
   - All record writes go through the container's single write lock and its candidate-context and session guards. `CandidatesPanel` owns every read, write, and guard; presentation stays in `CandidateWorkspace` and its sections.
 - D-CAND-03 (compensation and consent editing) is untouched and needs its own decision.
