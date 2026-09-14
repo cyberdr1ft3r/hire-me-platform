@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `077024b96346229368cf88dd264c6d4d91931564`, including merged Public Opportunity PR #63. Issue #64 is implemented on `design/task-pipeline-v1` from that exact base.
-**Current blocker:** ChatGPT final-final Task conformance review of PR #65 (review `5191521437` corrections; drift audit Issue #66, D-UX-01 to D-UX-04), then visual review.
-**Next executable development task:** Final-final Task conformance review of the draft Task Pipeline PR #65 and its development-only `task.html` evidence; keep it open, draft, unmerged, and undeployed. After Task, the drift audit continues with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
+**Health:** `main` is at `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f`, including merged Task Pipeline PR #65 (Issue #64 closed). Issue #67 is implemented on `fix/candidate-list-profile-drift` from that exact base.
+**Current blocker:** ChatGPT Candidate drift conformance review of the Issue #67 draft PR (drift audit Issue #66, D-CAND-01 and D-CAND-02).
+**Next executable development task:** Candidate drift conformance review of the Issue #67 draft PR and its development-only `candidate.html` evidence; keep it open, draft, unmerged, and undeployed. D-CAND-03 (compensation and consent editing) remains a separate decision; the drift audit then continues with Reporting, Public Opportunity, and the AppShell/i18n foundations.
 
 ## Active work
 
@@ -40,9 +40,20 @@ Status owner: repository maintainer
 | Issue #56 | Complete | Redesign the bilingual Recruitment Reporting dashboard as the Reporting representative surface | Merged through PR #57 into `main` as `922b5ecc1b7aa4724d3026a18f7015026328c847` |
 | Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
 | Issue #62 | Complete | Redesign the bilingual Public Opportunity experience as the third representative surface | Merged through PR #63 into `main` as `077024b96346229368cf88dd264c6d4d91931564` |
-| Issue #64 | Open | Redesign the bilingual Task Pipeline as a daily operational workspace | Lightweight status board with name-based selectors and the Issue #31 conformance corrections on `design/task-pipeline-v1` (PR #65, draft); final-final Task conformance review required; keep open and unmerged |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 recorded; Candidate, Reporting, Public Opportunity, and foundation audits follow |
+| Issue #64 | Complete | Redesign the bilingual Task Pipeline as a daily operational workspace | Merged through PR #65 into `main` as `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f` |
+| Issue #67 | Open | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Server-side pages, source filter, and in-place edit/archive of structured records on `fix/candidate-list-profile-drift`; conformance review required; keep open and unmerged |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 are closed by merged PR #65; D-CAND-01 and D-CAND-02 are corrected on the Issue #67 PR; D-CAND-03, Reporting, Public Opportunity, and foundation audits follow |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #67 Verification State
+
+- Branch `fix/candidate-list-profile-drift` was created from exact `main` `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f`. No API, contract, Prisma schema, migration, permission, lifecycle, archival, or audit rule changed; the web client gained only the existing structured-record update and archive methods.
+- Discovery: the list API already pages on the server (`page` 1–500, `pageSize` up to 100, `createdAt desc, id asc`) and filters `source` by exact case-insensitive match. `Candidate.source` is free text; the only platform-written value is `public_application`. Every structured record type already supports create, partial update, and archival under `candidate_profile:manage`, with the parent-candidate lock, nested ownership `404`, archived-record `409`, safe audit, and no deletion or restore.
+- The list shows one server page of 20 with previous/next, "Page N of M", and the range; filters reset to page 1; an emptied page moves to the last page with matches; stale page or filter responses are discarded; switching language never refetches.
+- The source filter offers "Public application" (`public_application`) and an exact recorded source; read views label `public_application` and show other sources as recorded (D-063, R-038).
+- Each active skill, language, work experience, and education record offers Edit (pre-filled; partial update of changed fields only) and Archive (confirmed; the row stays as history) to `candidate_profile:manage` holders on a non-archived candidate, through the single write lock and the candidate-context and session guards.
+- Test-only PostgreSQL coverage proves deterministic paging with source, status, and search composition, and in-place update and archival of all four record types with archived-row history, archived-record `409`, no delete route, permission denial, and value-free audit.
+- D-CAND-03 (compensation and consent editing) is untouched.
 
 ## Issue #64 Verification State
 
@@ -478,8 +489,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Run the final-final Task conformance review at `http://127.0.0.1:5173/task.html` (board, detail drawer with assignee removal, comment edit/archive, reminder reschedule/cancel, selectors, list view, notifications with Open task and the unread count, Show: Created by me, owner and assignee filters for a viewer without `tasks:assign` (`task.html?access=view`), and the mission-candidate filter).
-2. Keep the Issue #64 PR open, draft, unmerged, and undeployed; do not start Clients or Missions.
+1. Run the Candidate drift conformance review of the Issue #67 draft PR at `http://127.0.0.1:5173/candidate.html` (`?dataset=many` for pages; source filter; Edit and Archive on skills, languages, work experience, and education).
+2. Keep the Issue #67 PR open, draft, unmerged, and undeployed; do not start D-CAND-03, Clients, or Missions.
 3. Open a scheduler issue for Task reminder delivery (R-036).
 4. Continue drift audit Issue #66 with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
 5. Decide R-035 (public salary expectation unit) as a separate scoped task.

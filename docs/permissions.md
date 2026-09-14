@@ -314,6 +314,8 @@ Candidate detail and mutation responses are shaped by the caller's effective per
 
 Candidate archival and every dependent candidate/profile write use one PostgreSQL concurrency strategy: a transaction-scoped row lock on the parent `Candidate`. This prevents concurrent profile child creation or ordinary candidate/profile mutation from committing after candidate archival. When archival wins the race, the dependent write receives the stable conflict code `CANDIDATE_ARCHIVED`.
 
+The Candidate workspace (Issue #67) offers Edit and Archive on each active structured record only to actors holding `candidate_profile:manage` on a candidate that is not archived; the server enforces the same permission, the parent-candidate lock, nested ownership (a record under another candidate is `404`), and the archived-record rule (`409 CANDIDATE_<TYPE>_ARCHIVED`) on every request. Archival keeps the row as history; there is no deletion or restore. The candidate list and its source filter use `candidates:view` exactly like the rest of the list; the source filter adds no scope.
+
 ## Implemented Recruitment Mission Permissions
 
 Issue #19 implements these route permissions:
