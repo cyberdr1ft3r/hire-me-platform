@@ -8,7 +8,30 @@ import { CandidateRequestError } from '../api.js';
  * read, so nothing here can surface backend detail to the interface.
  */
 export type CandidateFailure =
-  'archived' | 'conflict' | 'duplicateEmail' | 'forbidden' | 'invalid' | 'notFound' | 'unavailable';
+  | 'archived'
+  | 'conflict'
+  | 'duplicateEmail'
+  | 'forbidden'
+  | 'invalid'
+  | 'notFound'
+  | 'recordUnavailable'
+  | 'unavailable';
+
+/**
+ * A structured record that was archived meanwhile, or that no longer belongs
+ * to this candidate. Both mean the row on screen is out of date, and neither
+ * reveals anything beyond that.
+ */
+const RECORD_UNAVAILABLE_CODES: ReadonlySet<string> = new Set([
+  'CANDIDATE_EDUCATION_ARCHIVED',
+  'CANDIDATE_EDUCATION_NOT_FOUND',
+  'CANDIDATE_LANGUAGE_ARCHIVED',
+  'CANDIDATE_LANGUAGE_NOT_FOUND',
+  'CANDIDATE_SKILL_ARCHIVED',
+  'CANDIDATE_SKILL_NOT_FOUND',
+  'CANDIDATE_WORK_EXPERIENCE_ARCHIVED',
+  'CANDIDATE_WORK_EXPERIENCE_NOT_FOUND',
+]);
 
 export function classifyCandidateFailure(error: unknown): CandidateFailure {
   if (!(error instanceof CandidateRequestError)) {
@@ -19,6 +42,9 @@ export function classifyCandidateFailure(error: unknown): CandidateFailure {
   }
   if (error.code === 'CANDIDATE_ARCHIVED') {
     return 'archived';
+  }
+  if (error.code && RECORD_UNAVAILABLE_CODES.has(error.code)) {
+    return 'recordUnavailable';
   }
   switch (error.status) {
     case 400:

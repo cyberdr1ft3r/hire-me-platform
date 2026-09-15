@@ -1,10 +1,19 @@
 import { useI18n } from '../i18n/index.js';
-import { Button, Checkbox, TextField } from '../ui/index.js';
-import { orderWorkExperiences } from './candidate-format.js';
+import { Button, Checkbox, TextArea, TextField } from '../ui/index.js';
+import { candidateRecordLabel, orderWorkExperiences } from './candidate-format.js';
 import { CANDIDATE_FIELD_LIMITS, useCandidateForm } from './candidate-form.js';
+import {
+  recordPendingAction,
+  type CandidateFormOutcome,
+  type CandidateRecordValues,
+} from './candidate-state.js';
 import type { CandidateWorkExperience } from './candidate-types.js';
 import { CandidateFormFeedback } from './CandidateFormFeedback.js';
-import { ArchivedRecordMarker, CandidateRecordSection } from './CandidateRecordSection.js';
+import {
+  ArchivedRecordMarker,
+  CandidateRecordRow,
+  CandidateRecordSection,
+} from './CandidateRecordSection.js';
 import type { CandidateRecordSectionProps } from './CandidateSkills.js';
 
 /**
@@ -13,9 +22,12 @@ import type { CandidateRecordSectionProps } from './CandidateSkills.js';
  */
 export function CandidateExperience({
   busy,
-  canAdd,
+  canManage,
   canView,
   onAdd,
+  onArchive,
+  onUpdate,
+  pending,
   records,
   submitting,
 }: CandidateRecordSectionProps<CandidateWorkExperience>) {
@@ -25,36 +37,69 @@ export function CandidateExperience({
     <CandidateRecordSection
       addLabel={t('candidate.experience.add')}
       busy={busy}
-      canAdd={canAdd}
+      canAdd={canManage}
       canView={canView}
       count={records.length}
       emptyText={t('candidate.experience.empty')}
       renderForm={(close) => (
-        <ExperienceForm busy={busy} onAdd={onAdd} onClose={close} submitting={submitting} />
+        <ExperienceForm
+          busy={busy}
+          label={t('candidate.experience.add')}
+          onClose={close}
+          onSubmit={(values) => onAdd({ kind: 'experience', values })}
+          submitLabel={t('candidate.experience.add')}
+          submitting={submitting}
+        />
       )}
       title={t('candidate.experience.title')}
     >
       <ol className="candidate-timeline">
-        {orderWorkExperiences(records).map((experience) => (
-          <li className="candidate-timeline__item" key={experience.id}>
-            <p className="candidate-timeline__title">
-              <strong>{experience.title}</strong>
-              <span className="candidate-timeline__org">{experience.employer}</span>
-            </p>
-            <p className="candidate-timeline__meta">
-              <span className="u-tabular">{experiencePeriod(experience, t)}</span>
-              {experience.isCurrent ? (
-                <span className="candidate-timeline__current">
-                  {t('candidate.experience.current')}
-                </span>
+        {orderWorkExperiences(records).map((experience) => {
+          const rowPending = pending === recordPendingAction(experience.id);
+          const label = candidateRecordLabel(experience);
+          return (
+            <CandidateRecordRow
+              archived={experience.archivedAt !== null}
+              busy={busy}
+              canManage={canManage}
+              className="candidate-timeline__item"
+              key={experience.id}
+              label={label}
+              onArchive={() => onArchive({ kind: 'experience', recordId: experience.id })}
+              pending={rowPending}
+              renderEdit={(close) => (
+                <ExperienceForm
+                  busy={busy}
+                  initial={experience}
+                  label={t('candidate.records.editLabel', { record: label })}
+                  onClose={close}
+                  onSubmit={(values) =>
+                    onUpdate({ kind: 'experience', recordId: experience.id, values })
+                  }
+                  submitLabel={t('candidate.actions.save')}
+                  submitting={rowPending}
+                />
+              )}
+            >
+              <p className="candidate-timeline__title">
+                <strong>{experience.title}</strong>
+                <span className="candidate-timeline__org">{experience.employer}</span>
+              </p>
+              <p className="candidate-timeline__meta">
+                <span className="u-tabular">{experiencePeriod(experience, t)}</span>
+                {experience.isCurrent ? (
+                  <span className="candidate-timeline__current">
+                    {t('candidate.experience.current')}
+                  </span>
+                ) : null}
+                {experience.archivedAt ? <ArchivedRecordMarker /> : null}
+              </p>
+              {experience.description ? (
+                <p className="candidate-timeline__description">{experience.description}</p>
               ) : null}
-              {experience.archivedAt ? <ArchivedRecordMarker /> : null}
-            </p>
-            {experience.description ? (
-              <p className="candidate-timeline__description">{experience.description}</p>
-            ) : null}
-          </li>
-        ))}
+            </CandidateRecordRow>
+          );
+        })}
       </ol>
     </CandidateRecordSection>
   );
@@ -72,38 +117,40 @@ function experiencePeriod(
   return t('candidate.experience.period', { end: end || '…', start: start || '…' });
 }
 
+/** Adds an experience, or edits one when `initial` is given; the fields are the same. */
 function ExperienceForm({
   busy,
-  onAdd,
+  initial,
+  label,
   onClose,
+  onSubmit,
+  submitLabel,
   submitting,
 }: {
   busy: boolean;
-  onAdd: CandidateRecordSectionProps<CandidateWorkExperience>['onAdd'];
+  initial?: CandidateWorkExperience;
+  label: string;
   onClose: () => void;
+  onSubmit: (values: CandidateRecordValues['experience']) => Promise<CandidateFormOutcome>;
+  submitLabel: string;
   submitting: boolean;
 }) {
   const { t } = useI18n();
   const form = useCandidateForm(
     {
-      fields: ['employer', 'title', 'startDate', 'endDate', 'isCurrent'] as const,
+      fields: ['employer', 'title', 'startDate', 'endDate', 'isCurrent', 'description'] as const,
       required: ['employer', 'title'],
     },
-    ({ isCurrent, ...values }) =>
-      onAdd({ kind: 'experience', values: { ...values, isCurrent: isCurrent === 'on' } }),
+    ({ isCurrent, ...values }) => onSubmit({ ...values, isCurrent: isCurrent === 'on' }),
     onClose,
     busy,
   );
 
   return (
-    <form
-      aria-label={t('candidate.experience.add')}
-      className="candidate-form"
-      noValidate
-      onSubmit={form.handleSubmit}
-    >
+    <form aria-label={label} className="candidate-form" noValidate onSubmit={form.handleSubmit}>
       <div className="candidate-form__fields">
         <TextField
+          defaultValue={initial?.employer}
           error={form.errorFor('employer')}
           label={t('candidate.experience.employer')}
           maxLength={CANDIDATE_FIELD_LIMITS.employer}
@@ -111,6 +158,7 @@ function ExperienceForm({
           required
         />
         <TextField
+          defaultValue={initial?.title}
           error={form.errorFor('title')}
           label={t('candidate.experience.jobTitle')}
           maxLength={CANDIDATE_FIELD_LIMITS.title}
@@ -118,19 +166,32 @@ function ExperienceForm({
           required
         />
         <TextField
+          defaultValue={initial?.startDate ?? ''}
           hint={t('candidate.experience.dateHint')}
           label={t('candidate.experience.startDate')}
           maxLength={CANDIDATE_FIELD_LIMITS.startDate}
           name="startDate"
         />
         <TextField
+          defaultValue={initial?.endDate ?? ''}
           hint={t('candidate.experience.dateHint')}
           label={t('candidate.experience.endDate')}
           maxLength={CANDIDATE_FIELD_LIMITS.endDate}
           name="endDate"
         />
       </div>
-      <Checkbox label={t('candidate.experience.isCurrent')} name="isCurrent" />
+      <Checkbox
+        defaultChecked={initial?.isCurrent ?? false}
+        label={t('candidate.experience.isCurrent')}
+        name="isCurrent"
+      />
+      <TextArea
+        defaultValue={initial?.description ?? ''}
+        label={t('candidate.experience.description')}
+        maxLength={CANDIDATE_FIELD_LIMITS.description}
+        name="description"
+        rows={3}
+      />
       <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
       <div className="candidate-form__actions">
         <Button
@@ -140,7 +201,7 @@ function ExperienceForm({
           size="compact"
           type="submit"
         >
-          {t('candidate.experience.add')}
+          {submitLabel}
         </Button>
         <Button disabled={submitting} onClick={onClose} size="compact" variant="secondary">
           {t('candidate.actions.cancel')}

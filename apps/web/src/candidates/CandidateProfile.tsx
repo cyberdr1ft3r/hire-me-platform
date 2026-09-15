@@ -3,6 +3,7 @@ import { useId, type ReactNode } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { formatCandidateLocation, safeProfileUrl } from './candidate-format.js';
+import { candidateSourceLabel } from './candidate-labels.js';
 
 /**
  * The approved master fields as read-only structured metadata.
@@ -79,7 +80,7 @@ export function CandidateProfile({ candidate }: { candidate: CandidateDetail }) 
         <dl className="candidate-facts">
           <Fact
             label={t('candidate.fields.source')}
-            value={candidate.source}
+            value={candidate.source ? candidateSourceLabel(candidate.source, t) : null}
             fallback={notRecorded}
           />
           <Fact

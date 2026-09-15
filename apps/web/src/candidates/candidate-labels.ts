@@ -3,7 +3,13 @@ import type { CandidateConsentStatus, CandidateStatus } from '@hire-me/contracts
 import type { PlainMessageKey } from '../i18n/index.js';
 import type { StatusTone } from '../ui/index.js';
 import type { CandidateFailure } from './candidate-errors.js';
-import type { CandidateFieldError, CandidateLifecycleTarget } from './candidate-state.js';
+import {
+  PUBLIC_APPLICATION_SOURCE,
+  type CandidateFieldError,
+  type CandidateLifecycleTarget,
+  type CandidateRecordKind,
+  type CandidateSourceMode,
+} from './candidate-state.js';
 
 /**
  * Presentation labels for language-neutral candidate values.
@@ -53,6 +59,27 @@ export function candidateStatusTone(status: CandidateStatus): StatusTone {
     default:
       return 'neutral';
   }
+}
+
+export function candidateSourceModeLabelKey(
+  mode: Exclude<CandidateSourceMode, ''>,
+): PlainMessageKey {
+  return `candidate.filters.sourceModes.${mode}`;
+}
+
+/**
+ * How a stored source reads in the interface. The platform's own
+ * `public_application` value has a label in each language; any other source is
+ * what an operator recorded, shown exactly as recorded.
+ */
+export function candidateSourceLabel(source: string, t: (key: PlainMessageKey) => string): string {
+  return source.trim().toLowerCase() === PUBLIC_APPLICATION_SOURCE
+    ? t('candidate.source.publicApplication')
+    : source;
+}
+
+export function candidateRecordKindLabelKey(kind: CandidateRecordKind): PlainMessageKey {
+  return `candidate.records.kinds.${kind}`;
 }
 
 export function candidateFailureLabelKey(failure: CandidateFailure): PlainMessageKey {
