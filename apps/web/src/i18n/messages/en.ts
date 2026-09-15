@@ -190,6 +190,8 @@ export const enMessages = {
       client: 'Client',
       mission: 'Mission',
       noSource: 'Not recorded',
+      openCandidate: 'Open candidate {name}',
+      openMission: 'Open mission {name}',
       recruiter: 'Recruiter',
       source: 'Source',
       state: 'Pipeline state',

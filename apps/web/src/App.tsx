@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type {
   AdminPermission,
@@ -180,6 +180,7 @@ import {
   routeToPath,
   type InternalRoute,
 } from './navigation/internal-navigation.js';
+import { recordNavigationIntent } from './navigation/record-deep-links.js';
 import { AppShell } from './ui/shell/AppShell.js';
 import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
@@ -217,7 +218,11 @@ function AppRoutes() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [route, setRoute] = useState<InternalRoute>(() => pathToRoute(window.location.pathname));
+  const [location, setLocation] = useState(() => ({
+    route: pathToRoute(window.location.pathname),
+    search: window.location.search,
+  }));
+  const route = location.route;
 
   useEffect(() => {
     let isMounted = true;
@@ -246,7 +251,11 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
-    const handlePopState = () => setRoute(pathToRoute(window.location.pathname));
+    const handlePopState = () =>
+      setLocation({
+        route: pathToRoute(window.location.pathname),
+        search: window.location.search,
+      });
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -317,8 +326,25 @@ function AppRoutes() {
   }
 
   function navigate(nextRoute: InternalRoute): void {
-    setRoute(nextRoute);
-    window.history.pushState({}, '', routeToPath(nextRoute));
+    const path = routeToPath(nextRoute);
+    window.history.pushState({}, '', path);
+    setLocation({ route: nextRoute, search: '' });
+  }
+
+  function navigateToPath(path: string): void {
+    window.history.pushState({}, '', path);
+    setLocation({
+      route: pathToRoute(new URL(path, window.location.origin).pathname),
+      search: new URL(path, window.location.origin).search,
+    });
+  }
+
+  function replaceRecordIntent(path: string): void {
+    window.history.replaceState({}, '', path);
+    setLocation({
+      route: pathToRoute(new URL(path, window.location.origin).pathname),
+      search: new URL(path, window.location.origin).search,
+    });
   }
 
   // The public opportunity pages are bilingual and share the locale provider and
@@ -374,6 +400,7 @@ function AppRoutes() {
   }
 
   const canOpenRoute = canAccessInternalRoute(route, user.permissions);
+  const recordIntent = recordNavigationIntent(route, location.search);
   let routeContent: ReactNode;
 
   if (!canOpenRoute) {
@@ -392,10 +419,28 @@ function AppRoutes() {
         routeContent = <ClientsPanel accessToken={accessToken} permissions={user.permissions} />;
         break;
       case 'candidates':
-        routeContent = <CandidatesPanel accessToken={accessToken} permissions={user.permissions} />;
+        routeContent = (
+          <CandidatesPanel
+            accessToken={accessToken}
+            initialCandidateId={recordIntent.candidateId}
+            onSelectionChange={(candidateId) =>
+              replaceRecordIntent(`/candidates?candidate=${encodeURIComponent(candidateId)}`)
+            }
+            permissions={user.permissions}
+          />
+        );
         break;
       case 'missions':
-        routeContent = <MissionsPanel accessToken={accessToken} permissions={user.permissions} />;
+        routeContent = (
+          <MissionsPanel
+            accessToken={accessToken}
+            initialMissionId={recordIntent.missionId}
+            onSelectionChange={(missionId) =>
+              replaceRecordIntent(`/missions?mission=${encodeURIComponent(missionId)}`)
+            }
+            permissions={user.permissions}
+          />
+        );
         break;
       case 'tasks':
         routeContent = <TasksPanel accessToken={accessToken} user={user} />;
@@ -407,7 +452,13 @@ function AppRoutes() {
         routeContent = <TrainingPanel accessToken={accessToken} permissions={user.permissions} />;
         break;
       case 'reporting':
-        routeContent = <ReportingPanel accessToken={accessToken} permissions={user.permissions} />;
+        routeContent = (
+          <ReportingPanel
+            accessToken={accessToken}
+            onNavigate={navigateToPath}
+            permissions={user.permissions}
+          />
+        );
         break;
       case 'commercial':
         routeContent = <CommercialPanel accessToken={accessToken} permissions={user.permissions} />;
@@ -1230,9 +1281,13 @@ function ClientsPanel({
 
 function MissionsPanel({
   accessToken,
+  initialMissionId,
+  onSelectionChange,
   permissions,
 }: {
   accessToken: string;
+  initialMissionId: string | null;
+  onSelectionChange: (missionId: string) => void;
   permissions: string[];
 }) {
   const [missions, setMissions] = useState<MissionSummary[]>([]);
@@ -1258,6 +1313,10 @@ function MissionsPanel({
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const missionListRequest = useRef(0);
+  const missionRequest = useRef(0);
+  const selectedMissionRef = useRef<string | null>(null);
+  const initialMissionIntent = useRef(initialMissionId);
   const canCreate = permissions.includes('missions:create');
   const canUpdate = permissions.includes('missions:update');
   const canManageStatus = permissions.includes('missions:status:manage');
@@ -1295,24 +1354,126 @@ function MissionsPanel({
   const canViewPlacementCommercialEligibility = permissions.includes(
     'placement_commercial_eligibility:view',
   );
+  const principal = permissions.join(' ');
+  const sessionToken = useRef(accessToken);
+  const sessionPrincipal = useRef(principal);
+  const [session, setSession] = useState({ principal, token: accessToken });
+
+  if (session.token !== accessToken || session.principal !== principal) {
+    missionListRequest.current += 1;
+    missionRequest.current += 1;
+    selectedMissionRef.current = null;
+    sessionToken.current = accessToken;
+    sessionPrincipal.current = principal;
+    setSession({ principal, token: accessToken });
+    setMissions([]);
+    setAssignments([]);
+    setCandidateProcesses([]);
+    setOffersByProcessId({});
+    setPlacementsByProcessId({});
+    setActiveProcessId(null);
+    setInterviews([]);
+    setActiveInterviewId(null);
+    setEvaluations([]);
+    setPublicOpportunity(null);
+    setPublicApplications([]);
+    setSelectedMission(null);
+    setSearch('');
+    setStateFilter('');
+    setMessage(null);
+  }
 
   useEffect(() => {
     void loadMissions();
+    return () => {
+      missionListRequest.current += 1;
+    };
+  }, [accessToken, principal]);
+
+  useEffect(() => {
+    const missionId = initialMissionIntent.current;
+    if (missionId) {
+      void selectMission(missionId, false, true);
+    }
+    return () => {
+      missionRequest.current += 1;
+      selectedMissionRef.current = null;
+    };
   }, []);
 
   async function loadMissions(nextSearch = search, nextState = stateFilter): Promise<void> {
-    const response = await listMissions({
-      accessToken,
-      search: nextSearch || undefined,
-      state: nextState || undefined,
-      pageSize: 20,
-    });
-    setMissions(response.missions);
+    const request = ++missionListRequest.current;
+    try {
+      const response = await listMissions({
+        accessToken,
+        search: nextSearch || undefined,
+        state: nextState || undefined,
+        pageSize: 20,
+      });
+      if (
+        request === missionListRequest.current &&
+        sessionToken.current === accessToken &&
+        sessionPrincipal.current === principal
+      ) {
+        setMissions(response.missions);
+      }
+    } catch {
+      if (
+        request === missionListRequest.current &&
+        sessionToken.current === accessToken &&
+        sessionPrincipal.current === principal
+      ) {
+        setMissions([]);
+      }
+    }
   }
 
-  async function selectMission(missionId: string): Promise<void> {
-    const response = await getMission(accessToken, missionId);
+  async function selectMission(
+    missionId: string,
+    updateUrl = true,
+    resolvesInitialIntent = false,
+  ): Promise<void> {
+    const request = ++missionRequest.current;
+    const belongsToSession = () =>
+      request === missionRequest.current &&
+      selectedMissionRef.current === missionId &&
+      sessionToken.current === accessToken &&
+      sessionPrincipal.current === principal;
+    const changedTarget = selectedMissionRef.current !== missionId;
+    selectedMissionRef.current = missionId;
+    if (updateUrl) {
+      initialMissionIntent.current = null;
+      onSelectionChange(missionId);
+    }
+    if (changedTarget) {
+      setSelectedMission(null);
+      setAssignments([]);
+      setCandidateProcesses([]);
+      setPublicOpportunity(null);
+      setPublicApplications([]);
+      setOffersByProcessId({});
+      setPlacementsByProcessId({});
+    }
+    let response;
+    try {
+      response = await getMission(accessToken, missionId);
+    } catch {
+      if (belongsToSession()) {
+        setSelectedMission(null);
+        setMessage('Mission unavailable.');
+        if (resolvesInitialIntent) {
+          initialMissionIntent.current = null;
+        }
+      }
+      return;
+    }
+    if (!belongsToSession()) {
+      return;
+    }
     setSelectedMission(response.mission);
+    if (resolvesInitialIntent) {
+      initialMissionIntent.current = null;
+    }
     setMessage(null);
     setActiveProcessId(null);
     setInterviews([]);
@@ -1324,19 +1485,27 @@ function MissionsPanel({
     setPlacementsByProcessId({});
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
-      setAssignments(assignmentResponse.assignments);
+      if (belongsToSession()) {
+        setAssignments(assignmentResponse.assignments);
+      }
     }
     if (canViewProcesses) {
       const processResponse = await listMissionCandidates(accessToken, missionId);
-      setCandidateProcesses(processResponse.candidates);
+      if (belongsToSession()) {
+        setCandidateProcesses(processResponse.candidates);
+      }
     }
     if (canViewPublicOpportunity) {
       const opportunityResponse = await getInternalPublicOpportunity(accessToken, missionId);
-      setPublicOpportunity(opportunityResponse.publicOpportunity);
+      if (belongsToSession()) {
+        setPublicOpportunity(opportunityResponse.publicOpportunity);
+      }
     }
     if (canViewPublicApplications) {
       const applicationResponse = await listInternalPublicApplications(accessToken, missionId);
-      setPublicApplications(applicationResponse.applications);
+      if (belongsToSession()) {
+        setPublicApplications(applicationResponse.applications);
+      }
     }
   }
 
@@ -1925,7 +2094,7 @@ function MissionsPanel({
     <section className="admin-panel" aria-label="Missions">
       <div className="admin-grid">
         <section aria-label="Recruitment mission list">
-          <h2>Missions</h2>
+          <h1>Missions</h1>
           <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
             <label>
               Search

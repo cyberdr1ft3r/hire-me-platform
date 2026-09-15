@@ -237,10 +237,18 @@ function stubReportingApi(options: StubOptions = {}) {
   });
 }
 
-function renderReporting(permissions: string[] = VIEW_ONLY, locale: Locale = 'en') {
+function renderReporting(
+  permissions: string[] = VIEW_ONLY,
+  locale: Locale = 'en',
+  onNavigate?: (path: string) => void,
+) {
   return render(
     <I18nProvider initialLocale={locale}>
-      <ReportingPanel accessToken={ACCESS_TOKEN} permissions={permissions} />
+      <ReportingPanel
+        accessToken={ACCESS_TOKEN}
+        onNavigate={onNavigate}
+        permissions={permissions}
+      />
     </I18nProvider>,
   );
 }
@@ -373,6 +381,57 @@ describe('recruitment reporting dashboard', () => {
     ]);
     expect(screen.getByText('Candidate 1')).toBeVisible();
     expect(screen.getByText('40 results')).toBeVisible();
+  });
+
+  it('links authorized Candidate and Mission names without adding reporting reads', async () => {
+    const fetchMock = stubReportingApi();
+    const onNavigate = vi.fn();
+    renderReporting([...VIEW_ONLY, 'candidates:view', 'missions:view'], 'en', onNavigate);
+    await screen.findByText('Open missions');
+
+    const candidate = screen.getByRole('link', { name: 'Open candidate Candidate 1' });
+    expect(candidate).toHaveTextContent('Candidate 1');
+    expect(candidate).toHaveAttribute(
+      'href',
+      '/candidates?candidate=55555555-5555-4555-8555-000000000001',
+    );
+    expect(candidate).not.toHaveTextContent('55555555-5555-4555-8555-000000000001');
+
+    const missionLinks = screen.getAllByRole('link', {
+      name: 'Open mission Senior Backend Engineer',
+    });
+    fireEvent.click(missionLinks[0]!);
+    expect(onNavigate).toHaveBeenCalledWith(`/missions?mission=${MISSION_ID}`);
+    expect(requestedUrls(fetchMock).filter((url) => url.includes('/v1/reporting/'))).toHaveLength(
+      5,
+    );
+    expect(screen.getAllByText('Yasmine Example').every((node) => node.closest('a') === null)).toBe(
+      true,
+    );
+    expect(
+      screen.getAllByText('Atlas Industries').every((node) => node.closest('a') === null),
+    ).toBe(true);
+  });
+
+  it('renders destination names as plain text without their route permission', async () => {
+    stubReportingApi();
+    renderReporting(VIEW_ONLY);
+    await screen.findByText('Open missions');
+
+    expect(screen.queryByRole('link', { name: /Open candidate/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Open mission/ })).toBeNull();
+    expect(screen.getByText('Candidate 1')).toBeVisible();
+  });
+
+  it('provides French accessible context for authorized record links', async () => {
+    stubReportingApi();
+    renderReporting([...VIEW_ONLY, 'candidates:view', 'missions:view'], 'fr');
+    await screen.findByText('Missions ouvertes');
+
+    expect(screen.getByRole('link', { name: 'Ouvrir le candidat Candidate 1' })).toBeVisible();
+    expect(
+      screen.getAllByRole('link', { name: 'Ouvrir la mission Senior Backend Engineer' })[0],
+    ).toBeVisible();
   });
 
   it('pages the drilldown without refetching the aggregates', async () => {
