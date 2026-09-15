@@ -10,7 +10,7 @@ import { CANDIDATE_PERMISSIONS, resolveCandidateAccess } from '../candidates/ind
  * real person, a questionnaire, or a production dataset.
  */
 
-export type PreviewAccessProfile = 'full' | 'recruiter' | 'viewer';
+export type PreviewAccessProfile = 'full' | 'recruiter' | 'restrictedViewer' | 'viewer';
 
 const ORDINARY = [
   CANDIDATE_PERMISSIONS.view,
@@ -34,6 +34,12 @@ export const PREVIEW_PERMISSIONS: Record<PreviewAccessProfile, readonly string[]
   ],
   // ADMIN / HR_MANAGER shape: ordinary candidate work, no restricted areas.
   recruiter: ORDINARY,
+  // A synthetic shape that may read both restricted areas but change neither.
+  restrictedViewer: [
+    ...ORDINARY,
+    CANDIDATE_PERMISSIONS.compensationView,
+    CANDIDATE_PERMISSIONS.consentView,
+  ],
   // A synthetic read-only shape: list and detail, nothing else.
   viewer: [CANDIDATE_PERMISSIONS.view],
 };

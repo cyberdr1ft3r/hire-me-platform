@@ -35,6 +35,11 @@ import { classifyCandidateFailure, type CandidateFailure } from './candidate-err
 import { candidateRecordLabel } from './candidate-format.js';
 import { candidateStatusLabelKey } from './candidate-labels.js';
 import {
+  compensationUpdateRequest,
+  consentUpdateRequest,
+  type SensitiveUpdateRequest,
+} from './candidate-sensitive.js';
+import {
   CANDIDATE_LIST_PAGE_SIZE,
   EMPTY_CANDIDATE_FILTERS,
   FIRST_CANDIDATE_PAGE,
@@ -54,6 +59,7 @@ import {
   type CandidateRecordInput,
   type CandidateRecordRef,
   type CandidateRecordUpdate,
+  type CandidateSensitiveUpdate,
 } from './candidate-state.js';
 import { CandidateWorkspace } from './CandidateWorkspace.js';
 
@@ -188,6 +194,23 @@ export function recordUpdateRequest(
   }
 }
 
+/**
+ * The partial update for one restricted form, measured against the values the
+ * API returned for this actor. `null` means the area is not on screen (its view
+ * permission is absent), so there is nothing the form could have changed.
+ */
+export function sensitiveUpdateRequest(
+  candidate: CandidateDetail,
+  update: CandidateSensitiveUpdate,
+): SensitiveUpdateRequest | null {
+  if (update.kind === 'compensation') {
+    return candidate.compensation
+      ? compensationUpdateRequest(candidate.compensation, update.values)
+      : null;
+  }
+  return candidate.consent ? consentUpdateRequest(candidate.consent, update.values) : null;
+}
+
 function findActiveRecord(candidate: CandidateDetail, ref: CandidateRecordRef) {
   const records =
     ref.kind === 'skill'
@@ -251,6 +274,18 @@ export function CandidatesPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<CandidatePendingAction | null>(null);
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
+
+  /*
+   * The restricted forms belong to one session and one permission set. Their
+   * key advances whenever the token or the permissions change, so an open
+   * compensation or consent form is discarded instead of being carried into a
+   * refreshed token or a different principal.
+   */
+  const principal = permissions.join(' ');
+  const [session, setSession] = useState({ key: 0, principal, token: accessToken });
+  if (session.token !== accessToken || session.principal !== principal) {
+    setSession({ key: session.key + 1, principal, token: accessToken });
+  }
 
   /*
    * Monotonic request counters. A list or detail response may commit only while
@@ -727,6 +762,62 @@ export function CandidatesPanel({
   }
 
   /**
+   * Saves a compensation or consent change through the existing Candidate
+   * update, with only the restricted fields that changed; nothing changed sends
+   * nothing. It takes the single write lock like every other write. A result
+   * whose candidate context or session has moved on is discarded. On success
+   * the server's answer is committed and the candidate re-read, so the
+   * restricted values shown are always the stored ones and never an optimistic
+   * copy of what was typed. Feedback never repeats a value.
+   */
+  async function handleUpdateSensitive(
+    update: CandidateSensitiveUpdate,
+  ): Promise<CandidateFormOutcome> {
+    if (detail.status !== 'ready') {
+      return SUPERSEDED;
+    }
+    const current = detail.candidate;
+    const request = sensitiveUpdateRequest(current, update);
+    if (!request) {
+      return SUPERSEDED;
+    }
+    if (!request.ok) {
+      return { fieldErrors: request.fieldErrors, ok: false };
+    }
+    if (Object.keys(request.body).length === 0) {
+      return { ok: true };
+    }
+    if (!beginWrite(update.kind)) {
+      return SUPERSEDED;
+    }
+    const isCurrent = captureContext(current.id);
+    setFeedback(null);
+    try {
+      const updated = await updateCandidate(accessToken, current.id, request.body);
+      refreshListAfterWrite(accessToken);
+      if (!isCurrent()) {
+        return SUPERSEDED;
+      }
+      commitDetail(updated.candidate, isCurrent);
+      await loadDetail(current.id, true);
+      if (!isCurrent()) {
+        return SUPERSEDED;
+      }
+      setFeedback({
+        kind: update.kind === 'compensation' ? 'compensationUpdated' : 'consentUpdated',
+        tone: 'success',
+      });
+      return { ok: true };
+    } catch (error) {
+      const failure = classifyCandidateFailure(error);
+      refreshAfterFailure(failure, current.id, isCurrent, accessToken);
+      return isCurrent() ? failureOutcome(failure) : SUPERSEDED;
+    } finally {
+      endWrite();
+    }
+  }
+
+  /**
    * Archives one structured record after confirmation. The server keeps the row
    * as history, marked archived; nothing is deleted. Resolves true only when the
    * archival succeeded for the candidate still on screen.
@@ -808,8 +899,10 @@ export function CandidatesPanel({
       onSelect={handleSelect}
       onUpdate={handleUpdate}
       onUpdateRecord={handleUpdateRecord}
+      onUpdateSensitive={handleUpdateSensitive}
       pending={pending}
       selectedId={selectedId}
+      sessionKey={session.key}
     />
   );
 }

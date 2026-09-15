@@ -597,6 +597,16 @@
   align-content: start;
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The block's heading and, for an actor who may change it, its one action. */
+.candidate-sensitive__group-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
 }
 
 /* --- Responsive -------------------------------------------------------- */
@@ -608,7 +618,8 @@
   .candidate-form__actions > *,
   .candidate-pagination__actions > *,
   .candidate-rows__actions > *,
-  .candidate-section__head .ui-button {
+  .candidate-section__head .ui-button,
+  .candidate-sensitive__group-head .ui-button {
     min-height: var(--hit-target-min);
   }
 }

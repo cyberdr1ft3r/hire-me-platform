@@ -17,6 +17,7 @@ import {
   type CandidateRecordInput,
   type CandidateRecordRef,
   type CandidateRecordUpdate,
+  type CandidateSensitiveUpdate,
 } from './candidate-state.js';
 import { CandidateCreateForm } from './CandidateCreateForm.js';
 import { CandidateDetailView } from './CandidateDetailView.js';
@@ -46,8 +47,12 @@ export interface CandidateWorkspaceProps {
   onSelect: (candidateId: string) => void;
   onUpdate: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
+  /** Saves a partial compensation or consent update for the selected candidate. */
+  onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
   selectedId: string | null;
+  /** Advances with every new session token or permission set; see `CandidateDetailView`. */
+  sessionKey: number;
 }
 
 /**
@@ -84,8 +89,10 @@ export function CandidateWorkspace({
   onSelect,
   onUpdate,
   onUpdateRecord,
+  onUpdateSensitive,
   pending,
   selectedId,
+  sessionKey,
 }: CandidateWorkspaceProps) {
   const { t } = useI18n();
   const listHeadingId = useId();
@@ -215,7 +222,9 @@ export function CandidateWorkspace({
             onRetry={onRetryDetail}
             onUpdate={onUpdate}
             onUpdateRecord={onUpdateRecord}
+            onUpdateSensitive={onUpdateSensitive}
             pending={pending}
+            sessionKey={sessionKey}
           />
         </div>
       </div>

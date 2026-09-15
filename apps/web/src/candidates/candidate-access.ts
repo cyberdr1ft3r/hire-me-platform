@@ -20,13 +20,25 @@ export const CANDIDATE_PERMISSIONS = {
 /**
  * What the current actor may see and do in the Candidate workspace.
  *
- * Every flag is derived from one permission code and nothing else, so the
+ * Every flag is derived from permission codes and nothing else, so the
  * rendering decisions can be reviewed against the permission catalog directly.
  * An unauthorized action is never rendered, not even disabled.
  */
 export interface CandidateAccess {
   canArchive: boolean;
   canCreate: boolean;
+  /**
+   * Compensation editing needs all three of `candidates:update` (the update
+   * endpoint's own permission), `candidate_compensation:view`, and
+   * `candidate_compensation:update`. The view permission is required so an
+   * operator never overwrites a value the interface could not show them.
+   */
+  canEditCompensation: boolean;
+  /**
+   * Consent management needs `candidates:update`, `candidate_consent:view`,
+   * and `candidate_consent:manage`, for the same reason.
+   */
+  canManageConsent: boolean;
   canManageProfile: boolean;
   canManageStatus: boolean;
   canUpdate: boolean;
@@ -46,6 +58,14 @@ export function resolveCandidateAccess(permissions: readonly string[]): Candidat
   return {
     canArchive: has(CANDIDATE_PERMISSIONS.archive),
     canCreate: has(CANDIDATE_PERMISSIONS.create),
+    canEditCompensation:
+      has(CANDIDATE_PERMISSIONS.update) &&
+      has(CANDIDATE_PERMISSIONS.compensationView) &&
+      has(CANDIDATE_PERMISSIONS.compensationUpdate),
+    canManageConsent:
+      has(CANDIDATE_PERMISSIONS.update) &&
+      has(CANDIDATE_PERMISSIONS.consentView) &&
+      has(CANDIDATE_PERMISSIONS.consentManage),
     canManageProfile: has(CANDIDATE_PERMISSIONS.profileManage),
     canManageStatus: has(CANDIDATE_PERMISSIONS.statusManage),
     canUpdate: has(CANDIDATE_PERMISSIONS.update),

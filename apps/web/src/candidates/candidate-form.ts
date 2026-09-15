@@ -42,6 +42,12 @@ interface CandidateFormSpec<Field extends string> {
   email?: readonly Field[];
   fields: readonly Field[];
   required?: readonly Field[];
+  /**
+   * Form-specific checks beyond required and email, such as an amount's shape.
+   * They receive the form too, so a control the browser could not read (an
+   * incomplete date) is not mistaken for an empty one.
+   */
+  validate?: (values: Record<Field, string>, form: HTMLFormElement) => CandidateFieldErrors;
 }
 
 /**
@@ -118,7 +124,7 @@ export function useCandidateForm<Field extends string>(
     }
     const form = event.currentTarget;
     const values = readFormValues(form, spec.fields);
-    const found = validateCandidateValues(values, spec);
+    const found = { ...spec.validate?.(values, form), ...validateCandidateValues(values, spec) };
     setFailure(null);
     if (Object.keys(found).length > 0) {
       setErrors(found);

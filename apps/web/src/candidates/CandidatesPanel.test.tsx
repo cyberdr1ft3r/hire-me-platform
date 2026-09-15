@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticatedUser, CandidateDetail } from '@hire-me/contracts';
 
@@ -75,6 +75,52 @@ const CHILD_ROUTES: Record<
     notFound: 'CANDIDATE_WORK_EXPERIENCE_NOT_FOUND',
   },
 };
+
+/**
+ * A Candidate PATCH as the server applies it: the restricted keys land in their
+ * own compensation and consent groups, every other key on the master record.
+ */
+function applyCandidatePatch(
+  record: CandidateDetail,
+  body: Record<string, unknown>,
+): CandidateDetail {
+  const {
+    consentRecordedAt,
+    consentStatus,
+    salaryExpectationCents,
+    salaryExpectationCurrency,
+    ...profile
+  } = body;
+  const compensation = record.compensation ?? {
+    salaryExpectationCents: null,
+    salaryExpectationCurrency: null,
+  };
+  const consent = record.consent ?? { consentRecordedAt: null, consentStatus: 'UNKNOWN' };
+  return {
+    ...record,
+    ...(profile as Partial<CandidateDetail>),
+    compensation: {
+      salaryExpectationCents:
+        salaryExpectationCents !== undefined
+          ? (salaryExpectationCents as number | null)
+          : compensation.salaryExpectationCents,
+      salaryExpectationCurrency:
+        salaryExpectationCurrency !== undefined
+          ? (salaryExpectationCurrency as string | null)
+          : compensation.salaryExpectationCurrency,
+    },
+    consent: {
+      consentRecordedAt:
+        consentRecordedAt !== undefined
+          ? (consentRecordedAt as string | null)
+          : consent.consentRecordedAt,
+      consentStatus:
+        consentStatus !== undefined
+          ? (consentStatus as NonNullable<CandidateDetail['consent']>['consentStatus'])
+          : consent.consentStatus,
+    },
+  };
+}
 
 function stubCandidateApi(permissions: readonly string[], handler?: Handler) {
   const calls: RecordedCall[] = [];
@@ -173,7 +219,7 @@ function stubCandidateApi(permissions: readonly string[], handler?: Handler) {
       return Promise.resolve(jsonResponse({ candidate: shaped(record) }));
     }
     if (method === 'PATCH' && !action) {
-      const next = { ...record, ...(body as Partial<CandidateDetail>) };
+      const next = applyCandidatePatch(record, body as Record<string, unknown>);
       records.set(record.id, next);
       return Promise.resolve(jsonResponse({ candidate: shaped(next) }));
     }
@@ -1803,5 +1849,426 @@ describe('Education dates and description', () => {
       expect(screen.getByRole('button', { name: `Archive ${SENIOR_ROLE}` })).toBeEnabled(),
     );
     expect(recordWrites(calls)).toHaveLength(1);
+  });
+});
+
+/* --- Issue #69: compensation and consent maintenance (D-CAND-03) ----------- */
+
+const candidatePatches = (calls: RecordedCall[]) =>
+  calls.filter((call) => call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}`);
+
+function openRestrictedForm(action: 'Edit compensation' | 'Manage consent') {
+  fireEvent.click(screen.getByRole('button', { name: action }));
+  return screen.getByRole('form', { name: action });
+}
+
+/** Saves a restricted form and waits until it has closed and the write lock is released. */
+async function saveRestricted(form: HTMLElement, action: 'Edit compensation' | 'Manage consent') {
+  fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(screen.queryByRole('form', { name: action })).toBeNull());
+  await waitFor(() => expect(screen.getByRole('button', { name: action })).toBeEnabled());
+}
+
+const restrictedSection = () => screen.getByRole('region', { name: 'Restricted information' });
+
+describe('Compensation maintenance through the Candidate update', () => {
+  it('sends only the changed amount in exact cents, then re-reads the candidate', async () => {
+    const consoleCalls = ['log', 'info', 'warn', 'error', 'debug'].map((method) =>
+      vi.spyOn(console, method as 'log'),
+    );
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Edit compensation');
+    expect(within(form).getByLabelText('Salary expectation')).toHaveValue('54000');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '36000.5' },
+    });
+    await saveRestricted(form, 'Edit compensation');
+
+    expect(candidatePatches(calls).map((call) => call.body)).toEqual([
+      { salaryExpectationCents: 3_600_050 },
+    ]);
+    // The authoritative record is read again after the write.
+    const patchAt = calls.indexOf(candidatePatches(calls)[0]!);
+    expect(candidateAReads(calls).some((call) => calls.indexOf(call) > patchAt)).toBe(true);
+    expect(within(restrictedSection()).getByText('€36,000.50')).toBeVisible();
+    const success = screen.getByText('Compensation updated.');
+    expect(success.closest('[role="status"], [role="alert"]')?.textContent).not.toMatch(/\d/);
+
+    // Nothing sensitive reaches a URL or the console.
+    for (const call of calls) {
+      expect(call.url).not.toMatch(/3600050|36000|54000|salary/i);
+    }
+    for (const spy of consoleCalls) {
+      for (const args of spy.mock.calls) {
+        expect(JSON.stringify(args)).not.toMatch(/3600050|36000\.5|54000/);
+      }
+    }
+  });
+
+  it('sends a currency alone, null for a cleared amount or currency, zero as zero, and nothing unchanged', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const change = async (label: 'Currency' | 'Salary expectation', value: string) => {
+      const form = openRestrictedForm('Edit compensation');
+      fireEvent.change(within(form).getByLabelText(label), { target: { value } });
+      await saveRestricted(form, 'Edit compensation');
+    };
+    await change('Currency', 'MAD');
+    await change('Salary expectation', '');
+    expect(within(restrictedSection()).getByText('Not recorded')).toBeVisible();
+    await change('Salary expectation', '0');
+    await change('Currency', '');
+    // Saving the form untouched sends nothing.
+    await saveRestricted(openRestrictedForm('Edit compensation'), 'Edit compensation');
+
+    expect(candidatePatches(calls).map((call) => call.body)).toEqual([
+      { salaryExpectationCurrency: 'MAD' },
+      { salaryExpectationCents: null },
+      { salaryExpectationCents: 0 },
+      { salaryExpectationCurrency: null },
+    ]);
+    expect(within(restrictedSection()).getByText('0.00')).toBeVisible();
+  });
+
+  it('rejects an invalid amount or currency without any request', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Edit compensation');
+    for (const [label, value] of [
+      ['Salary expectation', '36000.505'],
+      ['Salary expectation', '-1'],
+      ['Salary expectation', '3.6e4'],
+    ] as const) {
+      fireEvent.change(within(form).getByLabelText(label), { target: { value } });
+      fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+      expect(
+        await within(form).findByText(
+          'Enter an amount such as 36000 or 36000.50, with at most two decimals.',
+        ),
+      ).toBeVisible();
+    }
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '36000' },
+    });
+    fireEvent.change(within(form).getByLabelText('Currency'), { target: { value: 'EU' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    expect(
+      await within(form).findByText('Enter exactly three characters, for example EUR.'),
+    ).toBeVisible();
+
+    expect(candidatePatches(calls)).toHaveLength(0);
+  });
+
+  it('shows a denied write generically, keeps the stored value, and exposes no policy text', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}`
+        ? jsonResponse(
+            {
+              error: {
+                code: 'CANDIDATE_COMPENSATION_PERMISSION_REQUIRED',
+                message: 'Candidate compensation fields require candidate_compensation:update.',
+              },
+            },
+            403,
+          )
+        : undefined,
+    );
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '36000' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      'Your access does not allow this change.',
+    );
+    expect(document.body.textContent).not.toContain('candidate_compensation');
+    expect(screen.queryByText('Compensation updated.')).toBeNull();
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+    expect(within(restrictedSection()).getByText('€54,000.00')).toBeVisible();
+    expect(candidatePatches(calls)).toHaveLength(1);
+  });
+
+  it('refreshes a candidate archived meanwhile and withdraws the restricted actions', async () => {
+    let archivedMeanwhile = false;
+    stubCandidateApi(FULL_PERMISSIONS, (call) => {
+      if (call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}`) {
+        archivedMeanwhile = true;
+        return jsonResponse({ error: { code: 'CANDIDATE_ARCHIVED', message: 'raw' } }, 409);
+      }
+      if (archivedMeanwhile && call.method === 'GET' && call.url === `${API}/${CANDIDATE_ID}`) {
+        return jsonResponse({
+          candidate: syntheticCandidate({
+            archivedAt: '2026-07-22T00:00:00.000Z',
+            status: 'ARCHIVED',
+          }),
+        });
+      }
+      return undefined;
+    });
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Manage consent');
+    fireEvent.change(within(form).getByLabelText('Consent status'), {
+      target: { value: 'REVOKED' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+
+    expect(
+      await screen.findByText(
+        'This candidate is archived. Archived profiles are read-only and keep their history.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Manage consent' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit compensation' })).toBeNull();
+    expect(within(restrictedSection()).getByText('Granted')).toBeVisible();
+  });
+});
+
+describe('Consent maintenance through the Candidate update', () => {
+  const originalTimezone = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = 'Europe/Paris';
+  });
+
+  afterAll(() => {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  });
+
+  it('saves the status and the recorded time independently, null when cleared, nothing unchanged', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    // 12:00 UTC in July is 14:00 in Paris.
+    let form = openRestrictedForm('Manage consent');
+    expect(within(form).getByLabelText('Recorded date and time')).toHaveValue('2026-07-21T14:00');
+    fireEvent.change(within(form).getByLabelText('Consent status'), {
+      target: { value: 'REVOKED' },
+    });
+    await saveRestricted(form, 'Manage consent');
+    expect(await screen.findByText('Consent updated.')).toBeVisible();
+    expect(within(restrictedSection()).getByText('Revoked')).toBeVisible();
+
+    form = openRestrictedForm('Manage consent');
+    // The untouched instant is still the stored one.
+    expect(within(form).getByLabelText('Recorded date and time')).toHaveValue('2026-07-21T14:00');
+    fireEvent.change(within(form).getByLabelText('Recorded date and time'), {
+      target: { value: '2026-08-01T11:30' },
+    });
+    await saveRestricted(form, 'Manage consent');
+
+    form = openRestrictedForm('Manage consent');
+    expect(within(form).getByLabelText('Recorded date and time')).toHaveValue('2026-08-01T11:30');
+    fireEvent.change(within(form).getByLabelText('Recorded date and time'), {
+      target: { value: '' },
+    });
+    await saveRestricted(form, 'Manage consent');
+    expect(within(restrictedSection()).getByText('Not recorded')).toBeVisible();
+
+    await saveRestricted(openRestrictedForm('Manage consent'), 'Manage consent');
+
+    expect(candidatePatches(calls).map((call) => call.body)).toEqual([
+      { consentStatus: 'REVOKED' },
+      { consentRecordedAt: '2026-08-01T09:30:00.000Z' },
+      { consentRecordedAt: null },
+    ]);
+    for (const call of calls) {
+      expect(call.url).not.toMatch(/REVOKED|GRANTED|2026-08-01|consent/i);
+    }
+  });
+});
+
+describe('Restricted writes share the Candidate write lifecycle', () => {
+  it('sends one save even when submitted twice, and locks every other write meanwhile', async () => {
+    const save = deferredResponse();
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS, (call) =>
+      call.method === 'PATCH' ? save.promise : undefined,
+    );
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '1' },
+    });
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await waitFor(() => expect(candidatePatches(calls)).toHaveLength(1));
+
+    for (const name of [
+      'Manage consent',
+      'Edit profile',
+      'Archive candidate',
+      'Add skill',
+      'Edit Sourcing',
+      'Mark inactive',
+    ]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    expect(within(form).getByRole('button', { name: /Save changes|Working/ })).toBeDisabled();
+
+    save.release(
+      jsonResponse({
+        candidate: asServerWouldReturn(
+          syntheticCandidate({
+            compensation: { salaryExpectationCents: 100, salaryExpectationCurrency: 'EUR' },
+          }),
+          FULL_PERMISSIONS,
+        ),
+      }),
+    );
+    expect(await screen.findByText('Compensation updated.')).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Manage consent' })).toBeEnabled(),
+    );
+    expect(candidatePatches(calls)).toHaveLength(1);
+  });
+
+  it('does not show a late restricted save for candidate A on candidate B, or re-read A', async () => {
+    const save = deferredResponse();
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS, (call) =>
+      call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}` ? save.promise : undefined,
+    );
+    renderPanel(FULL_PERMISSIONS);
+    await selectCandidate();
+
+    const form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '12345.67' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(candidatePatches(calls)).toHaveLength(1));
+    await moveToSecondCandidate();
+
+    save.release(
+      jsonResponse({
+        candidate: asServerWouldReturn(
+          syntheticCandidate({
+            compensation: { salaryExpectationCents: 1_234_567, salaryExpectationCurrency: 'EUR' },
+          }),
+          FULL_PERMISSIONS,
+        ),
+      }),
+    );
+    await waitForWriteToSettle();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByText('Compensation updated.')).toBeNull();
+    expect(document.body.textContent).not.toContain('12,345.67');
+    expect(candidateAReads(calls)).toHaveLength(1);
+  });
+
+  it('drops a restricted save result from an earlier session', async () => {
+    const save = deferredResponse();
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS, (call) =>
+      call.method === 'PATCH' ? save.promise : undefined,
+    );
+    const panel = (token: string) => (
+      <I18nProvider initialLocale="en">
+        <CandidatesPanel accessToken={token} permissions={[...FULL_PERMISSIONS]} />
+      </I18nProvider>
+    );
+    const view = render(panel('token-a'));
+    await selectCandidate();
+
+    const form = openRestrictedForm('Manage consent');
+    fireEvent.change(within(form).getByLabelText('Consent status'), {
+      target: { value: 'EXPIRED' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(candidatePatches(calls)).toHaveLength(1));
+
+    view.rerender(panel('token-b'));
+    await waitFor(() =>
+      expect(calls.some((call) => isListCall(call) && call.token === 'Bearer token-b')).toBe(true),
+    );
+    const sessionBStart = calls.findIndex(
+      (call) => isListCall(call) && call.token === 'Bearer token-b',
+    );
+    save.release(
+      jsonResponse({
+        candidate: asServerWouldReturn(
+          syntheticCandidate({ consent: { consentRecordedAt: null, consentStatus: 'EXPIRED' } }),
+          FULL_PERMISSIONS,
+        ),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Search candidates' })).toBeEnabled(),
+    );
+
+    expect(screen.queryByText('Consent updated.')).toBeNull();
+    expect(screen.queryByText('Expired')).toBeNull();
+    const afterSessionB = candidateCalls(calls.slice(sessionBStart));
+    expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
+    expect(afterSessionB.some((call) => call.url === `${API}/${CANDIDATE_ID}`)).toBe(false);
+  });
+
+  it('discards an open restricted form when the token or the principal is replaced', async () => {
+    stubCandidateApi(FULL_PERMISSIONS);
+    const panel = (token: string, permissions: readonly string[]) => (
+      <I18nProvider initialLocale="en">
+        <CandidatesPanel accessToken={token} permissions={[...permissions]} />
+      </I18nProvider>
+    );
+    const view = render(panel('token-a', FULL_PERMISSIONS));
+    await selectCandidate();
+
+    let form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '1' },
+    });
+    openRestrictedForm('Manage consent');
+
+    // A refreshed token for the same principal closes both forms.
+    view.rerender(panel('token-b', FULL_PERMISSIONS));
+    expect(screen.queryByRole('form', { name: 'Edit compensation' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Manage consent' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit compensation' })).toBeVisible();
+
+    // A principal without the restricted permissions sees nothing of either area.
+    form = openRestrictedForm('Edit compensation');
+    view.rerender(panel('token-c', ORDINARY_PERMISSIONS));
+    expect(screen.queryByRole('region', { name: 'Restricted information' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit compensation' })).toBeNull();
+    expect(form.isConnected).toBe(false);
+    expect(document.body.textContent).not.toMatch(/54,000|Granted|Salary expectation/);
+  });
+
+  it('switches language with a restricted form open, keeping what was typed, without refetching', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    render(
+      <I18nProvider initialLocale="en">
+        <CandidatesPanel accessToken={TOKEN} permissions={[...FULL_PERMISSIONS]} />
+        <LocaleSwitch />
+      </I18nProvider>,
+    );
+    await selectCandidate();
+    const form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '36000.5' },
+    });
+    const before = calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'switch language' }));
+
+    const french = await screen.findByRole('form', { name: 'Modifier la rémunération' });
+    expect(within(french).getByLabelText('Prétentions salariales')).toHaveValue('36000.5');
+    expect(within(french).getByLabelText('Devise')).toHaveValue('EUR');
+    expect(calls.length).toBe(before);
   });
 });

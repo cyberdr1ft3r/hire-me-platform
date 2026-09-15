@@ -1,4 +1,4 @@
-import type { CandidateDetail } from '@hire-me/contracts';
+import type { CandidateDetail, CandidateUpdateRequest } from '@hire-me/contracts';
 import { useMemo, useState } from 'react';
 
 import {
@@ -7,6 +7,7 @@ import {
   EMPTY_CANDIDATE_FILTERS,
   candidateSourceQuery,
   resolveCandidateAccess,
+  sensitiveUpdateRequest,
   type CandidateDetailState,
   type CandidateFeedback,
   type CandidateFilterValues,
@@ -39,9 +40,12 @@ import {
  * It performs no request of any kind and contains only synthetic records. It
  * is not linked from product navigation and is excluded from the production
  * build. Search, source, status, and paging work locally over the synthetic
- * set in place of the server; a structured record can be edited or archived
- * locally so both flows can be reviewed. Other forms only report success,
- * because there is no API behind them.
+ * set in place of the server; a structured record, the compensation, and the
+ * consent can be edited locally so those flows can be reviewed. Other forms
+ * only report success, because there is no API behind them.
+ *
+ * Switching the access profile stands in for a new principal: it resets any
+ * open compensation or consent form, as a new session does in production.
  *
  * `?dataset=many` starts with enough candidates for three pages.
  */
@@ -149,6 +153,33 @@ function applyUpdate(record: CandidateDetail, update: CandidateRecordUpdate): Ca
   }
 }
 
+/** Applies a partial compensation or consent update to a synthetic candidate, as the API would. */
+function applySensitive(record: CandidateDetail, body: CandidateUpdateRequest): CandidateDetail {
+  const compensation = record.compensation ?? {
+    salaryExpectationCents: null,
+    salaryExpectationCurrency: null,
+  };
+  const consent = record.consent ?? { consentRecordedAt: null, consentStatus: 'UNKNOWN' };
+  return {
+    ...record,
+    compensation: {
+      salaryExpectationCents:
+        body.salaryExpectationCents !== undefined
+          ? body.salaryExpectationCents
+          : compensation.salaryExpectationCents,
+      salaryExpectationCurrency:
+        body.salaryExpectationCurrency !== undefined
+          ? body.salaryExpectationCurrency
+          : compensation.salaryExpectationCurrency,
+    },
+    consent: {
+      consentRecordedAt:
+        body.consentRecordedAt !== undefined ? body.consentRecordedAt : consent.consentRecordedAt,
+      consentStatus: body.consentStatus ?? consent.consentStatus,
+    },
+  };
+}
+
 /** Marks a synthetic structured record archived; it stays as history. */
 function applyArchive(record: CandidateDetail, ref: CandidateRecordRef): CandidateDetail {
   const archivedAt = new Date().toISOString();
@@ -180,6 +211,7 @@ function CandidatePreviewContent() {
   });
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(PREVIEW_CANDIDATES[0]?.id ?? null);
+  const [sessionKey, setSessionKey] = useState(0);
 
   const permissions = PREVIEW_PERMISSIONS[profile];
   const access = useMemo(() => resolveCandidateAccess(permissions), [permissions]);
@@ -236,11 +268,17 @@ function CandidatePreviewContent() {
           label={t('preview.candidate.access')}
           onChange={(event) => {
             const next = event.target.value;
-            setProfile(next === 'recruiter' || next === 'viewer' ? next : 'full');
+            setProfile(
+              next === 'recruiter' || next === 'restrictedViewer' || next === 'viewer'
+                ? next
+                : 'full',
+            );
+            setSessionKey((key) => key + 1);
           }}
           value={profile}
         >
           <option value="full">{t('preview.candidate.accessFull')}</option>
+          <option value="restrictedViewer">{t('preview.candidate.accessRestrictedViewer')}</option>
           <option value="recruiter">{t('preview.candidate.accessRecruiter')}</option>
           <option value="viewer">{t('preview.candidate.accessViewer')}</option>
         </Select>
@@ -280,8 +318,27 @@ function CandidatePreviewContent() {
           setFeedback({ kind: 'recordUpdated', record: update.kind, tone: 'success' });
           return ACCEPTED;
         }}
+        onUpdateSensitive={(update) => {
+          const request =
+            detail.status === 'ready' ? sensitiveUpdateRequest(detail.candidate, update) : null;
+          if (!request) {
+            return Promise.resolve({ ok: false });
+          }
+          if (!request.ok) {
+            return Promise.resolve({ fieldErrors: request.fieldErrors, ok: false });
+          }
+          if (Object.keys(request.body).length > 0) {
+            updateSelected((record) => applySensitive(record, request.body));
+            setFeedback({
+              kind: update.kind === 'compensation' ? 'compensationUpdated' : 'consentUpdated',
+              tone: 'success',
+            });
+          }
+          return ACCEPTED;
+        }}
         pending={null}
         selectedId={selectedId}
+        sessionKey={sessionKey}
       />
     </AppShell>
   );

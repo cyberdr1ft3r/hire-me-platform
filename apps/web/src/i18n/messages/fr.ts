@@ -216,13 +216,23 @@ export const frMessages: Messages = {
       save: 'Enregistrer les modifications',
     },
     compensation: {
+      amountHint:
+        'En unités monétaires, pas en centimes, par exemple 36000 ou 36000,50. Laisser vide pour effacer.',
+      currency: 'Devise',
+      currencyHint:
+        'Trois caractères, tels qu’enregistrés, par exemple EUR. Laisser vide pour effacer.',
+      edit: 'Modifier la rémunération',
       notRecorded: 'Non renseignée',
       salaryExpectation: 'Prétentions salariales',
       title: 'Rémunération',
     },
     consent: {
+      manage: 'Gérer le consentement',
       notRecorded: 'Non renseigné',
       recordedAt: 'Enregistré le',
+      recordedAtField: 'Date et heure d’enregistrement',
+      recordedAtHint:
+        'Heure locale. Laisser vide pour effacer. Changer le statut ne modifie pas cette date.',
       status: 'Statut du consentement',
       title: 'Consentement',
     },
@@ -270,6 +280,8 @@ export const frMessages: Messages = {
     },
     feedback: {
       archived: 'Candidat archivé.',
+      compensationUpdated: 'Rémunération mise à jour.',
+      consentUpdated: 'Consentement mis à jour.',
       created: 'Candidat créé.',
       educationAdded: 'Formation ajoutée.',
       experienceAdded: 'Expérience ajoutée.',
@@ -426,6 +438,9 @@ export const frMessages: Messages = {
       loadingList: 'Chargement des candidats…',
     },
     validation: {
+      amount: 'Saisissez un montant comme 36000 ou 36000,50, avec deux décimales au plus.',
+      currency: 'Saisissez exactement trois caractères, par exemple EUR.',
+      dateTime: 'Saisissez une date et une heure complètes, ou laissez le champ vide.',
       duplicateEmail: 'Un candidat possède déjà cette adresse e-mail.',
       email: 'Saisissez une adresse e-mail valide.',
       required: 'Ce champ est obligatoire.',
@@ -926,6 +941,7 @@ export const frMessages: Messages = {
       access: 'Accès de prévisualisation',
       accessFull: 'Accès complet',
       accessRecruiter: 'Recruteur sans données restreintes',
+      accessRestrictedViewer: 'Données restreintes en consultation seule',
       accessViewer: 'Consultation seule',
       dataset: 'Jeu de données de prévisualisation',
       empty: 'Aucun candidat',

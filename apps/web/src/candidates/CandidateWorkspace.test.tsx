@@ -60,8 +60,10 @@ function renderWorkspace(
     onSelect: vi.fn(),
     onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
+    onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
     pending: null,
     selectedId: shaped.id,
+    sessionKey: 0,
     ...overrides,
   };
   render(
@@ -202,30 +204,44 @@ describe('Candidate sensitive-data boundaries', () => {
     expect(within(section).queryByRole('button')).toBeNull();
   });
 
-  it('keeps compensation read-only even with candidate_compensation:update, as before', () => {
+  /*
+   * Issue #69 (D-CAND-03) corrects the drift these two cases used to pin: with
+   * candidates:update plus the view and update/manage permissions, the
+   * restricted area now offers its one action. The view-only halves stay.
+   */
+  it('offers Edit compensation with candidate_compensation:update alongside view and candidates:update', () => {
     renderWorkspace([...ORDINARY_PERMISSIONS, P.compensationView, P.compensationUpdate]);
 
     const section = screen.getByRole('region', { name: 'Restricted information' });
     expect(within(section).getByText(/€54,000\.00/)).toBeVisible();
     expect(within(section).queryByRole('textbox')).toBeNull();
     expect(within(section).queryByRole('spinbutton')).toBeNull();
-    expect(within(section).queryByRole('button')).toBeNull();
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((control) => control.textContent),
+    ).toEqual(['Edit compensation']);
   });
 
-  it('shows consent read-only with candidate_consent:view, and still read-only with manage', () => {
+  it('shows consent read-only with candidate_consent:view, and offers Manage consent with manage', () => {
     renderWorkspace([...ORDINARY_PERMISSIONS, P.consentView]);
     let section = screen.getByRole('region', { name: 'Restricted information' });
     expect(within(section).getByText('Consent status')).toBeVisible();
     expect(within(section).getByText('Granted')).toBeVisible();
     expect(within(section).queryByText('Salary expectation')).toBeNull();
     expect(within(section).queryByRole('combobox')).toBeNull();
+    expect(within(section).queryByRole('button')).toBeNull();
     cleanup();
 
     renderWorkspace([...ORDINARY_PERMISSIONS, P.consentView, P.consentManage]);
     section = screen.getByRole('region', { name: 'Restricted information' });
     expect(within(section).getByText('Granted')).toBeVisible();
     expect(within(section).queryByRole('combobox')).toBeNull();
-    expect(within(section).queryByRole('button')).toBeNull();
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((control) => control.textContent),
+    ).toEqual(['Manage consent']);
   });
 
   it('never shows compensation or consent in the candidate list, whatever the access', () => {
