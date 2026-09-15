@@ -11,7 +11,8 @@ Last updated: 2026-09-15
 - **Consent.** The four contract statuses with EN/FR labels; recorded date and time through the Task local date-time helpers. The status never changes the date. Same partial-update rules.
 - **Audit.** `candidates.compensation.updated` and `candidates.consent.updated` (actor and candidate only) are recorded with the generic `candidates.candidate.updated` only when the stored group actually changed.
 - **Contract.** `salaryExpectationCents` is bounded to the PostgreSQL `integer` maximum on create and update (an overflow was a 500, now a 400).
-- **Write safety.** The single write lock and the candidate-context and session guards apply; a success commits the server response and re-reads the candidate; the restricted forms reset on any token or permission change.
+- **Write safety.** The single write lock and the candidate-context and session guards apply; a success commits the server response and re-reads the candidate.
+- **Session boundary.** Final review on head `88fa91e` found the previous principal's selected candidate (with its restricted values) stayed rendered after a token or permission change. The container now resets the selection, record, feedback, list, and filters while rendering, advances every request and context guard, and remounts the presentation, so the new session starts empty and loads its own data. A write still in flight keeps the write lock until it settles; its result is dropped.
 - D-064 records the decision; R-039 records the pre-existing gap that write responses are not audited as access. R-035 is untouched.
 
 ## Review target
@@ -27,7 +28,8 @@ Review with the preview access profiles:
 
 ## Completion conditions
 
-- Every Issue #69 validation command and the exact-head GitHub Actions run are green, including the Candidate PostgreSQL tests for the dedicated audit events and denied writes.
+- Every Issue #69 validation command and the exact-head GitHub Actions run are green, including the Candidate PostgreSQL tests for the dedicated audit events and denied writes and the session-boundary regressions.
+- ChatGPT D-CAND-03 re-review accepts the session-boundary correction.
 - Issue #66 records D-CAND-03 as implemented and awaiting review, and stays open.
 - The ChatGPT conformance review accepts the implementation or requests a bounded correction on the same branch.
 
