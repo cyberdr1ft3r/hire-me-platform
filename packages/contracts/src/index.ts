@@ -344,6 +344,7 @@ export type {
   PlacementStatus,
 } from './missions.js';
 export {
+  CANDIDATE_SALARY_EXPECTATION_CENTS_MAX,
   CandidateConsentSchema,
   CandidateConsentStatusSchema,
   CandidateCreateRequestSchema,

@@ -196,56 +196,65 @@ export class CandidatesService {
     this.assertSensitiveInputAllowed(input, access);
 
     try {
-      const candidate = await this.withWritableCandidateLock(candidateId, (transaction) =>
-        transaction.candidate.update({
-          where: { id: candidateId },
-          data: {
-            ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
-            ...(input.firstName !== undefined ? { firstName: nullable(input.firstName) } : {}),
-            ...(input.lastName !== undefined ? { lastName: nullable(input.lastName) } : {}),
-            ...(input.email !== undefined
-              ? {
-                  email: nullable(input.email),
-                  normalizedEmail: input.email ? normalizeEmail(input.email) : null,
-                }
-              : {}),
-            ...(input.phone !== undefined
-              ? { phone: nullable(input.phone), normalizedPhone: normalizePhoneOrNull(input.phone) }
-              : {}),
-            ...(input.city !== undefined ? { city: nullable(input.city) } : {}),
-            ...(input.country !== undefined ? { country: nullable(input.country) } : {}),
-            ...(input.currentJobTitle !== undefined
-              ? { currentJobTitle: nullable(input.currentJobTitle) }
-              : {}),
-            ...(input.professionalSummary !== undefined
-              ? { professionalSummary: nullable(input.professionalSummary) }
-              : {}),
-            ...(input.linkedinUrl !== undefined
-              ? { linkedinUrl: nullable(input.linkedinUrl) }
-              : {}),
-            ...(input.source !== undefined ? { source: nullable(input.source) } : {}),
-            ...(input.sourceDetail !== undefined
-              ? { sourceDetail: nullable(input.sourceDetail) }
-              : {}),
-            ...(input.availabilityNotice !== undefined
-              ? { availabilityNotice: nullable(input.availabilityNotice) }
-              : {}),
-            ...(input.salaryExpectationCents !== undefined
-              ? { salaryExpectationCents: input.salaryExpectationCents }
-              : {}),
-            ...(input.salaryExpectationCurrency !== undefined
-              ? { salaryExpectationCurrency: nullable(input.salaryExpectationCurrency) }
-              : {}),
-            ...(input.consentStatus !== undefined ? { consentStatus: input.consentStatus } : {}),
-            ...(input.consentRecordedAt !== undefined
-              ? {
-                  consentRecordedAt: input.consentRecordedAt
-                    ? new Date(input.consentRecordedAt)
-                    : null,
-                }
-              : {}),
-          },
-          include: profileInclude,
+      // The locked row before the write is the baseline for deciding whether a
+      // sensitive group actually changed, rather than whether its keys were sent.
+      const { before, candidate } = await this.withWritableCandidateLock(
+        candidateId,
+        async (transaction, locked) => ({
+          before: locked,
+          candidate: await transaction.candidate.update({
+            where: { id: candidateId },
+            data: {
+              ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+              ...(input.firstName !== undefined ? { firstName: nullable(input.firstName) } : {}),
+              ...(input.lastName !== undefined ? { lastName: nullable(input.lastName) } : {}),
+              ...(input.email !== undefined
+                ? {
+                    email: nullable(input.email),
+                    normalizedEmail: input.email ? normalizeEmail(input.email) : null,
+                  }
+                : {}),
+              ...(input.phone !== undefined
+                ? {
+                    phone: nullable(input.phone),
+                    normalizedPhone: normalizePhoneOrNull(input.phone),
+                  }
+                : {}),
+              ...(input.city !== undefined ? { city: nullable(input.city) } : {}),
+              ...(input.country !== undefined ? { country: nullable(input.country) } : {}),
+              ...(input.currentJobTitle !== undefined
+                ? { currentJobTitle: nullable(input.currentJobTitle) }
+                : {}),
+              ...(input.professionalSummary !== undefined
+                ? { professionalSummary: nullable(input.professionalSummary) }
+                : {}),
+              ...(input.linkedinUrl !== undefined
+                ? { linkedinUrl: nullable(input.linkedinUrl) }
+                : {}),
+              ...(input.source !== undefined ? { source: nullable(input.source) } : {}),
+              ...(input.sourceDetail !== undefined
+                ? { sourceDetail: nullable(input.sourceDetail) }
+                : {}),
+              ...(input.availabilityNotice !== undefined
+                ? { availabilityNotice: nullable(input.availabilityNotice) }
+                : {}),
+              ...(input.salaryExpectationCents !== undefined
+                ? { salaryExpectationCents: input.salaryExpectationCents }
+                : {}),
+              ...(input.salaryExpectationCurrency !== undefined
+                ? { salaryExpectationCurrency: nullable(input.salaryExpectationCurrency) }
+                : {}),
+              ...(input.consentStatus !== undefined ? { consentStatus: input.consentStatus } : {}),
+              ...(input.consentRecordedAt !== undefined
+                ? {
+                    consentRecordedAt: input.consentRecordedAt
+                      ? new Date(input.consentRecordedAt)
+                      : null,
+                  }
+                : {}),
+            },
+            include: profileInclude,
+          }),
         }),
       );
 
@@ -255,6 +264,7 @@ export class CandidatesService {
         entityId: candidate.id,
         metadataSummary: 'Approved candidate profile fields updated.',
       });
+      await this.auditSensitiveUpdates(before, candidate, actorUserId, context);
 
       return { candidate: this.toCandidateDetail(candidate, access) };
     } catch (error: unknown) {
@@ -768,6 +778,42 @@ export class CandidatesService {
         entityType: 'Candidate',
         entityId: candidateId,
         metadataSummary: 'Candidate consent fields included in response.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated, value-free audit events for a committed change to compensation
+   * or consent, compared on the stored values before and after the write. A
+   * request that repeats the stored values records no sensitive change, and a
+   * denied or failed write never reaches this point.
+   */
+  private async auditSensitiveUpdates(
+    before: CandidateRecord,
+    after: CandidateRecord,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<void> {
+    if (
+      before.salaryExpectationCents !== after.salaryExpectationCents ||
+      before.salaryExpectationCurrency !== after.salaryExpectationCurrency
+    ) {
+      await this.audit.record('candidates.compensation.updated', context, {
+        actorUserId,
+        entityType: 'Candidate',
+        entityId: after.id,
+        metadataSummary: 'Candidate compensation fields changed.',
+      });
+    }
+    if (
+      before.consentStatus !== after.consentStatus ||
+      before.consentRecordedAt?.getTime() !== after.consentRecordedAt?.getTime()
+    ) {
+      await this.audit.record('candidates.consent.updated', context, {
+        actorUserId,
+        entityType: 'Candidate',
+        entityId: after.id,
+        metadataSummary: 'Candidate consent fields changed.',
       });
     }
   }
