@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticatedUser, CandidateDetail } from '@hire-me/contracts';
@@ -973,8 +973,9 @@ describe('Post-write list refreshes follow the current filters and session', () 
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
     expect(calls.find((call) => call.url.endsWith('/status'))?.token).toBe('Bearer token-a');
 
-    // Session B begins and performs its own list load.
+    // Session B begins and performs its own list load. Session A's write still holds the lock.
     view.rerender(panel('token-b'));
+    expect(screen.getByRole('button', { name: 'New candidate' })).toBeDisabled();
     await waitFor(() =>
       expect(calls.some((call) => isListCall(call) && call.token === 'Bearer token-b')).toBe(true),
     );
@@ -982,10 +983,10 @@ describe('Post-write list refreshes follow the current filters and session', () 
       (call) => isListCall(call) && call.token === 'Bearer token-b',
     );
 
-    // The session-A write resolves afterwards.
+    // The session-A write resolves afterwards; the write lock it held is released.
     status.release(jsonResponse({ candidate: syntheticCandidate({ status: 'INACTIVE' }) }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'New candidate' })).toBeEnabled(),
     );
 
     // No request after session B began carries the session-A token.
@@ -996,7 +997,9 @@ describe('Post-write list refreshes follow the current filters and session', () 
     const list = screen.getByRole('region', { name: 'Candidate list' });
     expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
     expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeVisible();
+    // Issue #69 review: session A's selected record is not carried into session B.
+    expect(screen.queryByRole('button', { name: 'Mark inactive' })).toBeNull();
+    expect(screen.getByText('No candidate selected')).toBeVisible();
   });
 });
 
@@ -2218,37 +2221,6 @@ describe('Restricted writes share the Candidate write lifecycle', () => {
     expect(afterSessionB.some((call) => call.url === `${API}/${CANDIDATE_ID}`)).toBe(false);
   });
 
-  it('discards an open restricted form when the token or the principal is replaced', async () => {
-    stubCandidateApi(FULL_PERMISSIONS);
-    const panel = (token: string, permissions: readonly string[]) => (
-      <I18nProvider initialLocale="en">
-        <CandidatesPanel accessToken={token} permissions={[...permissions]} />
-      </I18nProvider>
-    );
-    const view = render(panel('token-a', FULL_PERMISSIONS));
-    await selectCandidate();
-
-    let form = openRestrictedForm('Edit compensation');
-    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
-      target: { value: '1' },
-    });
-    openRestrictedForm('Manage consent');
-
-    // A refreshed token for the same principal closes both forms.
-    view.rerender(panel('token-b', FULL_PERMISSIONS));
-    expect(screen.queryByRole('form', { name: 'Edit compensation' })).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Manage consent' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Edit compensation' })).toBeVisible();
-
-    // A principal without the restricted permissions sees nothing of either area.
-    form = openRestrictedForm('Edit compensation');
-    view.rerender(panel('token-c', ORDINARY_PERMISSIONS));
-    expect(screen.queryByRole('region', { name: 'Restricted information' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Edit compensation' })).toBeNull();
-    expect(form.isConnected).toBe(false);
-    expect(document.body.textContent).not.toMatch(/54,000|Granted|Salary expectation/);
-  });
-
   it('switches language with a restricted form open, keeping what was typed, without refetching', async () => {
     const { calls } = stubCandidateApi(FULL_PERMISSIONS);
     render(
@@ -2270,5 +2242,297 @@ describe('Restricted writes share the Candidate write lifecycle', () => {
     expect(within(french).getByLabelText('Prétentions salariales')).toHaveValue('36000.5');
     expect(within(french).getByLabelText('Devise')).toHaveValue('EUR');
     expect(calls.length).toBe(before);
+  });
+});
+
+/* --- Issue #69 review: the Candidate workspace belongs to one session ------- */
+
+/** One principal's server-side view: its own records, shaped by its current permissions. */
+interface PrincipalView {
+  permissions: () => readonly string[];
+  records: Map<string, CandidateDetail>;
+}
+
+const nadia = (overrides: Partial<CandidateDetail> = {}) =>
+  syntheticCandidate({ displayName: 'Nadia Example', id: CANDIDATE_ID, ...overrides });
+const omar = () => syntheticCandidate({ displayName: 'Omar Example', id: SECOND_CANDIDATE_ID });
+
+/** Principal A reads Nadia at 54,000 EUR with consent granted. */
+const principalA = (permissions: () => readonly string[] = () => FULL_PERMISSIONS) => ({
+  permissions,
+  records: new Map([
+    [CANDIDATE_ID, nadia()],
+    [SECOND_CANDIDATE_ID, omar()],
+  ]),
+});
+
+/** Principal B's authoritative read of the same candidate differs, so its origin is visible. */
+const principalB = (): PrincipalView => ({
+  permissions: () => FULL_PERMISSIONS,
+  records: new Map([
+    [
+      CANDIDATE_ID,
+      nadia({
+        compensation: { salaryExpectationCents: 4_100_000, salaryExpectationCurrency: 'MAD' },
+        consent: { consentRecordedAt: '2026-08-18T10:00:00.000Z', consentStatus: 'REVOKED' },
+      }),
+    ],
+    [SECOND_CANDIDATE_ID, omar()],
+  ]),
+});
+
+/**
+ * A Candidate API that answers each bearer token with that principal's own
+ * view. `hold` may keep any request unresolved until the test releases it.
+ */
+function stubPrincipalApi(
+  views: Record<string, PrincipalView>,
+  hold?: (call: RecordedCall) => Promise<Response> | undefined,
+) {
+  const calls: RecordedCall[] = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const method = init?.method ?? 'GET';
+    const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+    const token = init?.headers instanceof Headers ? init.headers.get('Authorization') : null;
+    const call = { body, method, token, url };
+    calls.push(call);
+
+    const held = hold?.(call);
+    if (held) {
+      return held;
+    }
+    const view = token ? views[token.replace('Bearer ', '')] : undefined;
+    if (!view || !url.startsWith(API)) {
+      return Promise.reject(new Error(`Unexpected ${method} ${url}`));
+    }
+    const shaped = (record: CandidateDetail) => asServerWouldReturn(record, view.permissions());
+    const path = url.slice(API.length);
+    if (method === 'GET' && path.startsWith('?')) {
+      const list = [...view.records.values()].map(shaped);
+      return Promise.resolve(
+        jsonResponse({
+          candidates: list,
+          pagination: { page: 1, pageSize: 20, total: list.length },
+        }),
+      );
+    }
+    const id = path.split('/')[1] ?? '';
+    const record = view.records.get(id);
+    if (!record) {
+      return Promise.resolve(jsonResponse({ error: { code: 'CANDIDATE_NOT_FOUND' } }, 404));
+    }
+    if (method === 'GET' && path === `/${id}`) {
+      return Promise.resolve(jsonResponse({ candidate: shaped(record) }));
+    }
+    if (method === 'PATCH' && path === `/${id}`) {
+      const next = applyCandidatePatch(record, body as Record<string, unknown>);
+      view.records.set(id, next);
+      return Promise.resolve(jsonResponse({ candidate: shaped(next) }));
+    }
+    return Promise.reject(new Error(`Unhandled ${method} ${url}`));
+  });
+  return calls;
+}
+
+function sessionPanel(token: string, permissions: readonly string[] = FULL_PERMISSIONS) {
+  return (
+    <I18nProvider initialLocale="en">
+      <CandidatesPanel accessToken={token} permissions={[...permissions]} />
+    </I18nProvider>
+  );
+}
+
+/**
+ * Nothing principal A read about Nadia — identity, record, restricted values,
+ * forms — is on screen. At the instant of the switch the list rows A read are
+ * gone too; afterwards principal B's own list may show the same candidate.
+ */
+function expectNoPrincipalAWorkspace({ atSwitch = false } = {}) {
+  expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
+  if (atSwitch) {
+    expect(screen.queryByRole('button', { name: 'Nadia Example' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Omar Example' })).toBeNull();
+  }
+  expect(screen.queryByRole('region', { name: 'Restricted information' })).toBeNull();
+  expect(screen.queryByRole('form')).toBeNull();
+  expect(document.body.textContent).not.toMatch(
+    /54,000|Granted|Expired|candidate@example\.test|Salary expectation|Consent status/,
+  );
+  expect(screen.getByText('No candidate selected')).toBeVisible();
+}
+
+const candidateTokensAfter = (calls: RecordedCall[], index: number) =>
+  candidateCalls(calls.slice(index)).map((call) => call.token);
+
+describe('Candidate workspace session boundary', () => {
+  it('discards principal A’s candidate, restricted values, open form, and feedback as principal B takes over', async () => {
+    const calls = stubPrincipalApi({ 'token-a': principalA(), 'token-b': principalB() });
+    const view = render(sessionPanel('token-a'));
+    await selectCandidate('Nadia Example');
+    expect(within(restrictedSection()).getByText('€54,000.00')).toBeVisible();
+    expect(within(restrictedSection()).getByText('Granted')).toBeVisible();
+
+    // Principal A saves a consent change (feedback on screen), then opens another form.
+    const consent = openRestrictedForm('Manage consent');
+    fireEvent.change(within(consent).getByLabelText('Consent status'), {
+      target: { value: 'EXPIRED' },
+    });
+    await saveRestricted(consent, 'Manage consent');
+    expect(screen.getByText('Consent updated.')).toBeVisible();
+    const form = openRestrictedForm('Edit compensation');
+    fireEvent.change(within(form).getByLabelText('Salary expectation'), {
+      target: { value: '1' },
+    });
+    const switchedAt = calls.length;
+
+    // Principal B, holding the same restricted view permissions, takes over the mounted panel.
+    view.rerender(sessionPanel('token-b'));
+
+    // Immediately, before anything resolves, nothing of principal A's workspace remains.
+    expectNoPrincipalAWorkspace({ atSwitch: true });
+    expect(form.isConnected).toBe(false);
+    expect(screen.queryByText('Consent updated.')).toBeNull();
+    expect(screen.getByLabelText('Search')).toHaveValue('');
+
+    // Principal B loads its own list, and only with its own token.
+    const list = screen.getByRole('region', { name: 'Candidate list' });
+    await within(list).findByRole('button', { name: 'Nadia Example' });
+    expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
+
+    // Principal B explicitly opens the candidate and sees its own authoritative record.
+    await selectCandidate('Nadia Example');
+    const restricted = restrictedSection();
+    expect(within(restricted).getByText(/41,000\.00/)).toBeVisible();
+    expect(within(restricted).getByText('Revoked')).toBeVisible();
+    expect(document.body.textContent).not.toMatch(/54,000|Expired|Granted/);
+    expect(
+      candidateTokensAfter(calls, switchedAt).every((token) => token === 'Bearer token-b'),
+    ).toBe(true);
+  });
+
+  it('drops a principal-A write that settles after principal B took over, and never re-reads for A', async () => {
+    const write = deferredResponse();
+    const calls = stubPrincipalApi({ 'token-a': principalA(), 'token-b': principalB() }, (call) =>
+      call.method === 'PATCH' && call.token === 'Bearer token-a' ? write.promise : undefined,
+    );
+    const view = render(sessionPanel('token-a'));
+    await selectCandidate('Nadia Example');
+    const form = openRestrictedForm('Manage consent');
+    fireEvent.change(within(form).getByLabelText('Consent status'), {
+      target: { value: 'EXPIRED' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(candidatePatches(calls)).toHaveLength(1));
+    const switchedAt = calls.length;
+
+    view.rerender(sessionPanel('token-b'));
+
+    expectNoPrincipalAWorkspace({ atSwitch: true });
+    // The single write lock is still held by principal A's write.
+    expect(screen.getByRole('button', { name: 'New candidate' })).toBeDisabled();
+
+    write.release(
+      jsonResponse({
+        candidate: asServerWouldReturn(
+          nadia({ consent: { consentRecordedAt: null, consentStatus: 'EXPIRED' } }),
+          FULL_PERMISSIONS,
+        ),
+      }),
+    );
+    // The lock is released only once that write has fully settled.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'New candidate' })).toBeEnabled(),
+    );
+
+    expectNoPrincipalAWorkspace();
+    expect(screen.queryByText('Consent updated.')).toBeNull();
+    expect(
+      candidateTokensAfter(calls, switchedAt).every((token) => token === 'Bearer token-b'),
+    ).toBe(true);
+    expect(candidateAReads(calls.slice(switchedAt))).toHaveLength(0);
+
+    await selectCandidate('Nadia Example');
+    expect(within(restrictedSection()).getByText('Revoked')).toBeVisible();
+    expect(within(restrictedSection()).getByText(/41,000\.00/)).toBeVisible();
+  });
+
+  it('never renders a principal-A detail read that resolves after principal B took over', async () => {
+    const read = deferredResponse();
+    let holdRead = false;
+    const calls = stubPrincipalApi({ 'token-a': principalA(), 'token-b': principalB() }, (call) =>
+      holdRead && call.method === 'GET' && call.url === `${API}/${CANDIDATE_ID}`
+        ? read.promise
+        : undefined,
+    );
+    const view = render(sessionPanel('token-a'));
+    await selectCandidate('Omar Example');
+    // Principal A opens Nadia; that read stays unresolved.
+    holdRead = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Nadia Example' }));
+    await waitFor(() => expect(candidateAReads(calls)).toHaveLength(1));
+    holdRead = false;
+    const switchedAt = calls.length;
+
+    view.rerender(sessionPanel('token-b'));
+    expectNoPrincipalAWorkspace({ atSwitch: true });
+    expect(screen.queryByRole('heading', { level: 2, name: 'Omar Example' })).toBeNull();
+
+    const late = jsonResponse({ candidate: asServerWouldReturn(nadia(), FULL_PERMISSIONS) });
+    const consumed = vi.spyOn(late, 'json');
+    read.release(late);
+    // Wait until the client has read the late body, then drain the remaining
+    // promise continuations without any timer.
+    await waitFor(() => expect(consumed).toHaveBeenCalled());
+    await act(async () => {
+      await consumed.mock.results[0]!.value;
+      for (let tick = 0; tick < 10; tick += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    expectNoPrincipalAWorkspace();
+    await within(screen.getByRole('region', { name: 'Candidate list' })).findByRole('button', {
+      name: 'Nadia Example',
+    });
+    expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
+    expect(
+      candidateTokensAfter(calls, switchedAt).every((token) => token === 'Bearer token-b'),
+    ).toBe(true);
+  });
+
+  it('starts over when the same session loses or gains the restricted permissions', async () => {
+    let serverPermissions: readonly string[] = FULL_PERMISSIONS;
+    const calls = stubPrincipalApi({ 'token-a': principalA(() => serverPermissions) });
+    const view = render(sessionPanel('token-a', FULL_PERMISSIONS));
+    await selectCandidate('Nadia Example');
+    openRestrictedForm('Edit compensation');
+
+    // The same permissions in a new array are the same principal: nothing is reset or re-read.
+    const before = calls.length;
+    view.rerender(sessionPanel('token-a', [...FULL_PERMISSIONS]));
+    expect(screen.getByRole('form', { name: 'Edit compensation' })).toBeVisible();
+    expect(calls.length).toBe(before);
+
+    // Revoked: the earlier response, which carried the restricted values, is discarded.
+    serverPermissions = ORDINARY_PERMISSIONS;
+    view.rerender(sessionPanel('token-a', ORDINARY_PERMISSIONS));
+    expectNoPrincipalAWorkspace({ atSwitch: true });
+    await selectCandidate('Nadia Example');
+    expect(screen.queryByRole('region', { name: 'Restricted information' })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/54,000|Granted|Salary expectation/);
+
+    // Granted again: nothing is inherited from the restricted-free response either;
+    // the values come from a fresh read made with the new permissions.
+    serverPermissions = FULL_PERMISSIONS;
+    const readsBefore = candidateAReads(calls).length;
+    view.rerender(sessionPanel('token-a', FULL_PERMISSIONS));
+    expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
+    await selectCandidate('Nadia Example');
+    expect(candidateAReads(calls)).toHaveLength(readsBefore + 1);
+    expect(within(restrictedSection()).getByText('€54,000.00')).toBeVisible();
+    expect(
+      within(restrictedSection()).getByRole('button', { name: 'Edit compensation' }),
+    ).toBeEnabled();
   });
 });

@@ -44,8 +44,8 @@ import {
  * consent can be edited locally so those flows can be reviewed. Other forms
  * only report success, because there is no API behind them.
  *
- * Switching the access profile stands in for a new principal: it resets any
- * open compensation or consent form, as a new session does in production.
+ * Switching the access profile stands in for a new principal: it remounts the
+ * workspace and closes every open form, as a new session does in production.
  *
  * `?dataset=many` starts with enough candidates for three pages.
  */
@@ -283,8 +283,10 @@ function CandidatePreviewContent() {
           <option value="viewer">{t('preview.candidate.accessViewer')}</option>
         </Select>
       </div>
+      {/* Keyed like production's session boundary: a new access profile starts clean. */}
       <CandidateWorkspace
         access={access}
+        key={sessionKey}
         appliedFilters={query.filters}
         detail={detail}
         feedback={feedback}
@@ -338,7 +340,6 @@ function CandidatePreviewContent() {
         }}
         pending={null}
         selectedId={selectedId}
-        sessionKey={sessionKey}
       />
     </AppShell>
   );

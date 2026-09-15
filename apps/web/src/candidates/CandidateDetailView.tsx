@@ -45,12 +45,6 @@ export interface CandidateDetailViewProps {
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
   onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
-  /**
-   * Changes whenever the session token or the actor's permissions change. The
-   * restricted section is keyed by it, so an open compensation or consent form
-   * never survives into another session or principal.
-   */
-  sessionKey: number;
 }
 
 /**
@@ -100,7 +94,6 @@ function CandidateRecord({
   onUpdateRecord,
   onUpdateSensitive,
   pending,
-  sessionKey,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
   const nameId = useId();
@@ -264,7 +257,6 @@ function CandidateRecord({
         archived={archived}
         busy={busy}
         candidate={candidate}
-        key={sessionKey}
         onUpdate={onUpdateSensitive}
         pending={pending}
       />

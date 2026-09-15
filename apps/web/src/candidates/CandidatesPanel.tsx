@@ -276,18 +276,6 @@ export function CandidatesPanel({
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
 
   /*
-   * The restricted forms belong to one session and one permission set. Their
-   * key advances whenever the token or the permissions change, so an open
-   * compensation or consent form is discarded instead of being carried into a
-   * refreshed token or a different principal.
-   */
-  const principal = permissions.join(' ');
-  const [session, setSession] = useState({ key: 0, principal, token: accessToken });
-  if (session.token !== accessToken || session.principal !== principal) {
-    setSession({ key: session.key + 1, principal, token: accessToken });
-  }
-
-  /*
    * Monotonic request counters. A list or detail response may commit only while
    * it is still the latest one of its kind, so a slow response for an earlier
    * search or an earlier selection can never overwrite a newer one. The
@@ -331,6 +319,39 @@ export function CandidatesPanel({
   useLayoutEffect(() => {
     sessionToken.current = accessToken;
   }, [accessToken]);
+
+  /*
+   * Everything this workspace has read or shown belongs to one session: one
+   * access token and one permission set. When either is replaced on the same
+   * mount, the previous principal's workspace is discarded while rendering, so
+   * no commit of the new session can contain it: the selection, the candidate
+   * record with its compensation and consent, the feedback, the list rows, and
+   * the typed filters are reset, and the presentation below is remounted by key,
+   * which closes every open form.
+   *
+   * The request and context counters are advanced in the same pass, so a late
+   * list read, detail read, or write result from the previous session fails its
+   * guard and is dropped. The single write lock is not released: a write still
+   * in flight keeps it until it settles, as before, and its result is ignored.
+   * The new session starts with nothing selected and loads its own first page.
+   */
+  const principal = permissions.join(' ');
+  const [session, setSession] = useState({ key: 0, principal, token: accessToken });
+  if (session.token !== accessToken || session.principal !== principal) {
+    const firstPage: CandidateListQuery = { filters: { ...EMPTY_CANDIDATE_FILTERS }, page: 1 };
+    listRequest.current += 1;
+    detailRequest.current += 1;
+    contextGeneration.current += 1;
+    selectedRef.current = null;
+    appliedQueryRef.current = firstPage;
+    setSession({ key: session.key + 1, principal, token: accessToken });
+    setFilters(firstPage.filters);
+    setAppliedQuery(firstPage);
+    setList({ status: 'loading' });
+    setSelectedId(null);
+    setDetail({ status: 'idle' });
+    setFeedback(null);
+  }
 
   function applyQuery(next: CandidateListQuery): void {
     appliedQueryRef.current = next;
@@ -880,6 +901,7 @@ export function CandidatesPanel({
   return (
     <CandidateWorkspace
       access={access}
+      key={session.key}
       appliedFilters={appliedQuery.filters}
       detail={detail}
       feedback={feedback}
@@ -902,7 +924,6 @@ export function CandidatesPanel({
       onUpdateSensitive={handleUpdateSensitive}
       pending={pending}
       selectedId={selectedId}
-      sessionKey={session.key}
     />
   );
 }

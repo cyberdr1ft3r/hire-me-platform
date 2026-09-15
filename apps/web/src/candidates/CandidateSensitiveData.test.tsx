@@ -56,7 +56,6 @@ function workspaceProps(
     onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
     pending: null,
     selectedId: shaped.id,
-    sessionKey: 0,
     ...overrides,
   };
 }
@@ -438,28 +437,5 @@ describe('Restricted information in both languages', () => {
       /\b(Edit|Manage|Salary|Currency|Consent status|Recorded|Save|Cancel|Leave empty|cents)\b/,
     );
     expect(content).not.toMatch(UUID_TEXT);
-  });
-});
-
-describe('Restricted forms and the session', () => {
-  it('discards an open compensation or consent form when the session key changes', () => {
-    const { view } = renderWorkspace(FULL_PERMISSIONS);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit compensation' }));
-    fireEvent.change(screen.getByLabelText('Salary expectation'), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Manage consent' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
-
-    view.rerender(
-      <I18nProvider initialLocale="en">
-        <CandidateWorkspace {...workspaceProps(FULL_PERMISSIONS, { sessionKey: 1 })} />
-      </I18nProvider>,
-    );
-
-    expect(screen.queryByRole('form', { name: 'Edit compensation' })).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Manage consent' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Edit compensation' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Manage consent' })).toBeEnabled();
-    // Only the restricted forms are tied to the session key.
-    expect(screen.getByRole('form', { name: 'Edit profile' })).toBeVisible();
   });
 });

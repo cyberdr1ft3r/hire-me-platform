@@ -51,8 +51,6 @@ export interface CandidateWorkspaceProps {
   onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
   selectedId: string | null;
-  /** Advances with every new session token or permission set; see `CandidateDetailView`. */
-  sessionKey: number;
 }
 
 /**
@@ -92,7 +90,6 @@ export function CandidateWorkspace({
   onUpdateSensitive,
   pending,
   selectedId,
-  sessionKey,
 }: CandidateWorkspaceProps) {
   const { t } = useI18n();
   const listHeadingId = useId();
@@ -224,7 +221,6 @@ export function CandidateWorkspace({
             onUpdateRecord={onUpdateRecord}
             onUpdateSensitive={onUpdateSensitive}
             pending={pending}
-            sessionKey={sessionKey}
           />
         </div>
       </div>

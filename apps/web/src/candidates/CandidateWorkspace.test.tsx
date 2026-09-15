@@ -63,7 +63,6 @@ function renderWorkspace(
     onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
     pending: null,
     selectedId: shaped.id,
-    sessionKey: 0,
     ...overrides,
   };
   render(
