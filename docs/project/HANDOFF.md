@@ -4,51 +4,47 @@ Last updated: 2026-09-15
 
 ## Current situation
 
-- Authoritative `main` is `2c79b0732a429dccc32ebfaa2fbb2958639b4537`, including PR #68 (Issue #67, Candidate drift D-CAND-01 and D-CAND-02, accepted as corrected in Issue #66).
-- Issue #69 corrects Candidate drift D-CAND-03 on `fix/candidate-sensitive-management-drift`, with a draft PR. Keep it draft, open, unmerged, and undeployed.
-- **Permissions.** The restricted-information section offers **Edit compensation** only with `candidates:update`, `candidate_compensation:view`, and `candidate_compensation:update`, and **Manage consent** only with `candidates:update`, `candidate_consent:view`, and `candidate_consent:manage`, on a non-archived candidate. Update or manage without view shows nothing. The server rules are unchanged.
-- **Compensation.** Typed in major units, parsed on the digit string to integer cents (point or comma, at most two decimals, zero allowed, at most 2147483647 cents); stored cents pre-fill exactly. Currency is the recorded three-character value. Partial update of changed fields, `null` when cleared, no request when unchanged.
-- **Consent.** The four contract statuses with EN/FR labels; recorded date and time through the Task local date-time helpers. The status never changes the date. Same partial-update rules.
-- **Audit.** `candidates.compensation.updated` and `candidates.consent.updated` (actor and candidate only) are recorded with the generic `candidates.candidate.updated` only when the stored group actually changed.
-- **Contract.** `salaryExpectationCents` is bounded to the PostgreSQL `integer` maximum on create and update (an overflow was a 500, now a 400).
-- **Write safety.** The single write lock and the candidate-context and session guards apply; a success commits the server response and re-reads the candidate.
-- **Session boundary.** Final review on head `88fa91e` found the previous principal's selected candidate (with its restricted values) stayed rendered after a token or permission change. The container now resets the selection, record, feedback, list, and filters while rendering, advances every request and context guard, and remounts the presentation, so the new session starts empty and loads its own data. A write still in flight keeps the write lock until it settles; its result is dropped.
-- D-064 records the decision; R-039 records the pre-existing gap that write responses are not audited as access. R-035 is untouched.
+- Authoritative `main` is `ee722fae04add567ac3ae0db31fb4928086976d6`, including PR #70 / Issue #69 and accepted Candidate drift D-CAND-01 through D-CAND-03.
+- Issue #71 corrects Reporting drift D-REPORT-01 on `fix/reporting-drilldown-navigation-drift`. Keep its PR draft, open, unmerged, and undeployed.
+- Authorized Mission and Candidate names in the existing Reporting drilldown are semantic links. Actors without `missions:view` or `candidates:view` see the same name as plain text. Client and recruiter names remain text.
+- The complete query contract is `/missions?mission=<uuid>` and `/candidates?candidate=<uuid>`. Inputs are route-specific and UUID-validated. Unknown, misplaced, ambiguous, or malformed inputs are ignored.
+- Candidate and Mission resolve the exact record through their existing scoped detail APIs. URL intent grants nothing. Safe generic hidden/not-found behavior, target/session request guards, manual-selection supersession, Strict Mode replay, direct load, refresh, Back/Forward, and sidebar clearing are covered.
+- The bounded re-review correction stops a stale Mission chain after every awaited nested Mission read, before it can start a later assignment/process/public-opportunity/application request with an old token or permission principal. Deterministic tests cover manual target supersession, token replacement with Authorization evidence, permission replacement, and hidden/not-found behavior without nested reads; the existing Strict Mode success test remains.
+- D-064 is reconciled as Accepted through merged PR #70. D-065 remains Proposed while Issue #71 is under review.
+- Process focus is deferred because the current Missions workspace has no approved process-focused entry. Client is deferred because the legacy Client container lacks safe request/session selection and generic exact-detail failure handling. Recruiter is deferred because Admin is not an approved destination for ordinary recruiting users.
+- No API, contract, Prisma schema, migration, permission, KPI, filter, pagination, CSV, Candidate business, Mission lifecycle/pipeline, or Public Opportunity salary behavior changed. R-035 is untouched.
+- Local re-review gates pass with unchanged scope: 30 contract, 85 API unit, 442 web, and 314 PostgreSQL integration tests, plus install, Prisma, style, architecture, format, lint, typecheck, build, migration reset/deploy, and repeatable-seed checks. Exact-head GitHub Actions remains the final automated gate.
 
 ## Review target
 
-Run `pnpm --filter @hire-me/web dev`, then open `http://127.0.0.1:5173/candidate.html`.
+Run `pnpm --filter @hire-me/web dev --host 127.0.0.1`, then review:
 
-Review with the preview access profiles:
+- `http://127.0.0.1:5173/reporting.html` for Mission and Candidate links;
+- `http://127.0.0.1:5173/reporting.html?access=missions-only` for a plain-text Candidate cell;
+- `/candidates?candidate=<authorized-uuid>` and `/missions?mission=<authorized-uuid>` in an authenticated local environment for destination reads.
 
-- **Full access:** Edit compensation and Manage consent, their forms, validation, and Cancel;
-- **Restricted data, view only:** values without any action;
-- **Recruiter without restricted data** and **Read-only viewer:** no restricted section at all;
-- EN and FR at desktop and 390 px. The page's `scrollWidth` must equal its `clientWidth`.
+Review EN/FR at desktop and 390 px. Confirm one h1, correct document language, no raw UUID text, no English Reporting boundary in French, and document `scrollWidth === clientWidth`; the dense table may scroll inside its existing container.
 
 ## Completion conditions
 
-- Every Issue #69 validation command and the exact-head GitHub Actions run are green, including the Candidate PostgreSQL tests for the dedicated audit events and denied writes and the session-boundary regressions.
-- ChatGPT D-CAND-03 re-review accepts the session-boundary correction.
-- Issue #66 records D-CAND-03 as implemented and awaiting review, and stays open.
-- The ChatGPT conformance review accepts the implementation or requests a bounded correction on the same branch.
+- Every Issue #71 repository gate and the new exact-head GitHub Actions run are green.
+- The Issue #71 draft PR links the issue and records the implemented/deferred discovery matrix.
+- Issue #66 records a new superseding `D-REPORT-01 — IMPLEMENTED / RE-REVIEW REQUESTED` comment only after exact-head CI passes.
+- ChatGPT conformance review accepts the correction or requests a bounded fix on the same branch.
 
 ## Explicit hard stop
 
-Do not begin any of the following:
+Do not begin:
 
-- the Public Opportunity salary-unit bug (R-035) or any reinterpretation of stored public-application salaries;
-- Candidate pagination, source, or structured-record changes;
-- MissionCandidate/ATS, Tasks, Reporting, payroll, or accounting changes;
-- a global UI-DNA refinement;
-- any migration, deployment, or merge work.
+- D-PUBLIC-01 / R-035 salary-unit work;
+- Client, Mission, or recruiter-directory redesign;
+- process-focused workspace work;
+- Task related-record links;
+- Reporting KPI/filter/export changes;
+- schema, migration, deployment, or merge work.
 
 ## Resume checklist
 
-- Read `AGENTS.md`, Issue #69, Issue #17, Issue #66, the Issue #69 PR review history, and the project-memory files.
-- Fetch `origin`, then verify the base, the branch head, the draft PR state, and exact-head CI.
-- Keep corrections inside:
-  - `apps/web/src/candidates`, `apps/web/src/candidate-preview`, and the Candidate translations;
-  - `apps/api/src/candidates/candidates.service.ts` and `apps/api/test/candidates.integration.test.ts`;
-  - the Candidate salary bound in `packages/contracts/src/candidates.ts`;
-  - project documentation.
+- Read `AGENTS.md`, Issues #71, #36, #56, #66, and all project-memory files.
+- Fetch `origin`, verify the branch base/head, draft PR state, and exact-head CI.
+- Keep corrections within internal navigation, Reporting presentation/container/tests, Candidate/Mission destination selection safety, translations, and project documentation.

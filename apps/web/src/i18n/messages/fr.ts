@@ -192,6 +192,8 @@ export const frMessages: Messages = {
       client: 'Client',
       mission: 'Mission',
       noSource: 'Non renseignée',
+      openCandidate: 'Ouvrir le candidat {name}',
+      openMission: 'Ouvrir la mission {name}',
       recruiter: 'Recruteur',
       source: 'Source',
       state: 'Étape du pipeline',
