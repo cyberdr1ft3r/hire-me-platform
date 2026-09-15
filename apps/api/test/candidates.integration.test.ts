@@ -194,6 +194,33 @@ async function prepareCandidateCatalog(): Promise<void> {
   });
 }
 
+type RolePermissionSnapshot = { permissionId: string; archivedAt: Date | null }[];
+
+/** The role's grants, so a test can narrow a shared role and put it back exactly. */
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUniqueOrThrow({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  return role.permissions.map(({ archivedAt, permissionId }) => ({ archivedAt, permissionId }));
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
+  await prisma.rolePermission.deleteMany({
+    where: { roleId: role.id, permissionId: { notIn: snapshot.map((row) => row.permissionId) } },
+  });
+  for (const row of snapshot) {
+    await prisma.rolePermission.update({
+      where: { roleId_permissionId: { roleId: role.id, permissionId: row.permissionId } },
+      data: { archivedAt: row.archivedAt },
+    });
+  }
+}
+
 async function createUser(email: string, roleName: RoleName): Promise<void> {
   const user = await prisma.user.create({
     data: {
@@ -867,5 +894,323 @@ describe('candidate master profiles', () => {
     for (const value of ['Expert', 'Native', '2018-09', 'Master in Data Science']) {
       expect(serialized).not.toContain(value);
     }
+  });
+
+  describe('sensitive compensation and consent maintenance (Issue #69)', () => {
+    const SENSITIVE_UPDATE_ACTIONS = [
+      'candidates.compensation.updated',
+      'candidates.consent.updated',
+    ];
+
+    async function createSensitiveCandidate(token: string, email: string): Promise<string> {
+      const response = await fetch(`${baseUrl}/v1/candidates`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({
+          displayName: 'Sensitive Maintenance Candidate',
+          email,
+          salaryExpectationCents: 9000000,
+          salaryExpectationCurrency: 'EUR',
+          consentStatus: 'GRANTED',
+          consentRecordedAt: '2026-07-21T10:00:00.000Z',
+        }),
+      });
+      expect(response.status).toBe(201);
+      return CandidateDetailResponseSchema.parse(await response.json()).candidate.id;
+    }
+
+    function patchCandidate(candidateId: string, token: string, body: unknown) {
+      return fetch(`${baseUrl}/v1/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: authHeaders(token),
+        body: JSON.stringify(body),
+      });
+    }
+
+    async function actionsFor(candidateId: string): Promise<string[]> {
+      const audits = await prisma.auditLog.findMany({
+        where: { entityId: candidateId },
+        orderBy: { createdAt: 'asc' },
+      });
+      return audits.map((audit) => audit.action);
+    }
+
+    const count = (actions: string[], action: string) =>
+      actions.filter((entry) => entry === action).length;
+
+    it('records a dedicated value-free audit event only when a sensitive group actually changes', async () => {
+      await createUser('sensitive-audit@candidates.test', RoleName.SUPER_ADMIN);
+      const token = await loginAccessToken(baseUrl, 'sensitive-audit@candidates.test');
+      const candidateId = await createSensitiveCandidate(
+        token,
+        'sensitive.audit.candidate@candidates.test',
+      );
+      const stored = () => prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } });
+
+      // Amount only: the currency, the consent, and the ordinary fields are untouched.
+      const amount = await patchCandidate(candidateId, token, { salaryExpectationCents: 3600050 });
+      expect(amount.status).toBe(200);
+      expect(
+        CandidateDetailResponseSchema.parse(await amount.json()).candidate.compensation,
+      ).toEqual({ salaryExpectationCents: 3600050, salaryExpectationCurrency: 'EUR' });
+      let actions = await actionsFor(candidateId);
+      expect(count(actions, 'candidates.candidate.updated')).toBe(1);
+      expect(count(actions, 'candidates.compensation.updated')).toBe(1);
+      expect(count(actions, 'candidates.consent.updated')).toBe(0);
+
+      // Currency only.
+      expect(
+        (await patchCandidate(candidateId, token, { salaryExpectationCurrency: 'MAD' })).status,
+      ).toBe(200);
+      // Status only: the recorded instant is not changed as a side effect.
+      expect((await patchCandidate(candidateId, token, { consentStatus: 'REVOKED' })).status).toBe(
+        200,
+      );
+      expect((await stored()).consentRecordedAt?.toISOString()).toBe('2026-07-21T10:00:00.000Z');
+      // Recorded instant only.
+      expect(
+        (
+          await patchCandidate(candidateId, token, {
+            consentRecordedAt: '2026-08-01T09:30:00.000Z',
+          })
+        ).status,
+      ).toBe(200);
+      actions = await actionsFor(candidateId);
+      expect(count(actions, 'candidates.compensation.updated')).toBe(2);
+      expect(count(actions, 'candidates.consent.updated')).toBe(2);
+      expect(await stored()).toMatchObject({
+        consentStatus: 'REVOKED',
+        salaryExpectationCents: 3600050,
+        salaryExpectationCurrency: 'MAD',
+      });
+
+      // Sending the stored values again is not a sensitive change, even with the
+      // same instant written differently and the currency padded.
+      const same = await patchCandidate(candidateId, token, {
+        salaryExpectationCents: 3600050,
+        salaryExpectationCurrency: ' MAD ',
+        consentStatus: 'REVOKED',
+        consentRecordedAt: '2026-08-01T09:30:00Z',
+      });
+      expect(same.status).toBe(200);
+      actions = await actionsFor(candidateId);
+      expect(count(actions, 'candidates.candidate.updated')).toBe(5);
+      expect(count(actions, 'candidates.compensation.updated')).toBe(2);
+      expect(count(actions, 'candidates.consent.updated')).toBe(2);
+
+      // An ordinary profile edit is not a sensitive change either.
+      expect((await patchCandidate(candidateId, token, { city: 'Casablanca' })).status).toBe(200);
+      actions = await actionsFor(candidateId);
+      expect(count(actions, 'candidates.compensation.updated')).toBe(2);
+      expect(count(actions, 'candidates.consent.updated')).toBe(2);
+
+      // Clearing an amount and a recorded instant stores null and is audited once per group.
+      const cleared = await patchCandidate(candidateId, token, {
+        salaryExpectationCents: null,
+        consentRecordedAt: null,
+      });
+      expect(cleared.status).toBe(200);
+      expect(await stored()).toMatchObject({
+        consentRecordedAt: null,
+        salaryExpectationCents: null,
+        salaryExpectationCurrency: 'MAD',
+      });
+      actions = await actionsFor(candidateId);
+      expect(count(actions, 'candidates.compensation.updated')).toBe(3);
+      expect(count(actions, 'candidates.consent.updated')).toBe(3);
+
+      // The dedicated events identify the actor and the candidate, and nothing else.
+      const audits = await prisma.auditLog.findMany({
+        where: { entityId: candidateId, action: { in: SENSITIVE_UPDATE_ACTIONS } },
+      });
+      const actor = await prisma.user.findUniqueOrThrow({
+        where: { normalizedEmail: 'sensitive-audit@candidates.test' },
+      });
+      expect(audits.every((audit) => audit.actorUserId === actor.id)).toBe(true);
+      expect(audits.every((audit) => audit.entityType === 'Candidate')).toBe(true);
+      const serialized = JSON.stringify(
+        await prisma.auditLog.findMany({ where: { entityId: candidateId } }),
+      );
+      for (const value of [
+        '9000000',
+        '3600050',
+        'EUR',
+        'MAD',
+        'GRANTED',
+        'REVOKED',
+        '2026-07-21T10',
+        '2026-08-01',
+        'sensitive.audit.candidate@candidates.test',
+        'Casablanca',
+        'salaryExpectation',
+        'consentStatus',
+        'consentRecordedAt',
+      ]) {
+        expect(serialized).not.toContain(value);
+      }
+    });
+
+    it('rejects denied, archived, malformed, and out-of-range sensitive writes without a sensitive-update event', async () => {
+      const snapshot = await snapshotRolePermissions(RoleName.TEAM_LEADER);
+      try {
+        // Candidate update plus both view permissions, without update or manage.
+        await ensureRoleWithOnlyCandidatePermissions(RoleName.TEAM_LEADER, [
+          'candidates:view',
+          'candidates:update',
+          'candidate_compensation:view',
+          'candidate_consent:view',
+        ]);
+        await createUser('sensitive-owner@candidates.test', RoleName.SUPER_ADMIN);
+        await createUser('sensitive-view-only@candidates.test', RoleName.TEAM_LEADER);
+        await createUser('sensitive-ordinary@candidates.test', RoleName.HR_MANAGER);
+        const ownerToken = await loginAccessToken(baseUrl, 'sensitive-owner@candidates.test');
+        const viewOnlyToken = await loginAccessToken(
+          baseUrl,
+          'sensitive-view-only@candidates.test',
+        );
+        const ordinaryToken = await loginAccessToken(baseUrl, 'sensitive-ordinary@candidates.test');
+        const candidateId = await createSensitiveCandidate(
+          ownerToken,
+          'sensitive.denied.candidate@candidates.test',
+        );
+        const before = await prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } });
+
+        // The view-only actor reads both areas but can change neither.
+        const read = await fetch(`${baseUrl}/v1/candidates/${candidateId}`, {
+          headers: authHeaders(viewOnlyToken),
+        });
+        const readBody = CandidateDetailResponseSchema.parse(await read.json()).candidate;
+        expect(readBody.compensation?.salaryExpectationCents).toBe(9000000);
+        expect(readBody.consent?.consentStatus).toBe('GRANTED');
+
+        const denials = [
+          [
+            viewOnlyToken,
+            { salaryExpectationCents: 100 },
+            'CANDIDATE_COMPENSATION_PERMISSION_REQUIRED',
+          ],
+          [
+            viewOnlyToken,
+            { salaryExpectationCurrency: 'USD' },
+            'CANDIDATE_COMPENSATION_PERMISSION_REQUIRED',
+          ],
+          [viewOnlyToken, { consentStatus: 'REVOKED' }, 'CANDIDATE_CONSENT_PERMISSION_REQUIRED'],
+          [viewOnlyToken, { consentRecordedAt: null }, 'CANDIDATE_CONSENT_PERMISSION_REQUIRED'],
+          [ordinaryToken, { consentStatus: 'EXPIRED' }, 'CANDIDATE_CONSENT_PERMISSION_REQUIRED'],
+        ] as const;
+        for (const [token, body, code] of denials) {
+          const denied = await patchCandidate(candidateId, token, body);
+          const text = await denied.text();
+          expect(denied.status).toBe(403);
+          expect(JSON.parse(text)).toMatchObject({ error: { code } });
+          for (const value of ['9000000', 'EUR', 'GRANTED', '2026-07-21']) {
+            expect(text).not.toContain(value);
+          }
+        }
+
+        // Malformed amounts are rejected by the contract before any write.
+        for (const salaryExpectationCents of [-1, 36000.5, '3600000', 2147483648]) {
+          const invalid = await patchCandidate(candidateId, ownerToken, { salaryExpectationCents });
+          expect(invalid.status).toBe(400);
+          expect(await readErrorCode(invalid)).toBe('INVALID_UPDATE_CANDIDATE_REQUEST');
+        }
+        for (const body of [{ salaryExpectationCurrency: 'EURO' }, { consentStatus: 'granted' }]) {
+          expect((await patchCandidate(candidateId, ownerToken, body)).status).toBe(400);
+        }
+        const oversizedCreate = await fetch(`${baseUrl}/v1/candidates`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+          body: JSON.stringify({ displayName: 'Oversized', salaryExpectationCents: 2147483648 }),
+        });
+        expect(oversizedCreate.status).toBe(400);
+        let actions = await actionsFor(candidateId);
+        expect(actions.filter((action) => SENSITIVE_UPDATE_ACTIONS.includes(action))).toEqual([]);
+        expect(count(actions, 'candidates.candidate.updated')).toBe(0);
+
+        // The largest amount the column holds is accepted.
+        const largest = await patchCandidate(candidateId, ownerToken, {
+          salaryExpectationCents: 2147483647,
+        });
+        expect(largest.status).toBe(200);
+        actions = await actionsFor(candidateId);
+        expect(count(actions, 'candidates.compensation.updated')).toBe(1);
+        const settled = actions.length;
+
+        // An archived candidate accepts no sensitive write.
+        const archive = await fetch(`${baseUrl}/v1/candidates/${candidateId}/archive`, {
+          method: 'POST',
+          headers: authHeaders(ownerToken),
+        });
+        expect(archive.status).toBe(201);
+        const archived = await patchCandidate(candidateId, ownerToken, {
+          salaryExpectationCents: 100,
+          consentStatus: 'EXPIRED',
+        });
+        expect(archived.status).toBe(409);
+        expect(await readErrorCode(archived)).toBe('CANDIDATE_ARCHIVED');
+
+        const after = await prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } });
+        expect(after).toMatchObject({
+          consentRecordedAt: before.consentRecordedAt,
+          consentStatus: 'GRANTED',
+          salaryExpectationCents: 2147483647,
+          salaryExpectationCurrency: 'EUR',
+        });
+        expect((await actionsFor(candidateId)).slice(settled)).toEqual([
+          'candidates.candidate.archived',
+        ]);
+      } finally {
+        await restoreRolePermissions(RoleName.TEAM_LEADER, snapshot);
+      }
+    });
+
+    it('returns no sensitive values to an actor who may write them without their view permission', async () => {
+      const snapshot = await snapshotRolePermissions(RoleName.EMPLOYEE);
+      try {
+        await ensureRoleWithOnlyCandidatePermissions(RoleName.EMPLOYEE, [
+          'candidates:view',
+          'candidates:update',
+          'candidate_compensation:update',
+          'candidate_consent:manage',
+        ]);
+        await createUser('sensitive-blind-owner@candidates.test', RoleName.SUPER_ADMIN);
+        await createUser('sensitive-blind@candidates.test', RoleName.EMPLOYEE);
+        const ownerToken = await loginAccessToken(baseUrl, 'sensitive-blind-owner@candidates.test');
+        const blindToken = await loginAccessToken(baseUrl, 'sensitive-blind@candidates.test');
+        const candidateId = await createSensitiveCandidate(
+          ownerToken,
+          'sensitive.blind.candidate@candidates.test',
+        );
+
+        // The existing server rule is preserved: the write is authorized by
+        // update/manage alone, but nothing sensitive comes back.
+        const written = await patchCandidate(candidateId, blindToken, {
+          salaryExpectationCents: 4200000,
+          consentStatus: 'EXPIRED',
+        });
+        const text = await written.text();
+        expect(written.status).toBe(200);
+        const body = CandidateDetailResponseSchema.parse(JSON.parse(text)).candidate;
+        expect(body.compensation).toBeNull();
+        expect(body.consent).toBeNull();
+        for (const value of ['4200000', '9000000', 'EUR', 'EXPIRED', 'GRANTED', '2026-07-21']) {
+          expect(text).not.toContain(value);
+        }
+        const list = await fetch(`${baseUrl}/v1/candidates?search=Sensitive%20Maintenance`, {
+          headers: authHeaders(blindToken),
+        });
+        const listText = await list.text();
+        expect(list.status).toBe(200);
+        for (const value of ['4200000', 'EUR', 'EXPIRED', '2026-07-21']) {
+          expect(listText).not.toContain(value);
+        }
+        const actions = await actionsFor(candidateId);
+        expect(count(actions, 'candidates.compensation.updated')).toBe(1);
+        expect(count(actions, 'candidates.consent.updated')).toBe(1);
+        expect(count(actions, 'candidates.compensation.viewed')).toBe(0);
+      } finally {
+        await restoreRolePermissions(RoleName.EMPLOYEE, snapshot);
+      }
+    });
   });
 });
