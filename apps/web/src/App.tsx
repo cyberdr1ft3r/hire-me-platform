@@ -1279,7 +1279,7 @@ function ClientsPanel({
   );
 }
 
-function MissionsPanel({
+export function MissionsPanel({
   accessToken,
   initialMissionId,
   onSelectionChange,
@@ -1485,27 +1485,31 @@ function MissionsPanel({
     setPlacementsByProcessId({});
     if (canViewAssignments) {
       const assignmentResponse = await listMissionAssignments(accessToken, missionId);
-      if (belongsToSession()) {
-        setAssignments(assignmentResponse.assignments);
+      if (!belongsToSession()) {
+        return;
       }
+      setAssignments(assignmentResponse.assignments);
     }
     if (canViewProcesses) {
       const processResponse = await listMissionCandidates(accessToken, missionId);
-      if (belongsToSession()) {
-        setCandidateProcesses(processResponse.candidates);
+      if (!belongsToSession()) {
+        return;
       }
+      setCandidateProcesses(processResponse.candidates);
     }
     if (canViewPublicOpportunity) {
       const opportunityResponse = await getInternalPublicOpportunity(accessToken, missionId);
-      if (belongsToSession()) {
-        setPublicOpportunity(opportunityResponse.publicOpportunity);
+      if (!belongsToSession()) {
+        return;
       }
+      setPublicOpportunity(opportunityResponse.publicOpportunity);
     }
     if (canViewPublicApplications) {
       const applicationResponse = await listInternalPublicApplications(accessToken, missionId);
-      if (belongsToSession()) {
-        setPublicApplications(applicationResponse.applications);
+      if (!belongsToSession()) {
+        return;
       }
+      setPublicApplications(applicationResponse.applications);
     }
   }
 
@@ -3078,11 +3082,11 @@ function MissionsPanel({
                   <button type="submit">Link candidate</button>
                 </form>
               ) : null}
-              {message ? <p role="status">{message}</p> : null}
             </>
           ) : (
             <p>Select a mission.</p>
           )}
+          {message ? <p role="status">{message}</p> : null}
         </section>
       </div>
     </section>

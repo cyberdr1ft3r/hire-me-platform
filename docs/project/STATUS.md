@@ -7,8 +7,8 @@ Status owner: repository maintainer
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
 **Health:** `main` is at `ee722fae04add567ac3ae0db31fb4928086976d6`, including merged PR #70 (Issue #69, Candidate drift D-CAND-03). Issue #71 implements Reporting drilldown operational navigation on `fix/reporting-drilldown-navigation-drift` from that exact base.
-**Current blocker:** ChatGPT D-REPORT-01 conformance review of the Issue #71 draft PR.
-**Next executable development task:** Review the permission-safe Candidate and Mission links, direct-load/history behavior, and synthetic evidence for Issue #71. Keep the PR draft, open, unmerged, and undeployed. Client, process focus, and recruiter destinations remain explicitly deferred; D-PUBLIC-01/R-035 is untouched.
+**Current blocker:** ChatGPT D-REPORT-01 re-review of the bounded Mission race correction on the Issue #71 draft PR.
+**Next executable development task:** Re-review the exact-head Mission chain guards and deterministic Mission target/session/permission/hidden-record regressions for Issue #71. Keep the PR draft, open, unmerged, and undeployed. Client, process focus, and recruiter destinations remain explicitly deferred; D-PUBLIC-01/R-035 is untouched.
 
 ## Active work
 
@@ -43,7 +43,7 @@ Status owner: repository maintainer
 | Issue #64 | Complete | Redesign the bilingual Task Pipeline as a daily operational workspace | Merged through PR #65 into `main` as `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f` |
 | Issue #67 | Complete | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Merged through PR #68 into `main` as `2c79b0732a429dccc32ebfaa2fbb2958639b4537` |
 | Issue #69 | Complete | Correct Candidate compensation and consent management drift (D-CAND-03) | Merged through PR #70 into `main` as `ee722fae04add567ac3ae0db31fb4928086976d6` |
-| Issue #71 | In review | Correct Reporting operational drilldown navigation drift (D-REPORT-01) | Candidate and Mission deep links implemented on `fix/reporting-drilldown-navigation-drift`; Client, process focus, and recruiter destinations explicitly deferred; draft PR and conformance review required |
+| Issue #71 | In review | Correct Reporting operational drilldown navigation drift (D-REPORT-01) | Candidate and Mission deep links plus the bounded Mission stale-chain correction are implemented on `fix/reporting-drilldown-navigation-drift`; Client, process focus, and recruiter destinations remain explicitly deferred; draft PR and ChatGPT re-review required |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task and Candidate drift are corrected; D-REPORT-01 is implemented through Issue #71 and awaiting review; Public Opportunity and foundation audits follow |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
@@ -53,9 +53,12 @@ Status owner: repository maintainer
 - Candidate and Mission names are semantic, keyboard-accessible links only when the actor has `candidates:view` or `missions:view`; otherwise the same name stays plain text. Client and recruiter always remain plain text.
 - The bounded contract is `/candidates?candidate=<uuid>` and `/missions?mission=<uuid>`. Unknown, misplaced, ambiguous, and malformed intent is ignored. Sidebar navigation clears record intent; Back, Forward, refresh, and direct load resolve it after authentication without state-synchronization history loops.
 - Candidate loads the exact record through its existing scoped detail read independently of the current list page. Mission does the same through the existing mission read. Both discard late prior-target and old-session reads, manual selection removes/replaces the initial intent, and React Strict Mode mount replay cannot consume the intent before its matching read settles.
+- After every awaited nested Mission read, the Mission chain re-checks its request id, selected target, access token, and permission principal and returns when stale before any later nested request starts. Deterministic regressions cover manual target supersession, token replacement with Authorization evidence, permission replacement, and generic hidden/not-found behavior without nested reads; the existing Strict Mode direct-load success regression remains.
+- D-064 is Accepted through merged PR #70. D-065 remains Proposed until Issue #71 passes re-review and merges.
 - Deferred with discovery evidence: the legacy Client container lacks Candidate-grade request/session guards and safe exact-detail failure state; MissionCandidate has no approved process-focused workspace; Admin is not an approved recruiter destination for ordinary Reporting users.
 - Synthetic visual checks cover desktop EN links, French at a 389/390 CSS-pixel viewport with contained table scrolling and no page overflow, a mission-only actor whose Candidate names remain text, and resolved Candidate/Mission destination states. Each reviewed page has one h1, correct `lang`, and no displayed UUID.
 - D-PUBLIC-01/R-035, Candidate business behavior, Mission lifecycle/pipeline semantics, and Reporting KPI/filter/export scope are untouched.
+- Local re-review gates pass after the bounded correction: frozen install; Prisma validate/generate; style and architecture checks; format, lint, typecheck, and build; clean migration reset/deploy plus repeatable seed; 30 contract tests, 85 API unit tests, 442 web tests, and 314 PostgreSQL integration tests. On Windows, the unchanged full unit scope was run package-by-package with one worker after the parallel Turbo invocation exposed only pre-existing five-second timing limits under host contention.
 
 ## Issue #69 Verification State
 
@@ -514,11 +517,11 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Run the Candidate drift conformance review of the Issue #67 draft PR at `http://127.0.0.1:5173/candidate.html` (`?dataset=many` for pages; source filter; Edit and Archive on skills, languages, work experience, and education).
-2. Keep the Issue #67 PR open, draft, unmerged, and undeployed; do not start D-CAND-03, Clients, or Missions.
-3. Open a scheduler issue for Task reminder delivery (R-036).
-4. Continue drift audit Issue #66 with Candidate, Reporting, Public Opportunity, and the AppShell/i18n foundations.
-5. Decide R-035 (public salary expectation unit) as a separate scoped task.
+1. Run the ChatGPT D-REPORT-01 re-review of Issue #71 / draft PR #72 at its latest exact green head.
+2. Keep Issue #71 open and PR #72 draft, open, unmerged, and undeployed until that review and merge authority are complete.
+3. Continue drift audit Issue #66 with Public Opportunity and the AppShell/i18n foundations after D-REPORT-01 is resolved.
+4. Open a scheduler issue for Task reminder delivery (R-036).
+5. Decide R-035 (public salary expectation unit) only as a separate scoped task.
 
 ## Status Update Rules
 
