@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f`, including merged Task Pipeline PR #65 (Issue #64 closed). Issue #67 is implemented on `fix/candidate-list-profile-drift` from that exact base.
-**Current blocker:** ChatGPT Candidate drift conformance review of the Issue #67 draft PR (drift audit Issue #66, D-CAND-01 and D-CAND-02).
-**Next executable development task:** Candidate drift conformance review of the Issue #67 draft PR and its development-only `candidate.html` evidence; keep it open, draft, unmerged, and undeployed. D-CAND-03 (compensation and consent editing) remains a separate decision; the drift audit then continues with Reporting, Public Opportunity, and the AppShell/i18n foundations.
+**Health:** `main` is at `2c79b0732a429dccc32ebfaa2fbb2958639b4537`, including merged PR #68 (Issue #67, Candidate drift D-CAND-01 and D-CAND-02). Issue #69 (D-CAND-03) is implemented on `fix/candidate-sensitive-management-drift` from that exact base.
+**Current blocker:** ChatGPT D-CAND-03 conformance review of the Issue #69 draft PR (compensation and consent maintenance).
+**Next executable development task:** D-CAND-03 conformance review of the Issue #69 draft PR and its development-only `candidate.html` evidence; keep it open, draft, unmerged, and undeployed. After acceptance, Candidate drift D-CAND-01 to D-CAND-03 is closed and the drift audit continues with Reporting, Public Opportunity (including R-035), and the AppShell/i18n foundations.
 
 ## Active work
 
@@ -41,9 +41,21 @@ Status owner: repository maintainer
 | Issue #60 | Complete | Redesign the bilingual Candidate workspace as the second representative surface | Merged through PR #61 into `main` as `2a411f030a031c25cd18424059d4c8e2b1ae2842` |
 | Issue #62 | Complete | Redesign the bilingual Public Opportunity experience as the third representative surface | Merged through PR #63 into `main` as `077024b96346229368cf88dd264c6d4d91931564` |
 | Issue #64 | Complete | Redesign the bilingual Task Pipeline as a daily operational workspace | Merged through PR #65 into `main` as `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f` |
-| Issue #67 | Open | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Server-side pages, source filter, and in-place edit/archive of structured records on `fix/candidate-list-profile-drift`; conformance review required; keep open and unmerged |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 are closed by merged PR #65; D-CAND-01 and D-CAND-02 are corrected on the Issue #67 PR; D-CAND-03, Reporting, Public Opportunity, and foundation audits follow |
+| Issue #67 | Complete | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Merged through PR #68 into `main` as `2c79b0732a429dccc32ebfaa2fbb2958639b4537` |
+| Issue #69 | Open | Correct Candidate compensation and consent management drift (D-CAND-03) | Permission-gated in-place compensation and consent editing, dedicated value-free update audit, and the salary-cents bound on `fix/candidate-sensitive-management-drift`; conformance review required; keep open and unmerged |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task decisions D-UX-01 to D-UX-04 closed by PR #65; D-CAND-01 and D-CAND-02 corrected by PR #68; D-CAND-03 implemented on the Issue #69 PR, awaiting review; Reporting, Public Opportunity, and foundation audits follow |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #69 Verification State
+
+- Branch `fix/candidate-sensitive-management-drift` was created from exact `main` `2c79b0732a429dccc32ebfaa2fbb2958639b4537` (PR #68 merge). No endpoint, Prisma schema, migration, or permission rule changed.
+- Discovery: `PATCH /v1/candidates/:candidateId` already accepted the four restricted fields, `assertSensitiveInputAllowed` required update/manage when their keys were present, and responses were shaped by the view permissions; reads audited `candidates.compensation.viewed` / `candidates.consent.viewed`, but a sensitive update produced only the generic `candidates.candidate.updated`, and `salaryExpectationCents` above the PostgreSQL `integer` maximum returned 500.
+- API: dedicated value-free `candidates.compensation.updated` / `candidates.consent.updated` events, recorded only when the stored group changed (compared with the locked row before the write), in addition to the generic event; the create and update contracts bound `salaryExpectationCents` to 2147483647 (`CANDIDATE_SALARY_EXPECTATION_CENTS_MAX`).
+- Web: **Edit compensation** requires `candidates:update` + `candidate_compensation:view` + `candidate_compensation:update`, and **Manage consent** requires `candidates:update` + `candidate_consent:view` + `candidate_consent:manage`, on a non-archived candidate; otherwise no control is rendered. Both are bounded inline forms in the existing restricted section.
+- The amount is typed in major units and parsed on the digit string (point or comma, at most two decimals, nonnegative, zero allowed, bounded); stored cents pre-fill exactly. The currency is the recorded three-character value. Consent uses the four contract statuses with EN/FR labels and the Task local date-time helpers; an untouched date keeps the exact stored instant, and an incomplete date is rejected instead of clearing it. Only changed fields are sent, `null` when cleared, nothing when unchanged.
+- Writes take the single Candidate write lock and the candidate-context and session guards, commit the server response, then re-read the candidate. The restricted forms reset on any token or permission change. Feedback and errors never contain values.
+- Tests: contracts 27 → 30; Candidate-focused web tests 102 → 146 (web 379 → 423); three Candidate PostgreSQL tests (audit on actual change only, denied/archived/malformed/out-of-range writes without sensitive-update events, write-without-view responses carrying no values). Two existing workspace assertions that pinned the read-only drift were inverted.
+- Recorded risk R-039: write responses are not audited as sensitive access (pre-existing). R-035 (public salary units) is untouched.
 
 ## Issue #67 Verification State
 
