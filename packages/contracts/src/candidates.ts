@@ -3,6 +3,19 @@ import { z } from 'zod';
 export const CandidateStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'TALENT_POOL', 'ARCHIVED']);
 export const CandidateConsentStatusSchema = z.enum(['UNKNOWN', 'GRANTED', 'REVOKED', 'EXPIRED']);
 
+/**
+ * The largest salary expectation, in minor units, that the `integer` column
+ * `Candidate.salaryExpectationCents` can hold. Larger values are rejected as an
+ * invalid request instead of failing in the database.
+ */
+export const CANDIDATE_SALARY_EXPECTATION_CENTS_MAX = 2_147_483_647;
+
+const SalaryExpectationCentsSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(CANDIDATE_SALARY_EXPECTATION_CENTS_MAX);
+
 export const CandidateCompensationSchema = z.object({
   salaryExpectationCents: z.number().int().nonnegative().nullable(),
   salaryExpectationCurrency: z.string().nullable(),
@@ -119,7 +132,7 @@ export const CandidateCreateRequestSchema = z.object({
   source: z.string().trim().min(1).max(120).optional(),
   sourceDetail: z.string().trim().min(1).max(500).optional(),
   availabilityNotice: z.string().trim().min(1).max(240).optional(),
-  salaryExpectationCents: z.number().int().nonnegative().optional(),
+  salaryExpectationCents: SalaryExpectationCentsSchema.optional(),
   salaryExpectationCurrency: z.string().trim().min(3).max(3).optional(),
   consentStatus: CandidateConsentStatusSchema.optional(),
   consentRecordedAt: z.string().datetime().optional(),
@@ -140,7 +153,7 @@ export const CandidateUpdateRequestSchema = z
     source: z.string().trim().min(1).max(120).nullable().optional(),
     sourceDetail: z.string().trim().min(1).max(500).nullable().optional(),
     availabilityNotice: z.string().trim().min(1).max(240).nullable().optional(),
-    salaryExpectationCents: z.number().int().nonnegative().nullable().optional(),
+    salaryExpectationCents: SalaryExpectationCentsSchema.nullable().optional(),
     salaryExpectationCurrency: z.string().trim().min(3).max(3).nullable().optional(),
     consentStatus: CandidateConsentStatusSchema.optional(),
     consentRecordedAt: z.string().datetime().nullable().optional(),

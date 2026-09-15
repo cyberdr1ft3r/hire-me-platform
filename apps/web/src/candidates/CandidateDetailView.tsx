@@ -22,6 +22,7 @@ import type {
   CandidateRecordInput,
   CandidateRecordRef,
   CandidateRecordUpdate,
+  CandidateSensitiveUpdate,
 } from './candidate-state.js';
 import { CandidateEducation } from './CandidateEducation.js';
 import { CandidateExperience } from './CandidateExperience.js';
@@ -42,6 +43,7 @@ export interface CandidateDetailViewProps {
   onRetry: () => void;
   onUpdate: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
+  onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
 }
 
@@ -90,6 +92,7 @@ function CandidateRecord({
   onChangeStatus,
   onUpdate,
   onUpdateRecord,
+  onUpdateSensitive,
   pending,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
@@ -249,7 +252,14 @@ function CandidateRecord({
         </section>
       )}
 
-      <CandidateSensitiveData access={access} candidate={candidate} />
+      <CandidateSensitiveData
+        access={access}
+        archived={archived}
+        busy={busy}
+        candidate={candidate}
+        onUpdate={onUpdateSensitive}
+        pending={pending}
+      />
     </article>
   );
 }

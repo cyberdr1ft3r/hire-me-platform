@@ -17,6 +17,7 @@ import {
   type CandidateRecordInput,
   type CandidateRecordRef,
   type CandidateRecordUpdate,
+  type CandidateSensitiveUpdate,
 } from './candidate-state.js';
 import { CandidateCreateForm } from './CandidateCreateForm.js';
 import { CandidateDetailView } from './CandidateDetailView.js';
@@ -46,6 +47,8 @@ export interface CandidateWorkspaceProps {
   onSelect: (candidateId: string) => void;
   onUpdate: (values: CandidateProfileValues) => Promise<CandidateFormOutcome>;
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
+  /** Saves a partial compensation or consent update for the selected candidate. */
+  onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
   selectedId: string | null;
 }
@@ -84,6 +87,7 @@ export function CandidateWorkspace({
   onSelect,
   onUpdate,
   onUpdateRecord,
+  onUpdateSensitive,
   pending,
   selectedId,
 }: CandidateWorkspaceProps) {
@@ -215,6 +219,7 @@ export function CandidateWorkspace({
             onRetry={onRetryDetail}
             onUpdate={onUpdate}
             onUpdateRecord={onUpdateRecord}
+            onUpdateSensitive={onUpdateSensitive}
             pending={pending}
           />
         </div>

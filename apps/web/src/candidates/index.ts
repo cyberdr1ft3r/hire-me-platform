@@ -20,6 +20,7 @@ export {
   type CandidateRecordInput,
   type CandidateRecordRef,
   type CandidateRecordUpdate,
+  type CandidateSensitiveUpdate,
 } from './candidate-state.js';
-export { CandidatesPanel } from './CandidatesPanel.js';
+export { CandidatesPanel, sensitiveUpdateRequest } from './CandidatesPanel.js';
 export { CandidateWorkspace, type CandidateWorkspaceProps } from './CandidateWorkspace.js';

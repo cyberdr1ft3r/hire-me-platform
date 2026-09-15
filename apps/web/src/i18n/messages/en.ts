@@ -219,13 +219,22 @@ export const enMessages = {
       save: 'Save changes',
     },
     compensation: {
+      amountHint:
+        'In currency units, not cents, for example 36000 or 36000.50. Leave empty to clear.',
+      currency: 'Currency',
+      currencyHint: 'Three characters, as recorded, for example EUR. Leave empty to clear.',
+      edit: 'Edit compensation',
       notRecorded: 'Not recorded',
       salaryExpectation: 'Salary expectation',
       title: 'Compensation',
     },
     consent: {
+      manage: 'Manage consent',
       notRecorded: 'Not recorded',
       recordedAt: 'Recorded',
+      recordedAtField: 'Recorded date and time',
+      recordedAtHint:
+        'In your local time. Leave empty to clear. Changing the status does not change this date.',
       status: 'Consent status',
       title: 'Consent',
     },
@@ -271,6 +280,8 @@ export const enMessages = {
     },
     feedback: {
       archived: 'Candidate archived.',
+      compensationUpdated: 'Compensation updated.',
+      consentUpdated: 'Consent updated.',
       created: 'Candidate created.',
       educationAdded: 'Education added.',
       experienceAdded: 'Experience added.',
@@ -425,6 +436,9 @@ export const enMessages = {
       loadingList: 'Loading candidates…',
     },
     validation: {
+      amount: 'Enter an amount such as 36000 or 36000.50, with at most two decimals.',
+      currency: 'Enter exactly three characters, for example EUR.',
+      dateTime: 'Enter a complete date and time, or leave the field empty.',
       duplicateEmail: 'A candidate with this email already exists.',
       email: 'Enter a valid email address.',
       required: 'This field is required.',
@@ -915,6 +929,7 @@ export const enMessages = {
       access: 'Preview access',
       accessFull: 'Full access',
       accessRecruiter: 'Recruiter without restricted data',
+      accessRestrictedViewer: 'Restricted data, view only',
       accessViewer: 'Read-only viewer',
       dataset: 'Preview dataset',
       empty: 'No candidates',

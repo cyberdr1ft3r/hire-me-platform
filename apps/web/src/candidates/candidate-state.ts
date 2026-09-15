@@ -114,6 +114,8 @@ export type CandidateLifecycleTarget = Exclude<CandidateStatus, 'ARCHIVED'>;
  */
 export type CandidatePendingAction =
   | 'archive'
+  | 'compensation'
+  | 'consent'
   | 'create'
   | 'education'
   | 'experience'
@@ -138,6 +140,8 @@ export type CandidateFeedback =
   | {
       kind:
         | 'archived'
+        | 'compensationUpdated'
+        | 'consentUpdated'
         | 'created'
         | 'educationAdded'
         | 'experienceAdded'
@@ -207,7 +211,26 @@ export interface CandidateRecordRef {
   recordId: string;
 }
 
-export type CandidateFieldError = 'duplicateEmail' | 'email' | 'required';
+/** The two restricted areas, each maintained through its own bounded form. */
+export type CandidateSensitiveKind = 'compensation' | 'consent';
+
+/**
+ * The raw control values of the restricted forms. The amount is typed in major
+ * units ("36000.50"), never in cents; the recorded date is the local
+ * `datetime-local` value; the status is the language-neutral enum value the
+ * select carries. The container turns them into the exact partial update.
+ */
+export interface CandidateSensitiveValues {
+  compensation: { amount: string; currency: string };
+  consent: { consentRecordedAt: string; consentStatus: string };
+}
+
+export type CandidateSensitiveUpdate = {
+  [Kind in CandidateSensitiveKind]: { kind: Kind; values: CandidateSensitiveValues[Kind] };
+}[CandidateSensitiveKind];
+
+export type CandidateFieldError =
+  'amount' | 'currency' | 'dateTime' | 'duplicateEmail' | 'email' | 'required';
 
 /**
  * What a submitted form learns back from the container: success, field-level

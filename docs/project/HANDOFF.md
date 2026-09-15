@@ -1,58 +1,54 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 ## Current situation
 
-- Authoritative `main` is `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f`, including the Task Pipeline merged through PR #65 (Issue #64 closed).
-- Issue #67 corrects Candidate drift D-CAND-01 and D-CAND-02 from audit Issue #66 on `fix/candidate-list-profile-drift`, with a draft PR. Keep it draft, open, unmerged, and undeployed.
-- No API, contract, Prisma schema, migration, permission, lifecycle, archival, or audit rule changed. The web client gained only the existing structured-record update and archive methods.
-- **List (D-CAND-01).** The Candidate list reads one server page of 20 in the server's deterministic order, with previous and next and the page and range stated in text.
-  - Filters reset to page 1. An emptied page moves to the last page with matches.
-  - Stale page or filter responses are discarded, and switching language never refetches.
-  - Search, status, and source combine on the server.
-- **Source filter.** It offers the platform's own `public_application` value, labelled "Public application" / "Candidature en ligne", and an exact recorded source (free text, matched ignoring case). No category is invented (D-063, R-038).
-- **Structured records (D-CAND-02).** Each active skill, language, work experience, and education row offers Edit and Archive to `candidate_profile:manage` holders on a non-archived candidate.
-  - Edit is pre-filled and sends a partial update of only the changed fields its form owns; a cleared optional field is sent as `null`.
-  - The forms cover the work-experience description and the education dates and description (review `5195637199`). Skill years and last used are not exposed.
-  - Archive is confirmed and keeps the row as history. There is no deletion and no restore.
-  - All record writes go through the container's single write lock and its candidate-context and session guards. `CandidatesPanel` owns every read, write, and guard; presentation stays in `CandidateWorkspace` and its sections.
-- D-CAND-03 (compensation and consent editing) is untouched and needs its own decision.
+- Authoritative `main` is `2c79b0732a429dccc32ebfaa2fbb2958639b4537`, including PR #68 (Issue #67, Candidate drift D-CAND-01 and D-CAND-02, accepted as corrected in Issue #66).
+- Issue #69 corrects Candidate drift D-CAND-03 on `fix/candidate-sensitive-management-drift`, with a draft PR. Keep it draft, open, unmerged, and undeployed.
+- **Permissions.** The restricted-information section offers **Edit compensation** only with `candidates:update`, `candidate_compensation:view`, and `candidate_compensation:update`, and **Manage consent** only with `candidates:update`, `candidate_consent:view`, and `candidate_consent:manage`, on a non-archived candidate. Update or manage without view shows nothing. The server rules are unchanged.
+- **Compensation.** Typed in major units, parsed on the digit string to integer cents (point or comma, at most two decimals, zero allowed, at most 2147483647 cents); stored cents pre-fill exactly. Currency is the recorded three-character value. Partial update of changed fields, `null` when cleared, no request when unchanged.
+- **Consent.** The four contract statuses with EN/FR labels; recorded date and time through the Task local date-time helpers. The status never changes the date. Same partial-update rules.
+- **Audit.** `candidates.compensation.updated` and `candidates.consent.updated` (actor and candidate only) are recorded with the generic `candidates.candidate.updated` only when the stored group actually changed.
+- **Contract.** `salaryExpectationCents` is bounded to the PostgreSQL `integer` maximum on create and update (an overflow was a 500, now a 400).
+- **Write safety.** The single write lock and the candidate-context and session guards apply; a success commits the server response and re-reads the candidate.
+- **Session boundary.** Final review on head `88fa91e` found the previous principal's selected candidate (with its restricted values) stayed rendered after a token or permission change. The container now resets the selection, record, feedback, list, and filters while rendering, advances every request and context guard, and remounts the presentation, so the new session starts empty and loads its own data. A write still in flight keeps the write lock until it settles; its result is dropped.
+- D-064 records the decision; R-039 records the pre-existing gap that write responses are not audited as access. R-035 is untouched.
 
 ## Review target
 
-Run `pnpm --filter @hire-me/web dev`, then open `http://127.0.0.1:5173/candidate.html` (`?dataset=many` for three pages).
+Run `pnpm --filter @hire-me/web dev`, then open `http://127.0.0.1:5173/candidate.html`.
 
-Review:
+Review with the preview access profiles:
 
-- the list toolbar (search, status, source, recorded source);
-- pagination at the boundaries;
-- Edit and Archive on skills, languages, work experience, and education, including archived rows (no actions);
-- the read-only viewer profile (no actions);
-- EN and FR at desktop and mobile widths. The page's `scrollWidth` must equal its `clientWidth`.
+- **Full access:** Edit compensation and Manage consent, their forms, validation, and Cancel;
+- **Restricted data, view only:** values without any action;
+- **Recruiter without restricted data** and **Read-only viewer:** no restricted section at all;
+- EN and FR at desktop and 390 px. The page's `scrollWidth` must equal its `clientWidth`.
 
 ## Completion conditions
 
-- Every Issue #67 validation command and the exact-head GitHub Actions run are green, including the PostgreSQL Candidate integration tests for paging and in-place record maintenance.
-- Issue #66 records D-CAND-01 and D-CAND-02 as corrected (or any part deferred with a reason) and stays open.
-- Technical and visual reviewers accept the implementation or request a bounded correction.
+- Every Issue #69 validation command and the exact-head GitHub Actions run are green, including the Candidate PostgreSQL tests for the dedicated audit events and denied writes and the session-boundary regressions.
+- ChatGPT D-CAND-03 re-review accepts the session-boundary correction.
+- Issue #66 records D-CAND-03 as implemented and awaiting review, and stays open.
+- The ChatGPT conformance review accepts the implementation or requests a bounded correction on the same branch.
 
 ## Explicit hard stop
 
 Do not begin any of the following:
 
-- D-CAND-03 compensation or consent editing;
-- MissionCandidate/ATS changes, Reporting drilldowns, or the Public Opportunity salary-unit bug (R-035);
-- Clients or Missions;
+- the Public Opportunity salary-unit bug (R-035) or any reinterpretation of stored public-application salaries;
+- Candidate pagination, source, or structured-record changes;
+- MissionCandidate/ATS, Tasks, Reporting, payroll, or accounting changes;
 - a global UI-DNA refinement;
 - any migration, deployment, or merge work.
 
 ## Resume checklist
 
-- Read `AGENTS.md`, Issue #67, Issue #66, the Issue #67 PR review history, and the project-memory files.
+- Read `AGENTS.md`, Issue #69, Issue #17, Issue #66, the Issue #69 PR review history, and the project-memory files.
 - Fetch `origin`, then verify the base, the branch head, the draft PR state, and exact-head CI.
 - Keep corrections inside:
-  - `apps/web/src/candidates`, `apps/web/src/candidate-preview`, and `apps/web/candidate.html`;
-  - the Candidate API client methods and Candidate translations;
-  - `apps/api/test/candidates.integration.test.ts` (tests only);
+  - `apps/web/src/candidates`, `apps/web/src/candidate-preview`, and the Candidate translations;
+  - `apps/api/src/candidates/candidates.service.ts` and `apps/api/test/candidates.integration.test.ts`;
+  - the Candidate salary bound in `packages/contracts/src/candidates.ts`;
   - project documentation.
