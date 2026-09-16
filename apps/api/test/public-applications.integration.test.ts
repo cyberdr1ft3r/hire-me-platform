@@ -90,6 +90,10 @@ const manageOnlyPublicPermissions = [
   'public_opportunities:view',
   'public_opportunities:manage',
 ] as const;
+// The legacy review regressions edit Candidate metadata through the supported
+// endpoint. `hr_manager` is seeded with both, but this file must not depend on
+// which other suite ran first, so it asserts the precondition itself.
+const candidateMaintenancePermissions = ['candidates:view', 'candidates:update'] as const;
 
 type RolePermissionSnapshot = {
   roleExisted: boolean;
@@ -429,7 +433,10 @@ describe('public opportunity applications', () => {
     await cleanPublicApplicationRecords();
     clientUserRolePermissionSnapshot = await snapshotRolePermissions(RoleName.CLIENT_USER);
     clientUserRolePermissionSnapshotCaptured = true;
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, publicPermissions);
+    await ensureRoleWithPermissions(RoleName.HR_MANAGER, [
+      ...publicPermissions,
+      ...candidateMaintenancePermissions,
+    ]);
     await ensureRoleWithPermissions(RoleName.CLIENT_USER, manageOnlyPublicPermissions);
     await removeRolePermissions(RoleName.CLIENT_USER, [
       'public_opportunities:publish',
