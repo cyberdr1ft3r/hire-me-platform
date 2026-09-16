@@ -12,42 +12,50 @@
 -- is a single SELECT: it writes nothing, locks nothing, and creates nothing.
 --
 -- It returns no salary amount and no currency value, so its output can be read
--- and shared without disclosing candidate compensation. `classification` is
--- review evidence, never a unit proof and never an input to an automatic write.
+-- and shared without disclosing candidate compensation.
+--
+-- It also makes NO claim about whether an application created the Candidate it
+-- is linked to or reused one that already existed. Nothing persisted proves
+-- that: the submission writes the same `MissionCandidate`, the same
+-- `MissionCandidateEvent`, and the same `PublicCandidateApplication` shape in
+-- both cases, records no candidate-creation audit entry, and `Candidate` has no
+-- creation-origin column. Every column below is either an immutable fact of the
+-- application snapshot or an explicitly named CURRENT value that ordinary later
+-- edits can change.
 SELECT
   application."id" AS "publicCandidateApplicationId",
   application."publicOpportunityId" AS "publicOpportunityId",
   application."missionId" AS "missionId",
   application."candidateId" AS "candidateId",
   application."submittedAt" AS "submittedAt",
+  -- Immutable: the application snapshot is insert-only.
   (application."submittedSalaryExpectationCurrency" IS NOT NULL) AS "applicationRecordedCurrency",
+  -- Current state, not history: a Candidate's currency can be maintained at any
+  -- time through normal compensation management.
   (
     candidate."salaryExpectationCurrency"
     IS NOT DISTINCT FROM application."submittedSalaryExpectationCurrency"
-  ) AS "currencyAgreesWithCandidate",
-  -- The submission writes `public_application` plus the opportunity slug only on
-  -- a Candidate it creates itself, and one email may apply to one opportunity
-  -- once. That makes this strong review evidence of a new-candidate submission,
-  -- and still not evidence of which unit the request carried.
+  ) AS "currentCandidateCurrencyMatchesSnapshot",
+  -- Current metadata on BOTH sides, and a triage hint only. `Candidate.source`
+  -- and `Candidate.sourceDetail` are editable through the Candidate update
+  -- contract, and `PublicOpportunity.publicSlug` is editable through the
+  -- internal opportunity update, so a Candidate this application really did
+  -- create can stop matching after an ordinary later edit, and a Candidate it
+  -- merely reused can be edited into matching. Never read this as provenance.
   (
     candidate."source" = 'public_application'
     AND candidate."sourceDetail" = opportunity."publicSlug"
-  ) AS "candidateLooksCreatedByThisApplication",
-  (candidate."archivedAt" IS NOT NULL) AS "candidateArchived",
+  ) AS "currentCandidateSourceMatchesApplicationOrigin",
+  (candidate."archivedAt" IS NOT NULL) AS "currentCandidateArchived",
+  -- Compares the Candidate's CURRENT expectation with the recorded snapshot.
+  -- It states nothing about the unit either value was written in, and nothing
+  -- about whether this application created or reused the Candidate.
   CASE
-    WHEN candidate."salaryExpectationCents" IS NULL THEN 'CANDIDATE_HAS_NO_RECORDED_EXPECTATION'
-    WHEN candidate."source" = 'public_application'
-      AND candidate."sourceDetail" = opportunity."publicSlug"
-      THEN CASE
-        WHEN candidate."salaryExpectationCents" = application."submittedSalaryExpectationCents"
-          THEN 'NEW_CANDIDATE_STILL_MATCHES_SNAPSHOT'
-        ELSE 'NEW_CANDIDATE_CHANGED_SINCE_SUBMISSION'
-      END
-    ELSE CASE
-      WHEN candidate."salaryExpectationCents" = application."submittedSalaryExpectationCents"
-        THEN 'EXISTING_CANDIDATE_EQUALS_SNAPSHOT'
-      ELSE 'EXISTING_CANDIDATE_NOT_OVERWRITTEN'
-    END
+    WHEN candidate."salaryExpectationCents" IS NULL
+      THEN 'CANDIDATE_HAS_NO_RECORDED_EXPECTATION'
+    WHEN candidate."salaryExpectationCents" = application."submittedSalaryExpectationCents"
+      THEN 'CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT'
+    ELSE 'CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT'
   END AS "classification"
 FROM "PublicCandidateApplication" AS application
 JOIN "Candidate" AS candidate ON candidate."id" = application."candidateId"
