@@ -34,9 +34,11 @@ import { createRequestSequence } from './request-sequence.js';
  */
 export function ReportingPanel({
   accessToken,
+  onNavigate,
   permissions,
 }: {
   accessToken: string;
+  onNavigate?: (path: string) => void;
   permissions: string[];
 }) {
   const canExport = permissions.includes(REPORTING_EXPORT_PERMISSION);
@@ -190,12 +192,15 @@ export function ReportingPanel({
 
   return (
     <ReportingDashboard
+      canOpenCandidates={permissions.includes('candidates:view')}
+      canOpenMissions={permissions.includes('missions:view')}
       canExport={canExport}
       exportFeedback={exportFeedback}
       filters={formFilters}
       onApply={handleApply}
       onExport={() => void handleExport()}
       onFiltersChange={setFormFilters}
+      onNavigate={onNavigate}
       onPageChange={(page) => void handlePageChange(page)}
       onReset={handleReset}
       onRetry={handleRetry}

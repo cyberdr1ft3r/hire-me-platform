@@ -1,13 +1,17 @@
-import { useId } from 'react';
+import { useId, type MouseEvent } from 'react';
 import type { ReportingDrilldownResponse } from '@hire-me/contracts';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage } from '../ui/index.js';
 import { isPipelineState, pipelineStateLabelKey } from './reporting-labels.js';
 import type { ReportingTableState } from './reporting-state.js';
+import { candidateDeepLink, missionDeepLink } from '../navigation/record-deep-links.js';
 
 export interface ReportingDrilldownProps {
+  canOpenCandidates: boolean;
+  canOpenMissions: boolean;
   drilldown: ReportingDrilldownResponse;
+  onNavigate?: (path: string) => void;
   onPageChange: (page: number) => void;
   state: ReportingTableState;
 }
@@ -20,12 +24,35 @@ export interface ReportingDrilldownProps {
  * server, the buttons request the neighbouring page with the same filters
  * applied, and applying new filters restarts the report at page 1.
  */
-export function ReportingDrilldown({ drilldown, onPageChange, state }: ReportingDrilldownProps) {
+export function ReportingDrilldown({
+  canOpenCandidates,
+  canOpenMissions,
+  drilldown,
+  onNavigate,
+  onPageChange,
+  state,
+}: ReportingDrilldownProps) {
   const { formatDate, t } = useI18n();
   const headingId = useId();
   const { hasNextPage, page, total } = drilldown.pageInfo;
   const busy = state === 'loading';
   const showPagination = page > 1 || hasNextPage;
+
+  function follow(event: MouseEvent<HTMLAnchorElement>, path: string): void {
+    if (
+      !onNavigate ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    onNavigate(path);
+  }
 
   return (
     <section aria-labelledby={headingId} className="reporting-panel">
@@ -66,9 +93,35 @@ export function ReportingDrilldown({ drilldown, onPageChange, state }: Reporting
             <tbody>
               {drilldown.rows.map((row) => (
                 <tr key={row.processId}>
-                  <td>{row.missionTitle}</td>
+                  <td>
+                    {canOpenMissions ? (
+                      <a
+                        aria-label={t('reporting.table.openMission', { name: row.missionTitle })}
+                        href={missionDeepLink(row.missionId)}
+                        onClick={(event) => follow(event, missionDeepLink(row.missionId))}
+                      >
+                        {row.missionTitle}
+                      </a>
+                    ) : (
+                      row.missionTitle
+                    )}
+                  </td>
                   <td>{row.clientName}</td>
-                  <td>{row.candidateDisplayName}</td>
+                  <td>
+                    {canOpenCandidates ? (
+                      <a
+                        aria-label={t('reporting.table.openCandidate', {
+                          name: row.candidateDisplayName,
+                        })}
+                        href={candidateDeepLink(row.candidateId)}
+                        onClick={(event) => follow(event, candidateDeepLink(row.candidateId))}
+                      >
+                        {row.candidateDisplayName}
+                      </a>
+                    ) : (
+                      row.candidateDisplayName
+                    )}
+                  </td>
                   <td>
                     {isPipelineState(row.pipelineState)
                       ? t(pipelineStateLabelKey(row.pipelineState))

@@ -34,6 +34,14 @@ type PreviewDataset = 'empty' | 'populated';
 
 function ReportingPreviewContent() {
   const { t } = useI18n();
+  const access = new URLSearchParams(window.location.search).get('access');
+  const canOpenCandidates = access !== 'missions-only' && access !== 'none';
+  const canOpenMissions = access !== 'candidates-only' && access !== 'none';
+  const permissions = previewUser.permissions.filter(
+    (permission) =>
+      (permission !== 'candidates:view' || canOpenCandidates) &&
+      (permission !== 'missions:view' || canOpenMissions),
+  );
   const [dataset, setDataset] = useState<PreviewDataset>('populated');
   const [filters, setFilters] = useState<ReportingFilterValues>(EMPTY_REPORTING_FILTERS);
 
@@ -44,7 +52,7 @@ function ReportingPreviewContent() {
       onLogout={() => undefined}
       onNavigate={() => undefined}
       onRefreshUser={() => undefined}
-      user={previewUser}
+      user={{ ...previewUser, permissions }}
     >
       <div className="reporting-preview__switch">
         <Select
@@ -57,6 +65,8 @@ function ReportingPreviewContent() {
         </Select>
       </div>
       <ReportingDashboard
+        canOpenCandidates={canOpenCandidates}
+        canOpenMissions={canOpenMissions}
         canExport
         exportFeedback={null}
         filters={filters}

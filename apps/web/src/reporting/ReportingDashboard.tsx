@@ -13,12 +13,15 @@ import type {
 } from './reporting-state.js';
 
 export interface ReportingDashboardProps {
+  canOpenCandidates: boolean;
+  canOpenMissions: boolean;
   canExport: boolean;
   exportFeedback: ReportingExportFeedback | null;
   filters: ReportingFilterValues;
   onApply: () => void;
   onExport: () => void;
   onFiltersChange: (filters: ReportingFilterValues) => void;
+  onNavigate?: (path: string) => void;
   onPageChange: (page: number) => void;
   onReset: () => void;
   onRetry: () => void;
@@ -34,12 +37,15 @@ export interface ReportingDashboardProps {
  * surface show the real dashboard without an API or any business data.
  */
 export function ReportingDashboard({
+  canOpenCandidates,
+  canOpenMissions,
   canExport,
   exportFeedback,
   filters,
   onApply,
   onExport,
   onFiltersChange,
+  onNavigate,
   onPageChange,
   onReset,
   onRetry,
@@ -142,7 +148,10 @@ export function ReportingDashboard({
           <ReportingPipeline entries={ready.pipeline.distributions.processesByState} />
           <ReportingTrends series={ready.trends.series} />
           <ReportingDrilldown
+            canOpenCandidates={canOpenCandidates}
+            canOpenMissions={canOpenMissions}
             drilldown={ready.drilldown}
+            onNavigate={onNavigate}
             onPageChange={onPageChange}
             state={tableState}
           />

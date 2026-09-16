@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 
 import type { AuthenticatedUser, CandidateDetail } from '@hire-me/contracts';
 
@@ -301,6 +302,115 @@ afterEach(() => {
 });
 
 describe('Candidate reads', () => {
+  it('resolves the pending deep-link intent when Strict Mode replays mount effects', async () => {
+    let releaseDetail: (() => void) | undefined;
+    const detail = new Promise<void>((resolve) => {
+      releaseDetail = resolve;
+    });
+    const { calls } = stubCandidateApi([P.view], (call) =>
+      call.url === `${API}/${SECOND_CANDIDATE_ID}`
+        ? detail.then(() =>
+            jsonResponse({
+              candidate: syntheticCandidate({
+                displayName: 'Second Candidate',
+                id: SECOND_CANDIDATE_ID,
+              }),
+            }),
+          )
+        : undefined,
+    );
+    render(
+      <StrictMode>
+        <I18nProvider>
+          <CandidatesPanel
+            accessToken={TOKEN}
+            initialCandidateId={SECOND_CANDIDATE_ID}
+            permissions={[P.view]}
+          />
+        </I18nProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(() =>
+      expect(calls.filter((call) => call.url === `${API}/${SECOND_CANDIDATE_ID}`)).toHaveLength(2),
+    );
+    releaseDetail?.();
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Second Candidate' }),
+    ).toBeVisible();
+  });
+
+  it('loads an exact deep-linked candidate independently of the current list page', async () => {
+    const { calls } = stubCandidateApi([P.view]);
+    render(
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          initialCandidateId={SECOND_CANDIDATE_ID}
+          permissions={[P.view]}
+        />
+      </I18nProvider>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Second Candidate' }),
+    ).toBeVisible();
+    expect(calls.some((call) => call.url === `${API}/${SECOND_CANDIDATE_ID}`)).toBe(true);
+  });
+
+  it('lets manual selection supersede the one-shot deep-link intent and replace its URL owner', async () => {
+    let resolveInitial: ((response: Response) => void) | undefined;
+    const initialRead = new Promise<Response>((resolve) => {
+      resolveInitial = resolve;
+    });
+    stubCandidateApi([P.view], (call) =>
+      call.url === `${API}/${CANDIDATE_ID}` ? initialRead : undefined,
+    );
+    const onSelectionChange = vi.fn();
+    render(
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          initialCandidateId={CANDIDATE_ID}
+          onSelectionChange={onSelectionChange}
+          permissions={[P.view]}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Second Candidate' }));
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Second Candidate' }),
+    ).toBeVisible();
+    expect(onSelectionChange).toHaveBeenCalledWith(SECOND_CANDIDATE_ID);
+
+    resolveInitial?.(jsonResponse({ candidate: syntheticCandidate() }));
+    await act(async () => Promise.resolve());
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Candidate' })).toBeVisible();
+  });
+
+  it('shows the same generic detail failure for a hidden deep-linked candidate', async () => {
+    stubCandidateApi([P.view], (call) =>
+      call.url === `${API}/${CANDIDATE_ID}`
+        ? jsonResponse({ code: 'CANDIDATE_NOT_FOUND', message: 'hidden' }, 404)
+        : undefined,
+    );
+    render(
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          initialCandidateId={CANDIDATE_ID}
+          permissions={[P.view]}
+        />
+      </I18nProvider>,
+    );
+
+    expect(await screen.findByText('Unable to load this candidate.')).toBeVisible();
+    expect(screen.queryByText('hidden')).toBeNull();
+    expect(screen.queryByText(CANDIDATE_ID)).toBeNull();
+  });
+
   it('lists the first 20 candidates with the unchanged query and reads one record on selection', async () => {
     const { calls } = stubCandidateApi([P.view]);
     renderPanel([P.view]);

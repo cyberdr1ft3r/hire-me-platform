@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 
 import { App } from './App.js';
 
@@ -1608,6 +1609,85 @@ describe('App', () => {
     );
   });
 
+  it('pushes a reporting deep link and restores it through Back, Forward, and direct URL state', async () => {
+    mockReportingSession(['reporting:recruitment:view', 'candidates:view', 'missions:view']);
+
+    render(<App />);
+    await loginAs('navigation-report@example.test');
+    fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Open candidate Deep Link Candidate' }),
+    );
+
+    expect(window.location.pathname).toBe('/candidates');
+    expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+    ).toBeVisible();
+
+    act(() => window.history.back());
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Recruitment reporting' }),
+    ).toBeVisible();
+    expect(window.location.pathname).toBe('/reporting');
+
+    act(() => window.history.forward());
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+    ).toBeVisible();
+    expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toBe('');
+  });
+
+  it('resolves a direct Candidate URL after authentication and ignores malformed intent', async () => {
+    const fetchMock = mockReportingSession(['candidates:view']);
+    window.history.pushState({}, '', '/candidates?candidate=55555555-5555-4555-8555-555555555555');
+
+    const view = render(<App />);
+    await loginAs('direct-candidate@example.test');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+    ).toBeVisible();
+    view.unmount();
+
+    window.history.pushState({}, '', '/candidates?candidate=not-a-uuid&unknown=value');
+    render(<App />);
+    await loginAs('malformed-candidate@example.test');
+    expect(
+      await screen.findByText(
+        'Select a candidate to review their profile, lifecycle, and structured records.',
+      ),
+    ).toBeVisible();
+    expect(
+      fetchMock.mock.calls.filter(([input]) => requestUrl(input).includes('not-a-uuid')),
+    ).toHaveLength(0);
+  });
+
+  it('resolves a direct Mission URL through the existing scoped mission read', async () => {
+    const fetchMock = mockMissionWorkspace(['missions:view']);
+    window.history.pushState({}, '', `/missions?mission=${syntheticMissionId}`);
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await loginAs('direct-mission@example.test');
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Synthetic Mission' }),
+    ).toBeVisible();
+    expect(window.location.search).toBe(`?mission=${syntheticMissionId}`);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://127.0.0.1:3000/v1/missions/${syntheticMissionId}`,
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(screen.queryByText(syntheticMissionId)).toBeNull();
+  });
+
   it('hides the accounting workspace without any accounting permission', async () => {
     mockAccountingWorkspace(['records:view']);
 
@@ -2712,8 +2792,26 @@ function reportingDrilldownBody() {
     window: reportingWindowBody(),
     scope: reportingScopeBody(),
     filters: reportingFiltersBody(),
-    rows: [],
-    pageInfo: { page: 1, pageSize: 25, total: 0, hasNextPage: false },
+    rows: [
+      {
+        candidateDisplayName: 'Deep Link Candidate',
+        candidateId: '55555555-5555-4555-8555-555555555555',
+        clientId: '11111111-1111-4111-8111-111111111111',
+        clientName: 'Reporting Client',
+        clientVisible: false,
+        createdAt: '2026-08-20T10:00:00.000Z',
+        missionId: '22222222-2222-4222-8222-222222222222',
+        missionTitle: 'Deep Link Mission',
+        pipelineState: 'HR_PRESELECTION',
+        presentedAt: null,
+        processId: '66666666-6666-4666-8666-666666666666',
+        responsibleRecruiterDisplayName: 'Plain Recruiter',
+        responsibleRecruiterUserId: '33333333-3333-4333-8333-333333333333',
+        source: null,
+        updatedAt: '2026-08-21T10:00:00.000Z',
+      },
+    ],
+    pageInfo: { page: 1, pageSize: 25, total: 1, hasNextPage: false },
   };
 }
 
@@ -2772,6 +2870,44 @@ function mockReportingSession(permissions: string[]) {
     }
     if (url.includes('/v1/reporting/recruitment/drilldown')) {
       return Promise.resolve(jsonResponse(reportingDrilldownBody()));
+    }
+    if (url.includes('/v1/candidates?')) {
+      return Promise.resolve(
+        jsonResponse({ candidates: [], pagination: { page: 1, pageSize: 20, total: 0 } }),
+      );
+    }
+    if (url.endsWith('/v1/candidates/55555555-5555-4555-8555-555555555555')) {
+      return Promise.resolve(
+        jsonResponse({
+          candidate: {
+            archivedAt: null,
+            availabilityNotice: null,
+            city: 'Paris',
+            compensation: null,
+            consent: null,
+            country: 'France',
+            createdAt: '2026-08-20T10:00:00.000Z',
+            currentJobTitle: 'Engineer',
+            displayName: 'Deep Link Candidate',
+            education: [],
+            email: 'deep-link@example.test',
+            firstName: null,
+            id: '55555555-5555-4555-8555-555555555555',
+            languages: [],
+            lastName: null,
+            linkedinUrl: null,
+            normalizedEmail: 'deep-link@example.test',
+            phone: null,
+            professionalSummary: null,
+            skills: [],
+            source: 'Synthetic',
+            sourceDetail: null,
+            status: 'ACTIVE',
+            updatedAt: '2026-08-21T10:00:00.000Z',
+            workExperiences: [],
+          },
+        }),
+      );
     }
 
     void init;

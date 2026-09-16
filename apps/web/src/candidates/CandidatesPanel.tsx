@@ -259,9 +259,13 @@ function failureOutcome(failure: CandidateFailure): CandidateFormOutcome {
  */
 export function CandidatesPanel({
   accessToken,
+  initialCandidateId = null,
+  onSelectionChange,
   permissions,
 }: {
   accessToken: string;
+  initialCandidateId?: string | null;
+  onSelectionChange?: (candidateId: string) => void;
   permissions: string[];
 }) {
   const { t } = useI18n();
@@ -302,6 +306,7 @@ export function CandidatesPanel({
    * never start while the first is still in flight.
    */
   const writeInFlight = useRef(false);
+  const initialCandidateIntent = useRef(initialCandidateId);
 
   /*
    * The latest committed list query (filters and page) and the current session token.
@@ -441,6 +446,14 @@ export function CandidatesPanel({
     // `loadList` reads only `accessToken`, which is listed here.
   }, [accessToken, appliedQuery]);
 
+  useEffect(() => {
+    const candidateId = initialCandidateIntent.current;
+    if (candidateId) {
+      select(candidateId);
+      void loadDetail(candidateId, false, true);
+    }
+  }, []);
+
   // A new session, or leaving the workspace, ends every candidate context.
   useEffect(
     () => () => {
@@ -450,7 +463,11 @@ export function CandidatesPanel({
     [accessToken],
   );
 
-  async function loadDetail(candidateId: string, quiet = false): Promise<void> {
+  async function loadDetail(
+    candidateId: string,
+    quiet = false,
+    resolvesInitialIntent = false,
+  ): Promise<void> {
     const request = ++detailRequest.current;
     if (!quiet) {
       setDetail({ candidateId, status: 'loading' });
@@ -459,10 +476,16 @@ export function CandidatesPanel({
       const response = await getCandidate(accessToken, candidateId);
       if (request === detailRequest.current && selectedRef.current === candidateId) {
         setDetail({ candidate: response.candidate, status: 'ready' });
+        if (resolvesInitialIntent) {
+          initialCandidateIntent.current = null;
+        }
       }
     } catch {
       if (request === detailRequest.current && selectedRef.current === candidateId && !quiet) {
         setDetail({ candidateId, status: 'error' });
+        if (resolvesInitialIntent) {
+          initialCandidateIntent.current = null;
+        }
       }
     }
   }
@@ -487,7 +510,9 @@ export function CandidatesPanel({
   }
 
   function handleSelect(candidateId: string): void {
+    initialCandidateIntent.current = null;
     select(candidateId);
+    onSelectionChange?.(candidateId);
     void loadDetail(candidateId);
   }
 
