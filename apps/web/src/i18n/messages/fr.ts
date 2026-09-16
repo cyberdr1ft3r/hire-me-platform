@@ -752,6 +752,7 @@ export const frMessages: Messages = {
         documents:
           'Formats acceptés : {types}. Jusqu’à {fileSize} par fichier et {totalSize} au total.',
         professionalLinks: 'LinkedIn, portfolio ou site personnel',
+        salaryAmount: 'Par exemple 36000 ou 36000,50, sans espace ni symbole',
         salaryCurrency: 'Code à trois lettres, par exemple EUR ou MAD',
       },
       sections: {
@@ -840,9 +841,10 @@ export const frMessages: Messages = {
       fileTotal: 'Ensemble, ces fichiers dépassent {size}.',
       fileType: 'Ce type de fichier n’est pas accepté.',
       required: 'Ce champ est obligatoire.',
+      salaryAmount:
+        'Saisissez un montant avec deux décimales au maximum, sans espace ni symbole, par exemple 36000 ou 36000,50.',
       summary: 'Corrigez les champs signalés, puis envoyez à nouveau.',
       summaryTitle: 'Vérifiez votre candidature',
-      wholeNumber: 'Saisissez un nombre entier, sans espace ni symbole.',
     },
     values: {
       confidentialCompany: 'Confidentielle',

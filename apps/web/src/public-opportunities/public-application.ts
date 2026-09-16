@@ -4,11 +4,20 @@ import type {
   PublicOpportunity,
 } from '@hire-me/contracts';
 
+import { parseSalaryAmount } from '../money/index.js';
+
 type UploadRequirements = PublicOpportunity['uploadRequirements'];
 type FileCategory = PublicApplicationFileInput['category'];
 
 /**
- * The text controls the application form has always sent, in form order.
+ * The text controls the application form offers, in form order.
+ *
+ * `salaryExpectationAmount` is what a person types: a salary expectation in
+ * normal major currency units. It is deliberately not named after the
+ * `salaryExpectationCents` transport field, which carries exact integer minor
+ * units; `buildApplicationRequest` is the only place that converts between the
+ * two, and the candidate never sees the word "cents".
+ *
  * `website` is the anti-spam trap: it is hidden from people and sent as-is.
  */
 export const APPLICATION_TEXT_FIELDS = [
@@ -22,7 +31,7 @@ export const APPLICATION_TEXT_FIELDS = [
   'availability',
   'skills',
   'languages',
-  'salaryExpectationCents',
+  'salaryExpectationAmount',
   'salaryExpectationCurrency',
   'professionalLinks',
   'motivation',
@@ -55,6 +64,12 @@ export const APPLICATION_FIELD_LIMITS = {
   email: 254,
   experienceYearsMax: 80,
   fullName: 160,
+  /**
+   * Comfortably longer than the largest acceptable amount
+   * (`21474836.47`, eleven characters) so nothing typable is cut off mid-entry,
+   * while still bounding the control. The parser decides what is acceptable.
+   */
+  salaryExpectationAmount: 24,
   salaryExpectationCurrency: 3,
   text: 4000,
 } as const;
@@ -67,7 +82,7 @@ export interface ApplicationSnapshot {
 }
 
 export type ApplicationFieldError =
-  | { code: 'consent' | 'email' | 'experienceYears' | 'required' | 'wholeNumber' }
+  | { code: 'consent' | 'email' | 'experienceYears' | 'required' | 'salaryAmount' }
   | { code: 'fileRequired' | 'fileType' }
   | { code: 'fileSize'; limitBytes: number };
 
@@ -160,8 +175,9 @@ function fileContentType(file: File): string {
  *
  * Every rule here is one the server already enforces, so a value the API would
  * accept is never refused: required name, email, and consent; whole-number
- * experience from 0 to 80 and a non-negative whole salary figure; and the file
- * requirements, types, and sizes the opportunity itself publishes. Browser
+ * experience from 0 to 80; a salary amount that converts to minor units the
+ * contract accepts; and the file requirements, types, and sizes the
+ * opportunity itself publishes. Browser
  * validation bubbles are off because they speak the browser's language rather
  * than the page's. The server still validates everything.
  */
@@ -196,12 +212,10 @@ export function validateApplication(
     fields.experienceYears = { code: 'experienceYears' };
   }
 
-  const salary = wholeNumberOrNull(values.salaryExpectationCents);
-  if (
-    badNumberInput.has('salaryExpectationCents') ||
-    (salary !== null && !(Number.isSafeInteger(salary) && salary >= 0))
-  ) {
-    fields.salaryExpectationCents = { code: 'wholeNumber' };
+  // The same conversion the request uses, so a refused amount is exactly an
+  // amount the request could not carry, and the maximum is the contract's own.
+  if (!parseSalaryAmount(values.salaryExpectationAmount).ok) {
+    fields.salaryExpectationAmount = { code: 'salaryAmount' };
   }
 
   let totalBytes = 0;
@@ -250,13 +264,28 @@ function numberOrUndefined(value: string): number | undefined {
 }
 
 /**
- * The request body, exactly as the page has always built it: name and email as
- * typed, every optional text trimmed and omitted when empty, the two numeric
- * fields passed through as numbers, consent from the checkbox, no CAPTCHA
- * token, the trap field as-is, and the files in CV, certification, diploma,
- * additional order.
+ * The exact integer minor units the typed major-unit amount stands for, or
+ * `undefined` so `salaryExpectationCents` is omitted from the request.
  *
- * The salary figure is sent unchanged as `salaryExpectationCents`, as before.
+ * An amount this cannot convert never reaches here: `validateApplication` runs
+ * the same conversion first and refuses the submission. Omitting rather than
+ * guessing keeps that unreachable case from inventing a value.
+ */
+function salaryExpectationCents(value: string): number | undefined {
+  const parsed = parseSalaryAmount(value);
+  return parsed.ok ? (parsed.cents ?? undefined) : undefined;
+}
+
+/**
+ * The request body: name and email as typed, every optional text trimmed and
+ * omitted when empty, experience as a number, consent from the checkbox, no
+ * CAPTCHA token, the trap field as-is, and the files in CV, certification,
+ * diploma, additional order.
+ *
+ * `salaryExpectationCents` is the exact integer minor units of the major-unit
+ * amount the candidate typed, converted on the digit string. This is the only
+ * place the unit boundary is crossed: the form holds major units, and the
+ * public API contract keeps meaning cents for every caller.
  */
 export function buildApplicationRequest(
   snapshot: ApplicationSnapshot,
@@ -274,7 +303,7 @@ export function buildApplicationRequest(
     skills: trimmedOrUndefined(values.skills),
     languages: trimmedOrUndefined(values.languages),
     availability: trimmedOrUndefined(values.availability),
-    salaryExpectationCents: numberOrUndefined(values.salaryExpectationCents),
+    salaryExpectationCents: salaryExpectationCents(values.salaryExpectationAmount),
     salaryExpectationCurrency: trimmedOrUndefined(values.salaryExpectationCurrency),
     professionalLinks: trimmedOrUndefined(values.professionalLinks),
     motivation: trimmedOrUndefined(values.motivation),

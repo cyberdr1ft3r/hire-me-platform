@@ -52,7 +52,7 @@ describe('application request body', () => {
         motivation: '   ',
         phone: ' +000 000 ',
         professionalLinks: 'https://portfolio.example.test',
-        salaryExpectationCents: '15000',
+        salaryExpectationAmount: '15000',
         salaryExpectationCurrency: 'EUR',
         skills: 'Synthetic skill',
         website: '',
@@ -61,7 +61,8 @@ describe('application request body', () => {
     );
 
     // Name and email are sent as typed; optional text is trimmed and omitted when
-    // empty; numbers pass through unchanged, including the salary figure.
+    // empty; experience passes through as a number; the typed major-unit salary
+    // amount is converted to the exact minor units the contract field carries.
     const sent = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
     expect(sent).toEqual({
       availability: 'Two weeks',
@@ -75,7 +76,7 @@ describe('application request body', () => {
       languages: 'French, English',
       phone: '+000 000',
       professionalLinks: 'https://portfolio.example.test',
-      salaryExpectationCents: 15000,
+      salaryExpectationCents: 1_500_000,
       salaryExpectationCurrency: 'EUR',
       skills: 'Synthetic skill',
     });
@@ -96,6 +97,54 @@ describe('application request body', () => {
       'files',
     ]);
     expect(body.captchaToken).toBeUndefined();
+  });
+
+  it('converts the typed major-unit amount into exact minor units', () => {
+    const cents = (salaryExpectationAmount: string) =>
+      buildApplicationRequest(snapshot({ salaryExpectationAmount }), []).salaryExpectationCents;
+
+    expect(cents('')).toBeUndefined();
+    expect(cents('   ')).toBeUndefined();
+    expect(cents('0')).toBe(0);
+    expect(cents('0.00')).toBe(0);
+    expect(cents('36000')).toBe(3_600_000);
+    expect(cents('36000.5')).toBe(3_600_050);
+    expect(cents('36000.50')).toBe(3_600_050);
+    expect(cents('36000,50')).toBe(3_600_050);
+    expect(cents(' 36000.05 ')).toBe(3_600_005);
+    expect(cents('21474836.47')).toBe(2_147_483_647);
+  });
+
+  it('converts on the digit string, never as a floating-point multiplication', () => {
+    // Each of these loses its exact value through `Number(value) * 100`.
+    for (const [amount, expected] of [
+      ['0.29', 29],
+      ['1.15', 115],
+      ['4.35', 435],
+      ['1145.65', 114_565],
+    ] as const) {
+      expect(Number(amount) * 100).not.toBe(expected);
+      expect(
+        buildApplicationRequest(snapshot({ salaryExpectationAmount: amount }), [])
+          .salaryExpectationCents,
+      ).toBe(expected);
+    }
+  });
+
+  it('keeps the currency exactly as recorded, whatever the amount is', () => {
+    for (const salaryExpectationAmount of ['', '36000', '36000,50']) {
+      expect(
+        buildApplicationRequest(
+          snapshot({ salaryExpectationAmount, salaryExpectationCurrency: ' MAD ' }),
+          [],
+        ).salaryExpectationCurrency,
+      ).toBe('MAD');
+    }
+  });
+
+  it('omits the salary field entirely when no amount is typed', () => {
+    const body = buildApplicationRequest(snapshot(), []);
+    expect('salaryExpectationCents' in JSON.parse(JSON.stringify(body))).toBe(false);
   });
 
   it('passes the anti-spam field through unchanged when it is filled', () => {
@@ -214,14 +263,30 @@ describe('local validation mirrors server rules only', () => {
     }
   });
 
-  it('accepts a non-negative whole salary figure and nothing else', () => {
-    expect(
-      validateApplication(snapshot({ salaryExpectationCents: '0' }), requirements).fields,
-    ).toEqual({});
-    for (const value of ['-5', '10.5', 'ten']) {
+  it('accepts a salary amount the request can carry and nothing else', () => {
+    for (const value of ['', '0', '36000', '36000.5', '36000,50', ' 36000.50 ', '21474836.47']) {
       expect(
-        validateApplication(snapshot({ salaryExpectationCents: value }), requirements).fields,
-      ).toEqual({ salaryExpectationCents: { code: 'wholeNumber' } });
+        validateApplication(snapshot({ salaryExpectationAmount: value }), requirements).fields,
+        value,
+      ).toEqual({});
+    }
+    for (const value of [
+      '-5',
+      '+5',
+      '10.123',
+      '3.6e4',
+      '36 000',
+      '36,000.50',
+      "36'000",
+      'ten',
+      '.5',
+      '21474836.48',
+      '999999999999',
+    ]) {
+      expect(
+        validateApplication(snapshot({ salaryExpectationAmount: value }), requirements).fields,
+        value,
+      ).toEqual({ salaryExpectationAmount: { code: 'salaryAmount' } });
     }
   });
 
