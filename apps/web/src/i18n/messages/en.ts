@@ -740,6 +740,7 @@ export const enMessages = {
         availability: 'For example, your notice period or earliest start date',
         documents: 'Accepted formats: {types}. Up to {fileSize} per file and {totalSize} in total.',
         professionalLinks: 'LinkedIn, portfolio, or personal website',
+        salaryAmount: 'For example 36000 or 36000.50, without spaces or symbols',
         salaryCurrency: 'Three-letter code, for example EUR or MAD',
       },
       sections: {
@@ -823,9 +824,10 @@ export const enMessages = {
       fileTotal: 'Together, these files are larger than {size}.',
       fileType: 'This file type is not accepted.',
       required: 'This field is required.',
+      salaryAmount:
+        'Enter an amount with at most two decimals, without spaces or symbols, for example 36000 or 36000.50.',
       summary: 'Correct the highlighted fields, then submit again.',
       summaryTitle: 'Check your application',
-      wholeNumber: 'Enter a whole number, without spaces or symbols.',
     },
     values: {
       confidentialCompany: 'Confidential',
