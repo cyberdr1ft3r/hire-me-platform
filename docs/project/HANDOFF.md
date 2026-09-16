@@ -12,8 +12,9 @@ Last updated: 2026-09-16
 - Existing-Candidate reuse is frozen: a public submission records the newly submitted cents on the application snapshot and never overwrites the Candidate's own compensation.
 - No schema migration was added, because those columns already mean cents, and no merged migration was touched.
 - Already-stored rows are deliberately not corrected. Persistence records no client, form version, or unit marker, and the public field has always been named `salaryExpectationCents`, so no heuristic can prove the original unit. Legacy treatment is the reviewed read-only `apps/api/diagnostics/public-application-salary-unit-review.sql` with `docs/runbooks/public-application-salary-unit-review.md`; it returns identifiers, booleans, and a classification label, never an amount or a currency, and writes nothing.
+- That review also claims no new-versus-existing Candidate provenance, because nothing persisted proves it: both branches of the submission write the same `MissionCandidate`, `MissionCandidateEvent`, `PublicCandidateApplication` shape, document versions, and single value-free audit entry; the reuse branch writes no Candidate column; no candidate-creation audit action is emitted; `Candidate` has no creation-origin column; and `Candidate.source`, `Candidate.sourceDetail`, and `PublicOpportunity.publicSlug` are all editable afterwards. The classifications are `CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT`, `CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT`, and `CANDIDATE_HAS_NO_RECORDED_EXPECTATION`, and the metadata hint is `currentCandidateSourceMatchesApplicationOrigin`.
 - No public endpoint, permission, visibility, anti-enumeration, duplicate, rate-limit, honeypot, consent, upload, storage, candidate-matching, recruiter-assignment, or transaction behavior changed. R-039 is untouched.
-- Local gates pass on this branch: 34 contract, 85 API unit, 452 web, and 318 PostgreSQL integration tests, plus frozen install, Prisma validate/generate, format, diff, style, architecture, lint, typecheck, build, generation-asset verification, clean-database migration, and a repeated seed. Exact-head GitHub Actions remains the final automated gate.
+- Local gates pass on this branch: 34 contract, 85 API unit, 452 web, and 321 PostgreSQL integration tests, plus frozen install, Prisma validate/generate, format, diff, style, architecture, lint, typecheck, build, generation-asset verification, clean-database migration, and a repeated seed. Exact-head GitHub Actions remains the final automated gate.
 
 ## Review target
 
@@ -26,7 +27,7 @@ In the salary section, confirm the amount field accepts `36000`, `36000.5`, `360
 - Every Issue #73 repository gate and the exact-head GitHub Actions run are green.
 - The Issue #73 draft PR links the issue and records the unit boundary, the storage bound, the frozen reuse policy, and the deliberate absence of a historical backfill.
 - Issue #66 records `D-PUBLIC-01 — IMPLEMENTED / AWAITING CHATGPT REVIEW`, separating future submissions, API/storage units, new Candidate, existing Candidate, and historical stored values. It must not be marked corrected.
-- ChatGPT conformance review accepts the correction or requests a bounded fix on the same branch.
+- ChatGPT conformance re-review accepts the corrected legacy review statement or requests a bounded fix on the same branch.
 
 ## Explicit hard stop
 
