@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CANDIDATE_SALARY_EXPECTATION_CENTS_MAX } from './candidates.js';
+
 const TrimmedTextSchema = z
   .string()
   .trim()
@@ -80,7 +82,19 @@ export const PublicApplicationSubmitRequestSchema = z.object({
   skills: TrimmedTextSchema.optional(),
   languages: TrimmedTextSchema.optional(),
   availability: TrimmedTextSchema.optional(),
-  salaryExpectationCents: z.number().int().nonnegative().optional(),
+  /**
+   * Integer minor units, as the field name says, for every caller. A browser
+   * form converts what a person typed in major units before it gets here; a
+   * direct API caller keeps sending cents. The bound is the same PostgreSQL
+   * `integer` maximum the stored columns hold, so an oversized amount is a
+   * request validation failure instead of a database error.
+   */
+  salaryExpectationCents: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(CANDIDATE_SALARY_EXPECTATION_CENTS_MAX)
+    .optional(),
   salaryExpectationCurrency: TrimmedTextSchema.optional(),
   professionalLinks: TrimmedTextSchema.optional(),
   motivation: TrimmedTextSchema.optional(),
