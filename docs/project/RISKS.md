@@ -1,6 +1,6 @@
 # Risk Register
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 
 | ID | Risk | Impact | Current mitigation | State |
 | --- | --- | --- | --- | --- |
@@ -50,6 +50,10 @@ Last updated: 2026-09-16
 | R-039 | Candidate create and update responses include compensation and consent for actors holding the view permissions, but only list and detail reads record `candidates.compensation.viewed` / `candidates.consent.viewed`. | A sensitive value returned by a write is not separately audited as an access, so the access trail in the audit log is incomplete for that response. | Pre-existing since Issue #17 and unchanged by Issue #69, which keeps its audit correction to updates. The Candidate web re-reads the candidate after every restricted write, so each value an operator sees there is also covered by a detail-read `viewed` event, and write-only actors receive no values. A write-response access event needs its own decision. | Open, needs decision |
 
 | R-040 | A record identifier in Reporting navigation could become an authorization bypass, stale-selection leak, or browser-history disclosure. | A guessed UUID could expose a hidden Candidate/Mission, a late response could show another target or prior principal's data, or confidential values could enter URL/history. | Issue #71 treats bounded route-specific UUIDs as navigation intent only; renders links only with the route capability; reuses the existing server-authorized detail reads and generic hidden/not-found state; places no business data beyond the identifier in the URL; clears/replaces intent on normal or manual navigation; and guards target and session generations, including React Strict Mode replay. Every awaited nested Mission read re-checks request, target, token, and permission ownership and returns stale chains before later work can start; deterministic tests include Authorization evidence. Client/process/recruiter links stay deferred where those safety conditions are not met. | Active |
+
+| R-041 | Public opportunity configuration can mark certification or diploma required while simultaneously disabling that category. The form hides disabled categories but the API enforces the required flag. | Ordinary candidates can be blocked from applying to an otherwise available opportunity due to a contradictory staff-configured requirement. | Issue #75 P-75-01 documents the code-level mismatch; maintainer to decide reject inconsistent config vs normalize it, with regression coverage and treatment of existing configurations. No remediation yet. | Open, needs decision |
+| R-042 | Public JPEG/PNG uploads rely on caller-declared MIME without verifying a matching image signature in `assertFileIsSafe`; PDF magic, size, MZ/PK and extension restrictions do exist. | Non-image bytes can be persisted as accepted image uploads if they pass the other existing checks; scanner selection remains separately deferred. | Issue #75 P-75-02 requests bounded server-side MIME/signature and filename-consistency decision and negative test coverage. No exploit or production exposure claimed and no remediation yet. | Open, needs decision |
+| R-043 | Public salary expectation currency shape is inconsistent: public API uses a 4000-char optional trimmed string, public UI caps input at three, and internal Candidate create/update requires exactly three characters. | Invalid or inconsistent currency metadata can enter application snapshots and newly created candidate profiles. | Issue #75 P-75-03 requests one agreed optional three-character boundary and regression tests while keeping amount units and historical records unchanged. No remediation yet. | Open, needs decision |
 
 ## Risk protocol
 
