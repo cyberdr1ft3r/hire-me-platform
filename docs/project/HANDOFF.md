@@ -1,46 +1,34 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 
 ## Current situation
 
-- Authoritative `main` is `949f43618afdd6d88cfa15a47bed93616a2c34f4`, including PR #72 / Issue #71 and accepted Reporting drift D-REPORT-01. D-064 and D-065 are both reconciled as Accepted.
-- Issue #73 corrects the public application salary expectation unit drift (D-PUBLIC-01, risk R-035) on `fix/public-application-salary-unit-drift`. Keep its PR draft, open, unmerged, and undeployed.
-- The public form control is `salaryExpectationAmount`: a text input with `inputMode="decimal"`, a localized example hint, and a length bound. It holds normal major currency units, and the candidate never sees the word "cents".
-- `buildApplicationRequest` is the only place the unit boundary is crossed. It converts on the digit string through `apps/web/src/money`, extracted unchanged from the accepted Candidate compensation parser (D-064) so no cross-feature import was introduced; `candidates/candidate-sensitive.ts` re-exports it.
-- `salaryExpectationCents` on the request, `PublicCandidateApplication.submittedSalaryExpectationCents`, and `Candidate.salaryExpectationCents` still mean integer minor units for every caller, so a direct API caller keeps sending cents. The submit contract now bounds the field to `CANDIDATE_SALARY_EXPECTATION_CENTS_MAX` (2147483647), turning a would-be database error into a 400.
-- Existing-Candidate reuse is frozen: a public submission records the newly submitted cents on the application snapshot and never overwrites the Candidate's own compensation.
-- No schema migration was added, because those columns already mean cents, and no merged migration was touched.
-- Already-stored rows are deliberately not corrected. Persistence records no client, form version, or unit marker, and the public field has always been named `salaryExpectationCents`, so no heuristic can prove the original unit. Legacy treatment is the reviewed read-only `apps/api/diagnostics/public-application-salary-unit-review.sql` with `docs/runbooks/public-application-salary-unit-review.md`; it returns identifiers, booleans, and a classification label, never an amount or a currency, and writes nothing.
-- That review also claims no new-versus-existing Candidate provenance, because nothing persisted proves it: both branches of the submission write the same `MissionCandidate`, `MissionCandidateEvent`, `PublicCandidateApplication` shape, document versions, and single value-free audit entry; the reuse branch writes no Candidate column; no candidate-creation audit action is emitted; `Candidate` has no creation-origin column; and `Candidate.source`, `Candidate.sourceDetail`, and `PublicOpportunity.publicSlug` are all editable afterwards. The classifications are `CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT`, `CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT`, and `CANDIDATE_HAS_NO_RECORDED_EXPECTATION`, and the metadata hint is `currentCandidateSourceMatchesApplicationOrigin`.
-- No public endpoint, permission, visibility, anti-enumeration, duplicate, rate-limit, honeypot, consent, upload, storage, candidate-matching, recruiter-assignment, or transaction behavior changed. R-039 is untouched.
-- Local gates pass on this branch: 34 contract, 85 API unit, 452 web, and 321 PostgreSQL integration tests, plus frozen install, Prisma validate/generate, format, diff, style, architecture, lint, typecheck, build, generation-asset verification, clean-database migration, and a repeated seed. Exact-head GitHub Actions remains the final automated gate.
+- Authoritative `main` is `2a578701038bbebf1accb9b563684cad546cda0c`, including reviewed/merged PR #74; Issue #73 is closed. D-066 is Accepted; D-PUBLIC-01 is corrected for **future** submissions.
+- Public form input is human major currency units; `buildApplicationRequest` converts exactly to integer `salaryExpectationCents` minor units, capped at 2147483647. Existing Candidate compensation is not overwritten by an application.
+- Historical salary records are not automatically corrected or classified by guessed unit/creation provenance. The reviewed SQL/runbook is a read-only human-review aid, no backfill or write.
+- High-priority drift audit #66 continues through Issue #75, the full Public Opportunity conformance audit; repository-evidence matrix is recorded in comment `5749238121`. No fresh real-browser visual/screenshots were taken for #75.
+- Source inspection found three concrete **pending decisions**, NOT accepted fixes: P-75-01 contradictory required/disabled certification or diploma settings can hide a mandatory control; P-75-02 unauthenticated uploads check PDF magic but not JPEG/PNG signatures; P-75-03 public salary currency shape differs from the internal three-character contract.
+- The inspected listed/unlisted visibility, public DTO confidentiality, request isolation, candidate reuse/ATS process, and localized form behavior align with implemented code and existing tests. The audit does not claim fresh tests or production inspection.
+- No public app deployment, schema change, salary backfill, or change to R-039 was made by the merge/audit. D-DESIGN-01 whole-product UI-DNA v1.1 remains deferred until after the functional module rollout.
 
-## Review target
+## Active review and next executable action
 
-Run `pnpm --filter @hire-me/web dev --host 127.0.0.1`, then open a published opportunity's application form at `http://127.0.0.1:5173/opportunities.html`.
+1. Read Issue #75 and its latest audit matrix, Issue #66, Issues #27/#52/#54/#62/#73, `AGENTS.md`, project memory, and affected source files.
+2. Get maintainer KEEP/CORRECT/DEFER decisions on P-75-01/02/03, especially the intended rule for required upload categories that are not enabled.
+3. Capture fresh local real-browser public list/detail/application EN/FR screenshots at 1440/1024/800/430/390 CSS px and verify keyboard, focus, empty/not-found/errors, response privacy, and document horizontal overflow with synthetic records. Static code review is not a substitute.
+4. Record accepted audit decisions in #75 and #66. Open isolated correction issues only after explicit approval and preserve all accepted public semantics. Keep #75 open until reviewed.
+5. Then audit the shared AppShell/i18n foundation and proceed through Clients, Missions, Training and Commercial UX rollout. Finish with whole-product UI-DNA v1.1.
 
-In the salary section, confirm the amount field accepts `36000`, `36000.5`, `36000.50`, and `36000,50`; refuses a negative amount, three decimals, text, and an amount above `21474836.47`; and that the request carries exact minor units. Review EN/FR at desktop and 390 px: the hint and the validation message describe a human amount, never cents, a language switch keeps the typed amount and does not refetch, there is no raw UUID text, and the document `scrollWidth === clientWidth`.
+## Explicit boundaries
 
-## Completion conditions
+- Do not re-open the merged salary-unit conversion or auto-multiply historic salary rows.
+- Do not implement #75 corrections inside this documentation task.
+- No candidate accounts/dashboard or client portal in MVP; EN/FR preference remains locally persisted.
+- No scope expansion into payroll, accounting, R-039, Reporting, Tasks, ATS lifecycle, schema/migrations, or production deployment.
+- No agent merge without explicit maintainer instruction and exact-head review.
 
-- Every Issue #73 repository gate and the exact-head GitHub Actions run are green.
-- The Issue #73 draft PR links the issue and records the unit boundary, the storage bound, the frozen reuse policy, and the deliberate absence of a historical backfill.
-- Issue #66 records `D-PUBLIC-01 — IMPLEMENTED / AWAITING CHATGPT REVIEW`, separating future submissions, API/storage units, new Candidate, existing Candidate, and historical stored values. It must not be marked corrected.
-- ChatGPT conformance re-review accepts the corrected legacy review statement or requests a bounded fix on the same branch.
+## Completion gate for this documentation-only reconciliation
 
-## Explicit hard stop
-
-Do not begin:
-
-- any historical salary correction, bulk or scripted, from the read-only review output;
-- Candidate compensation authorization, employer or public advertised salary, Mission salary ranges, Offer salary, payroll, or accounting work;
-- R-039, Reporting, Tasks, or ATS lifecycle work;
-- Client, Mission, or recruiter-directory redesign;
-- schema, migration, deployment, or merge work.
-
-## Resume checklist
-
-- Read `AGENTS.md`, Issues #73, #66, #62, #27, #69, and all project-memory files.
-- Fetch `origin`, verify the branch base/head, draft PR state, and exact-head CI.
-- Keep corrections within the public application web boundary, the public submit contract bound, the read-only legacy statement and its runbook, translations, tests, and project documentation.
+- All stable memory files reflect the PR #74 merge and correctly distinguish accepted D-066 from proposed #75 findings.
+- Dedicated docs PR linked to #76 remains draft/open/unmerged until review and exact-head CI.
