@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `949f43618afdd6d88cfa15a47bed93616a2c34f4`, including merged PR #72 (Issue #71, Reporting drift D-REPORT-01). Issue #73 corrects the public application salary expectation unit drift (D-PUBLIC-01 / R-035) on `fix/public-application-salary-unit-drift` from that exact base.
-**Current blocker:** ChatGPT D-PUBLIC-01 conformance re-review of the Issue #73 draft PR. The first review accepted the unit correction; the legacy review statement was then rewritten so it no longer claims new-versus-existing Candidate provenance the database cannot prove.
-**Next executable development task:** Re-review the corrected legacy review statement, its classifications, and the slug/source mutation regressions for Issue #73. Keep the PR draft, open, unmerged, and undeployed. R-039 remains untouched.
+**Health:** `main` is at `2a578701038bbebf1accb9b563684cad546cda0c`, including merged PR #74 (Issue #73 closed; D-PUBLIC-01 corrected for future submissions). Public Opportunity conformance audit #75 is open under overarching drift audit #66; no production deployment.
+**Current blocker:** Public Opportunity audit #75 identified three code-level issues needing explicit maintainer KEEP/CORRECT/DEFER decisions: required-but-disabled upload categories, JPEG/PNG signature verification, and public salary currency shape. Fresh live EN/FR desktop/mobile visual evidence remains outstanding.
+**Next executable development task:** Resolve the findings and UAT evidence gate in #75; open separately scoped correction issues only after approval. Then audit AppShell/i18n foundations before remaining Clients/Missions/Training/Commercial UX rollout. R-039 remains unchanged.
 
 ## Active work
 
@@ -44,11 +44,13 @@ Status owner: repository maintainer
 | Issue #67 | Complete | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Merged through PR #68 into `main` as `2c79b0732a429dccc32ebfaa2fbb2958639b4537` |
 | Issue #69 | Complete | Correct Candidate compensation and consent management drift (D-CAND-03) | Merged through PR #70 into `main` as `ee722fae04add567ac3ae0db31fb4928086976d6` |
 | Issue #71 | Complete | Correct Reporting operational drilldown navigation drift (D-REPORT-01) | Merged through PR #72 into `main` as `949f43618afdd6d88cfa15a47bed93616a2c34f4` |
-| Issue #73 | In review | Correct public application salary expectation unit drift (D-PUBLIC-01 / R-035) | The web major-unit boundary, the bounded minor-unit contract, the read-only legacy review statement, and the regressions are implemented on `fix/public-application-salary-unit-drift`; no schema migration and no historical backfill; draft PR and ChatGPT conformance review required |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task, Candidate, and Reporting drift are corrected; D-PUBLIC-01 is implemented through Issue #73 and awaiting review; the foundation/UI-DNA audit follows |
+| Issue #73 | Complete | Correct public application salary expectation unit drift (D-PUBLIC-01 / R-035) | Merged through PR #74 into `main` as `2a578701038bbebf1accb9b563684cad546cda0c`; exact-head CI passed; no schema migration or historical backfill |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Task, Candidate, Reporting and future-submission salary drift corrected; #75 audits the remaining Public Opportunity experience; AppShell/i18n foundations follow. D-DESIGN-01 remains deferred to whole-product UI-DNA v1.1 |
+| Issue #75 | In audit | Review remaining Public Opportunity conformance after PR #74 | Repository evidence matrix posted; P-75-01/02/03 awaiting maintainer KEEP/CORRECT/DEFER decisions; no fresh browser visual verification yet |
+| Issue #76 | Docs PR pending review | Reconcile status and handoff after PR #74 merge | Documentation-only dedicated branch; do not merge before review and exact-head CI |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
-## Issue #73 Verification State
+## Issue #73 Verification State (merged PR #74)
 
 - Branch `fix/public-application-salary-unit-drift` was created from exact `main` `949f43618afdd6d88cfa15a47bed93616a2c34f4` (PR #72 merge). No Prisma schema, migration, endpoint, permission, visibility, anti-enumeration, duplicate, rate-limit, honeypot, consent, upload, storage, candidate-matching, recruiter-assignment, or transaction behavior changed.
 - Discovery: the public form's own control was named `salaryExpectationCents` and sent `Number(typedValue)` unchanged; the contract accepted any nonnegative integer; the service stored that value unchanged on `PublicCandidateApplication.submittedSalaryExpectationCents` and copied it to a newly created `Candidate.salaryExpectationCents`. The storage meaning was already correct, so the web boundary was the defect.
@@ -534,11 +536,11 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Run the ChatGPT D-REPORT-01 re-review of Issue #71 / draft PR #72 at its latest exact green head.
-2. Keep Issue #71 open and PR #72 draft, open, unmerged, and undeployed until that review and merge authority are complete.
-3. Continue drift audit Issue #66 with Public Opportunity and the AppShell/i18n foundations after D-REPORT-01 is resolved.
-4. Open a scheduler issue for Task reminder delivery (R-036).
-5. Decide R-035 (public salary expectation unit) only as a separate scoped task.
+1. Complete Issue #75 Public Opportunity conformance audit: decide P-75-01, P-75-02 and P-75-03, then capture real EN/FR responsive and keyboard evidence.
+2. Open bounded correction issues only for maintainer-approved decisions; preserve future-submission D-066 semantics and historical review-only treatment.
+3. Continue Issue #66 with an AppShell/i18n foundation audit and then the legacy module UX rollout.
+4. Open a separate scheduler issue for Task reminder delivery (R-036).
+5. Keep UI-DNA v1.1 a whole-product visual identity pass after the functional module rollout.
 
 ## Status Update Rules
 
