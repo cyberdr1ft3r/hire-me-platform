@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `ee722fae04add567ac3ae0db31fb4928086976d6`, including merged PR #70 (Issue #69, Candidate drift D-CAND-03). Issue #71 implements Reporting drilldown operational navigation on `fix/reporting-drilldown-navigation-drift` from that exact base.
-**Current blocker:** ChatGPT D-REPORT-01 re-review of the bounded Mission race correction on the Issue #71 draft PR.
-**Next executable development task:** Re-review the exact-head Mission chain guards and deterministic Mission target/session/permission/hidden-record regressions for Issue #71. Keep the PR draft, open, unmerged, and undeployed. Client, process focus, and recruiter destinations remain explicitly deferred; D-PUBLIC-01/R-035 is untouched.
+**Health:** `main` is at `949f43618afdd6d88cfa15a47bed93616a2c34f4`, including merged PR #72 (Issue #71, Reporting drift D-REPORT-01). Issue #73 corrects the public application salary expectation unit drift (D-PUBLIC-01 / R-035) on `fix/public-application-salary-unit-drift` from that exact base.
+**Current blocker:** ChatGPT D-PUBLIC-01 conformance re-review of the Issue #73 draft PR. The first review accepted the unit correction; the legacy review statement was then rewritten so it no longer claims new-versus-existing Candidate provenance the database cannot prove.
+**Next executable development task:** Re-review the corrected legacy review statement, its classifications, and the slug/source mutation regressions for Issue #73. Keep the PR draft, open, unmerged, and undeployed. R-039 remains untouched.
 
 ## Active work
 
@@ -43,9 +43,26 @@ Status owner: repository maintainer
 | Issue #64 | Complete | Redesign the bilingual Task Pipeline as a daily operational workspace | Merged through PR #65 into `main` as `252ac99219cfd7d35bb8ff44c4ad3f1e73c4c49f` |
 | Issue #67 | Complete | Correct Candidate list and structured profile management drift (D-CAND-01, D-CAND-02) | Merged through PR #68 into `main` as `2c79b0732a429dccc32ebfaa2fbb2958639b4537` |
 | Issue #69 | Complete | Correct Candidate compensation and consent management drift (D-CAND-03) | Merged through PR #70 into `main` as `ee722fae04add567ac3ae0db31fb4928086976d6` |
-| Issue #71 | In review | Correct Reporting operational drilldown navigation drift (D-REPORT-01) | Candidate and Mission deep links plus the bounded Mission stale-chain correction are implemented on `fix/reporting-drilldown-navigation-drift`; Client, process focus, and recruiter destinations remain explicitly deferred; draft PR and ChatGPT re-review required |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task and Candidate drift are corrected; D-REPORT-01 is implemented through Issue #71 and awaiting review; Public Opportunity and foundation audits follow |
+| Issue #71 | Complete | Correct Reporting operational drilldown navigation drift (D-REPORT-01) | Merged through PR #72 into `main` as `949f43618afdd6d88cfa15a47bed93616a2c34f4` |
+| Issue #73 | In review | Correct public application salary expectation unit drift (D-PUBLIC-01 / R-035) | The web major-unit boundary, the bounded minor-unit contract, the read-only legacy review statement, and the regressions are implemented on `fix/public-application-salary-unit-drift`; no schema migration and no historical backfill; draft PR and ChatGPT conformance review required |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | High priority. Task, Candidate, and Reporting drift are corrected; D-PUBLIC-01 is implemented through Issue #73 and awaiting review; the foundation/UI-DNA audit follows |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #73 Verification State
+
+- Branch `fix/public-application-salary-unit-drift` was created from exact `main` `949f43618afdd6d88cfa15a47bed93616a2c34f4` (PR #72 merge). No Prisma schema, migration, endpoint, permission, visibility, anti-enumeration, duplicate, rate-limit, honeypot, consent, upload, storage, candidate-matching, recruiter-assignment, or transaction behavior changed.
+- Discovery: the public form's own control was named `salaryExpectationCents` and sent `Number(typedValue)` unchanged; the contract accepted any nonnegative integer; the service stored that value unchanged on `PublicCandidateApplication.submittedSalaryExpectationCents` and copied it to a newly created `Candidate.salaryExpectationCents`. The storage meaning was already correct, so the web boundary was the defect.
+- Unit boundary (D-066): the form control is `salaryExpectationAmount`, a text input with `inputMode="decimal"` and a localized hint, holding normal major units. `buildApplicationRequest` is the only converter. The request field, the application snapshot, and the Candidate column stay integer minor units for every caller.
+- The conversion moved into the neutral `apps/web/src/money` helper, extracted unchanged from the accepted Candidate compensation parser (D-064) so no cross-feature import was introduced; `candidates/candidate-sensitive.ts` re-exports it and its own tests are untouched.
+- `PublicApplicationSubmitRequestSchema.salaryExpectationCents` is bounded to `CANDIDATE_SALARY_EXPECTATION_CENTS_MAX` (2147483647). `packages/contracts` stays Prisma-independent.
+- Existing-Candidate reuse is frozen: the snapshot records the submitted cents and the Candidate's own compensation and currency are untouched, proved against real PostgreSQL including an unchanged `updatedAt`.
+- No schema migration was added, because the columns already mean cents. No merged migration was touched.
+- Historical rows are deliberately not corrected. The provenance matrix in `docs/runbooks/public-application-salary-unit-review.md` records that persistence keeps only SHA-256 IP and user-agent digests and no client, form-version, or unit marker, and that the public field has always been named `salaryExpectationCents`, so a direct caller may legitimately have sent real cents. Legacy treatment is the reviewed read-only `apps/api/diagnostics/public-application-salary-unit-review.sql`: one `SELECT`, explicitly invoked, returning identifiers, booleans, and a classification label and no amount or currency. A PostgreSQL test runs that exact file against synthetic rows and asserts both the classifications and that nothing changed.
+- First ChatGPT review (`5223027510`) accepted the unit fix and rejected the review statement's provenance claims. A second matrix in the runbook now records that nothing persisted proves whether an application created a Candidate or reused one: both branches write the same `MissionCandidate`, `MissionCandidateEvent`, `PublicCandidateApplication` shape, document versions, and single value-free audit entry, the reuse branch writes no Candidate column at all, no candidate-creation audit action is emitted, `Candidate` has no creation-origin column, and `Candidate.source`, `Candidate.sourceDetail`, and `PublicOpportunity.publicSlug` are all editable afterwards. The `NEW_CANDIDATE_*` / `EXISTING_CANDIDATE_*` labels were therefore removed. Classifications are now `CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT`, `CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT`, and `CANDIDATE_HAS_NO_RECORDED_EXPECTATION`, comparing only current Candidate state with the recorded snapshot, and the metadata hint is renamed `currentCandidateSourceMatchesApplicationOrigin` alongside `currentCandidateCurrencyMatchesSnapshot` and `currentCandidateArchived`. New PostgreSQL regressions prove a later authorized slug rename and later authorized `source`/`sourceDetail` edits leave the classification untouched, and that after such edits a genuinely created Candidate and a genuinely reused one are indistinguishable.
+- Privacy: the submission audit entry remains the value-free `public_applications.application.submitted` summary, asserted to contain no amount or currency; no salary value appears in success text, errors, logs, or URLs.
+- Localization: EN/FR salary hint and validation describe valid human input and never mention cents. A language switch keeps the typed amount, does not refetch, and produces the same cents; `36000,50` and `36000.50` both convert to `3600050`.
+- Tests: contracts 30 → 34 (new `public-applications.test.ts`), web 442 → 452, PostgreSQL 314 → 321. Three existing assertions that pinned the buggy unit were corrected, and the single legacy-review test was replaced by four covering classification, slug mutation, Candidate source mutation, and read-only/privacy properties; no test was deleted, skipped, retried, or given a longer timeout.
+- Local gates on this branch: frozen install, Prisma validate/generate, `format:check`, `git diff --check`, `check:styles`, `check:architecture`, lint, typecheck, full unit tests, build, generation-asset verification, clean-database `migrate deploy` plus a repeated seed, and the full PostgreSQL integration suite. `prisma migrate reset` was not run because the Prisma CLI refuses that destructive action from an AI agent without explicit human consent; a freshly created database was migrated and seeded twice instead.
 
 ## Issue #71 Verification State
 

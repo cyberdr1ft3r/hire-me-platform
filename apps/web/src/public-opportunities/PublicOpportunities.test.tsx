@@ -459,7 +459,7 @@ describe('public application', () => {
       'availability',
       'skills',
       'languages',
-      'salaryExpectationCents',
+      'salaryExpectationAmount',
       'salaryExpectationCurrency',
       'professionalLinks',
       'motivation',
@@ -473,6 +473,17 @@ describe('public application', () => {
       expect(control).toHaveAccessibleName();
       expect(control.getAttribute('placeholder')).toBeNull();
     }
+    // The salary control speaks major units: no control is named after cents,
+    // nothing the candidate reads mentions them, and the control accepts a
+    // decimal separator instead of relying on browser number parsing.
+    expect(form.innerHTML.toLowerCase()).not.toContain('cents');
+    const amount = screen.getByLabelText('Amount');
+    expect(amount).toHaveAttribute('inputmode', 'decimal');
+    expect(amount).not.toHaveAttribute('type', 'number');
+    expect(amount).toHaveAccessibleDescription(
+      'For example 36000 or 36000.50, without spaces or symbols',
+    );
+
     // The anti-spam trap is hidden from people, assistive technology, and autofill.
     const trap = form.querySelector('input[name="website"]') as HTMLInputElement;
     expect(trap.closest('[aria-hidden="true"]')).not.toBeNull();
@@ -589,7 +600,8 @@ describe('public application', () => {
       fullName: 'Ada Example',
       motivation: 'Synthetic.',
       phone: '+000 000',
-      salaryExpectationCents: 15000,
+      // 15000 major units, in the minor units the contract field carries.
+      salaryExpectationCents: 1_500_000,
       salaryExpectationCurrency: 'EUR',
     });
 
@@ -722,6 +734,147 @@ describe('public application', () => {
       }),
     ]);
     expect(callsTo(fetchMock, DETAIL_URL)).toHaveLength(1);
+  });
+
+  it('refuses a salary amount the contract could not carry and sends nothing', async () => {
+    const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail();
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fillRequired();
+
+    for (const value of ['-1', '36000.123', 'thirty-six thousand', '3.6e4', '21474836.48']) {
+      fireEvent.change(screen.getByLabelText('Amount'), { target: { value } });
+      fireEvent.submit(applicationForm());
+      expect(screen.getByLabelText('Amount'), value).toHaveFocus();
+      expect(screen.getByLabelText('Amount'), value).toHaveAccessibleDescription(
+        'For example 36000 or 36000.50, without spaces or symbols Enter an amount with at most two decimals, without spaces or symbols, for example 36000 or 36000.50.',
+      );
+      // What the candidate typed is kept, and nothing about cents is shown.
+      expect(screen.getByLabelText('Amount'), value).toHaveValue(value);
+      expect(document.body.innerHTML.toLowerCase()).not.toContain('cents');
+    }
+    expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(0);
+
+    // The accepted boundary, one unit below the rejected one, goes through.
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '21474836.47' } });
+    fireEvent.submit(applicationForm());
+    await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+    expect(postedBodies(fetchMock)).toEqual([
+      expect.objectContaining({ salaryExpectationCents: 2_147_483_647 }),
+    ]);
+  });
+
+  it('sends the same cents for the same amount in English and in French', async () => {
+    const english = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    const { unmount } = openDetail();
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '36000.50' } });
+    fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'MAD' } });
+    fireEvent.submit(applicationForm());
+    await waitFor(() => expect(callsTo(english, SUBMIT_URL)).toHaveLength(1));
+    expect(postedBodies(english)).toEqual([
+      expect.objectContaining({
+        salaryExpectationCents: 3_600_050,
+        salaryExpectationCurrency: 'MAD',
+      }),
+    ]);
+    unmount();
+    vi.restoreAllMocks();
+
+    const french = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail('fr');
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fireEvent.change(screen.getByLabelText(/^Nom complet/), { target: { value: 'Ada Example' } });
+    fireEvent.change(screen.getByLabelText(/^Adresse e-mail/), {
+      target: { value: 'ada@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^CV/), {
+      target: {
+        files: [syntheticFile('%PDF-1.4 synthetic', 'synthetic-cv.pdf', 'application/pdf')],
+      },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /J’accepte/ }));
+    // The French decimal comma means the same amount as the English point.
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '36000,50' } });
+    fireEvent.change(screen.getByLabelText('Devise'), { target: { value: 'MAD' } });
+    fireEvent.submit(applicationForm('Postuler à cette offre'));
+    await waitFor(() => expect(callsTo(french, SUBMIT_URL)).toHaveLength(1));
+    expect(postedBodies(french)).toEqual([
+      expect.objectContaining({
+        salaryExpectationCents: 3_600_050,
+        salaryExpectationCurrency: 'MAD',
+      }),
+    ]);
+  });
+
+  it('keeps a typed salary amount across a language switch and converts it the same way', async () => {
+    const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail();
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '36000,50' } });
+    fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
+    await screen.findByRole('form', { name: 'Postuler à cette offre' });
+
+    expect(screen.getByLabelText('Montant')).toHaveValue('36000,50');
+    expect(screen.getByLabelText('Devise')).toHaveValue('EUR');
+    expect(screen.getByLabelText('Montant')).toHaveAccessibleDescription(
+      'Par exemple 36000 ou 36000,50, sans espace ni symbole',
+    );
+    expect(callsTo(fetchMock, DETAIL_URL)).toHaveLength(1);
+
+    fireEvent.submit(screen.getByRole('form', { name: 'Postuler à cette offre' }));
+    await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+    expect(postedBodies(fetchMock)).toEqual([
+      expect.objectContaining({ salaryExpectationCents: 3_600_050 }),
+    ]);
+    expect(callsTo(fetchMock, DETAIL_URL)).toHaveLength(1);
+  });
+
+  it('states the French salary rule in French', async () => {
+    mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail('fr');
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '36000,123' } });
+    fireEvent.submit(applicationForm('Postuler à cette offre'));
+
+    expect(screen.getByLabelText('Montant')).toHaveAccessibleDescription(
+      'Par exemple 36000 ou 36000,50, sans espace ni symbole Saisissez un montant avec deux décimales au maximum, sans espace ni symbole, par exemple 36000 ou 36000,50.',
+    );
+    expect(document.querySelector('[lang="en"], .legacy-english-content')).toBeNull();
+    expect(document.body.innerHTML.toLowerCase()).not.toContain('cents');
+  });
+
+  it('omits the salary field when the candidate leaves the amount empty', async () => {
+    const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail();
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
+    fireEvent.submit(applicationForm());
+
+    await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+    const [body] = postedBodies(fetchMock) as Record<string, unknown>[];
+    expect('salaryExpectationCents' in body!).toBe(false);
+    expect(body).toEqual(expect.objectContaining({ salaryExpectationCurrency: 'EUR' }));
+  });
+
+  it('sends zero as zero rather than omitting it', async () => {
+    const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+    openDetail();
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '0' } });
+    fireEvent.submit(applicationForm());
+
+    await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+    expect(postedBodies(fetchMock)).toEqual([
+      expect.objectContaining({ salaryExpectationCents: 0 }),
+    ]);
   });
 
   it('applies the published size limit before sending anything', async () => {

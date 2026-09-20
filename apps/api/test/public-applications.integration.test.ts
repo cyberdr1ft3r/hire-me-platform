@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -14,6 +17,7 @@ import { PasswordService } from '../src/auth/password.service.js';
 import {
   AssignmentStatus,
   CandidateStatus,
+  ConsentStatus,
   MissionRecruiterRole,
   PermissionScopeType,
   PrismaClient,
@@ -25,6 +29,55 @@ import {
 } from '../src/persistence/prisma/generated-client.js';
 
 const prisma = new PrismaClient();
+
+/**
+ * The reviewed read-only legacy statement, executed exactly as
+ * `docs/runbooks/public-application-salary-unit-review.md` documents it, so the
+ * runbook and the behaviour proved here cannot drift apart.
+ */
+const legacyReviewSqlPath = fileURLToPath(
+  new URL('../diagnostics/public-application-salary-unit-review.sql', import.meta.url),
+);
+
+type LegacyReviewRow = {
+  applicationRecordedCurrency: boolean;
+  candidateId: string;
+  classification: string;
+  currentCandidateArchived: boolean;
+  currentCandidateCurrencyMatchesSnapshot: boolean;
+  currentCandidateSourceMatchesApplicationOrigin: boolean;
+  missionId: string;
+  publicCandidateApplicationId: string;
+  publicOpportunityId: string;
+  submittedAt: Date;
+};
+
+const LEGACY_REVIEW_COLUMNS = [
+  'applicationRecordedCurrency',
+  'candidateId',
+  'classification',
+  'currentCandidateArchived',
+  'currentCandidateCurrencyMatchesSnapshot',
+  'currentCandidateSourceMatchesApplicationOrigin',
+  'missionId',
+  'publicCandidateApplicationId',
+  'publicOpportunityId',
+  'submittedAt',
+] as const;
+
+async function runLegacyReview(): Promise<LegacyReviewRow[]> {
+  const sql = await readFile(legacyReviewSqlPath, 'utf8');
+  return prisma.$queryRawUnsafe<LegacyReviewRow[]>(sql);
+}
+
+/** The review row for one opportunity, which has at most one application here. */
+function reviewRowFor(rows: LegacyReviewRow[], opportunityId: string): LegacyReviewRow {
+  const row = rows.find((candidateRow) => candidateRow.publicOpportunityId === opportunityId);
+  if (!row) {
+    throw new Error(`No legacy review row for opportunity ${opportunityId}.`);
+  }
+  return row;
+}
 const passwords = new PasswordService();
 const testPassword = 'Synthetic-passphrase-123!';
 const publicPermissions = [
@@ -37,6 +90,10 @@ const manageOnlyPublicPermissions = [
   'public_opportunities:view',
   'public_opportunities:manage',
 ] as const;
+// The legacy review regressions edit Candidate metadata through the supported
+// endpoint. `hr_manager` is seeded with both, but this file must not depend on
+// which other suite ran first, so it asserts the precondition itself.
+const candidateMaintenancePermissions = ['candidates:view', 'candidates:update'] as const;
 
 type RolePermissionSnapshot = {
   roleExisted: boolean;
@@ -376,7 +433,10 @@ describe('public opportunity applications', () => {
     await cleanPublicApplicationRecords();
     clientUserRolePermissionSnapshot = await snapshotRolePermissions(RoleName.CLIENT_USER);
     clientUserRolePermissionSnapshotCaptured = true;
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, publicPermissions);
+    await ensureRoleWithPermissions(RoleName.HR_MANAGER, [
+      ...publicPermissions,
+      ...candidateMaintenancePermissions,
+    ]);
     await ensureRoleWithPermissions(RoleName.CLIENT_USER, manageOnlyPublicPermissions);
     await removeRolePermissions(RoleName.CLIENT_USER, [
       'public_opportunities:publish',
@@ -785,5 +845,454 @@ describe('public opportunity applications', () => {
     expect(await invalidDeadline.json()).toMatchObject({
       error: { code: 'PUBLIC_OPPORTUNITY_WINDOW_INVALID' },
     });
+  });
+
+  it('stores the submitted minor units exactly, on the snapshot and on a new Candidate', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue27-salary-new',
+      recruiterUserId,
+    );
+    const email = 'salary-new@public-applications.test';
+
+    // 36000.50 typed in the browser reaches the endpoint as exact minor units.
+    const response = await submit(baseUrl, opportunity.publicSlug, {
+      ...applicationPayload(email),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    expect(response.status).toBe(200);
+
+    const candidate = await prisma.candidate.findUniqueOrThrow({
+      where: { normalizedEmail: email },
+    });
+    expect(candidate.source).toBe('public_application');
+    expect(candidate.salaryExpectationCents).toBe(3_600_050);
+    expect(candidate.salaryExpectationCurrency).toBe('MAD');
+
+    const application = await prisma.publicCandidateApplication.findFirstOrThrow({
+      where: { publicOpportunityId: opportunity.id, submittedNormalizedEmail: email },
+    });
+    expect(application.submittedSalaryExpectationCents).toBe(3_600_050);
+    expect(application.submittedSalaryExpectationCurrency).toBe('MAD');
+    expect(application.missionId).toBe(mission.id);
+
+    // No amount reaches the audit trail; only the value-free summary is recorded.
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { entityType: 'PublicCandidateApplication', entityId: application.id },
+    });
+    expect(audit.action).toBe('public_applications.application.submitted');
+    expect(JSON.stringify(audit)).not.toContain('3600050');
+    expect(JSON.stringify(audit)).not.toContain('36000');
+    expect(JSON.stringify(audit)).not.toContain('MAD');
+    expect(audit.metadataSummary).toBe(
+      'Public application accepted; sensitive candidate payload excluded.',
+    );
+  });
+
+  it('records the submitted amount on the snapshot without overwriting an existing Candidate', async () => {
+    const { opportunity } = await createMissionWithOpportunity(
+      'issue27-salary-existing',
+      recruiterUserId,
+    );
+    const email = 'salary-existing@public-applications.test';
+    const existing = await prisma.candidate.create({
+      data: {
+        displayName: 'Existing applicant',
+        email,
+        normalizedEmail: email,
+        status: CandidateStatus.ACTIVE,
+        consentStatus: ConsentStatus.GRANTED,
+        source: 'referral',
+        salaryExpectationCents: 1_234_567,
+        salaryExpectationCurrency: 'EUR',
+      },
+    });
+
+    const response = await submit(baseUrl, opportunity.publicSlug, {
+      ...applicationPayload(email),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    expect(response.status).toBe(200);
+
+    const application = await prisma.publicCandidateApplication.findFirstOrThrow({
+      where: { publicOpportunityId: opportunity.id, submittedNormalizedEmail: email },
+    });
+    expect(application.candidateId).toBe(existing.id);
+    expect(application.submittedSalaryExpectationCents).toBe(3_600_050);
+    expect(application.submittedSalaryExpectationCurrency).toBe('MAD');
+
+    // A public application is not an implicit Candidate compensation edit.
+    const candidate = await prisma.candidate.findUniqueOrThrow({ where: { id: existing.id } });
+    expect(candidate.salaryExpectationCents).toBe(1_234_567);
+    expect(candidate.salaryExpectationCurrency).toBe('EUR');
+    expect(candidate.updatedAt.getTime()).toBe(existing.updatedAt.getTime());
+  });
+
+  it('refuses an out-of-range or negative amount and leaves no partial records', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue27-salary-range',
+      recruiterUserId,
+    );
+
+    for (const [email, salaryExpectationCents] of [
+      ['salary-overflow@public-applications.test', 2_147_483_648],
+      ['salary-negative@public-applications.test', -1],
+      ['salary-fraction@public-applications.test', 3_600_050.5],
+    ] as const) {
+      const response = await submit(baseUrl, opportunity.publicSlug, {
+        ...applicationPayload(email),
+        salaryExpectationCents,
+      });
+      expect(response.status, email).toBe(400);
+
+      await expect(
+        prisma.candidate.count({ where: { normalizedEmail: email } }),
+        email,
+      ).resolves.toBe(0);
+      await expect(
+        prisma.publicCandidateApplication.count({
+          where: { publicOpportunityId: opportunity.id, submittedNormalizedEmail: email },
+        }),
+        email,
+      ).resolves.toBe(0);
+    }
+
+    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+      0,
+    );
+    await expect(
+      prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
+    ).resolves.toBe(0);
+
+    // The accepted boundary still goes through, so the bound is exact.
+    const accepted = await submit(baseUrl, opportunity.publicSlug, {
+      ...applicationPayload('salary-boundary@public-applications.test'),
+      salaryExpectationCents: 2_147_483_647,
+    });
+    expect(accepted.status).toBe(200);
+    await expect(
+      prisma.publicCandidateApplication.findFirstOrThrow({
+        where: {
+          publicOpportunityId: opportunity.id,
+          submittedNormalizedEmail: 'salary-boundary@public-applications.test',
+        },
+      }),
+    ).resolves.toMatchObject({ submittedSalaryExpectationCents: 2_147_483_647 });
+  });
+
+  it('classifies rows by current expectation against the snapshot, with no amount and no write', async () => {
+    const stillMatching = await createMissionWithOpportunity(
+      'issue27-legacy-match',
+      recruiterUserId,
+    );
+    const maintained = await createMissionWithOpportunity(
+      'issue27-legacy-maintained',
+      recruiterUserId,
+    );
+    const reused = await createMissionWithOpportunity('issue27-legacy-reused', recruiterUserId);
+    const noExpectation = await createMissionWithOpportunity(
+      'issue27-legacy-none',
+      recruiterUserId,
+    );
+
+    const emails = {
+      maintained: 'legacy-maintained@public-applications.test',
+      match: 'legacy-match@public-applications.test',
+      none: 'legacy-none@public-applications.test',
+      reused: 'legacy-reused@public-applications.test',
+    } as const;
+
+    // A Candidate whose expectation still equals the submitted snapshot.
+    await submit(baseUrl, stillMatching.opportunity.publicSlug, {
+      ...applicationPayload(emails.match),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+
+    // The same shape, but an operator has since maintained the Candidate.
+    await submit(baseUrl, maintained.opportunity.publicSlug, {
+      ...applicationPayload(emails.maintained),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    await prisma.candidate.update({
+      where: { normalizedEmail: emails.maintained },
+      data: { salaryExpectationCents: 4_200_000 },
+    });
+
+    // An already-existing Candidate, whose own compensation is never overwritten.
+    await prisma.candidate.create({
+      data: {
+        displayName: 'Reused applicant',
+        email: emails.reused,
+        normalizedEmail: emails.reused,
+        status: CandidateStatus.ACTIVE,
+        consentStatus: ConsentStatus.GRANTED,
+        source: 'referral',
+        salaryExpectationCents: 1_234_567,
+        salaryExpectationCurrency: 'EUR',
+      },
+    });
+    await submit(baseUrl, reused.opportunity.publicSlug, {
+      ...applicationPayload(emails.reused),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+
+    // An application that recorded an expectation for a Candidate that has none.
+    await submit(baseUrl, noExpectation.opportunity.publicSlug, {
+      ...applicationPayload(emails.none),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    await prisma.candidate.update({
+      where: { normalizedEmail: emails.none },
+      data: { salaryExpectationCents: null },
+    });
+
+    const applicationsBefore = await prisma.publicCandidateApplication.findMany({
+      where: { publicOpportunity: { publicSlug: { startsWith: 'issue27-legacy-' } } },
+      orderBy: { id: 'asc' },
+    });
+    const candidatesBefore = await prisma.candidate.findMany({
+      where: { normalizedEmail: { in: Object.values(emails) } },
+      orderBy: { id: 'asc' },
+    });
+
+    const rows = await runLegacyReview();
+
+    // Every label states only how the Candidate's current expectation compares
+    // with the recorded snapshot. None of them claims the application created or
+    // reused the Candidate, and none of them names a unit.
+    expect(reviewRowFor(rows, stillMatching.opportunity.id).classification).toBe(
+      'CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT',
+    );
+    expect(reviewRowFor(rows, maintained.opportunity.id).classification).toBe(
+      'CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT',
+    );
+    expect(reviewRowFor(rows, reused.opportunity.id).classification).toBe(
+      'CANDIDATE_EXPECTATION_DIFFERS_FROM_SNAPSHOT',
+    );
+    expect(reviewRowFor(rows, noExpectation.opportunity.id).classification).toBe(
+      'CANDIDATE_HAS_NO_RECORDED_EXPECTATION',
+    );
+
+    const reviewed = [stillMatching, maintained, reused, noExpectation].map((created) =>
+      reviewRowFor(rows, created.opportunity.id),
+    );
+    for (const row of reviewed) {
+      // Review evidence only: identifiers, booleans, and a label. No amount, no currency.
+      expect(Object.keys(row).sort()).toEqual([...LEGACY_REVIEW_COLUMNS]);
+      const serialized = JSON.stringify(row);
+      expect(serialized).not.toContain('3600050');
+      expect(serialized).not.toContain('1234567');
+      expect(serialized).not.toContain('4200000');
+      expect(serialized).not.toContain('MAD');
+      expect(serialized).not.toContain('EUR');
+    }
+
+    // The statement is read-only: nothing it touched changed.
+    await expect(
+      prisma.publicCandidateApplication.findMany({
+        where: { publicOpportunity: { publicSlug: { startsWith: 'issue27-legacy-' } } },
+        orderBy: { id: 'asc' },
+      }),
+    ).resolves.toEqual(applicationsBefore);
+    await expect(
+      prisma.candidate.findMany({
+        where: { normalizedEmail: { in: Object.values(emails) } },
+        orderBy: { id: 'asc' },
+      }),
+    ).resolves.toEqual(candidatesBefore);
+  });
+
+  it('keeps the review result stable when the opportunity slug is changed afterwards', async () => {
+    const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue27-legacy-slugmove',
+      recruiterUserId,
+    );
+    const email = 'legacy-slugmove@public-applications.test';
+
+    // A Candidate this application really does create.
+    await submit(baseUrl, opportunity.publicSlug, {
+      ...applicationPayload(email),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    const before = reviewRowFor(await runLegacyReview(), opportunity.id);
+    expect(before.classification).toBe('CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT');
+    expect(before.currentCandidateSourceMatchesApplicationOrigin).toBe(true);
+
+    // The supported internal update renames the published slug.
+    const renamed = await fetch(`${baseUrl}/v1/missions/${mission.id}/public-opportunity`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({ publicSlug: 'issue27-legacy-slugmoved' }),
+    });
+    expect(renamed.status).toBe(200);
+
+    const after = reviewRowFor(await runLegacyReview(), opportunity.id);
+    // The classification is unchanged, because it never depended on the slug.
+    expect(after.classification).toBe(before.classification);
+    expect(after.currentCandidateCurrencyMatchesSnapshot).toBe(
+      before.currentCandidateCurrencyMatchesSnapshot,
+    );
+    // The current-metadata hint does flip, which is exactly why it is named for
+    // current metadata and is never read as provenance: this Candidate was still
+    // created by this application.
+    expect(after.currentCandidateSourceMatchesApplicationOrigin).toBe(false);
+    await expect(
+      prisma.candidate.findUniqueOrThrow({ where: { normalizedEmail: email } }),
+    ).resolves.toMatchObject({
+      source: 'public_application',
+      sourceDetail: 'issue27-legacy-slugmove',
+    });
+  });
+
+  it('keeps the review result stable when Candidate source metadata is edited afterwards', async () => {
+    const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+    const created = await createMissionWithOpportunity('issue27-legacy-created', recruiterUserId);
+    const reused = await createMissionWithOpportunity('issue27-legacy-rereused', recruiterUserId);
+    const createdEmail = 'legacy-created@public-applications.test';
+    const reusedEmail = 'legacy-rereused@public-applications.test';
+
+    // One Candidate the application creates, and one that already existed with
+    // the same expectation, so only their history differs.
+    await submit(baseUrl, created.opportunity.publicSlug, {
+      ...applicationPayload(createdEmail),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+    const existing = await prisma.candidate.create({
+      data: {
+        displayName: 'Previously recorded applicant',
+        email: reusedEmail,
+        normalizedEmail: reusedEmail,
+        status: CandidateStatus.ACTIVE,
+        consentStatus: ConsentStatus.GRANTED,
+        source: 'referral',
+        sourceDetail: 'Career fair',
+        salaryExpectationCents: 3_600_050,
+        salaryExpectationCurrency: 'MAD',
+      },
+    });
+    await submit(baseUrl, reused.opportunity.publicSlug, {
+      ...applicationPayload(reusedEmail),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+
+    const createdBefore = reviewRowFor(await runLegacyReview(), created.opportunity.id);
+    const reusedBefore = reviewRowFor(await runLegacyReview(), reused.opportunity.id);
+    expect(createdBefore.currentCandidateSourceMatchesApplicationOrigin).toBe(true);
+    expect(reusedBefore.currentCandidateSourceMatchesApplicationOrigin).toBe(false);
+
+    // Both edits are ordinary authorized Candidate maintenance.
+    const clearedOrigin = await fetch(`${baseUrl}/v1/candidates/${createdBefore.candidateId}`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({ source: 'referral', sourceDetail: 'Career fair' }),
+    });
+    expect(clearedOrigin.status).toBe(200);
+    const adoptedOrigin = await fetch(`${baseUrl}/v1/candidates/${existing.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        source: 'public_application',
+        sourceDetail: reused.opportunity.publicSlug,
+      }),
+    });
+    expect(adoptedOrigin.status).toBe(200);
+
+    const createdAfter = reviewRowFor(await runLegacyReview(), created.opportunity.id);
+    const reusedAfter = reviewRowFor(await runLegacyReview(), reused.opportunity.id);
+
+    // The hint is now exactly inverted against the real history, which is why the
+    // review must not derive a new-versus-existing claim from it.
+    expect(createdAfter.currentCandidateSourceMatchesApplicationOrigin).toBe(false);
+    expect(reusedAfter.currentCandidateSourceMatchesApplicationOrigin).toBe(true);
+
+    // The classification never moved, because it compares recorded amounts only,
+    // and the genuinely created and genuinely reused rows are indistinguishable.
+    expect(createdAfter.classification).toBe('CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT');
+    expect(reusedAfter.classification).toBe('CANDIDATE_EXPECTATION_MATCHES_SNAPSHOT');
+    expect(createdAfter.classification).toBe(createdBefore.classification);
+    expect(reusedAfter.classification).toBe(reusedBefore.classification);
+
+    // The existing Candidate's own compensation is still untouched by the public
+    // application; only the metadata an operator edited changed.
+    await expect(
+      prisma.candidate.findUniqueOrThrow({ where: { id: existing.id } }),
+    ).resolves.toMatchObject({
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+  });
+
+  it('reviews legacy rows through one read-only statement that returns no compensation', async () => {
+    const sql = await readFile(legacyReviewSqlPath, 'utf8');
+    const statements = sql
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('--'))
+      .join('\n')
+      .trim();
+
+    expect(statements.startsWith('SELECT')).toBe(true);
+    expect(statements.split(';').filter((part) => part.trim() !== '')).toHaveLength(1);
+    for (const forbidden of [
+      'INSERT',
+      'UPDATE',
+      'DELETE',
+      'TRUNCATE',
+      'CREATE',
+      'ALTER',
+      'DROP',
+      'GRANT',
+      'FOR UPDATE',
+      'FOR NO KEY UPDATE',
+      'FOR SHARE',
+    ]) {
+      expect(statements.toUpperCase(), forbidden).not.toContain(forbidden);
+    }
+    // No amount or currency column is projected, only the derived booleans.
+    expect(statements).not.toContain('AS "submittedSalaryExpectationCents"');
+    expect(statements).not.toContain('AS "salaryExpectationCents"');
+    expect(statements).not.toContain('AS "salaryExpectationCurrency"');
+
+    const { opportunity } = await createMissionWithOpportunity(
+      'issue27-legacy-readonly',
+      recruiterUserId,
+    );
+    const email = 'legacy-readonly@public-applications.test';
+    await submit(baseUrl, opportunity.publicSlug, {
+      ...applicationPayload(email),
+      salaryExpectationCents: 3_600_050,
+      salaryExpectationCurrency: 'MAD',
+    });
+
+    const applicationBefore = await prisma.publicCandidateApplication.findFirstOrThrow({
+      where: { publicOpportunityId: opportunity.id },
+    });
+    const candidateBefore = await prisma.candidate.findUniqueOrThrow({
+      where: { normalizedEmail: email },
+    });
+    const auditBefore = await prisma.auditLog.count();
+
+    const row = reviewRowFor(await runLegacyReview(), opportunity.id);
+    expect(Object.keys(row).sort()).toEqual([...LEGACY_REVIEW_COLUMNS]);
+    expect(JSON.stringify(row)).not.toMatch(/3600050|36000|MAD/);
+
+    // Running the review changes nothing and records no audit entry of its own.
+    await expect(
+      prisma.publicCandidateApplication.findFirstOrThrow({
+        where: { publicOpportunityId: opportunity.id },
+      }),
+    ).resolves.toEqual(applicationBefore);
+    await expect(
+      prisma.candidate.findUniqueOrThrow({ where: { normalizedEmail: email } }),
+    ).resolves.toEqual(candidateBefore);
+    await expect(prisma.auditLog.count()).resolves.toBe(auditBefore);
   });
 });

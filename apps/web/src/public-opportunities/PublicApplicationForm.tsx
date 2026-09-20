@@ -23,10 +23,13 @@ import type { PublicSubmissionFailure, PublicSubmissionState } from './public-op
 
 type UploadRequirements = PublicOpportunity['uploadRequirements'];
 
-const NUMBER_FIELDS: readonly ApplicationTextField[] = [
-  'experienceYears',
-  'salaryExpectationCents',
-];
+/**
+ * Controls rendered as `type="number"`, whose text the browser may refuse to
+ * read at all. The salary amount is deliberately not one of them: it is a text
+ * control with a decimal input mode, so "." and "," are read the same way in
+ * every locale instead of depending on the browser's own number parsing.
+ */
+const NUMBER_FIELDS: readonly ApplicationTextField[] = ['experienceYears'];
 
 const FILE_CATEGORY_LABELS: Record<ApplicationFileSlot, PlainMessageKey> = {
   additional: 'domain.publicApplicationFileCategory.ADDITIONAL',
@@ -225,13 +228,12 @@ export function PublicApplicationForm({
 
       <FormGroup legend={t('publicOpportunity.application.sections.salary')}>
         <TextField
-          error={errorFor('salaryExpectationCents')}
-          inputMode="numeric"
+          error={errorFor('salaryExpectationAmount')}
+          hint={t('publicOpportunity.application.hints.salaryAmount')}
+          inputMode="decimal"
           label={t('publicOpportunity.application.fields.salaryAmount')}
-          min={0}
-          name="salaryExpectationCents"
-          step={1}
-          type="number"
+          maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationAmount}
+          name="salaryExpectationAmount"
         />
         <TextField
           autoCapitalize="characters"
