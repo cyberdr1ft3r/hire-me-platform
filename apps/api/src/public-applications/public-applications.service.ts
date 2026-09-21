@@ -618,7 +618,9 @@ export class PublicApplicationsService {
     if (!assignment) {
       // An actual first-time submission cannot be acknowledged after its transaction
       // rolls back. Log only a mission identifier: no applicant, file, IP or salary.
-      this.logger.warn(`Public application unavailable: no eligible recruiter for mission ${missionId}`);
+      this.logger.warn(
+        `Public application unavailable: no eligible recruiter for mission ${missionId}`,
+      );
       throw temporarilyUnavailable();
     }
     return assignment.userId;
