@@ -36,9 +36,7 @@ function expectValidationCode(input: ReturnType<typeof fileInput>, code: string)
     validatePublicApplicationFile(input);
     throw new Error('Expected validation to fail.');
   } catch (error) {
-    const response = (
-      error as { getResponse: () => { error: { code: string } } }
-    ).getResponse();
+    const response = (error as { getResponse: () => { error: { code: string } } }).getResponse();
     expect(response.error.code).toBe(code);
   }
 }

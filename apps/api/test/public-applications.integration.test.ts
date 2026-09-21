@@ -177,7 +177,12 @@ async function cleanPublicApplicationRecords(): Promise<void> {
     where: { OR: [{ title: { contains: 'Issue27' } }, { title: { contains: 'Issue80' } }] },
   });
   await prisma.client.deleteMany({
-    where: { OR: [{ normalizedName: { contains: 'issue27' } }, { normalizedName: { contains: 'issue80' } }] },
+    where: {
+      OR: [
+        { normalizedName: { contains: 'issue27' } },
+        { normalizedName: { contains: 'issue80' } },
+      ],
+    },
   });
   await prisma.refreshSession.deleteMany({
     where: { user: { normalizedEmail: { endsWith: '@public-applications.test' } } },
