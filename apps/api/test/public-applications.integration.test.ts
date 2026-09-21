@@ -711,9 +711,11 @@ describe('public opportunity applications', () => {
     const remove = vi.spyOn(storage, 'delete');
     const warning = vi.spyOn(Logger.prototype, 'warn');
     const email = 'issue27-no-recruiter@public-applications.test';
-    let response: Response;
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    });
     try {
-      response = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
+      const response = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
       expect(response.status).toBe(503);
       const error = await response.json();
       expect(error).toEqual({
@@ -725,11 +727,14 @@ describe('public opportunity applications', () => {
       expect(JSON.stringify(error)).not.toContain(mission.id);
       expect(JSON.stringify(error)).not.toContain(email);
       expect(JSON.stringify(error)).not.toContain('recruiter');
-      expect(warning.mock.calls.some(([message]) =>
-        typeof message === 'string' &&
-        message.includes('no eligible recruiter') &&
-        message.includes(mission.id),
-      )).toBe(true);
+      expect(
+        warning.mock.calls.some(
+          ([message]) =>
+            typeof message === 'string' &&
+            message.includes('no eligible recruiter') &&
+            message.includes(mission.id),
+        ),
+      ).toBe(true);
       for (const call of warning.mock.calls) {
         expect(JSON.stringify(call)).not.toContain(email);
       }
@@ -747,7 +752,11 @@ describe('public opportunity applications', () => {
     await expect(
       prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
     ).resolves.toBe(0);
-    await expect(prisma.auditLog.count({ where: { action: 'public_applications.application.submitted', entityType: 'PublicCandidateApplication', entityId: { not: undefined } } })).resolves.toBeGreaterThanOrEqual(0);
+    await expect(
+      prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted' },
+      }),
+    ).resolves.toBe(auditCountBefore);
 
     // Once an eligible recruiter is assigned the same candidate can retry,
     // and exactly one application/process/audit is committed.
@@ -762,17 +771,19 @@ describe('public opportunity applications', () => {
     });
     const retry = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
     expect(retry.status).toBe(200);
-    expect(PublicApplicationSubmitResponseSchema.parse(await retry.json()).status).toBe(
-      'RECEIVED',
-    );
+    expect(PublicApplicationSubmitResponseSchema.parse(await retry.json()).status).toBe('RECEIVED');
     await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(1);
-    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(1);
+    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+      1,
+    );
     const accepted = await prisma.publicCandidateApplication.findFirstOrThrow({
       where: { publicOpportunityId: opportunity.id },
     });
-    await expect(prisma.auditLog.count({
-      where: { action: 'public_applications.application.submitted', entityId: accepted.id },
-    })).resolves.toBe(1);
+    await expect(
+      prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted', entityId: accepted.id },
+      }),
+    ).resolves.toBe(1);
   });
 
   it('refuses a new application when every assigned recruiter is ineligible', async () => {
@@ -785,23 +796,31 @@ describe('public opportunity applications', () => {
       'contributor-only',
     ] as const;
     for (const mode of cases) {
-      const userId = await createUser(`recruiter-${mode}@public-applications.test`, RoleName.HR_MANAGER);
+      const userId = await createUser(
+        `recruiter-${mode}@public-applications.test`,
+        RoleName.HR_MANAGER,
+      );
       const { mission, opportunity } = await createMissionWithOpportunity(
-        `issue27-no-eligible-${mode}`, userId,
+        `issue27-no-eligible-${mode}`,
+        userId,
       );
       if (mode === 'inactive-assignment' || mode === 'archived-assignment') {
         await prisma.missionRecruiter.updateMany({
           where: { missionId: mission.id },
-          data: mode === 'inactive-assignment'
-            ? { status: AssignmentStatus.INACTIVE }
-            : { archivedAt: new Date() },
+          data:
+            mode === 'inactive-assignment'
+              ? { status: AssignmentStatus.INACTIVE }
+              : { archivedAt: new Date() },
         });
       } else if (mode === 'suspended-user' || mode === 'archived-user' || mode === 'client-user') {
         await prisma.user.update({
           where: { id: userId },
-          data: mode === 'suspended-user' ? { status: UserStatus.SUSPENDED }
-            : mode === 'archived-user' ? { status: UserStatus.ARCHIVED, archivedAt: new Date() }
-              : { userType: UserType.CLIENT },
+          data:
+            mode === 'suspended-user'
+              ? { status: UserStatus.SUSPENDED }
+              : mode === 'archived-user'
+                ? { status: UserStatus.ARCHIVED, archivedAt: new Date() }
+                : { userType: UserType.CLIENT },
         });
       } else {
         await prisma.missionRecruiter.updateMany({
@@ -819,10 +838,12 @@ describe('public opportunity applications', () => {
         },
       });
       await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(0);
-      await expect(prisma.publicCandidateApplication.count({
-        where: { publicOpportunityId: opportunity.id },
-      })).resolves.toBe(0);
-      await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(0);
+      await expect(
+        prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
+      ).resolves.toBe(0);
+      await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+        0,
+      );
     }
   });
 
