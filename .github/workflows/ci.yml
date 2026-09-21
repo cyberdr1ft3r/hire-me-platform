@@ -79,11 +79,6 @@ jobs:
       - name: Verify clean Prisma generation boundaries
         run: pnpm check:architecture
 
-      - name: Diagnostic formatting diff (temporary branch-only step)
-        run: |
-          pnpm exec prettier --write apps/api/src/public-applications/public-applications.service.ts apps/api/test/public-applications.integration.test.ts
-          git diff -- apps/api/src/public-applications/public-applications.service.ts apps/api/test/public-applications.integration.test.ts
-
       - name: Check formatting
         run: pnpm format:check
 
