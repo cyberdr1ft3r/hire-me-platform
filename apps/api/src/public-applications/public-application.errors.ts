@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
 type ErrorBody = {
@@ -26,6 +27,13 @@ export function conflict(code: string, message: string): ConflictException {
 
 export function forbidden(code: string, message: string): ForbiddenException {
   return new ForbiddenException(body(code, message));
+}
+
+/** Generic retryable failure: never reveal mission staffing or applicant state. */
+export function temporarilyUnavailable(): ServiceUnavailableException {
+  return new ServiceUnavailableException(
+    body('PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE', 'Application could not be submitted. Please try again later.'),
+  );
 }
 
 export function notFound(code = 'PUBLIC_OPPORTUNITY_NOT_AVAILABLE'): NotFoundException {
