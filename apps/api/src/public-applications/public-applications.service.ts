@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type {
   InternalPublicApplicationListResponse,
   InternalPublicOpportunityDetailResponse,
@@ -12,7 +12,12 @@ import type {
   PublicOpportunityListResponse,
 } from '@hire-me/contracts';
 
-import { badRequest, conflict, notFound } from './public-application.errors.js';
+import {
+  badRequest,
+  conflict,
+  notFound,
+  temporarilyUnavailable,
+} from './public-application.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { normalizeEmail } from '../auth/normalize-email.js';
 import { RateLimitService } from '../auth/rate-limit.service.js';
@@ -79,6 +84,8 @@ const terminalMissionStates = new Set<RecruitmentMissionState>([
 
 @Injectable()
 export class PublicApplicationsService {
+  private readonly logger = new Logger(PublicApplicationsService.name);
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
@@ -142,9 +149,6 @@ export class PublicApplicationsService {
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       if (isUniqueConstraintError(error)) {
-        return successResponse;
-      }
-      if (error instanceof ConflictException) {
         return successResponse;
       }
       throw error;
@@ -617,10 +621,12 @@ export class PublicApplicationsService {
       orderBy: [{ isLead: 'desc' }, { assignedAt: 'asc' }, { id: 'asc' }],
     });
     if (!assignment) {
-      throw conflict(
-        'PUBLIC_APPLICATION_RECRUITER_NOT_AVAILABLE',
-        'Application cannot be accepted until an eligible mission recruiter is assigned.',
+      // An actual first-time submission cannot be acknowledged after its transaction
+      // rolls back. Log only a mission identifier: no applicant, file, IP or salary.
+      this.logger.warn(
+        `Public application unavailable: no eligible recruiter for mission ${missionId}`,
       );
+      throw temporarilyUnavailable();
     }
     return assignment.userId;
   }
