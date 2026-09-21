@@ -12,7 +12,12 @@ import type {
   PublicOpportunityListResponse,
 } from '@hire-me/contracts';
 
-import { badRequest, conflict, notFound, temporarilyUnavailable } from './public-application.errors.js';
+import {
+  badRequest,
+  conflict,
+  notFound,
+  temporarilyUnavailable,
+} from './public-application.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { normalizeEmail } from '../auth/normalize-email.js';
 import { RateLimitService } from '../auth/rate-limit.service.js';
