@@ -32,7 +32,10 @@ export function forbidden(code: string, message: string): ForbiddenException {
 /** Generic retryable failure: never reveal mission staffing or applicant state. */
 export function temporarilyUnavailable(): ServiceUnavailableException {
   return new ServiceUnavailableException(
-    body('PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE', 'Application could not be submitted. Please try again later.'),
+    body(
+      'PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE',
+      'Application could not be submitted. Please try again later.',
+    ),
   );
 }
 
