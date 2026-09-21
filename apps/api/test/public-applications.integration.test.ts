@@ -748,7 +748,9 @@ describe('public opportunity applications', () => {
     }
 
     await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(0);
-    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(0);
+    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+      0,
+    );
     await expect(
       prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
     ).resolves.toBe(0);
@@ -841,9 +843,9 @@ describe('public opportunity applications', () => {
       await expect(
         prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
       ).resolves.toBe(0);
-      await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
-        0,
-      );
+      await expect(
+        prisma.missionCandidate.count({ where: { missionId: mission.id } }),
+      ).resolves.toBe(0);
     }
   });
 
