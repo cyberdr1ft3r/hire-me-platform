@@ -652,7 +652,6 @@ describe('public application', () => {
     expect(screen.queryByText('Application received')).toBeNull();
   });
 
-
   it('shows a privacy-safe French failure for temporarily unavailable application submission', async () => {
     mockDetailAndSubmit(() =>
       Promise.resolve(
