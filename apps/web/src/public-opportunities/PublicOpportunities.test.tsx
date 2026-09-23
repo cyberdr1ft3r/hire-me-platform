@@ -629,6 +629,7 @@ describe('public application', () => {
     [404, 'This opportunity is no longer accepting applications.'],
     [429, 'Too many attempts in a short time. Wait a minute, then try again.'],
     [500, 'Your application could not be sent. Check your connection and try again.'],
+    [503, 'Your application could not be sent. Check your connection and try again.'],
   ])('shows safe localized feedback for HTTP %i and keeps the form', async (status, copy) => {
     mockDetailAndSubmit(() =>
       Promise.resolve(
@@ -649,6 +650,45 @@ describe('public application', () => {
     expect(screen.getByText('synthetic-cv.pdf')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Submit application' })).toBeEnabled();
     expect(screen.queryByText('Application received')).toBeNull();
+  });
+
+  it('shows a privacy-safe French failure for temporarily unavailable application submission', async () => {
+    mockDetailAndSubmit(() =>
+      Promise.resolve(
+        jsonResponse(
+          {
+            error: {
+              code: 'PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE',
+              message: 'INTERNAL-STAFFING-DETAIL-MUST-NOT-RENDER',
+            },
+          },
+          503,
+        ),
+      ),
+    );
+    openDetail('fr');
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fireEvent.change(screen.getByLabelText(/^Nom complet/), { target: { value: 'Ada Example' } });
+    fireEvent.change(screen.getByLabelText(/^Adresse e-mail/), {
+      target: { value: 'ada@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^CV/), {
+      target: {
+        files: [syntheticFile('%PDF-1.4 synthetic', 'synthetic-cv.pdf', 'application/pdf')],
+      },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /J’accepte/ }));
+    fireEvent.submit(applicationForm('Postuler à cette offre'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Candidature non envoyée');
+    expect(alert).toHaveTextContent(
+      'Votre candidature n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.',
+    );
+    expect(document.body.innerHTML).not.toContain('INTERNAL-STAFFING-DETAIL-MUST-NOT-RENDER');
+    expect(screen.getByLabelText(/^Nom complet/)).toHaveValue('Ada Example');
+    expect(screen.getByRole('button', { name: 'Envoyer ma candidature' })).toBeEnabled();
+    expect(screen.queryByText('Candidature reçue')).toBeNull();
   });
 
   it('treats a network failure as a safe generic failure', async () => {

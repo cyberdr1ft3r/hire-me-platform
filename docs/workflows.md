@@ -28,7 +28,7 @@ Issue #27 implements the first operational version of this workflow:
 
 - Public opportunity list responses include only open, link-enabled, listed opportunities inside their publication window and attached to applicable non-archived missions.
 - Public detail responses allow unlisted link-only opportunities but use the same link, lifecycle, and publication-window checks.
-- Public submissions return a stable generic received response for duplicate, archived-candidate, and missing-recruiter outcomes that should not reveal internal state.
+- Public submissions return a stable generic received response for duplicate and archived-candidate outcomes without revealing internal applicant state. If a new submission cannot be accepted because no eligible internal recruiter is assigned, it returns a generic retryable temporary failure instead of falsely reporting receipt; the server emits an applicant-data-free operational warning and rolls back the transaction and staged files.
 - Successful submissions create an internal `MissionCandidate` at `NEW`, keep `clientVisible = false`, and assign an eligible active internal recruiter already assigned to the mission.
 - File uploads use private storage keys, server-side type and size validation, and exact `CandidateDocumentVersion` traceability through `PublicCandidateApplicationFile`.
 - The first anti-bot boundary is a honeypot field and server rate limiting; CAPTCHA provider selection remains a later unresolved technical choice.

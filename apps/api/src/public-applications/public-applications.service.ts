@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
   InternalPublicApplicationListResponse,
   InternalPublicOpportunityDetailResponse,
@@ -12,7 +12,12 @@ import type {
   PublicOpportunityListResponse,
 } from '@hire-me/contracts';
 
-import { badRequest, conflict, notFound } from './public-application.errors.js';
+import {
+  badRequest,
+  conflict,
+  notFound,
+  temporarilyUnavailable,
+} from './public-application.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { normalizeEmail } from '../auth/normalize-email.js';
 import { RateLimitService } from '../auth/rate-limit.service.js';
@@ -35,7 +40,17 @@ import {
   UserType,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
+import {
+  publicApplicationAllowedMimeTypes,
+  publicApplicationMaxFileSizeBytes,
+  publicApplicationMaxTotalUploadBytes,
+  validatePublicApplicationFile,
+} from './public-application-upload-validation.js';
 import { ProtectedStorageService } from '../storage/protected-storage.service.js';
+import {
+  UPLOAD_MALWARE_SCAN_PROVIDER,
+  type UploadMalwareScanProvider,
+} from '../storage/upload-malware-scan.provider.js';
 
 type PrismaTransaction = Prisma.TransactionClient;
 type OpportunityRecord = Prisma.PublicOpportunityGetPayload<{
@@ -48,9 +63,6 @@ type PreparedFile = PublicApplicationFileInput & {
   storageKey: string;
 };
 
-const maxFileSizeBytes = 1_500_000;
-const maxTotalUploadBytes = 5_000_000;
-const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain'] as const;
 const successResponse: PublicApplicationSubmitResponse = {
   status: 'RECEIVED',
   message: 'Application received for review if the opportunity is available.',
@@ -79,10 +91,15 @@ const terminalMissionStates = new Set<RecruitmentMissionState>([
 
 @Injectable()
 export class PublicApplicationsService {
+  private readonly logger = new Logger(PublicApplicationsService.name);
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
+    @Optional()
+    @Inject(UPLOAD_MALWARE_SCAN_PROVIDER)
+    private readonly malwareScan?: UploadMalwareScanProvider,
   ) {}
 
   async listPublicOpportunities(): Promise<PublicOpportunityListResponse> {
@@ -125,6 +142,17 @@ export class PublicApplicationsService {
     const storedKeys: string[] = [];
 
     try {
+      if (this.malwareScan) {
+        for (const file of preparedFiles) {
+          await this.malwareScan.scan(file.buffer, {
+            source: 'public_application',
+            mimeType: file.contentType,
+            filename: file.sanitizedFilename,
+            storageKey: file.storageKey,
+          });
+        }
+      }
+
       for (const file of preparedFiles) {
         await this.storage.put(file.storageKey, file.buffer);
         storedKeys.push(file.storageKey);
@@ -142,9 +170,6 @@ export class PublicApplicationsService {
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       if (isUniqueConstraintError(error)) {
-        return successResponse;
-      }
-      if (error instanceof ConflictException) {
         return successResponse;
       }
       throw error;
@@ -617,10 +642,12 @@ export class PublicApplicationsService {
       orderBy: [{ isLead: 'desc' }, { assignedAt: 'asc' }, { id: 'asc' }],
     });
     if (!assignment) {
-      throw conflict(
-        'PUBLIC_APPLICATION_RECRUITER_NOT_AVAILABLE',
-        'Application cannot be accepted until an eligible mission recruiter is assigned.',
+      // An actual first-time submission cannot be acknowledged after its transaction
+      // rolls back. Log only a mission identifier: no applicant, file, IP or salary.
+      this.logger.warn(
+        `Public application unavailable: no eligible recruiter for mission ${missionId}`,
       );
+      throw temporarilyUnavailable();
     }
     return assignment.userId;
   }
@@ -673,50 +700,24 @@ export class PublicApplicationsService {
 
   private prepareFiles(publicSlug: string, files: PublicApplicationFileInput[]): PreparedFile[] {
     const prepared = files.map((file) => {
-      const buffer = Buffer.from(file.base64Content, 'base64');
-      const sanitizedFilename = sanitizeFilename(file.filename);
-      this.assertFileIsSafe(file, buffer);
+      const validated = validatePublicApplicationFile(file);
       return {
         ...file,
-        buffer,
-        sizeBytes: buffer.byteLength,
-        sanitizedFilename,
-        storageKey: `public-applications/${publicSlug}/${randomUUID()}-${sanitizedFilename}`,
+        contentType: validated.contentType,
+        buffer: validated.buffer,
+        sizeBytes: validated.sizeBytes,
+        sanitizedFilename: validated.sanitizedFilename,
+        storageKey: `public-applications/${publicSlug}/${randomUUID()}-${validated.sanitizedFilename}`,
       };
     });
     const totalSize = prepared.reduce((total, file) => total + file.sizeBytes, 0);
-    if (totalSize > maxTotalUploadBytes) {
+    if (totalSize > publicApplicationMaxTotalUploadBytes) {
       throw badRequest(
         'PUBLIC_APPLICATION_UPLOAD_TOO_LARGE',
         'Uploaded files exceed the total limit.',
       );
     }
     return prepared;
-  }
-
-  private assertFileIsSafe(file: PublicApplicationFileInput, buffer: Buffer): void {
-    if (!allowedMimeTypes.includes(file.contentType as (typeof allowedMimeTypes)[number])) {
-      throw badRequest('PUBLIC_APPLICATION_FILE_TYPE_REJECTED', 'File type is not allowed.');
-    }
-    if (buffer.byteLength === 0 || buffer.byteLength > maxFileSizeBytes) {
-      throw badRequest('PUBLIC_APPLICATION_FILE_SIZE_REJECTED', 'File size is not allowed.');
-    }
-    const lowerName = file.filename.toLowerCase();
-    if (/\.(exe|bat|cmd|com|scr|js|jar|zip|rar|7z|tar|gz)$/i.test(lowerName)) {
-      throw badRequest('PUBLIC_APPLICATION_FILE_TYPE_REJECTED', 'File type is not allowed.');
-    }
-    if (
-      buffer.subarray(0, 2).toString('hex') === '4d5a' ||
-      buffer.subarray(0, 2).toString() === 'PK'
-    ) {
-      throw badRequest('PUBLIC_APPLICATION_FILE_TYPE_REJECTED', 'File type is not allowed.');
-    }
-    if (file.contentType === 'application/pdf' && buffer.subarray(0, 4).toString() !== '%PDF') {
-      throw badRequest(
-        'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
-        'File content does not match its type.',
-      );
-    }
   }
 
   private async deleteStoredFiles(keys: string[]): Promise<void> {
@@ -775,9 +776,9 @@ export class PublicApplicationsService {
         diplomasEnabled: opportunity.diplomasEnabled,
         diplomasRequired: opportunity.diplomasRequired,
         additionalAttachmentsEnabled: opportunity.additionalAttachmentsEnabled,
-        maxFileSizeBytes,
-        maxTotalUploadBytes,
-        allowedMimeTypes: [...allowedMimeTypes],
+        maxFileSizeBytes: publicApplicationMaxFileSizeBytes,
+        maxTotalUploadBytes: publicApplicationMaxTotalUploadBytes,
+        allowedMimeTypes: [...publicApplicationAllowedMimeTypes],
       },
     };
   }
@@ -831,14 +832,6 @@ function normalizePhoneOrUndefined(value: string | undefined): string | undefine
 
 function firstProfessionalLink(value: string | undefined): string | undefined {
   return optional(value)?.split(/\s+/)[0];
-}
-
-function sanitizeFilename(filename: string): string {
-  const sanitized = filename
-    .trim()
-    .replace(/[^A-Za-z0-9._-]/g, '_')
-    .replace(/_+/g, '_');
-  return sanitized.length > 0 ? sanitized.slice(0, 160) : 'upload';
 }
 
 function safeHash(value: string | undefined): string | undefined {

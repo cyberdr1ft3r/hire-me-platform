@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   AuthResponseSchema,
@@ -14,6 +14,7 @@ import {
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
+import { ProtectedStorageService } from '../src/storage/protected-storage.service.js';
 import {
   AssignmentStatus,
   CandidateStatus,
@@ -26,6 +27,7 @@ import {
   RecruitmentMissionState,
   RoleName,
   UserStatus,
+  UserType,
 } from '../src/persistence/prisma/generated-client.js';
 
 const prisma = new PrismaClient();
@@ -104,14 +106,24 @@ type RolePermissionSnapshot = {
   }[];
 };
 
+const syntheticPublicSlugPrefixes = ['issue27', 'issue80'] as const;
+
+function syntheticPublicSlugWhere(): {
+  OR: Array<{ publicSlug: { contains: string } }>;
+} {
+  return {
+    OR: syntheticPublicSlugPrefixes.map((prefix) => ({ publicSlug: { contains: prefix } })),
+  };
+}
+
 async function cleanPublicApplicationRecords(): Promise<void> {
   await prisma.publicCandidateApplicationFile.deleteMany({
-    where: { publicOpportunity: { publicSlug: { contains: 'issue27' } } },
+    where: { publicOpportunity: syntheticPublicSlugWhere() },
   });
   await prisma.publicCandidateApplication.deleteMany({
-    where: { publicOpportunity: { publicSlug: { contains: 'issue27' } } },
+    where: { publicOpportunity: syntheticPublicSlugWhere() },
   });
-  await prisma.publicOpportunity.deleteMany({ where: { publicSlug: { contains: 'issue27' } } });
+  await prisma.publicOpportunity.deleteMany({ where: syntheticPublicSlugWhere() });
   await prisma.auditLog.deleteMany({
     where: {
       OR: [
@@ -121,12 +133,19 @@ async function cleanPublicApplicationRecords(): Promise<void> {
     },
   });
   await prisma.missionCandidateEvent.deleteMany({
-    where: { missionCandidate: { mission: { title: { contains: 'Issue27' } } } },
+    where: {
+      missionCandidate: {
+        mission: {
+          OR: [{ title: { contains: 'Issue27' } }, { title: { contains: 'Issue80' } }],
+        },
+      },
+    },
   });
   await prisma.missionCandidate.deleteMany({
     where: {
       OR: [
         { mission: { title: { contains: 'Issue27' } } },
+        { mission: { title: { contains: 'Issue80' } } },
         { candidate: { normalizedEmail: { endsWith: '@public-applications.test' } } },
       ],
     },
@@ -149,12 +168,22 @@ async function cleanPublicApplicationRecords(): Promise<void> {
     where: {
       OR: [
         { mission: { title: { contains: 'Issue27' } } },
+        { mission: { title: { contains: 'Issue80' } } },
         { user: { normalizedEmail: { endsWith: '@public-applications.test' } } },
       ],
     },
   });
-  await prisma.recruitmentMission.deleteMany({ where: { title: { contains: 'Issue27' } } });
-  await prisma.client.deleteMany({ where: { normalizedName: { contains: 'issue27' } } });
+  await prisma.recruitmentMission.deleteMany({
+    where: { OR: [{ title: { contains: 'Issue27' } }, { title: { contains: 'Issue80' } }] },
+  });
+  await prisma.client.deleteMany({
+    where: {
+      OR: [
+        { normalizedName: { contains: 'issue27' } },
+        { normalizedName: { contains: 'issue80' } },
+      ],
+    },
+  });
   await prisma.refreshSession.deleteMany({
     where: { user: { normalizedEmail: { endsWith: '@public-applications.test' } } },
   });
@@ -382,6 +411,67 @@ async function createMissionWithOpportunity(slug: string, recruiterUserId: strin
   return { client, mission, opportunity };
 }
 
+function buildSyntheticPngWithEmptyIdat(): Buffer {
+  const signature = Buffer.from('89504e470d0a1a0a', 'hex');
+  const ihdrData = Buffer.alloc(13);
+  ihdrData.writeUInt32BE(1, 0);
+  ihdrData.writeUInt32BE(1, 4);
+  ihdrData[8] = 8;
+  ihdrData[9] = 2;
+  ihdrData[10] = 0;
+  ihdrData[11] = 0;
+  ihdrData[12] = 0;
+  const ihdrChunk = writeIntegrationPngChunk('IHDR', ihdrData);
+  const emptyIdatChunk = writeIntegrationPngChunk('IDAT', Buffer.alloc(0));
+  const iendChunk = writeIntegrationPngChunk('IEND', Buffer.alloc(0));
+  return Buffer.concat([signature, ihdrChunk, emptyIdatChunk, iendChunk]);
+}
+
+function writeIntegrationPngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const typeAndData = Buffer.concat([typeBuffer, data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(integrationPngChunkCrc(typeAndData));
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function integrationPngChunkCrc(typeAndData: Buffer): number {
+  let crc = 0xffffffff;
+  for (let index = 0; index < typeAndData.length; index += 1) {
+    crc = integrationPngCrcTable[(crc ^ typeAndData[index]!) & 0xff]! ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+const integrationPngCrcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let entry = 0; entry < 256; entry += 1) {
+    let value = entry;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = (value & 1) !== 0 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[entry] = value >>> 0;
+  }
+  return table;
+})();
+
+const uploadFixtures = {
+  pdf: Buffer.from('%PDF-1.4\n% synthetic test cv\n'),
+  png: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+  jpeg: Buffer.from(
+    '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==',
+    'base64',
+  ),
+  text: Buffer.from('Synthetic supporting document.\n'),
+  svgScript: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+  html: Buffer.from('<html><body>Not an image</body></html>'),
+};
+
 function applicationPayload(email: string, filename = 'cv.pdf') {
   return {
     fullName: `Synthetic ${email}`,
@@ -420,6 +510,47 @@ async function submit(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
+}
+
+async function assertRejectedUploadLeavesNoSideEffects(options: {
+  missionId: string;
+  opportunityId: string;
+  email: string;
+  auditCountBefore: number;
+}): Promise<void> {
+  await expect(prisma.candidate.count({ where: { normalizedEmail: options.email } })).resolves.toBe(
+    0,
+  );
+  await expect(
+    prisma.missionCandidate.count({
+      where: { missionId: options.missionId, candidate: { normalizedEmail: options.email } },
+    }),
+  ).resolves.toBe(0);
+  await expect(
+    prisma.publicCandidateApplication.count({
+      where: {
+        publicOpportunityId: options.opportunityId,
+        submittedNormalizedEmail: options.email,
+      },
+    }),
+  ).resolves.toBe(0);
+  await expect(
+    prisma.candidateDocumentVersion.count({
+      where: {
+        candidateDocument: { candidate: { normalizedEmail: options.email } },
+      },
+    }),
+  ).resolves.toBe(0);
+  await expect(
+    prisma.publicCandidateApplicationFile.count({
+      where: { publicOpportunityId: options.opportunityId },
+    }),
+  ).resolves.toBe(0);
+  await expect(
+    prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    }),
+  ).resolves.toBe(options.auditCountBefore);
 }
 
 describe('public opportunity applications', () => {
@@ -619,6 +750,269 @@ describe('public opportunity applications', () => {
     ).resolves.toBe(1);
   });
 
+  it('accepts valid PDF, JPEG, PNG, and text/plain uploads with signature validation', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue80-valid-uploads',
+      recruiterUserId,
+    );
+    const cases = [
+      {
+        email: 'valid-pdf@public-applications.test',
+        filename: 'CV.PDF',
+        contentType: 'application/pdf',
+        buffer: uploadFixtures.pdf,
+      },
+      {
+        email: 'valid-jpeg@public-applications.test',
+        filename: 'photo.JPEG',
+        contentType: 'image/jpeg',
+        buffer: uploadFixtures.jpeg,
+      },
+      {
+        email: 'valid-png@public-applications.test',
+        filename: 'badge.PNG',
+        contentType: 'image/png',
+        buffer: uploadFixtures.png,
+      },
+      {
+        email: 'valid-text@public-applications.test',
+        filename: 'notes.txt',
+        contentType: 'text/plain',
+        buffer: uploadFixtures.text,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const response = await submit(baseUrl, opportunity.publicSlug, {
+        ...applicationPayload(testCase.email, testCase.filename),
+        files: [
+          {
+            category: 'CV',
+            filename: testCase.filename,
+            contentType: testCase.contentType,
+            base64Content: testCase.buffer.toString('base64'),
+          },
+        ],
+      });
+      expect(response.status, testCase.email).toBe(200);
+      await expect(
+        prisma.publicCandidateApplication.findFirst({
+          where: {
+            publicOpportunityId: opportunity.id,
+            submittedNormalizedEmail: testCase.email,
+          },
+        }),
+      ).resolves.toBeTruthy();
+    }
+
+    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+      cases.length,
+    );
+  });
+
+  it('rejects structurally invalid JPEG/PNG polyglots before storage or database writes', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue80-structure-reject',
+      recruiterUserId,
+    );
+    const storage = app.get(ProtectedStorageService);
+    const put = vi.spyOn(storage, 'put');
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    });
+    const trailingHtml = Buffer.from('<html><body>polyglot</body></html>');
+    const trailingSvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+    const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
+    const fabricatedIhdrOnly = Buffer.concat([
+      pngSignature,
+      uploadFixtures.png.subarray(8, 8 + 25),
+    ]);
+    const soiEoiOnlyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const emptyIdatPng = buildSyntheticPngWithEmptyIdat();
+
+    const rejectionCases = [
+      {
+        email: 'jpeg-html-trailer@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: Buffer.concat([uploadFixtures.jpeg, trailingHtml]),
+      },
+      {
+        email: 'png-svg-trailer@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: Buffer.concat([uploadFixtures.png, trailingSvg]),
+      },
+      {
+        email: 'png-ihdr-only@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: fabricatedIhdrOnly,
+      },
+      {
+        email: 'png-truncated-chunk@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: uploadFixtures.png.subarray(0, uploadFixtures.png.length - 4),
+      },
+      {
+        email: 'jpeg-missing-eoi@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: uploadFixtures.jpeg.subarray(0, uploadFixtures.jpeg.length - 2),
+      },
+      {
+        email: 'jpeg-soi-eoi-only@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: soiEoiOnlyJpeg,
+      },
+      {
+        email: 'png-empty-idat@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: emptyIdatPng,
+      },
+    ] as const;
+
+    try {
+      for (const testCase of rejectionCases) {
+        const response = await submit(baseUrl, opportunity.publicSlug, {
+          ...applicationPayload(testCase.email),
+          files: [
+            {
+              category: 'CV',
+              filename: testCase.filename,
+              contentType: testCase.contentType,
+              base64Content: testCase.buffer.toString('base64'),
+            },
+          ],
+        });
+        expect(response.status, testCase.email).toBe(400);
+        expect(await response.json(), testCase.email).toMatchObject({
+          error: { code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED' },
+        });
+        await assertRejectedUploadLeavesNoSideEffects({
+          missionId: mission.id,
+          opportunityId: opportunity.id,
+          email: testCase.email,
+          auditCountBefore,
+        });
+      }
+      expect(put).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
+    }
+  });
+
+  it('rejects spoofed, truncated, mismatched, and oversized uploads without side effects', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue80-upload-reject',
+      recruiterUserId,
+    );
+    const storage = app.get(ProtectedStorageService);
+    const put = vi.spyOn(storage, 'put');
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    });
+
+    const rejectionCases = [
+      {
+        email: 'svg-as-png@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'logo.png',
+          contentType: 'image/png',
+          base64Content: uploadFixtures.svgScript.toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+      },
+      {
+        email: 'html-as-jpeg@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+          base64Content: uploadFixtures.html.toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+      },
+      {
+        email: 'truncated-jpeg@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+          base64Content: Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+      },
+      {
+        email: 'invalid-pdf@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'cv.pdf',
+          contentType: 'application/pdf',
+          base64Content: Buffer.from('NOTPDF').toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+      },
+      {
+        email: 'mime-mismatch@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'cv.png',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_TYPE_REJECTED',
+      },
+      {
+        email: 'double-ext@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'cv.pdf.exe',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_TYPE_REJECTED',
+      },
+      {
+        email: 'empty-file@public-applications.test',
+        file: {
+          category: 'CV',
+          filename: 'empty.txt',
+          contentType: 'text/plain',
+          base64Content: Buffer.from('   \n\t').toString('base64'),
+        },
+        code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+      },
+    ] as const;
+
+    try {
+      for (const testCase of rejectionCases) {
+        const response = await submit(baseUrl, opportunity.publicSlug, {
+          ...applicationPayload(testCase.email),
+          files: [testCase.file],
+        });
+        expect(response.status, testCase.email).toBe(400);
+        const body = await response.json();
+        expect(body, testCase.email).toMatchObject({ error: { code: testCase.code } });
+        expect(JSON.stringify(body)).not.toContain(mission.id);
+        expect(JSON.stringify(body)).not.toContain(testCase.email);
+        await assertRejectedUploadLeavesNoSideEffects({
+          missionId: mission.id,
+          opportunityId: opportunity.id,
+          email: testCase.email,
+          auditCountBefore,
+        });
+      }
+      expect(put).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
+    }
+  });
+
   it('fails safely for archived candidates and rejects invalid files or missing consent', async () => {
     const { mission, opportunity } = await createMissionWithOpportunity(
       'issue27-safe-fail',
@@ -702,14 +1096,149 @@ describe('public opportunity applications', () => {
       },
     });
 
-    const response = await submit(baseUrl, opportunity.publicSlug);
-    expect(response.status).toBe(200);
+    // No eligible recruiter is not an accepted application. A false RECEIVED
+    // response previously concealed a transaction rollback and discarded a CV.
+    const storage = app.get(ProtectedStorageService);
+    const put = vi.spyOn(storage, 'put');
+    const remove = vi.spyOn(storage, 'delete');
+    const warning = vi.spyOn(Logger.prototype, 'warn');
+    const email = 'issue27-no-recruiter@public-applications.test';
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    });
+    try {
+      const response = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
+      expect(response.status).toBe(503);
+      const error = await response.json();
+      expect(error).toEqual({
+        error: {
+          code: 'PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE',
+          message: 'Application could not be submitted. Please try again later.',
+        },
+      });
+      expect(JSON.stringify(error)).not.toContain(mission.id);
+      expect(JSON.stringify(error)).not.toContain(email);
+      expect(JSON.stringify(error)).not.toContain('recruiter');
+      expect(
+        warning.mock.calls.some(
+          ([message]) =>
+            typeof message === 'string' &&
+            message.includes('no eligible recruiter') &&
+            message.includes(mission.id),
+        ),
+      ).toBe(true);
+      for (const call of warning.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain(email);
+      }
+      expect(put).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(remove.mock.calls[0]?.[0]).toBe(put.mock.calls[0]?.[0]);
+    } finally {
+      put.mockRestore();
+      remove.mockRestore();
+      warning.mockRestore();
+    }
+
+    await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(0);
     await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
       0,
     );
     await expect(
       prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
     ).resolves.toBe(0);
+    await expect(
+      prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted' },
+      }),
+    ).resolves.toBe(auditCountBefore);
+
+    // Once an eligible recruiter is assigned the same candidate can retry,
+    // and exactly one application/process/audit is committed.
+    await prisma.missionRecruiter.create({
+      data: {
+        missionId: mission.id,
+        userId: recruiterUserId,
+        role: MissionRecruiterRole.LEAD_RECRUITER,
+        isLead: true,
+        status: AssignmentStatus.ACTIVE,
+      },
+    });
+    const retry = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
+    expect(retry.status).toBe(200);
+    expect(PublicApplicationSubmitResponseSchema.parse(await retry.json()).status).toBe('RECEIVED');
+    await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(1);
+    await expect(prisma.missionCandidate.count({ where: { missionId: mission.id } })).resolves.toBe(
+      1,
+    );
+    const accepted = await prisma.publicCandidateApplication.findFirstOrThrow({
+      where: { publicOpportunityId: opportunity.id },
+    });
+    await expect(
+      prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted', entityId: accepted.id },
+      }),
+    ).resolves.toBe(1);
+  });
+
+  it('refuses a new application when every assigned recruiter is ineligible', async () => {
+    const cases = [
+      'inactive-assignment',
+      'archived-assignment',
+      'suspended-user',
+      'archived-user',
+      'client-user',
+      'contributor-only',
+    ] as const;
+    for (const mode of cases) {
+      const userId = await createUser(
+        `recruiter-${mode}@public-applications.test`,
+        RoleName.HR_MANAGER,
+      );
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        `issue27-no-eligible-${mode}`,
+        userId,
+      );
+      if (mode === 'inactive-assignment' || mode === 'archived-assignment') {
+        await prisma.missionRecruiter.updateMany({
+          where: { missionId: mission.id },
+          data:
+            mode === 'inactive-assignment'
+              ? { status: AssignmentStatus.INACTIVE }
+              : { archivedAt: new Date() },
+        });
+      } else if (mode === 'suspended-user' || mode === 'archived-user' || mode === 'client-user') {
+        await prisma.user.update({
+          where: { id: userId },
+          data:
+            mode === 'suspended-user'
+              ? { status: UserStatus.SUSPENDED }
+              : mode === 'archived-user'
+                ? { status: UserStatus.ARCHIVED, archivedAt: new Date() }
+                : { userType: UserType.CLIENT },
+        });
+      } else {
+        await prisma.missionRecruiter.updateMany({
+          where: { missionId: mission.id },
+          data: { role: MissionRecruiterRole.CONTRIBUTOR },
+        });
+      }
+      const email = `no-eligible-${mode}@public-applications.test`;
+      const response = await submit(baseUrl, opportunity.publicSlug, applicationPayload(email));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: {
+          code: 'PUBLIC_APPLICATION_TEMPORARILY_UNAVAILABLE',
+          message: 'Application could not be submitted. Please try again later.',
+        },
+      });
+      await expect(prisma.candidate.count({ where: { normalizedEmail: email } })).resolves.toBe(0);
+      await expect(
+        prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.missionCandidate.count({ where: { missionId: mission.id } }),
+      ).resolves.toBe(0);
+    }
   });
 
   it('supports internal public opportunity configuration with protected permissions', async () => {
