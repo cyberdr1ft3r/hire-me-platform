@@ -485,6 +485,11 @@ export {
   PublicOpportunityStatusSchema,
   PublicOpportunityUploadRequirementsSchema,
 } from './public-applications.js';
+export {
+  effectiveOptionalCategoryUploadRequirements,
+  normalizeOptionalCategoryUploadForPersist,
+} from './public-upload-requirements.js';
+export type { OptionalCategoryUploadFlags } from './public-upload-requirements.js';
 export type {
   InternalPublicApplicationListResponse,
   InternalPublicApplicationSummary,
