@@ -602,6 +602,8 @@ describe('document management foundation', () => {
       { headers: authHeaders(accessToken) },
     );
     expect(download.status).toBe(200);
+    expect(download.headers.get('content-disposition')).toMatch(/^attachment;/i);
+    expect(download.headers.get('cache-control')).toBe('no-store');
     expect(await download.text()).toContain('%PDF-1.4');
   });
 
