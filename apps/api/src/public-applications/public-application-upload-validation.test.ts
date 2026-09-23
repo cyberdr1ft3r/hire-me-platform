@@ -136,6 +136,27 @@ describe('validatePublicApplicationFile', () => {
     );
   });
 
+  it('rejects JPEG and PNG polyglots with trailing HTML or SVG after terminal markers', () => {
+    const trailingHtml = Buffer.from('<html><body>after image</body></html>');
+    const trailingSvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+    expectValidationCode(
+      fileInput({
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        base64Content: Buffer.concat([minimalJpeg, trailingHtml]).toString('base64'),
+      }),
+      'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+    );
+    expectValidationCode(
+      fileInput({
+        filename: 'logo.png',
+        contentType: 'image/png',
+        base64Content: Buffer.concat([minimalPng, trailingSvg]).toString('base64'),
+      }),
+      'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+    );
+  });
+
   it('rejects truncated signatures, invalid PDFs, executables, and archives', () => {
     expectValidationCode(
       fileInput({

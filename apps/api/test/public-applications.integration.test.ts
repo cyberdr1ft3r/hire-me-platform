@@ -764,6 +764,87 @@ describe('public opportunity applications', () => {
     );
   });
 
+  it('rejects structurally invalid JPEG/PNG polyglots before storage or database writes', async () => {
+    const { mission, opportunity } = await createMissionWithOpportunity(
+      'issue80-structure-reject',
+      recruiterUserId,
+    );
+    const storage = app.get(ProtectedStorageService);
+    const put = vi.spyOn(storage, 'put');
+    const auditCountBefore = await prisma.auditLog.count({
+      where: { action: 'public_applications.application.submitted' },
+    });
+    const trailingHtml = Buffer.from('<html><body>polyglot</body></html>');
+    const trailingSvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+    const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
+    const fabricatedIhdrOnly = Buffer.concat([
+      pngSignature,
+      uploadFixtures.png.subarray(8, 8 + 25),
+    ]);
+
+    const rejectionCases = [
+      {
+        email: 'jpeg-html-trailer@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: Buffer.concat([uploadFixtures.jpeg, trailingHtml]),
+      },
+      {
+        email: 'png-svg-trailer@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: Buffer.concat([uploadFixtures.png, trailingSvg]),
+      },
+      {
+        email: 'png-ihdr-only@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: fabricatedIhdrOnly,
+      },
+      {
+        email: 'png-truncated-chunk@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: uploadFixtures.png.subarray(0, uploadFixtures.png.length - 4),
+      },
+      {
+        email: 'jpeg-missing-eoi@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: uploadFixtures.jpeg.subarray(0, uploadFixtures.jpeg.length - 2),
+      },
+    ] as const;
+
+    try {
+      for (const testCase of rejectionCases) {
+        const response = await submit(baseUrl, opportunity.publicSlug, {
+          ...applicationPayload(testCase.email),
+          files: [
+            {
+              category: 'CV',
+              filename: testCase.filename,
+              contentType: testCase.contentType,
+              base64Content: testCase.buffer.toString('base64'),
+            },
+          ],
+        });
+        expect(response.status, testCase.email).toBe(400);
+        expect(await response.json(), testCase.email).toMatchObject({
+          error: { code: 'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED' },
+        });
+        await assertRejectedUploadLeavesNoSideEffects({
+          missionId: mission.id,
+          opportunityId: opportunity.id,
+          email: testCase.email,
+          auditCountBefore,
+        });
+      }
+      expect(put).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
+    }
+  });
+
   it('rejects spoofed, truncated, mismatched, and oversized uploads without side effects', async () => {
     const { mission, opportunity } = await createMissionWithOpportunity(
       'issue80-upload-reject',

@@ -2,6 +2,10 @@ import { extname } from 'node:path';
 
 import type { PublicApplicationFileInput } from '@hire-me/contracts';
 
+import {
+  isStructurallyValidJpeg,
+  isStructurallyValidPng,
+} from './public-application-image-structure.js';
 import { badRequest } from './public-application.errors.js';
 
 export const publicApplicationMaxFileSizeBytes = 1_500_000;
@@ -23,8 +27,6 @@ export type ValidatedPublicApplicationFile = {
 };
 
 const dangerousExtensionPattern = /\.(exe|bat|cmd|com|scr|js|jar|zip|rar|7z|tar|gz)$/i;
-const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
-const maxPngDimension = 20_000;
 const maxMarkupProbeBytes = 512;
 
 const extensionsByMime: Record<PublicApplicationAllowedMimeType, readonly string[]> = {
@@ -144,47 +146,10 @@ const contentSignatures: Record<
   readonly ((buffer: Buffer) => boolean)[]
 > = {
   'application/pdf': [(buffer) => buffer.subarray(0, 4).toString() === '%PDF'],
-  'image/jpeg': [looksLikeJpeg],
-  'image/png': [looksLikePng],
+  'image/jpeg': [isStructurallyValidJpeg],
+  'image/png': [isStructurallyValidPng],
   'text/plain': [looksLikeSafePlainText],
 };
-
-function looksLikeJpeg(buffer: Buffer): boolean {
-  if (buffer.length < 4) {
-    return false;
-  }
-  if (buffer[0] !== 0xff || buffer[1] !== 0xd8 || buffer[2] !== 0xff) {
-    return false;
-  }
-  if (buffer[3] === 0xd9) {
-    return false;
-  }
-  return buffer.includes(Buffer.from([0xff, 0xd9]));
-}
-
-function looksLikePng(buffer: Buffer): boolean {
-  if (buffer.length < 33) {
-    return false;
-  }
-  if (!buffer.subarray(0, 8).equals(pngSignature)) {
-    return false;
-  }
-  if (buffer.readUInt32BE(8) !== 13) {
-    return false;
-  }
-  if (buffer.subarray(12, 16).toString('ascii') !== 'IHDR') {
-    return false;
-  }
-  const width = buffer.readUInt32BE(16);
-  const height = buffer.readUInt32BE(20);
-  if (width === 0 || height === 0) {
-    return false;
-  }
-  if (width > maxPngDimension || height > maxPngDimension) {
-    return false;
-  }
-  return true;
-}
 
 function looksLikeSafePlainText(buffer: Buffer): boolean {
   if (buffer.length === 0 || buffer.includes(0)) {
