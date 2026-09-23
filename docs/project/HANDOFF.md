@@ -1,34 +1,33 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-20
+Last updated: 2026-09-23
 
 ## Current situation
 
-- Authoritative `main` is `2a578701038bbebf1accb9b563684cad546cda0c`, including reviewed/merged PR #74; Issue #73 is closed. D-066 is Accepted; D-PUBLIC-01 is corrected for **future** submissions.
-- Public form input is human major currency units; `buildApplicationRequest` converts exactly to integer `salaryExpectationCents` minor units, capped at 2147483647. Existing Candidate compensation is not overwritten by an application.
-- Historical salary records are not automatically corrected or classified by guessed unit/creation provenance. The reviewed SQL/runbook is a read-only human-review aid, no backfill or write.
-- High-priority drift audit #66 continues through Issue #75, the full Public Opportunity conformance audit; repository-evidence matrix is recorded in comment `5749238121`. No fresh real-browser visual/screenshots were taken for #75.
-- Source inspection found three concrete **pending decisions**, NOT accepted fixes: P-75-01 contradictory required/disabled certification or diploma settings can hide a mandatory control; P-75-02 unauthenticated uploads check PDF magic but not JPEG/PNG signatures; P-75-03 public salary currency shape differs from the internal three-character contract.
-- The inspected listed/unlisted visibility, public DTO confidentiality, request isolation, candidate reuse/ATS process, and localized form behavior align with implemented code and existing tests. The audit does not claim fresh tests or production inspection.
-- No public app deployment, schema change, salary backfill, or change to R-039 was made by the merge/audit. D-DESIGN-01 whole-product UI-DNA v1.1 remains deferred until after the functional module rollout.
+- Authoritative `main` is `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`, including merged PR #74 (D-066 Accepted; D-PUBLIC-01 corrected for **future** submissions only), PR #79 (A-75-04), and PR #81 (A-75-02).
+- Historical public salary records remain **review-only** via the diagnostics SQL/runbook; no heuristic backfill. R-039 is untouched.
+- Issue #75 (Public Opportunity runtime audit under #66) remains **open**. Corrected on `main`: **A-75-04** (missing-recruiter 503, narrow D-040 revision) and **A-75-02** (bounded JPEG/PNG validation before storage; malware-scan **interface only**, no production scanner; structural validation, not full image decode).
+- Still outstanding in #75: **A-75-01**, **A-75-03**, **A-75-05**, **A-75-06/07**, **A-75-08**. Maintainer KEEP/CORRECT/DEFER decisions and fresh EN/FR browser visual evidence are required before treating the audit gate as passed.
+- Issue #66 remains open. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) stays deferred until after the functional module rollout.
+- Documentation reconciliation for Issue #76 lives on PR #77 (`docs/post-salary-public-audit-handoff`); content must reflect the post-#79/#81 `main` state before merge.
 
 ## Active review and next executable action
 
-1. Read Issue #75 and its latest audit matrix, Issue #66, Issues #27/#52/#54/#62/#73, `AGENTS.md`, project memory, and affected source files.
-2. Get maintainer KEEP/CORRECT/DEFER decisions on P-75-01/02/03, especially the intended rule for required upload categories that are not enabled.
-3. Capture fresh local real-browser public list/detail/application EN/FR screenshots at 1440/1024/800/430/390 CSS px and verify keyboard, focus, empty/not-found/errors, response privacy, and document horizontal overflow with synthetic records. Static code review is not a substitute.
-4. Record accepted audit decisions in #75 and #66. Open isolated correction issues only after explicit approval and preserve all accepted public semantics. Keep #75 open until reviewed.
-5. Then audit the shared AppShell/i18n foundation and proceed through Clients, Missions, Training and Commercial UX rollout. Finish with whole-product UI-DNA v1.1.
+1. Finish and merge PR #77 after exact-head CI and ChatGPT review (docs-only; six project-memory files).
+2. Read Issue #75 latest matrix and comments; do not re-open merged A-75-04 or A-75-02 scope on unrelated branches.
+3. After maintainer decisions, implement remaining #75 corrections as isolated issues/branches (one reviewable fix each).
+4. Capture real-browser public EN/FR evidence at required breakpoints; static code review does not close the visual gate.
+5. Then audit shared AppShell/i18n and proceed with Clients, Missions, Training, and Commercial UX rollout.
 
 ## Explicit boundaries
 
-- Do not re-open the merged salary-unit conversion or auto-multiply historic salary rows.
-- Do not implement #75 corrections inside this documentation task.
+- Do not auto-correct historic salary rows or expand D-066 semantics.
+- Do not claim deployed malware scanning; only document the optional Nest hook from PR #81.
 - No candidate accounts/dashboard or client portal in MVP; EN/FR preference remains locally persisted.
-- No scope expansion into payroll, accounting, R-039, Reporting, Tasks, ATS lifecycle, schema/migrations, or production deployment.
+- No production deployment, schema migration, or R-039 change from documentation work.
 - No agent merge without explicit maintainer instruction and exact-head review.
 
-## Completion gate for this documentation-only reconciliation
+## Completion gate for PR #77
 
-- All stable memory files reflect the PR #74 merge and correctly distinguish accepted D-066 from proposed #75 findings.
-- Dedicated docs PR linked to #76 remains draft/open/unmerged until review and exact-head CI.
+- All six memory files match `65d1ce0`, merged #79/#81 behavior, open #75/#66 status, accepted D-066, revised D-040 missing-recruiter clause, and unchanged R-039.
+- PR #77 stays draft/open/unmerged until maintainer review and green exact-head CI on the refreshed head.

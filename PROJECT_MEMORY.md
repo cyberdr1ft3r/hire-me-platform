@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-20
+Last updated: 2026-09-23
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74; `main` is at `2a578701038bbebf1accb9b563684cad546cda0c`. Drift audit #66 continues with the full Public Opportunity audit #75; three code-level findings are awaiting maintainer decisions and fresh public EN/FR mobile/browser visual evidence. The AppShell/i18n foundation audit follows. Full Client and Mission redesigns have not started; whole-product UI-DNA v1.1 remains deferred.
+The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`, including PR #79 (A-75-04: missing-recruiter first-time submission → generic retryable 503, narrow D-040 revision) and PR #81 (A-75-02: bounded JPEG/PNG upload validation before storage; optional malware-scan interface with **no scanner deployed**; structural checks only, not full decode). Drift audit #66 continues through open Issue #75: five findings remain (**A-75-01**, **A-75-03**, **A-75-05**, **A-75-06/07**, **A-75-08**) pending maintainer decisions and fresh public EN/FR visual evidence. Documentation reconciliation Issue #76 / PR #77 must reflect this state before merge. The AppShell/i18n foundation audit follows. Full Client and Mission redesigns have not started; whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
