@@ -411,6 +411,52 @@ async function createMissionWithOpportunity(slug: string, recruiterUserId: strin
   return { client, mission, opportunity };
 }
 
+function buildSyntheticPngWithEmptyIdat(): Buffer {
+  const signature = Buffer.from('89504e470d0a1a0a', 'hex');
+  const ihdrData = Buffer.alloc(13);
+  ihdrData.writeUInt32BE(1, 0);
+  ihdrData.writeUInt32BE(1, 4);
+  ihdrData[8] = 8;
+  ihdrData[9] = 2;
+  ihdrData[10] = 0;
+  ihdrData[11] = 0;
+  ihdrData[12] = 0;
+  const ihdrChunk = writeIntegrationPngChunk('IHDR', ihdrData);
+  const emptyIdatChunk = writeIntegrationPngChunk('IDAT', Buffer.alloc(0));
+  const iendChunk = writeIntegrationPngChunk('IEND', Buffer.alloc(0));
+  return Buffer.concat([signature, ihdrChunk, emptyIdatChunk, iendChunk]);
+}
+
+function writeIntegrationPngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const typeAndData = Buffer.concat([typeBuffer, data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(integrationPngChunkCrc(typeAndData));
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function integrationPngChunkCrc(typeAndData: Buffer): number {
+  let crc = 0xffffffff;
+  for (let index = 0; index < typeAndData.length; index += 1) {
+    crc = integrationPngCrcTable[(crc ^ typeAndData[index]!) & 0xff]! ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+const integrationPngCrcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let entry = 0; entry < 256; entry += 1) {
+    let value = entry;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = (value & 1) !== 0 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[entry] = value >>> 0;
+  }
+  return table;
+})();
+
 const uploadFixtures = {
   pdf: Buffer.from('%PDF-1.4\n% synthetic test cv\n'),
   png: Buffer.from(
@@ -781,6 +827,8 @@ describe('public opportunity applications', () => {
       pngSignature,
       uploadFixtures.png.subarray(8, 8 + 25),
     ]);
+    const soiEoiOnlyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const emptyIdatPng = buildSyntheticPngWithEmptyIdat();
 
     const rejectionCases = [
       {
@@ -812,6 +860,18 @@ describe('public opportunity applications', () => {
         contentType: 'image/jpeg',
         filename: 'photo.jpg',
         buffer: uploadFixtures.jpeg.subarray(0, uploadFixtures.jpeg.length - 2),
+      },
+      {
+        email: 'jpeg-soi-eoi-only@public-applications.test',
+        contentType: 'image/jpeg',
+        filename: 'photo.jpg',
+        buffer: soiEoiOnlyJpeg,
+      },
+      {
+        email: 'png-empty-idat@public-applications.test',
+        contentType: 'image/png',
+        filename: 'logo.png',
+        buffer: emptyIdatPng,
       },
     ] as const;
 

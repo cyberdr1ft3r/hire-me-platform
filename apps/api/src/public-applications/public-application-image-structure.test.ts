@@ -13,6 +13,11 @@ const minimalJpeg = Buffer.from(
   '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==',
   'base64',
 );
+const progressiveJpeg = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAVAQEBAAAAAAAAAAAAAAAAAAAFB//aAAwDAQACEAMQAAABnANSP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//aAAwDAQACAAMAAAAQ/wD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==',
+  'base64',
+);
+const soiEoiOnlyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
 const appendedHtml = Buffer.from('<html><body>polyglot</body></html>');
 const appendedSvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
 
@@ -75,6 +80,14 @@ describe('isStructurallyValidJpeg', () => {
     malformed.writeUInt16BE(0xffff, 4);
     expect(isStructurallyValidJpeg(malformed)).toBe(false);
   });
+
+  it('rejects SOI+EOI with no frame or scan data', () => {
+    expect(isStructurallyValidJpeg(soiEoiOnlyJpeg)).toBe(false);
+  });
+
+  it('accepts a legitimate progressive JPEG with multiple SOS scans', () => {
+    expect(isStructurallyValidJpeg(progressiveJpeg)).toBe(true);
+  });
 });
 
 describe('isStructurallyValidPng', () => {
@@ -97,6 +110,16 @@ describe('isStructurallyValidPng', () => {
       writePngChunk('IDAT', Buffer.from([0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01])),
     ]);
     expect(isStructurallyValidPng(withoutIend)).toBe(false);
+  });
+
+  it('rejects IHDR plus zero-length IDAT plus IEND', () => {
+    const emptyIdatPng = Buffer.concat([
+      pngSignature,
+      minimalIhdrChunk(),
+      writePngChunk('IDAT', Buffer.alloc(0)),
+      writePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+    expect(isStructurallyValidPng(emptyIdatPng)).toBe(false);
   });
 
   it('rejects invalid CRC and out-of-bounds declared chunk lengths', () => {

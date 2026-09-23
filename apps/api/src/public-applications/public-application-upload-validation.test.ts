@@ -136,6 +136,35 @@ describe('validatePublicApplicationFile', () => {
     );
   });
 
+  it('rejects fabricated minimum JPEG and PNG shells without image data', () => {
+    const soiEoiOnly = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    expectValidationCode(
+      fileInput({
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        base64Content: soiEoiOnly.toString('base64'),
+      }),
+      'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+    );
+
+    const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
+    const ihdrData = Buffer.alloc(13);
+    ihdrData.writeUInt32BE(1, 0);
+    ihdrData.writeUInt32BE(1, 4);
+    ihdrData[8] = 8;
+    ihdrData[9] = 2;
+    expectValidationCode(
+      fileInput({
+        filename: 'logo.png',
+        contentType: 'image/png',
+        base64Content: Buffer.concat([pngSignature, minimalPng.subarray(8, 8 + 25)]).toString(
+          'base64',
+        ),
+      }),
+      'PUBLIC_APPLICATION_FILE_SIGNATURE_REJECTED',
+    );
+  });
+
   it('rejects JPEG and PNG polyglots with trailing HTML or SVG after terminal markers', () => {
     const trailingHtml = Buffer.from('<html><body>after image</body></html>');
     const trailingSvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
