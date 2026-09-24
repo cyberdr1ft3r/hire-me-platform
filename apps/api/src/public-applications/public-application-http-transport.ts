@@ -2,8 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 
 export const publicApplicationRequestTooLargeCode = 'PUBLIC_APPLICATION_REQUEST_TOO_LARGE';
 
-const publicApplicationApplicationsPath =
-  /^\/v1\/public\/opportunities\/[^/]+\/applications\/?$/;
+const publicApplicationApplicationsPath = /^\/v1\/public\/opportunities\/[^/]+\/applications\/?$/;
 
 export function isPublicApplicationSubmitPath(path: string): boolean {
   return publicApplicationApplicationsPath.test(path);
