@@ -29,6 +29,7 @@ class DeterministicSequencer extends BaseSequencer {
 
 export default defineConfig({
   test: {
+    setupFiles: ['test/setup-env.ts'],
     environment: 'node',
     fileParallelism: false,
     globals: true,

@@ -1,3 +1,4 @@
+import { publicApplicationDefaultJsonBodyLimit } from '@hire-me/contracts';
 import { z } from 'zod';
 
 const EnvironmentSchema = z.object({
@@ -11,7 +12,7 @@ const EnvironmentSchema = z.object({
   DATABASE_URL: z.string().url(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PRIVATE_UPLOAD_STORAGE_ROOT: z.string().min(1).default('.tmp-runtime/private-uploads'),
-  PUBLIC_APPLICATION_JSON_LIMIT: z.string().min(1).default('6mb'),
+  PUBLIC_APPLICATION_JSON_LIMIT: z.string().min(1).default(publicApplicationDefaultJsonBodyLimit),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().min(3600).max(2592000).default(604800),
 });
 

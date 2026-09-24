@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `c4b7fe8964cf396136237aa9d1c772ec020fc6d4`, including merged PR #77 project-memory reconciliation, PR #79 (A-75-04 missing-recruiter 503), and PR #81 (A-75-02 bounded JPEG/PNG upload validation). Issue #82 / draft PR #83 implements accepted D-067 for A-75-01 and is pending exact-head re-review and merge; no production deployment.
-**Current blocker:** A-75-01 remains uncorrected on `main` until PR #83 merges. Four other Issue #75 findings remain open: A-75-03 (advertised upload size vs JSON transport limit), A-75-05 (public salary currency shape), A-75-06/07 (authored job content language vs interface locale), and A-75-08 (shared DB test isolation). Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
-**Next executable development task:** Complete exact-head verification and re-review for PR #83 without merging it automatically; then decide and implement the four other approved #75 corrections on dedicated branches before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
+**Health:** `main` is at `91a6050b864abb1c4ea4474e08f987602c832c86`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), and PR #83 / Issue #82 (A-75-01, D-067). Issue #84 (A-75-03 JSON transport vs aggregate upload cap) is in implementation/review on a dedicated branch; no production deployment.
+**Current blocker:** A-75-03 remains uncorrected on `main` until Issue #84 merges. Three other Issue #75 findings remain open: A-75-05 (public salary currency shape), A-75-06/07 (authored job content language vs interface locale), and A-75-08 (shared DB test isolation). Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
+**Next executable development task:** Complete exact-head verification and ChatGPT review for Issue #84 without merging automatically; then implement the three remaining scoped #75 corrections before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
 
 ## Active work
 
@@ -47,18 +47,22 @@ Status owner: repository maintainer
 | Issue #73 | Complete | Correct public application salary expectation unit drift (D-PUBLIC-01 / R-035) | Merged through PR #74; D-066 Accepted; historical salary rows remain review-only (no backfill) |
 | Issue #78 | Complete | Correct false RECEIVED when no eligible recruiter (A-75-04) | Merged through PR #79 into `main` as `78f13f7c0bf5c125016236bb79a4f8c1f3f85c56`; narrow D-040 revision for missing-recruiter rollback |
 | Issue #80 | Complete | Harden public application JPEG/PNG upload trust boundary (A-75-02) | Merged through PR #81 into `main` as `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`; bounded structural validation; `UploadMalwareScanProvider` interface only (no scanner registered); full image decode not claimed |
-| Issue #82 | In review | Correct required-but-disabled public upload configuration (A-75-01) under accepted D-067 | Draft PR #83; browser/API/PostgreSQL coverage and project-memory reconciliation added; pending exact-head CI, ChatGPT re-review, and merge |
+| Issue #82 | Complete | Correct required-but-disabled public upload configuration (A-75-01) under D-067 | Merged through PR #83 into `main` as `91a6050b864abb1c4ea4474e08f987602c832c86` |
+| Issue #84 | In review | Align public upload aggregate limit with JSON transport and oversize feedback (A-75-03) | Draft PR linked to #84; D-068 accepted pending merge; A-75-03 not corrected on `main` until merge |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (two corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
-| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04 and A-75-02 corrected on `main`; A-75-01 is pending merge through #82/#83; A-75-03, A-75-05, A-75-06/07, and A-75-08 remain open |
+| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04, A-75-02, and A-75-01 corrected on `main`; A-75-03 pending through #84; A-75-05, A-75-06/07, and A-75-08 remain open |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
-## Issue #82 Verification State (draft PR #83, pending merge)
+## Issue #82 Verification State (merged PR #83)
 
-- D-067 is accepted: certification and diploma can be required only while enabled. Staff saves normalize disabled categories to `required=false`; public DTOs, browser controls, and submit validation treat contradictory legacy rows as disabled/not required; later authorized saves repair stored flags without a bulk migration.
-- The accepted API and shared-contract implementation remains unchanged in the completion pass. CV requirements, file validation, upload storage/version history, D-040, D-043, D-066, and R-039 are preserved.
-- Browser-facing EN/FR regressions use the Public Opportunity harness to prove disabled legacy-required certification/diploma controls are absent, enabled-and-required controls remain required, and localized required-file validation is shown. The Missions harness proves disabling both categories submits no `enabled=false, required=true` pair.
-- A-75-01 remains pending until PR #83 merges; this status does not mark it corrected on `main`.
+- D-067 is implemented on `main`: certification and diploma can be required only while enabled; staff saves normalize disabled categories; public DTOs, browser controls, and submit validation treat contradictory legacy rows as disabled/not required; later authorized saves repair stored flags without a bulk migration.
+- A-75-01 is corrected on `main` through merge commit `91a6050b864abb1c4ea4474e08f987602c832c86`.
+
+## Issue #84 Verification State (draft, pending merge)
+
+- D-068 accepted: keep **5,000,000** decimal raw-byte aggregate and **1,500,000** per-file limits; default JSON body limit **`8mb`**; stable **413** `PUBLIC_APPLICATION_REQUEST_TOO_LARGE` on parser oversize; browser **413** → localized **`payloadTooLarge`** without reading bodies; application-level **`PUBLIC_APPLICATION_UPLOAD_TOO_LARGE`** when raw aggregate exceeds cap inside the transport limit.
+- A-75-03 is **not** corrected on `main` until the Issue #84 PR merges.
 
 ## Issue #73 Verification State (merged PR #74)
 

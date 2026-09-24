@@ -1,8 +1,10 @@
+import './setup-env.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { Logger, type INestApplication } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -11,8 +13,15 @@ import {
   PublicApplicationSubmitResponseSchema,
   PublicOpportunityDetailResponseSchema,
   PublicOpportunityListResponseSchema,
+  publicApplicationMaxFileSizeBytes,
+  publicApplicationMaxTotalUploadBytes,
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
+import { loadEnvironment } from '../src/config/environment.js';
+import {
+  publicApplicationRequestTooLargeCode,
+  registerPublicApplicationHttpTransport,
+} from '../src/public-applications/public-application-http-transport.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import { ProtectedStorageService } from '../src/storage/protected-storage.service.js';
 import {
@@ -106,7 +115,7 @@ type RolePermissionSnapshot = {
   }[];
 };
 
-const syntheticPublicSlugPrefixes = ['issue27', 'issue80', 'issue82'] as const;
+const syntheticPublicSlugPrefixes = ['issue27', 'issue80', 'issue82', 'issue84'] as const;
 
 function syntheticPublicSlugWhere(): {
   OR: Array<{ publicSlug: { contains: string } }>;
@@ -136,7 +145,11 @@ async function cleanPublicApplicationRecords(): Promise<void> {
     where: {
       missionCandidate: {
         mission: {
-          OR: [{ title: { contains: 'Issue27' } }, { title: { contains: 'Issue80' } }],
+          OR: [
+            { title: { contains: 'Issue27' } },
+            { title: { contains: 'Issue80' } },
+            { title: { contains: 'Issue84' } },
+          ],
         },
       },
     },
@@ -146,6 +159,7 @@ async function cleanPublicApplicationRecords(): Promise<void> {
       OR: [
         { mission: { title: { contains: 'Issue27' } } },
         { mission: { title: { contains: 'Issue80' } } },
+        { mission: { title: { contains: 'Issue84' } } },
         { candidate: { normalizedEmail: { endsWith: '@public-applications.test' } } },
       ],
     },
@@ -169,18 +183,26 @@ async function cleanPublicApplicationRecords(): Promise<void> {
       OR: [
         { mission: { title: { contains: 'Issue27' } } },
         { mission: { title: { contains: 'Issue80' } } },
+        { mission: { title: { contains: 'Issue84' } } },
         { user: { normalizedEmail: { endsWith: '@public-applications.test' } } },
       ],
     },
   });
   await prisma.recruitmentMission.deleteMany({
-    where: { OR: [{ title: { contains: 'Issue27' } }, { title: { contains: 'Issue80' } }] },
+    where: {
+      OR: [
+        { title: { contains: 'Issue27' } },
+        { title: { contains: 'Issue80' } },
+        { title: { contains: 'Issue84' } },
+      ],
+    },
   });
   await prisma.client.deleteMany({
     where: {
       OR: [
         { normalizedName: { contains: 'issue27' } },
         { normalizedName: { contains: 'issue80' } },
+        { normalizedName: { contains: 'issue84' } },
       ],
     },
   });
@@ -512,6 +534,49 @@ async function submit(
   });
 }
 
+async function patchInternalOpportunity(
+  apiBaseUrl: string,
+  missionId: string,
+  token: string,
+  body: Record<string, unknown>,
+) {
+  return fetch(`${apiBaseUrl}/v1/missions/${missionId}/public-opportunity`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+
+function syntheticPlainTextBuffer(byteLength: number): Buffer {
+  return Buffer.alloc(byteLength, 0x61);
+}
+
+function plainTextUploadFile(
+  category: 'ADDITIONAL' | 'CERTIFICATION' | 'CV' | 'DIPLOMA',
+  rawBytes: number,
+  filename: string,
+) {
+  return {
+    category,
+    filename,
+    contentType: 'text/plain',
+    base64Content: syntheticPlainTextBuffer(rawBytes).toString('base64'),
+  };
+}
+
+async function enableAllOptionalUploadCategories(
+  apiBaseUrl: string,
+  missionId: string,
+): Promise<void> {
+  const token = await loginAccessToken(apiBaseUrl, 'recruiter@public-applications.test');
+  const response = await patchInternalOpportunity(apiBaseUrl, missionId, token, {
+    additionalAttachmentsEnabled: true,
+    certificationsEnabled: true,
+    diplomasEnabled: true,
+  });
+  expect(response.status).toBe(200);
+}
+
 async function assertRejectedUploadLeavesNoSideEffects(options: {
   missionId: string;
   opportunityId: string;
@@ -554,7 +619,7 @@ async function assertRejectedUploadLeavesNoSideEffects(options: {
 }
 
 describe('public opportunity applications', () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let baseUrl: string;
   let recruiterUserId: string;
   let clientUserRolePermissionSnapshot: RolePermissionSnapshot[] = [];
@@ -576,7 +641,8 @@ describe('public opportunity applications', () => {
     recruiterUserId = await createUser('recruiter@public-applications.test', RoleName.HR_MANAGER);
     await createUser('manage-only@public-applications.test', RoleName.CLIENT_USER);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    registerPublicApplicationHttpTransport(app, loadEnvironment().PUBLIC_APPLICATION_JSON_LIMIT);
     app.enableCors({ origin: 'http://127.0.0.1:5173', credentials: true });
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
@@ -1154,6 +1220,169 @@ describe('public opportunity applications', () => {
       };
       const accepted = await submit(baseUrl, opportunity.publicSlug, payload);
       expect(accepted.status).toBe(200);
+    });
+  });
+
+  describe('issue84 json transport and aggregate upload limits', () => {
+    function aggregatePlainTextFiles(rawSizes: number[]) {
+      const categories: Array<'ADDITIONAL' | 'CERTIFICATION' | 'CV' | 'DIPLOMA'> = [
+        'CV',
+        'CERTIFICATION',
+        'DIPLOMA',
+        'ADDITIONAL',
+      ];
+      return rawSizes.map((size, index) =>
+        plainTextUploadFile(categories[index] ?? 'ADDITIONAL', size, `part-${index}.txt`),
+      );
+    }
+
+    it('advertises aggregate and per-file limits aligned with shared contracts', async () => {
+      const { opportunity } = await createMissionWithOpportunity('issue84-limits', recruiterUserId);
+      const detail = await fetch(`${baseUrl}/v1/public/opportunities/${opportunity.publicSlug}`);
+      const body = PublicOpportunityDetailResponseSchema.parse(await detail.json());
+      expect(body.opportunity.uploadRequirements.maxTotalUploadBytes).toBe(
+        publicApplicationMaxTotalUploadBytes,
+      );
+      expect(body.opportunity.uploadRequirements.maxFileSizeBytes).toBe(
+        publicApplicationMaxFileSizeBytes,
+      );
+    });
+
+    it('accepts multi-file submissions just below, at, and above the audit ~4.8 MB aggregate case', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue84-audit-aggregate',
+        recruiterUserId,
+      );
+      await enableAllOptionalUploadCategories(baseUrl, mission.id);
+
+      const auditEmail = 'issue84-audit-4800000@public-applications.test';
+      const auditResponse = await submit(baseUrl, opportunity.publicSlug, {
+        ...applicationPayload(auditEmail),
+        motivation: 'x'.repeat(4000),
+        files: aggregatePlainTextFiles([1_500_000, 1_500_000, 1_500_000, 300_000]),
+      });
+      expect(auditResponse.status).toBe(200);
+    });
+
+    it('accepts multi-file submissions just below and exactly at the raw aggregate cap', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue84-aggregate-ok',
+        recruiterUserId,
+      );
+      await enableAllOptionalUploadCategories(baseUrl, mission.id);
+
+      const belowEmail = 'issue84-below-aggregate@public-applications.test';
+      const belowResponse = await submit(baseUrl, opportunity.publicSlug, {
+        ...applicationPayload(belowEmail),
+        files: aggregatePlainTextFiles([1_500_000, 1_500_000, 1_499_999]),
+      });
+      expect(belowResponse.status).toBe(200);
+
+      const { opportunity: atOpportunity, mission: atMission } = await createMissionWithOpportunity(
+        'issue84-aggregate-at',
+        recruiterUserId,
+      );
+      await enableAllOptionalUploadCategories(baseUrl, atMission.id);
+      const atEmail = 'issue84-at-aggregate@public-applications.test';
+      const atResponse = await submit(baseUrl, atOpportunity.publicSlug, {
+        ...applicationPayload(atEmail),
+        files: aggregatePlainTextFiles([
+          1_500_000,
+          1_500_000,
+          1_500_000,
+          publicApplicationMaxTotalUploadBytes - 4_500_000,
+        ]),
+      });
+      expect(atResponse.status).toBe(200);
+    });
+
+    it('rejects raw aggregate just above the cap at the application layer without side effects', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue84-aggregate-over',
+        recruiterUserId,
+      );
+      await enableAllOptionalUploadCategories(baseUrl, mission.id);
+      const storage = app.get(ProtectedStorageService);
+      const put = vi.spyOn(storage, 'put');
+      const auditCountBefore = await prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted' },
+      });
+      const email = 'issue84-over-aggregate@public-applications.test';
+
+      try {
+        const response = await submit(baseUrl, opportunity.publicSlug, {
+          ...applicationPayload(email),
+          files: aggregatePlainTextFiles([
+            1_500_000,
+            1_500_000,
+            1_500_000,
+            publicApplicationMaxTotalUploadBytes - 4_500_000 + 1,
+          ]),
+        });
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+          error: { code: 'PUBLIC_APPLICATION_UPLOAD_TOO_LARGE' },
+        });
+        await assertRejectedUploadLeavesNoSideEffects({
+          missionId: mission.id,
+          opportunityId: opportunity.id,
+          email,
+          auditCountBefore,
+        });
+        expect(put).not.toHaveBeenCalled();
+      } finally {
+        put.mockRestore();
+      }
+    });
+  });
+
+  describe('issue84 body-parser oversize handling', () => {
+    let tightApp: NestExpressApplication;
+    let tightBaseUrl: string;
+
+    beforeAll(async () => {
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+      tightApp = moduleRef.createNestApplication<NestExpressApplication>();
+      registerPublicApplicationHttpTransport(tightApp, '512kb');
+      await tightApp.listen(0, '127.0.0.1');
+      tightBaseUrl = await tightApp.getUrl();
+    });
+
+    afterAll(async () => {
+      await tightApp?.close();
+    });
+
+    it('returns stable 413 for public application POST when JSON exceeds the parser limit', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue84-parser-413',
+        recruiterUserId,
+      );
+      const auditCountBefore = await prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted' },
+      });
+      const email = 'issue84-parser-413@public-applications.test';
+      const response = await fetch(
+        `${tightBaseUrl}/v1/public/opportunities/${opportunity.publicSlug}/applications`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...applicationPayload(email),
+            files: [plainTextUploadFile('CV', 400_000, 'large.txt')],
+          }),
+        },
+      );
+      expect(response.status).toBe(413);
+      const body = await response.json();
+      expect(body).toMatchObject({ error: { code: publicApplicationRequestTooLargeCode } });
+      expect(JSON.stringify(body)).not.toContain(email);
+      expect(JSON.stringify(body)).not.toContain(mission.id);
+      await assertRejectedUploadLeavesNoSideEffects({
+        missionId: mission.id,
+        opportunityId: opportunity.id,
+        email,
+        auditCountBefore,
+      });
     });
   });
 

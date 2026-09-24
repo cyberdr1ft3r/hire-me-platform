@@ -1,6 +1,10 @@
 import { extname } from 'node:path';
 
-import type { PublicApplicationFileInput } from '@hire-me/contracts';
+import {
+  publicApplicationMaxFileSizeBytes,
+  publicApplicationMaxTotalUploadBytes,
+  type PublicApplicationFileInput,
+} from '@hire-me/contracts';
 
 import {
   isStructurallyValidJpeg,
@@ -8,8 +12,7 @@ import {
 } from './public-application-image-structure.js';
 import { badRequest } from './public-application.errors.js';
 
-export const publicApplicationMaxFileSizeBytes = 1_500_000;
-export const publicApplicationMaxTotalUploadBytes = 5_000_000;
+export { publicApplicationMaxFileSizeBytes, publicApplicationMaxTotalUploadBytes };
 export const publicApplicationAllowedMimeTypes = [
   'application/pdf',
   'image/jpeg',

@@ -15,6 +15,7 @@ import {
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import { loadEnvironment } from '../src/config/environment.js';
+import { registerPublicApplicationHttpTransport } from '../src/public-applications/public-application-http-transport.js';
 import { DocumentsService } from '../src/documents/documents.service.js';
 import { ProtectedStorageService } from '../src/storage/protected-storage.service.js';
 import {
@@ -533,7 +534,7 @@ describe('document management foundation', () => {
     }).compile();
 
     app = moduleRef.createNestApplication<NestExpressApplication>();
-    app.useBodyParser('json', { limit: loadEnvironment().PUBLIC_APPLICATION_JSON_LIMIT });
+    registerPublicApplicationHttpTransport(app, loadEnvironment().PUBLIC_APPLICATION_JSON_LIMIT);
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
     documentsService = app.get(DocumentsService);

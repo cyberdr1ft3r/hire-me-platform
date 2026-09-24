@@ -490,6 +490,13 @@ export {
   normalizeOptionalCategoryUploadForPersist,
 } from './public-upload-requirements.js';
 export type { OptionalCategoryUploadFlags } from './public-upload-requirements.js';
+export {
+  estimatePublicApplicationSubmitJsonBytes,
+  publicApplicationDefaultJsonBodyLimit,
+  publicApplicationEncodedBase64Length,
+  publicApplicationMaxFileSizeBytes,
+  publicApplicationMaxTotalUploadBytes,
+} from './public-application-upload-limits.js';
 export type {
   InternalPublicApplicationListResponse,
   InternalPublicApplicationSummary,
