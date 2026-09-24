@@ -1,4 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { apiDefaultUrlencodedBodyLimit } from '@hire-me/contracts';
 import type { Express, NextFunction, Request, Response } from 'express';
 import express from 'express';
 
@@ -20,6 +21,14 @@ export function requestPath(req: { path?: string; url?: string }): string {
   return queryIndex === -1 ? url : url.slice(0, queryIndex);
 }
 
+export function isPublicApplicationSubmitRequest(req: {
+  method?: string;
+  path?: string;
+  url?: string;
+}): boolean {
+  return req.method?.toUpperCase() === 'POST' && isPublicApplicationSubmitPath(requestPath(req));
+}
+
 type BodyParserPayloadTooLargeError = Error & { type: 'entity.too.large' };
 
 function isBodyParserPayloadTooLarge(error: unknown): error is BodyParserPayloadTooLargeError {
@@ -37,7 +46,7 @@ function isBodyParserPayloadTooLarge(error: unknown): error is BodyParserPayload
  */
 export function publicApplicationPayloadTooLargeHandler(
   error: unknown,
-  req: { path?: string; url?: string },
+  req: { method?: string; path?: string; url?: string },
   res: { headersSent?: boolean; status: (code: number) => { json: (body: unknown) => void } },
   next: (error?: unknown) => void,
 ): void {
@@ -45,8 +54,7 @@ export function publicApplicationPayloadTooLargeHandler(
     next(error);
     return;
   }
-  const path = requestPath(req);
-  if (!isPublicApplicationSubmitPath(path)) {
+  if (!isPublicApplicationSubmitRequest(req)) {
     next(error);
     return;
   }
@@ -71,8 +79,9 @@ export type ApiHttpBodyParserLimits = {
 
 /**
  * Registers JSON body parsers in order:
- * 1. Public application submit path (higher limit, runs only when path matches).
+ * 1. Public application submit POST (higher limit, path + method gated).
  * 2. General API JSON parser (lower limit; skips when body already parsed).
+ * 3. URL-encoded parser (Nest prior default 100kb; not raised for public uploads).
  *
  * Nest's built-in body parser must be disabled (`bodyParser: false`) before calling this.
  */
@@ -83,9 +92,13 @@ export function registerApiHttpBodyParsers(
   const expressApp: Express = app.getHttpAdapter().getInstance();
   const publicApplicationJson = express.json({ limit: limits.publicApplicationJsonLimit });
   const generalJson = express.json({ limit: limits.generalJsonLimit });
+  const urlencoded = express.urlencoded({
+    extended: true,
+    limit: apiDefaultUrlencodedBodyLimit,
+  });
 
   expressApp.use((req: Request, res: Response, next: NextFunction) => {
-    if (!isPublicApplicationSubmitPath(requestPath(req))) {
+    if (!isPublicApplicationSubmitRequest(req)) {
       next();
       return;
     }
@@ -93,5 +106,6 @@ export function registerApiHttpBodyParsers(
   });
 
   expressApp.use(generalJson);
+  expressApp.use(urlencoded);
   expressApp.use(publicApplicationPayloadTooLargeHandler);
 }

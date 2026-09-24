@@ -492,6 +492,7 @@ export {
 export type { OptionalCategoryUploadFlags } from './public-upload-requirements.js';
 export {
   apiDefaultJsonBodyLimit,
+  apiDefaultUrlencodedBodyLimit,
   estimatePublicApplicationSubmitJsonBytes,
   publicApplicationDefaultJsonBodyLimit,
   publicApplicationEncodedBase64Length,

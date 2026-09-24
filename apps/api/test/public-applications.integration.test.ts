@@ -1300,6 +1300,54 @@ describe('public opportunity applications', () => {
       expect(bodyText).not.toContain(publicApplicationRequestTooLargeCode);
     });
 
+    it('applies the general 6mb JSON limit to non-POST methods on the public application URL', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue84-non-post-general-limit',
+        recruiterUserId,
+      );
+      const betweenLimitsBytes = 6 * 1024 * 1024 + 512 * 1024;
+      const body = jsonBodyWithApproximateUtf8Bytes(betweenLimitsBytes);
+      for (const method of ['PUT', 'PATCH'] as const) {
+        const response = await fetch(
+          `${baseUrl}/v1/public/opportunities/${opportunity.publicSlug}/applications?website=trap`,
+          {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body,
+          },
+        );
+        expect(response.status, method).toBe(413);
+        expect(await response.text(), method).not.toContain(publicApplicationRequestTooLargeCode);
+      }
+    });
+
+    it('parses small URL-encoded bodies and rejects oversize URL-encoded payloads at 100kb', async () => {
+      const small = new URLSearchParams({
+        email: 'recruiter@public-applications.test',
+        password: 'Synthetic-passphrase-123!',
+      });
+      const parsed = await fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: small.toString(),
+      });
+      expect(parsed.status).not.toBe(413);
+      expect(AuthResponseSchema.safeParse(await parsed.json()).success).toBe(true);
+
+      const oversize = new URLSearchParams({
+        email: 'oversize-urlencoded@public-applications.test',
+        password: 'Synthetic-passphrase-123!',
+        pad: 'x'.repeat(110 * 1024),
+      });
+      const rejected = await fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: oversize.toString(),
+      });
+      expect(rejected.status).toBe(413);
+      expect(await rejected.text()).not.toContain(publicApplicationRequestTooLargeCode);
+    });
+
     it('accepts public submit when encoded JSON exceeds 6mb via scoped public parser only', async () => {
       const { mission, opportunity } = await createMissionWithOpportunity(
         'issue84-over-6mb-json',
