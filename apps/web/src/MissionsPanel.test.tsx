@@ -298,6 +298,88 @@ describe('MissionsPanel request ownership', () => {
       ),
     ).toHaveLength(0);
   });
+
+  it('clears required flags in the submitted configuration when staff disables upload categories', async () => {
+    const mission = syntheticMission(MISSION_A_ID, 'Mission A');
+    const opportunity = syntheticPublicOpportunity(MISSION_A_ID, {
+      certificationsEnabled: true,
+      certificationsRequired: true,
+      diplomasEnabled: true,
+      diplomasRequired: true,
+    });
+    const patchBodies: Array<Record<string, unknown>> = [];
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/missions?')) {
+        return Promise.resolve(missionListResponse([mission]));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_A_ID}`)) {
+        return Promise.resolve(jsonResponse({ mission }));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`)) {
+        if (init?.method === 'PATCH') {
+          const body = JSON.parse(typeof init.body === 'string' ? init.body : '{}') as Record<
+            string,
+            unknown
+          >;
+          patchBodies.push(body);
+          return Promise.resolve(
+            jsonResponse({
+              publicOpportunity: {
+                ...opportunity,
+                uploadRequirements: {
+                  ...opportunity.uploadRequirements,
+                  certificationsEnabled: body.certificationsEnabled,
+                  certificationsRequired: body.certificationsRequired,
+                  diplomasEnabled: body.diplomasEnabled,
+                  diplomasRequired: body.diplomasRequired,
+                },
+              },
+            }),
+          );
+        }
+        return Promise.resolve(jsonResponse({ publicOpportunity: opportunity }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+
+    render(
+      <MissionsPanel
+        accessToken="staff-token"
+        initialMissionId={null}
+        onSelectionChange={() => undefined}
+        permissions={['missions:view', 'public_opportunities:view', 'public_opportunities:manage']}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+    const certificationEnabled = await screen.findByRole('checkbox', {
+      name: 'Certifications enabled',
+    });
+    const certificationRequired = screen.getByRole('checkbox', {
+      name: 'Certifications required',
+    });
+    const diplomaEnabled = screen.getByRole('checkbox', { name: 'Diplomas enabled' });
+    const diplomaRequired = screen.getByRole('checkbox', { name: 'Diplomas required' });
+    expect(certificationRequired).toBeChecked();
+    expect(diplomaRequired).toBeChecked();
+
+    fireEvent.click(certificationEnabled);
+    fireEvent.click(diplomaEnabled);
+    fireEvent.click(screen.getByRole('button', { name: 'Save public opportunity' }));
+
+    expect(await screen.findByText('Public opportunity configuration saved.')).toBeVisible();
+    expect(patchBodies).toHaveLength(1);
+    expect(patchBodies[0]).toEqual(
+      expect.objectContaining({
+        certificationsEnabled: false,
+        certificationsRequired: false,
+        diplomasEnabled: false,
+        diplomasRequired: false,
+      }),
+    );
+  });
 });
 
 function syntheticMission(id: string, title: string) {
@@ -412,7 +494,15 @@ function missionCandidateListResponse(candidateName?: string): Response {
   });
 }
 
-function syntheticPublicOpportunity(missionId: string) {
+function syntheticPublicOpportunity(
+  missionId: string,
+  uploadRequirementOverrides: Partial<{
+    certificationsEnabled: boolean;
+    certificationsRequired: boolean;
+    diplomasEnabled: boolean;
+    diplomasRequired: boolean;
+  }> = {},
+) {
   return {
     id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
     missionId,
@@ -444,6 +534,7 @@ function syntheticPublicOpportunity(missionId: string) {
       maxFileSizeBytes: 5_000_000,
       maxTotalUploadBytes: 12_000_000,
       allowedMimeTypes: ['application/pdf'],
+      ...uploadRequirementOverrides,
     },
     consentTextVersion: 'synthetic-v1',
     archivedAt: null,
