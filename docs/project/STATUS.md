@@ -61,7 +61,7 @@ Status owner: repository maintainer
 
 ## Issue #84 Verification State (draft, pending merge)
 
-- D-068 accepted: keep **5,000,000** decimal raw-byte aggregate and **1,500,000** per-file limits; default JSON body limit **`8mb`**; stable **413** `PUBLIC_APPLICATION_REQUEST_TOO_LARGE` on parser oversize; browser **413** → localized **`payloadTooLarge`** without reading bodies; application-level **`PUBLIC_APPLICATION_UPLOAD_TOO_LARGE`** when raw aggregate exceeds cap inside the transport limit.
+- D-068 accepted: keep **5,000,000** decimal raw-byte aggregate and **1,500,000** per-file limits; **`8mb`** JSON parser scoped to public application submit only (`PUBLIC_APPLICATION_JSON_LIMIT`); general JSON routes remain **`6mb`** (`JSON_BODY_LIMIT`); stable **413** `PUBLIC_APPLICATION_REQUEST_TOO_LARGE` on public parser oversize; browser **413** → localized **`payloadTooLarge`**; deployments must align env overrides and upstream proxy/CDN limits independently.
 - A-75-03 is **not** corrected on `main` until the Issue #84 PR merges.
 
 ## Issue #73 Verification State (merged PR #74)

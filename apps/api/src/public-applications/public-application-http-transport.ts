@@ -1,4 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Express, NextFunction, Request, Response } from 'express';
+import express from 'express';
 
 export const publicApplicationRequestTooLargeCode = 'PUBLIC_APPLICATION_REQUEST_TOO_LARGE';
 
@@ -6,6 +8,16 @@ const publicApplicationApplicationsPath = /^\/v1\/public\/opportunities\/[^/]+\/
 
 export function isPublicApplicationSubmitPath(path: string): boolean {
   return publicApplicationApplicationsPath.test(path);
+}
+
+/** Path without query string, for transport scoping. */
+export function requestPath(req: { path?: string; url?: string }): string {
+  if (req.path) {
+    return req.path;
+  }
+  const url = req.url ?? '';
+  const queryIndex = url.indexOf('?');
+  return queryIndex === -1 ? url : url.slice(0, queryIndex);
 }
 
 type BodyParserPayloadTooLargeError = Error & { type: 'entity.too.large' };
@@ -33,7 +45,7 @@ export function publicApplicationPayloadTooLargeHandler(
     next(error);
     return;
   }
-  const path = req.path ?? req.url ?? '';
+  const path = requestPath(req);
   if (!isPublicApplicationSubmitPath(path)) {
     next(error);
     return;
@@ -50,10 +62,36 @@ export function publicApplicationPayloadTooLargeHandler(
   });
 }
 
-export function registerPublicApplicationHttpTransport(
+export type ApiHttpBodyParserLimits = {
+  /** JSON limit for authenticated/internal routes (default 6mb). */
+  generalJsonLimit: string;
+  /** JSON limit for public application submit only (default 8mb). */
+  publicApplicationJsonLimit: string;
+};
+
+/**
+ * Registers JSON body parsers in order:
+ * 1. Public application submit path (higher limit, runs only when path matches).
+ * 2. General API JSON parser (lower limit; skips when body already parsed).
+ *
+ * Nest's built-in body parser must be disabled (`bodyParser: false`) before calling this.
+ */
+export function registerApiHttpBodyParsers(
   app: NestExpressApplication,
-  jsonBodyLimit: string,
+  limits: ApiHttpBodyParserLimits,
 ): void {
-  app.useBodyParser('json', { limit: jsonBodyLimit });
-  app.use(publicApplicationPayloadTooLargeHandler);
+  const expressApp: Express = app.getHttpAdapter().getInstance();
+  const publicApplicationJson = express.json({ limit: limits.publicApplicationJsonLimit });
+  const generalJson = express.json({ limit: limits.generalJsonLimit });
+
+  expressApp.use((req: Request, res: Response, next: NextFunction) => {
+    if (!isPublicApplicationSubmitPath(requestPath(req))) {
+      next();
+      return;
+    }
+    publicApplicationJson(req, res, next);
+  });
+
+  expressApp.use(generalJson);
+  expressApp.use(publicApplicationPayloadTooLargeHandler);
 }

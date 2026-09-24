@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  apiDefaultJsonBodyLimit,
   estimatePublicApplicationSubmitJsonBytes,
   publicApplicationDefaultJsonBodyLimit,
   publicApplicationEncodedBase64Length,
@@ -14,6 +15,7 @@ describe('public application upload limits', () => {
   it('documents the per-file and aggregate raw caps', () => {
     expect(publicApplicationMaxFileSizeBytes).toBe(1_500_000);
     expect(publicApplicationMaxTotalUploadBytes).toBe(5_000_000);
+    expect(apiDefaultJsonBodyLimit).toBe('6mb');
   });
 
   it('keeps the default JSON transport limit above max aggregate base64 plus metadata', () => {

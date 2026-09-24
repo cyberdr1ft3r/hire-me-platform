@@ -20,7 +20,7 @@ import { AppModule } from '../src/app.module.js';
 import { loadEnvironment } from '../src/config/environment.js';
 import {
   publicApplicationRequestTooLargeCode,
-  registerPublicApplicationHttpTransport,
+  registerApiHttpBodyParsers,
 } from '../src/public-applications/public-application-http-transport.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import { ProtectedStorageService } from '../src/storage/protected-storage.service.js';
@@ -641,8 +641,12 @@ describe('public opportunity applications', () => {
     recruiterUserId = await createUser('recruiter@public-applications.test', RoleName.HR_MANAGER);
     await createUser('manage-only@public-applications.test', RoleName.CLIENT_USER);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication<NestExpressApplication>();
-    registerPublicApplicationHttpTransport(app, loadEnvironment().PUBLIC_APPLICATION_JSON_LIMIT);
+    app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
+    const environment = loadEnvironment();
+    registerApiHttpBodyParsers(app, {
+      generalJsonLimit: environment.JSON_BODY_LIMIT,
+      publicApplicationJsonLimit: environment.PUBLIC_APPLICATION_JSON_LIMIT,
+    });
     app.enableCors({ origin: 'http://127.0.0.1:5173', credentials: true });
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
@@ -1224,6 +1228,16 @@ describe('public opportunity applications', () => {
   });
 
   describe('issue84 json transport and aggregate upload limits', () => {
+    function jsonBodyWithApproximateUtf8Bytes(targetBytes: number): string {
+      let padding = Math.max(0, targetBytes - 64);
+      let body = JSON.stringify({ padding: 'a'.repeat(padding) });
+      while (Buffer.byteLength(body, 'utf8') < targetBytes) {
+        padding += 1024;
+        body = JSON.stringify({ padding: 'a'.repeat(padding) });
+      }
+      return body;
+    }
+
     function aggregatePlainTextFiles(rawSizes: number[]) {
       const categories: Array<'ADDITIONAL' | 'CERTIFICATION' | 'CV' | 'DIPLOMA'> = [
         'CV',
@@ -1262,6 +1276,60 @@ describe('public opportunity applications', () => {
         files: aggregatePlainTextFiles([1_500_000, 1_500_000, 1_500_000, 300_000]),
       });
       expect(auditResponse.status).toBe(200);
+      expect(
+        Buffer.byteLength(
+          JSON.stringify({
+            ...applicationPayload(auditEmail),
+            motivation: 'x'.repeat(4000),
+            files: aggregatePlainTextFiles([1_500_000, 1_500_000, 1_500_000, 300_000]),
+          }),
+          'utf8',
+        ),
+      ).toBeGreaterThan(6 * 1024 * 1024);
+    });
+
+    it('rejects non-public JSON above the general 6mb limit but below the public 8mb allowance', async () => {
+      const betweenLimitsBytes = 6 * 1024 * 1024 + 512 * 1024;
+      const response = await fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: jsonBodyWithApproximateUtf8Bytes(betweenLimitsBytes),
+      });
+      expect(response.status).toBe(413);
+      const bodyText = await response.text();
+      expect(bodyText).not.toContain(publicApplicationRequestTooLargeCode);
+    });
+
+    it('accepts public submit when encoded JSON exceeds 6mb via scoped public parser only', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue84-over-6mb-json',
+        recruiterUserId,
+      );
+      await enableAllOptionalUploadCategories(baseUrl, mission.id);
+      const email = 'issue84-over-6mb-json@public-applications.test';
+      const payload = {
+        ...applicationPayload(email),
+        motivation: 'x'.repeat(4000),
+        files: aggregatePlainTextFiles([1_500_000, 1_500_000, 1_500_000, 300_000]),
+      };
+      expect(Buffer.byteLength(JSON.stringify(payload), 'utf8')).toBeGreaterThan(6 * 1024 * 1024);
+      const response = await fetch(
+        `${baseUrl}/v1/public/opportunities/${opportunity.publicSlug}/applications/?website=trap`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+      expect(response.status).toBe(200);
+      await expect(
+        prisma.publicCandidateApplication.count({
+          where: {
+            publicOpportunityId: opportunity.id,
+            submittedNormalizedEmail: email,
+          },
+        }),
+      ).resolves.toBe(1);
     });
 
     it('accepts multi-file submissions just below and exactly at the raw aggregate cap', async () => {
@@ -1342,8 +1410,11 @@ describe('public opportunity applications', () => {
 
     beforeAll(async () => {
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-      tightApp = moduleRef.createNestApplication<NestExpressApplication>();
-      registerPublicApplicationHttpTransport(tightApp, '512kb');
+      tightApp = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
+      registerApiHttpBodyParsers(tightApp, {
+        generalJsonLimit: '6mb',
+        publicApplicationJsonLimit: '512kb',
+      });
       await tightApp.listen(0, '127.0.0.1');
       tightBaseUrl = await tightApp.getUrl();
     });

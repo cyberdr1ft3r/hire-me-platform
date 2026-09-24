@@ -19,6 +19,9 @@ export const publicApplicationMaxTotalUploadBytes = 5_000_000;
  */
 export const publicApplicationDefaultJsonBodyLimit = '8mb';
 
+/** Default JSON body parser limit for authenticated and internal API routes. */
+export const apiDefaultJsonBodyLimit = '6mb';
+
 /** Base64 length for a given raw byte length (no padding edge cases for large buffers). */
 export function publicApplicationEncodedBase64Length(rawBytes: number): number {
   if (rawBytes <= 0) {
