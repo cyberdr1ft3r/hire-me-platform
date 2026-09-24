@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  effectiveOptionalCategoryUploadRequirements,
+  normalizeOptionalCategoryUploadForPersist,
+} from '@hire-me/contracts';
 import type {
   InternalPublicApplicationListResponse,
   InternalPublicOpportunityDetailResponse,
@@ -205,6 +209,36 @@ export class PublicApplicationsService {
         publicationStartsAt: existing?.publicationStartsAt ?? null,
         applicationDeadline: existing?.applicationDeadline ?? mission.applicationDeadline,
       });
+      const defaultOptionalCategoryUpload = {
+        certificationsEnabled: true,
+        certificationsRequired: false,
+        diplomasEnabled: true,
+        diplomasRequired: false,
+      };
+      const storedOptionalCategoryUpload = existing
+        ? {
+            certificationsEnabled: existing.certificationsEnabled,
+            certificationsRequired: existing.certificationsRequired,
+            diplomasEnabled: existing.diplomasEnabled,
+            diplomasRequired: existing.diplomasRequired,
+          }
+        : defaultOptionalCategoryUpload;
+      const optionalCategoryUploadPatch = {
+        ...(input.certificationsEnabled !== undefined
+          ? { certificationsEnabled: input.certificationsEnabled }
+          : {}),
+        ...(input.certificationsRequired !== undefined
+          ? { certificationsRequired: input.certificationsRequired }
+          : {}),
+        ...(input.diplomasEnabled !== undefined ? { diplomasEnabled: input.diplomasEnabled } : {}),
+        ...(input.diplomasRequired !== undefined
+          ? { diplomasRequired: input.diplomasRequired }
+          : {}),
+      };
+      const normalizedOptionalCategoryUpload = normalizeOptionalCategoryUploadForPersist(
+        storedOptionalCategoryUpload,
+        optionalCategoryUploadPatch,
+      );
       const data = {
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.applicationLinkEnabled !== undefined
@@ -241,16 +275,10 @@ export class PublicApplicationsService {
         ...(input.showClientName !== undefined ? { showClientName: input.showClientName } : {}),
         ...(input.showSalary !== undefined ? { showSalary: input.showSalary } : {}),
         ...(input.cvRequired !== undefined ? { cvRequired: input.cvRequired } : {}),
-        ...(input.certificationsEnabled !== undefined
-          ? { certificationsEnabled: input.certificationsEnabled }
-          : {}),
-        ...(input.certificationsRequired !== undefined
-          ? { certificationsRequired: input.certificationsRequired }
-          : {}),
-        ...(input.diplomasEnabled !== undefined ? { diplomasEnabled: input.diplomasEnabled } : {}),
-        ...(input.diplomasRequired !== undefined
-          ? { diplomasRequired: input.diplomasRequired }
-          : {}),
+        certificationsEnabled: normalizedOptionalCategoryUpload.certificationsEnabled,
+        certificationsRequired: normalizedOptionalCategoryUpload.certificationsRequired,
+        diplomasEnabled: normalizedOptionalCategoryUpload.diplomasEnabled,
+        diplomasRequired: normalizedOptionalCategoryUpload.diplomasRequired,
         ...(input.additionalAttachmentsEnabled !== undefined
           ? { additionalAttachmentsEnabled: input.additionalAttachmentsEnabled }
           : {}),
@@ -660,8 +688,14 @@ export class PublicApplicationsService {
     if (opportunity.cvRequired && !categories.has(PublicApplicationFileCategory.CV)) {
       throw badRequest('PUBLIC_APPLICATION_CV_REQUIRED', 'A CV file is required.');
     }
+    const optionalUpload = effectiveOptionalCategoryUploadRequirements({
+      certificationsEnabled: opportunity.certificationsEnabled,
+      certificationsRequired: opportunity.certificationsRequired,
+      diplomasEnabled: opportunity.diplomasEnabled,
+      diplomasRequired: opportunity.diplomasRequired,
+    });
     if (
-      opportunity.certificationsRequired &&
+      optionalUpload.certificationsRequired &&
       !categories.has(PublicApplicationFileCategory.CERTIFICATION)
     ) {
       throw badRequest(
@@ -669,11 +703,11 @@ export class PublicApplicationsService {
         'A certification file is required.',
       );
     }
-    if (opportunity.diplomasRequired && !categories.has(PublicApplicationFileCategory.DIPLOMA)) {
+    if (optionalUpload.diplomasRequired && !categories.has(PublicApplicationFileCategory.DIPLOMA)) {
       throw badRequest('PUBLIC_APPLICATION_DIPLOMA_REQUIRED', 'A diploma file is required.');
     }
     if (
-      !opportunity.certificationsEnabled &&
+      !optionalUpload.certificationsEnabled &&
       categories.has(PublicApplicationFileCategory.CERTIFICATION)
     ) {
       throw badRequest(
@@ -681,7 +715,7 @@ export class PublicApplicationsService {
         'This file category is not enabled.',
       );
     }
-    if (!opportunity.diplomasEnabled && categories.has(PublicApplicationFileCategory.DIPLOMA)) {
+    if (!optionalUpload.diplomasEnabled && categories.has(PublicApplicationFileCategory.DIPLOMA)) {
       throw badRequest(
         'PUBLIC_APPLICATION_FILE_CATEGORY_DISABLED',
         'This file category is not enabled.',
@@ -750,6 +784,12 @@ export class PublicApplicationsService {
   }
 
   private toPublicOpportunity(opportunity: OpportunityRecord) {
+    const optionalUpload = effectiveOptionalCategoryUploadRequirements({
+      certificationsEnabled: opportunity.certificationsEnabled,
+      certificationsRequired: opportunity.certificationsRequired,
+      diplomasEnabled: opportunity.diplomasEnabled,
+      diplomasRequired: opportunity.diplomasRequired,
+    });
     return {
       publicSlug: opportunity.publicSlug,
       publicTitle: opportunity.publicTitle,
@@ -771,10 +811,10 @@ export class PublicApplicationsService {
       applicationDeadline: isoOrNull(opportunity.applicationDeadline),
       uploadRequirements: {
         cvRequired: opportunity.cvRequired,
-        certificationsEnabled: opportunity.certificationsEnabled,
-        certificationsRequired: opportunity.certificationsRequired,
-        diplomasEnabled: opportunity.diplomasEnabled,
-        diplomasRequired: opportunity.diplomasRequired,
+        certificationsEnabled: optionalUpload.certificationsEnabled,
+        certificationsRequired: optionalUpload.certificationsRequired,
+        diplomasEnabled: optionalUpload.diplomasEnabled,
+        diplomasRequired: optionalUpload.diplomasRequired,
         additionalAttachmentsEnabled: opportunity.additionalAttachmentsEnabled,
         maxFileSizeBytes: publicApplicationMaxFileSizeBytes,
         maxTotalUploadBytes: publicApplicationMaxTotalUploadBytes,

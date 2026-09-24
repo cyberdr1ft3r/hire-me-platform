@@ -106,7 +106,7 @@ type RolePermissionSnapshot = {
   }[];
 };
 
-const syntheticPublicSlugPrefixes = ['issue27', 'issue80'] as const;
+const syntheticPublicSlugPrefixes = ['issue27', 'issue80', 'issue82'] as const;
 
 function syntheticPublicSlugWhere(): {
   OR: Array<{ publicSlug: { contains: string } }>;
@@ -903,6 +903,258 @@ describe('public opportunity applications', () => {
     } finally {
       put.mockRestore();
     }
+  });
+
+  describe('issue82 optional upload category invariant', () => {
+    async function patchInternalOpportunity(
+      missionId: string,
+      token: string,
+      body: Record<string, unknown>,
+    ) {
+      return fetch(`${baseUrl}/v1/missions/${missionId}/public-opportunity`, {
+        method: 'PATCH',
+        headers: authHeaders(token),
+        body: JSON.stringify(body),
+      });
+    }
+
+    function certificationFilePayload(email: string, includeCertification: boolean) {
+      const files: {
+        category: PublicApplicationFileCategory;
+        filename: string;
+        contentType: string;
+        base64Content: string;
+      }[] = [
+        {
+          category: PublicApplicationFileCategory.CV,
+          filename: 'cv.pdf',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        },
+      ];
+      if (includeCertification) {
+        files.push({
+          category: PublicApplicationFileCategory.CERTIFICATION,
+          filename: 'cert.pdf',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        });
+      }
+      return { ...applicationPayload(email), files };
+    }
+
+    function diplomaFilePayload(email: string, includeDiploma: boolean) {
+      const files: {
+        category: PublicApplicationFileCategory;
+        filename: string;
+        contentType: string;
+        base64Content: string;
+      }[] = [
+        {
+          category: PublicApplicationFileCategory.CV,
+          filename: 'cv.pdf',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        },
+      ];
+      if (includeDiploma) {
+        files.push({
+          category: PublicApplicationFileCategory.DIPLOMA,
+          filename: 'diploma.pdf',
+          contentType: 'application/pdf',
+          base64Content: uploadFixtures.pdf.toString('base64'),
+        });
+      }
+      return { ...applicationPayload(email), files };
+    }
+
+    it('accepts submissions when stored certification config is disabled-but-required', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue82-cert-contradictory',
+        recruiterUserId,
+      );
+      await prisma.publicOpportunity.update({
+        where: { id: opportunity.id },
+        data: { certificationsEnabled: false, certificationsRequired: true },
+      });
+
+      const publicDetail = await fetch(
+        `${baseUrl}/v1/public/opportunities/${opportunity.publicSlug}`,
+      );
+      expect(publicDetail.status).toBe(200);
+      const detailBody = PublicOpportunityDetailResponseSchema.parse(await publicDetail.json());
+      expect(detailBody.opportunity.uploadRequirements.certificationsEnabled).toBe(false);
+      expect(detailBody.opportunity.uploadRequirements.certificationsRequired).toBe(false);
+
+      const email = 'issue82-cert-contradictory@public-applications.test';
+      const accepted = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        certificationFilePayload(email, false),
+      );
+      expect(accepted.status).toBe(200);
+      PublicApplicationSubmitResponseSchema.parse(await accepted.json());
+
+      const rejectedHiddenCategory = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        certificationFilePayload('issue82-cert-hidden-file@public-applications.test', true),
+      );
+      expect(rejectedHiddenCategory.status).toBe(400);
+      expect(await rejectedHiddenCategory.json()).toMatchObject({
+        error: { code: 'PUBLIC_APPLICATION_FILE_CATEGORY_DISABLED' },
+      });
+      await expect(
+        prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
+      ).resolves.toBe(1);
+      await expect(
+        prisma.missionCandidate.count({ where: { missionId: mission.id } }),
+      ).resolves.toBe(1);
+    });
+
+    it('enforces enabled required certifications and clears required when staff disables the category', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue82-cert-staff-toggle',
+        recruiterUserId,
+      );
+
+      const enableRequired = await patchInternalOpportunity(mission.id, token, {
+        certificationsEnabled: true,
+        certificationsRequired: true,
+        cvRequired: true,
+      });
+      expect(enableRequired.status).toBe(200);
+
+      const missingCert = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        certificationFilePayload('issue82-cert-missing@public-applications.test', false),
+      );
+      expect(missingCert.status).toBe(400);
+      expect(await missingCert.json()).toMatchObject({
+        error: { code: 'PUBLIC_APPLICATION_CERTIFICATION_REQUIRED' },
+      });
+
+      const withCert = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        certificationFilePayload('issue82-cert-provided@public-applications.test', true),
+      );
+      expect(withCert.status).toBe(200);
+
+      const disableCategory = await patchInternalOpportunity(mission.id, token, {
+        certificationsEnabled: false,
+        certificationsRequired: true,
+      });
+      expect(disableCategory.status).toBe(200);
+      const disabledBody = InternalPublicOpportunityDetailResponseSchema.parse(
+        await disableCategory.json(),
+      );
+      expect(disabledBody.publicOpportunity.uploadRequirements.certificationsRequired).toBe(false);
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({
+        certificationsEnabled: false,
+        certificationsRequired: false,
+      });
+
+      const afterDisable = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        certificationFilePayload('issue82-cert-after-disable@public-applications.test', false),
+      );
+      expect(afterDisable.status).toBe(200);
+    });
+
+    it('handles diplomas independently and repairs contradictory stored diploma settings on save', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue82-diploma-config',
+        recruiterUserId,
+      );
+      await prisma.publicOpportunity.update({
+        where: { id: opportunity.id },
+        data: {
+          diplomasEnabled: false,
+          diplomasRequired: true,
+          certificationsEnabled: true,
+          certificationsRequired: false,
+        },
+      });
+
+      const optionalDiplomaSubmit = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        diplomaFilePayload('issue82-diploma-optional@public-applications.test', false),
+      );
+      expect(optionalDiplomaSubmit.status).toBe(200);
+
+      const repair = await patchInternalOpportunity(mission.id, token, {
+        publicSummary: 'Issue82 repair contradictory diploma flags.',
+      });
+      expect(repair.status).toBe(200);
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({
+        diplomasEnabled: false,
+        diplomasRequired: false,
+      });
+
+      const enableRequiredDiploma = await patchInternalOpportunity(mission.id, token, {
+        diplomasEnabled: true,
+        diplomasRequired: true,
+      });
+      expect(enableRequiredDiploma.status).toBe(200);
+      const missingDiploma = await submit(
+        baseUrl,
+        opportunity.publicSlug,
+        diplomaFilePayload('issue82-diploma-missing@public-applications.test', false),
+      );
+      expect(missingDiploma.status).toBe(400);
+      expect(await missingDiploma.json()).toMatchObject({
+        error: { code: 'PUBLIC_APPLICATION_DIPLOMA_REQUIRED' },
+      });
+      await expect(
+        prisma.missionCandidate.count({ where: { missionId: mission.id } }),
+      ).resolves.toBe(1);
+    });
+
+    it('supports both categories enabled with independent required flags', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue82-both-categories',
+        recruiterUserId,
+      );
+      const configured = await patchInternalOpportunity(mission.id, token, {
+        certificationsEnabled: true,
+        certificationsRequired: true,
+        diplomasEnabled: true,
+        diplomasRequired: false,
+      });
+      expect(configured.status).toBe(200);
+
+      const email = 'issue82-both-categories@public-applications.test';
+      const payload = {
+        ...applicationPayload(email),
+        files: [
+          {
+            category: 'CV' as const,
+            filename: 'cv.pdf',
+            contentType: 'application/pdf',
+            base64Content: uploadFixtures.pdf.toString('base64'),
+          },
+          {
+            category: 'CERTIFICATION' as const,
+            filename: 'cert.pdf',
+            contentType: 'application/pdf',
+            base64Content: uploadFixtures.pdf.toString('base64'),
+          },
+        ],
+      };
+      const accepted = await submit(baseUrl, opportunity.publicSlug, payload);
+      expect(accepted.status).toBe(200);
+    });
   });
 
   it('rejects spoofed, truncated, mismatched, and oversized uploads without side effects', async () => {

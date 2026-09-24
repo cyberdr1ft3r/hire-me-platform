@@ -123,10 +123,7 @@ export function visibleFileSlots(requirements: UploadRequirements): ApplicationF
   }).map(({ name }) => name);
 }
 
-/**
- * The documents the server will insist on. A category that is required but not
- * enabled has no control, exactly as before; the server still decides.
- */
+/** The documents the server will insist on (enabled categories only). */
 export function isFileRequired(slot: ApplicationFileSlot, requirements: UploadRequirements) {
   switch (slot) {
     case 'cv':

@@ -492,34 +492,101 @@ describe('public application', () => {
     expect(screen.getByLabelText(/^CV/)).toHaveAttribute('accept', 'application/pdf,text/plain');
   });
 
-  it('shows enabled document categories and marks required ones', async () => {
-    mockPublicApi({
-      detail: () =>
-        Promise.resolve(
-          jsonResponse({
-            opportunity: syntheticOpportunity({
-              uploadRequirements: {
-                ...syntheticOpportunity().uploadRequirements,
-                additionalAttachmentsEnabled: true,
-                certificationsEnabled: true,
-                certificationsRequired: true,
-                cvRequired: false,
-                diplomasEnabled: true,
-              },
+  it.each([
+    { certification: 'Certification', diploma: 'Diploma', locale: 'en' as const },
+    { certification: 'Certification', diploma: 'Diplôme', locale: 'fr' as const },
+  ])(
+    'hides disabled legacy-required document controls in $locale',
+    async ({ certification, diploma, locale }) => {
+      mockPublicApi({
+        detail: () =>
+          Promise.resolve(
+            jsonResponse({
+              opportunity: syntheticOpportunity({
+                uploadRequirements: {
+                  ...syntheticOpportunity().uploadRequirements,
+                  certificationsEnabled: false,
+                  certificationsRequired: true,
+                  cvRequired: false,
+                  diplomasEnabled: false,
+                  diplomasRequired: true,
+                },
+              }),
             }),
-          }),
-        ),
-    });
-    openDetail();
-    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+          ),
+      });
+      openDetail(locale);
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
 
-    expect(screen.getByLabelText(/^CV/)).not.toBeRequired();
-    expect(screen.getByLabelText(/^Certification/)).toBeRequired();
-    expect(screen.getByLabelText(/^Diploma/)).not.toBeRequired();
-    expect(screen.getByLabelText(/^Additional document/)).not.toBeRequired();
-    // The visible required marker is decorative; the accessible name stays the category.
-    expect(screen.getByLabelText(/^Certification/)).toHaveAccessibleName('Certification');
-  });
+      expect(screen.queryByLabelText(new RegExp(`^${certification}`))).toBeNull();
+      expect(screen.queryByLabelText(new RegExp(`^${diploma}`))).toBeNull();
+      expect(
+        applicationForm(locale === 'fr' ? 'Postuler à cette offre' : undefined),
+      ).not.toHaveTextContent(
+        locale === 'fr' ? 'Ajoutez ce document pour postuler.' : 'Add this document to apply.',
+      );
+    },
+  );
+
+  it.each([
+    {
+      certification: 'Certification',
+      diploma: 'Diploma',
+      locale: 'en' as const,
+      requiredMessage: 'Add this document to apply.',
+    },
+    {
+      certification: 'Certification',
+      diploma: 'Diplôme',
+      locale: 'fr' as const,
+      requiredMessage: 'Ajoutez ce document pour postuler.',
+    },
+  ])(
+    'keeps enabled required certification and diploma controls required in $locale',
+    async ({ certification, diploma, locale, requiredMessage }) => {
+      mockPublicApi({
+        detail: () =>
+          Promise.resolve(
+            jsonResponse({
+              opportunity: syntheticOpportunity({
+                uploadRequirements: {
+                  ...syntheticOpportunity().uploadRequirements,
+                  certificationsEnabled: true,
+                  certificationsRequired: true,
+                  cvRequired: false,
+                  diplomasEnabled: true,
+                  diplomasRequired: true,
+                },
+              }),
+            }),
+          ),
+      });
+      openDetail(locale);
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+
+      const certificationControl = screen.getByLabelText(new RegExp(`^${certification}`));
+      const diplomaControl = screen.getByLabelText(new RegExp(`^${diploma}`));
+      expect(certificationControl).toBeRequired();
+      expect(diplomaControl).toBeRequired();
+      // The visible required marker is decorative; the accessible name stays the category.
+      expect(certificationControl).toHaveAccessibleName(certification);
+      expect(diplomaControl).toHaveAccessibleName(diploma);
+
+      fireEvent.submit(applicationForm(locale === 'fr' ? 'Postuler à cette offre' : undefined));
+      expect(certificationControl).toHaveAccessibleDescription(
+        `No file selected ${requiredMessage}`.replace(
+          'No file selected',
+          locale === 'fr' ? 'Aucun fichier sélectionné' : 'No file selected',
+        ),
+      );
+      expect(diplomaControl).toHaveAccessibleDescription(
+        `No file selected ${requiredMessage}`.replace(
+          'No file selected',
+          locale === 'fr' ? 'Aucun fichier sélectionné' : 'No file selected',
+        ),
+      );
+    },
+  );
 
   it('validates locally, focuses the first invalid field, and sends nothing', async () => {
     const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));

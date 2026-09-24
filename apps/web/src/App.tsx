@@ -2060,9 +2060,12 @@ export function MissionsPanel({
       showSalary: formData.get('showSalary') === 'on',
       cvRequired: formData.get('cvRequired') === 'on',
       certificationsEnabled: formData.get('certificationsEnabled') === 'on',
-      certificationsRequired: formData.get('certificationsRequired') === 'on',
+      certificationsRequired:
+        formData.get('certificationsEnabled') === 'on' &&
+        formData.get('certificationsRequired') === 'on',
       diplomasEnabled: formData.get('diplomasEnabled') === 'on',
-      diplomasRequired: formData.get('diplomasRequired') === 'on',
+      diplomasRequired:
+        formData.get('diplomasEnabled') === 'on' && formData.get('diplomasRequired') === 'on',
       additionalAttachmentsEnabled: formData.get('additionalAttachmentsEnabled') === 'on',
     });
     setPublicOpportunity(updated.publicOpportunity);

@@ -1,33 +1,26 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Current situation
 
-- Authoritative `main` is `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`, including merged PR #74 (D-066 Accepted; D-PUBLIC-01 corrected for **future** submissions only), PR #79 (A-75-04), and PR #81 (A-75-02).
-- Historical public salary records remain **review-only** via the diagnostics SQL/runbook; no heuristic backfill. R-039 is untouched.
-- Issue #75 (Public Opportunity runtime audit under #66) remains **open**. Corrected on `main`: **A-75-04** (missing-recruiter 503, narrow D-040 revision) and **A-75-02** (bounded JPEG/PNG validation before storage; malware-scan **interface only**, no production scanner; structural validation, not full image decode).
-- Still outstanding in #75: **A-75-01**, **A-75-03**, **A-75-05**, **A-75-06/07**, **A-75-08**. Maintainer KEEP/CORRECT/DEFER decisions and fresh EN/FR browser visual evidence are required before treating the audit gate as passed.
-- Issue #66 remains open. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) stays deferred until after the functional module rollout.
-- Documentation reconciliation for Issue #76 lives on PR #77 (`docs/post-salary-public-audit-handoff`); content must reflect the post-#79/#81 `main` state before merge.
+- Authoritative `main` is `c4b7fe8964cf396136237aa9d1c772ec020fc6d4`, including merged project-memory PR #77, A-75-04 through PR #79, and A-75-02 through PR #81.
+- Issue #82 / draft PR #83 owns A-75-01. The maintainer accepted D-067: certification and diploma are required only while enabled; staff saves clear contradictory required flags; legacy stored contradictions use effective disabled/not-required public and submit semantics and are repaired on a later authorized save without a bulk migration.
+- The API/shared-contract implementation is accepted. The completion pass adds browser-facing EN/FR Public Opportunity regressions, a Missions staff-payload regression, and project-memory reconciliation. A-75-01 remains **pending merge**, not corrected on `main`.
+- Still outstanding in Issue #75 after A-75-01: **A-75-03**, **A-75-05**, **A-75-06/07**, and **A-75-08**, plus fresh EN/FR responsive browser evidence. R-039 is unchanged.
+- D-040, D-043, D-066, CV requirements, file validation/storage/version history, candidate accounts, and client-portal boundaries are unchanged.
 
-## Active review and next executable action
+## Next concrete action
 
-1. Finish and merge PR #77 after exact-head CI and ChatGPT review (docs-only; six project-memory files).
-2. Read Issue #75 latest matrix and comments; do not re-open merged A-75-04 or A-75-02 scope on unrelated branches.
-3. After maintainer decisions, implement remaining #75 corrections as isolated issues/branches (one reviewable fix each).
-4. Capture real-browser public EN/FR evidence at required breakpoints; static code review does not close the visual gate.
-5. Then audit shared AppShell/i18n and proceed with Clients, Missions, Training, and Commercial UX rollout.
+1. Review the exact new PR #83 head and its GitHub Actions run; do not merge until the maintainer/ChatGPT accepts the browser regressions, PostgreSQL verification, and D-067 memory update.
+2. After merge, update A-75-01 and R-041 from pending to corrected/mitigated on `main` and close Issue #82 as appropriate.
+3. Obtain maintainer decisions and implement only the four other scoped Issue #75 findings.
+4. Capture the remaining public EN/FR responsive visual evidence, then continue the Issue #66 AppShell/i18n audit.
 
-## Explicit boundaries
+## PR #83 completion conditions
 
-- Do not auto-correct historic salary rows or expand D-066 semantics.
-- Do not claim deployed malware scanning; only document the optional Nest hook from PR #81.
-- No candidate accounts/dashboard or client portal in MVP; EN/FR preference remains locally persisted.
-- No production deployment, schema migration, or R-039 change from documentation work.
-- No agent merge without explicit maintainer instruction and exact-head review.
-
-## Completion gate for PR #77
-
-- All six memory files match `65d1ce0`, merged #79/#81 behavior, open #75/#66 status, accepted D-066, revised D-040 missing-recruiter clause, and unchanged R-039.
-- PR #77 stays draft/open/unmerged until maintainer review and green exact-head CI on the refreshed head.
+- Public form tests prove disabled legacy-required certification and diploma controls cannot become impossible requirements in EN or FR.
+- Enabled-and-required certification and diploma controls remain visible, native-required, and locally validated in EN and FR.
+- The Missions staff form cannot submit `enabled=false` with `required=true` for either category.
+- Formatting, architecture/style checks, lint, typecheck, contracts, full web tests, build, clean disposable-PostgreSQL migration/seed/integration tests, and exact-head CI pass.
+- PR #83 stays open, draft, and unmerged; no deployment.

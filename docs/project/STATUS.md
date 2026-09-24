@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`, including merged PR #74 (D-066 / D-PUBLIC-01 for future submissions), PR #79 (A-75-04 missing-recruiter 503), and PR #81 (A-75-02 bounded JPEG/PNG upload validation). Public Opportunity conformance audit #75 and overarching drift audit #66 remain open; no production deployment.
-**Current blocker:** Issue #75 still has five outstanding correction items after the runtime audit: A-75-01 (required/disabled upload categories), A-75-03 (advertised upload size vs JSON transport limit), A-75-05 (public salary currency shape), A-75-06/07 (authored job content language vs interface locale), and A-75-08 (shared DB test isolation). Maintainer KEEP/CORRECT/DEFER decisions and fresh EN/FR responsive visual evidence are still required for the audit gate. R-039 is unchanged.
-**Next executable development task:** Decide and implement remaining approved #75 corrections on dedicated branches; refresh docs-only PR #77 for merge review; then continue Issue #66 with AppShell/i18n audit before remaining Clients/Missions/Training/Commercial UX rollout. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
+**Health:** `main` is at `c4b7fe8964cf396136237aa9d1c772ec020fc6d4`, including merged PR #77 project-memory reconciliation, PR #79 (A-75-04 missing-recruiter 503), and PR #81 (A-75-02 bounded JPEG/PNG upload validation). Issue #82 / draft PR #83 implements accepted D-067 for A-75-01 and is pending exact-head re-review and merge; no production deployment.
+**Current blocker:** A-75-01 remains uncorrected on `main` until PR #83 merges. Four other Issue #75 findings remain open: A-75-03 (advertised upload size vs JSON transport limit), A-75-05 (public salary currency shape), A-75-06/07 (authored job content language vs interface locale), and A-75-08 (shared DB test isolation). Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
+**Next executable development task:** Complete exact-head verification and re-review for PR #83 without merging it automatically; then decide and implement the four other approved #75 corrections on dedicated branches before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
 
 ## Active work
 
@@ -47,10 +47,18 @@ Status owner: repository maintainer
 | Issue #73 | Complete | Correct public application salary expectation unit drift (D-PUBLIC-01 / R-035) | Merged through PR #74; D-066 Accepted; historical salary rows remain review-only (no backfill) |
 | Issue #78 | Complete | Correct false RECEIVED when no eligible recruiter (A-75-04) | Merged through PR #79 into `main` as `78f13f7c0bf5c125016236bb79a4f8c1f3f85c56`; narrow D-040 revision for missing-recruiter rollback |
 | Issue #80 | Complete | Harden public application JPEG/PNG upload trust boundary (A-75-02) | Merged through PR #81 into `main` as `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`; bounded structural validation; `UploadMalwareScanProvider` interface only (no scanner registered); full image decode not claimed |
+| Issue #82 | In review | Correct required-but-disabled public upload configuration (A-75-01) under accepted D-067 | Draft PR #83; browser/API/PostgreSQL coverage and project-memory reconciliation added; pending exact-head CI, ChatGPT re-review, and merge |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (two corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
-| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04 and A-75-02 corrected on `main`; A-75-01, A-75-03, A-75-05, A-75-06/07, A-75-08 open pending decisions and scoped fixes |
-| Issue #76 | Docs PR open | Reconcile project memory after salary merge and #75 audit progress | PR #77 on branch `docs/post-salary-public-audit-handoff`; refresh for `65d1ce0` and merged #79/#81 before merge |
+| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04 and A-75-02 corrected on `main`; A-75-01 is pending merge through #82/#83; A-75-03, A-75-05, A-75-06/07, and A-75-08 remain open |
+| Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #82 Verification State (draft PR #83, pending merge)
+
+- D-067 is accepted: certification and diploma can be required only while enabled. Staff saves normalize disabled categories to `required=false`; public DTOs, browser controls, and submit validation treat contradictory legacy rows as disabled/not required; later authorized saves repair stored flags without a bulk migration.
+- The accepted API and shared-contract implementation remains unchanged in the completion pass. CV requirements, file validation, upload storage/version history, D-040, D-043, D-066, and R-039 are preserved.
+- Browser-facing EN/FR regressions use the Public Opportunity harness to prove disabled legacy-required certification/diploma controls are absent, enabled-and-required controls remain required, and localized required-file validation is shown. The Missions harness proves disabling both categories submits no `enabled=false, required=true` pair.
+- A-75-01 remains pending until PR #83 merges; this status does not mark it corrected on `main`.
 
 ## Issue #73 Verification State (merged PR #74)
 
@@ -536,13 +544,13 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 - Commercial numbering/correction policy beyond unique caller-supplied references, payment allocation, overdue handling, expenses, client balances, revenue/profitability, and settlement rules.
 - Integration synchronization and retry policies.
 
-## Issue #75 audit snapshot (runtime pass, updated 2026-09-23)
+## Issue #75 audit snapshot (runtime pass, updated 2026-09-24)
 
-| Finding | State on `65d1ce0` | Notes |
+| Finding | Current state | Notes |
 | --- | --- | --- |
 | A-75-04 missing recruiter false RECEIVED | **Corrected** (PR #79) | First-time rollback without eligible recruiter → generic retryable 503; duplicate/archived privacy preserved |
 | A-75-02 upload MIME/signature trust | **Corrected** (PR #81) | Bounded JPEG/PNG structure, PDF/text rules, optional scan hook unregistered; not full decode |
-| A-75-01 required/disabled upload categories | Open | Align staff config, public form, and API requirements |
+| A-75-01 required/disabled upload categories | In review (Issue #82 / PR #83) | D-067 accepted; implementation and regressions pending exact-head re-review and merge |
 | A-75-03 advertised 5 MB vs JSON body limit | Open | Transport/published limit alignment |
 | A-75-05 public salary currency shape | Open | Optional three-character contract vs public trim schema |
 | A-75-06/07 authored content language | Open | Interface locale vs job text `lang` attribution |
@@ -550,8 +558,8 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 
 ## Immediate next actions
 
-1. Merge documentation PR #77 after exact-head review reconciling `65d1ce0`, D-066, D-040 revision, and A-75-02/#81 facts.
-2. Obtain maintainer KEEP/CORRECT/DEFER on remaining #75 findings; implement only on approved scoped branches.
+1. Re-review and merge PR #83 only after exact-head CI confirms D-067 browser/API/PostgreSQL coverage; then mark A-75-01 corrected.
+2. Obtain maintainer KEEP/CORRECT/DEFER on the four other #75 findings; implement only on approved scoped branches.
 3. Capture fresh EN/FR public list/detail/application evidence at 1440/1024/800/430/390 CSS px with keyboard and overflow checks.
 4. Continue Issue #66 AppShell/i18n audit, then legacy module UX rollout; defer D-DESIGN-01 whole-product UI-DNA v1.1 until after functional rollout.
 5. Open a separate scheduler issue for Task reminder delivery (R-036). R-039 unchanged.
