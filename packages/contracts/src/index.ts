@@ -484,6 +484,7 @@ export {
   PublicOpportunitySchema,
   PublicOpportunityStatusSchema,
   PublicOpportunityUploadRequirementsSchema,
+  normalizePublicSalaryExpectationCurrency,
 } from './public-applications.js';
 export {
   effectiveOptionalCategoryUploadRequirements,
@@ -511,6 +512,7 @@ export type {
   PublicOpportunity,
   PublicOpportunityDetailResponse,
   PublicOpportunityListResponse,
+  PublicSalaryExpectationCurrencyResult,
 } from './public-applications.js';
 export {
   DocumentBase64ContentMaxLength,

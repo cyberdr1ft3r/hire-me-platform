@@ -1,7 +1,8 @@
-import type {
-  PublicApplicationFileInput,
-  PublicApplicationSubmitRequest,
-  PublicOpportunity,
+import {
+  normalizePublicSalaryExpectationCurrency,
+  type PublicApplicationFileInput,
+  type PublicApplicationSubmitRequest,
+  type PublicOpportunity,
 } from '@hire-me/contracts';
 
 import { parseSalaryAmount } from '../money/index.js';
@@ -58,7 +59,9 @@ export type ApplicationFileSlot = (typeof APPLICATION_FILE_SLOTS)[number]['name'
  * Contract limits for the controls this form renders, so a control never
  * accepts more than the API would. They mirror
  * `packages/contracts/src/public-applications.ts` and change nothing on the
- * server. The currency limit is the form's long-standing three characters.
+ * server. The currency control holds at most three characters; that length cap
+ * is only a typing aid, and `validateApplication` applies the contract's own
+ * currency rule to whatever the control actually holds.
  */
 export const APPLICATION_FIELD_LIMITS = {
   email: 254,
@@ -82,7 +85,10 @@ export interface ApplicationSnapshot {
 }
 
 export type ApplicationFieldError =
-  | { code: 'consent' | 'email' | 'experienceYears' | 'required' | 'salaryAmount' }
+  | {
+      code:
+        'consent' | 'email' | 'experienceYears' | 'required' | 'salaryAmount' | 'salaryCurrency';
+    }
   | { code: 'fileRequired' | 'fileType' }
   | { code: 'fileSize'; limitBytes: number };
 
@@ -173,7 +179,8 @@ function fileContentType(file: File): string {
  * Every rule here is one the server already enforces, so a value the API would
  * accept is never refused: required name, email, and consent; whole-number
  * experience from 0 to 80; a salary amount that converts to minor units the
- * contract accepts; and the file requirements, types, and sizes the
+ * contract accepts; an optional currency of exactly three letters, by the
+ * contract's own rule; and the file requirements, types, and sizes the
  * opportunity itself publishes. Browser
  * validation bubbles are off because they speak the browser's language rather
  * than the page's. The server still validates everything.
@@ -213,6 +220,11 @@ export function validateApplication(
   // amount the request could not carry, and the maximum is the contract's own.
   if (!parseSalaryAmount(values.salaryExpectationAmount).ok) {
     fields.salaryExpectationAmount = { code: 'salaryAmount' };
+  }
+  // The contract's rule, not the control's length cap: an empty currency is
+  // omitted, anything else must be exactly three letters.
+  if (!normalizePublicSalaryExpectationCurrency(values.salaryExpectationCurrency).ok) {
+    fields.salaryExpectationCurrency = { code: 'salaryCurrency' };
   }
 
   let totalBytes = 0;
@@ -274,8 +286,19 @@ function salaryExpectationCents(value: string): number | undefined {
 }
 
 /**
+ * The canonical currency the contract would store, or `undefined` so the field
+ * is omitted. `validateApplication` has already refused any other shape, so the
+ * unreachable refusal also omits rather than guessing.
+ */
+function salaryExpectationCurrency(value: string): string | undefined {
+  const normalized = normalizePublicSalaryExpectationCurrency(value);
+  return normalized.ok ? normalized.currency : undefined;
+}
+
+/**
  * The request body: name and email as typed, every optional text trimmed and
- * omitted when empty, experience as a number, consent from the checkbox, no
+ * omitted when empty, the currency in the contract's uppercase form, experience
+ * as a number, consent from the checkbox, no
  * CAPTCHA token, the trap field as-is, and the files in CV, certification,
  * diploma, additional order.
  *
@@ -301,7 +324,7 @@ export function buildApplicationRequest(
     languages: trimmedOrUndefined(values.languages),
     availability: trimmedOrUndefined(values.availability),
     salaryExpectationCents: salaryExpectationCents(values.salaryExpectationAmount),
-    salaryExpectationCurrency: trimmedOrUndefined(values.salaryExpectationCurrency),
+    salaryExpectationCurrency: salaryExpectationCurrency(values.salaryExpectationCurrency),
     professionalLinks: trimmedOrUndefined(values.professionalLinks),
     motivation: trimmedOrUndefined(values.motivation),
     consentGranted: snapshot.consentGranted,

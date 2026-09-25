@@ -845,6 +845,8 @@ export const frMessages: Messages = {
       required: 'Ce champ est obligatoire.',
       salaryAmount:
         'Saisissez un montant avec deux décimales au maximum, sans espace ni symbole, par exemple 36000 ou 36000,50.',
+      salaryCurrency:
+        'Saisissez un code de devise de trois lettres, par exemple EUR ou MAD, ou laissez ce champ vide.',
       summary: 'Corrigez les champs signalés, puis envoyez à nouveau.',
       summaryTitle: 'Vérifiez votre candidature',
     },

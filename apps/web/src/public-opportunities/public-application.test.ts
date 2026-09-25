@@ -131,14 +131,34 @@ describe('application request body', () => {
     }
   });
 
-  it('keeps the currency exactly as recorded, whatever the amount is', () => {
+  it('sends the currency in the contract uppercase form, whatever the amount is', () => {
     for (const salaryExpectationAmount of ['', '36000', '36000,50']) {
-      expect(
-        buildApplicationRequest(
-          snapshot({ salaryExpectationAmount, salaryExpectationCurrency: ' MAD ' }),
-          [],
-        ).salaryExpectationCurrency,
-      ).toBe('MAD');
+      for (const [typed, sent] of [
+        ['MAD', 'MAD'],
+        ['mad', 'MAD'],
+        ['mAd', 'MAD'],
+        [' MAD ', 'MAD'],
+      ] as const) {
+        expect(
+          buildApplicationRequest(
+            snapshot({ salaryExpectationAmount, salaryExpectationCurrency: typed }),
+            [],
+          ).salaryExpectationCurrency,
+          `${salaryExpectationAmount} / ${typed}`,
+        ).toBe(sent);
+      }
+    }
+  });
+
+  it('omits the currency field entirely when none is typed', () => {
+    for (const salaryExpectationCurrency of ['', '   ']) {
+      const body = buildApplicationRequest(
+        snapshot({ salaryExpectationAmount: '36000', salaryExpectationCurrency }),
+        [],
+      );
+      const sent = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
+      expect('salaryExpectationCurrency' in sent).toBe(false);
+      expect(sent.salaryExpectationCents).toBe(3_600_000);
     }
   });
 
@@ -288,6 +308,44 @@ describe('local validation mirrors server rules only', () => {
         value,
       ).toEqual({ salaryExpectationAmount: { code: 'salaryAmount' } });
     }
+  });
+
+  it('accepts an optional three-letter currency by the contract rule and nothing else', () => {
+    for (const value of ['', '   ', 'EUR', 'eur', 'eUr', ' MAD ']) {
+      expect(
+        validateApplication(snapshot({ salaryExpectationCurrency: value }), requirements).fields,
+        JSON.stringify(value),
+      ).toEqual({});
+    }
+    // The control caps typing at three characters, but validation does not rely
+    // on that cap: whatever the control holds is checked.
+    for (const value of [
+      'E',
+      'EU',
+      'EURO',
+      'E'.repeat(4000),
+      '123',
+      'EU1',
+      'E-R',
+      'E R',
+      'ÉUR',
+      '€€€',
+      'ＥＵＲ',
+    ]) {
+      expect(
+        validateApplication(snapshot({ salaryExpectationCurrency: value }), requirements).fields,
+        value.slice(0, 8),
+      ).toEqual({ salaryExpectationCurrency: { code: 'salaryCurrency' } });
+    }
+  });
+
+  it('does not tie the currency to the amount in either direction', () => {
+    expect(
+      validateApplication(snapshot({ salaryExpectationAmount: '36000' }), requirements).fields,
+    ).toEqual({});
+    expect(
+      validateApplication(snapshot({ salaryExpectationCurrency: 'EUR' }), requirements).fields,
+    ).toEqual({});
   });
 
   it('flags a number control the browser could not read', () => {
