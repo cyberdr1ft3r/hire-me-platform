@@ -24,6 +24,10 @@
     "prisma:validate": "pnpm --filter @hire-me/api prisma:validate",
     "test": "turbo run test",
     "test:db": "pnpm --filter @hire-me/contracts build && pnpm --filter @hire-me/api test:db",
+    "test:db:provision": "pnpm --filter @hire-me/contracts build && pnpm --filter @hire-me/api test:db:provision",
+    "test:db:check-catalog": "pnpm --filter @hire-me/api test:db:check-catalog",
+    "test:db:drop": "pnpm --filter @hire-me/api test:db:drop",
+    "test:db:verify-refusal": "pnpm --filter @hire-me/api test:db:verify-refusal",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

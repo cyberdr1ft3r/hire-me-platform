@@ -19,7 +19,11 @@
     "start": "dotenv -e ../../.env -- node dist/main.js",
     "verify:generation-assets": "node scripts/verify-generation-assets.mjs",
     "test": "vitest run",
-    "test:db": "dotenv -e ../../.env -- vitest run --config vitest.integration.config.ts",
+    "test:db": "tsx test/support/test-db-cli.ts run",
+    "test:db:provision": "tsx test/support/test-db-cli.ts provision",
+    "test:db:check-catalog": "tsx test/support/test-db-cli.ts check-catalog",
+    "test:db:drop": "tsx test/support/test-db-cli.ts drop",
+    "test:db:verify-refusal": "tsx test/support/test-db-cli.ts verify-refusal",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "prisma": {
