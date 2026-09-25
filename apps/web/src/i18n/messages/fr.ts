@@ -784,6 +784,8 @@ export const frMessages: Messages = {
         failed: 'Votre candidature n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.',
         invalid:
           'Certaines informations n’ont pas pu être acceptées. Vérifiez vos informations et vos documents, puis réessayez.',
+        payloadTooLarge:
+          'Vos documents et vos réponses dépassent la taille maximale pour une candidature. Retirez ou compressez des fichiers, puis réessayez.',
         rateLimited: 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.',
         unavailable: 'Cette offre n’accepte plus de candidatures.',
       },

@@ -26,7 +26,8 @@ export type PublicDetailState =
   | { opportunity: PublicOpportunity; status: 'ready' };
 
 /** Safe, language-neutral categories for a submission the server refused. */
-export type PublicSubmissionFailure = 'failed' | 'invalid' | 'rateLimited' | 'unavailable';
+export type PublicSubmissionFailure =
+  'failed' | 'invalid' | 'payloadTooLarge' | 'rateLimited' | 'unavailable';
 
 /**
  * `received` is shown only after the server has answered `RECEIVED`. The server
@@ -53,6 +54,8 @@ export function classifySubmissionFailure(error: unknown): PublicSubmissionFailu
       return 'invalid';
     case 404:
       return 'unavailable';
+    case 413:
+      return 'payloadTooLarge';
     case 429:
       return 'rateLimited';
     default:

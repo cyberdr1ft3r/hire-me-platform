@@ -772,6 +772,8 @@ export const enMessages = {
         failed: 'Your application could not be sent. Check your connection and try again.',
         invalid:
           'Some information could not be accepted. Check your details and documents, then try again.',
+        payloadTooLarge:
+          'Your documents and answers together exceed the size limit for one application. Remove or compress files, then try again.',
         rateLimited: 'Too many attempts in a short time. Wait a minute, then try again.',
         unavailable: 'This opportunity is no longer accepting applications.',
       },
