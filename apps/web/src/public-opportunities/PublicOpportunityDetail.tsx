@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import type { PublicOpportunity } from '@hire-me/contracts';
 
-import { useI18n } from '../i18n/index.js';
+import { authoredContentLanguage, useI18n } from '../i18n/index.js';
 import { Button } from '../ui/index.js';
 import type { ApplicationSnapshot } from './public-application.js';
 import { PublicApplicationForm } from './PublicApplicationForm.js';
@@ -17,7 +17,8 @@ import type { PublicDetailState, PublicSubmissionState } from './public-opportun
  *
  * Every rendered value comes from the public contract. The page renders no
  * identifier other than the slug already in its own URL, and nothing is
- * serialized into attributes.
+ * serialized into attributes except the declared content language, which the
+ * contract restricts to `en`, `fr`, or unknown.
  */
 export function PublicOpportunityDetail({
   detail,
@@ -111,11 +112,16 @@ function DetailError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function Fact({ children, label }: { children: ReactNode; label: string }) {
+/**
+ * One key detail. The label is interface chrome; `lang` is passed only for a
+ * recruiter-authored value, so HireMe-owned values such as the formatted salary
+ * or "Confidential" keep the interface language.
+ */
+function Fact({ children, label, lang }: { children: ReactNode; label: string; lang?: string }) {
   return (
     <div className="public-facts__row">
       <dt>{label}</dt>
-      <dd>{children}</dd>
+      <dd lang={lang}>{children}</dd>
     </div>
   );
 }
@@ -145,6 +151,7 @@ function OpportunityContent({
   const experienceLevel = publishedText(opportunity.publicExperienceLevel);
   const clientName = publishedText(opportunity.clientName);
   const salary = formatPublishedSalary(opportunity.salary, { formatCurrency, formatNumber }, t);
+  const authored = authoredContentLanguage(opportunity.contentLanguage);
   const deadline = opportunity.applicationDeadline
     ? formatDeadline(opportunity.applicationDeadline, formatDateTime, t)
     : null;
@@ -153,8 +160,14 @@ function OpportunityContent({
     <article aria-labelledby={titleId} className="public-page public-opportunity">
       <BackLink />
       <div className="public-opportunity__header">
-        <h1 id={titleId}>{opportunity.publicTitle}</h1>
-        {summary ? <p className="public-intro__lead">{summary}</p> : null}
+        <h1 {...authored} id={titleId}>
+          {opportunity.publicTitle}
+        </h1>
+        {summary ? (
+          <p {...authored} className="public-intro__lead">
+            {summary}
+          </p>
+        ) : null}
       </div>
 
       <div className="public-opportunity__layout">
@@ -168,16 +181,24 @@ function OpportunityContent({
               {clientName ?? t('publicOpportunity.values.confidentialCompany')}
             </Fact>
             {location ? (
-              <Fact label={t('publicOpportunity.fields.location')}>{location}</Fact>
+              <Fact {...authored} label={t('publicOpportunity.fields.location')}>
+                {location}
+              </Fact>
             ) : null}
             {workArrangement ? (
-              <Fact label={t('publicOpportunity.fields.workArrangement')}>{workArrangement}</Fact>
+              <Fact {...authored} label={t('publicOpportunity.fields.workArrangement')}>
+                {workArrangement}
+              </Fact>
             ) : null}
             {engagementType ? (
-              <Fact label={t('publicOpportunity.fields.engagementType')}>{engagementType}</Fact>
+              <Fact {...authored} label={t('publicOpportunity.fields.engagementType')}>
+                {engagementType}
+              </Fact>
             ) : null}
             {experienceLevel ? (
-              <Fact label={t('publicOpportunity.fields.experienceLevel')}>{experienceLevel}</Fact>
+              <Fact {...authored} label={t('publicOpportunity.fields.experienceLevel')}>
+                {experienceLevel}
+              </Fact>
             ) : null}
             {salary ? (
               <Fact label={t('publicOpportunity.fields.salary')}>
@@ -201,13 +222,17 @@ function OpportunityContent({
           {description ? (
             <section aria-labelledby={aboutId} className="public-section">
               <h2 id={aboutId}>{t('publicOpportunity.detail.about')}</h2>
-              <p className="public-prose">{description}</p>
+              <p {...authored} className="public-prose">
+                {description}
+              </p>
             </section>
           ) : null}
           {skills ? (
             <section aria-labelledby={skillsId} className="public-section">
               <h2 id={skillsId}>{t('publicOpportunity.detail.skills')}</h2>
-              <p className="public-prose">{skills}</p>
+              <p {...authored} className="public-prose">
+                {skills}
+              </p>
             </section>
           ) : null}
           <section aria-labelledby={applyId} className="public-apply" id="apply">

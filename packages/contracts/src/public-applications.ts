@@ -46,6 +46,15 @@ const PublicSalaryExpectationCurrencySchema = z.string().transform((value, conte
   return result.currency;
 });
 
+/**
+ * The staff-declared language of an opportunity's recruiter-authored copy
+ * (Issue #88 / D-070): exactly `en` or `fr`, lowercase. `null` means the
+ * language was not declared. Nothing else is accepted, normalized, or
+ * inferred, so this value is the only thing that may reach an authored
+ * element's `lang` attribute.
+ */
+export const PublicContentLanguageSchema = z.enum(['en', 'fr']);
+
 export const PublicOpportunityStatusSchema = z.enum([
   'DRAFT',
   'OPEN',
@@ -82,6 +91,7 @@ export const PublicOpportunitySchema = z.object({
   publicEngagementType: z.string().nullable(),
   publicExperienceLevel: z.string().nullable(),
   publicSkills: z.string().nullable(),
+  contentLanguage: PublicContentLanguageSchema.nullable(),
   clientName: z.string().nullable(),
   salary: z
     .object({
@@ -191,6 +201,8 @@ export const InternalPublicOpportunityUpdateRequestSchema = z.object({
   publicEngagementType: z.string().trim().max(120).nullable().optional(),
   publicExperienceLevel: z.string().trim().max(120).nullable().optional(),
   publicSkills: z.string().trim().max(1200).nullable().optional(),
+  /** Absent keeps the stored value; `null` clears it to "not declared". */
+  contentLanguage: PublicContentLanguageSchema.nullable().optional(),
   showClientName: z.boolean().optional(),
   showSalary: z.boolean().optional(),
   cvRequired: z.boolean().optional(),
@@ -221,6 +233,7 @@ export const InternalPublicApplicationListResponseSchema = z.object({
   applications: z.array(InternalPublicApplicationSummarySchema),
 });
 
+export type PublicContentLanguage = z.infer<typeof PublicContentLanguageSchema>;
 export type PublicOpportunity = z.infer<typeof PublicOpportunitySchema>;
 export type PublicOpportunityListResponse = z.infer<typeof PublicOpportunityListResponseSchema>;
 export type PublicOpportunityDetailResponse = z.infer<typeof PublicOpportunityDetailResponseSchema>;

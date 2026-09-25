@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `e254dc46349f21360386b4efeb498bb461f62719`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), and PR #85 / Issue #84 (A-75-03, D-068). Issue #86 (A-75-05 public salary currency shape) is in review on a draft PR; no production deployment.
-**Current blocker:** A-75-05 remains uncorrected on `main` until PR #87 merges; its currency policy is accepted as **D-069**. A-75-03 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified. A-75-06/07 (authored job content language vs interface locale) and A-75-08 (shared DB test isolation) remain open. Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
-**Next executable development task:** Complete exact-head verification and ChatGPT review for the Issue #86 draft PR without merging automatically; then implement the two remaining scoped #75 corrections before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
+**Health:** `main` is at `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), and PR #87 / Issue #86 (A-75-05, D-069). Issue #88 (A-75-06/07 authored content language, D-070) is in review on a draft PR; no production deployment or production migration.
+**Current blocker:** A-75-06/07 remain uncorrected on `main` until the Issue #88 PR merges; its policy is accepted as **D-070** and adds one additive migration that needs deployment approval before any production run. A-75-03 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified. A-75-08 (shared DB test isolation) remains open. Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
+**Next executable development task:** Complete exact-head verification and ChatGPT review for the Issue #88 draft PR without merging automatically; then correct A-75-08 before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
 
 ## Active work
 
@@ -49,9 +49,10 @@ Status owner: repository maintainer
 | Issue #80 | Complete | Harden public application JPEG/PNG upload trust boundary (A-75-02) | Merged through PR #81 into `main` as `65d1ce04a6e702bdedfca3f00c27e3cc95c33305`; bounded structural validation; `UploadMalwareScanProvider` interface only (no scanner registered); full image decode not claimed |
 | Issue #82 | Complete | Correct required-but-disabled public upload configuration (A-75-01) under D-067 | Merged through PR #83 into `main` as `91a6050b864abb1c4ea4474e08f987602c832c86` |
 | Issue #84 | Complete | Align public upload aggregate limit with JSON transport and oversize feedback (A-75-03) | Merged through PR #85 into `main` as `e254dc46349f21360386b4efeb498bb461f62719`; D-068 implemented; production env/proxy limits not yet verified |
-| Issue #86 | In review | Align public salary currency validation across UI and API (A-75-05 / R-043) | Draft PR #87; D-069 accepted, implementation pending merge; A-75-05 not corrected on `main` until merge |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (A-75-04, A-75-02, A-75-01, and A-75-03 corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
-| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04, A-75-02, A-75-01, and A-75-03 (application level) corrected on `main`; A-75-05 in review through #86; A-75-06/07 and A-75-08 remain open |
+| Issue #86 | Complete | Align public salary currency validation across UI and API (A-75-05 / R-043) | Merged through PR #87 into `main` as `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`; D-069 implemented |
+| Issue #88 | In review | Attribute recruiter-authored public job content language (A-75-06/07 / R-046) | Draft PR linked to #88; D-070 accepted, implementation pending merge; additive migration not run in production |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (A-75-04, A-75-02, A-75-01, A-75-03, and A-75-05 corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
+| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04, A-75-02, A-75-01, A-75-03 (application level), and A-75-05 corrected on `main`; A-75-06/07 in review through #88; A-75-08 remains open |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
@@ -60,13 +61,21 @@ Status owner: repository maintainer
 - D-067 is implemented on `main`: certification and diploma can be required only while enabled; staff saves normalize disabled categories; public DTOs, browser controls, and submit validation treat contradictory legacy rows as disabled/not required; later authorized saves repair stored flags without a bulk migration.
 - A-75-01 is corrected on `main` through merge commit `91a6050b864abb1c4ea4474e08f987602c832c86`.
 
-## Issue #86 Verification State (draft PR #87, pending merge)
+## Issue #86 Verification State (merged PR #87)
 
 - Discovery on `main` `e254dc46349f21360386b4efeb498bb461f62719`: `PublicApplicationSubmitRequestSchema.salaryExpectationCurrency` used the shared 4,000-character trimmed text schema; the browser only capped the control with `maxLength=3` and had no currency validation; `buildApplicationRequest` forwarded the trimmed value; the service persisted it on the snapshot and on a new Candidate. Reproduced against disposable PostgreSQL: a one-character currency returned 200 and lowercase input was stored as typed.
-- **D-069 accepted** in review of head `f09fd87a4d7f73eec5144fb810740fdd6d677038` (implementation pending merge): optional; trimmed; empty means omitted; otherwise exactly three ASCII letters `[A-Za-z]{3}`, normalized to uppercase. Defined once by `normalizePublicSalaryExpectationCurrency` in `packages/contracts`; the public submit schema applies it authoritatively before any side effect, and the browser uses the same function for localized EN/FR validation and to build the request, so the payload is already canonical. No ISO 4217 catalogue, FX, or amount/currency pairing.
+- **D-069 implemented** (reviewed head `3abff473365e15362ecf5e7d4454b31c4436f576`, Actions `36126528480`): optional; trimmed; empty means omitted; otherwise exactly three ASCII letters `[A-Za-z]{3}`, normalized to uppercase. Defined once by `normalizePublicSalaryExpectationCurrency` in `packages/contracts`; the public submit schema applies it authoritatively before any side effect, and the browser uses the same function for localized EN/FR validation and to build the request, so the payload is already canonical. No ISO 4217 catalogue, FX, or amount/currency pairing.
 - Malformed direct input returns the generic public 400 `INVALID_PUBLIC_APPLICATION_REQUEST` with no echo, and creates no Candidate, MissionCandidate, PublicCandidateApplication, document/version, stored file, or submission audit. A new Candidate receives the canonical currency; an existing Candidate's compensation, currency, and `updatedAt` stay untouched while the snapshot records the canonical submitted currency.
 - Unchanged: D-066 cents conversion, historical salary rows (no backfill), internal Candidate create/update contract, file validation, D-067/D-068, the #79 503, ATS lifecycle, authentication, and permissions. No schema or migration change.
-- A-75-05 is **not** corrected on `main` until the Issue #86 PR merges.
+- A-75-05 and R-043 are corrected on `main` through merge commit `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`.
+
+## Issue #88 Verification State (draft, pending merge)
+
+- Discovery on `main` `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`: `PublicOpportunity` stored eight authored text fields with no language metadata; list and detail rendered them with no `lang`, so they inherited the interface `<html lang>`; `content-language.test.tsx` asserted the English authored h1 was `fr` and, with `PublicOpportunities.test.tsx`, forbade any `[lang="en"]` on French public pages.
+- **D-070 accepted** (implementation pending merge): one additive migration `20260926090000_public_opportunity_content_language` adds nullable `contentLanguage TEXT` with `PublicOpportunity_contentLanguage_chk` (`IS NULL OR IN ('en','fr')`); no default, no backfill. Strict `PublicContentLanguageSchema`; public DTO adds only `contentLanguage`; manage-permission PATCH sets or clears it; publish gate unchanged; Mission-prefilled copy stays `null`.
+- Web: shared wrapperless `authoredContentLanguage` helper sets `lang` (or `lang=""`) on each authored list/detail element only; chrome, formatted values, client name, and the form keep the interface language. The Missions editor adds the Job content language select with helper text and marks the eight authored inputs. The old blanket `[lang="en"]` assertions now require that every language override is authored copy outside the form.
+- Unchanged: D-066–D-069, #79 503, #81 upload structure, visibility and slug rules, authentication and permissions, ATS, candidate data. Production migration needs deployment approval.
+- A-75-06/07 are **not** corrected on `main` until the Issue #88 PR merges.
 
 ## Issue #84 Verification State (merged PR #85)
 
@@ -565,15 +574,15 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 | A-75-02 upload MIME/signature trust | **Corrected** (PR #81) | Bounded JPEG/PNG structure, PDF/text rules, optional scan hook unregistered; not full decode |
 | A-75-01 required/disabled upload categories | **Corrected** (PR #83) | D-067 implemented |
 | A-75-03 advertised 5 MB vs JSON body limit | **Corrected, application level** (PR #85) | D-068 implemented; production env/proxy limits unverified |
-| A-75-05 public salary currency shape | In review (Issue #86 / PR #87) | D-069 accepted: optional three-ASCII-letter, uppercase-normalized rule; not corrected until merge |
-| A-75-06/07 authored content language | Open | Interface locale vs job text `lang` attribution |
+| A-75-05 public salary currency shape | **Corrected** (PR #87) | D-069 implemented |
+| A-75-06/07 authored content language | In review (Issue #88) | D-070 accepted: staff-declared `en`/`fr`/unknown on authored elements; not corrected until merge |
 | A-75-08 DB integration auth seed isolation | Open | Separate infrastructure task; never production |
 
 ## Immediate next actions
 
-1. Complete final review of PR #87 (D-069 accepted); mark A-75-05 and R-043 corrected only after merge.
+1. Complete final review of the Issue #88 PR (D-070 accepted); mark A-75-06/07 and R-046 corrected only after merge, and run the migration in production only with deployment approval.
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
-3. Implement A-75-06/07 and A-75-08 on approved scoped branches.
+3. Correct A-75-08 on an approved scoped branch.
 4. Capture fresh EN/FR public list/detail/application evidence at 1440/1024/800/430/390 CSS px with keyboard and overflow checks.
 5. Continue Issue #66 AppShell/i18n audit, then legacy module UX rollout; defer D-DESIGN-01 whole-product UI-DNA v1.1 until after functional rollout.
 6. Open a separate scheduler issue for Task reminder delivery (R-036). R-039 unchanged.

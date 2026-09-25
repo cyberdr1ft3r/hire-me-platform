@@ -29,6 +29,8 @@ const UPLOAD_REQUIREMENTS: PublicOpportunity['uploadRequirements'] = {
 const SHARED = {
   applicationDeadline: null,
   clientName: null,
+  // Not declared unless a row says otherwise, as for a legacy opportunity.
+  contentLanguage: null,
   salary: null,
   uploadRequirements: UPLOAD_REQUIREMENTS,
 } as const;
@@ -45,6 +47,7 @@ const ENGLISH: PublicOpportunity[] = [
     publicLocation: 'Example City',
     publicSkills: 'TypeScript, PostgreSQL, service reliability, written communication',
     publicSlug: 'preview-synthetic-platform-engineer',
+    contentLanguage: 'en',
     publicSummary:
       'A synthetic senior engineering role for reviewing reading rhythm, key details, and the application form.',
     publicTitle: 'Synthetic Platform Engineer',
@@ -60,6 +63,7 @@ const ENGLISH: PublicOpportunity[] = [
     publicLocation: 'Sample Town',
     publicSkills: null,
     publicSlug: 'preview-synthetic-operations-coordinator',
+    contentLanguage: 'en',
     publicSummary:
       'A synthetic coordination role whose longer summary checks that list rows stay readable when published text runs across several lines on narrow screens.',
     publicTitle: 'Synthetic Recruitment Operations and Onboarding Coordinator',
@@ -91,6 +95,7 @@ const FRENCH: PublicOpportunity[] = [
     publicLocation: 'Ville Exemple',
     publicSkills: 'TypeScript, PostgreSQL, fiabilité des services, communication écrite',
     publicSlug: 'preview-synthetic-platform-engineer',
+    contentLanguage: 'fr',
     publicSummary:
       'Un poste fictif d’ingénieur confirmé pour relire le rythme de lecture, les informations clés et le formulaire de candidature.',
     publicTitle: 'Ingénieur plateforme fictif',
@@ -106,6 +111,7 @@ const FRENCH: PublicOpportunity[] = [
     publicLocation: 'Bourg Exemple',
     publicSkills: null,
     publicSlug: 'preview-synthetic-operations-coordinator',
+    contentLanguage: 'fr',
     publicSummary:
       'Un poste de coordination fictif dont le résumé plus long vérifie que les lignes de la liste restent lisibles lorsque le texte publié s’étend sur plusieurs lignes sur petit écran.',
     publicTitle: 'Coordinateur fictif des opérations de recrutement et de l’intégration',

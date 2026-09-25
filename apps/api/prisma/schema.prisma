@@ -1039,6 +1039,9 @@ model PublicOpportunity {
   publicEngagementType         String?
   publicExperienceLevel        String?
   publicSkills                 String?
+  /// D-070: staff-declared language of the authored copy set: "en", "fr", or null (not declared).
+  /// A database CHECK restricts non-null values; there is no default and no backfill.
+  contentLanguage              String?
   showClientName               Boolean                 @default(false)
   showSalary                   Boolean                 @default(false)
   cvRequired                   Boolean                 @default(true)
