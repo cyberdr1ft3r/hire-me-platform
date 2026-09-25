@@ -1,6 +1,7 @@
 export type { I18nContextValue } from './context.js';
 export { createFormatters, type DateInput, type LocaleFormatters } from './format.js';
 export { I18nProvider, type I18nProviderProps } from './I18nProvider.js';
+export { authoredContentLanguage } from './authored-content-language.js';
 export { LegacyEnglishContent } from './LegacyEnglishContent.js';
 export {
   DEFAULT_LOCALE,

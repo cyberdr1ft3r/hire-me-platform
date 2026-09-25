@@ -2648,6 +2648,7 @@ function syntheticPublicOpportunity() {
     publicEngagementType: 'CDI',
     publicExperienceLevel: 'Senior',
     publicSkills: 'TypeScript, PostgreSQL',
+    contentLanguage: null,
     clientName: null,
     salary: null,
     applicationDeadline: null,

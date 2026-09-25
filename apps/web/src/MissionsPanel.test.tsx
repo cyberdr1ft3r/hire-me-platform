@@ -382,6 +382,143 @@ describe('MissionsPanel request ownership', () => {
   });
 });
 
+describe('MissionsPanel public opportunity content language (D-070)', () => {
+  const AUTHORED_FIELDS = [
+    'publicTitle',
+    'publicSummary',
+    'publicDescription',
+    'publicLocation',
+    'publicWorkArrangement',
+    'publicEngagementType',
+    'publicExperienceLevel',
+    'publicSkills',
+  ] as const;
+
+  function authoredControls(): Element[] {
+    const form = screen.getByRole('form', { name: 'Edit public opportunity' });
+    return AUTHORED_FIELDS.map((name) => {
+      const control = form.querySelector(`[name="${name}"]`);
+      expect(control, name).not.toBeNull();
+      return control!;
+    });
+  }
+
+  function mockOpportunityApi(
+    stored: { contentLanguage: 'en' | 'fr' | null },
+    patchBodies: Array<Record<string, unknown>>,
+  ) {
+    const mission = syntheticMission(MISSION_A_ID, 'Mission A');
+    let opportunity = { ...syntheticPublicOpportunity(MISSION_A_ID), ...stored };
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/missions?')) {
+        return Promise.resolve(missionListResponse([mission]));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_A_ID}`)) {
+        return Promise.resolve(jsonResponse({ mission }));
+      }
+      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`)) {
+        if (init?.method === 'PATCH') {
+          const body = JSON.parse(typeof init.body === 'string' ? init.body : '{}') as Record<
+            string,
+            unknown
+          >;
+          patchBodies.push(body);
+          opportunity = {
+            ...opportunity,
+            contentLanguage: body.contentLanguage as 'en' | 'fr' | null,
+            updatedAt: `2026-09-15T10:0${patchBodies.length}:00.000Z`,
+          };
+        }
+        return Promise.resolve(jsonResponse({ publicOpportunity: opportunity }));
+      }
+      if (url.includes('/public-applications') || url.includes('/applications')) {
+        return Promise.resolve(jsonResponse({ applications: [] }));
+      }
+      return Promise.resolve(jsonResponse({}, 404));
+    });
+  }
+
+  it('declares, changes, and clears the language, marking every authored control with it', async () => {
+    const patchBodies: Array<Record<string, unknown>> = [];
+    mockOpportunityApi({ contentLanguage: null }, patchBodies);
+    render(
+      <MissionsPanel
+        accessToken="staff-token"
+        initialMissionId={null}
+        onSelectionChange={() => undefined}
+        permissions={['missions:view', 'public_opportunities:view', 'public_opportunities:manage']}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+
+    const select = await screen.findByRole('combobox', { name: 'Job content language' });
+    expect(select).toHaveValue('');
+    expect(select).toBeEnabled();
+    expect(select).toHaveAccessibleDescription(
+      'Applies to every public text field below, including text prefilled from the mission. Choose Not specified if they are not all in one language.',
+    );
+    expect(
+      [...select.querySelectorAll('option')].map((option) => [option.value, option.textContent]),
+    ).toEqual([
+      ['', 'Not specified'],
+      ['en', 'English'],
+      ['fr', 'French'],
+    ]);
+    // Not specified is unknown, never the English chrome's language.
+    for (const control of authoredControls()) {
+      expect(control, control.getAttribute('name') ?? '').toHaveAttribute('lang', '');
+    }
+
+    fireEvent.change(select, { target: { value: 'fr' } });
+    for (const control of authoredControls()) {
+      expect(control, control.getAttribute('name') ?? '').toHaveAttribute('lang', 'fr');
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save public opportunity' }));
+    expect(await screen.findByText('Public opportunity configuration saved.')).toBeVisible();
+    expect(patchBodies[0]).toEqual(expect.objectContaining({ contentLanguage: 'fr' }));
+    expect(screen.getByRole('combobox', { name: 'Job content language' })).toHaveValue('fr');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Job content language' }), {
+      target: { value: 'en' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save public opportunity' }));
+    await vi.waitFor(() => expect(patchBodies).toHaveLength(2));
+    expect(patchBodies[1]).toEqual(expect.objectContaining({ contentLanguage: 'en' }));
+
+    // Not specified clears the stored language to null, never to an empty string.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Job content language' }), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save public opportunity' }));
+    await vi.waitFor(() => expect(patchBodies).toHaveLength(3));
+    expect(patchBodies[2]).toHaveProperty('contentLanguage', null);
+    for (const control of authoredControls()) {
+      expect(control, control.getAttribute('name') ?? '').toHaveAttribute('lang', '');
+    }
+  });
+
+  it('shows a stored language read-only without manage permission', async () => {
+    mockOpportunityApi({ contentLanguage: 'en' }, []);
+    render(
+      <MissionsPanel
+        accessToken="staff-token"
+        initialMissionId={null}
+        onSelectionChange={() => undefined}
+        permissions={['missions:view', 'public_opportunities:view']}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+
+    const select = await screen.findByRole('combobox', { name: 'Job content language' });
+    expect(select).toHaveValue('en');
+    expect(select).toBeDisabled();
+    for (const control of authoredControls()) {
+      expect(control, control.getAttribute('name') ?? '').toHaveAttribute('lang', 'en');
+    }
+  });
+});
+
 function syntheticMission(id: string, title: string) {
   return {
     id,
@@ -520,6 +657,7 @@ function syntheticPublicOpportunity(
     publicEngagementType: null,
     publicExperienceLevel: null,
     publicSkills: null,
+    contentLanguage: null,
     clientName: null,
     salary: null,
     showClientName: false,

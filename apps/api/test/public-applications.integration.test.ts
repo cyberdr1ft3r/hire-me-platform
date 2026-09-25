@@ -121,6 +121,7 @@ const syntheticPublicSlugPrefixes = [
   'issue82',
   'issue84',
   'issue86',
+  'issue88',
 ] as const;
 
 function syntheticPublicSlugWhere(): {
@@ -1865,6 +1866,276 @@ describe('public opportunity applications', () => {
     expect(body.publicOpportunity.publicTitle).toBe('Issue27 configured public title');
     expect(body.publicOpportunity.clientName).toContain('Issue27');
     expect(body.publicOpportunity.salary?.salaryMinCents).toBe(100000);
+  });
+
+  describe('issue88 authored content language', () => {
+    const PUBLIC_KEYS = [
+      'applicationDeadline',
+      'clientName',
+      'contentLanguage',
+      'publicDescription',
+      'publicEngagementType',
+      'publicExperienceLevel',
+      'publicLocation',
+      'publicSkills',
+      'publicSlug',
+      'publicSummary',
+      'publicTitle',
+      'publicWorkArrangement',
+      'salary',
+      'uploadRequirements',
+    ];
+
+    async function patchAs(token: string, missionId: string, body: Record<string, unknown>) {
+      return fetch(`${baseUrl}/v1/missions/${missionId}/public-opportunity`, {
+        method: 'PATCH',
+        headers: authHeaders(token),
+        body: JSON.stringify(body),
+      });
+    }
+
+    it('adds a nullable column with a CHECK and leaves existing rows undeclared', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue88-legacy-row',
+        recruiterUserId,
+      );
+      // A row written without the field, as every pre-migration row was, stays NULL.
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({ contentLanguage: null });
+
+      const columns = await prisma.$queryRaw<
+        { is_nullable: string; column_default: string | null; data_type: string }[]
+      >`SELECT is_nullable, column_default, data_type FROM information_schema.columns
+        WHERE table_name = 'PublicOpportunity' AND column_name = 'contentLanguage'`;
+      expect(columns).toEqual([{ is_nullable: 'YES', column_default: null, data_type: 'text' }]);
+
+      const constraints = await prisma.$queryRaw<{ definition: string }[]>`
+        SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE conname = 'PublicOpportunity_contentLanguage_chk'`;
+      expect(constraints).toHaveLength(1);
+      expect(constraints[0]?.definition).toContain('contentLanguage');
+    });
+
+    it('rejects any other stored value at the database', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue88-check-constraint',
+        recruiterUserId,
+      );
+      for (const value of ['en', 'fr']) {
+        await prisma.publicOpportunity.update({
+          where: { id: opportunity.id },
+          data: { contentLanguage: value },
+        });
+      }
+      for (const value of ['EN', 'Fr', 'de', 'en-US', '', ' en']) {
+        await expect(
+          prisma.publicOpportunity.update({
+            where: { id: opportunity.id },
+            data: { contentLanguage: value },
+          }),
+          JSON.stringify(value),
+        ).rejects.toThrow();
+        await expect(
+          prisma.$executeRaw`UPDATE "PublicOpportunity" SET "contentLanguage" = ${value} WHERE id = ${opportunity.id}::uuid`,
+          JSON.stringify(value),
+        ).rejects.toThrow();
+      }
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({ contentLanguage: 'fr' });
+      await prisma.publicOpportunity.update({
+        where: { id: opportunity.id },
+        data: { contentLanguage: null },
+      });
+    });
+
+    it('lets manage-only staff declare and clear the language, but not publish with it', async () => {
+      const manageOnlyToken = await loginAccessToken(
+        baseUrl,
+        'manage-only@public-applications.test',
+      );
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue88-manage-only',
+        recruiterUserId,
+      );
+      const auditWhere = {
+        action: 'public_opportunities.configuration.updated',
+        entityType: 'PublicOpportunity',
+        entityId: opportunity.id,
+      };
+
+      for (const [expectedAudits, contentLanguage] of [
+        [1, 'fr'],
+        [2, 'en'],
+        [3, null],
+      ] as const) {
+        const response = await patchAs(manageOnlyToken, mission.id, { contentLanguage });
+        expect(response.status, String(contentLanguage)).toBe(200);
+        const body = InternalPublicOpportunityDetailResponseSchema.parse(await response.json());
+        expect(body.publicOpportunity.contentLanguage).toBe(contentLanguage);
+        await expect(
+          prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+        ).resolves.toMatchObject({ contentLanguage });
+        await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(expectedAudits);
+      }
+
+      // Omitting the field keeps the stored language.
+      await patchAs(manageOnlyToken, mission.id, { contentLanguage: 'fr' });
+      const untouched = await patchAs(manageOnlyToken, mission.id, { publicSummary: 'Résumé.' });
+      expect(untouched.status).toBe(200);
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({ contentLanguage: 'fr', publicSummary: 'Résumé.' });
+
+      // The publish boundary is unchanged: a language never rides along with a
+      // publication field the actor may not change.
+      const auditsBefore = await prisma.auditLog.count({ where: auditWhere });
+      const denied = await patchAs(manageOnlyToken, mission.id, {
+        contentLanguage: 'en',
+        listedOnWebsite: false,
+      });
+      expect(denied.status).toBe(403);
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({ contentLanguage: 'fr', listedOnWebsite: true });
+      await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(auditsBefore);
+    });
+
+    it('rejects unsupported PATCH values with no write and no audit', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue88-invalid-patch',
+        recruiterUserId,
+      );
+      await patchAs(token, mission.id, { contentLanguage: 'en' });
+      const auditWhere = {
+        action: 'public_opportunities.configuration.updated',
+        entityId: opportunity.id,
+      };
+      const auditsBefore = await prisma.auditLog.count({ where: auditWhere });
+
+      for (const contentLanguage of ['EN', 'Fr', 'fr-FR', 'en-US', 'de', '', ' fr', 'french', 1]) {
+        const response = await patchAs(token, mission.id, {
+          contentLanguage,
+          publicTitle: 'Issue88 must not be written',
+        });
+        expect(response.status, JSON.stringify(contentLanguage)).toBe(400);
+      }
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { id: opportunity.id } }),
+      ).resolves.toMatchObject({
+        contentLanguage: 'en',
+        publicTitle: 'Issue27 issue88-invalid-patch Role',
+      });
+      await expect(prisma.auditLog.count({ where: auditWhere })).resolves.toBe(auditsBefore);
+    });
+
+    it('publishes only the declared language on the public allow-list, listed and unlisted', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const listed = await createMissionWithOpportunity('issue88-listed', recruiterUserId);
+      const unlisted = await createMissionWithOpportunity('issue88-unlisted', recruiterUserId);
+      expect((await patchAs(token, listed.mission.id, { contentLanguage: 'fr' })).status).toBe(200);
+      expect(
+        (
+          await patchAs(token, unlisted.mission.id, {
+            contentLanguage: 'en',
+            listedOnWebsite: false,
+          })
+        ).status,
+      ).toBe(200);
+
+      const list = PublicOpportunityListResponseSchema.parse(
+        await (await fetch(`${baseUrl}/v1/public/opportunities`)).json(),
+      );
+      const listedRow = list.opportunities.find((item) => item.publicSlug === 'issue88-listed');
+      expect(listedRow?.contentLanguage).toBe('fr');
+      expect(list.opportunities.some((item) => item.publicSlug === 'issue88-unlisted')).toBe(false);
+
+      for (const [slug, contentLanguage] of [
+        ['issue88-listed', 'fr'],
+        ['issue88-unlisted', 'en'],
+      ] as const) {
+        const response = await fetch(`${baseUrl}/v1/public/opportunities/${slug}`);
+        expect(response.status).toBe(200);
+        const raw = (await response.json()) as { opportunity: Record<string, unknown> };
+        // The raw public payload carries exactly the approved keys: the language
+        // and no mission, recruiter, status, or other internal identifier.
+        expect(Object.keys(raw.opportunity).sort()).toEqual(PUBLIC_KEYS);
+        expect(raw.opportunity.contentLanguage).toBe(contentLanguage);
+        expect(JSON.stringify(raw)).not.toContain(listed.mission.id);
+        expect(JSON.stringify(raw)).not.toContain(unlisted.mission.id);
+      }
+      for (const row of list.opportunities) {
+        expect(Object.keys(row).sort()).toEqual(PUBLIC_KEYS);
+      }
+    });
+
+    it('keeps opportunity copy prefilled from the Mission undeclared', async () => {
+      const token = await loginAccessToken(baseUrl, 'recruiter@public-applications.test');
+      const client = await prisma.client.create({
+        data: {
+          name: 'Issue27 issue88 prefill Client',
+          normalizedName: 'issue27 issue88 prefill client',
+        },
+      });
+      const mission = await prisma.recruitmentMission.create({
+        data: {
+          clientId: client.id,
+          title: 'Issue27 issue88 Mission prefilled title',
+          description: 'Mission description written in English.',
+          location: 'Remote',
+          workArrangement: 'Hybrid',
+          engagementType: 'Permanent',
+          state: RecruitmentMissionState.ACTIVE,
+        },
+      });
+      await prisma.missionRecruiter.create({
+        data: {
+          missionId: mission.id,
+          userId: recruiterUserId,
+          role: MissionRecruiterRole.LEAD_RECRUITER,
+          isLead: true,
+          status: AssignmentStatus.ACTIVE,
+        },
+      });
+
+      // The first save creates the opportunity from Mission fields; only the
+      // slug is supplied so the synthetic row is cleaned up by prefix.
+      const created = await patchAs(token, mission.id, {
+        publicSlug: 'issue88-mission-prefill',
+        status: PublicOpportunityStatus.OPEN,
+        applicationLinkEnabled: true,
+        listedOnWebsite: true,
+      });
+      expect(created.status).toBe(200);
+      const internal = InternalPublicOpportunityDetailResponseSchema.parse(await created.json());
+      expect(internal.publicOpportunity).toMatchObject({
+        contentLanguage: null,
+        publicTitle: 'Issue27 issue88 Mission prefilled title',
+        publicSummary: 'Mission description written in English.',
+        publicDescription: 'Mission description written in English.',
+      });
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { missionId: mission.id } }),
+      ).resolves.toMatchObject({ contentLanguage: null });
+
+      const detail = PublicOpportunityDetailResponseSchema.parse(
+        await (await fetch(`${baseUrl}/v1/public/opportunities/issue88-mission-prefill`)).json(),
+      );
+      expect(detail.opportunity.contentLanguage).toBeNull();
+      expect(detail.opportunity.publicTitle).toBe('Issue27 issue88 Mission prefilled title');
+
+      // Staff can then declare it explicitly; nothing else changes.
+      const declared = await patchAs(token, mission.id, { contentLanguage: 'en' });
+      expect(declared.status).toBe(200);
+      await expect(
+        prisma.publicOpportunity.findUniqueOrThrow({ where: { missionId: mission.id } }),
+      ).resolves.toMatchObject({
+        contentLanguage: 'en',
+        publicTitle: 'Issue27 issue88 Mission prefilled title',
+      });
+    });
   });
 
   it('allows manage-only configuration updates but requires publish permission for publication fields', async () => {

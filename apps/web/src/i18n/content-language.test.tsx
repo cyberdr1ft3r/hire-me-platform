@@ -33,6 +33,8 @@ const shellPermissions = [
 const syntheticOpportunity = {
   applicationDeadline: null,
   clientName: null,
+  // The synthetic title is English and declared so (D-070).
+  contentLanguage: 'en',
   publicDescription: null,
   publicEngagementType: null,
   publicExperienceLevel: null,
@@ -136,6 +138,15 @@ function stubBrowserLanguage(language: string): () => void {
 /** The language actually announced for an element, walking up to the document. */
 function effectiveLanguage(element: HTMLElement): string {
   return element.closest('[lang]')?.getAttribute('lang') ?? '';
+}
+
+/**
+ * Every element below the document root that declares its own language. On a
+ * public page these may only be recruiter-authored values (D-070): anything
+ * else would be interface chrome escaping the document language.
+ */
+function languageOverrides(): Element[] {
+  return [...document.body.querySelectorAll('[lang]')];
 }
 
 let restoreLanguage: (() => void) | undefined;
@@ -258,10 +269,11 @@ describe('translated surfaces carry no English override', () => {
 });
 
 // The public opportunity pages became bilingual in Issue #62, so their English
-// boundary was removed. They must never be announced as English again inside
-// a French document.
+// boundary was removed and their chrome follows the document language. Only the
+// recruiter-authored copy states its own declared language (D-070), so a valid
+// `lang="en"` on that copy is expected, while untranslated chrome is not.
 describe('bilingual public routes carry no English boundary', () => {
-  it('keeps the French public opportunity list inside the document language', async () => {
+  it('keeps the French public opportunity list chrome in French and the English title in English', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/opportunities');
     mockPublicSession();
@@ -270,9 +282,13 @@ describe('bilingual public routes carry no English boundary', () => {
     const heading = await screen.findByRole('heading', { level: 1, name: 'Postes à pourvoir' });
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
     expect(effectiveLanguage(heading)).toBe('fr');
-    expect(await screen.findByRole('link', { name: 'Synthetic public role' })).toBeVisible();
+    const title = await screen.findByRole('link', { name: 'Synthetic public role' });
+    expect(title).toBeVisible();
+    expect(title).toHaveAttribute('lang', 'en');
+    expect(effectiveLanguage(screen.getByText('Voir l’offre'))).toBe('fr');
     expect(document.querySelector('.legacy-english-content')).toBeNull();
-    expect(document.querySelector('[lang="en"]')).toBeNull();
+    // The authored title is the only element that states its own language.
+    expect(languageOverrides()).toEqual([title]);
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();
@@ -281,7 +297,7 @@ describe('bilingual public routes carry no English boundary', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('keeps the French public opportunity detail and form inside the document language', async () => {
+  it('keeps the French public opportunity detail chrome and form in French and the English title in English', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/opportunities/synthetic-role');
     mockPublicSession();
@@ -292,11 +308,20 @@ describe('bilingual public routes carry no English boundary', () => {
       name: 'Synthetic public role',
     });
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
-    expect(effectiveLanguage(heading)).toBe('fr');
+    // The authored title is English inside a French document, and says so.
+    expect(heading).toHaveAttribute('lang', 'en');
+    expect(effectiveLanguage(heading)).toBe('en');
+    const facts = screen.getByRole('heading', { level: 2, name: 'Informations clés' });
+    expect(effectiveLanguage(facts)).toBe('fr');
+    expect(effectiveLanguage(screen.getByText('Confidentielle'))).toBe('fr');
     const form = screen.getByRole('form', { name: 'Postuler à cette offre' });
     expect(effectiveLanguage(form)).toBe('fr');
+    expect(form.querySelector('[lang]')).toBeNull();
+    expect(effectiveLanguage(screen.getByRole('button', { name: 'Envoyer ma candidature' }))).toBe(
+      'fr',
+    );
     expect(document.querySelector('.legacy-english-content')).toBeNull();
-    expect(document.querySelector('[lang="en"]')).toBeNull();
+    expect(languageOverrides()).toEqual([heading]);
     expect(
       screen.queryByRole('navigation', { name: 'Navigation principale' }),
     ).not.toBeInTheDocument();

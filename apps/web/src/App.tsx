@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type {
   AdminPermission,
@@ -29,6 +29,7 @@ import type {
   OfferAggregate,
   InternalPublicApplicationSummary,
   InternalPublicOpportunity,
+  PublicContentLanguage,
   PurchaseOrderSummary,
   QuotationSummary,
   ClientReceivableSummary,
@@ -182,7 +183,12 @@ import {
 } from './navigation/internal-navigation.js';
 import { recordNavigationIntent } from './navigation/record-deep-links.js';
 import { AppShell } from './ui/shell/AppShell.js';
-import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
+import {
+  authoredContentLanguage,
+  I18nProvider,
+  LegacyEnglishContent,
+  useI18n,
+} from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
 import { ReportingPanel } from './reporting/index.js';
 import { CandidatesPanel } from './candidates/index.js';
@@ -1309,6 +1315,12 @@ export function MissionsPanel({
   const [publicApplications, setPublicApplications] = useState<InternalPublicApplicationSummary[]>(
     [],
   );
+  // The editor's unsaved content-language choice, like the editor's other
+  // unsaved inputs. It belongs to one opportunity and is dropped once saved.
+  const [contentLanguageDraft, setContentLanguageDraft] = useState<{
+    opportunityId: string;
+    value: PublicContentLanguage | null;
+  } | null>(null);
   const [selectedMission, setSelectedMission] = useState<MissionSummary | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -1340,6 +1352,14 @@ export function MissionsPanel({
   const canFinalizeEvaluations = permissions.includes('evaluations:finalize');
   const canViewPublicOpportunity = permissions.includes('public_opportunities:view');
   const canManagePublicOpportunity = permissions.includes('public_opportunities:manage');
+  const selectedContentLanguage =
+    publicOpportunity && contentLanguageDraft?.opportunityId === publicOpportunity.id
+      ? contentLanguageDraft.value
+      : (publicOpportunity?.contentLanguage ?? null);
+  // The authored inputs state the selected language, or `lang=""` when it is
+  // not specified, so browser language tools do not assume the English chrome.
+  const authoredInputLanguage = authoredContentLanguage(selectedContentLanguage);
+  const contentLanguageHelpId = useId();
   const canPublishPublicOpportunity = permissions.includes('public_opportunities:publish');
   const canViewPublicApplications = permissions.includes('public_applications:view');
   const canViewOffers = permissions.includes('offers:view');
@@ -2054,6 +2074,7 @@ export function MissionsPanel({
       publicEngagementType: nullableFormValue(formData, 'publicEngagementType'),
       publicExperienceLevel: nullableFormValue(formData, 'publicExperienceLevel'),
       publicSkills: nullableFormValue(formData, 'publicSkills'),
+      contentLanguage: contentLanguageValue(formData.get('contentLanguage')),
       publicationStartsAt: optionalDateTimeFormValue(formData, 'publicationStartsAt') ?? null,
       applicationDeadline: optionalDateTimeFormValue(formData, 'applicationDeadline') ?? null,
       showClientName: formData.get('showClientName') === 'on',
@@ -2069,6 +2090,7 @@ export function MissionsPanel({
       additionalAttachmentsEnabled: formData.get('additionalAttachmentsEnabled') === 'on',
     });
     setPublicOpportunity(updated.publicOpportunity);
+    setContentLanguageDraft(null);
     setMessage('Public opportunity configuration saved.');
   }
 
@@ -2351,48 +2373,79 @@ export function MissionsPanel({
                     aria-label="Edit public opportunity"
                     onSubmit={(event) => void handlePublicOpportunityUpdate(event)}
                   >
+                    <label>
+                      Job content language
+                      <select
+                        name="contentLanguage"
+                        aria-describedby={contentLanguageHelpId}
+                        value={selectedContentLanguage ?? ''}
+                        onChange={(event) =>
+                          setContentLanguageDraft({
+                            opportunityId: publicOpportunity.id,
+                            value: contentLanguageValue(event.currentTarget.value),
+                          })
+                        }
+                        disabled={!canManagePublicOpportunity}
+                      >
+                        <option value="">Not specified</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                      </select>
+                    </label>
+                    <p id={contentLanguageHelpId}>
+                      Applies to every public text field below, including text prefilled from the
+                      mission. Choose Not specified if they are not all in one language.
+                    </p>
                     <input
+                      {...authoredInputLanguage}
                       name="publicTitle"
                       defaultValue={publicOpportunity.publicTitle}
                       disabled={!canManagePublicOpportunity}
                     />
                     <textarea
+                      {...authoredInputLanguage}
                       name="publicSummary"
                       placeholder="Public summary"
                       defaultValue={publicOpportunity.publicSummary ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <textarea
+                      {...authoredInputLanguage}
                       name="publicDescription"
                       placeholder="Public description"
                       defaultValue={publicOpportunity.publicDescription ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <input
+                      {...authoredInputLanguage}
                       name="publicLocation"
                       placeholder="Public location"
                       defaultValue={publicOpportunity.publicLocation ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <input
+                      {...authoredInputLanguage}
                       name="publicWorkArrangement"
                       placeholder="Work arrangement"
                       defaultValue={publicOpportunity.publicWorkArrangement ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <input
+                      {...authoredInputLanguage}
                       name="publicEngagementType"
                       placeholder="Contract type"
                       defaultValue={publicOpportunity.publicEngagementType ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <input
+                      {...authoredInputLanguage}
                       name="publicExperienceLevel"
                       placeholder="Experience level"
                       defaultValue={publicOpportunity.publicExperienceLevel ?? ''}
                       disabled={!canManagePublicOpportunity}
                     />
                     <textarea
+                      {...authoredInputLanguage}
                       name="publicSkills"
                       placeholder="Public skills"
                       defaultValue={publicOpportunity.publicSkills ?? ''}
@@ -4249,6 +4302,11 @@ function optionalDateTimeFormValue(formData: FormData, name: string): string | u
 
 function dateTimeInputValue(value: string | null): string {
   return value ? value.slice(0, 16) : '';
+}
+
+/** The staff-selected content language; "Not specified" and anything else is `null`. */
+function contentLanguageValue(value: FormDataEntryValue | null): PublicContentLanguage | null {
+  return value === 'en' || value === 'fr' ? value : null;
 }
 
 function nullableFormValue(formData: FormData, name: string): string | null {

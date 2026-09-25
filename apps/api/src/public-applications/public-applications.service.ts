@@ -12,6 +12,7 @@ import type {
   PublicApplicationFileInput,
   PublicApplicationSubmitRequest,
   PublicApplicationSubmitResponse,
+  PublicContentLanguage,
   PublicOpportunityDetailResponse,
   PublicOpportunityListResponse,
 } from '@hire-me/contracts';
@@ -272,6 +273,8 @@ export class PublicApplicationsService {
           ? { publicExperienceLevel: nullable(input.publicExperienceLevel) }
           : {}),
         ...(input.publicSkills !== undefined ? { publicSkills: nullable(input.publicSkills) } : {}),
+        // D-070: only an explicit staff choice sets the language; `null` clears it.
+        ...(input.contentLanguage !== undefined ? { contentLanguage: input.contentLanguage } : {}),
         ...(input.showClientName !== undefined ? { showClientName: input.showClientName } : {}),
         ...(input.showSalary !== undefined ? { showSalary: input.showSalary } : {}),
         ...(input.cvRequired !== undefined ? { cvRequired: input.cvRequired } : {}),
@@ -800,6 +803,7 @@ export class PublicApplicationsService {
       publicEngagementType: opportunity.publicEngagementType,
       publicExperienceLevel: opportunity.publicExperienceLevel,
       publicSkills: opportunity.publicSkills,
+      contentLanguage: publicContentLanguage(opportunity.contentLanguage),
       clientName: opportunity.showClientName ? opportunity.mission.client.name : null,
       salary: opportunity.showSalary
         ? {
@@ -846,6 +850,16 @@ export class PublicApplicationsService {
 const opportunityInclude = {
   mission: { include: { client: { select: { name: true } } } },
 } satisfies Prisma.PublicOpportunityInclude;
+
+/**
+ * The stored content language as the public contract carries it. The database
+ * CHECK already restricts it to `en`, `fr`, or NULL; anything else is treated
+ * as not declared rather than passed on, so no other value can ever reach a
+ * public `lang` attribute.
+ */
+function publicContentLanguage(value: string | null): PublicContentLanguage | null {
+  return value === 'en' || value === 'fr' ? value : null;
+}
 
 function optional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();

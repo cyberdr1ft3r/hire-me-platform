@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { PublicOpportunity } from '@hire-me/contracts';
 
-import { useI18n } from '../i18n/index.js';
+import { authoredContentLanguage, useI18n } from '../i18n/index.js';
 import { Button, InlineMessage } from '../ui/index.js';
 import { opportunityHeadline, publishedText } from './public-opportunity-format.js';
 import type { PublicListState } from './public-opportunity-state.js';
@@ -11,7 +11,9 @@ import type { PublicListState } from './public-opportunity-state.js';
  *
  * It has no search, filters, sorting, or pagination because the public list has
  * never had them. Each row shows only published fields: the title, then
- * location, work arrangement, and contract type, then the summary.
+ * location, work arrangement, and contract type, then the summary. Each of
+ * those authored values states the opportunity's declared content language
+ * itself; the surrounding chrome stays in the interface language.
  */
 export function PublicOpportunityList({
   list,
@@ -101,23 +103,34 @@ function PublicOpportunityRow({ opportunity }: { opportunity: PublicOpportunity 
   const { t } = useI18n();
   const headline = opportunityHeadline(opportunity);
   const summary = publishedText(opportunity.publicSummary);
+  const authored = authoredContentLanguage(opportunity.contentLanguage);
 
   return (
     <li className="public-list__row">
       <article className="public-list__item">
         <h2 className="public-list__title">
-          <a className="public-list__link" href={`/opportunities/${opportunity.publicSlug}`}>
+          <a
+            {...authored}
+            className="public-list__link"
+            href={`/opportunities/${opportunity.publicSlug}`}
+          >
             {opportunity.publicTitle}
           </a>
         </h2>
         {headline.length > 0 ? (
           <ul className="public-meta">
             {headline.map((item, index) => (
-              <li key={`${index}-${item}`}>{item}</li>
+              <li {...authored} key={`${index}-${item}`}>
+                {item}
+              </li>
             ))}
           </ul>
         ) : null}
-        {summary ? <p className="public-list__summary">{summary}</p> : null}
+        {summary ? (
+          <p {...authored} className="public-list__summary">
+            {summary}
+          </p>
+        ) : null}
         <span aria-hidden="true" className="public-list__cue">
           {t('publicOpportunity.list.viewOpportunity')}
           <span className="public-list__arrow">→</span>

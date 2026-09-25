@@ -83,6 +83,25 @@ function postedBodies(fetchMock: ReturnType<typeof mockPublicApi>): unknown[] {
   return callsTo(fetchMock, SUBMIT_URL).map(([, init]) => requestBody(init));
 }
 
+/** The language actually announced for an element, walking up to the document. */
+function effectiveLanguage(element: Element): string {
+  return element.closest('[lang]')?.getAttribute('lang') ?? '';
+}
+
+/**
+ * Every element below the document root that states its own language carries
+ * the declared authored language and sits outside the application form, which
+ * is interface chrome only. Untranslated chrome would fail this.
+ */
+function expectOnlyAuthoredLanguage(language: string, form: HTMLElement) {
+  const overrides = [...document.body.querySelectorAll('[lang]')];
+  expect(overrides.length).toBeGreaterThan(0);
+  for (const element of overrides) {
+    expect(element).toHaveAttribute('lang', language);
+    expect(form.contains(element)).toBe(false);
+  }
+}
+
 beforeAll(installBlobArrayBuffer);
 
 beforeEach(() => {
@@ -427,7 +446,176 @@ describe('public opportunity detail', () => {
       }),
     ).toBeRequired();
     expect(within(form).getByRole('button', { name: 'Envoyer ma candidature' })).toBeVisible();
-    expect(document.querySelector('[lang="en"], .legacy-english-content')).toBeNull();
+    expect(document.querySelector('.legacy-english-content')).toBeNull();
+    // Only the declared English authored copy states its own language (D-070);
+    // every label, heading, value, and the whole form stay French.
+    expectOnlyAuthoredLanguage('en', form);
+  });
+});
+
+/**
+ * Issue #88 / D-070: recruiter-authored copy states the language staff declared
+ * for it, independently of the interface language, and `lang=""` (unknown) when
+ * nothing was declared. Interface chrome always follows the document language.
+ */
+describe('authored content language (D-070)', () => {
+  const CASES = [
+    { content: 'en', expected: 'en', ui: 'fr' },
+    { content: 'fr', expected: 'fr', ui: 'en' },
+    { content: 'en', expected: 'en', ui: 'en' },
+    { content: 'fr', expected: 'fr', ui: 'fr' },
+    { content: null, expected: '', ui: 'fr' },
+    { content: null, expected: '', ui: 'en' },
+  ] as const;
+
+  const DETAIL_FIXTURE = {
+    applicationDeadline: '2026-10-30T17:00:00.000Z',
+    salary: { salaryCurrency: 'EUR', salaryMaxCents: null, salaryMinCents: 4_600_000 },
+  } as const;
+
+  /** The eight authored detail values, found by their published text. */
+  function authoredDetailElements(): HTMLElement[] {
+    return [
+      screen.getByRole('heading', { level: 1, name: 'Synthetic public role' }),
+      screen.getByText('Short synthetic summary.'),
+      screen.getByText(/^Synthetic public description\./),
+      screen.getByText('Synthetic skill one, synthetic skill two'),
+      screen.getByText('Example City'),
+      screen.getByText('Synthetic arrangement'),
+      screen.getByText('Synthetic contract'),
+      screen.getByText('Synthetic level'),
+    ];
+  }
+
+  for (const { content, expected, ui } of CASES) {
+    it(`detail: ${String(content)} content under the ${ui} interface`, async () => {
+      mockPublicApi({
+        detail: () =>
+          Promise.resolve(
+            jsonResponse({
+              opportunity: syntheticOpportunity({ ...DETAIL_FIXTURE, contentLanguage: content }),
+            }),
+          ),
+      });
+      openDetail(ui);
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+      expect(document.documentElement.lang).toBe(ui);
+
+      const authored = authoredDetailElements();
+      for (const element of authored) {
+        expect(element, element.textContent ?? '').toHaveAttribute('lang', expected);
+      }
+      // Nothing else states a language: labels, headings, "Confidential",
+      // salary, deadline, and the form all inherit the interface language.
+      expect([...document.body.querySelectorAll('[lang]')]).toEqual(
+        expect.arrayContaining(authored),
+      );
+      expect(document.body.querySelectorAll('[lang]')).toHaveLength(authored.length);
+      const facts = screen.getByRole('complementary', {
+        name: ui === 'fr' ? 'Informations clés' : 'Key details',
+      });
+      for (const label of facts.querySelectorAll('dt')) {
+        expect(effectiveLanguage(label), label.textContent ?? '').toBe(ui);
+      }
+      expect(facts.querySelectorAll('dd[lang]')).toHaveLength(4);
+      expect(
+        effectiveLanguage(screen.getByText(ui === 'fr' ? 'Confidentielle' : 'Confidential')),
+      ).toBe(ui);
+      for (const heading of document.querySelectorAll('h2')) {
+        expect(effectiveLanguage(heading), heading.textContent ?? '').toBe(ui);
+      }
+      const form = applicationForm(ui === 'fr' ? 'Postuler à cette offre' : 'Apply for this role');
+      expect(effectiveLanguage(form)).toBe(ui);
+      expect(form.querySelector('[lang]')).toBeNull();
+      expect(document.querySelector('.legacy-english-content')).toBeNull();
+    });
+
+    it(`list: ${String(content)} content under the ${ui} interface`, async () => {
+      mockPublicApi({
+        list: () =>
+          Promise.resolve(
+            jsonResponse({ opportunities: [syntheticOpportunity({ contentLanguage: content })] }),
+          ),
+      });
+      openList(ui);
+      const link = await screen.findByRole('link', { name: 'Synthetic public role' });
+      expect(document.documentElement.lang).toBe(ui);
+
+      // The link itself states the language; its accessible name is the title alone.
+      const authored = [
+        link,
+        screen.getByText('Example City'),
+        screen.getByText('Synthetic arrangement'),
+        screen.getByText('Synthetic contract'),
+        screen.getByText('Short synthetic summary.'),
+      ];
+      for (const element of authored) {
+        expect(element, element.textContent ?? '').toHaveAttribute('lang', expected);
+      }
+      expect(document.body.querySelectorAll('[lang]')).toHaveLength(authored.length);
+      expect(link.closest('h2')).not.toHaveAttribute('lang');
+      expect(
+        effectiveLanguage(
+          screen.getByRole('heading', {
+            level: 1,
+            name: ui === 'fr' ? 'Postes à pourvoir' : 'Open roles',
+          }),
+        ),
+      ).toBe(ui);
+      expect(
+        effectiveLanguage(screen.getByText(ui === 'fr' ? 'Voir l’offre' : 'View opportunity')),
+      ).toBe(ui);
+    });
+  }
+
+  it('keeps authored copy and its language across an interface switch, without refetching or losing input', async () => {
+    const fetchMock = mockPublicApi({
+      detail: () =>
+        Promise.resolve(
+          jsonResponse({ opportunity: syntheticOpportunity({ contentLanguage: 'en' }) }),
+        ),
+    });
+    openDetail('fr');
+    const title = await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    expect(title).toHaveAttribute('lang', 'en');
+    fireEvent.change(screen.getByLabelText(/^Nom complet/), { target: { value: 'Ada Example' } });
+
+    fireEvent.change(screen.getByLabelText('Langue'), { target: { value: 'en' } });
+    await screen.findByRole('form', { name: 'Apply for this role' });
+    expect(document.documentElement.lang).toBe('en');
+    expect(screen.getByRole('heading', { level: 2, name: 'Key details' })).toBeVisible();
+    const sameTitle = screen.getByRole('heading', { level: 1, name: 'Synthetic public role' });
+    expect(sameTitle).toHaveAttribute('lang', 'en');
+    for (const element of authoredDetailElements()) {
+      expect(element, element.textContent ?? '').toHaveAttribute('lang', 'en');
+    }
+    expect(screen.getByLabelText(/^Full name/)).toHaveValue('Ada Example');
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
+    await screen.findByRole('form', { name: 'Postuler à cette offre' });
+    expect(document.documentElement.lang).toBe('fr');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Synthetic public role' }),
+    ).toHaveAttribute('lang', 'en');
+    expect(screen.getByLabelText(/^Nom complet/)).toHaveValue('Ada Example');
+    expect(callsTo(fetchMock, DETAIL_URL)).toHaveLength(1);
+  });
+
+  it('keeps an undeclared language unknown across an interface switch', async () => {
+    mockPublicApi({
+      detail: () =>
+        Promise.resolve(
+          jsonResponse({ opportunity: syntheticOpportunity({ contentLanguage: null }) }),
+        ),
+    });
+    openDetail('en');
+    await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
+    await screen.findByRole('form', { name: 'Postuler à cette offre' });
+    for (const element of authoredDetailElements()) {
+      expect(element, element.textContent ?? '').toHaveAttribute('lang', '');
+    }
+    expect(document.body.querySelectorAll('[lang="fr"], [lang="en"]')).toHaveLength(0);
   });
 });
 
@@ -952,7 +1140,8 @@ describe('public application', () => {
     expect(screen.getByLabelText('Montant')).toHaveAccessibleDescription(
       'Par exemple 36000 ou 36000,50, sans espace ni symbole Saisissez un montant avec deux décimales au maximum, sans espace ni symbole, par exemple 36000 ou 36000,50.',
     );
-    expect(document.querySelector('[lang="en"], .legacy-english-content')).toBeNull();
+    expect(document.querySelector('.legacy-english-content')).toBeNull();
+    expectOnlyAuthoredLanguage('en', applicationForm('Postuler à cette offre'));
     expect(document.body.innerHTML.toLowerCase()).not.toContain('cents');
   });
 

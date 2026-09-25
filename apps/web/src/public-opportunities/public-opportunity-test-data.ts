@@ -12,6 +12,8 @@ export function syntheticOpportunity(
   return {
     applicationDeadline: null,
     clientName: null,
+    // The synthetic copy below is English, and declared so.
+    contentLanguage: 'en',
     publicDescription: 'Synthetic public description.\n\nSecond synthetic paragraph.',
     publicEngagementType: 'Synthetic contract',
     publicExperienceLevel: 'Synthetic level',

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { CANDIDATE_SALARY_EXPECTATION_CENTS_MAX } from './candidates.js';
 import {
+  InternalPublicOpportunityUpdateRequestSchema,
   normalizePublicSalaryExpectationCurrency,
   PublicApplicationSubmitRequestSchema,
+  PublicContentLanguageSchema,
+  PublicOpportunitySchema,
 } from './public-applications.js';
 
 /**
@@ -145,5 +148,71 @@ describe('public application salary expectation currency', () => {
     });
     expect(normalizePublicSalaryExpectationCurrency('EU')).toEqual({ ok: false });
     expect(normalizePublicSalaryExpectationCurrency('EURO')).toEqual({ ok: false });
+  });
+});
+
+/**
+ * Issue #88 / D-070: the authored-copy language is exactly `en`, `fr`, or
+ * `null`. Nothing is normalized or inferred, because this value is the only
+ * thing that reaches a public `lang` attribute.
+ */
+describe('public opportunity content language', () => {
+  const published = {
+    applicationDeadline: null,
+    clientName: null,
+    publicDescription: null,
+    publicEngagementType: null,
+    publicExperienceLevel: null,
+    publicLocation: null,
+    publicSkills: null,
+    publicSlug: 'synthetic-role',
+    publicSummary: null,
+    publicTitle: 'Synthetic role',
+    publicWorkArrangement: null,
+    salary: null,
+    uploadRequirements: {
+      additionalAttachmentsEnabled: false,
+      allowedMimeTypes: ['application/pdf'],
+      certificationsEnabled: false,
+      certificationsRequired: false,
+      cvRequired: true,
+      diplomasEnabled: false,
+      diplomasRequired: false,
+      maxFileSizeBytes: 1,
+      maxTotalUploadBytes: 1,
+    },
+  };
+  const unsupported: unknown[] = ['EN', 'Fr', 'en-US', 'fr-FR', 'de', '', ' en', 'english', 0, {}];
+
+  it('accepts exactly en, fr, and null', () => {
+    expect(PublicContentLanguageSchema.options).toEqual(['en', 'fr']);
+    for (const contentLanguage of ['en', 'fr', null] as const) {
+      expect(PublicOpportunitySchema.parse({ ...published, contentLanguage }).contentLanguage).toBe(
+        contentLanguage,
+      );
+      expect(
+        InternalPublicOpportunityUpdateRequestSchema.parse({ contentLanguage }).contentLanguage,
+      ).toBe(contentLanguage);
+    }
+  });
+
+  it('requires the published field and keeps it optional in a PATCH', () => {
+    expect(PublicOpportunitySchema.safeParse(published).success).toBe(false);
+    expect(InternalPublicOpportunityUpdateRequestSchema.parse({})).not.toHaveProperty(
+      'contentLanguage',
+    );
+  });
+
+  it('rejects every unsupported value without normalizing it', () => {
+    for (const contentLanguage of unsupported) {
+      expect(
+        InternalPublicOpportunityUpdateRequestSchema.safeParse({ contentLanguage }).success,
+        JSON.stringify(contentLanguage),
+      ).toBe(false);
+      expect(
+        PublicOpportunitySchema.safeParse({ ...published, contentLanguage }).success,
+        JSON.stringify(contentLanguage),
+      ).toBe(false);
+    }
   });
 });
