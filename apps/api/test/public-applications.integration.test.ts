@@ -1907,12 +1907,16 @@ describe('public opportunity applications', () => {
       const columns = await prisma.$queryRaw<
         { is_nullable: string; column_default: string | null; data_type: string }[]
       >`SELECT is_nullable, column_default, data_type FROM information_schema.columns
-        WHERE table_name = 'PublicOpportunity' AND column_name = 'contentLanguage'`;
+        WHERE table_schema = current_schema()
+          AND table_name = 'PublicOpportunity' AND column_name = 'contentLanguage'`;
       expect(columns).toEqual([{ is_nullable: 'YES', column_default: null, data_type: 'text' }]);
 
       const constraints = await prisma.$queryRaw<{ definition: string }[]>`
-        SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
-        WHERE conname = 'PublicOpportunity_contentLanguage_chk'`;
+        SELECT pg_get_constraintdef(c.oid) AS definition
+          FROM pg_constraint c
+          JOIN pg_namespace n ON n.oid = c.connamespace
+         WHERE n.nspname = current_schema()
+           AND c.conname = 'PublicOpportunity_contentLanguage_chk'`;
       expect(constraints).toHaveLength(1);
       expect(constraints[0]?.definition).toContain('contentLanguage');
     });

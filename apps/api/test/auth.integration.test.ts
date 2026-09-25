@@ -23,15 +23,19 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const pnpmCommand = process.env.npm_execpath ? process.execPath : 'pnpm';
 const pnpmBaseArgs = process.env.npm_execpath ? [process.env.npm_execpath] : [];
 
+/**
+ * Removes only this suite's own fixtures: `@auth.test` users and their
+ * sessions, credentials, and audit entries. Other users' sessions, credentials
+ * (including a bootstrapped administrator's), and Authentication audit history
+ * are never touched (Issue #90 / A-75-08).
+ */
 async function cleanAuthTestRecords(): Promise<void> {
-  await prisma.refreshSession.deleteMany();
-  await prisma.passwordCredential.deleteMany();
+  const ownUser = { normalizedEmail: { endsWith: '@auth.test' } };
+  await prisma.refreshSession.deleteMany({ where: { user: ownUser } });
+  await prisma.passwordCredential.deleteMany({ where: { user: ownUser } });
   await prisma.auditLog.deleteMany({
     where: {
-      OR: [
-        { entityType: 'Authentication' },
-        { targetUser: { normalizedEmail: { endsWith: '@auth.test' } } },
-      ],
+      OR: [{ actor: ownUser }, { targetUser: ownUser }],
     },
   });
   await prisma.userRole.deleteMany({

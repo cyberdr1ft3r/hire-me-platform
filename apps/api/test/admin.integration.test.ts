@@ -325,7 +325,10 @@ describe('administration user access management', () => {
     const superAdminRole = await prisma.role.findUniqueOrThrow({
       where: { name: RoleName.SUPER_ADMIN },
     });
-    await prisma.userRole.updateMany({
+    // Every other active SUPER_ADMIN assignment is suspended so the two fixtures
+    // are the last ones, then exactly those assignments are restored: this test
+    // must never leave a seeded or bootstrapped administrator demoted (Issue #90).
+    const suspended = await prisma.userRole.findMany({
       where: {
         roleId: superAdminRole.id,
         archivedAt: null,
@@ -337,30 +340,42 @@ describe('administration user access management', () => {
           },
         },
       },
+      select: { id: true },
+    });
+    const suspendedIds = suspended.map((assignment) => assignment.id);
+    await prisma.userRole.updateMany({
+      where: { id: { in: suspendedIds } },
       data: { archivedAt: new Date() },
     });
 
-    const [first, second] = await Promise.all([
-      fetch(`${baseUrl}/v1/admin/users/${firstSuperAdmin}/roles/${RoleName.SUPER_ADMIN}`, {
-        method: 'DELETE',
-        headers: authHeaders(actorToken),
-      }),
-      fetch(`${baseUrl}/v1/admin/users/${secondSuperAdmin}/roles/${RoleName.SUPER_ADMIN}`, {
-        method: 'DELETE',
-        headers: authHeaders(actorToken),
-      }),
-    ]);
-    const statuses = [first.status, second.status].sort();
-    const remainingSuperAdmins = await prisma.userRole.count({
-      where: {
-        archivedAt: null,
-        role: { name: RoleName.SUPER_ADMIN },
-        user: { normalizedEmail: { contains: 'concurrency-super-' }, status: UserStatus.ACTIVE },
-      },
-    });
+    try {
+      const [first, second] = await Promise.all([
+        fetch(`${baseUrl}/v1/admin/users/${firstSuperAdmin}/roles/${RoleName.SUPER_ADMIN}`, {
+          method: 'DELETE',
+          headers: authHeaders(actorToken),
+        }),
+        fetch(`${baseUrl}/v1/admin/users/${secondSuperAdmin}/roles/${RoleName.SUPER_ADMIN}`, {
+          method: 'DELETE',
+          headers: authHeaders(actorToken),
+        }),
+      ]);
+      const statuses = [first.status, second.status].sort();
+      const remainingSuperAdmins = await prisma.userRole.count({
+        where: {
+          archivedAt: null,
+          role: { name: RoleName.SUPER_ADMIN },
+          user: { normalizedEmail: { contains: 'concurrency-super-' }, status: UserStatus.ACTIVE },
+        },
+      });
 
-    expect(statuses).toEqual([200, 409]);
-    expect(remainingSuperAdmins).toBe(1);
+      expect(statuses).toEqual([200, 409]);
+      expect(remainingSuperAdmins).toBe(1);
+    } finally {
+      await prisma.userRole.updateMany({
+        where: { id: { in: suspendedIds } },
+        data: { archivedAt: null },
+      });
+    }
   });
 
   it('prevents unsafe self-demotion, self-suspension, and self-archival', async () => {
