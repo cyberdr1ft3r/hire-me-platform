@@ -828,6 +828,8 @@ export const enMessages = {
       required: 'This field is required.',
       salaryAmount:
         'Enter an amount with at most two decimals, without spaces or symbols, for example 36000 or 36000.50.',
+      salaryCurrency:
+        'Enter a three-letter currency code, for example EUR or MAD, or leave it empty.',
       summary: 'Correct the highlighted fields, then submit again.',
       summaryTitle: 'Check your application',
     },

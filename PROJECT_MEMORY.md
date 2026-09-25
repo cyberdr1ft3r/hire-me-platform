@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `91a6050b864abb1c4ea4474e08f987602c832c86`, including PR #77, PR #79 (A-75-04), PR #81 (A-75-02), and PR #83 / Issue #82 (**D-067**, A-75-01 corrected). Issue #84 (A-75-03 JSON transport vs **5 MB** aggregate uploads, **D-068**) is in review on a dedicated branch and must not be treated as corrected on `main` until merge. Issue #75 still has **A-75-05**, **A-75-06/07**, and **A-75-08** open, plus fresh public EN/FR visual evidence. The AppShell/i18n foundation audit follows. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
+The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `e254dc46349f21360386b4efeb498bb461f62719`, including PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (**D-067**, A-75-01 corrected), and PR #85 / Issue #84 (**D-068**, A-75-03 corrected at application level; production env/proxy limits not yet verified). Issue #86 (A-75-05 public salary currency shape) is in review and must not be treated as corrected on `main` until merge. Issue #75 still has **A-75-05**, **A-75-06/07**, and **A-75-08** open, plus fresh public EN/FR visual evidence. The AppShell/i18n foundation audit follows. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.

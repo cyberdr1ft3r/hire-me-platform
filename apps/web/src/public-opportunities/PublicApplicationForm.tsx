@@ -237,6 +237,7 @@ export function PublicApplicationForm({
         />
         <TextField
           autoCapitalize="characters"
+          error={errorFor('salaryExpectationCurrency')}
           hint={t('publicOpportunity.application.hints.salaryCurrency')}
           label={t('publicOpportunity.application.fields.salaryCurrency')}
           maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationCurrency}

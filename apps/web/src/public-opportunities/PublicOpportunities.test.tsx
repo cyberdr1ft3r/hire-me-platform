@@ -984,6 +984,132 @@ describe('public application', () => {
     ]);
   });
 
+  describe('salary currency (Issue #86)', () => {
+    const EN_CURRENCY_HINT = 'Three-letter code, for example EUR or MAD';
+    const EN_CURRENCY_ERROR =
+      'Enter a three-letter currency code, for example EUR or MAD, or leave it empty.';
+    const FR_CURRENCY_HINT = 'Code à trois lettres, par exemple EUR ou MAD';
+    const FR_CURRENCY_ERROR =
+      'Saisissez un code de devise de trois lettres, par exemple EUR ou MAD, ou laissez ce champ vide.';
+
+    function fillRequiredInFrench() {
+      fireEvent.change(screen.getByLabelText(/^Nom complet/), { target: { value: 'Ada Example' } });
+      fireEvent.change(screen.getByLabelText(/^Adresse e-mail/), {
+        target: { value: 'ada@example.test' },
+      });
+      fireEvent.change(screen.getByLabelText(/^CV/), {
+        target: {
+          files: [syntheticFile('%PDF-1.4 synthetic', 'synthetic-cv.pdf', 'application/pdf')],
+        },
+      });
+      fireEvent.click(screen.getByRole('checkbox', { name: /J’accepte/ }));
+    }
+
+    it('caps the control at three characters but validates whatever it holds', async () => {
+      const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+      openDetail();
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+      fillRequired();
+      const currency = screen.getByLabelText('Currency');
+      expect(currency).toHaveAttribute('maxlength', '3');
+      expect(currency).toHaveAccessibleDescription(EN_CURRENCY_HINT);
+
+      // A programmatic value is not cut by maxlength, so these prove validation
+      // does not depend on it.
+      for (const value of ['E', 'EU', 'EURO', 'E'.repeat(4000), '123', 'E-R', 'ÉUR', '€€€']) {
+        const label = value.slice(0, 8);
+        fireEvent.change(screen.getByLabelText('Currency'), { target: { value } });
+        fireEvent.submit(applicationForm());
+        const control = screen.getByLabelText('Currency');
+        expect(control, label).toHaveFocus();
+        expect(control, label).toHaveAccessibleDescription(
+          `${EN_CURRENCY_HINT} ${EN_CURRENCY_ERROR}`,
+        );
+        expect(control, label).toHaveValue(value);
+      }
+      expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(0);
+
+      fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'eUr' } });
+      fireEvent.submit(applicationForm());
+      await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+      expect(postedBodies(fetchMock)).toEqual([
+        {
+          consentGranted: true,
+          email: 'ada@example.test',
+          files: [expect.objectContaining({ category: 'CV', filename: 'synthetic-cv.pdf' })],
+          fullName: 'Ada Example',
+          salaryExpectationCurrency: 'EUR',
+        },
+      ]);
+    });
+
+    it('states the currency rule in French and keeps it across a language switch', async () => {
+      const fetchMock = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+      openDetail('fr');
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+      expect(screen.getByLabelText('Devise')).toHaveAttribute('maxlength', '3');
+
+      fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '36000,50' } });
+      fireEvent.change(screen.getByLabelText('Devise'), { target: { value: 'eu' } });
+      fireEvent.submit(applicationForm('Postuler à cette offre'));
+      expect(screen.getByLabelText('Devise')).toHaveAccessibleDescription(
+        `${FR_CURRENCY_HINT} ${FR_CURRENCY_ERROR}`,
+      );
+
+      fireEvent.change(screen.getByLabelText('Langue'), { target: { value: 'en' } });
+      await screen.findByRole('form', { name: 'Apply for this role' });
+      expect(screen.getByLabelText('Amount')).toHaveValue('36000,50');
+      expect(screen.getByLabelText('Currency')).toHaveValue('eu');
+      expect(screen.getByLabelText('Currency')).toHaveAccessibleDescription(
+        `${EN_CURRENCY_HINT} ${EN_CURRENCY_ERROR}`,
+      );
+
+      fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr' } });
+      await screen.findByRole('form', { name: 'Postuler à cette offre' });
+      expect(screen.getByLabelText('Montant')).toHaveValue('36000,50');
+      expect(screen.getByLabelText('Devise')).toHaveValue('eu');
+      expect(callsTo(fetchMock, DETAIL_URL)).toHaveLength(1);
+      expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(0);
+
+      fillRequiredInFrench();
+      fireEvent.change(screen.getByLabelText('Devise'), { target: { value: 'mad' } });
+      fireEvent.submit(applicationForm('Postuler à cette offre'));
+      await waitFor(() => expect(callsTo(fetchMock, SUBMIT_URL)).toHaveLength(1));
+      expect(postedBodies(fetchMock)).toEqual([
+        expect.objectContaining({
+          salaryExpectationCents: 3_600_050,
+          salaryExpectationCurrency: 'MAD',
+        }),
+      ]);
+    });
+
+    it('omits the currency when it is left empty, in English and in French', async () => {
+      const english = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+      const { unmount } = openDetail();
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+      fillRequired();
+      fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '36000' } });
+      fireEvent.change(screen.getByLabelText('Currency'), { target: { value: '   ' } });
+      fireEvent.submit(applicationForm());
+      await waitFor(() => expect(callsTo(english, SUBMIT_URL)).toHaveLength(1));
+      const [englishBody] = postedBodies(english) as Record<string, unknown>[];
+      expect('salaryExpectationCurrency' in englishBody!).toBe(false);
+      expect(englishBody).toEqual(expect.objectContaining({ salaryExpectationCents: 3_600_000 }));
+      unmount();
+      vi.restoreAllMocks();
+
+      const french = mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
+      openDetail('fr');
+      await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
+      fillRequiredInFrench();
+      fireEvent.submit(applicationForm('Postuler à cette offre'));
+      await waitFor(() => expect(callsTo(french, SUBMIT_URL)).toHaveLength(1));
+      const [frenchBody] = postedBodies(french) as Record<string, unknown>[];
+      expect('salaryExpectationCurrency' in frenchBody!).toBe(false);
+      expect('salaryExpectationCents' in frenchBody!).toBe(false);
+    });
+  });
+
   it('applies the published size limit before sending anything', async () => {
     const fetchMock = mockPublicApi({
       detail: () =>

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { CANDIDATE_SALARY_EXPECTATION_CENTS_MAX } from './candidates.js';
-import { PublicApplicationSubmitRequestSchema } from './public-applications.js';
+import {
+  normalizePublicSalaryExpectationCurrency,
+  PublicApplicationSubmitRequestSchema,
+} from './public-applications.js';
 
 /**
  * `salaryExpectationCents` is a minor-unit integer for every caller of the
@@ -56,15 +59,91 @@ describe('public application salary expectation', () => {
       ).toBe(false);
     }
   });
+});
 
-  it('keeps the optional recorded currency exactly as the endpoint always did', () => {
+/**
+ * Issue #86 / A-75-05: the optional currency is exactly three ASCII letters
+ * after trimming, stored in uppercase, for the browser and a direct caller
+ * alike. Empty means omitted. Nothing else is inferred or converted.
+ */
+describe('public application salary expectation currency', () => {
+  it('omits an absent, empty, or whitespace-only currency', () => {
+    for (const extra of [
+      {},
+      { salaryExpectationCurrency: '' },
+      { salaryExpectationCurrency: '   ' },
+    ]) {
+      const parsed = PublicApplicationSubmitRequestSchema.parse(submission(extra));
+      expect(parsed.salaryExpectationCurrency, JSON.stringify(extra)).toBeUndefined();
+    }
+  });
+
+  it('accepts three ASCII letters in any case and stores them in uppercase', () => {
+    for (const [input, stored] of [
+      ['EUR', 'EUR'],
+      ['mad', 'MAD'],
+      ['uSd', 'USD'],
+      [' EUR ', 'EUR'],
+      ['\teur\n', 'EUR'],
+    ] as const) {
+      expect(
+        PublicApplicationSubmitRequestSchema.parse(submission({ salaryExpectationCurrency: input }))
+          .salaryExpectationCurrency,
+        JSON.stringify(input),
+      ).toBe(stored);
+    }
+  });
+
+  it('does not require a salary amount with a currency, or a currency with an amount', () => {
     expect(
-      PublicApplicationSubmitRequestSchema.parse(
-        submission({ salaryExpectationCurrency: ' MAD ' }),
-      ),
-    ).toMatchObject({ salaryExpectationCurrency: 'MAD' });
+      PublicApplicationSubmitRequestSchema.parse(submission({ salaryExpectationCurrency: 'EUR' })),
+    ).not.toHaveProperty('salaryExpectationCents');
     expect(
-      PublicApplicationSubmitRequestSchema.parse(submission()).salaryExpectationCurrency,
+      PublicApplicationSubmitRequestSchema.parse(submission({ salaryExpectationCents: 3_600_050 }))
+        .salaryExpectationCurrency,
     ).toBeUndefined();
+  });
+
+  it('rejects every other shape without echoing it', () => {
+    for (const salaryExpectationCurrency of [
+      'E',
+      'EU',
+      'EURO',
+      'E'.repeat(4000),
+      '123',
+      'EU1',
+      'E-R',
+      'EU.',
+      'E R',
+      'ÉUR',
+      'EUŘ',
+      '€€€',
+      'ＥＵＲ',
+      `EU${String.fromCodePoint(0x0301)}`,
+      null,
+      840,
+    ]) {
+      const result = PublicApplicationSubmitRequestSchema.safeParse(
+        submission({ salaryExpectationCurrency }),
+      );
+      expect(result.success, JSON.stringify(salaryExpectationCurrency)).toBe(false);
+      if (
+        !result.success &&
+        typeof salaryExpectationCurrency === 'string' &&
+        salaryExpectationCurrency.length > 1
+      ) {
+        expect(JSON.stringify(result.error.issues)).not.toContain(salaryExpectationCurrency);
+      }
+    }
+  });
+
+  it('exposes the same rule to the browser form', () => {
+    expect(normalizePublicSalaryExpectationCurrency('')).toEqual({ ok: true, currency: undefined });
+    expect(normalizePublicSalaryExpectationCurrency(' eUr ')).toEqual({
+      ok: true,
+      currency: 'EUR',
+    });
+    expect(normalizePublicSalaryExpectationCurrency('EU')).toEqual({ ok: false });
+    expect(normalizePublicSalaryExpectationCurrency('EURO')).toEqual({ ok: false });
   });
 });

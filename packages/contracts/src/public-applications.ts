@@ -8,6 +8,44 @@ const TrimmedTextSchema = z
   .max(4000)
   .transform((value) => (value && value.length > 0 ? value : undefined));
 
+/**
+ * The one public salary-expectation currency rule (Issue #86 / A-75-05), shared
+ * by the public submit contract and the public browser form so they cannot
+ * drift apart.
+ *
+ * The currency is optional. Surrounding whitespace is trimmed, as every other
+ * public text field is; an empty result means no currency and is omitted.
+ * Otherwise it must be exactly three ASCII letters and is returned in
+ * uppercase, so `eur`, `Eur`, and ` EUR ` all become `EUR`. This is a shape
+ * rule only: no ISO 4217 catalogue, no conversion, and no pairing with the
+ * salary amount. A refusal carries no copy of the submitted text.
+ */
+export type PublicSalaryExpectationCurrencyResult =
+  { ok: true; currency: string | undefined } | { ok: false };
+
+const PUBLIC_SALARY_EXPECTATION_CURRENCY_SHAPE = /^[A-Za-z]{3}$/;
+
+export function normalizePublicSalaryExpectationCurrency(
+  value: string,
+): PublicSalaryExpectationCurrencyResult {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return { ok: true, currency: undefined };
+  }
+  return PUBLIC_SALARY_EXPECTATION_CURRENCY_SHAPE.test(trimmed)
+    ? { ok: true, currency: trimmed.toUpperCase() }
+    : { ok: false };
+}
+
+const PublicSalaryExpectationCurrencySchema = z.string().transform((value, context) => {
+  const result = normalizePublicSalaryExpectationCurrency(value);
+  if (!result.ok) {
+    context.addIssue({ code: 'custom', message: 'Invalid salary expectation currency.' });
+    return z.NEVER;
+  }
+  return result.currency;
+});
+
 export const PublicOpportunityStatusSchema = z.enum([
   'DRAFT',
   'OPEN',
@@ -95,7 +133,11 @@ export const PublicApplicationSubmitRequestSchema = z.object({
     .nonnegative()
     .max(CANDIDATE_SALARY_EXPECTATION_CENTS_MAX)
     .optional(),
-  salaryExpectationCurrency: TrimmedTextSchema.optional(),
+  /**
+   * Optional; when present, exactly three ASCII letters after trimming, stored
+   * in uppercase. See `normalizePublicSalaryExpectationCurrency`.
+   */
+  salaryExpectationCurrency: PublicSalaryExpectationCurrencySchema.optional(),
   professionalLinks: TrimmedTextSchema.optional(),
   motivation: TrimmedTextSchema.optional(),
   consentGranted: z.boolean(),

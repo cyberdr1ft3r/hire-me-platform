@@ -115,7 +115,13 @@ type RolePermissionSnapshot = {
   }[];
 };
 
-const syntheticPublicSlugPrefixes = ['issue27', 'issue80', 'issue82', 'issue84'] as const;
+const syntheticPublicSlugPrefixes = [
+  'issue27',
+  'issue80',
+  'issue82',
+  'issue84',
+  'issue86',
+] as const;
 
 function syntheticPublicSlugWhere(): {
   OR: Array<{ publicSlug: { contains: string } }>;
@@ -2108,6 +2114,247 @@ describe('public opportunity applications', () => {
         },
       }),
     ).resolves.toMatchObject({ submittedSalaryExpectationCents: 2_147_483_647 });
+  });
+
+  describe('issue86 salary expectation currency', () => {
+    const OMITTED = Symbol('omitted');
+
+    /** A submission whose currency is exactly `currency`, or has no currency key at all. */
+    function currencyPayload(email: string, currency: unknown) {
+      const payload: Record<string, unknown> = { ...applicationPayload(email) };
+      if (currency === OMITTED) {
+        delete payload.salaryExpectationCurrency;
+      } else {
+        payload.salaryExpectationCurrency = currency;
+      }
+      return payload as ReturnType<typeof applicationPayload>;
+    }
+
+    it('omits an empty currency and stores three letters in uppercase on a new Candidate and the snapshot', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue86-currency-accepted',
+        recruiterUserId,
+      );
+
+      for (const [index, [currency, stored]] of (
+        [
+          [OMITTED, null],
+          ['', null],
+          ['   ', null],
+          ['EUR', 'EUR'],
+          ['eur', 'EUR'],
+          ['mAd', 'MAD'],
+          [' USD ', 'USD'],
+          ['\tgbp\n', 'GBP'],
+        ] as const
+      ).entries()) {
+        const email = `currency-accepted-${index}@public-applications.test`;
+        const label = `${index}: ${String(currency === OMITTED ? 'omitted' : JSON.stringify(currency))}`;
+        const response = await submit(
+          baseUrl,
+          opportunity.publicSlug,
+          currencyPayload(email, currency),
+        );
+        expect(response.status, label).toBe(200);
+
+        const candidate = await prisma.candidate.findUniqueOrThrow({
+          where: { normalizedEmail: email },
+        });
+        expect(candidate.salaryExpectationCurrency, label).toBe(stored);
+        // D-066: the amount is unaffected by the currency rule.
+        expect(candidate.salaryExpectationCents, label).toBe(110000);
+
+        const application = await prisma.publicCandidateApplication.findFirstOrThrow({
+          where: { publicOpportunityId: opportunity.id, submittedNormalizedEmail: email },
+        });
+        expect(application.submittedSalaryExpectationCurrency, label).toBe(stored);
+        expect(application.submittedSalaryExpectationCents, label).toBe(110000);
+      }
+    });
+
+    it('accepts a currency without an amount and an amount without a currency', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue86-currency-independent',
+        recruiterUserId,
+      );
+      const currencyOnly = 'currency-only@public-applications.test';
+      const withoutAmount: Record<string, unknown> = {
+        ...currencyPayload(currencyOnly, 'chf'),
+      };
+      delete withoutAmount.salaryExpectationCents;
+      expect(
+        (
+          await submit(
+            baseUrl,
+            opportunity.publicSlug,
+            withoutAmount as ReturnType<typeof applicationPayload>,
+          )
+        ).status,
+      ).toBe(200);
+      await expect(
+        prisma.candidate.findUniqueOrThrow({ where: { normalizedEmail: currencyOnly } }),
+      ).resolves.toMatchObject({ salaryExpectationCents: null, salaryExpectationCurrency: 'CHF' });
+
+      const amountOnly = 'amount-only@public-applications.test';
+      expect(
+        (await submit(baseUrl, opportunity.publicSlug, currencyPayload(amountOnly, OMITTED)))
+          .status,
+      ).toBe(200);
+      await expect(
+        prisma.candidate.findUniqueOrThrow({ where: { normalizedEmail: amountOnly } }),
+      ).resolves.toMatchObject({ salaryExpectationCents: 110000, salaryExpectationCurrency: null });
+    });
+
+    it('rejects every malformed currency with a generic 400 before any side effect', async () => {
+      const { mission, opportunity } = await createMissionWithOpportunity(
+        'issue86-currency-rejected',
+        recruiterUserId,
+      );
+      const storage = app.get(ProtectedStorageService);
+      const put = vi.spyOn(storage, 'put');
+      const auditCountBefore = await prisma.auditLog.count({
+        where: { action: 'public_applications.application.submitted' },
+      });
+
+      const malformed: unknown[] = [
+        'E',
+        'EU',
+        'EURO',
+        'E'.repeat(4000),
+        '123',
+        'EU1',
+        'E-R',
+        'EU.',
+        'E R',
+        'ÉUR',
+        'EUŘ',
+        '€€€',
+        'ＥＵＲ',
+        `EU${String.fromCodePoint(0x0301)}`,
+        ' EURO ',
+        null,
+        840,
+      ];
+      try {
+        for (const [index, currency] of malformed.entries()) {
+          const email = `currency-rejected-${index}@public-applications.test`;
+          const label = `${index}: ${JSON.stringify(currency)?.slice(0, 12)}`;
+          const response = await submit(
+            baseUrl,
+            opportunity.publicSlug,
+            currencyPayload(email, currency),
+          );
+          expect(response.status, label).toBe(400);
+          const text = await response.text();
+          expect(JSON.parse(text), label).toEqual({
+            error: {
+              code: 'INVALID_PUBLIC_APPLICATION_REQUEST',
+              message: 'Invalid application request.',
+            },
+          });
+          if (typeof currency === 'string' && currency.trim().length >= 3) {
+            expect(text, label).not.toContain(currency.trim());
+          }
+          await assertRejectedUploadLeavesNoSideEffects({
+            missionId: mission.id,
+            opportunityId: opportunity.id,
+            email,
+            auditCountBefore,
+          });
+        }
+        expect(put).not.toHaveBeenCalled();
+        await expect(
+          prisma.missionCandidate.count({ where: { missionId: mission.id } }),
+        ).resolves.toBe(0);
+        await expect(
+          prisma.publicCandidateApplication.count({
+            where: { publicOpportunityId: opportunity.id },
+          }),
+        ).resolves.toBe(0);
+      } finally {
+        put.mockRestore();
+      }
+    });
+
+    it('records the submitted currency on the snapshot and leaves an existing Candidate untouched', async () => {
+      const { opportunity } = await createMissionWithOpportunity(
+        'issue86-currency-existing',
+        recruiterUserId,
+      );
+      const withCurrency = 'currency-existing@public-applications.test';
+      const withoutCurrency = 'currency-existing-empty@public-applications.test';
+      const existing = await prisma.candidate.create({
+        data: {
+          displayName: 'Existing applicant',
+          email: withCurrency,
+          normalizedEmail: withCurrency,
+          status: CandidateStatus.ACTIVE,
+          consentStatus: ConsentStatus.GRANTED,
+          source: 'referral',
+          salaryExpectationCents: 1_234_567,
+          salaryExpectationCurrency: 'EUR',
+        },
+      });
+      const existingEmpty = await prisma.candidate.create({
+        data: {
+          displayName: 'Existing applicant without compensation',
+          email: withoutCurrency,
+          normalizedEmail: withoutCurrency,
+          status: CandidateStatus.ACTIVE,
+          consentStatus: ConsentStatus.GRANTED,
+          source: 'referral',
+        },
+      });
+
+      // A malformed currency is refused for a known email too, with the same
+      // generic body and without touching the Candidate.
+      const refused = await submit(baseUrl, opportunity.publicSlug, {
+        ...applicationPayload(withCurrency),
+        salaryExpectationCurrency: 'MADX',
+      });
+      expect(refused.status).toBe(400);
+      await expect(
+        prisma.publicCandidateApplication.count({ where: { publicOpportunityId: opportunity.id } }),
+      ).resolves.toBe(0);
+
+      for (const [email, typed] of [
+        [withCurrency, 'mad'],
+        [withoutCurrency, ' Usd '],
+      ] as const) {
+        const response = await submit(baseUrl, opportunity.publicSlug, {
+          ...applicationPayload(email),
+          salaryExpectationCents: 3_600_050,
+          salaryExpectationCurrency: typed,
+        });
+        expect(response.status, email).toBe(200);
+      }
+
+      const snapshots = await prisma.publicCandidateApplication.findMany({
+        where: { publicOpportunityId: opportunity.id },
+        orderBy: { submittedNormalizedEmail: 'asc' },
+      });
+      expect(
+        snapshots.map((application) => ({
+          candidateId: application.candidateId,
+          cents: application.submittedSalaryExpectationCents,
+          currency: application.submittedSalaryExpectationCurrency,
+        })),
+      ).toEqual([
+        { candidateId: existingEmpty.id, cents: 3_600_050, currency: 'USD' },
+        { candidateId: existing.id, cents: 3_600_050, currency: 'MAD' },
+      ]);
+
+      for (const before of [existing, existingEmpty]) {
+        const after = await prisma.candidate.findUniqueOrThrow({ where: { id: before.id } });
+        expect(after.salaryExpectationCents, before.displayName).toBe(
+          before.salaryExpectationCents,
+        );
+        expect(after.salaryExpectationCurrency, before.displayName).toBe(
+          before.salaryExpectationCurrency,
+        );
+        expect(after.updatedAt.getTime(), before.displayName).toBe(before.updatedAt.getTime());
+      }
+    });
   });
 
   it('classifies rows by current expectation against the snapshot, with no amount and no write', async () => {
