@@ -34,26 +34,33 @@ const adminPermissionCodes = [
   'permissions:view',
 ] as const;
 
+const ADMIN_FIXTURE_USER = { normalizedEmail: { endsWith: '@admin.test' } };
+
+/**
+ * Removes only this suite's own fixtures: `@admin.test` users and their
+ * sessions, credentials, roles, and the audit entries they acted in or were
+ * the target of. Every administration audit event records both, so nothing of
+ * this suite's is left behind, while other suites' and seeded or bootstrapped
+ * users' `User` and `RefreshSession` audit history is never touched (Issue #90).
+ * Audit entries go before the users, so none is orphaned by `SET NULL`.
+ */
 async function cleanAdminTestRecords(): Promise<void> {
   await prisma.refreshSession.deleteMany({
-    where: { user: { normalizedEmail: { endsWith: '@admin.test' } } },
+    where: { user: ADMIN_FIXTURE_USER },
   });
   await prisma.passwordCredential.deleteMany({
-    where: { user: { normalizedEmail: { endsWith: '@admin.test' } } },
+    where: { user: ADMIN_FIXTURE_USER },
   });
   await prisma.auditLog.deleteMany({
     where: {
-      OR: [
-        { entityType: { in: ['User', 'RefreshSession'] } },
-        { targetUser: { normalizedEmail: { endsWith: '@admin.test' } } },
-      ],
+      OR: [{ actor: ADMIN_FIXTURE_USER }, { targetUser: ADMIN_FIXTURE_USER }],
     },
   });
   await prisma.userRole.deleteMany({
-    where: { user: { normalizedEmail: { endsWith: '@admin.test' } } },
+    where: { user: ADMIN_FIXTURE_USER },
   });
   await prisma.user.deleteMany({
-    where: { normalizedEmail: { endsWith: '@admin.test' } },
+    where: ADMIN_FIXTURE_USER,
   });
 }
 
@@ -577,6 +584,68 @@ describe('administration user access management', () => {
     expect(serialized).not.toContain('passwordHash');
     expect(serialized).not.toContain('tokenHash');
     expect(serialized).not.toContain('hire_me_refresh');
+  });
+
+  // Last in this file: it runs the suite's own cleaner, which removes every
+  // `@admin.test` fixture the earlier tests use.
+  it('cleans only its own audit fixtures and leaves unrelated User and RefreshSession audit history', async () => {
+    const bystander = await prisma.user.create({
+      data: {
+        displayName: 'Synthetic cleanup bystander',
+        email: 'cleanup-bystander@admin-cleanup.hireme.test',
+        normalizedEmail: 'cleanup-bystander@admin-cleanup.hireme.test',
+      },
+    });
+    const fixture = await createUser('cleanup-fixture@admin.test');
+    try {
+      const unrelated = await Promise.all(
+        [
+          { entityType: 'User', actorUserId: bystander.id, targetUserId: bystander.id },
+          { entityType: 'RefreshSession', actorUserId: bystander.id, targetUserId: bystander.id },
+          { entityType: 'User', actorUserId: null, targetUserId: null },
+          { entityType: 'RefreshSession', actorUserId: null, targetUserId: null },
+        ].map((entry) =>
+          prisma.auditLog.create({
+            data: {
+              ...entry,
+              action: 'synthetic.cleanup.bystander',
+              metadataSummary: 'Unrelated audit history that admin cleanup must keep.',
+            },
+          }),
+        ),
+      );
+      await prisma.auditLog.createMany({
+        data: [
+          { entityType: 'User', actorUserId: fixture, targetUserId: bystander.id },
+          { entityType: 'RefreshSession', actorUserId: bystander.id, targetUserId: fixture },
+        ].map((entry) => ({ ...entry, action: 'synthetic.cleanup.fixture' })),
+      });
+
+      await cleanAdminTestRecords();
+
+      // Unrelated User and RefreshSession entries survive, unchanged.
+      await expect(
+        prisma.auditLog.count({ where: { id: { in: unrelated.map((entry) => entry.id) } } }),
+      ).resolves.toBe(unrelated.length);
+      // This suite's own entries, as actor or target, are gone, and nothing of
+      // it is left to accumulate on the next run.
+      await expect(
+        prisma.auditLog.count({ where: { action: 'synthetic.cleanup.fixture' } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.auditLog.count({
+          where: { OR: [{ actor: ADMIN_FIXTURE_USER }, { targetUser: ADMIN_FIXTURE_USER }] },
+        }),
+      ).resolves.toBe(0);
+      await expect(prisma.user.count({ where: ADMIN_FIXTURE_USER })).resolves.toBe(0);
+    } finally {
+      await prisma.auditLog.deleteMany({
+        where: {
+          action: { in: ['synthetic.cleanup.bystander', 'synthetic.cleanup.fixture'] },
+        },
+      });
+      await prisma.user.deleteMany({ where: { id: bystander.id } });
+    }
   });
 });
 
