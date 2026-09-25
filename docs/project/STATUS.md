@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-26
+Last updated: 2026-09-25
 Status owner: repository maintainer
 
 ## Overall state
@@ -72,7 +72,7 @@ Status owner: repository maintainer
 ## Issue #88 Verification State (draft, pending merge)
 
 - Discovery on `main` `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`: `PublicOpportunity` stored eight authored text fields with no language metadata; list and detail rendered them with no `lang`, so they inherited the interface `<html lang>`; `content-language.test.tsx` asserted the English authored h1 was `fr` and, with `PublicOpportunities.test.tsx`, forbade any `[lang="en"]` on French public pages.
-- **D-070 accepted** (implementation pending merge): one additive migration `20260926090000_public_opportunity_content_language` adds nullable `contentLanguage TEXT` with `PublicOpportunity_contentLanguage_chk` (`IS NULL OR IN ('en','fr')`); no default, no backfill. Strict `PublicContentLanguageSchema`; public DTO adds only `contentLanguage`; manage-permission PATCH sets or clears it; publish gate unchanged; Mission-prefilled copy stays `null`.
+- **D-070 accepted** (implementation pending merge): one additive migration `20260925120000_public_opportunity_content_language` adds nullable `contentLanguage TEXT` with `PublicOpportunity_contentLanguage_chk` (`IS NULL OR IN ('en','fr')`); no default, no backfill. Strict `PublicContentLanguageSchema`; public DTO adds only `contentLanguage`; manage-permission PATCH sets or clears it; publish gate unchanged; Mission-prefilled copy stays `null`.
 - Web: shared wrapperless `authoredContentLanguage` helper sets `lang` (or `lang=""`) on each authored list/detail element only; chrome, formatted values, client name, and the form keep the interface language. The Missions editor adds the Job content language select with helper text and marks the eight authored inputs. The old blanket `[lang="en"]` assertions now require that every language override is authored copy outside the form.
 - Unchanged: D-066–D-069, #79 503, #81 upload structure, visibility and slug rules, authentication and permissions, ATS, candidate data. Production migration needs deployment approval.
 - A-75-06/07 are **not** corrected on `main` until the Issue #88 PR merges.

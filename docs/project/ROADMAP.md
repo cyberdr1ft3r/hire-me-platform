@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-26
+Last updated: 2026-09-25
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 

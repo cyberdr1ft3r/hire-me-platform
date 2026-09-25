@@ -1,6 +1,6 @@
 # Risk Register
 
-Last updated: 2026-09-26
+Last updated: 2026-09-25
 
 | ID | Risk | Impact | Current mitigation | State |
 | --- | --- | --- | --- | --- |
