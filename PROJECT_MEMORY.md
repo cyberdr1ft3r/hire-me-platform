@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `fa2e594b4da68379ae2c1310a8c879ccc94f0639`, including PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (**D-067**, A-75-01 corrected), PR #85 / Issue #84 (**D-068**, A-75-03 corrected at application level; production env/proxy limits not yet verified), PR #87 / Issue #86 (**D-069**, A-75-05 corrected), and PR #89 / Issue #88 (**D-070**, A-75-06/07 corrected in the repository; its additive migration has not run in production). Issue #90 (A-75-08 database test isolation, **D-071** accepted) is in review and must not be treated as corrected on `main` until merge. Issue #75 still has **A-75-08** open, plus fresh public EN/FR visual evidence. The AppShell/i18n foundation audit follows. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
+The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `b3486e6b6e52838bdce74edbd8a7d5816c090e92`, including PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (**D-067**, A-75-01 corrected), PR #85 / Issue #84 (**D-068**, A-75-03 corrected at application level; production env/proxy limits not yet verified), PR #87 / Issue #86 (**D-069**, A-75-05 corrected), PR #89 / Issue #88 (**D-070**, A-75-06/07 corrected; migration not run in production), and PR #91 / Issue #90 (**D-071**, A-75-08 corrected). Issue #92 captured real Chromium EN/FR Public Opportunity browser evidence (**PUBLIC OPPORTUNITY BROWSER GATE: PASS** on `b3486e6`; report in `docs/audit/issue-92-public-browser-evidence.md`). Issue #66 AppShell/i18n audit continues. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.

@@ -1,23 +1,21 @@
 # Current Agent Handoff
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 ## Current situation
 
-- Authoritative `main` is `fa2e594b4da68379ae2c1310a8c879ccc94f0639`, including merged PR #89 / Issue #88 (closed). **A-75-06/07 and R-046 are corrected** in the repository under D-070. Its additive migration `20260925120000_public_opportunity_content_language` has **not** run in production; production needs deployment approval, and the API must deploy with or before the web client.
-- Issue #90 / draft PR owns **A-75-08** under accepted **D-071**: `pnpm test:db` runs only against a database this checkout provisioned and marked, verified on the writing connection; the foundational suite has its own migrated schema; CI runs the full suite twice on one database with a catalog gate after each pass and proves refusal of unmarked and development databases. **A-75-08 and R-045 are not corrected on `main` until that PR merges.**
-- Still outstanding in Issue #75: fresh EN/FR responsive browser evidence. D-068 production env/proxy limits remain unverified. R-039 is unchanged.
+- Authoritative `main` is `b3486e6b6e52838bdce74edbd8a7d5816c090e92`, including merged Issue #90 / PR #91 (**D-071**, A-75-08 corrected) and prior Public Opportunity corrections through D-070. D-070's additive migration `20260925120000_public_opportunity_content_language` has **not** run in production; production needs deployment approval, and the API must deploy with or before the web client.
+- Issue #92 (audit-only) captured real Chromium EN/FR Public Opportunity evidence at 1440/1024/800/430/390 on synthetic D-071 disposable data. **PUBLIC OPPORTUNITY BROWSER GATE: PASS** (see `docs/audit/issue-92-public-browser-evidence.md`; post the embedded comment on GitHub Issue #92 if not already posted).
+- D-068 production env/proxy body-size limits remain **unverified** operationally (separate from browser-layout acceptance). R-039 is unchanged.
 
 ## Next concrete action
 
-1. Final review of the Issue #90 PR at its latest exact head with green Actions; do not merge automatically.
-2. After merge, mark D-071 merged and A-75-08 / R-045 corrected, and update Issue #75.
-3. Decide on the follow-up for suites that narrow and restore shared seeded roles (reported by `test:db:check-catalog`).
-4. Capture the #75 EN/FR responsive evidence; verify D-068 production limits operationally; continue the Issue #66 AppShell/i18n audit.
+1. Maintainer: post the Issue #92 evidence comment from `docs/audit/issue-92-public-browser-evidence.md` on GitHub Issue #92 (Cloud Agent token could not create issue comments).
+2. Close or update Issue #75 / #66 per audit outcome; do **not** treat D-068 production proxy verification as done.
+3. Continue Issue #66 AppShell/i18n audit beyond the public surface.
+4. Decide on follow-up for suites that narrow and restore shared seeded roles (`test:db:check-catalog` reporting).
 
-## Issue #90 completion conditions
+## Issue #92 completion (audit)
 
-- Every database command refuses before writing unless the guard passes; no fallback to `DATABASE_URL` or `.env`.
-- Two consecutive full passes on the same provisioned database, the catalog gate after each, the foundational suite alone, and the refusal proof all pass locally and in exact-head CI.
-- Test-infrastructure only: no application behaviour, contract, or production-schema change.
-- PR stays open, draft, and unmerged until maintainer merge; no deployment.
+- Real Chromium evidence captured on `main` `b3486e6` with **PUBLIC OPPORTUNITY BROWSER GATE: PASS**.
+- GitHub issue comment body: `docs/audit/issue-92-public-browser-evidence.md` (post manually if automation lacks issue-comment scope).

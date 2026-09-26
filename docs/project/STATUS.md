@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `fa2e594b4da68379ae2c1310a8c879ccc94f0639`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), and PR #89 / Issue #88 (A-75-06/07, D-070). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. Issue #90 (A-75-08 database test isolation, D-071) is in review on a draft PR; no production deployment.
-**Current blocker:** A-75-08 remains uncorrected on `main` until the Issue #90 PR merges (D-071 accepted). D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified. Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
-**Next executable development task:** Complete exact-head verification and ChatGPT review for the Issue #90 draft PR without merging automatically; then capture the #75 EN/FR responsive evidence before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
+**Health:** `main` is at `b3486e6b6e52838bdce74edbd8a7d5816c090e92`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), PR #89 / Issue #88 (A-75-06/07, D-070), and PR #91 / Issue #90 (A-75-08, D-071). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
+**Next executable development task:** Post Issue #92 browser evidence to GitHub (body in `docs/audit/issue-92-public-browser-evidence.md`); update/close Issue #75 Public Opportunity conformance tracking and continue Issue #66 AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
 
 ## Active work
 
