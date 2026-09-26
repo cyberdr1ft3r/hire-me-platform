@@ -81,6 +81,8 @@ pnpm test:db
 pnpm build
 ```
 
+`pnpm test:db` runs only against a disposable database created by `pnpm test:db:provision`; see [`docs/runbooks/disposable-test-database.md`](docs/runbooks/disposable-test-database.md).
+
 GitHub Actions runs the same quality checks on pull requests and pushes to `main`, plus Docker Compose PostgreSQL health, migration, seed, and database integration checks.
 
 ## Repository Structure
@@ -180,10 +182,13 @@ Open Prisma Studio:
 pnpm prisma:studio
 ```
 
-Run database integration tests against the configured PostgreSQL database:
+Run the database integration tests only against a disposable test database. They never use `DATABASE_URL` or `.env`: `TEST_DATABASE_URL` must name a database that `pnpm test:db:provision` created and marked for this checkout, and every command refuses anything else before writing. Follow [`docs/runbooks/disposable-test-database.md`](docs/runbooks/disposable-test-database.md):
 
 ```sh
-pnpm test:db
+pnpm test:db:provision        # needs TEST_DATABASE_ADMIN_URL on a throwaway server
+pnpm test:db                  # needs TEST_DATABASE_URL from the provisioned .url file
+pnpm test:db:check-catalog
+pnpm test:db:drop
 ```
 
 ## Environment

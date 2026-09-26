@@ -100,6 +100,13 @@ jobs:
   database-lifecycle:
     name: Database migration, seed, and integration tests
     runs-on: ubuntu-latest
+    env:
+      # Issue #90: every database command refuses unless NODE_ENV is exactly
+      # "test" and its target is this run's provisioned, marked database. The
+      # compose server below is disposable per job; this maintenance connection
+      # uses the public development credentials from .env.example.
+      NODE_ENV: test
+      TEST_DATABASE_ADMIN_URL: postgresql://hire_me:hire_me_dev_password@127.0.0.1:5432/postgres
 
     steps:
       - name: Checkout
@@ -145,21 +152,43 @@ jobs:
       - name: Verify clean Prisma generation boundaries
         run: pnpm check:architecture
 
-      - name: Apply migrations
-        run: pnpm prisma:migrate:deploy
+      - name: Build shared contracts
+        run: pnpm --filter @hire-me/contracts build
 
-      - name: Run development seed twice
-        run: |
-          pnpm prisma:seed
-          pnpm prisma:seed
+      # Creates a uniquely named, marked database with a local ownership receipt,
+      # applies every migration, runs the development seed twice and the admin
+      # bootstrap twice, and snapshots the seeded authorization catalog.
+      - name: Provision disposable test database
+        run: pnpm --filter @hire-me/api test:db:provision --github-env
 
-      - name: Run development admin bootstrap twice
-        run: |
-          AUTH_BOOTSTRAP_ADMIN_EMAIL=bootstrap-admin@example.test AUTH_BOOTSTRAP_ADMIN_PASSWORD=CiSyntheticAdminPassphrase123! pnpm auth:bootstrap-admin
-          AUTH_BOOTSTRAP_ADMIN_EMAIL=bootstrap-admin@example.test AUTH_BOOTSTRAP_ADMIN_PASSWORD=CiSyntheticAdminPassphrase123! pnpm auth:bootstrap-admin
+      - name: Integration suite, pass 1
+        run: pnpm --filter @hire-me/api test:db
 
-      - name: Run database integration tests
-        run: pnpm test:db
+      - name: Authorization catalog check after pass 1
+        run: pnpm --filter @hire-me/api test:db:check-catalog
+
+      # Same database, no reseed, files in the opposite order.
+      - name: Integration suite, pass 2 (reverse file order, no reseed)
+        run: pnpm --filter @hire-me/api test:db
+        env:
+          HIREME_TEST_FILE_ORDER: reverse
+
+      - name: Authorization catalog check after pass 2
+        run: pnpm --filter @hire-me/api test:db:check-catalog
+
+      - name: Foundational suite alone
+        run: pnpm --filter @hire-me/api test:db -- test/database.integration.test.ts
+
+      # An unmarked control database and the compose development database must
+      # both be refused, by every command, without any change to either.
+      - name: Guard refuses unmarked and development databases
+        run: pnpm --filter @hire-me/api test:db:verify-refusal
+        env:
+          TEST_DATABASE_REFUSAL_EXTRA_URL: postgresql://hire_me:hire_me_dev_password@127.0.0.1:5432/hire_me_dev
+
+      - name: Drop this run's test database
+        if: always()
+        run: pnpm --filter @hire-me/api test:db:drop --if-present
 
       - name: Print Docker Compose diagnostics
         if: failure()

@@ -5,31 +5,28 @@ import { defineConfig } from 'vitest/config';
 /**
  * Deterministic file order for the PostgreSQL suite.
  *
- * Vitest orders files by size by default, so adding or growing a test file silently
- * reshuffles the run. That matters here because `database.integration.test.ts` truncates
- * the whole schema, including the seeded roles and permissions every other suite depends
- * on. Ordering alphabetically and forcing that one destructive suite to run last makes the
- * result independent of file sizes rather than accidentally correct.
+ * Vitest orders files by size by default, so adding or growing a test file would
+ * silently reshuffle the run. Files run alphabetically instead.
+ * `HIREME_TEST_FILE_ORDER=reverse` runs them in the opposite order, which CI uses
+ * on the second pass to prove no suite depends on another having run first. No
+ * suite deletes shared seed data any more (Issue #90), so there is no
+ * "destructive file last" rule.
  */
 class DeterministicSequencer extends BaseSequencer {
   override sort(files: TestSpecification[]): Promise<TestSpecification[]> {
-    const destructive = (specification: TestSpecification): boolean =>
-      specification.moduleId.includes('database.integration.test');
-
+    const ordered = [...files].sort((left, right) => left.moduleId.localeCompare(right.moduleId));
     return Promise.resolve(
-      [...files].sort((left, right) => {
-        if (destructive(left) !== destructive(right)) {
-          return destructive(left) ? 1 : -1;
-        }
-        return left.moduleId.localeCompare(right.moduleId);
-      }),
+      process.env.HIREME_TEST_FILE_ORDER === 'reverse' ? ordered.reverse() : ordered,
     );
   }
 }
 
 export default defineConfig({
   test: {
-    setupFiles: ['test/setup-env.ts'],
+    // Refuses the run before any suite loads unless TEST_DATABASE_URL is this
+    // checkout's provisioned disposable database.
+    globalSetup: ['test/support/global-guard.ts'],
+    setupFiles: ['test/setup-integration-env.ts', 'test/setup-env.ts'],
     environment: 'node',
     fileParallelism: false,
     globals: true,

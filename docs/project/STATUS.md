@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), and PR #87 / Issue #86 (A-75-05, D-069). Issue #88 (A-75-06/07 authored content language, D-070) is in review on a draft PR; no production deployment or production migration.
-**Current blocker:** A-75-06/07 remain uncorrected on `main` until the Issue #88 PR merges; its policy is accepted as **D-070** and adds one additive migration that needs deployment approval before any production run. A-75-03 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified. A-75-08 (shared DB test isolation) remains open. Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
-**Next executable development task:** Complete exact-head verification and ChatGPT review for the Issue #88 draft PR without merging automatically; then correct A-75-08 before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
+**Health:** `main` is at `fa2e594b4da68379ae2c1310a8c879ccc94f0639`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), and PR #89 / Issue #88 (A-75-06/07, D-070). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. Issue #90 (A-75-08 database test isolation, D-071) is in review on a draft PR; no production deployment.
+**Current blocker:** A-75-08 remains uncorrected on `main` until the Issue #90 PR merges (D-071 accepted). D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified. Fresh EN/FR responsive visual evidence is still required for the audit gate. R-039 is unchanged.
+**Next executable development task:** Complete exact-head verification and ChatGPT review for the Issue #90 draft PR without merging automatically; then capture the #75 EN/FR responsive evidence before continuing Issue #66 with the AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred.
 
 ## Active work
 
@@ -50,9 +50,10 @@ Status owner: repository maintainer
 | Issue #82 | Complete | Correct required-but-disabled public upload configuration (A-75-01) under D-067 | Merged through PR #83 into `main` as `91a6050b864abb1c4ea4474e08f987602c832c86` |
 | Issue #84 | Complete | Align public upload aggregate limit with JSON transport and oversize feedback (A-75-03) | Merged through PR #85 into `main` as `e254dc46349f21360386b4efeb498bb461f62719`; D-068 implemented; production env/proxy limits not yet verified |
 | Issue #86 | Complete | Align public salary currency validation across UI and API (A-75-05 / R-043) | Merged through PR #87 into `main` as `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`; D-069 implemented |
-| Issue #88 | In review | Attribute recruiter-authored public job content language (A-75-06/07 / R-046) | Draft PR linked to #88; D-070 accepted, implementation pending merge; additive migration not run in production |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (A-75-04, A-75-02, A-75-01, A-75-03, and A-75-05 corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
-| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04, A-75-02, A-75-01, A-75-03 (application level), and A-75-05 corrected on `main`; A-75-06/07 in review through #88; A-75-08 remains open |
+| Issue #88 | Complete | Attribute recruiter-authored public job content language (A-75-06/07 / R-046) | Merged through PR #89 into `main` as `fa2e594b4da68379ae2c1310a8c879ccc94f0639`; D-070 implemented; additive migration not run in production |
+| Issue #90 | In review | Isolate database integration tests from seeded authorization state (A-75-08 / R-045) | Draft PR linked to #90; D-071 accepted, implementation pending merge |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; #75 runtime audit records eight findings (A-75-04, A-75-02, A-75-01, A-75-03, A-75-05, and A-75-06/07 corrected on `main`); D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
+| Issue #75 | In audit | Public Opportunity conformance after PR #74 and runtime evidence | A-75-04, A-75-02, A-75-01, A-75-03 (application level), A-75-05, and A-75-06/07 corrected on `main`; A-75-08 in review through #90; EN/FR responsive evidence outstanding |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
 
@@ -69,13 +70,20 @@ Status owner: repository maintainer
 - Unchanged: D-066 cents conversion, historical salary rows (no backfill), internal Candidate create/update contract, file validation, D-067/D-068, the #79 503, ATS lifecycle, authentication, and permissions. No schema or migration change.
 - A-75-05 and R-043 are corrected on `main` through merge commit `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`.
 
-## Issue #88 Verification State (draft, pending merge)
+## Issue #88 Verification State (merged PR #89)
 
 - Discovery on `main` `f4ef6ebdbe95ba47cb29afa21d42c9d8ad9bd595`: `PublicOpportunity` stored eight authored text fields with no language metadata; list and detail rendered them with no `lang`, so they inherited the interface `<html lang>`; `content-language.test.tsx` asserted the English authored h1 was `fr` and, with `PublicOpportunities.test.tsx`, forbade any `[lang="en"]` on French public pages.
-- **D-070 accepted** (implementation pending merge): one additive migration `20260925120000_public_opportunity_content_language` adds nullable `contentLanguage TEXT` with `PublicOpportunity_contentLanguage_chk` (`IS NULL OR IN ('en','fr')`); no default, no backfill. Strict `PublicContentLanguageSchema`; public DTO adds only `contentLanguage`; manage-permission PATCH sets or clears it; publish gate unchanged; Mission-prefilled copy stays `null`.
+- **D-070 implemented** (reviewed head `f2e67e986c701d3e447300b65e9d292e9f07d5b6`, Actions `36133389625`): one additive migration `20260925120000_public_opportunity_content_language` adds nullable `contentLanguage TEXT` with `PublicOpportunity_contentLanguage_chk` (`IS NULL OR IN ('en','fr')`); no default, no backfill. Strict `PublicContentLanguageSchema`; public DTO adds only `contentLanguage`; manage-permission PATCH sets or clears it; publish gate unchanged; Mission-prefilled copy stays `null`.
 - Web: shared wrapperless `authoredContentLanguage` helper sets `lang` (or `lang=""`) on each authored list/detail element only; chrome, formatted values, client name, and the form keep the interface language. The Missions editor adds the Job content language select with helper text and marks the eight authored inputs. The old blanket `[lang="en"]` assertions now require that every language override is authored copy outside the form.
 - Unchanged: D-066–D-069, #79 503, #81 upload structure, visibility and slug rules, authentication and permissions, ATS, candidate data. Production migration needs deployment approval.
-- A-75-06/07 are **not** corrected on `main` until the Issue #88 PR merges.
+- A-75-06/07 and R-046 are corrected on `main` through merge commit `fa2e594b4da68379ae2c1310a8c879ccc94f0639`. The migration has not run in production.
+
+## Issue #90 Verification State (draft, pending merge)
+
+- Discovery on `main` `fa2e594b4da68379ae2c1310a8c879ccc94f0639`: `database.integration.test.ts` wiped every table including the seeded roles, permissions, and users before and after it ran; `vitest.integration.config.ts` hid that by running it last; `setup-env.ts` and `.env.example` pointed `test:db` at `hire_me_dev`; `auth.integration.test.ts` deleted every session, credential, and Authentication audit entry. Reproduced on a throwaway database: after one full run the authorization catalog was empty and a second run failed 26 tests.
+- The new catalog gate also exposed that `admin.integration.test.ts` left every non-fixture SUPER_ADMIN assignment archived (now restored in `finally`), and that seven suites delete and re-insert seeded grant rows when they narrow a role and restore it (same pairs, new row identifiers; reported, tracked separately).
+- **D-071 accepted** (implementation pending merge): mandatory `TEST_DATABASE_URL`, fail-closed guard (NODE_ENV, host, generated name, local receipt with run ID, connected `current_database()` and marker on the writing connection), `test:db:provision` / `check-catalog` / `drop` / `verify-refusal`, foundational suite in its own migrated `hm_found_*` schema, scoped auth cleanup, schema-filtered #88 catalog queries, and CI two-pass lifecycle. Runbook: `docs/runbooks/disposable-test-database.md`.
+- A-75-08 and R-045 are **not** corrected on `main` until the Issue #90 PR merges.
 
 ## Issue #84 Verification State (merged PR #85)
 
@@ -575,14 +583,14 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 | A-75-01 required/disabled upload categories | **Corrected** (PR #83) | D-067 implemented |
 | A-75-03 advertised 5 MB vs JSON body limit | **Corrected, application level** (PR #85) | D-068 implemented; production env/proxy limits unverified |
 | A-75-05 public salary currency shape | **Corrected** (PR #87) | D-069 implemented |
-| A-75-06/07 authored content language | In review (Issue #88) | D-070 accepted: staff-declared `en`/`fr`/unknown on authored elements; not corrected until merge |
-| A-75-08 DB integration auth seed isolation | Open | Separate infrastructure task; never production |
+| A-75-06/07 authored content language | **Corrected** (PR #89) | D-070 implemented; migration not run in production |
+| A-75-08 DB integration auth seed isolation | In review (Issue #90) | D-071 accepted: disposable marked database, isolated foundational schema, two-pass CI with catalog gate; not corrected until merge |
 
 ## Immediate next actions
 
-1. Complete final review of the Issue #88 PR (D-070 accepted); mark A-75-06/07 and R-046 corrected only after merge, and run the migration in production only with deployment approval.
+1. Complete final review of the Issue #90 PR (D-071 accepted); mark A-75-08 and R-045 corrected only after merge. Run D-070's migration in production only with deployment approval.
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
-3. Correct A-75-08 on an approved scoped branch.
+3. Open a scoped follow-up for suites that narrow and restore shared seeded roles (grant rows re-inserted, non-critical grant state), if the maintainer agrees.
 4. Capture fresh EN/FR public list/detail/application evidence at 1440/1024/800/430/390 CSS px with keyboard and overflow checks.
 5. Continue Issue #66 AppShell/i18n audit, then legacy module UX rollout; defer D-DESIGN-01 whole-product UI-DNA v1.1 until after functional rollout.
 6. Open a separate scheduler issue for Task reminder delivery (R-036). R-039 unchanged.

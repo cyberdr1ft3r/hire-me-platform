@@ -1,3 +1,7 @@
+import { readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import {
   CandidateDocumentType,
   DocumentType,
@@ -6,50 +10,27 @@ import {
   DocumentVisibility,
   MissionRecruiterRole,
   Prisma,
-  PrismaClient,
   UserType,
+  type PrismaClient,
 } from '../src/persistence/prisma/generated-client.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-const prisma = new PrismaClient();
+import { createIsolatedSchema, type IsolatedSchema } from './support/isolated-schema.js';
 
-async function cleanDatabase(): Promise<void> {
-  await prisma.auditLog.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.document.updateMany({ data: { currentVersionId: null } });
-  await prisma.documentVersion.deleteMany();
-  await prisma.document.deleteMany();
-  await prisma.candidateDocument.updateMany({ data: { currentVersionId: null } });
-  await prisma.candidateDocumentVersion.deleteMany();
-  await prisma.candidateDocument.deleteMany();
-  await prisma.candidateSkill.deleteMany();
-  await prisma.candidateLanguage.deleteMany();
-  await prisma.candidateWorkExperience.deleteMany();
-  await prisma.candidateEducation.deleteMany();
-  await prisma.candidateEvaluation.deleteMany();
-  await prisma.interview.deleteMany();
-  await prisma.trainingSessionParticipation.deleteMany();
-  await prisma.trainingEnrollment.deleteMany();
-  await prisma.trainingSession.deleteMany();
-  await prisma.trainingProgram.deleteMany();
-  await prisma.externalTrainingParticipant.deleteMany();
-  await prisma.missionCandidateEvent.deleteMany();
-  await prisma.missionCandidate.deleteMany();
-  await prisma.missionRecruiter.deleteMany();
-  await prisma.clientContact.deleteMany();
-  await prisma.recruitmentMission.deleteMany();
-  await prisma.client.deleteMany();
-  await prisma.candidate.deleteMany();
-  await prisma.conversationMember.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.conversation.deleteMany();
-  await prisma.userRole.deleteMany();
-  await prisma.rolePermission.deleteMany();
-  await prisma.permission.deleteMany();
-  await prisma.role.deleteMany();
-  await prisma.user.deleteMany();
-}
+/**
+ * Foundational schema, constraint, and foreign-key tests (Issue #3), run in a
+ * freshly migrated, unseeded schema of their own (Issue #90 / A-75-08).
+ *
+ * These tests used to wipe every table, including the seeded roles,
+ * permissions, and users other suites depend on, before and after they ran.
+ * They now own a generated `hm_found_*` schema inside the verified disposable
+ * test database: every migration is applied there, nothing is seeded, the
+ * client is bound to it alone, and it is dropped afterwards. They never read or
+ * write the seeded authorization catalog in `public`, so they pass in any file
+ * order and on any repeated run.
+ */
+let isolated: IsolatedSchema | undefined;
+let prisma: PrismaClient;
 
 function expectUniqueConstraint(error: unknown): void {
   expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
@@ -74,12 +55,41 @@ async function createUser(email: string, displayName: string, userType = UserTyp
 
 describe('foundational Prisma schema', () => {
   beforeAll(async () => {
-    await cleanDatabase();
-  });
+    isolated = await createIsolatedSchema();
+    prisma = isolated.client;
+  }, 120_000);
 
   afterAll(async () => {
-    await cleanDatabase();
-    await prisma.$disconnect();
+    await isolated?.dispose();
+  }, 60_000);
+
+  it('runs in its own freshly migrated schema without the seeded catalog', async () => {
+    const [bound] = await prisma.$queryRawUnsafe<{ schema: string; searchPath: string }[]>(
+      `SELECT current_schema() AS schema, current_setting('search_path') AS "searchPath"`,
+    );
+    expect(bound?.schema).toBe(isolated?.schema);
+    expect(bound?.schema).toMatch(/^hm_found_[0-9a-f]{16}$/);
+    expect(bound?.searchPath).not.toMatch(/\bpublic\b/);
+
+    // Every migration, including the latest, was applied here; nothing was seeded.
+    const migrations = await prisma.$queryRawUnsafe<{ name: string }[]>(
+      'SELECT migration_name AS name FROM _prisma_migrations WHERE finished_at IS NOT NULL',
+    );
+    const expected = readdirSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../prisma/migrations'),
+      {
+        withFileTypes: true,
+      },
+    )
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    expect(migrations.map((row) => row.name).sort()).toEqual(expected);
+    expect(expected).toContain('20260925120000_public_opportunity_content_language');
+    await expect(prisma.role.count()).resolves.toBe(0);
+    await expect(prisma.permission.count()).resolves.toBe(0);
+    await expect(prisma.rolePermission.count()).resolves.toBe(0);
+    await expect(prisma.user.count()).resolves.toBe(0);
   });
 
   it('preserves one candidate across multiple recruitment missions', async () => {
