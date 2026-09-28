@@ -1,0 +1,202 @@
+.clients {
+  container: clients / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--layout-content-max);
+}
+
+.clients__workspace {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+}
+
+@container clients (min-width: 60rem) {
+  .clients__workspace {
+    gap: var(--space-6);
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  }
+
+  .clients__list-pane {
+    border-inline-end: var(--border-width) solid var(--color-border);
+    padding-inline-end: var(--space-6);
+  }
+}
+
+.clients__list-pane,
+.clients__detail-pane {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.clients__pane-title {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+.client-filters {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+.client-filters__controls {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.client-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.client-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.client-list__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+.client-list__rows {
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Client and contact rows share this styling. Foreground tokens are explicit for
+ * normal and selected backgrounds so list text stays readable (see Candidate list).
+ */
+.client-list__row {
+  border-block-end: var(--border-width) solid var(--color-border);
+  border-inline-start: var(--space-1) solid transparent;
+  position: relative;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.client-list__row:hover {
+  background: var(--color-table-hover);
+}
+
+.client-list__row--selected,
+.client-list__row[data-selected='true'] {
+  background: var(--color-table-selected);
+  border-inline-start-color: var(--color-brand);
+}
+
+.client-list__select {
+  align-items: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--space-1);
+  min-height: 0;
+  padding: var(--space-3);
+  text-align: start;
+  width: 100%;
+}
+
+.client-list__select:hover:not(:disabled),
+.client-list__select:active:not(:disabled) {
+  background: transparent;
+  color: var(--color-text);
+}
+
+.client-list__select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.client-list__name {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.client-list__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+}
+
+.client-list__row--selected .client-list__name,
+.client-list__row[data-selected='true'] .client-list__name,
+.client-list__row--selected .client-list__meta,
+.client-list__row[data-selected='true'] .client-list__meta {
+  color: var(--color-text-secondary);
+}
+
+.client-pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.client-pagination__state {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin: 0;
+}
+
+.client-pagination__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.client-form {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+.client-form__grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.client-detail__heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.client-lifecycle__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.client-contacts {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-4);
+  padding-block-start: var(--space-4);
+}
+
+.client-list--contacts .client-list__rows,
+.clients__detail-pane .client-form textarea {
+  max-width: 100%;
+}
+
+@container clients (max-width: 40rem) {
+  .client-list__rows {
+    overflow-x: auto;
+  }
+}

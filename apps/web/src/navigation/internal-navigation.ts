@@ -147,7 +147,6 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
 export const deferredEnglishRoutes: readonly InternalRoute[] = [
   'accounting',
   'admin',
-  'clients',
   'commercial',
   'documents',
   'missions',
