@@ -6,7 +6,7 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `cb0f3edb8fbdbe71c2d55922dda3182f43ab1701`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), PR #89 / Issue #88 (A-75-06/07, D-070), PR #91 / Issue #90 (A-75-08, D-071), and PR #94 (Issue #92 audit documentation). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Health:** `main` is at `9153c05a361fdd1e75de81530a99df4a2f5eca38` (Issue #95 AppShell/i18n audit merged through PR #96). Earlier milestones through PR #94 and D-071 remain on the ancestry above that commit. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
 **Next executable development task:** Begin deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 

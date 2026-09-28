@@ -48,6 +48,9 @@ const checks = [
   ['focus / surface', 'color-focus', 'color-surface', 3],
   ['focus / canvas', 'color-focus', 'color-canvas', 3],
   ['disabled foreground / disabled background', 'color-disabled-fg', 'color-disabled-bg', 3],
+  ['client list primary / selected row', 'color-text', 'color-table-selected', 4.5],
+  ['client list secondary / selected row', 'color-text-secondary', 'color-table-selected', 4.5],
+  ['client list muted meta / canvas', 'color-text-muted', 'color-canvas', 4.5],
 ];
 
 let failed = false;

@@ -76,6 +76,7 @@ export function ContactList({
           return (
             <li
               className={`client-list__row${selected ? ' client-list__row--selected' : ''}`}
+              data-selected={selected ? 'true' : undefined}
               key={contact.id}
             >
               <button
