@@ -761,12 +761,27 @@ describe('App', () => {
         );
       }
 
-      if (url.includes('/v1/clients/dcbecbd1-86fa-464b-8c24-a7d9c6d84b8d/contacts?')) {
+      if (url.includes('/v1/clients/') && url.includes('/contacts?')) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
               contacts: [],
               pagination: { page: 1, pageSize: 20, total: 0 },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (/\/v1\/clients\/[0-9a-f-]+$/.test(url)) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              client: {
+                ...clientSummary,
+                id: url.split('/').pop(),
+                name: url.includes('dcbecbd1') ? 'Created Client' : clientSummary.name,
+              },
             }),
             { headers: { 'Content-Type': 'application/json' } },
           ),
@@ -790,12 +805,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /clients/i })).toBeVisible();
     expect(await screen.findByText('Synthetic Client')).toBeVisible();
 
-    fireEvent.change(screen.getByPlaceholderText(/client name/i), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Created Client' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /create client/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /create client/i })[0]!);
 
-    expect(await screen.findByText('Client created.')).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Created Client', level: 2 })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/v1/clients',
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
@@ -1405,8 +1420,10 @@ describe('App', () => {
       'documents:view',
       'documents:download',
     ]);
-    const createObjectURL = vi.fn((blob: Blob) =>
-      blob instanceof Blob ? 'blob:synthetic-generated-document' : 'blob:invalid',
+    const createObjectURL = vi.fn((blob: unknown) =>
+      blob && typeof blob === 'object' && 'size' in (blob as Blob)
+        ? 'blob:synthetic-generated-document'
+        : 'blob:invalid',
     );
     const revokeObjectURL = vi.fn();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
@@ -1428,7 +1445,7 @@ describe('App', () => {
     ).toBeVisible();
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(createObjectURL.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(createObjectURL.mock.calls[0]?.[0]?.constructor.name).toBe('Blob');
     expect(clicks).toHaveLength(1);
     expect(clicks[0]?.download).toBe('quotation-q38-web-v1.pdf');
     expect(clicks[0]?.href).toBe('blob:synthetic-generated-document');

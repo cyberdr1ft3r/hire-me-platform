@@ -611,6 +611,7 @@ type ClientListOptions = {
   pageSize?: number;
   search?: string;
   status?: string;
+  industry?: string;
   apiBaseUrl?: string;
 };
 
@@ -659,6 +660,9 @@ export async function listClients(options: ClientListOptions): Promise<ClientLis
   }
   if (options.status) {
     parameters.set('status', options.status);
+  }
+  if (options.industry) {
+    parameters.set('industry', options.industry);
   }
 
   const response = await clientRequest(

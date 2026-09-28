@@ -205,12 +205,12 @@ describe('Task workspace inside a French shell', () => {
     expect([...deferredEnglishRoutes].sort()).toEqual([
       'accounting',
       'admin',
-      'clients',
       'commercial',
       'documents',
       'missions',
       'training',
     ]);
+    expect(isDeferredEnglishRoute('clients')).toBe(false);
     expect(isDeferredEnglishRoute('tasks')).toBe(false);
     // Reporting, Candidates, and Tasks are bilingual since their redesigns, so they left
     // the boundary and must never be announced as English inside a French

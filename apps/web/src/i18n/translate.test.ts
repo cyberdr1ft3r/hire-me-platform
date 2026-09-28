@@ -98,6 +98,8 @@ describe('dictionary contract', () => {
   it('pins which entries are count-sensitive, so runtime detection matches the dictionary', () => {
     expect(canonicalPluralPaths).toEqual([
       'common.counts.candidates',
+      'common.counts.clients',
+      'common.counts.contacts',
       'common.pagination.results',
       'publicOpportunity.list.count',
       'task.board.columnCount',
