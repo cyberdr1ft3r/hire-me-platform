@@ -11,7 +11,7 @@ Last updated: 2026-09-28
 
 ## Next concrete action
 
-1. Begin bounded bilingual rollout with **Clients**, then Missions → Training → Commercial → Documents → Accounting → Admin; do not remove a deferred English boundary until that module merges.
+1. Review Issue #97 PR (Clients bilingual rollout); then continue **Missions → Training → Commercial → Documents → Accounting → Admin**.
 2. Continue Issue #93 seeded RolePermission identity cleanup separately.
 3. Do **not** treat D-068 production proxy verification or D-070 production migration as closed by the AppShell audit.
 
