@@ -10,12 +10,12 @@ Last updated: 2026-09-27
 
 ## Next concrete action
 
-1. Maintainer: post the Issue #92 evidence comment from `docs/audit/issue-92-public-browser-evidence.md` on GitHub Issue #92 (Cloud Agent token could not create issue comments).
+1. Issue #92 evidence comment is posted on GitHub and the browser gate is PASS.
 2. Close or update Issue #75 / #66 per audit outcome; do **not** treat D-068 production proxy verification as done.
 3. Continue Issue #66 AppShell/i18n audit beyond the public surface.
-4. Decide on follow-up for suites that narrow and restore shared seeded roles (`test:db:check-catalog` reporting).
+4. Continue the separate seeded-role test-fixture follow-up tracked by Issue #93.
 
 ## Issue #92 completion (audit)
 
 - Real Chromium evidence captured on `main` `b3486e6` with **PUBLIC OPPORTUNITY BROWSER GATE: PASS**.
-- GitHub issue comment body: `docs/audit/issue-92-public-browser-evidence.md` (post manually if automation lacks issue-comment scope).
+- GitHub evidence comment posted on Issue #92; canonical report remains `docs/audit/issue-92-public-browser-evidence.md`.
