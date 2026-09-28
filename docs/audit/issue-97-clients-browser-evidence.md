@@ -4,7 +4,7 @@
 
 ### Environment
 
-- **Branch head SHA:** (see PR #98 exact-head CI)
+- **Branch head SHA:** `8714900` (PR #98; exact-head CI run `36438714586`)
 - **Browser:** Chromium (Playwright headless)
 - **App URLs:** `http://127.0.0.1:5173` → `http://127.0.0.1:3000`
 - **Database:** D-071 disposable DB `hireme_test_20260928123926_27040db73696`
