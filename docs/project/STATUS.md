@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-27
+Last updated: 2026-09-28
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `b3486e6b6e52838bdce74edbd8a7d5816c090e92`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), PR #89 / Issue #88 (A-75-06/07, D-070), and PR #91 / Issue #90 (A-75-08, D-071). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Health:** `main` is at `cb0f3edb8fbdbe71c2d55922dda3182f43ab1701`, including merged PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (A-75-01, D-067), PR #85 / Issue #84 (A-75-03, D-068), PR #87 / Issue #86 (A-75-05, D-069), PR #89 / Issue #88 (A-75-06/07, D-070), PR #91 / Issue #90 (A-75-08, D-071), and PR #94 (Issue #92 audit documentation). D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
-**Next executable development task:** Close or update Issue #75 Public Opportunity conformance tracking (browser gate complete via Issue #92); continue Issue #66 AppShell/i18n audit. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
+**Next executable development task:** Begin deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 
 ## Active work
 
@@ -53,7 +53,8 @@ Status owner: repository maintainer
 | Issue #88 | Complete | Attribute recruiter-authored public job content language (A-75-06/07 / R-046) | Merged through PR #89 into `main` as `fa2e594b4da68379ae2c1310a8c879ccc94f0639`; D-070 implemented; additive migration not run in production |
 | Issue #90 | Complete | Isolate database integration tests from seeded authorization state (A-75-08 / R-045) | Merged through PR #91 into `main` as `b3486e6b6e52838bdce74edbd8a7d5816c090e92`; **D-071** implemented; A-75-08 and R-045 corrected on `main` |
 | Issue #92 | Complete | Capture final EN/FR real-browser Public Opportunity evidence | Audit-only on `main` `b3486e6`; **PUBLIC OPPORTUNITY BROWSER GATE: PASS**; evidence in `docs/audit/issue-92-public-browser-evidence.md` |
-| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Representative surfaces and salary drift corrected; Issue #75 in-repository findings A-75-01 through A-75-08 corrected on `main` with Issue #92 browser evidence **PASS**; D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
+| Issue #95 | Complete | Audit AppShell / EN/FR localization foundation before module rollout | Audit-only on `main` `cb0f3edb`; **APPSHELL / I18N FOUNDATION GATE: PASS**; evidence in `docs/audit/issue-95-appshell-i18n-evidence.md` |
+| Issue #66 | Open | Audit product and UX drift before continuing module rollout | Public Opportunity and AppShell/i18n foundation gates **PASS** on `main`; next: bounded bilingual rollout for deferred legacy modules; D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
 | Issue #75 | Complete | Public Opportunity conformance after PR #74 and runtime evidence | A-75-01 through A-75-08 corrected on `main`; Issue #92 real-browser evidence **PASS**; Public Opportunity browser conformance complete; **D-068** production env/proxy body-size verification remains separate and outstanding operationally |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
@@ -586,14 +587,14 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 | A-75-05 public salary currency shape | **Corrected** (PR #87) | D-069 implemented |
 | A-75-06/07 authored content language | **Corrected** (PR #89) | D-070 implemented; migration not run in production |
 | A-75-08 DB integration auth seed isolation | **Corrected** (PR #91) | D-071 implemented on `main` `b3486e6`; two-pass same-DB test isolation verified |
-| EN/FR responsive browser evidence | **Complete** (Issue #92) | **PUBLIC OPPORTUNITY BROWSER GATE: PASS** on `main` `b3486e6`; real Chromium Playwright audit, synthetic D-071 disposable data |
+| EN/FR responsive browser evidence | **Complete** (Issues #92, #95) | Public Opportunity **PASS** (`b3486e6`); AppShell/i18n foundation **PASS** (`cb0f3edb`); real Chromium Playwright, synthetic D-071 disposable data |
 
 ## Immediate next actions
 
 1. Close or update Issue #75 on GitHub to reflect browser conformance complete; run D-070's migration in production only with deployment approval.
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
 3. Open a scoped follow-up for suites that narrow and restore shared seeded roles (grant rows re-inserted, non-critical grant state), if the maintainer agrees.
-4. Continue Issue #66 AppShell/i18n audit, then legacy module UX rollout; defer D-DESIGN-01 whole-product UI-DNA v1.1 until after functional rollout.
+4. Continue Issue #66 legacy module bilingual UX rollout (Clients first); defer D-DESIGN-01 whole-product UI-DNA v1.1 until after functional rollout.
 5. Open a separate scheduler issue for Task reminder delivery (R-036). R-039 unchanged.
 
 ## Status Update Rules
