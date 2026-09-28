@@ -1,6 +1,6 @@
-import type { ClientContactSummary, ClientStatus } from '@hire-me/contracts';
+import type { ClientContactSummary, ClientStatus, ClientSummary } from '@hire-me/contracts';
 import type { FormEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   archiveClient,
@@ -75,14 +75,24 @@ export function ClientsPanel({
   const { t } = useI18n();
   const access = resolveClientAccess(permissions);
 
-  const sessionToken = useRef(`clients-${accessToken}`);
   const listRequest = useRef(0);
   const detailRequest = useRef(0);
   const contactRequest = useRef(0);
   const contextGeneration = useRef(0);
+  const contactContextGeneration = useRef(0);
+  const writeInFlight = useRef(false);
   const selectedClientRef = useRef<string | null>(null);
+  const selectedContactRef = useRef<string | null>(null);
   const appliedClientQueryRef = useRef<ClientListQuery>(FIRST_CLIENT_PAGE);
   const appliedContactQueryRef = useRef<ContactListQuery>(FIRST_CONTACT_PAGE);
+  const sessionToken = useRef(accessToken);
+
+  useLayoutEffect(() => {
+    sessionToken.current = accessToken;
+  }, [accessToken]);
+
+  const principal = permissions.join(' ');
+  const [session, setSession] = useState({ key: 0, principal, token: accessToken });
 
   const [clientFilters, setClientFilters] = useState(EMPTY_CLIENT_FILTERS);
   const [appliedClientQuery, setAppliedClientQuery] = useState(FIRST_CLIENT_PAGE);
@@ -102,30 +112,33 @@ export function ClientsPanel({
   const [feedback, setFeedback] = useState<ClientFeedback | null>(null);
   const [pending, setPending] = useState<ClientPendingAction | null>(null);
 
-  useEffect(() => {
-    if (sessionToken.current !== `clients-${accessToken}`) {
-      sessionToken.current = `clients-${accessToken}`;
-      contextGeneration.current += 1;
-      listRequest.current += 1;
-      detailRequest.current += 1;
-      contactRequest.current += 1;
-      selectedClientRef.current = null;
-      appliedClientQueryRef.current = FIRST_CLIENT_PAGE;
-      appliedContactQueryRef.current = FIRST_CONTACT_PAGE;
-      setClientFilters(EMPTY_CLIENT_FILTERS);
-      setAppliedClientQuery(FIRST_CLIENT_PAGE);
-      setClientList({ status: 'loading' });
-      setSelectedClientId(null);
-      setClientDetail({ status: 'idle' });
-      setEditClientValues(null);
-      setContactFilters(EMPTY_CONTACT_FILTERS);
-      setAppliedContactQuery(FIRST_CONTACT_PAGE);
-      setContactList({ status: 'idle' });
-      setSelectedContact(null);
-      setEditContactValues(null);
-      setFeedback(null);
-    }
-  }, [accessToken]);
+  if (session.token !== accessToken || session.principal !== principal) {
+    const firstClientPage: ClientListQuery = { filters: { ...EMPTY_CLIENT_FILTERS }, page: 1 };
+    listRequest.current += 1;
+    detailRequest.current += 1;
+    contactRequest.current += 1;
+    contextGeneration.current += 1;
+    contactContextGeneration.current += 1;
+    selectedClientRef.current = null;
+    selectedContactRef.current = null;
+    appliedClientQueryRef.current = firstClientPage;
+    appliedContactQueryRef.current = FIRST_CONTACT_PAGE;
+    setSession({ key: session.key + 1, principal, token: accessToken });
+    setClientFilters(EMPTY_CLIENT_FILTERS);
+    setAppliedClientQuery(firstClientPage);
+    setClientList({ status: 'loading' });
+    setSelectedClientId(null);
+    setClientDetail({ status: 'idle' });
+    setEditClientValues(null);
+    setCreateClientValues(EMPTY_CREATE_CLIENT);
+    setContactFilters(EMPTY_CONTACT_FILTERS);
+    setAppliedContactQuery(FIRST_CONTACT_PAGE);
+    setContactList({ status: 'idle' });
+    setSelectedContact(null);
+    setEditContactValues(null);
+    setCreateContactValues(EMPTY_CREATE_CONTACT);
+    setFeedback(null);
+  }
 
   useEffect(() => {
     void loadClientList(appliedClientQuery);
@@ -145,6 +158,72 @@ export function ClientsPanel({
       contactRequest.current += 1;
     };
   }, [accessToken, access.canViewContacts, appliedContactQuery, selectedClientId]);
+
+  function beginWrite(action: ClientPendingAction): boolean {
+    if (writeInFlight.current) {
+      return false;
+    }
+    writeInFlight.current = true;
+    setPending(action);
+    return true;
+  }
+
+  function endWrite(): void {
+    writeInFlight.current = false;
+    setPending(null);
+  }
+
+  function captureClientContext(clientId: string): () => boolean {
+    const generation = contextGeneration.current;
+    return () => contextGeneration.current === generation && selectedClientRef.current === clientId;
+  }
+
+  function captureContactContext(clientId: string, contactId: string): () => boolean {
+    const clientGeneration = contextGeneration.current;
+    const contactGeneration = contactContextGeneration.current;
+    return () =>
+      contextGeneration.current === clientGeneration &&
+      contactContextGeneration.current === contactGeneration &&
+      selectedClientRef.current === clientId &&
+      selectedContactRef.current === contactId;
+  }
+
+  /** Creation only commits selection when the user has not moved to another client meanwhile. */
+  function captureSelectionContext(): () => boolean {
+    const generation = contextGeneration.current;
+    const clientId = selectedClientRef.current;
+    return () => contextGeneration.current === generation && selectedClientRef.current === clientId;
+  }
+
+  function refreshClientListAfterWrite(startedSession: string): void {
+    if (startedSession !== sessionToken.current) {
+      return;
+    }
+    void loadClientList(appliedClientQueryRef.current, true);
+  }
+
+  function refreshContactListAfterWrite(startedSession: string, clientId: string): void {
+    if (startedSession !== sessionToken.current || selectedClientRef.current !== clientId) {
+      return;
+    }
+    void loadContactList(clientId, appliedContactQueryRef.current, true);
+  }
+
+  function commitClientDetail(client: ClientSummary, isCurrent: () => boolean): void {
+    if (!isCurrent()) {
+      return;
+    }
+    setClientDetail({ status: 'ready', client });
+    setEditClientValues(clientSummaryToProfileValues(client));
+  }
+
+  function commitContactDetail(contact: ClientContactSummary, isCurrent: () => boolean): void {
+    if (!isCurrent()) {
+      return;
+    }
+    setSelectedContact(contact);
+    setEditContactValues(contactSummaryToProfileValues(contact));
+  }
 
   async function loadClientList(query: ClientListQuery, quiet = false): Promise<void> {
     const request = ++listRequest.current;
@@ -184,7 +263,6 @@ export function ClientsPanel({
         selectedClientRef.current &&
         !response.clients.some((client) => client.id === selectedClientRef.current)
       ) {
-        // Selected client no longer in current list page; keep selection but refresh detail.
         void loadClientDetail(selectedClientRef.current, true);
       }
     } catch {
@@ -261,9 +339,10 @@ export function ClientsPanel({
         total,
       });
       if (
-        selectedContact &&
-        !response.contacts.some((contact) => contact.id === selectedContact.id)
+        selectedContactRef.current &&
+        !response.contacts.some((contact) => contact.id === selectedContactRef.current)
       ) {
+        selectedContactRef.current = null;
         setSelectedContact(null);
         setEditContactValues(null);
       }
@@ -276,9 +355,11 @@ export function ClientsPanel({
 
   function selectClient(clientId: string): void {
     contextGeneration.current += 1;
+    contactContextGeneration.current += 1;
     contactRequest.current += 1;
     detailRequest.current += 1;
     selectedClientRef.current = clientId;
+    selectedContactRef.current = null;
     setSelectedClientId(clientId);
     setSelectedContact(null);
     setEditContactValues(null);
@@ -294,6 +375,8 @@ export function ClientsPanel({
       return;
     }
     const contact = contactList.contacts.find((entry) => entry.id === contactId) ?? null;
+    contactContextGeneration.current += 1;
+    selectedContactRef.current = contactId;
     setSelectedContact(contact);
     setEditContactValues(contact ? contactSummaryToProfileValues(contact) : null);
   }
@@ -324,25 +407,29 @@ export function ClientsPanel({
 
   async function handleCreateClient(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!access.canCreateClients) {
+    if (!access.canCreateClients || !beginWrite('createClient')) {
       return;
     }
-    setPending('createClient');
+    const isCurrent = captureSelectionContext();
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
       const created = await createClient(
         accessToken,
         toClientCreateRequest(createClientValues, access.canSeeCommercial),
       );
-      setCreateClientValues(EMPTY_CREATE_CLIENT);
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdClient' });
-      selectClient(created.client.id);
-      appliedClientQueryRef.current = appliedClientQuery;
-      void loadClientList(appliedClientQuery, true);
+      refreshClientListAfterWrite(startedSession);
+      if (isCurrent()) {
+        setCreateClientValues(EMPTY_CREATE_CLIENT);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdClient' });
+        selectClient(created.client.id);
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.createClient' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.createClient' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
@@ -351,74 +438,98 @@ export function ClientsPanel({
     if (!selectedClientId || !editClientValues || !access.canUpdateClients) {
       return;
     }
-    setPending('updateClient');
+    const clientId = selectedClientId;
+    if (!beginWrite('updateClient')) {
+      return;
+    }
+    const isCurrent = captureClientContext(clientId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
       const updated = await updateClient(
         accessToken,
-        selectedClientId,
+        clientId,
         toClientUpdateRequest(editClientValues, access.canSeeCommercial),
       );
-      setClientDetail({ status: 'ready', client: updated.client });
-      setEditClientValues(clientSummaryToProfileValues(updated.client));
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.updatedClient' });
-      void loadClientList(appliedClientQuery, true);
+      refreshClientListAfterWrite(startedSession);
+      if (isCurrent()) {
+        commitClientDetail(updated.client, isCurrent);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.updatedClient' });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.updateClient' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.updateClient' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleChangeClientStatus(status: ClientStatus): Promise<void> {
-    if (!selectedClientId || !access.canManageClientStatus) {
+    if (!selectedClientId || !access.canManageClientStatus || writeInFlight.current) {
       return;
     }
+    const clientId = selectedClientId;
     const label = t(clientStatusLabelKey(status));
     if (!window.confirm(t('clients.lifecycle.confirmStatusClient', { status: label }))) {
       return;
     }
-    setPending('lifecycle');
+    if (!beginWrite('lifecycle')) {
+      return;
+    }
+    const isCurrent = captureClientContext(clientId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
-      const updated = await updateClientStatus(accessToken, selectedClientId, { status });
-      setClientDetail({ status: 'ready', client: updated.client });
-      setEditClientValues(clientSummaryToProfileValues(updated.client));
-      setFeedback({
-        tone: 'success',
-        messageKey: 'clients.feedback.statusChangedClient',
-        values: { status: label },
-      });
-      void loadClientList(appliedClientQuery, true);
+      const updated = await updateClientStatus(accessToken, clientId, { status });
+      refreshClientListAfterWrite(startedSession);
+      if (isCurrent()) {
+        commitClientDetail(updated.client, isCurrent);
+        setFeedback({
+          tone: 'success',
+          messageKey: 'clients.feedback.statusChangedClient',
+          values: { status: label },
+        });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.statusClient' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.statusClient' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleArchiveClient(): Promise<void> {
-    if (!selectedClientId || !access.canArchiveClients) {
+    if (!selectedClientId || !access.canArchiveClients || writeInFlight.current) {
       return;
     }
+    const clientId = selectedClientId;
     if (!window.confirm(t('clients.lifecycle.confirmArchiveClient'))) {
       return;
     }
-    setPending('lifecycle');
+    if (!beginWrite('lifecycle')) {
+      return;
+    }
+    const isCurrent = captureClientContext(clientId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
-      const archived = await archiveClient(accessToken, selectedClientId);
-      setClientDetail({ status: 'ready', client: archived.client });
-      setEditClientValues(clientSummaryToProfileValues(archived.client));
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.archivedClient' });
-      void loadClientList(appliedClientQuery, true);
+      const archived = await archiveClient(accessToken, clientId);
+      refreshClientListAfterWrite(startedSession);
+      if (isCurrent()) {
+        commitClientDetail(archived.client, isCurrent);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.archivedClient' });
+      }
       if (access.canViewContacts) {
-        void loadContactList(selectedClientId, appliedContactQuery, true);
+        refreshContactListAfterWrite(startedSession, clientId);
       }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.archiveClient' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.archiveClient' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
@@ -427,23 +538,33 @@ export function ClientsPanel({
     if (!selectedClientId || !access.canCreateContacts) {
       return;
     }
-    setPending('createContact');
+    const clientId = selectedClientId;
+    if (!beginWrite('createContact')) {
+      return;
+    }
+    const isCurrent = captureClientContext(clientId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
       const created = await createClientContact(
         accessToken,
-        selectedClientId,
+        clientId,
         toContactCreateRequest(createContactValues),
       );
-      setCreateContactValues(EMPTY_CREATE_CONTACT);
-      setSelectedContact(created.contact);
-      setEditContactValues(contactSummaryToProfileValues(created.contact));
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdContact' });
-      void loadContactList(selectedClientId, appliedContactQuery, true);
+      refreshContactListAfterWrite(startedSession, clientId);
+      if (isCurrent()) {
+        setCreateContactValues(EMPTY_CREATE_CONTACT);
+        contactContextGeneration.current += 1;
+        selectedContactRef.current = created.contact.id;
+        commitContactDetail(created.contact, isCurrent);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdContact' });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.createContact' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.createContact' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
@@ -452,86 +573,115 @@ export function ClientsPanel({
     if (!selectedClientId || !selectedContact || !editContactValues || !access.canUpdateContacts) {
       return;
     }
-    setPending('updateContact');
+    const clientId = selectedClientId;
+    const contactId = selectedContact.id;
+    if (!beginWrite('updateContact')) {
+      return;
+    }
+    const isCurrent = captureContactContext(clientId, contactId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
       const updated = await updateClientContact(
         accessToken,
-        selectedClientId,
-        selectedContact.id,
+        clientId,
+        contactId,
         toContactUpdateRequest(editContactValues),
       );
-      setSelectedContact(updated.contact);
-      setEditContactValues(contactSummaryToProfileValues(updated.contact));
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.updatedContact' });
-      void loadContactList(selectedClientId, appliedContactQuery, true);
+      refreshContactListAfterWrite(startedSession, clientId);
+      if (isCurrent()) {
+        commitContactDetail(updated.contact, isCurrent);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.updatedContact' });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.updateContact' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.updateContact' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleChangeContactStatus(status: 'ACTIVE' | 'INACTIVE'): Promise<void> {
-    if (!selectedClientId || !selectedContact || !access.canManageContactStatus) {
+    if (
+      !selectedClientId ||
+      !selectedContact ||
+      !access.canManageContactStatus ||
+      writeInFlight.current
+    ) {
       return;
     }
+    const clientId = selectedClientId;
+    const contactId = selectedContact.id;
     const label = t(`clients.contactStatus.${status}`);
     if (!window.confirm(t('clients.lifecycle.confirmStatusContact', { status: label }))) {
       return;
     }
-    setPending('lifecycle');
+    if (!beginWrite('lifecycle')) {
+      return;
+    }
+    const isCurrent = captureContactContext(clientId, contactId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
-      const updated = await updateClientContactStatus(
-        accessToken,
-        selectedClientId,
-        selectedContact.id,
-        { status },
-      );
-      setSelectedContact(updated.contact);
-      setEditContactValues(contactSummaryToProfileValues(updated.contact));
-      setFeedback({
-        tone: 'success',
-        messageKey: 'clients.feedback.statusChangedContact',
-        values: { status: label },
-      });
-      void loadContactList(selectedClientId, appliedContactQuery, true);
+      const updated = await updateClientContactStatus(accessToken, clientId, contactId, { status });
+      refreshContactListAfterWrite(startedSession, clientId);
+      if (isCurrent()) {
+        commitContactDetail(updated.contact, isCurrent);
+        setFeedback({
+          tone: 'success',
+          messageKey: 'clients.feedback.statusChangedContact',
+          values: { status: label },
+        });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.statusContact' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.statusContact' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   async function handleArchiveContact(): Promise<void> {
-    if (!selectedClientId || !selectedContact || !access.canArchiveContacts) {
+    if (
+      !selectedClientId ||
+      !selectedContact ||
+      !access.canArchiveContacts ||
+      writeInFlight.current
+    ) {
       return;
     }
+    const clientId = selectedClientId;
+    const contactId = selectedContact.id;
     if (!window.confirm(t('clients.lifecycle.confirmArchiveContact'))) {
       return;
     }
-    setPending('lifecycle');
+    if (!beginWrite('lifecycle')) {
+      return;
+    }
+    const isCurrent = captureContactContext(clientId, contactId);
+    const startedSession = sessionToken.current;
     setFeedback(null);
     try {
-      const archived = await archiveClientContact(
-        accessToken,
-        selectedClientId,
-        selectedContact.id,
-      );
-      setSelectedContact(archived.contact);
-      setEditContactValues(contactSummaryToProfileValues(archived.contact));
-      setFeedback({ tone: 'success', messageKey: 'clients.feedback.archivedContact' });
-      void loadContactList(selectedClientId, appliedContactQuery, true);
+      const archived = await archiveClientContact(accessToken, clientId, contactId);
+      refreshContactListAfterWrite(startedSession, clientId);
+      if (isCurrent()) {
+        commitContactDetail(archived.contact, isCurrent);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.archivedContact' });
+      }
     } catch {
-      setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.archiveContact' });
+      if (isCurrent()) {
+        setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.archiveContact' });
+      }
     } finally {
-      setPending(null);
+      endWrite();
     }
   }
 
   return (
     <ClientsWorkspace
+      key={session.key}
       access={access}
       appliedClientFilters={appliedClientQuery.filters}
       appliedContactFilters={appliedContactQuery.filters}
@@ -586,9 +736,9 @@ export function ClientsPanel({
       onSaveContact={(event) => void handleSaveContact(event)}
       onSelectClient={selectClient}
       onSelectContact={selectContact}
-      pending={pending}
       selectedClientId={selectedClientId}
       selectedContact={selectedContact}
+      writesLocked={pending !== null}
     />
   );
 }

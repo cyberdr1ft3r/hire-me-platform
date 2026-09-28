@@ -26,12 +26,12 @@ export function resolveClientAccess(permissions: readonly string[]): ClientAcces
   const canArchiveContacts = permissions.includes('client_contacts:archive');
   const canSeeCommercial = permissions.includes('commercial_data:access');
 
-  const readOnly =
-    canView &&
-    !canCreateClients &&
-    !canUpdateClients &&
-    !canManageClientStatus &&
-    !canArchiveClients;
+  const canMutateClients =
+    canCreateClients || canUpdateClients || canManageClientStatus || canArchiveClients;
+  const canMutateContacts =
+    canCreateContacts || canUpdateContacts || canManageContactStatus || canArchiveContacts;
+
+  const readOnly = canView && !canMutateClients && !canMutateContacts;
 
   return {
     canArchiveClients,

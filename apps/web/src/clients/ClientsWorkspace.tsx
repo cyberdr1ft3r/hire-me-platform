@@ -32,7 +32,6 @@ import type {
   ClientFeedback,
   ClientFilterValues,
   ClientListState,
-  ClientPendingAction,
   ContactFilterValues,
   ContactListState,
 } from './client-state.js';
@@ -89,9 +88,9 @@ export function ClientsWorkspace({
   onSaveContact,
   onSelectClient,
   onSelectContact,
-  pending,
   selectedClientId,
   selectedContact,
+  writesLocked,
 }: {
   access: ClientAccess;
   appliedClientFilters: ClientFilterValues;
@@ -131,9 +130,9 @@ export function ClientsWorkspace({
   onSaveContact: (event: FormEvent<HTMLFormElement>) => void;
   onSelectClient: (clientId: string) => void;
   onSelectContact: (contactId: string) => void;
-  pending: ClientPendingAction | null;
   selectedClientId: string | null;
   selectedContact: ClientContactSummary | null;
+  writesLocked: boolean;
 }) {
   const { t } = useI18n();
   const listBusy = clientList.status === 'loading';
@@ -213,7 +212,7 @@ export function ClientsWorkspace({
                 onChange={onCreateClientValuesChange}
                 values={createClientValues}
               />
-              <Button disabled={pending === 'createClient'} type="submit" variant="primary">
+              <Button disabled={writesLocked} type="submit" variant="primary">
                 {t('clients.actions.createClient')}
               </Button>
             </form>
@@ -257,9 +256,7 @@ export function ClientsWorkspace({
                   values={editClientValues}
                 />
                 <Button
-                  disabled={
-                    !access.canUpdateClients || archivedClient || pending === 'updateClient'
-                  }
+                  disabled={writesLocked || !access.canUpdateClients || archivedClient}
                   type="submit"
                   variant="primary"
                 >
@@ -272,7 +269,7 @@ export function ClientsWorkspace({
                 <div className="client-lifecycle__actions">
                   {CLIENT_LIFECYCLE.map((status) => (
                     <Button
-                      disabled={!access.canManageClientStatus || archivedClient}
+                      disabled={writesLocked || !access.canManageClientStatus || archivedClient}
                       key={status}
                       onClick={() => onChangeClientStatus(status)}
                       size="compact"
@@ -287,7 +284,7 @@ export function ClientsWorkspace({
                     </Button>
                   ))}
                   <Button
-                    disabled={!access.canArchiveClients || archivedClient}
+                    disabled={writesLocked || !access.canArchiveClients || archivedClient}
                     onClick={onArchiveClient}
                     size="compact"
                     type="button"
@@ -330,11 +327,7 @@ export function ClientsWorkspace({
                         onChange={onCreateContactValuesChange}
                         values={createContactValues}
                       />
-                      <Button
-                        disabled={pending === 'createContact'}
-                        type="submit"
-                        variant="primary"
-                      >
+                      <Button disabled={writesLocked} type="submit" variant="primary">
                         {t('clients.actions.createContact')}
                       </Button>
                     </form>
@@ -364,11 +357,7 @@ export function ClientsWorkspace({
                         values={editContactValues}
                       />
                       <Button
-                        disabled={
-                          !access.canUpdateContacts ||
-                          archivedContact ||
-                          pending === 'updateContact'
-                        }
+                        disabled={writesLocked || !access.canUpdateContacts || archivedContact}
                         type="submit"
                         variant="primary"
                       >
@@ -376,7 +365,9 @@ export function ClientsWorkspace({
                       </Button>
                       <div className="client-lifecycle__actions">
                         <Button
-                          disabled={!access.canManageContactStatus || archivedContact}
+                          disabled={
+                            writesLocked || !access.canManageContactStatus || archivedContact
+                          }
                           onClick={() => onChangeContactStatus('ACTIVE')}
                           size="compact"
                           type="button"
@@ -385,7 +376,9 @@ export function ClientsWorkspace({
                           {t('clients.lifecycle.contactMoveTo.ACTIVE')}
                         </Button>
                         <Button
-                          disabled={!access.canManageContactStatus || archivedContact}
+                          disabled={
+                            writesLocked || !access.canManageContactStatus || archivedContact
+                          }
                           onClick={() => onChangeContactStatus('INACTIVE')}
                           size="compact"
                           type="button"
@@ -394,7 +387,7 @@ export function ClientsWorkspace({
                           {t('clients.lifecycle.contactMoveTo.INACTIVE')}
                         </Button>
                         <Button
-                          disabled={!access.canArchiveContacts || archivedContact}
+                          disabled={writesLocked || !access.canArchiveContacts || archivedContact}
                           onClick={onArchiveContact}
                           size="compact"
                           type="button"
