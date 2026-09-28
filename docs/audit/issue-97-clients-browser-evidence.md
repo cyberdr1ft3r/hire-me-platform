@@ -4,23 +4,25 @@
 
 ### Environment
 
-- **Branch head SHA:** `8714900` (PR #98; exact-head CI run `36438714586`)
+- **Application head SHA:** `871490010010e45893e4683a728828f46fef2746` (PR #98)
+- **Exact application-head GitHub Actions:** run `36438714586` — success (all three jobs)
 - **Browser:** Chromium (Playwright headless)
 - **App URLs:** `http://127.0.0.1:5173` → `http://127.0.0.1:3000`
-- **Database:** D-071 disposable DB `hireme_test_20260928123926_27040db73696`
-- **Users (synthetic):**
-  - `bootstrap-admin@test-db.hireme.test` — full Clients workspace (matrix + keyboard)
-  - `issue97-clients-view@test-db.hireme.test` — `clients:view` + `client_contacts:view` (read-only)
-  - `issue97-contact-editor@test-db.hireme.test` — `clients:view` + `client_contacts:view` + `client_contacts:update`
-  - Password (audit personas): `CiSyntheticAuditPassphrase123!`
+- **Database:** D-071 disposable DB `hireme_test_20260928123926_27040db73696` (checkout-owned audit provisioning; full D-071 receipt/marker guard applied for that run)
 
-Provisioning (disposable DB only): `TEST_DATABASE_URL=… pnpm --filter @hire-me/api exec tsx ../../scripts/issue97-audit-db-setup.ts`
+### Synthetic audit personas (disposable DB only)
+
+Personas were created and used **only** inside the checkout-owned D-071 disposable database above for this evidence capture. They are not part of merged seed data and are not documented with reusable credentials.
+
+| Email | Permission set (effective) | Role in evidence |
+| --- | --- | --- |
+| `bootstrap-admin@test-db.hireme.test` | Full admin (existing D-071 bootstrap) | Responsive matrix + keyboard |
+| `issue97-clients-view@test-db.hireme.test` | `records:view`, `clients:view`, `client_contacts:view` | Read-only Clients workspace |
+| `issue97-contact-editor@test-db.hireme.test` | `records:view`, `clients:view`, `client_contacts:view`, `client_contacts:update` | Contact edit without client mutations |
 
 ### Evidence bundle
 
-27 PNGs + `summary.json` under `/opt/cursor/artifacts/issue97-evidence/`.
-
-Capture driver: `/opt/cursor/playwright-runner/capture.mjs` (Chromium).
+27 PNGs + `summary.json` under `/opt/cursor/artifacts/issue97-evidence/` (audit runner artifacts; not committed to the repository).
 
 ### Responsive matrix (1440 / 1024 / 800 / 430 / 390 × EN / FR)
 

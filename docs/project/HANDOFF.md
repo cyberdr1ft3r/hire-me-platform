@@ -11,7 +11,7 @@ Last updated: 2026-09-28
 
 ## Next concrete action
 
-1. **ChatGPT final review** of Issue #97 PR #98 @ `b139936` (mutation/session guards, readOnly fix, deferred-promise tests, browser matrix). Then continue **Missions → Training → Commercial → Documents → Accounting → Admin**.
+1. **Issue #97 / PR #98:** Clients implementation and browser gate accepted; remove audit-helper from branch and merge PR #98 after final ChatGPT merge review. Next module rollout after merge: **Missions** → Training → Commercial → Documents → Accounting → Admin.
 2. Continue Issue #93 seeded RolePermission identity cleanup separately.
 3. Do **not** treat D-068 production proxy verification or D-070 production migration as closed by the AppShell audit.
 
