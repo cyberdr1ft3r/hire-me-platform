@@ -11,7 +11,7 @@ Last updated: 2026-09-28
 
 ## Next concrete action
 
-1. Review Issue #97 PR (Clients bilingual rollout); then continue **Missions → Training → Commercial → Documents → Accounting → Admin**.
+1. **ChatGPT final review** of Issue #97 PR #98 @ `b139936` (mutation/session guards, readOnly fix, deferred-promise tests, browser matrix). Then continue **Missions → Training → Commercial → Documents → Accounting → Admin**.
 2. Continue Issue #93 seeded RolePermission identity cleanup separately.
 3. Do **not** treat D-068 production proxy verification or D-070 production migration as closed by the AppShell audit.
 
