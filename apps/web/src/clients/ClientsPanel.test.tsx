@@ -80,9 +80,7 @@ function readAuthToken(init?: RequestInit, input?: RequestInfo | URL): string | 
   } else if (Array.isArray(headers)) {
     value = headers.find(([key]) => key.toLowerCase() === 'authorization')?.[1];
   } else if (headers && typeof headers === 'object') {
-    value = Object.entries(headers).find(
-      ([key]) => key.toLowerCase() === 'authorization',
-    )?.[1];
+    value = Object.entries(headers).find(([key]) => key.toLowerCase() === 'authorization')?.[1];
   }
   return typeof value === 'string' ? value : null;
 }
