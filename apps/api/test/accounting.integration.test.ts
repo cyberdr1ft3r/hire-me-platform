@@ -20,6 +20,7 @@ import {
   RoleName,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
+import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -199,15 +200,9 @@ async function setRolePermissions(roleName: RoleName, codes: readonly string[]):
     data: { archivedAt: new Date() },
   });
   for (const code of codes) {
-    const permission = await prisma.permission.upsert({
-      where: { code },
-      update: { status: 'ACTIVE' },
-      create: {
-        code,
-        description: `Synthetic ${code} permission for accounting tests.`,
-        scopeType: PermissionScopeType.EXPLICIT,
-        status: 'ACTIVE',
-      },
+    const permission = await ensurePermissionForTest(prisma, code, {
+      description: `Synthetic ${code} permission for accounting tests.`,
+      scopeType: PermissionScopeType.EXPLICIT,
     });
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },

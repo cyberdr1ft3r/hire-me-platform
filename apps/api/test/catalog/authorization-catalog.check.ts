@@ -29,15 +29,14 @@ import {
  * - SUPER_ADMIN still actively holds every seeded permission, and its
  *   effective permissions resolve to all of them;
  * - the bootstrap administrator's account, role, and credential survived, and
- *   it can still log in and read its own permissions.
- *
+ *   it can still log in and read its own permissions;
  * - every seeded grant keeps its baseline active state and its baseline row
  *   identifier: suites narrow seeded roles only by archiving and restore the
- *   exact rows in place (Issue #93), so zero replaced rows is enforced.
- *
- * Reported rather than failed: seeded permission description and scope-type
- * drift from suites' permission upserts, a separate coupling. A deactivated
- * seeded permission fails.
+ *   exact rows in place (Issue #93);
+ * - every seeded permission keeps its baseline description, scope type, and
+ *   status, and no test-created permission outlives its test file: suites
+ *   reuse existing permissions unchanged and create only missing codes,
+ *   which they remove afterwards (Issue #105).
  */
 const snapshotPath = process.env.HIREME_TEST_CATALOG_SNAPSHOT;
 const prisma = new PrismaClient();
@@ -149,33 +148,39 @@ describe('seeded authorization catalog survives the integration suite', () => {
     ).toEqual([]);
   });
 
-  it('reports seeded permission field drift and fails on deactivation', async () => {
-    // Several suites' permission upserts rewrite seeded permission descriptions
-    // and scope types. That coupling is tracked separately from Issue #93:
-    // reported here, never waived silently.
-    const baseline = snapshot.permissions.filter((permission) => permission.scopeType);
-    if (baseline.length === 0) {
-      console.info('[catalog] seeded permission field drift: snapshot predates field capture');
-      return;
-    }
+  it('keeps every seeded permission metadata field and leaves no test-created permission', async () => {
+    // Issue #105: suites reuse existing permissions unchanged, so a seeded
+    // permission's description, scope type, and status all match the baseline.
     const current = new Map(
       (
         await prisma.permission.findMany({
-          select: { id: true, description: true, scopeType: true, status: true },
+          select: { id: true, code: true, description: true, scopeType: true, status: true },
         })
       ).map((permission) => [permission.id, permission]),
     );
-    const drift = { description: 0, scopeType: 0, status: 0 };
-    for (const permission of baseline) {
+    const drifted = {
+      description: [] as string[],
+      scopeType: [] as string[],
+      status: [] as string[],
+    };
+    for (const permission of snapshot.permissions) {
       const now = current.get(permission.id);
-      if (now?.description !== permission.description) drift.description += 1;
-      if (now?.scopeType !== permission.scopeType) drift.scopeType += 1;
-      if (now?.status !== permission.status) drift.status += 1;
+      if (now?.description !== permission.description) drifted.description.push(permission.code);
+      if (now?.scopeType !== permission.scopeType) drifted.scopeType.push(permission.code);
+      if (now?.status !== permission.status) drifted.status.push(permission.code);
     }
+    const baselineIds = new Set(snapshot.permissions.map((permission) => permission.id));
+    const leftover = [...current.values()]
+      .filter((permission) => !baselineIds.has(permission.id))
+      .map((permission) => permission.code);
     console.info(
-      `[catalog] seeded permission field drift: description=${drift.description}, scopeType=${drift.scopeType}, status=${drift.status}`,
+      `[catalog] seeded permission field drift: description=${drifted.description.length}, scopeType=${drifted.scopeType.length}, status=${drifted.status.length}`,
     );
-    expect(drift.status, 'seeded permissions whose status changed').toBe(0);
+    console.info(`[catalog] permissions not in the baseline: ${leftover.length}`);
+    expect(drifted.description, 'seeded permissions whose description changed').toEqual([]);
+    expect(drifted.scopeType, 'seeded permissions whose scope type changed').toEqual([]);
+    expect(drifted.status, 'seeded permissions whose status changed').toEqual([]);
+    expect(leftover, 'test-created permissions left behind').toEqual([]);
   });
 
   it('keeps the bootstrap administrator account, role, and credential', async () => {

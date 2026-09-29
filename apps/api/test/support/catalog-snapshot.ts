@@ -20,10 +20,9 @@ export interface CatalogSnapshot {
   permissions: {
     id: string;
     code: string;
-    /** Captured since Issue #93; absent in older snapshots. */
-    description?: string;
-    scopeType?: string;
-    status?: string;
+    description: string;
+    scopeType: string;
+    status: string;
   }[];
   grants: { id: string; role: string; permission: string; active: boolean }[];
   bootstrapAdmin: { id: string; normalizedEmail: string; credentialId: string };
@@ -86,6 +85,13 @@ export function readCatalogSnapshot(path: string): CatalogSnapshot {
   const snapshot = JSON.parse(readFileSync(path, 'utf8')) as CatalogSnapshot;
   if (snapshot.version !== 1) {
     throw new Error('Unsupported catalog snapshot.');
+  }
+  // Permission metadata is enforced since Issue #105. A snapshot from before
+  // that cannot prove it, so it is refused rather than silently passed.
+  if (snapshot.permissions.some((permission) => typeof permission.scopeType !== 'string')) {
+    throw new Error(
+      'The catalog snapshot predates permission metadata capture; provision a new test database.',
+    );
   }
   return snapshot;
 }

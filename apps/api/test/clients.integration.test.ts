@@ -19,6 +19,7 @@ import {
   RoleName,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
+import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -80,19 +81,9 @@ async function ensureRoleWithPermissions(
   });
 
   for (const code of permissionCodes) {
-    const permission = await prisma.permission.upsert({
-      where: { code },
-      update: {
-        description: `Synthetic ${code} permission for client CRM tests.`,
-        scopeType: PermissionScopeType.EXPLICIT,
-        status: 'ACTIVE',
-      },
-      create: {
-        code,
-        description: `Synthetic ${code} permission for client CRM tests.`,
-        scopeType: PermissionScopeType.EXPLICIT,
-        status: 'ACTIVE',
-      },
+    const permission = await ensurePermissionForTest(prisma, code, {
+      description: `Synthetic ${code} permission for client CRM tests.`,
+      scopeType: PermissionScopeType.EXPLICIT,
     });
     await prisma.rolePermission.upsert({
       where: {
