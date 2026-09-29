@@ -7,14 +7,20 @@ import type {
   TrainingEnrollmentDetailResponse,
   TrainingEnrollmentListQuery,
   TrainingEnrollmentListResponse,
+  TrainingEnrollmentOption,
+  TrainingEnrollmentOptionQuery,
+  TrainingEnrollmentOptionsResponse,
   TrainingEnrollmentStatusUpdateRequest,
   TrainingEnrollmentSummary,
   TrainingEnrollmentWithdrawRequest,
+  TrainingInternalUserOptionQuery,
+  TrainingInternalUserOptionsResponse,
   TrainingParticipationCreateRequest,
   TrainingParticipationDetailResponse,
   TrainingParticipationListQuery,
   TrainingParticipationListResponse,
   TrainingParticipationSummary,
+  TrainingParticipantDisplay,
   TrainingProgramCreateRequest,
   TrainingProgramDetailResponse,
   TrainingProgramListQuery,
@@ -32,6 +38,7 @@ import type {
   TrainingSessionSummary,
   TrainingSessionUpdateRequest,
 } from '@hire-me/contracts';
+import { TRAINING_OPTION_LIMIT } from '@hire-me/contracts';
 
 import { TrainingAuditService } from './training-audit.service.js';
 import { TRAINING_PERMISSIONS } from './training-permissions.js';
@@ -40,6 +47,7 @@ import {
   ATTENDANCE_RECORDING_SESSION_STATUSES,
   CORRECTABLE_PARTICIPATION_STATUSES,
   RESCHEDULABLE_SESSION_STATUSES,
+  TERMINAL_ENROLLMENT_STATUSES,
   isAllowedEnrollmentTransition,
   isAllowedParticipationTransition,
   isAllowedProgramTransition,
@@ -57,6 +65,7 @@ import {
   ExternalParticipantStatus,
   Prisma,
   TrainingEnrollmentStatus,
+  TrainingParticipantType as PrismaTrainingParticipantType,
   TrainingProgramStatus,
   TrainingSessionParticipationStatus,
   TrainingSessionStatus,
@@ -70,6 +79,25 @@ type ProgramRecord = Prisma.TrainingProgramGetPayload<Record<string, never>>;
 type SessionRecord = Prisma.TrainingSessionGetPayload<Record<string, never>>;
 type EnrollmentRecord = Prisma.TrainingEnrollmentGetPayload<Record<string, never>>;
 type ParticipationRecord = Prisma.TrainingSessionParticipationGetPayload<Record<string, never>>;
+
+const enrollmentDisplayInclude = {
+  candidate: { select: { displayName: true, email: true } },
+  user: { select: { displayName: true, email: true } },
+  clientContact: { select: { displayName: true, email: true } },
+  externalTrainingParticipant: { select: { displayName: true, email: true } },
+} satisfies Prisma.TrainingEnrollmentInclude;
+
+type EnrollmentPresentationRecord = Prisma.TrainingEnrollmentGetPayload<{
+  include: typeof enrollmentDisplayInclude;
+}>;
+
+const participationDisplayInclude = {
+  enrollment: { include: enrollmentDisplayInclude },
+} satisfies Prisma.TrainingSessionParticipationInclude;
+
+type ParticipationPresentationRecord = Prisma.TrainingSessionParticipationGetPayload<{
+  include: typeof participationDisplayInclude;
+}>;
 
 type TrainingAccess = {
   permissions: Set<string>;
@@ -114,6 +142,32 @@ export class TrainingService {
   // ----------------------------------------------------------------------------
   // Training programs
   // ----------------------------------------------------------------------------
+
+  async listProgramOwnerUserOptions(
+    query: TrainingInternalUserOptionQuery,
+  ): Promise<TrainingInternalUserOptionsResponse> {
+    return this.listInternalUserOptions(query);
+  }
+
+  async listSessionTrainerUserOptions(
+    programId: string,
+    query: TrainingInternalUserOptionQuery,
+    actorUserId: string,
+  ): Promise<TrainingInternalUserOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    await this.findVisibleProgram(programId, actorUserId, access);
+    return this.listInternalUserOptions(query);
+  }
+
+  async listEnrollmentUserOptions(
+    programId: string,
+    query: TrainingInternalUserOptionQuery,
+    actorUserId: string,
+  ): Promise<TrainingInternalUserOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    await this.findVisibleProgram(programId, actorUserId, access);
+    return this.listInternalUserOptions(query);
+  }
 
   async listPrograms(
     query: TrainingProgramListQuery,
@@ -798,6 +852,7 @@ export class TrainingService {
     const [enrollments, total] = await this.prisma.$transaction([
       this.prisma.trainingEnrollment.findMany({
         where,
+        include: enrollmentDisplayInclude,
         orderBy: [
           {
             [query.sortBy]: query.sortDirection,
@@ -823,7 +878,7 @@ export class TrainingService {
   ): Promise<TrainingEnrollmentDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
     await this.findVisibleProgram(programId, actorUserId, access);
-    const enrollment = await this.findEnrollmentForProgram(programId, enrollmentId);
+    const enrollment = await this.findEnrollmentPresentationForProgram(programId, enrollmentId);
     return { enrollment: toEnrollmentSummary(enrollment, access) };
   }
 
@@ -880,7 +935,12 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment, access) };
+    return {
+      enrollment: toEnrollmentSummary(
+        await this.findEnrollmentPresentationForProgram(programId, enrollment.id),
+        access,
+      ),
+    };
   }
 
   async updateEnrollmentStatus(
@@ -946,7 +1006,12 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment, access) };
+    return {
+      enrollment: toEnrollmentSummary(
+        await this.findEnrollmentPresentationForProgram(programId, enrollment.id),
+        access,
+      ),
+    };
   }
 
   async withdrawEnrollment(
@@ -1002,7 +1067,12 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment, access) };
+    return {
+      enrollment: toEnrollmentSummary(
+        await this.findEnrollmentPresentationForProgram(programId, enrollment.id),
+        access,
+      ),
+    };
   }
 
   /**
@@ -1065,7 +1135,12 @@ export class TrainingService {
       },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment, access) };
+    return {
+      enrollment: toEnrollmentSummary(
+        await this.findEnrollmentPresentationForProgram(programId, enrollment.id),
+        access,
+      ),
+    };
   }
 
   async archiveEnrollment(
@@ -1113,12 +1188,54 @@ export class TrainingService {
       { allowArchivedProgram: true },
     );
 
-    return { enrollment: toEnrollmentSummary(enrollment, access) };
+    return {
+      enrollment: toEnrollmentSummary(
+        await this.findEnrollmentPresentationForProgram(programId, enrollment.id),
+        access,
+      ),
+    };
   }
 
   // ----------------------------------------------------------------------------
   // Session participation and attendance
   // ----------------------------------------------------------------------------
+
+  async listEnrollmentOptions(
+    programId: string,
+    sessionId: string,
+    query: TrainingEnrollmentOptionQuery,
+    actorUserId: string,
+  ): Promise<TrainingEnrollmentOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const program = await this.findVisibleProgram(programId, actorUserId, access);
+    this.assertProgramAcceptsOperations(program);
+    const session = await this.findSessionForProgram(programId, sessionId);
+    this.assertSessionAcceptsParticipation(session);
+
+    const requestedTypes = query.participantType
+      ? [query.participantType]
+      : (['USER', 'EXTERNAL', 'CANDIDATE', 'CLIENT_CONTACT'] as const);
+    const visibleTypes = requestedTypes.filter(
+      (participantType) =>
+        participantType === 'USER' ||
+        participantType === 'EXTERNAL' ||
+        (participantType === 'CANDIDATE' && access.candidatesView) ||
+        (participantType === 'CLIENT_CONTACT' && access.clientsView && access.clientContactsView),
+    );
+
+    const optionGroups = await Promise.all(
+      visibleTypes.map((participantType) =>
+        this.listEnrollmentOptionsForType(program, sessionId, participantType, query.search),
+      ),
+    );
+
+    return {
+      enrollments: optionGroups
+        .flat()
+        .sort(compareEnrollmentOptions)
+        .slice(0, TRAINING_OPTION_LIMIT),
+    };
+  }
 
   async listParticipations(
     programId: string,
@@ -1140,6 +1257,7 @@ export class TrainingService {
     const [participations, total] = await this.prisma.$transaction([
       this.prisma.trainingSessionParticipation.findMany({
         where,
+        include: participationDisplayInclude,
         orderBy: [
           {
             [query.sortBy]: query.sortDirection,
@@ -1154,7 +1272,7 @@ export class TrainingService {
 
     return {
       participations: participations.map((participation) =>
-        toParticipationSummary(participation, includeNotes),
+        toParticipationSummary(participation, includeNotes, access),
       ),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
@@ -1175,12 +1293,7 @@ export class TrainingService {
       access,
       async (transaction, program, session) => {
         this.assertProgramAcceptsOperations(program);
-        if (isTerminalSessionStatus(session.status) || session.archivedAt) {
-          throw conflict(
-            'TRAINING_SESSION_NOT_MUTABLE',
-            'Completed, canceled, or archived training sessions cannot record participation.',
-          );
-        }
+        this.assertSessionAcceptsParticipation(session);
 
         // Critical integrity rule: the enrollment must belong to the SAME training
         // program as the session. A program A session can never be linked to a
@@ -1233,7 +1346,13 @@ export class TrainingService {
       },
     );
 
-    return { participation: toParticipationSummary(participation, true) };
+    return {
+      participation: toParticipationSummary(
+        await this.findParticipationPresentationForSession(sessionId, participation.id),
+        true,
+        access,
+      ),
+    };
   }
 
   async updateAttendance(
@@ -1308,7 +1427,13 @@ export class TrainingService {
       },
     );
 
-    return { participation: toParticipationSummary(participation, true) };
+    return {
+      participation: toParticipationSummary(
+        await this.findParticipationPresentationForSession(sessionId, participation.id),
+        true,
+        access,
+      ),
+    };
   }
 
   async correctAttendance(
@@ -1375,7 +1500,13 @@ export class TrainingService {
       },
     );
 
-    return { participation: toParticipationSummary(participation, true) };
+    return {
+      participation: toParticipationSummary(
+        await this.findParticipationPresentationForSession(sessionId, participation.id),
+        true,
+        access,
+      ),
+    };
   }
 
   /**
@@ -1446,7 +1577,13 @@ export class TrainingService {
       { allowArchivedProgram: true },
     );
 
-    return { participation: toParticipationSummary(participation, includeNotes) };
+    return {
+      participation: toParticipationSummary(
+        await this.findParticipationPresentationForSession(sessionId, participation.id),
+        includeNotes,
+        access,
+      ),
+    };
   }
 
   // ----------------------------------------------------------------------------
@@ -1463,6 +1600,191 @@ export class TrainingService {
       candidatesView: permissions.has(TRAINING_PERMISSIONS.CANDIDATES_VIEW),
       clientContactsView: permissions.has(TRAINING_PERMISSIONS.CLIENT_CONTACTS_VIEW),
     };
+  }
+
+  private async listInternalUserOptions(
+    query: TrainingInternalUserOptionQuery,
+  ): Promise<TrainingInternalUserOptionsResponse> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        archivedAt: null,
+        userType: UserType.INTERNAL,
+        ...(query.search
+          ? {
+              OR: [
+                { displayName: { contains: query.search, mode: 'insensitive' } },
+                { email: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: { id: true, displayName: true, email: true },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: TRAINING_OPTION_LIMIT,
+    });
+    return { users };
+  }
+
+  private async listEnrollmentOptionsForType(
+    program: ProgramRecord,
+    sessionId: string,
+    participantType: PrismaTrainingParticipantType,
+    search?: string,
+  ): Promise<TrainingEnrollmentOption[]> {
+    const baseWhere: Prisma.TrainingEnrollmentWhereInput = {
+      trainingProgramId: program.id,
+      participantType,
+      archivedAt: null,
+      status: { notIn: [...TERMINAL_ENROLLMENT_STATUSES] },
+      participations: { none: { trainingSessionId: sessionId } },
+    };
+
+    switch (participantType) {
+      case PrismaTrainingParticipantType.USER: {
+        const enrollments = await this.prisma.trainingEnrollment.findMany({
+          where: {
+            ...baseWhere,
+            user: {
+              is: search
+                ? {
+                    OR: [
+                      { displayName: { contains: search, mode: 'insensitive' } },
+                      { email: { contains: search, mode: 'insensitive' } },
+                    ],
+                  }
+                : {},
+            },
+          },
+          select: {
+            id: true,
+            participantType: true,
+            user: { select: { displayName: true, email: true } },
+          },
+          orderBy: [{ user: { displayName: 'asc' } }, { id: 'asc' }],
+          take: TRAINING_OPTION_LIMIT,
+        });
+        return enrollments.flatMap((enrollment) =>
+          enrollment.user
+            ? [
+                {
+                  id: enrollment.id,
+                  participantType: enrollment.participantType,
+                  participant: enrollment.user,
+                },
+              ]
+            : [],
+        );
+      }
+      case PrismaTrainingParticipantType.EXTERNAL: {
+        const enrollments = await this.prisma.trainingEnrollment.findMany({
+          where: {
+            ...baseWhere,
+            externalTrainingParticipant: {
+              is: search
+                ? {
+                    OR: [
+                      { displayName: { contains: search, mode: 'insensitive' } },
+                      { email: { contains: search, mode: 'insensitive' } },
+                    ],
+                  }
+                : {},
+            },
+          },
+          select: {
+            id: true,
+            participantType: true,
+            externalTrainingParticipant: { select: { displayName: true, email: true } },
+          },
+          orderBy: [{ externalTrainingParticipant: { displayName: 'asc' } }, { id: 'asc' }],
+          take: TRAINING_OPTION_LIMIT,
+        });
+        return enrollments.flatMap((enrollment) =>
+          enrollment.externalTrainingParticipant
+            ? [
+                {
+                  id: enrollment.id,
+                  participantType: enrollment.participantType,
+                  participant: enrollment.externalTrainingParticipant,
+                },
+              ]
+            : [],
+        );
+      }
+      case PrismaTrainingParticipantType.CANDIDATE: {
+        const enrollments = await this.prisma.trainingEnrollment.findMany({
+          where: {
+            ...baseWhere,
+            candidate: {
+              is: search
+                ? {
+                    OR: [
+                      { displayName: { contains: search, mode: 'insensitive' } },
+                      { email: { contains: search, mode: 'insensitive' } },
+                    ],
+                  }
+                : {},
+            },
+          },
+          select: {
+            id: true,
+            participantType: true,
+            candidate: { select: { displayName: true, email: true } },
+          },
+          orderBy: [{ candidate: { displayName: 'asc' } }, { id: 'asc' }],
+          take: TRAINING_OPTION_LIMIT,
+        });
+        return enrollments.flatMap((enrollment) =>
+          enrollment.candidate
+            ? [
+                {
+                  id: enrollment.id,
+                  participantType: enrollment.participantType,
+                  participant: enrollment.candidate,
+                },
+              ]
+            : [],
+        );
+      }
+      case PrismaTrainingParticipantType.CLIENT_CONTACT: {
+        const enrollments = await this.prisma.trainingEnrollment.findMany({
+          where: {
+            ...baseWhere,
+            clientContact: {
+              is: {
+                ...(program.clientId ? { clientId: program.clientId } : {}),
+                ...(search
+                  ? {
+                      OR: [
+                        { displayName: { contains: search, mode: 'insensitive' } },
+                        { email: { contains: search, mode: 'insensitive' } },
+                      ],
+                    }
+                  : {}),
+              },
+            },
+          },
+          select: {
+            id: true,
+            participantType: true,
+            clientContact: { select: { displayName: true, email: true } },
+          },
+          orderBy: [{ clientContact: { displayName: 'asc' } }, { id: 'asc' }],
+          take: TRAINING_OPTION_LIMIT,
+        });
+        return enrollments.flatMap((enrollment) =>
+          enrollment.clientContact
+            ? [
+                {
+                  id: enrollment.id,
+                  participantType: enrollment.participantType,
+                  participant: enrollment.clientContact,
+                },
+              ]
+            : [],
+        );
+      }
+    }
   }
 
   /**
@@ -1569,6 +1891,21 @@ export class TrainingService {
     return enrollment;
   }
 
+  private async findEnrollmentPresentationForProgram(
+    programId: string,
+    enrollmentId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<EnrollmentPresentationRecord> {
+    const enrollment = await transaction.trainingEnrollment.findFirst({
+      where: { id: enrollmentId, trainingProgramId: programId },
+      include: enrollmentDisplayInclude,
+    });
+    if (!enrollment) {
+      throw notFound('TRAINING_ENROLLMENT_NOT_FOUND', 'Training enrollment was not found.');
+    }
+    return enrollment;
+  }
+
   private async findParticipationForSession(
     sessionId: string,
     participationId: string,
@@ -1576,6 +1913,24 @@ export class TrainingService {
   ): Promise<ParticipationRecord> {
     const participation = await transaction.trainingSessionParticipation.findFirst({
       where: { id: participationId, trainingSessionId: sessionId },
+    });
+    if (!participation) {
+      throw notFound(
+        'TRAINING_PARTICIPATION_NOT_FOUND',
+        'Training session participation was not found.',
+      );
+    }
+    return participation;
+  }
+
+  private async findParticipationPresentationForSession(
+    sessionId: string,
+    participationId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<ParticipationPresentationRecord> {
+    const participation = await transaction.trainingSessionParticipation.findFirst({
+      where: { id: participationId, trainingSessionId: sessionId },
+      include: participationDisplayInclude,
     });
     if (!participation) {
       throw notFound(
@@ -1713,6 +2068,15 @@ export class TrainingService {
       throw conflict(
         'TRAINING_SESSION_NOT_ACCEPTING_ATTENDANCE',
         'This training session does not accept attendance changes in its current state.',
+      );
+    }
+  }
+
+  private assertSessionAcceptsParticipation(session: SessionRecord): void {
+    if (isTerminalSessionStatus(session.status) || session.archivedAt) {
+      throw conflict(
+        'TRAINING_SESSION_NOT_MUTABLE',
+        'Completed, canceled, or archived training sessions cannot record participation.',
       );
     }
   }
@@ -1995,7 +2359,7 @@ function toSessionSummary(session: SessionRecord): TrainingSessionSummary {
  * source record.
  */
 function toEnrollmentSummary(
-  enrollment: EnrollmentRecord,
+  enrollment: EnrollmentPresentationRecord,
   access: TrainingAccess,
 ): TrainingEnrollmentSummary {
   return {
@@ -2009,6 +2373,7 @@ function toEnrollmentSummary(
         access.clientsView && access.clientContactsView ? enrollment.clientContactId : null,
       externalTrainingParticipantId: enrollment.externalTrainingParticipantId,
     },
+    participantDisplay: toParticipantDisplay(enrollment, access),
     status: enrollment.status,
     enrolledAt: isoOrNull(enrollment.enrolledAt),
     withdrawnAt: isoOrNull(enrollment.withdrawnAt),
@@ -2024,13 +2389,19 @@ function toEnrollmentSummary(
 }
 
 function toParticipationSummary(
-  participation: ParticipationRecord,
+  participation: ParticipationPresentationRecord,
   includeTrainerNotes: boolean,
+  access: TrainingAccess,
 ): TrainingParticipationSummary {
   return {
     id: participation.id,
     trainingSessionId: participation.trainingSessionId,
     trainingEnrollmentId: participation.trainingEnrollmentId,
+    enrollment: {
+      id: participation.enrollment.id,
+      participantType: participation.enrollment.participantType,
+      participantDisplay: toParticipantDisplay(participation.enrollment, access),
+    },
     status: participation.status,
     attendanceRecordedAt: isoOrNull(participation.attendanceRecordedAt),
     recordedByUserId: participation.recordedByUserId,
@@ -2044,6 +2415,33 @@ function toParticipationSummary(
     createdAt: participation.createdAt.toISOString(),
     updatedAt: participation.updatedAt.toISOString(),
   };
+}
+
+function toParticipantDisplay(
+  enrollment: EnrollmentPresentationRecord,
+  access: TrainingAccess,
+): TrainingParticipantDisplay | null {
+  switch (enrollment.participantType) {
+    case PrismaTrainingParticipantType.USER:
+      return enrollment.user;
+    case PrismaTrainingParticipantType.EXTERNAL:
+      return enrollment.externalTrainingParticipant;
+    case PrismaTrainingParticipantType.CANDIDATE:
+      return access.candidatesView ? enrollment.candidate : null;
+    case PrismaTrainingParticipantType.CLIENT_CONTACT:
+      return access.clientsView && access.clientContactsView ? enrollment.clientContact : null;
+  }
+}
+
+function compareEnrollmentOptions(
+  left: TrainingEnrollmentOption,
+  right: TrainingEnrollmentOption,
+): number {
+  if (left.participant.displayName < right.participant.displayName) return -1;
+  if (left.participant.displayName > right.participant.displayName) return 1;
+  if (left.id < right.id) return -1;
+  if (left.id > right.id) return 1;
+  return 0;
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   TrainingSessionParticipationStatus,
   TrainingSessionStatus,
   UserStatus,
+  UserType,
 } from '../src/persistence/prisma/generated-client.js';
 import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
@@ -75,6 +76,9 @@ const trainingOnlyPermissions = [
   'training_participation:view',
   'training_participation:manage',
 ] as const;
+
+/** Training writer with client visibility, but deliberately no client-contact visibility. */
+const contactBlindPermissions = [...trainingOnlyPermissions, 'clients:view'] as const;
 
 /**
  * Source-domain read capability but NO training write capability. This actor proves
@@ -257,13 +261,24 @@ async function restoreRolePermissions(
   }
 }
 
-async function createUser(email: string, roleName: RoleName): Promise<string> {
+async function createUser(
+  email: string,
+  roleName: RoleName,
+  overrides: {
+    displayName?: string;
+    status?: UserStatus;
+    userType?: UserType;
+    archivedAt?: Date | null;
+  } = {},
+): Promise<string> {
   const user = await prisma.user.create({
     data: {
-      displayName: `Synthetic ${email}`,
+      displayName: overrides.displayName ?? `Synthetic ${email}`,
       email,
       normalizedEmail: email.toLowerCase(),
-      status: UserStatus.ACTIVE,
+      status: overrides.status ?? UserStatus.ACTIVE,
+      userType: overrides.userType ?? UserType.INTERNAL,
+      archivedAt: overrides.archivedAt,
     },
   });
   await prisma.passwordCredential.create({
@@ -295,6 +310,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
   let attendanceOnlyToken: string;
   let trainingOnlyToken: string;
   let sourceReadOnlyToken: string;
+  let contactBlindToken: string;
   let roleSnapshots: Map<RoleName, RolePermissionSnapshot>;
 
   // --- Helpers bound to the running application -------------------------------
@@ -419,6 +435,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
           RoleName.EMPLOYEE,
           RoleName.GUEST,
           RoleName.ADMIN,
+          RoleName.CLIENT_USER,
         ].map(async (roleName) => [roleName, await snapshotRolePermissions(roleName)] as const),
       ),
     );
@@ -428,6 +445,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     await setRolePermissions(RoleName.TEAM_LEADER, attendanceOnlyPermissions);
     await setRolePermissions(RoleName.EMPLOYEE, scopedPermissions);
     await setRolePermissions(RoleName.ADMIN, trainingOnlyPermissions);
+    await setRolePermissions(RoleName.CLIENT_USER, contactBlindPermissions);
     await setRolePermissions(RoleName.GUEST, sourceReadOnlyPermissions);
 
     operatorUserId = await createUser('operator@training.test', RoleName.HR_MANAGER);
@@ -436,6 +454,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     scopedUserId = await createUser('scoped@training.test', RoleName.EMPLOYEE);
     await createUser('training-only@training.test', RoleName.ADMIN);
     await createUser('source-only@training.test', RoleName.GUEST);
+    await createUser('contact-blind@training.test', RoleName.CLIENT_USER);
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>();
@@ -447,6 +466,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     attendanceOnlyToken = await loginAccessToken('attendance@training.test');
     trainingOnlyToken = await loginAccessToken('training-only@training.test');
     sourceReadOnlyToken = await loginAccessToken('source-only@training.test');
+    contactBlindToken = await loginAccessToken('contact-blind@training.test');
   }, 120_000);
 
   afterAll(async () => {
@@ -457,6 +477,143 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     }
     await prisma.$disconnect();
   }, 120_000);
+
+  // ---------------------------------------------------------------------------
+  // Training-safe internal-user option sources
+  // ---------------------------------------------------------------------------
+
+  it('uses the exact static permission boundary for each internal-user option route', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+
+    expect((await api(operatorToken, '/program-owner-user-options')).status).toBe(200);
+    expect((await api(trainingOnlyToken, '/program-owner-user-options')).status).toBe(403);
+
+    expect(
+      (await api(trainingOnlyToken, `/programs/${programId}/session-trainer-user-options`)).status,
+    ).toBe(200);
+    expect(
+      (await api(attendanceOnlyToken, `/programs/${programId}/session-trainer-user-options`))
+        .status,
+    ).toBe(403);
+
+    expect(
+      (await api(trainingOnlyToken, `/programs/${programId}/enrollment-user-options`)).status,
+    ).toBe(200);
+    expect(
+      (await api(attendanceOnlyToken, `/programs/${programId}/enrollment-user-options`)).status,
+    ).toBe(403);
+  });
+
+  it('limits scoped option routes to programs visible through the normal record scope', async () => {
+    await setRolePermissions(RoleName.EMPLOYEE, [
+      ...scopedPermissions,
+      'training_sessions:manage',
+      'training_enrollments:manage',
+    ]);
+    try {
+      const scopedToken = await loginAccessToken('scoped@training.test');
+      const visible = await createProgram({ ownerUserId: scopedUserId });
+      const hidden = await createProgram();
+
+      expect(
+        (await api(scopedToken, `/programs/${String(visible.id)}/session-trainer-user-options`))
+          .status,
+      ).toBe(200);
+      expect(
+        (await api(scopedToken, `/programs/${String(visible.id)}/enrollment-user-options`)).status,
+      ).toBe(200);
+      expect(
+        (await api(scopedToken, `/programs/${String(hidden.id)}/session-trainer-user-options`))
+          .status,
+      ).toBe(404);
+      expect(
+        (await api(scopedToken, `/programs/${String(hidden.id)}/enrollment-user-options`)).status,
+      ).toBe(404);
+    } finally {
+      await setRolePermissions(RoleName.EMPLOYEE, scopedPermissions);
+    }
+  });
+
+  it('returns only active non-archived INTERNAL users with bounded deterministic search', async () => {
+    const prefix = `Issue103 Option ${randomUUID().slice(0, 8)}`;
+    const eligibleIds = await Promise.all(
+      Array.from({ length: 24 }, (_, index) =>
+        createUser(`option-${randomUUID()}@training.test`, RoleName.GUEST, {
+          displayName: `${prefix} ${String(index % 3).padStart(2, '0')}`,
+        }),
+      ),
+    );
+    await createUser(`suspended-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: `${prefix} Suspended`,
+      status: UserStatus.SUSPENDED,
+    });
+    await createUser(`archived-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: `${prefix} Archived`,
+      status: UserStatus.ARCHIVED,
+      archivedAt: new Date(),
+    });
+    await createUser(`client-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: `${prefix} Client`,
+      userType: UserType.CLIENT,
+    });
+    await createUser(`guest-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: `${prefix} Guest`,
+      userType: UserType.GUEST,
+    });
+
+    const response = await api(
+      operatorToken,
+      `/program-owner-user-options?search=${encodeURIComponent(`  ${prefix.toUpperCase()}  `)}`,
+    );
+    expect(response.status).toBe(200);
+    const users = (response.body as { users: { id: string; displayName: string; email: string }[] })
+      .users;
+    expect(users).toHaveLength(20);
+    expect(users.every((user) => eligibleIds.includes(user.id))).toBe(true);
+    expect(users).toEqual(
+      [...users].sort(
+        (left, right) =>
+          left.displayName.localeCompare(right.displayName) || left.id.localeCompare(right.id),
+      ),
+    );
+    expect(Object.keys(users[0] ?? {}).sort()).toEqual(['displayName', 'email', 'id']);
+
+    const emailNeedle = users[0]?.email.slice(4, 18).toUpperCase();
+    const byEmail = await api(
+      operatorToken,
+      `/program-owner-user-options?search=${encodeURIComponent(emailNeedle ?? '')}`,
+    );
+    expect(
+      (byEmail.body as { users: { id: string }[] }).users.some((user) => user.id === users[0]?.id),
+    ).toBe(true);
+    expect(
+      (await api(operatorToken, `/program-owner-user-options?search=${'x'.repeat(121)}`)).status,
+    ).toBe(400);
+  });
+
+  it('keeps writes authoritative when an option becomes ineligible after lookup', async () => {
+    const email = `stale-owner-${randomUUID()}@training.test`;
+    const userId = await createUser(email, RoleName.GUEST, { displayName: 'Issue103 Stale Owner' });
+    const options = await api(operatorToken, `/program-owner-user-options?search=${email}`);
+    expect((options.body as { users: { id: string }[] }).users.map((user) => user.id)).toContain(
+      userId,
+    );
+
+    await prisma.user.update({ where: { id: userId }, data: { status: UserStatus.SUSPENDED } });
+    const rejected = await api(operatorToken, '/programs', {
+      method: 'POST',
+      body: {
+        reference: `Issue37-stale-${randomUUID().slice(0, 8)}`,
+        name: 'Issue103 Stale Owner Program',
+        ownerUserId: userId,
+      },
+    });
+    expect(rejected.status).toBe(400);
+    expect((rejected.body as { error: { code: string } }).error.code).toBe(
+      'TRAINING_PROGRAM_OWNER_INELIGIBLE',
+    );
+  });
 
   // ---------------------------------------------------------------------------
   // Programs
@@ -1182,6 +1339,280 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     return String((created.body as { participation: { id: string } }).participation.id);
   }
 
+  it('guards enrollment options by participation management, visible scope, and session integrity', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const session = await createSession(programId);
+    const sessionId = String(session.id);
+    const path = `/programs/${programId}/sessions/${sessionId}/enrollment-options`;
+
+    expect((await api(trainingOnlyToken, path)).status).toBe(200);
+    expect((await api(clientBlindToken, path)).status).toBe(403);
+
+    await setRolePermissions(RoleName.EMPLOYEE, [
+      ...scopedPermissions,
+      'training_participation:manage',
+    ]);
+    try {
+      const scopedToken = await loginAccessToken('scoped@training.test');
+      expect((await api(scopedToken, path)).status).toBe(404);
+
+      const ownedProgram = await createProgram({ ownerUserId: scopedUserId });
+      await activateProgram(String(ownedProgram.id));
+      const ownedSession = await createSession(String(ownedProgram.id));
+      expect(
+        (
+          await api(
+            scopedToken,
+            `/programs/${String(ownedProgram.id)}/sessions/${String(ownedSession.id)}/enrollment-options`,
+          )
+        ).status,
+      ).toBe(200);
+    } finally {
+      await setRolePermissions(RoleName.EMPLOYEE, scopedPermissions);
+    }
+
+    const otherProgram = await createProgram();
+    await activateProgram(String(otherProgram.id));
+    const otherSession = await createSession(String(otherProgram.id));
+    expect(
+      (
+        await api(
+          operatorToken,
+          `/programs/${programId}/sessions/${String(otherSession.id)}/enrollment-options`,
+        )
+      ).status,
+    ).toBe(404);
+
+    await scheduleSession(programId, sessionId);
+    await api(operatorToken, `/programs/${programId}/sessions/${sessionId}/cancel`, {
+      method: 'POST',
+      body: { reason: 'Issue103 terminal option-source test' },
+    });
+    expect((await api(operatorToken, path)).status).toBe(409);
+  });
+
+  it('offers only actionable same-program enrollments and applies source privacy before search', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const session = await createSession(programId);
+    const sessionId = String(session.id);
+    const optionsPath = `/programs/${programId}/sessions/${sessionId}/enrollment-options`;
+
+    const userId = await createUser(`learner-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: 'Issue103 User Learner',
+    });
+    const userCreated = await api(operatorToken, `/programs/${programId}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'USER', userId },
+    });
+    const userEnrollmentId = String(
+      (userCreated.body as { enrollment: { id: string } }).enrollment.id,
+    );
+
+    const external = await prisma.externalTrainingParticipant.create({
+      data: {
+        displayName: 'Issue103 External Learner',
+        email: `external-${randomUUID()}@training.test`,
+        status: ExternalParticipantStatus.ACTIVE,
+      },
+    });
+    const externalCreated = await api(operatorToken, `/programs/${programId}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'EXTERNAL', externalTrainingParticipantId: external.id },
+    });
+    const externalEnrollmentId = String(
+      (externalCreated.body as { enrollment: { id: string } }).enrollment.id,
+    );
+
+    const candidate = await createCandidate();
+    const candidateCreated = await enrollCandidate(programId, candidate.id);
+    const candidateEnrollmentId = String(
+      (candidateCreated.body as { enrollment: { id: string } }).enrollment.id,
+    );
+
+    const terminalCandidate = await createCandidate();
+    const terminalCreated = await enrollCandidate(programId, terminalCandidate.id);
+    const terminalId = String(
+      (terminalCreated.body as { enrollment: { id: string } }).enrollment.id,
+    );
+    await api(operatorToken, `/programs/${programId}/enrollments/${terminalId}/withdraw`, {
+      method: 'POST',
+      body: { reason: 'Issue103 terminal enrollment' },
+    });
+
+    const archivedUserId = await createUser(
+      `archived-enrollment-${randomUUID()}@training.test`,
+      RoleName.GUEST,
+    );
+    const archivedCreated = await api(operatorToken, `/programs/${programId}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'USER', userId: archivedUserId },
+    });
+    const archivedEnrollmentId = String(
+      (archivedCreated.body as { enrollment: { id: string } }).enrollment.id,
+    );
+    await prisma.trainingEnrollment.update({
+      where: { id: archivedEnrollmentId },
+      data: {
+        status: TrainingEnrollmentStatus.CANCELED,
+        archivedAt: new Date(),
+        activeParticipantKey: null,
+      },
+    });
+
+    const otherProgram = await createProgram();
+    await activateProgram(String(otherProgram.id));
+    const otherUserId = await createUser(`other-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: 'Issue103 Other Program Learner',
+    });
+    await api(operatorToken, `/programs/${String(otherProgram.id)}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'USER', userId: otherUserId },
+    });
+
+    await addParticipation(programId, sessionId, externalEnrollmentId);
+
+    const privacyLimited = await api(trainingOnlyToken, optionsPath);
+    const limitedOptions = (
+      privacyLimited.body as {
+        enrollments: {
+          id: string;
+          participantType: string;
+          participant: { displayName: string; email: string | null };
+        }[];
+      }
+    ).enrollments;
+    expect(limitedOptions).toHaveLength(1);
+    expect(limitedOptions[0]).toMatchObject({
+      id: userEnrollmentId,
+      participantType: 'USER',
+      participant: { displayName: 'Issue103 User Learner' },
+    });
+    expect(limitedOptions.map((option) => option.id)).not.toContain(externalEnrollmentId);
+    expect(limitedOptions.map((option) => option.id)).not.toContain(terminalId);
+    expect(limitedOptions.map((option) => option.id)).not.toContain(archivedEnrollmentId);
+
+    const hiddenSearch = await api(
+      trainingOnlyToken,
+      `${optionsPath}?search=${encodeURIComponent(candidate.displayName)}&participantType=CANDIDATE`,
+    );
+    expect((hiddenSearch.body as { enrollments: unknown[] }).enrollments).toEqual([]);
+
+    const authorized = await api(operatorToken, optionsPath);
+    const authorizedOptions = (
+      authorized.body as { enrollments: { id: string; participant: { displayName: string } }[] }
+    ).enrollments;
+    expect(authorizedOptions.map((option) => option.id)).toContain(userEnrollmentId);
+    expect(authorizedOptions.find((option) => option.id === candidateEnrollmentId)).toMatchObject({
+      id: candidateEnrollmentId,
+      participant: { displayName: candidate.displayName },
+    });
+  });
+
+  it('reveals client-contact options only with both source permissions and valid client context', async () => {
+    const client = await prisma.client.create({
+      data: {
+        name: `Issue37 Option Client ${randomUUID().slice(0, 8)}`,
+        normalizedName: `issue37 option client ${randomUUID().slice(0, 8)}`,
+        status: ClientStatus.ACTIVE,
+      },
+    });
+    const email = `option-contact-${randomUUID()}@training.test`;
+    const contact = await prisma.clientContact.create({
+      data: {
+        clientId: client.id,
+        displayName: 'Issue103 Client Contact',
+        email,
+        normalizedEmail: email,
+        status: ClientContactStatus.ACTIVE,
+      },
+    });
+    const program = await createProgram({ clientId: client.id });
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const session = await createSession(programId);
+    const path = `/programs/${programId}/sessions/${String(session.id)}/enrollment-options`;
+    const created = await api(operatorToken, `/programs/${programId}/enrollments`, {
+      method: 'POST',
+      body: { participantType: 'CLIENT_CONTACT', clientContactId: contact.id },
+    });
+    const enrollmentId = String((created.body as { enrollment: { id: string } }).enrollment.id);
+
+    const hidden = await api(
+      contactBlindToken,
+      `${path}?search=${encodeURIComponent(email)}&participantType=CLIENT_CONTACT`,
+    );
+    expect(hidden.status).toBe(200);
+    expect((hidden.body as { enrollments: unknown[] }).enrollments).toEqual([]);
+
+    const visible = await api(operatorToken, `${path}?participantType=CLIENT_CONTACT`);
+    expect((visible.body as { enrollments: { id: string }[] }).enrollments).toEqual([
+      expect.objectContaining({ id: enrollmentId }),
+    ]);
+  });
+
+  it('caps enrollment options at 20, orders by label then id, and revalidates stale POSTs', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const session = await createSession(programId);
+    const sessionId = String(session.id);
+    const path = `/programs/${programId}/sessions/${sessionId}/enrollment-options`;
+
+    const records = await Promise.all(
+      Array.from({ length: 22 }, async (_, index) => {
+        const external = await prisma.externalTrainingParticipant.create({
+          data: {
+            displayName: `Issue103 Ordered ${String(index % 4).padStart(2, '0')}`,
+            email: `ordered-${randomUUID()}@training.test`,
+            status: ExternalParticipantStatus.ACTIVE,
+          },
+        });
+        return prisma.trainingEnrollment.create({
+          data: {
+            trainingProgramId: programId,
+            participantType: 'EXTERNAL',
+            externalTrainingParticipantId: external.id,
+            activeParticipantKey: `EXTERNAL:${external.id}`,
+            createdByUserId: operatorUserId,
+          },
+        });
+      }),
+    );
+
+    const response = await api(operatorToken, `${path}?participantType=EXTERNAL`);
+    const options = (
+      response.body as { enrollments: { id: string; participant: { displayName: string } }[] }
+    ).enrollments;
+    expect(options).toHaveLength(20);
+    expect(options).toEqual(
+      [...options].sort(
+        (left, right) =>
+          left.participant.displayName.localeCompare(right.participant.displayName) ||
+          left.id.localeCompare(right.id),
+      ),
+    );
+
+    const stale = records.find((record) => options.some((option) => option.id === record.id));
+    expect(stale).toBeDefined();
+    await prisma.trainingEnrollment.update({
+      where: { id: stale!.id },
+      data: { status: TrainingEnrollmentStatus.CANCELED, activeParticipantKey: null },
+    });
+    const rejected = await api(
+      operatorToken,
+      `/programs/${programId}/sessions/${sessionId}/participations`,
+      {
+        method: 'POST',
+        body: { trainingEnrollmentId: stale!.id },
+      },
+    );
+    expect(rejected.status).toBe(409);
+  });
+
   it('links participation for a matching session and enrollment pair', async () => {
     const { programId, sessionId, enrollmentId } = await participationFixture();
 
@@ -1399,6 +1830,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     const program = await createProgram();
     await activateProgram(String(program.id));
     const candidate = await createCandidate();
+    const auditCountBefore = await countAudit('training.enrollment.created');
 
     const denied = await api(trainingOnlyToken, `/programs/${String(program.id)}/enrollments`, {
       method: 'POST',
@@ -1413,9 +1845,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     expect(
       await prisma.trainingEnrollment.count({ where: { trainingProgramId: String(program.id) } }),
     ).toBe(0);
-    expect(await countAudit('training.enrollment.created')).toBe(
-      await prisma.trainingEnrollment.count(),
-    );
+    expect(await countAudit('training.enrollment.created')).toBe(auditCountBefore);
   });
 
   it('does not let an actor without candidate scope distinguish candidate ids', async () => {
@@ -1552,21 +1982,182 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     const listPath = `/programs/${String(program.id)}/enrollments`;
 
     const authorized = await api(operatorToken, listPath);
-    expect(
-      (authorized.body as { enrollments: { participant: { candidateId: string | null } }[] })
-        .enrollments[0]?.participant.candidateId,
-    ).toBe(candidate.id);
+    const authorizedEnrollment = (
+      authorized.body as {
+        enrollments: {
+          participant: { candidateId: string | null };
+          participantDisplay: { displayName: string; email: string | null } | null;
+        }[];
+      }
+    ).enrollments[0];
+    expect(authorizedEnrollment?.participant.candidateId).toBe(candidate.id);
+    expect(authorizedEnrollment?.participantDisplay).toEqual({
+      displayName: candidate.displayName,
+      email: candidate.email,
+    });
 
     // The same training record stays visible, but the CRM identifier is redacted.
     const redacted = await api(trainingOnlyToken, listPath);
     const redactedEnrollments = (
       redacted.body as {
-        enrollments: { participantType: string; participant: { candidateId: string | null } }[];
+        enrollments: {
+          participantType: string;
+          participant: { candidateId: string | null };
+          participantDisplay: { displayName: string; email: string | null } | null;
+        }[];
       }
     ).enrollments;
     expect(redactedEnrollments.length).toBe(1);
     expect(redactedEnrollments[0]?.participantType).toBe('CANDIDATE');
     expect(redactedEnrollments[0]?.participant.candidateId).toBeNull();
+    expect(redactedEnrollments[0]?.participantDisplay).toBeNull();
+  });
+
+  it('presents USER and EXTERNAL identities while redacting client-contact display by source scope', async () => {
+    const client = await prisma.client.create({
+      data: {
+        name: `Issue37 Display Client ${randomUUID().slice(0, 8)}`,
+        normalizedName: `issue37 display client ${randomUUID().slice(0, 8)}`,
+        status: ClientStatus.ACTIVE,
+      },
+    });
+    const program = await createProgram({ clientId: client.id });
+    const programId = String(program.id);
+    await activateProgram(programId);
+
+    const userId = await createUser(`display-user-${randomUUID()}@training.test`, RoleName.GUEST, {
+      displayName: 'Issue103 Display User',
+    });
+    const external = await prisma.externalTrainingParticipant.create({
+      data: {
+        displayName: 'Issue103 Display External',
+        email: `display-external-${randomUUID()}@training.test`,
+        status: ExternalParticipantStatus.ACTIVE,
+      },
+    });
+    const contactEmail = `display-contact-${randomUUID()}@training.test`;
+    const contact = await prisma.clientContact.create({
+      data: {
+        clientId: client.id,
+        displayName: 'Issue103 Display Contact',
+        email: contactEmail,
+        normalizedEmail: contactEmail,
+        status: ClientContactStatus.ACTIVE,
+      },
+    });
+    for (const body of [
+      { participantType: 'USER', userId },
+      { participantType: 'EXTERNAL', externalTrainingParticipantId: external.id },
+      { participantType: 'CLIENT_CONTACT', clientContactId: contact.id },
+    ]) {
+      expect(
+        (await api(operatorToken, `/programs/${programId}/enrollments`, { method: 'POST', body }))
+          .status,
+      ).toBe(201);
+    }
+
+    const authorized = await api(operatorToken, `/programs/${programId}/enrollments?pageSize=100`);
+    const authorizedByType = new Map(
+      (
+        authorized.body as {
+          enrollments: {
+            participantType: string;
+            participantDisplay: { displayName: string; email: string | null } | null;
+          }[];
+        }
+      ).enrollments.map((enrollment) => [enrollment.participantType, enrollment]),
+    );
+    expect(authorizedByType.get('USER')?.participantDisplay?.displayName).toBe(
+      'Issue103 Display User',
+    );
+    expect(authorizedByType.get('EXTERNAL')?.participantDisplay?.displayName).toBe(
+      'Issue103 Display External',
+    );
+    expect(authorizedByType.get('CLIENT_CONTACT')?.participantDisplay).toEqual({
+      displayName: contact.displayName,
+      email: contact.email,
+    });
+
+    const redacted = await api(
+      contactBlindToken,
+      `/programs/${programId}/enrollments?pageSize=100`,
+    );
+    const redactedByType = new Map(
+      (
+        redacted.body as {
+          enrollments: {
+            participantType: string;
+            participant: { clientContactId: string | null };
+            participantDisplay: { displayName: string; email: string | null } | null;
+          }[];
+        }
+      ).enrollments.map((enrollment) => [enrollment.participantType, enrollment]),
+    );
+    expect(redactedByType.get('USER')?.participantDisplay?.displayName).toBe(
+      'Issue103 Display User',
+    );
+    expect(redactedByType.get('EXTERNAL')?.participantDisplay?.displayName).toBe(
+      'Issue103 Display External',
+    );
+    expect(redactedByType.get('CLIENT_CONTACT')?.participant.clientContactId).toBeNull();
+    expect(redactedByType.get('CLIENT_CONTACT')?.participantDisplay).toBeNull();
+  });
+
+  it('nests redaction-safe enrollment presentation in participation create and list responses', async () => {
+    const program = await createProgram();
+    const programId = String(program.id);
+    await activateProgram(programId);
+    const session = await createSession(programId);
+    const sessionId = String(session.id);
+    const candidate = await createCandidate();
+    const createdEnrollment = await enrollCandidate(programId, candidate.id);
+    const enrollmentId = String(
+      (createdEnrollment.body as { enrollment: { id: string } }).enrollment.id,
+    );
+    const participationPath = `/programs/${programId}/sessions/${sessionId}/participations`;
+
+    const created = await api(operatorToken, participationPath, {
+      method: 'POST',
+      body: { trainingEnrollmentId: enrollmentId },
+    });
+    const createdParticipation = (
+      created.body as {
+        participation: {
+          trainingEnrollmentId: string;
+          enrollment: {
+            id: string;
+            participantType: string;
+            participantDisplay: { displayName: string; email: string | null } | null;
+          };
+        };
+      }
+    ).participation;
+    expect(createdParticipation.trainingEnrollmentId).toBe(enrollmentId);
+    expect(createdParticipation.enrollment).toEqual({
+      id: enrollmentId,
+      participantType: 'CANDIDATE',
+      participantDisplay: { displayName: candidate.displayName, email: candidate.email },
+    });
+
+    const redactedList = await api(trainingOnlyToken, participationPath);
+    const redactedParticipation = (
+      redactedList.body as {
+        participations: {
+          trainingEnrollmentId: string;
+          enrollment: {
+            id: string;
+            participantType: string;
+            participantDisplay: { displayName: string; email: string | null } | null;
+          };
+        }[];
+      }
+    ).participations[0];
+    expect(redactedParticipation?.trainingEnrollmentId).toBe(enrollmentId);
+    expect(redactedParticipation?.enrollment).toEqual({
+      id: enrollmentId,
+      participantType: 'CANDIDATE',
+      participantDisplay: null,
+    });
   });
 
   // ---------------------------------------------------------------------------

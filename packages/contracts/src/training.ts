@@ -97,6 +97,42 @@ export const TrainingPaginationSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+export const TRAINING_OPTION_LIMIT = 20;
+
+export const TrainingInternalUserOptionQuerySchema = z.object({
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+export const TrainingInternalUserOptionSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string(),
+});
+
+export const TrainingInternalUserOptionsResponseSchema = z.object({
+  users: z.array(TrainingInternalUserOptionSchema).max(TRAINING_OPTION_LIMIT),
+});
+
+export const TrainingParticipantDisplaySchema = z.object({
+  displayName: z.string(),
+  email: z.string().nullable(),
+});
+
+export const TrainingEnrollmentOptionQuerySchema = z.object({
+  search: z.string().trim().min(1).max(120).optional(),
+  participantType: TrainingParticipantTypeSchema.optional(),
+});
+
+export const TrainingEnrollmentOptionSchema = z.object({
+  id: z.string().uuid(),
+  participantType: TrainingParticipantTypeSchema,
+  participant: TrainingParticipantDisplaySchema,
+});
+
+export const TrainingEnrollmentOptionsResponseSchema = z.object({
+  enrollments: z.array(TrainingEnrollmentOptionSchema).max(TRAINING_OPTION_LIMIT),
+});
+
 /**
  * `clientId` is null when the program has no client context, and also when the
  * acting user is not authorized to read client context. A training identifier
@@ -171,6 +207,7 @@ export const TrainingEnrollmentSummarySchema = z.object({
   trainingProgramId: z.string().uuid(),
   participantType: TrainingParticipantTypeSchema,
   participant: TrainingEnrollmentParticipantSchema,
+  participantDisplay: TrainingParticipantDisplaySchema.nullable(),
   status: TrainingEnrollmentStatusSchema,
   enrolledAt: z.string().datetime().nullable(),
   withdrawnAt: z.string().datetime().nullable(),
@@ -184,6 +221,12 @@ export const TrainingEnrollmentSummarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const TrainingParticipationEnrollmentDisplaySchema = z.object({
+  id: z.string().uuid(),
+  participantType: TrainingParticipantTypeSchema,
+  participantDisplay: TrainingParticipantDisplaySchema.nullable(),
+});
+
 /**
  * `trainerNotes` is bounded internal training context. It is redacted to null for
  * actors who may read attendance but may not manage participation.
@@ -192,6 +235,7 @@ export const TrainingParticipationSummarySchema = z.object({
   id: z.string().uuid(),
   trainingSessionId: z.string().uuid(),
   trainingEnrollmentId: z.string().uuid(),
+  enrollment: TrainingParticipationEnrollmentDisplaySchema,
   status: TrainingSessionParticipationStatusSchema,
   attendanceRecordedAt: z.string().datetime().nullable(),
   recordedByUserId: z.string().uuid().nullable(),
@@ -467,6 +511,20 @@ export type TrainingCertificateStatus = z.infer<typeof TrainingCertificateStatus
 export type TrainingProgramSummary = z.infer<typeof TrainingProgramSummarySchema>;
 export type TrainingSessionSummary = z.infer<typeof TrainingSessionSummarySchema>;
 export type TrainingEnrollmentSummary = z.infer<typeof TrainingEnrollmentSummarySchema>;
+export type TrainingParticipantDisplay = z.infer<typeof TrainingParticipantDisplaySchema>;
+export type TrainingInternalUserOptionQuery = z.infer<typeof TrainingInternalUserOptionQuerySchema>;
+export type TrainingInternalUserOption = z.infer<typeof TrainingInternalUserOptionSchema>;
+export type TrainingInternalUserOptionsResponse = z.infer<
+  typeof TrainingInternalUserOptionsResponseSchema
+>;
+export type TrainingEnrollmentOptionQuery = z.infer<typeof TrainingEnrollmentOptionQuerySchema>;
+export type TrainingEnrollmentOption = z.infer<typeof TrainingEnrollmentOptionSchema>;
+export type TrainingEnrollmentOptionsResponse = z.infer<
+  typeof TrainingEnrollmentOptionsResponseSchema
+>;
+export type TrainingParticipationEnrollmentDisplay = z.infer<
+  typeof TrainingParticipationEnrollmentDisplaySchema
+>;
 export type TrainingParticipationSummary = z.infer<typeof TrainingParticipationSummarySchema>;
 export type TrainingProgramListQuery = z.infer<typeof TrainingProgramListQuerySchema>;
 export type TrainingProgramCreateRequest = z.infer<typeof TrainingProgramCreateRequestSchema>;

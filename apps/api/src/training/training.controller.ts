@@ -18,8 +18,12 @@ import {
   TrainingEnrollmentDetailResponseSchema,
   TrainingEnrollmentListQuerySchema,
   TrainingEnrollmentListResponseSchema,
+  TrainingEnrollmentOptionQuerySchema,
+  TrainingEnrollmentOptionsResponseSchema,
   TrainingEnrollmentStatusUpdateRequestSchema,
   TrainingEnrollmentWithdrawRequestSchema,
+  TrainingInternalUserOptionQuerySchema,
+  TrainingInternalUserOptionsResponseSchema,
   TrainingParticipationCreateRequestSchema,
   TrainingParticipationDetailResponseSchema,
   TrainingParticipationListQuerySchema,
@@ -65,6 +69,22 @@ export class TrainingController {
   constructor(@Inject(TrainingService) private readonly training: TrainingService) {}
 
   // --- Programs ---------------------------------------------------------------
+
+  @Get('program-owner-user-options')
+  @RequirePermissions(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_MANAGE)
+  async listProgramOwnerUserOptions(@Query() query: unknown) {
+    const parsed = TrainingInternalUserOptionQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_INTERNAL_USER_OPTIONS_QUERY',
+        'Invalid training internal user options query.',
+      );
+    }
+
+    return TrainingInternalUserOptionsResponseSchema.parse(
+      await this.training.listProgramOwnerUserOptions(parsed.data),
+    );
+  }
 
   @Get('programs')
   @RequirePermissions(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW)
@@ -166,6 +186,33 @@ export class TrainingController {
   }
 
   // --- Sessions ---------------------------------------------------------------
+
+  @Get('programs/:programId/session-trainer-user-options')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_SESSIONS_MANAGE,
+  )
+  async listSessionTrainerUserOptions(
+    @Param('programId') programId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingInternalUserOptionQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_INTERNAL_USER_OPTIONS_QUERY',
+        'Invalid training internal user options query.',
+      );
+    }
+
+    return TrainingInternalUserOptionsResponseSchema.parse(
+      await this.training.listSessionTrainerUserOptions(
+        this.uuid(programId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
 
   @Get('programs/:programId/sessions')
   @RequirePermissions(
@@ -372,6 +419,33 @@ export class TrainingController {
 
   // --- Enrollments ------------------------------------------------------------
 
+  @Get('programs/:programId/enrollment-user-options')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async listEnrollmentUserOptions(
+    @Param('programId') programId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingInternalUserOptionQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_INTERNAL_USER_OPTIONS_QUERY',
+        'Invalid training internal user options query.',
+      );
+    }
+
+    return TrainingInternalUserOptionsResponseSchema.parse(
+      await this.training.listEnrollmentUserOptions(
+        this.uuid(programId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
+
   @Get('programs/:programId/enrollments')
   @RequirePermissions(
     TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
@@ -557,6 +631,35 @@ export class TrainingController {
   }
 
   // --- Session participation and attendance -----------------------------------
+
+  @Get('programs/:programId/sessions/:sessionId/enrollment-options')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_PARTICIPATION_MANAGE,
+  )
+  async listEnrollmentOptions(
+    @Param('programId') programId: string,
+    @Param('sessionId') sessionId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingEnrollmentOptionQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_ENROLLMENT_OPTIONS_QUERY',
+        'Invalid training enrollment options query.',
+      );
+    }
+
+    return TrainingEnrollmentOptionsResponseSchema.parse(
+      await this.training.listEnrollmentOptions(
+        this.uuid(programId),
+        this.uuid(sessionId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
 
   @Get('programs/:programId/sessions/:sessionId/participations')
   @RequirePermissions(
