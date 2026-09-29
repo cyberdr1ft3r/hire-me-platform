@@ -1,4 +1,42 @@
-import type { PublicContentLanguage } from '@hire-me/contracts';
+import type {
+  MissionCreateRequest,
+  MissionUpdateRequest,
+  PublicContentLanguage,
+} from '@hire-me/contracts';
+
+import type { MissionCreateValues, MissionProfileValues } from './mission-state.js';
+
+function positions(value: string): number {
+  return Number(value.trim());
+}
+
+export function toMissionCreateRequest(values: MissionCreateValues): MissionCreateRequest | null {
+  if (!values.client) {
+    return null;
+  }
+  return {
+    clientId: values.client.id,
+    title: values.title.trim(),
+    description: optionalText(values.description),
+    requirements: optionalText(values.requirements),
+    priority: values.priority,
+    numberOfPositions: positions(values.numberOfPositions),
+    location: optionalText(values.location),
+    workArrangement: optionalText(values.workArrangement),
+    engagementType: optionalText(values.engagementType),
+  };
+}
+
+export function toMissionUpdateRequest(values: MissionProfileValues): MissionUpdateRequest {
+  return {
+    title: values.title.trim(),
+    priority: values.priority,
+    numberOfPositions: positions(values.numberOfPositions),
+    location: nullableText(values.location),
+    workArrangement: nullableText(values.workArrangement),
+    engagementType: nullableText(values.engagementType),
+  };
+}
 
 export function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);

@@ -15,6 +15,7 @@ export const missionsFr: Messages['missions'] = {
     title: 'Accès en lecture seule',
   },
   notRecorded: 'Non renseigné',
+  actionFor: '{action} : {name}',
   list: {
     count: plural({
       many: '{count} de missions',
@@ -66,6 +67,7 @@ export const missionsFr: Messages['missions'] = {
     unavailableTitle: 'Mission indisponible',
   },
   detail: {
+    archivedNoticeTitle: 'Mission archivée',
     archivedNotice:
       'Cette mission est archivée. Ses données sont en lecture seule et conservent leur historique.',
     region: 'Mission sélectionnée',
@@ -223,8 +225,8 @@ export const missionsFr: Messages['missions'] = {
       archive: 'Archiver',
       cancel: 'Annuler l’entretien',
       complete: 'Marquer comme réalisé',
-      evaluations: 'Évaluations',
-      hideEvaluations: 'Masquer les évaluations',
+      details: 'Détails',
+      hideDetails: 'Masquer les détails',
       postpone: 'Reporter',
     },
     columns: {

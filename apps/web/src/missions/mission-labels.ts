@@ -178,6 +178,25 @@ export function isOptionalProcessSkip(
   );
 }
 
+/** Process stages in which the API accepts a new offer (`OFFER_PROCESS_STATE_REQUIRED`). */
+const OFFER_PROCESS_STATES: ReadonlySet<MissionCandidateState> = new Set([
+  'CLIENT_OFFER',
+  'ACCEPTED',
+  'INTEGRATED',
+  'PROBATION_COMPLETED',
+]);
+
+export function canCreateOfferInState(state: MissionCandidateState): boolean {
+  return OFFER_PROCESS_STATES.has(state);
+}
+
+/** The API makes lead only an active assignment already in the lead recruiter role. */
+export function canBecomeLead(
+  assignment: Pick<MissionAssignmentSummary, 'isLead' | 'role' | 'status'>,
+): boolean {
+  return assignment.status === 'ACTIVE' && assignment.role === 'LEAD_RECRUITER' && !assignment.isLead;
+}
+
 /** Roles that may hold responsibility for a candidate process (API rule). */
 export const RESPONSIBLE_RECRUITER_ROLES: ReadonlySet<AssignmentRole> = new Set([
   'LEAD_RECRUITER',

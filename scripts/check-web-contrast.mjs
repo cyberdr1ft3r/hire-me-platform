@@ -51,6 +51,10 @@ const checks = [
   ['client list primary / selected row', 'color-text', 'color-table-selected', 4.5],
   ['client list secondary / selected row', 'color-text-secondary', 'color-table-selected', 4.5],
   ['client list muted meta / canvas', 'color-text-muted', 'color-canvas', 4.5],
+  ['mission table header text / table header', 'color-text-secondary', 'color-table-header', 4.5],
+  ['mission table primary / table header', 'color-text', 'color-table-header', 4.5],
+  ['mission interview text / subtle surface', 'color-text', 'color-surface-subtle', 4.5],
+  ['mission interview secondary / subtle surface', 'color-text-secondary', 'color-surface-subtle', 4.5],
 ];
 
 let failed = false;

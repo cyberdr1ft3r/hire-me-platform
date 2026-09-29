@@ -91,6 +91,7 @@ export function sectionData<T>(section: SectionState<T>): T | null {
  */
 export type MissionFeedback =
   | { tone: 'success'; key: MessageKey; labelKey?: PlainMessageKey }
+  | { tone: 'warning'; key: PlainMessageKey }
   | { tone: 'danger'; key: PlainMessageKey; failure: MissionFailure };
 
 export type MissionPendingAction =

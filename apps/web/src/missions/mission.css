@@ -1,0 +1,443 @@
+.missions {
+  container: missions / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--layout-content-max);
+  min-width: 0;
+}
+
+/*
+ * The list and the selected mission sit side by side only when the workspace
+ * itself is wide enough for both; below that the detail follows the list.
+ */
+.missions__workspace {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+@container missions (min-width: 64rem) {
+  .missions__workspace {
+    gap: var(--space-6);
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  }
+
+  .missions__list-pane {
+    border-inline-end: var(--border-width) solid var(--color-border);
+    padding-inline-end: var(--space-6);
+  }
+}
+
+.missions__list-pane,
+.missions__detail-pane {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.missions__pane-title {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+.mission-message__text {
+  margin: 0;
+}
+
+.mission-muted {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.mission-break {
+  overflow-wrap: anywhere;
+}
+
+/* Filters -------------------------------------------------------------- */
+
+.mission-filters {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+.mission-filters__controls {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.mission-filters__actions,
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mission-actions--row {
+  flex-wrap: wrap;
+  min-width: max-content;
+}
+
+/* Option picker --------------------------------------------------------- */
+
+.mission-picker {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mission-picker__search {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.mission-picker__search-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.mission-picker__search-row {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mission-picker__search-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* List ------------------------------------------------------------------ */
+
+.mission-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mission-list__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+.mission-list__rows {
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mission-list__row {
+  border-block-end: var(--border-width) solid var(--color-border);
+  border-inline-start: var(--space-1) solid transparent;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.mission-list__row:hover {
+  background: var(--color-table-hover);
+}
+
+.mission-list__row--selected {
+  background: var(--color-table-selected);
+  border-inline-start-color: var(--color-brand);
+}
+
+.mission-list__select {
+  align-items: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--space-1);
+  min-height: 0;
+  padding: var(--space-3);
+  text-align: start;
+  width: 100%;
+}
+
+.mission-list__select:hover:not(:disabled),
+.mission-list__select:active:not(:disabled) {
+  background: transparent;
+  color: var(--color-text);
+}
+
+.mission-list__select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.mission-list__title {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.mission-list__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+}
+
+.mission-list__row--selected .mission-list__meta {
+  color: var(--color-text-secondary);
+}
+
+.mission-list__badges,
+.mission-badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* New mission disclosure ------------------------------------------------- */
+
+.mission-disclosure {
+  border-block: var(--border-width) solid var(--color-border);
+  padding-block: var(--space-3);
+}
+
+.mission-disclosure__summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--hit-target-min);
+  padding-block: var(--space-2);
+}
+
+.mission-disclosure__summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+/* Detail ---------------------------------------------------------------- */
+
+.mission-detail {
+  container: mission-detail / inline-size;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.mission-detail__header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mission-detail__title {
+  font-size: var(--font-size-6);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-detail__client {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.mission-section {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: var(--space-4);
+}
+
+.mission-section__title {
+  font-size: var(--font-size-5);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-subsection {
+  border-inline-start: var(--space-1) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-inline-start: var(--space-3);
+}
+
+.mission-subtitle {
+  font-size: var(--font-size-4);
+  margin: 0;
+}
+
+.mission-minor-title {
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.mission-group,
+.mission-interview,
+.mission-prose {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mission-prose p {
+  margin: 0;
+  max-width: var(--layout-reading-max);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.mission-inline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.mission-process__heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.mission-interview {
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-medium);
+  padding: var(--space-3);
+}
+
+.mission-interview .mission-muted {
+  color: var(--color-text-secondary);
+}
+
+.mission-summary {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  margin: 0;
+}
+
+.mission-summary--compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+}
+
+.mission-summary__item {
+  display: grid;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.mission-summary__item--wide {
+  grid-column: 1 / -1;
+}
+
+.mission-summary__item dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mission-summary__item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+.mission-cards {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mission-card {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+/* Forms ----------------------------------------------------------------- */
+
+.mission-form {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: var(--space-4);
+}
+
+.mission-form__grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.mission-form textarea {
+  max-width: 100%;
+}
+
+.mission-fieldset {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.mission-fieldset legend {
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-1);
+}
+
+/* Tables scroll inside their own region, never the page. */
+
+.mission-table-scroll {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.mission-table-scroll:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.mission-table {
+  margin: 0;
+  min-width: 36rem;
+}
+
+.mission-table thead th {
+  background: var(--color-table-header);
+  white-space: nowrap;
+}
+
+.mission-table tbody th {
+  color: var(--color-text);
+  font-size: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+.mission-table tbody tr[data-selected='true'] {
+  background: var(--color-table-selected);
+}
+
+.mission-table td,
+.mission-table th {
+  vertical-align: middle;
+}

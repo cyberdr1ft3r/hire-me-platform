@@ -176,6 +176,7 @@ export function MissionProfileFields<Values extends MissionProfileValues>({
       <TextField
         inputMode="numeric"
         label={t('missions.profile.fields.positions')}
+        max={500}
         min={1}
         name="numberOfPositions"
         onChange={(event) => onChange({ ...values, numberOfPositions: event.currentTarget.value })}
@@ -185,21 +186,21 @@ export function MissionProfileFields<Values extends MissionProfileValues>({
       />
       <TextField
         label={t('missions.profile.fields.location')}
-        maxLength={180}
+        maxLength={160}
         name="location"
         onChange={(event) => onChange({ ...values, location: event.currentTarget.value })}
         value={values.location}
       />
       <TextField
         label={t('missions.profile.fields.workArrangement')}
-        maxLength={120}
+        maxLength={80}
         name="workArrangement"
         onChange={(event) => onChange({ ...values, workArrangement: event.currentTarget.value })}
         value={values.workArrangement}
       />
       <TextField
         label={t('missions.profile.fields.engagementType')}
-        maxLength={120}
+        maxLength={80}
         name="engagementType"
         onChange={(event) => onChange({ ...values, engagementType: event.currentTarget.value })}
         value={values.engagementType}

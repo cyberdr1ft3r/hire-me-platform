@@ -21,6 +21,7 @@ export const missionsEn = {
     title: 'Read-only access',
   },
   notRecorded: 'Not recorded',
+  actionFor: '{action}: {name}',
   list: {
     count: plural({ one: '{count} mission', other: '{count} missions' }),
     pagination: {
@@ -68,6 +69,7 @@ export const missionsEn = {
     unavailableTitle: 'Mission unavailable',
   },
   detail: {
+    archivedNoticeTitle: 'Archived mission',
     archivedNotice:
       'This mission is archived. Its records are read-only and keep their history.',
     region: 'Selected mission',
@@ -221,8 +223,8 @@ export const missionsEn = {
       archive: 'Archive',
       cancel: 'Cancel interview',
       complete: 'Mark completed',
-      evaluations: 'Evaluations',
-      hideEvaluations: 'Hide evaluations',
+      details: 'Details',
+      hideDetails: 'Hide details',
       postpone: 'Postpone',
     },
     columns: {
