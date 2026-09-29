@@ -511,6 +511,34 @@ export const MissionAssignmentListQuerySchema = z.object({
   role: MissionAssignmentRoleSchema.optional(),
 });
 
+export const MISSION_ASSIGNMENT_USER_OPTION_LIMIT = 20;
+
+/**
+ * Prepares one Mission assignment write under `mission_assignments:manage`.
+ * With `role`, users already holding an active assignment in that role on the
+ * mission are omitted; other roles do not hide a user. The assignment write
+ * still validates everything.
+ */
+export const MissionAssignmentUserOptionsQuerySchema = z.object({
+  search: z.string().trim().min(1).max(120).optional(),
+  role: MissionAssignmentRoleSchema.optional(),
+});
+
+/**
+ * The name, and the work email to tell two people with the same name apart.
+ * The ID is the value sent back to the assignment write, never shown as the
+ * choice.
+ */
+export const MissionAssignmentUserOptionSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string(),
+});
+
+export const MissionAssignmentUserOptionsResponseSchema = z.object({
+  users: z.array(MissionAssignmentUserOptionSchema).max(MISSION_ASSIGNMENT_USER_OPTION_LIMIT),
+});
+
 export const MissionCandidateListQuerySchema = z.object({
   page: z.coerce.number().int().positive().max(500).default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
@@ -867,6 +895,13 @@ export type MissionUpdateRequest = z.infer<typeof MissionUpdateRequestSchema>;
 export type MissionStatusUpdateRequest = z.infer<typeof MissionStatusUpdateRequestSchema>;
 export type MissionClosureRequest = z.infer<typeof MissionClosureRequestSchema>;
 export type MissionAssignmentListQuery = z.infer<typeof MissionAssignmentListQuerySchema>;
+export type MissionAssignmentUserOptionsQuery = z.infer<
+  typeof MissionAssignmentUserOptionsQuerySchema
+>;
+export type MissionAssignmentUserOption = z.infer<typeof MissionAssignmentUserOptionSchema>;
+export type MissionAssignmentUserOptionsResponse = z.infer<
+  typeof MissionAssignmentUserOptionsResponseSchema
+>;
 export type MissionCandidateListQuery = z.infer<typeof MissionCandidateListQuerySchema>;
 export type MissionAssignmentCreateRequest = z.infer<typeof MissionAssignmentCreateRequestSchema>;
 export type MissionAssignmentUpdateRequest = z.infer<typeof MissionAssignmentUpdateRequestSchema>;

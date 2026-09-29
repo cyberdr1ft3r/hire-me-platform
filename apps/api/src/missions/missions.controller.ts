@@ -33,6 +33,8 @@ import {
   MissionAssignmentListQuerySchema,
   MissionAssignmentListResponseSchema,
   MissionAssignmentUpdateRequestSchema,
+  MissionAssignmentUserOptionsQuerySchema,
+  MissionAssignmentUserOptionsResponseSchema,
   MissionCandidateCreateRequestSchema,
   MissionCandidateDetailResponseSchema,
   MissionCandidateIntegrationConfirmationRequestSchema,
@@ -214,6 +216,22 @@ export class MissionsController {
 
     return MissionAssignmentListResponseSchema.parse(
       await this.missions.listAssignments(this.uuid(missionId), parsed.data),
+    );
+  }
+
+  @Get(':missionId/assignment-user-options')
+  @RequirePermissions(MISSION_PERMISSIONS.MISSION_ASSIGNMENTS_MANAGE)
+  async listAssignmentUserOptions(@Param('missionId') missionId: string, @Query() query: unknown) {
+    const parsed = MissionAssignmentUserOptionsQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_MISSION_ASSIGNMENT_USER_OPTIONS_QUERY',
+        'Invalid assignment user options query.',
+      );
+    }
+
+    return MissionAssignmentUserOptionsResponseSchema.parse(
+      await this.missions.listAssignmentUserOptions(this.uuid(missionId), parsed.data),
     );
   }
 
