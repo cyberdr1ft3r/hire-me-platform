@@ -100,6 +100,7 @@ import {
   IDLE,
   MISSION_CONTACT_PAGE_SIZE,
   MISSION_LIST_PAGE_SIZE,
+  MISSION_PROCESS_PAGE_SIZE,
   MISSION_OPTION_PAGE_SIZE,
   missionToProfileValues,
   pageCount,
@@ -109,6 +110,7 @@ import {
   type MissionFeedback,
   type MissionListQuery,
   type MissionListState,
+  type MissionProcessPage,
   type MissionPendingAction,
   type MissionProfileValues,
   type PickerOption,
@@ -219,6 +221,7 @@ export function MissionsPanel({
   const activeProcessRef = useRef<string | null>(null);
   const activeInterviewRef = useRef<string | null>(null);
   const contactsRequestedFor = useRef<string | null>(null);
+  const processPageRef = useRef(1);
   const appliedQueryRef = useRef<MissionListQuery>(FIRST_MISSION_PAGE);
   const initialIntent = useRef(initialMissionId);
 
@@ -233,7 +236,8 @@ export function MissionsPanel({
   const [editValues, setEditValues] = useState<MissionProfileValues | null>(null);
 
   const [assignments, setAssignments] = useState<SectionState<MissionAssignmentSummary[]>>(IDLE);
-  const [processes, setProcesses] = useState<SectionState<MissionCandidateSummary[]>>(IDLE);
+  const [processes, setProcesses] = useState<SectionState<MissionProcessPage>>(IDLE);
+  const [processLeftPage, setProcessLeftPage] = useState(false);
   const [publicOpportunity, setPublicOpportunity] =
     useState<SectionState<InternalPublicOpportunity>>(IDLE);
   const [applications, setApplications] =
@@ -252,8 +256,10 @@ export function MissionsPanel({
   const [pending, setPending] = useState<MissionPendingAction | null>(null);
 
   function resetMissionSections(): void {
+    processPageRef.current = 1;
     setAssignments(IDLE);
     setProcesses(IDLE);
+    setProcessLeftPage(false);
     setPublicOpportunity(IDLE);
     setApplications(IDLE);
     setClientContacts(IDLE);
@@ -500,14 +506,68 @@ export function MissionsPanel({
     );
   }
 
-  function loadProcesses(missionId: string, isCurrent: () => boolean, quiet: boolean) {
-    return loadSection(
-      'processes',
-      setProcesses,
-      async () => (await listMissionCandidates(accessToken, missionId)).candidates,
-      isCurrent,
-      quiet,
-    );
+  /**
+   * Loads one server page of candidate processes. A page emptied by a change
+   * elsewhere falls back to the last page that still has entries. An open
+   * process that is not on the committed page is closed explicitly, so its
+   * detail never outlives the row it belongs to.
+   */
+  async function loadProcesses(
+    missionId: string,
+    isCurrent: () => boolean,
+    quiet: boolean,
+    page = processPageRef.current,
+  ): Promise<void> {
+    const request = ++sectionRequests.current.processes;
+    const latest = () => isCurrent() && sectionRequests.current.processes === request;
+    processPageRef.current = page;
+    if (!quiet) {
+      setProcesses({ status: 'loading' });
+    }
+    let response: Awaited<ReturnType<typeof listMissionCandidates>>;
+    try {
+      response = await listMissionCandidates(accessToken, missionId, {
+        page,
+        pageSize: MISSION_PROCESS_PAGE_SIZE,
+      });
+    } catch {
+      if (latest() && !quiet) {
+        setProcesses({ status: 'error' });
+      }
+      return;
+    }
+    if (!latest()) {
+      return;
+    }
+    const { total, pageSize } = response.pagination;
+    if (response.candidates.length === 0 && total > 0 && response.pagination.page > 1) {
+      const lastPage = Math.min(response.pagination.page - 1, pageCount(total, pageSize));
+      await loadProcesses(missionId, isCurrent, quiet, lastPage);
+      return;
+    }
+    processPageRef.current = response.pagination.page;
+    setProcesses({
+      status: 'ready',
+      data: { candidates: response.candidates, page: response.pagination.page, pageSize, total },
+    });
+    const openId = activeProcessRef.current;
+    if (openId && !response.candidates.some((entry) => entry.id === openId)) {
+      closeProcess();
+      setProcessLeftPage(true);
+    }
+  }
+
+  function goToProcessPage(page: number): void {
+    const missionId = selectedMissionRef.current;
+    if (!missionId || detail.status !== 'ready') {
+      return;
+    }
+    const hadOpenProcess = activeProcessRef.current !== null;
+    if (hadOpenProcess) {
+      closeProcess();
+    }
+    setProcessLeftPage(hadOpenProcess);
+    void loadProcesses(missionId, captureMissionContext(missionId), false, page);
   }
 
   function loadPublicOpportunity(missionId: string, isCurrent: () => boolean, quiet: boolean) {
@@ -542,6 +602,7 @@ export function MissionsPanel({
     invalidate(PROCESS_SECTIONS);
     activeInterviewRef.current = null;
     resetProcessSections();
+    setProcessLeftPage(false);
     if (activeProcessRef.current === processId) {
       activeProcessRef.current = null;
       setActiveProcessId(null);
@@ -733,7 +794,7 @@ export function MissionsPanel({
   const activeProcess =
     activeProcessId === null
       ? null
-      : (sectionData(processes)?.find((entry) => entry.id === activeProcessId) ?? null);
+      : (sectionData(processes)?.candidates.find((entry) => entry.id === activeProcessId) ?? null);
 
   function refreshMission(missionId: string): void {
     void loadMissionContext(missionId, true);
@@ -750,7 +811,12 @@ export function MissionsPanel({
       current.status === 'ready'
         ? {
             status: 'ready',
-            data: current.data.map((entry) => (entry.id === updated.id ? updated : entry)),
+            data: {
+              ...current.data,
+              candidates: current.data.candidates.map((entry) =>
+                entry.id === updated.id ? updated : entry,
+              ),
+            },
           }
         : current,
     );
@@ -978,7 +1044,7 @@ export function MissionsPanel({
         }),
       onSuccess: () => {
         setFeedback({ tone: 'success', key: 'missions.feedback.candidateLinked' });
-        void loadProcesses(missionId, isCurrent, true);
+        void loadProcesses(missionId, isCurrent, true, 1);
       },
     });
   }
@@ -1589,6 +1655,8 @@ export function MissionsPanel({
           loadCandidateOptions,
           onLink: handleLink,
           onOpen: openProcess,
+          onPage: goToProcessPage,
+          openProcessLeftPage: processLeftPage,
           onRetry: () => {
             if (readyMission) {
               void loadProcesses(readyMission.id, captureMissionContext(readyMission.id), false);

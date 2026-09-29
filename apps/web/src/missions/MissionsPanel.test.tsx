@@ -124,7 +124,7 @@ describe('MissionsPanel request ownership', () => {
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}/assignments`)) {
         return Promise.resolve(assignmentListResponse([]));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_B_ID}/candidates`)) {
+      if (isCandidateList(url, MISSION_B_ID)) {
         return Promise.resolve(missionCandidateListResponse());
       }
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}/public-opportunity`)) {
@@ -173,7 +173,7 @@ describe('MissionsPanel request ownership', () => {
     const oldTokenFollowUps = calls.filter(
       ({ authorization, url }) =>
         authorization === 'Bearer token-a' &&
-        (url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`) ||
+        (isCandidateList(url, MISSION_A_ID) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity/applications`)),
     );
@@ -213,7 +213,7 @@ describe('MissionsPanel request ownership', () => {
           assignmentListResponse([syntheticAssignment(MISSION_A_ID, 'Prior Recruiter')]),
         );
       }
-      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`)) {
+      if (isCandidateList(url, MISSION_A_ID)) {
         return Promise.resolve(missionCandidateListResponse('Prior Candidate'));
       }
       if (url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`)) {
@@ -308,7 +308,7 @@ describe('MissionsPanel request ownership', () => {
       calls.filter(
         (url) =>
           url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`) ||
-          url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`) ||
+          isCandidateList(url, MISSION_A_ID) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity/applications`),
       ),
@@ -727,4 +727,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function requestUrl(input: string | URL | Request): string {
   return input instanceof Request ? input.url : input.toString();
+}
+
+/** The mission candidate-process list, with or without its pagination query. */
+function isCandidateList(url: string, missionId: string): boolean {
+  return new RegExp(`/v1/missions/${missionId}/candidates(\\?|$)`).test(url);
 }

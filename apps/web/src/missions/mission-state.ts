@@ -1,10 +1,15 @@
-import type { MissionLifecycleState, MissionSummary } from '@hire-me/contracts';
+import type {
+  MissionCandidateSummary,
+  MissionLifecycleState,
+  MissionSummary,
+} from '@hire-me/contracts';
 
 import type { MessageKey, PlainMessageKey } from '../i18n/index.js';
 import type { MissionFailure } from './mission-errors.js';
 
 export const MISSION_LIST_PAGE_SIZE = 20;
 export const MISSION_OPTION_PAGE_SIZE = 20;
+export const MISSION_PROCESS_PAGE_SIZE = 20;
 /** One bounded page of the mission client's contacts for interview invitations. */
 export const MISSION_CONTACT_PAGE_SIZE = 50;
 
@@ -65,6 +70,14 @@ export type MissionListState =
       pageSize: number;
       total: number;
     };
+
+/** One server page of the selected mission's candidate processes. */
+export type MissionProcessPage = {
+  candidates: MissionCandidateSummary[];
+  page: number;
+  pageSize: number;
+  total: number;
+};
 
 export type MissionDetailState =
   | { status: 'idle' }

@@ -194,7 +194,16 @@ export const missionsFr: Messages['missions'] = {
     },
     open: 'Ouvrir le processus',
     openLabel: 'Ouvrir le processus de {name}',
+    pagination: {
+      next: 'Page de candidats suivante',
+      page: 'Page {page} sur {pages}',
+      previous: 'Page de candidats précédente',
+      range: '{first}–{last} sur {total}',
+      region: 'Pages du vivier de candidats',
+    },
     placementConfirmed: 'Placement confirmé',
+    processLeftPage:
+      'Le processus ouvert a été fermé car il ne figure pas sur cette page. Ouvrez un candidat de cette page pour continuer.',
     region: 'Vivier de candidats',
     title: 'Vivier de candidats',
   },

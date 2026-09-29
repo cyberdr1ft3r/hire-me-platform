@@ -2326,7 +2326,7 @@ function mockMissionWorkspace(
       return Promise.resolve(jsonResponse({ mission }));
     }
 
-    if (url.endsWith(`/v1/missions/${mission.id}/candidates`)) {
+    if (isCandidateList(url, mission.id)) {
       return Promise.resolve(
         jsonResponse({
           candidates: [missionCandidate],
@@ -3011,4 +3011,9 @@ function requestUrl(input: string | URL | Request): string {
     return input.toString();
   }
   return input;
+}
+
+/** The mission candidate-process list, with or without its pagination query. */
+function isCandidateList(url: string, missionId: string): boolean {
+  return new RegExp(`/v1/missions/${missionId}/candidates(\\?|$)`).test(url);
 }

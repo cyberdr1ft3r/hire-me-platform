@@ -91,6 +91,17 @@ function world(overrides: Partial<World> = {}): World {
   };
 }
 
+/** Slices like the API: `page`/`pageSize` default to 1 and 20, with real totals. */
+function serverPage<T>(key: string, items: T[], search: URLSearchParams) {
+  const pageNumber = Number(search.get('page') ?? '1');
+  const pageSize = Number(search.get('pageSize') ?? '20');
+  const start = (pageNumber - 1) * pageSize;
+  return {
+    [key]: items.slice(start, start + pageSize),
+    pagination: { page: pageNumber, pageSize, total: items.length },
+  };
+}
+
 type Override = (call: RecordedCall) => Promise<Response> | Response | undefined;
 
 function serve(data: World, override?: Override): RecordedCall[] {
@@ -118,7 +129,7 @@ function serve(data: World, override?: Override): RecordedCall[] {
     }
     match = /^\/v1\/missions\/([^/]+)\/candidates$/.exec(path);
     if (match && method === 'GET') {
-      return jsonResponse(page('candidates', data.processes[match[1]!] ?? []));
+      return jsonResponse(serverPage('candidates', data.processes[match[1]!] ?? [], call.search));
     }
     match = /^\/v1\/missions\/[^/]+\/candidates\/([^/]+)\/offers$/.exec(path);
     if (match && method === 'GET') {
@@ -554,5 +565,301 @@ describe('Missions writes', () => {
     expect(screen.getByRole('button', { name: /^Mission Beta/ }).getAttribute('aria-current')).toBe(
       'true',
     );
+  });
+});
+
+describe('Missions candidate pipeline pagination', () => {
+  const PROCESS_COUNT = 25;
+
+  function numberedProcess(missionId: string, index: number): MissionCandidateSummary {
+    const name = `Candidate ${String(index).padStart(2, '0')}`;
+    const base = syntheticProcess(missionId, name);
+    const suffix = String(index).padStart(10, '0');
+    const candidateId = `${missionId.slice(0, 24)}${suffix}88`;
+    return {
+      ...base,
+      id: `${missionId.slice(0, 24)}${suffix}99`,
+      candidateId,
+      candidate: { ...base.candidate, id: candidateId },
+    };
+  }
+
+  const many = Array.from({ length: PROCESS_COUNT }, (_, index) =>
+    numberedProcess(MISSION_A_ID, index + 1),
+  );
+  const byName = (name: string) => many.find((entry) => entry.candidate.displayName === name)!;
+
+  function manyWorld(): World {
+    return world({
+      offers: Object.fromEntries(
+        many.map((entry) => [
+          entry.id,
+          syntheticOffer(entry, `${entry.candidate.displayName} contract`),
+        ]),
+      ),
+      processes: { [MISSION_A_ID]: [...many], [MISSION_B_ID]: [processB] },
+    });
+  }
+
+  function isCandidatePage(call: RecordedCall, missionId: string, pageNumber: number): boolean {
+    return (
+      call.method === 'GET' &&
+      call.path === `/v1/missions/${missionId}/candidates` &&
+      call.search.get('page') === String(pageNumber)
+    );
+  }
+
+  function pipeline(): HTMLElement {
+    return screen.getByRole('region', { name: 'Candidate pipeline' });
+  }
+
+  function shownCandidates(): string[] {
+    return within(pipeline())
+      .getAllByRole('rowheader')
+      .map((cell) => cell.textContent ?? '');
+  }
+
+  async function nextPage(): Promise<void> {
+    fireEvent.click(await screen.findByRole('button', { name: 'Next candidate page' }));
+    await flush();
+  }
+
+  it('shows the first page, reaches page 2, and opens a candidate there without omitting anyone', async () => {
+    const calls = serve(manyWorld());
+    renderWorkspace({ permissions: VIEW });
+
+    await selectMission('Mission Alpha');
+    await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
+    const firstPage = shownCandidates();
+    expect(firstPage).toHaveLength(20);
+    expect(firstPage[0]).toBe('Candidate 01');
+    expect(firstPage.at(-1)).toBe('Candidate 20');
+    expect(within(pipeline()).getByText('Page 1 of 2')).toBeVisible();
+    expect(within(pipeline()).getByText('1–20 of 25')).toBeVisible();
+    const firstRequest = calls.find((call) => isCandidatePage(call, MISSION_A_ID, 1))!;
+    expect(firstRequest.search.get('pageSize')).toBe('20');
+
+    await nextPage();
+    await screen.findByRole('button', { name: 'Open the process for Candidate 21' });
+    const secondPage = shownCandidates();
+    expect(secondPage).toEqual([
+      'Candidate 21',
+      'Candidate 22',
+      'Candidate 23',
+      'Candidate 24',
+      'Candidate 25',
+    ]);
+    expect(within(pipeline()).getByText('Page 2 of 2')).toBeVisible();
+    expect(within(pipeline()).getByText('21–25 of 25')).toBeVisible();
+    expect(new Set([...firstPage, ...secondPage]).size).toBe(PROCESS_COUNT);
+    expect(within(pipeline()).getByRole('button', { name: 'Next candidate page' })).toBeDisabled();
+
+    const process = await openProcess('Candidate 23');
+    expect(process).toBeVisible();
+    expect(await within(process).findByText('Candidate 23 contract')).toBeVisible();
+    const row = within(pipeline()).getByRole('rowheader', { name: 'Candidate 23' }).closest('tr')!;
+    expect(row.getAttribute('aria-current')).toBe('true');
+    expect(
+      calls.some((call) => call.path.endsWith(`/candidates/${byName('Candidate 23').id}/offers`)),
+    ).toBe(true);
+  });
+
+  it('closes an open process explicitly when paging away and drops its late detail', async () => {
+    const lateOffer = deferred();
+    serve(manyWorld(), (call) =>
+      call.path.endsWith(`/candidates/${byName('Candidate 03').id}/offers`)
+        ? lateOffer.promise
+        : undefined,
+    );
+    renderWorkspace({ permissions: VIEW });
+
+    await selectMission('Mission Alpha');
+    await openProcess('Candidate 03');
+    await nextPage();
+
+    expect(await screen.findByRole('button', { name: 'Open the process for Candidate 21' }));
+    expect(screen.queryByRole('region', { name: 'Candidate 03' })).toBeNull();
+    expect(
+      within(pipeline()).getByText(
+        'The open candidate process was closed because it is not on this page. Open a candidate on this page to continue.',
+      ),
+    ).toBeVisible();
+
+    await act(async () => {
+      lateOffer.resolve(
+        jsonResponse({ offer: syntheticOffer(byName('Candidate 03'), 'Candidate 03 contract') }),
+      );
+      await lateOffer.promise;
+    });
+    await flush();
+    expect(screen.queryByText('Candidate 03 contract')).toBeNull();
+
+    await openProcess('Candidate 22');
+    expect(await screen.findByText('Candidate 22 contract')).toBeVisible();
+    expect(within(pipeline()).queryByText(/was closed because it is not on this page/)).toBeNull();
+  });
+
+  it('never lets a stale page-1 refresh overwrite page 2', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const staleFirstPage = deferred();
+    let firstPageReads = 0;
+    serve(manyWorld(), (call) => {
+      if (call.method === 'POST' && call.path.endsWith('/transition')) {
+        return jsonResponse({ error: { code: 'MISSION_CANDIDATE_STALE', message: 'Stale' } }, 409);
+      }
+      if (isCandidatePage(call, MISSION_A_ID, 1) && ++firstPageReads === 2) {
+        return staleFirstPage.promise;
+      }
+      return undefined;
+    });
+    renderWorkspace({ permissions: [...VIEW, 'mission_candidates:transition'] });
+
+    await selectMission('Mission Alpha');
+    const process = await openProcess('Candidate 02');
+    fireEvent.click(await within(process).findByRole('button', { name: 'Move to Offer accepted' }));
+    // The conflict refreshes the mission, which re-reads page 1 and stays pending.
+    await waitFor(() => expect(firstPageReads).toBe(2));
+
+    await nextPage();
+    await screen.findByRole('button', { name: 'Open the process for Candidate 21' });
+
+    await act(async () => {
+      staleFirstPage.resolve(
+        jsonResponse(serverPage('candidates', many, new URLSearchParams('page=1&pageSize=20'))),
+      );
+      await staleFirstPage.promise;
+    });
+    await flush();
+    expect(shownCandidates()[0]).toBe('Candidate 21');
+    expect(within(pipeline()).getByText('Page 2 of 2')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Open the process for Candidate 01' })).toBeNull();
+  });
+
+  it('never lets a stale page-2 response overwrite a newer page 1 or a new session', async () => {
+    const stalePage = deferred();
+    let pageTwoReads = 0;
+    serve(manyWorld(), (call) =>
+      isCandidatePage(call, MISSION_A_ID, 2) && ++pageTwoReads === 1
+        ? stalePage.promise
+        : undefined,
+    );
+    const view = renderWorkspace({ permissions: VIEW });
+
+    await selectMission('Mission Alpha');
+    await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
+    await nextPage();
+    await selectMission('Mission Beta');
+    await selectMission('Mission Alpha');
+    await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
+
+    await act(async () => {
+      stalePage.resolve(
+        jsonResponse(serverPage('candidates', many, new URLSearchParams('page=2&pageSize=20'))),
+      );
+      await stalePage.promise;
+    });
+    await flush();
+    expect(shownCandidates()[0]).toBe('Candidate 01');
+    expect(within(pipeline()).getByText('Page 1 of 2')).toBeVisible();
+
+    // A page request still pending when the session changes is dropped with it.
+    const sessionPage = deferred();
+    serve(manyWorld(), (call) =>
+      isCandidatePage(call, MISSION_A_ID, 2) ? sessionPage.promise : undefined,
+    );
+    await nextPage();
+    view.rerender({ accessToken: 'token-b', permissions: VIEW });
+    await act(async () => {
+      sessionPage.resolve(
+        jsonResponse(serverPage('candidates', many, new URLSearchParams('page=2&pageSize=20'))),
+      );
+      await sessionPage.promise;
+    });
+    await flush();
+    expect(screen.queryByRole('region', { name: 'Candidate pipeline' })).toBeNull();
+    expect(screen.queryByText('Candidate 21')).toBeNull();
+  });
+
+  it('keeps the write lock across paging and never applies a stale offer write to the new process', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const sent = deferred();
+    const calls = serve(manyWorld(), (call) =>
+      call.method === 'POST' && call.path.endsWith('/mark-sent') ? sent.promise : undefined,
+    );
+    renderWorkspace({ permissions: MANAGE });
+
+    await selectMission('Mission Alpha');
+    await openProcess('Candidate 04');
+    const offer = await screen.findByRole('region', { name: 'Offer' });
+    fireEvent.click(within(offer).getByRole('button', { name: 'Mark sent' }));
+    expect(writes(calls)).toHaveLength(1);
+
+    await nextPage();
+    const process = await openProcess('Candidate 24');
+    expect(await within(process).findByText('Candidate 24 contract')).toBeVisible();
+    const newOffer = within(process).getByRole('region', { name: 'Offer' });
+    expect(within(newOffer).getByRole('button', { name: 'Mark sent' })).toBeDisabled();
+
+    await act(async () => {
+      sent.resolve(
+        jsonResponse({
+          offer: syntheticOffer(byName('Candidate 04'), 'Candidate 04 contract', 'SENT'),
+        }),
+      );
+      await sent.promise;
+    });
+    await flush();
+    expect(within(process).getByText('Candidate 24 contract')).toBeVisible();
+    expect(screen.queryByText('Candidate 04 contract')).toBeNull();
+    expect(screen.queryByText('Offer marked as sent.')).toBeNull();
+    expect(within(newOffer).getByRole('button', { name: 'Mark sent' })).toBeEnabled();
+    expect(writes(calls)).toHaveLength(1);
+  });
+
+  it('falls back to the last page with entries and closes a process that left it', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const data = manyWorld();
+    serve(data, (call) =>
+      call.method === 'POST' && call.path.endsWith('/transition')
+        ? jsonResponse({ error: { code: 'MISSION_CANDIDATE_STALE', message: 'Stale' } }, 409)
+        : undefined,
+    );
+    renderWorkspace({ permissions: [...VIEW, 'mission_candidates:transition'] });
+
+    await selectMission('Mission Alpha');
+    await nextPage();
+    const process = await openProcess('Candidate 25');
+    data.processes[MISSION_A_ID] = many.slice(0, 20);
+    fireEvent.click(await within(process).findByRole('button', { name: 'Move to Offer accepted' }));
+
+    expect(await within(pipeline()).findByText('Page 1 of 1')).toBeVisible();
+    expect(shownCandidates()).toHaveLength(20);
+    expect(screen.queryByRole('region', { name: 'Candidate 25' })).toBeNull();
+    expect(within(pipeline()).getByText(/was closed because it is not on this page/)).toBeVisible();
+  });
+
+  it('keeps page 2 and its open process across a locale switch without refetching', async () => {
+    const calls = serve(manyWorld());
+    renderWorkspace({ permissions: VIEW });
+
+    await selectMission('Mission Alpha');
+    await nextPage();
+    await openProcess('Candidate 23');
+    await screen.findByText('Candidate 23 contract');
+    await flush();
+    const before = calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle locale' }));
+
+    const frenchPipeline = await screen.findByRole('region', { name: 'Vivier de candidats' });
+    expect(within(frenchPipeline).getByText('Page 2 sur 2')).toBeVisible();
+    expect(within(frenchPipeline).getByText('21–25 sur 25')).toBeVisible();
+    expect(
+      within(frenchPipeline).getByRole('button', { name: 'Page de candidats précédente' }),
+    ).toBeEnabled();
+    expect(screen.getByRole('region', { name: 'Candidate 23' })).toBeVisible();
+    expect(screen.getByText('Candidate 23 contract')).toBeVisible();
+    await flush();
+    expect(calls.length).toBe(before);
   });
 });

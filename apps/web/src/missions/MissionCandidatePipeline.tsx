@@ -1,6 +1,7 @@
-import type { MissionCandidateSummary, MissionSummary } from '@hire-me/contracts';
+import type { MissionSummary } from '@hire-me/contracts';
 import { useState, type FormEvent } from 'react';
 
+import { ListPagination } from '../clients/ListPagination.js';
 import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage, Select, StatusBadge, TextArea, TextField } from '../ui/index.js';
 import { ScrollTable, SectionStatus } from './MissionBits.js';
@@ -13,7 +14,7 @@ import {
   processStateLabelKey,
   processStateTone,
 } from './mission-labels.js';
-import type { PickerOption, SectionState } from './mission-state.js';
+import type { MissionProcessPage, PickerOption, SectionState } from './mission-state.js';
 
 type Priority = MissionSummary['priority'];
 
@@ -32,8 +33,11 @@ export interface MissionPipelineModel {
   loadCandidateOptions: LoadPickerOptions | null;
   onLink: (values: ProcessLinkValues) => Promise<boolean>;
   onOpen: (processId: string) => void;
+  onPage: (page: number) => void;
   onRetry: () => void;
-  processes: SectionState<MissionCandidateSummary[]>;
+  /** True after paging or a refresh closed a process that is not on the shown page. */
+  openProcessLeftPage: boolean;
+  processes: SectionState<MissionProcessPage>;
   /** Active recruiters on the mission; null when the team cannot be read. */
   recruiters: PickerOption[] | null;
 }
@@ -57,77 +61,97 @@ export function MissionCandidatePipeline({
   return (
     <section aria-label={t('missions.pipeline.region')} className="mission-section">
       <h3 className="mission-section__title">{title}</h3>
+      {model.openProcessLeftPage ? (
+        <p className="mission-muted" role="status">
+          {t('missions.pipeline.processLeftPage')}
+        </p>
+      ) : null}
       <SectionStatus onRetry={model.onRetry} section={model.processes}>
-        {(processes) =>
-          processes.length === 0 ? (
+        {({ candidates: processes, page, pageSize, total }) =>
+          total === 0 ? (
             <p className="mission-muted">{t('missions.pipeline.empty')}</p>
           ) : (
-            <ScrollTable label={title}>
-              <table className="mission-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('missions.pipeline.columns.candidate')}</th>
-                    <th scope="col">{t('missions.pipeline.columns.state')}</th>
-                    <th scope="col">{t('missions.pipeline.columns.responsible')}</th>
-                    <th scope="col">{t('missions.pipeline.columns.priority')}</th>
-                    <th scope="col">{t('missions.pipeline.columns.visibility')}</th>
-                    <th scope="col">{t('missions.pipeline.columns.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {processes.map((process) => {
-                    const open = process.id === model.activeProcessId;
-                    return (
-                      <tr
-                        aria-current={open ? 'true' : undefined}
-                        data-selected={open}
-                        key={process.id}
-                      >
-                        <th scope="row">{process.candidate.displayName}</th>
-                        <td>
-                          <StatusBadge tone={processStateTone(process.state)}>
-                            {t(processStateLabelKey(process.state))}
-                          </StatusBadge>
-                        </td>
-                        <td>{process.responsibleRecruiterDisplayName}</td>
-                        <td>
-                          <StatusBadge tone={missionPriorityTone(process.priority)}>
-                            {t(missionPriorityLabelKey(process.priority))}
-                          </StatusBadge>
-                        </td>
-                        <td>
-                          <span className="mission-badges">
-                            <span>
-                              {process.clientVisible
-                                ? t('missions.pipeline.clientVisible')
-                                : t('missions.pipeline.internalOnly')}
+            <>
+              <ScrollTable label={title}>
+                <table className="mission-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('missions.pipeline.columns.candidate')}</th>
+                      <th scope="col">{t('missions.pipeline.columns.state')}</th>
+                      <th scope="col">{t('missions.pipeline.columns.responsible')}</th>
+                      <th scope="col">{t('missions.pipeline.columns.priority')}</th>
+                      <th scope="col">{t('missions.pipeline.columns.visibility')}</th>
+                      <th scope="col">{t('missions.pipeline.columns.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {processes.map((process) => {
+                      const open = process.id === model.activeProcessId;
+                      return (
+                        <tr
+                          aria-current={open ? 'true' : undefined}
+                          data-selected={open}
+                          key={process.id}
+                        >
+                          <th scope="row">{process.candidate.displayName}</th>
+                          <td>
+                            <StatusBadge tone={processStateTone(process.state)}>
+                              {t(processStateLabelKey(process.state))}
+                            </StatusBadge>
+                          </td>
+                          <td>{process.responsibleRecruiterDisplayName}</td>
+                          <td>
+                            <StatusBadge tone={missionPriorityTone(process.priority)}>
+                              {t(missionPriorityLabelKey(process.priority))}
+                            </StatusBadge>
+                          </td>
+                          <td>
+                            <span className="mission-badges">
+                              <span>
+                                {process.clientVisible
+                                  ? t('missions.pipeline.clientVisible')
+                                  : t('missions.pipeline.internalOnly')}
+                              </span>
+                              {process.placementConfirmedAt ? (
+                                <StatusBadge tone="success">
+                                  {t('missions.pipeline.placementConfirmed')}
+                                </StatusBadge>
+                              ) : null}
                             </span>
-                            {process.placementConfirmedAt ? (
-                              <StatusBadge tone="success">
-                                {t('missions.pipeline.placementConfirmed')}
-                              </StatusBadge>
-                            ) : null}
-                          </span>
-                        </td>
-                        <td>
-                          <Button
-                            aria-expanded={open}
-                            aria-label={t('missions.pipeline.openLabel', {
-                              name: process.candidate.displayName,
-                            })}
-                            onClick={() => model.onOpen(process.id)}
-                            size="compact"
-                            variant={open ? 'primary' : 'secondary'}
-                          >
-                            {t('missions.pipeline.open')}
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </ScrollTable>
+                          </td>
+                          <td>
+                            <Button
+                              aria-expanded={open}
+                              aria-label={t('missions.pipeline.openLabel', {
+                                name: process.candidate.displayName,
+                              })}
+                              onClick={() => model.onOpen(process.id)}
+                              size="compact"
+                              variant={open ? 'primary' : 'secondary'}
+                            >
+                              {t('missions.pipeline.open')}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </ScrollTable>
+              <ListPagination
+                labels={{
+                  next: t('missions.pipeline.pagination.next'),
+                  page: (values) => t('missions.pipeline.pagination.page', values),
+                  previous: t('missions.pipeline.pagination.previous'),
+                  range: (values) => t('missions.pipeline.pagination.range', values),
+                  region: t('missions.pipeline.pagination.region'),
+                }}
+                onPage={model.onPage}
+                page={page}
+                pageSize={pageSize}
+                total={total}
+              />
+            </>
           )
         }
       </SectionStatus>

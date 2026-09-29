@@ -1893,9 +1893,19 @@ export async function archiveMissionAssignment(
 export async function listMissionCandidates(
   accessToken: string,
   missionId: string,
+  query: { page?: number; pageSize?: number } = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<MissionCandidateListResponse> {
-  const response = await missionRequest(accessToken, `/${missionId}/candidates`, {}, apiBaseUrl);
+  const params = new URLSearchParams();
+  if (query.page !== undefined) params.set('page', String(query.page));
+  if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
+  const search = params.toString() ? `?${params.toString()}` : '';
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates${search}`,
+    {},
+    apiBaseUrl,
+  );
   return MissionCandidateListResponseSchema.parse(await response.json());
 }
 

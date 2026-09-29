@@ -192,7 +192,16 @@ export const missionsEn = {
     },
     open: 'Open process',
     openLabel: 'Open the process for {name}',
+    pagination: {
+      next: 'Next candidate page',
+      page: 'Page {page} of {pages}',
+      previous: 'Previous candidate page',
+      range: '{first}–{last} of {total}',
+      region: 'Candidate pipeline pages',
+    },
     placementConfirmed: 'Placement confirmed',
+    processLeftPage:
+      'The open candidate process was closed because it is not on this page. Open a candidate on this page to continue.',
     region: 'Candidate pipeline',
     title: 'Candidate pipeline',
   },
