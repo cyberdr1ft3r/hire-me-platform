@@ -290,7 +290,8 @@ describe('Issue #113 Document Center presentation', () => {
       `${baseUrl}/v1/documents/context-options?${new URLSearchParams(query).toString()}`,
       { headers: headers(token) },
     );
-    return { status: response.status, json: (await response.json()) as unknown };
+    const json: unknown = await response.json();
+    return { status: response.status, json };
   }
 
   beforeAll(async () => {
