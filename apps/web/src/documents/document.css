@@ -94,6 +94,7 @@
 }
 
 .document-filters__controls {
+  align-items: start;
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
