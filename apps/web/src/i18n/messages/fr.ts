@@ -1,5 +1,6 @@
 import { plural } from '../message.js';
 import type { Messages } from './en.js';
+import { missionsFr } from './missions.fr.js';
 
 /**
  * French HireMe dictionary.
@@ -622,6 +623,7 @@ export const frMessages: Messages = {
       required: 'Ce champ est obligatoire.',
     },
   },
+  missions: missionsFr,
   task: {
     actions: {
       addAssignee: 'Ajouter la personne',
