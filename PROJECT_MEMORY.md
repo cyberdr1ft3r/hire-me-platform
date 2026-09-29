@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-27
+Last updated: 2026-09-29
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, and the Task Pipeline are merged. Candidate drift D-CAND-01 through D-CAND-03 is corrected through PRs #68 and #70, Reporting drift D-REPORT-01 through PR #72, and future-submission salary drift D-PUBLIC-01 through PR #74 with **D-066 Accepted** and **historical salary rows review-only** (no backfill). `main` is at `b3486e6b6e52838bdce74edbd8a7d5816c090e92`, including PR #77, PR #79 (A-75-04), PR #81 (A-75-02), PR #83 / Issue #82 (**D-067**, A-75-01 corrected), PR #85 / Issue #84 (**D-068**, A-75-03 corrected at application level; production env/proxy limits not yet verified), PR #87 / Issue #86 (**D-069**, A-75-05 corrected), PR #89 / Issue #88 (**D-070**, A-75-06/07 corrected; migration not run in production), and PR #91 / Issue #90 (**D-071**, A-75-08 corrected). Issue #92 captured real Chromium EN/FR Public Opportunity browser evidence (**PUBLIC OPPORTUNITY BROWSER GATE: PASS** on `b3486e6`; report in `docs/audit/issue-92-public-browser-evidence.md`). Issue #66 AppShell/i18n audit continues. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
+The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, Task Pipeline, and Clients are merged and bilingual. `main` is at `80936daee7b5f8345ea9d1a328c2a2592344f0d1`, including D-066 through D-072, the Issue #100 Mission assignment option source, and the Issue #93 seeded RolePermission row-identity correction. Issue #99 Missions rollout continues independently. Issue #102 Training preflight is complete; Issue #103 supplies the bounded Training identity/enrollment option sources and redaction-safe participant display required before any Training UI work starts. Training remains English-deferred and no bilingual Training claim is made. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.

@@ -1975,6 +1975,10 @@ function syntheticTrainingEnrollment(trainingProgramId: string) {
       clientContactId: null,
       externalTrainingParticipantId: null,
     },
+    participantDisplay: {
+      displayName: 'Synthetic Candidate',
+      email: 'candidate@example.test',
+    },
     status: 'REGISTERED',
     enrolledAt: null,
     withdrawnAt: null,
@@ -1994,6 +1998,14 @@ function syntheticTrainingParticipation(trainingSessionId: string, trainingEnrol
     id: '22222222-2222-4222-8222-222222222222',
     trainingSessionId,
     trainingEnrollmentId,
+    enrollment: {
+      id: trainingEnrollmentId,
+      participantType: 'CANDIDATE',
+      participantDisplay: {
+        displayName: 'Synthetic Candidate',
+        email: 'candidate@example.test',
+      },
+    },
     status: 'EXPECTED',
     attendanceRecordedAt: null,
     recordedByUserId: null,

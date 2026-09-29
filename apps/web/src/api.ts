@@ -239,7 +239,11 @@ import {
   type TaskUserOptionsQuery,
   type TaskUserOptionsResponse,
   TrainingEnrollmentDetailResponseSchema,
+  TrainingEnrollmentOptionQuerySchema,
+  TrainingEnrollmentOptionsResponseSchema,
   TrainingEnrollmentListResponseSchema,
+  TrainingInternalUserOptionQuerySchema,
+  TrainingInternalUserOptionsResponseSchema,
   TrainingParticipationDetailResponseSchema,
   TrainingParticipationListResponseSchema,
   TrainingProgramDetailResponseSchema,
@@ -251,9 +255,13 @@ import {
   type TrainingEnrollmentCertificateStatusUpdateRequest,
   type TrainingEnrollmentCreateRequest,
   type TrainingEnrollmentDetailResponse,
+  type TrainingEnrollmentOptionQuery,
+  type TrainingEnrollmentOptionsResponse,
   type TrainingEnrollmentListResponse,
   type TrainingEnrollmentStatusUpdateRequest,
   type TrainingEnrollmentWithdrawRequest,
+  type TrainingInternalUserOptionQuery,
+  type TrainingInternalUserOptionsResponse,
   type TrainingParticipationCreateRequest,
   type TrainingParticipationDetailResponse,
   type TrainingParticipationListResponse,
@@ -2849,6 +2857,57 @@ export type TrainingProgramListOptions = {
   apiBaseUrl?: string;
 };
 
+function trainingOptionQueryPath(path: string, search?: string): string {
+  return queryPath(path, { search });
+}
+
+export async function listTrainingProgramOwnerUserOptions(
+  accessToken: string,
+  query: TrainingInternalUserOptionQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingInternalUserOptionsResponse> {
+  const parsed = TrainingInternalUserOptionQuerySchema.parse(query);
+  const response = await trainingRequest(
+    accessToken,
+    trainingOptionQueryPath('/program-owner-user-options', parsed.search),
+    {},
+    apiBaseUrl,
+  );
+  return TrainingInternalUserOptionsResponseSchema.parse(await response.json());
+}
+
+export async function listTrainingSessionTrainerUserOptions(
+  accessToken: string,
+  programId: string,
+  query: TrainingInternalUserOptionQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingInternalUserOptionsResponse> {
+  const parsed = TrainingInternalUserOptionQuerySchema.parse(query);
+  const response = await trainingRequest(
+    accessToken,
+    trainingOptionQueryPath(`/programs/${programId}/session-trainer-user-options`, parsed.search),
+    {},
+    apiBaseUrl,
+  );
+  return TrainingInternalUserOptionsResponseSchema.parse(await response.json());
+}
+
+export async function listTrainingEnrollmentUserOptions(
+  accessToken: string,
+  programId: string,
+  query: TrainingInternalUserOptionQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingInternalUserOptionsResponse> {
+  const parsed = TrainingInternalUserOptionQuerySchema.parse(query);
+  const response = await trainingRequest(
+    accessToken,
+    trainingOptionQueryPath(`/programs/${programId}/enrollment-user-options`, parsed.search),
+    {},
+    apiBaseUrl,
+  );
+  return TrainingInternalUserOptionsResponseSchema.parse(await response.json());
+}
+
 export async function listTrainingPrograms(
   options: TrainingProgramListOptions,
 ): Promise<TrainingProgramListResponse> {
@@ -3133,6 +3192,23 @@ export type TrainingParticipationListOptions = {
   includeArchived?: boolean;
   apiBaseUrl?: string;
 };
+
+export async function listTrainingEnrollmentOptions(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  query: TrainingEnrollmentOptionQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentOptionsResponse> {
+  const parsed = TrainingEnrollmentOptionQuerySchema.parse(query);
+  const response = await trainingRequest(
+    accessToken,
+    queryPath(`/programs/${programId}/sessions/${sessionId}/enrollment-options`, parsed),
+    {},
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentOptionsResponseSchema.parse(await response.json());
+}
 
 export async function listTrainingParticipations(
   options: TrainingParticipationListOptions,
