@@ -76,10 +76,7 @@ async function cleanRecords(): Promise<void> {
   await prisma.passwordCredential.deleteMany({ where: { user: userFilter } });
   await prisma.auditLog.deleteMany({
     where: {
-      OR: [
-        { actor: userFilter },
-        { targetUser: userFilter },
-      ],
+      OR: [{ actor: userFilter }, { targetUser: userFilter }],
     },
   });
   await prisma.document.updateMany({
@@ -462,7 +459,11 @@ describe('Issue #113 Document Center presentation', () => {
   it('filters by current-version source and by current or archived lifecycle', async () => {
     const current = await createdDocument(operatorToken, {
       title: 'Issue113 Lifecycle Current',
-      version: { filename: 'current.pdf', contentType: 'application/pdf', base64Content: pdfBase64 },
+      version: {
+        filename: 'current.pdf',
+        contentType: 'application/pdf',
+        base64Content: pdfBase64,
+      },
     });
     const archived = await createdDocument(operatorToken, {
       title: 'Issue113 Lifecycle Archived',

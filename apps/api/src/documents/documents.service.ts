@@ -336,11 +336,11 @@ export class DocumentsService {
       });
 
       return {
-      document: this.toDocumentDetail(
-        document,
-        await this.presentationScope([document], actorUserId),
-      ),
-    };
+        document: this.toDocumentDetail(
+          document,
+          await this.presentationScope([document], actorUserId),
+        ),
+      };
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       throw error;
@@ -466,11 +466,11 @@ export class DocumentsService {
       );
 
       return {
-      document: this.toDocumentDetail(
-        document,
-        await this.presentationScope([document], actorUserId),
-      ),
-    };
+        document: this.toDocumentDetail(
+          document,
+          await this.presentationScope([document], actorUserId),
+        ),
+      };
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       throw error;
@@ -620,7 +620,10 @@ export class DocumentsService {
       }
       case 'missionCandidate': {
         if (!canViewMissions || !has(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)) {
-          throw forbidden('DOCUMENT_PROCESS_SCOPE_REQUIRED', 'Mission-candidate scope is required.');
+          throw forbidden(
+            'DOCUMENT_PROCESS_SCOPE_REQUIRED',
+            'Mission-candidate scope is required.',
+          );
         }
         const processes = await this.prisma.missionCandidate.findMany({
           where: {
