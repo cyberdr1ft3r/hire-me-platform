@@ -272,11 +272,15 @@ async function removeRolePermissions(roleName: RoleName, permissionCodes: readon
   const permissions = await prisma.permission.findMany({
     where: { code: { in: [...permissionCodes] } },
   });
-  await prisma.rolePermission.deleteMany({
+  // Revoke by archiving, so a seeded grant keeps its row identity and the
+  // snapshot restores it in place (Issue #93).
+  await prisma.rolePermission.updateMany({
     where: {
       roleId: role.id,
       permissionId: { in: permissions.map((permission) => permission.id) },
+      archivedAt: null,
     },
+    data: { archivedAt: new Date() },
   });
 }
 
@@ -321,21 +325,14 @@ async function restoreRolePermissions(
       },
     },
   });
+  // Restore each snapshot row in place. A missing row is an error, never
+  // silently re-created, so a replaced seeded grant cannot hide (Issue #93).
   for (const rolePermission of original.permissions) {
-    await prisma.rolePermission.upsert({
+    await prisma.rolePermission.update({
       where: {
         roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
       },
-      update: {
-        grantedAt: rolePermission.grantedAt,
-        archivedAt: rolePermission.archivedAt,
-      },
-      create: {
-        roleId: role.id,
-        permissionId: rolePermission.permissionId,
-        grantedAt: rolePermission.grantedAt,
-        archivedAt: rolePermission.archivedAt,
-      },
+      data: { grantedAt: rolePermission.grantedAt, archivedAt: rolePermission.archivedAt },
     });
   }
 }

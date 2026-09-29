@@ -17,7 +17,14 @@ export interface CatalogSnapshot {
   database: string;
   takenAt: string;
   roles: { id: string; name: string }[];
-  permissions: { id: string; code: string }[];
+  permissions: {
+    id: string;
+    code: string;
+    /** Captured since Issue #93; absent in older snapshots. */
+    description?: string;
+    scopeType?: string;
+    status?: string;
+  }[];
   grants: { id: string; role: string; permission: string; active: boolean }[];
   bootstrapAdmin: { id: string; normalizedEmail: string; credentialId: string };
 }
@@ -33,7 +40,10 @@ export async function takeCatalogSnapshot(
 ): Promise<CatalogSnapshot> {
   const [roles, permissions, grants, admin] = await Promise.all([
     client.role.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
-    client.permission.findMany({ select: { id: true, code: true }, orderBy: { code: 'asc' } }),
+    client.permission.findMany({
+      select: { id: true, code: true, description: true, scopeType: true, status: true },
+      orderBy: { code: 'asc' },
+    }),
     client.rolePermission.findMany({
       select: {
         id: true,
