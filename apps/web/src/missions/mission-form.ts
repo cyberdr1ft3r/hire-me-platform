@@ -100,6 +100,8 @@ export function dateTimeInputValue(value: string | null): string {
 }
 
 /** The staff-selected content language; "Not specified" and anything else is `null`. */
-export function contentLanguageValue(value: FormDataEntryValue | null): PublicContentLanguage | null {
+export function contentLanguageValue(
+  value: FormDataEntryValue | null,
+): PublicContentLanguage | null {
   return value === 'en' || value === 'fr' ? value : null;
 }

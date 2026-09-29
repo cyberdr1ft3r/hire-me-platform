@@ -70,8 +70,7 @@ export const missionsEn = {
   },
   detail: {
     archivedNoticeTitle: 'Archived mission',
-    archivedNotice:
-      'This mission is archived. Its records are read-only and keep their history.',
+    archivedNotice: 'This mission is archived. Its records are read-only and keep their history.',
     region: 'Selected mission',
     selectPrompt:
       'Select a mission to review its profile, team, candidate pipeline, and public opportunity.',
@@ -342,8 +341,7 @@ export const missionsEn = {
   },
   placements: {
     closureEligible: 'Counts toward mission closure',
-    confirmConfirm:
-      'Confirm the placement from the accepted offer, starting integration today?',
+    confirmConfirm: 'Confirm the placement from the accepted offer, starting integration today?',
     confirmCorrect: 'Record an administrative correction of this placement?',
     correct: 'Correct placement',
     empty: 'No placement has been confirmed for this candidate.',

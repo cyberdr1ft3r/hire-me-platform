@@ -78,7 +78,11 @@ export function MissionCandidatePipeline({
                   {processes.map((process) => {
                     const open = process.id === model.activeProcessId;
                     return (
-                      <tr aria-current={open ? 'true' : undefined} data-selected={open} key={process.id}>
+                      <tr
+                        aria-current={open ? 'true' : undefined}
+                        data-selected={open}
+                        key={process.id}
+                      >
                         <th scope="row">{process.candidate.displayName}</th>
                         <td>
                           <StatusBadge tone={processStateTone(process.state)}>
@@ -128,11 +132,7 @@ export function MissionCandidatePipeline({
         }
       </SectionStatus>
       {access.canCreateProcesses && writable ? (
-        <ProcessLinkForm
-          model={model}
-          sourceKey={sourceKey}
-          writesLocked={writesLocked}
-        />
+        <ProcessLinkForm model={model} sourceKey={sourceKey} writesLocked={writesLocked} />
       ) : null}
     </section>
   );
@@ -196,7 +196,11 @@ function ProcessLinkForm({
   }
 
   return (
-    <form aria-label={title} className="mission-form" onSubmit={(event) => void handleSubmit(event)}>
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
       <h4 className="mission-subtitle">{title}</h4>
       <MissionPicker
         hint={t('missions.pipeline.link.candidateHint')}
@@ -254,7 +258,11 @@ function ProcessLinkForm({
         rows={3}
       />
       <div className="mission-actions">
-        <Button disabled={writesLocked || !candidate || !responsible} type="submit" variant="primary">
+        <Button
+          disabled={writesLocked || !candidate || !responsible}
+          type="submit"
+          variant="primary"
+        >
           {t('missions.pipeline.link.submit')}
         </Button>
       </div>

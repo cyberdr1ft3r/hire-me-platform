@@ -54,7 +54,12 @@ const checks = [
   ['mission table header text / table header', 'color-text-secondary', 'color-table-header', 4.5],
   ['mission table primary / table header', 'color-text', 'color-table-header', 4.5],
   ['mission interview text / subtle surface', 'color-text', 'color-surface-subtle', 4.5],
-  ['mission interview secondary / subtle surface', 'color-text-secondary', 'color-surface-subtle', 4.5],
+  [
+    'mission interview secondary / subtle surface',
+    'color-text-secondary',
+    'color-surface-subtle',
+    4.5,
+  ],
 ];
 
 let failed = false;

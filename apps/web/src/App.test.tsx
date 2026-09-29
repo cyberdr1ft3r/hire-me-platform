@@ -1137,7 +1137,9 @@ describe('App', () => {
     await openMissionProcess();
     const offer = await screen.findByRole('region', { name: 'Offer' });
     fireEvent.click(within(offer).getByRole('button', { name: 'Mark sent' }));
-    fireEvent.click(await within(offer).findByRole('button', { name: 'Record response: Accepted' }));
+    fireEvent.click(
+      await within(offer).findByRole('button', { name: 'Record response: Accepted' }),
+    );
 
     expect(fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/mark-sent'))).toBe(
       true,
@@ -2256,7 +2258,10 @@ function mockMissionWorkspace(
   const offer = options.offerStatus
     ? {
         ...baseOffer,
-        versions: baseOffer.versions.map((version) => ({ ...version, status: options.offerStatus })),
+        versions: baseOffer.versions.map((version) => ({
+          ...version,
+          status: options.offerStatus,
+        })),
       }
     : baseOffer;
   const confirmedPlacement = syntheticPlacement();

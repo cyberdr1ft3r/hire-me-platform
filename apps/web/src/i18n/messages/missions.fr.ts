@@ -201,8 +201,7 @@ export const missionsFr: Messages['missions'] = {
   process: {
     close: 'Fermer le processus',
     confirmMove: 'Passer {name} à l’étape « {state} » ?',
-    confirmPresent:
-      'Présenter {name} au client ? Le client pourra voir ce candidat.',
+    confirmPresent: 'Présenter {name} au client ? Le client pourra voir ce candidat.',
     moveTo: 'Passer à « {state} »',
     noTransitions: 'Aucun changement d’étape n’est possible depuis cette étape.',
     present: 'Présenter au client',

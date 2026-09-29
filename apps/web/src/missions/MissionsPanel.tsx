@@ -79,10 +79,7 @@ import type { MissionClosureValues } from './MissionLifecycle.js';
 import type { OfferCreateValues } from './MissionOffers.js';
 import type { LoadPickerOptions } from './MissionPicker.js';
 import type { ProcessTransferValues } from './MissionProcess.js';
-import {
-  publicOpportunityPath,
-  type PublicationChange,
-} from './MissionPublicOpportunity.js';
+import { publicOpportunityPath, type PublicationChange } from './MissionPublicOpportunity.js';
 import { MissionsWorkspace } from './MissionsWorkspace.js';
 import { resolveMissionAccess } from './mission-access.js';
 import { classifyMissionFailure } from './mission-errors.js';
@@ -143,7 +140,12 @@ const SECTION_NAMES: readonly SectionName[] = [
   'evaluations',
 ];
 
-const PROCESS_SECTIONS: readonly SectionName[] = ['offer', 'placement', 'interviews', 'evaluations'];
+const PROCESS_SECTIONS: readonly SectionName[] = [
+  'offer',
+  'placement',
+  'interviews',
+  'evaluations',
+];
 
 function sectionCounters(): Record<SectionName, number> {
   return Object.fromEntries(SECTION_NAMES.map((name) => [name, 0])) as Record<SectionName, number>;
@@ -1017,7 +1019,10 @@ export function MissionsPanel({
     const labelKey = processStateLabelKey(state);
     if (
       !confirmed(
-        t('missions.process.confirmMove', { name: process.candidate.displayName, state: t(labelKey) }),
+        t('missions.process.confirmMove', {
+          name: process.candidate.displayName,
+          state: t(labelKey),
+        }),
       )
     ) {
       return;

@@ -59,19 +59,15 @@ export function SectionStatus<T>({
 }
 
 /** A labelled value in a mission summary; empty values show a neutral placeholder. */
-export function SummaryItem({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label: string;
-}) {
+export function SummaryItem({ children, label }: { children: ReactNode; label: string }) {
   const { t } = useI18n();
   const empty = children === null || children === undefined || children === '';
   return (
     <div className="mission-summary__item">
       <dt>{label}</dt>
-      <dd>{empty ? <span className="mission-muted">{t('missions.notRecorded')}</span> : children}</dd>
+      <dd>
+        {empty ? <span className="mission-muted">{t('missions.notRecorded')}</span> : children}
+      </dd>
     </div>
   );
 }

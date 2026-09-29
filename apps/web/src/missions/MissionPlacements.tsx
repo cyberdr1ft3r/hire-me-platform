@@ -43,14 +43,21 @@ export function MissionPlacements({
                 </span>
               </p>
               <ul className="mission-flags">
-                {record.closureEligible ? <li>{t('missions.placements.closureEligible')}</li> : null}
+                {record.closureEligible ? (
+                  <li>{t('missions.placements.closureEligible')}</li>
+                ) : null}
                 {access.canViewPlacementCommercialEligibility && record.eligibleForInvoicing ? (
                   <li>{t('missions.placements.invoicingEligible')}</li>
                 ) : null}
               </ul>
               {editable && access.canCorrectPlacements && record.status === 'CONFIRMED' ? (
                 <div className="mission-actions">
-                  <Button disabled={writesLocked} onClick={onCorrect} size="compact" variant="danger">
+                  <Button
+                    disabled={writesLocked}
+                    onClick={onCorrect}
+                    size="compact"
+                    variant="danger"
+                  >
                     {t('missions.placements.correct')}
                   </Button>
                 </div>

@@ -64,8 +64,9 @@ export function MissionEvaluations({
                 const scores = EVALUATION_SCORES.map((field) => ({
                   field,
                   value: evaluation.scores[scoreKey(field)],
-                })).filter((entry): entry is { field: EvaluationScoreField; value: number } =>
-                  entry.value !== null,
+                })).filter(
+                  (entry): entry is { field: EvaluationScoreField; value: number } =>
+                    entry.value !== null,
                 );
                 return (
                   <li className="mission-card" key={evaluation.id}>
@@ -181,10 +182,18 @@ function EvaluationCreateForm({
   }
 
   return (
-    <form aria-label={title} className="mission-form" onSubmit={(event) => void handleSubmit(event)}>
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
       <p className="mission-minor-title">{title}</p>
       <div className="mission-form__grid">
-        <Select defaultValue="INTERNAL_HR" label={t('missions.evaluations.create.type')} name="evaluationType">
+        <Select
+          defaultValue="INTERNAL_HR"
+          label={t('missions.evaluations.create.type')}
+          name="evaluationType"
+        >
           {EVALUATION_TYPES.map((type) => (
             <option key={type} value={type}>
               {t(evaluationTypeLabelKey(type))}
@@ -216,10 +225,30 @@ function EvaluationCreateForm({
           />
         ))}
       </div>
-      <TextArea label={t('missions.evaluations.create.strengths')} maxLength={2000} name="strengths" rows={2} />
-      <TextArea label={t('missions.evaluations.create.weaknesses')} maxLength={2000} name="weaknesses" rows={2} />
-      <TextArea label={t('missions.evaluations.create.risks')} maxLength={2000} name="risks" rows={2} />
-      <TextArea label={t('missions.evaluations.create.comment')} maxLength={3000} name="comment" rows={3} />
+      <TextArea
+        label={t('missions.evaluations.create.strengths')}
+        maxLength={2000}
+        name="strengths"
+        rows={2}
+      />
+      <TextArea
+        label={t('missions.evaluations.create.weaknesses')}
+        maxLength={2000}
+        name="weaknesses"
+        rows={2}
+      />
+      <TextArea
+        label={t('missions.evaluations.create.risks')}
+        maxLength={2000}
+        name="risks"
+        rows={2}
+      />
+      <TextArea
+        label={t('missions.evaluations.create.comment')}
+        maxLength={3000}
+        name="comment"
+        rows={3}
+      />
       <Checkbox label={t('missions.evaluations.create.finalOpinion')} name="finalOpinion" />
       <div className="mission-actions">
         <Button disabled={writesLocked} type="submit" variant="primary">

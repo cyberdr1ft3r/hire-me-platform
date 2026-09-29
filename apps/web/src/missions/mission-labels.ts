@@ -194,7 +194,9 @@ export function canCreateOfferInState(state: MissionCandidateState): boolean {
 export function canBecomeLead(
   assignment: Pick<MissionAssignmentSummary, 'isLead' | 'role' | 'status'>,
 ): boolean {
-  return assignment.status === 'ACTIVE' && assignment.role === 'LEAD_RECRUITER' && !assignment.isLead;
+  return (
+    assignment.status === 'ACTIVE' && assignment.role === 'LEAD_RECRUITER' && !assignment.isLead
+  );
 }
 
 /** Roles that may hold responsibility for a candidate process (API rule). */

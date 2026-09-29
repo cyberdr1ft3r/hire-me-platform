@@ -159,7 +159,11 @@ function TransferForm({
   }
 
   return (
-    <form aria-label={title} className="mission-form" onSubmit={(event) => void handleSubmit(event)}>
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
       <h4 className="mission-subtitle">{title}</h4>
       <div className="mission-form__grid">
         <Select

@@ -90,8 +90,9 @@ const WRITE_PERMISSIONS = [
 ] as const;
 
 export function resolveMissionAccess(permissions: readonly string[]): MissionAccess {
-  const has = (permission: string) => permissions.includes(permission);
-  const canView = has('missions:view');
+  const canView = permissions.includes('missions:view');
+  // Every capability is scoped to a mission the actor can see, so none survives without view.
+  const has = (permission: string) => canView && permissions.includes(permission);
 
   return {
     canView,

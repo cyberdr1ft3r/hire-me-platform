@@ -74,10 +74,7 @@ export type MissionDetailState =
 
 /** One independently loaded section of the selected mission. */
 export type SectionState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'error' }
-  | { status: 'ready'; data: T };
+  { status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
 
 export const IDLE: SectionState<never> = { status: 'idle' };
 

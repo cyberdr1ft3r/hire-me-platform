@@ -36,7 +36,10 @@ export interface MissionInterviewsModel {
   clientContacts: SectionState<ClientContactSummary[]>;
   interviews: SectionState<InterviewSummary[]>;
   onAction: (interview: InterviewSummary, action: InterviewAction) => void;
-  onReschedule: (interview: InterviewSummary, input: InterviewRescheduleRequest) => Promise<boolean>;
+  onReschedule: (
+    interview: InterviewSummary,
+    input: InterviewRescheduleRequest,
+  ) => Promise<boolean>;
   onRetry: () => void;
   onSchedule: (input: InterviewScheduleRequest) => Promise<boolean>;
   onToggle: (interviewId: string) => void;
@@ -334,7 +337,9 @@ function ScheduleForm({
     return (
       <InlineMessage title={title} tone="info">
         <p className="mission-message__text">
-          {team ? t('missions.interviews.schedule.noOrganizers') : t('missions.interviews.schedule.teamUnavailable')}
+          {team
+            ? t('missions.interviews.schedule.noOrganizers')
+            : t('missions.interviews.schedule.teamUnavailable')}
         </p>
       </InlineMessage>
     );
@@ -350,7 +355,8 @@ function ScheduleForm({
     const form = event.currentTarget;
     const data = new FormData(form);
     const type = types.find((entry) => entry === formValue(data, 'type')) ?? 'HR';
-    const format = INTERVIEW_FORMATS.find((entry) => entry === formValue(data, 'format')) ?? 'VIDEO';
+    const format =
+      INTERVIEW_FORMATS.find((entry) => entry === formValue(data, 'format')) ?? 'VIDEO';
     const done = await model.onSchedule({
       type,
       scheduledStartAt: dateTimeFormValue(data, 'scheduledStartAt'),
@@ -371,7 +377,11 @@ function ScheduleForm({
   }
 
   return (
-    <form aria-label={title} className="mission-form" onSubmit={(event) => void handleSubmit(event)}>
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
       <h5 className="mission-minor-title">{title}</h5>
       <div className="mission-form__grid">
         <Select defaultValue="HR" label={t('missions.interviews.schedule.type')} name="type">
@@ -436,9 +446,16 @@ function ScheduleForm({
       </div>
       <fieldset className="mission-fieldset">
         <legend>{t('missions.interviews.schedule.internalParticipants')}</legend>
-        <p className="ui-field__hint">{t('missions.interviews.schedule.internalParticipantsHint')}</p>
+        <p className="ui-field__hint">
+          {t('missions.interviews.schedule.internalParticipantsHint')}
+        </p>
         {team.map((member) => (
-          <Checkbox key={member.id} label={member.label} name="internalParticipant" value={member.id} />
+          <Checkbox
+            key={member.id}
+            label={member.label}
+            name="internalParticipant"
+            value={member.id}
+          />
         ))}
       </fieldset>
       {access.canViewClientContacts ? (
@@ -448,7 +465,9 @@ function ScheduleForm({
           <SectionStatus section={model.clientContacts}>
             {(contacts) =>
               contacts.length === 0 ? (
-                <p className="mission-muted">{t('missions.interviews.schedule.clientContactsEmpty')}</p>
+                <p className="mission-muted">
+                  {t('missions.interviews.schedule.clientContactsEmpty')}
+                </p>
               ) : (
                 contacts.map((contact) => (
                   <Checkbox

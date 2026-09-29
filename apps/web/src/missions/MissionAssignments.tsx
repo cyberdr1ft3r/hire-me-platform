@@ -52,10 +52,7 @@ export function MissionAssignments({
   const title = t('missions.assignments.title');
 
   return (
-    <section
-      aria-label={t('missions.assignments.region')}
-      className="mission-section"
-    >
+    <section aria-label={t('missions.assignments.region')} className="mission-section">
       <h3 className="mission-section__title">{title}</h3>
       {access.canViewAssignments ? (
         <SectionStatus onRetry={model.onRetry} section={model.assignments}>
@@ -83,7 +80,9 @@ export function MissionAssignments({
                           <span className="mission-badges">
                             <span>{t(assignmentRoleLabelKey(assignment.role))}</span>
                             {assignment.isLead ? (
-                              <StatusBadge tone="info">{t('missions.assignments.lead')}</StatusBadge>
+                              <StatusBadge tone="info">
+                                {t('missions.assignments.lead')}
+                              </StatusBadge>
                             ) : null}
                           </span>
                         </td>
@@ -132,7 +131,10 @@ function AssignmentActions({
     <div className="mission-actions mission-actions--row">
       {canBecomeLead(assignment) ? (
         <Button
-          aria-label={t('missions.actionFor', { action: t('missions.assignments.actions.makeLead'), name })}
+          aria-label={t('missions.actionFor', {
+            action: t('missions.assignments.actions.makeLead'),
+            name,
+          })}
           disabled={writesLocked}
           onClick={() => model.onMakeLead(assignment)}
           size="compact"
@@ -143,7 +145,10 @@ function AssignmentActions({
       ) : null}
       {assignment.status === 'ACTIVE' ? (
         <Button
-          aria-label={t('missions.actionFor', { action: t('missions.assignments.actions.deactivate'), name })}
+          aria-label={t('missions.actionFor', {
+            action: t('missions.assignments.actions.deactivate'),
+            name,
+          })}
           disabled={writesLocked}
           onClick={() => model.onDeactivate(assignment)}
           size="compact"
@@ -154,7 +159,10 @@ function AssignmentActions({
       ) : null}
       {assignment.status !== 'ARCHIVED' ? (
         <Button
-          aria-label={t('missions.actionFor', { action: t('missions.assignments.actions.archive'), name })}
+          aria-label={t('missions.actionFor', {
+            action: t('missions.assignments.actions.archive'),
+            name,
+          })}
           disabled={writesLocked}
           onClick={() => model.onArchive(assignment)}
           size="compact"
@@ -211,9 +219,7 @@ function AssignmentCreateForm({
           }}
           value={isLead ? '' : role}
         >
-          {isLead ? (
-            <option value="">{t(assignmentRoleLabelKey('LEAD_RECRUITER'))}</option>
-          ) : null}
+          {isLead ? <option value="">{t(assignmentRoleLabelKey('LEAD_RECRUITER'))}</option> : null}
           {ASSIGNABLE_ROLES.map((entry) => (
             <option key={entry} value={entry}>
               {t(assignmentRoleLabelKey(entry))}

@@ -270,7 +270,11 @@ function OfferCreateForm({
   }
 
   return (
-    <form aria-label={title} className="mission-form" onSubmit={(event) => void handleSubmit(event)}>
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
       <h5 className="mission-minor-title">{title}</h5>
       <div className="mission-form__grid">
         <TextField

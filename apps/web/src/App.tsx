@@ -119,11 +119,7 @@ import {
 } from './navigation/internal-navigation.js';
 import { recordNavigationIntent } from './navigation/record-deep-links.js';
 import { AppShell } from './ui/shell/AppShell.js';
-import {
-  I18nProvider,
-  LegacyEnglishContent,
-  useI18n,
-} from './i18n/index.js';
+import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
 import { ReportingPanel } from './reporting/index.js';
 import { CandidatesPanel } from './candidates/index.js';

@@ -1303,9 +1303,7 @@ async function readStableErrorCode(response: Response): Promise<string | null> {
     if (typeof error !== 'object' || error === null || !('code' in error)) {
       return null;
     }
-    return typeof error.code === 'string' && STABLE_ERROR_CODE.test(error.code)
-      ? error.code
-      : null;
+    return typeof error.code === 'string' && STABLE_ERROR_CODE.test(error.code) ? error.code : null;
   } catch {
     return null;
   }
