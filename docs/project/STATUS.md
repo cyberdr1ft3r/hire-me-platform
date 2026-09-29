@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `9153c05a361fdd1e75de81530a99df4a2f5eca38` (Issue #95 AppShell/i18n audit merged through PR #96). Earlier milestones through PR #94 and D-071 remain on the ancestry above that commit. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Health:** `main` is at `94cb29b78642a3c1d5155082f58dbe1500c95f56` (Issue #97 Clients rollout merged through PR #98). Earlier milestones through PR #96 and D-071 remain on the ancestry above that commit. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
-**Next executable development task:** Begin deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
+**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Clients is merged. Missions (Issue #99) is blocked after its Phase 1 discovery until Issue #100 (Mission assignment user options, D-072) merges; no Missions UI implementation has started and `/missions` is still English-only. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 
 ## Active work
 
@@ -54,7 +54,9 @@ Status owner: repository maintainer
 | Issue #90 | Complete | Isolate database integration tests from seeded authorization state (A-75-08 / R-045) | Merged through PR #91 into `main` as `b3486e6b6e52838bdce74edbd8a7d5816c090e92`; **D-071** implemented; A-75-08 and R-045 corrected on `main` |
 | Issue #92 | Complete | Capture final EN/FR real-browser Public Opportunity evidence | Audit-only on `main` `b3486e6`; **PUBLIC OPPORTUNITY BROWSER GATE: PASS**; evidence in `docs/audit/issue-92-public-browser-evidence.md` |
 | Issue #95 | Complete | Audit AppShell / EN/FR localization foundation before module rollout | Audit-only on `main` `cb0f3edb`; **APPSHELL / I18N FOUNDATION GATE: PASS**; evidence in `docs/audit/issue-95-appshell-i18n-evidence.md` |
-| Issue #97 | In review | Bilingual responsive Clients CRM workspace | **PR #98** draft — application + **CLIENTS BROWSER GATE: PASS** accepted; app head `8714900` / CI `36438714586`; audit-helper removed on cleanup head `c1c2058` / CI `36446137075` green; awaiting merge review; base `9153c05` |
+| Issue #97 | Complete | Bilingual responsive Clients CRM workspace | Merged through PR #98 into `main` as `94cb29b78642a3c1d5155082f58dbe1500c95f56`; **CLIENTS BROWSER GATE: PASS** |
+| Issue #99 | Blocked | Bilingual responsive Missions workspace | Phase 1 raw-ID discovery done: six of seven ID inputs have existing permission-safe option sources; creating a mission assignment has none. Blocked on Issue #100; no UI implementation started; resume at Phase 2 after #100 merges |
+| Issue #100 | In review | Permission-safe Mission assignment user options (D-072) | Draft PR adds `GET /v1/missions/:missionId/assignment-user-options` under `mission_assignments:manage`; no migration, no new permission |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | Public Opportunity and AppShell/i18n foundation gates **PASS** on `main`; next: bounded bilingual rollout for deferred legacy modules; D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
 | Issue #75 | Complete | Public Opportunity conformance after PR #74 and runtime evidence | A-75-01 through A-75-08 corrected on `main`; Issue #92 real-browser evidence **PASS**; Public Opportunity browser conformance complete; **D-068** production env/proxy body-size verification remains separate and outstanding operationally |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |

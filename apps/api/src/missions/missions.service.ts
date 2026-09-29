@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { MISSION_ASSIGNMENT_USER_OPTION_LIMIT } from '@hire-me/contracts';
 import type {
   MissionAssignmentCreateRequest,
   MissionAssignmentDetailResponse,
   MissionAssignmentListQuery,
   MissionAssignmentListResponse,
   MissionAssignmentUpdateRequest,
+  MissionAssignmentUserOptionsQuery,
+  MissionAssignmentUserOptionsResponse,
   MissionClosureRequest,
   MissionCreateRequest,
   MissionDetailResponse,
@@ -544,6 +547,57 @@ export class MissionsService {
       assignments: assignments.map((assignment) => this.toAssignmentSummary(assignment)),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
+  }
+
+  /**
+   * People the assignment write would accept for this mission, so the interface
+   * never asks for a user ID. Mirrors `assertAssignableUser` and the terminal
+   * mission rule; with `role`, omits users already actively assigned in that
+   * role (the active mission/user/role unique index). Returns only id, name and
+   * email. It grants nothing: `createAssignment` revalidates under the mission
+   * lock.
+   */
+  async listAssignmentUserOptions(
+    missionId: string,
+    query: MissionAssignmentUserOptionsQuery,
+  ): Promise<MissionAssignmentUserOptionsResponse> {
+    const mission = await this.findMission(missionId);
+    if (terminalStates.has(mission.state) || mission.archivedAt) {
+      throw conflict('MISSION_TERMINAL', 'Terminal recruitment missions cannot be changed.');
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        archivedAt: null,
+        userType: UserType.INTERNAL,
+        ...(query.search
+          ? {
+              OR: [
+                { displayName: { contains: query.search, mode: 'insensitive' } },
+                { email: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+        ...(query.role
+          ? {
+              missionRecruiters: {
+                none: {
+                  missionId,
+                  role: query.role,
+                  status: AssignmentStatus.ACTIVE,
+                  archivedAt: null,
+                },
+              },
+            }
+          : {}),
+      },
+      select: { id: true, displayName: true, email: true },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: MISSION_ASSIGNMENT_USER_OPTION_LIMIT,
+    });
+
+    return { users };
   }
 
   async createAssignment(
