@@ -943,6 +943,56 @@ describe('document output generation', { timeout: 60_000 }, () => {
     ).not.toContain(result.documentId);
   });
 
+  it('lists every generated document an unrestricted source reader can open', async () => {
+    const quotation = generated(
+      (await generate(`/v1/commercial/quotations/${(await createQuotation()).id}/generate`)).body,
+    );
+    const order = generated(
+      (
+        await generate(
+          `/v1/commercial/purchase-orders/${(await createPurchaseOrder()).id}/generate`,
+        )
+      ).body,
+    );
+    const contract = generated(
+      (
+        await generate(
+          `/v1/commercial/contracts/${(await createContract(CommercialContractBusinessType.RECRUITMENT)).id}/generate`,
+        )
+      ).body,
+    );
+    const invoice = generated(
+      (
+        await generate(
+          `/v1/commercial/invoices/${(await createInvoice({ mission: missionId })).id}/generate`,
+        )
+      ).body,
+    );
+    const { program, enrollment } = await createCertificateReadyEnrollment();
+    const certificate = generated(
+      (await generate(certificatePath(program.id, enrollment.id))).body,
+    );
+
+    const listed: string[] = [];
+    for (let page = 1; ; page += 1) {
+      const response = await api(
+        generatorToken,
+        `/v1/documents?source=GENERATED&pageSize=100&page=${page}`,
+      );
+      expect(response.status).toBe(200);
+      const body = response.body as { documents: { id: string }[]; pagination: { total: number } };
+      listed.push(...body.documents.map((item) => item.id));
+      if (body.documents.length === 0 || listed.length >= body.pagination.total) {
+        break;
+      }
+    }
+
+    for (const result of [quotation, order, contract, invoice, certificate]) {
+      expect((await api(generatorToken, `/v1/documents/${result.documentId}`)).status).toBe(200);
+      expect(listed).toContain(result.documentId);
+    }
+  });
+
   it('hides a generated certificate from an actor without training program visibility', async () => {
     const { program, enrollment } = await createCertificateReadyEnrollment();
     const result = generated((await generate(certificatePath(program.id, enrollment.id))).body);

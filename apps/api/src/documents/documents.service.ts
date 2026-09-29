@@ -1293,8 +1293,10 @@ export class DocumentsService {
     ): Prisma.DocumentWhereInput => ({
       OR: [
         { [idKey]: null },
+        // `is` is required: Prisma matches nothing for a bare empty to-one relation
+        // filter, which would hide every linked source from unrestricted readers.
         {
-          [key]: this.commercialSourceWhere(actorUserId, permissions, sourceView),
+          [key]: { is: this.commercialSourceWhere(actorUserId, permissions, sourceView) },
         },
       ],
     });
