@@ -13,7 +13,7 @@ Last updated: 2026-09-29
 
 1. **Issue #100:** review and merge the draft PR after exact-head CI and ChatGPT review.
 2. **Issue #99:** after #100 merges, branch from the new `main` and resume at Phase 2 (module extraction). Replace every raw-ID input using the Phase 1 matrix on Issue #99: clients list, candidates list, mission assignments (responsible recruiter, organizer, internal participants), client contacts, and the #100 source for new assignments. Do not use the Admin users list or Task user-options.
-3. Continue Issue #93 seeded RolePermission identity cleanup separately.
+3. Issue #93 (test infrastructure only, independent of #99): review the draft PR that stops integration suites replacing seeded RolePermission rows; the D-071 catalog gate now fails on any replacement or active-state change.
 4. Do **not** treat D-068 production proxy verification or D-070 production migration as closed.
 
 ## Completion conditions for Issue #99

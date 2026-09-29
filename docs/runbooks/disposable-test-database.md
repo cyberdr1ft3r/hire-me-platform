@@ -88,11 +88,8 @@ Every command (`provision`, `test:db`, `check-catalog`, `drop`, `verify-refusal`
 
 ## What `check-catalog` guarantees, and what it does not
 
-It fails if any seeded role or permission row was deleted or replaced (compared by identifier and name/code), if any seeded grant pair (role, permission) is missing, if any SUPER_ADMIN grant is no longer active, or if the bootstrap administrator's account, SUPER_ADMIN role, or credential is gone or it can no longer log in and resolve every seeded permission.
+It fails if any seeded role or permission row was deleted or replaced (compared by identifier and name/code), if any seeded grant pair (role, permission) is missing, if any seeded grant's **row identifier** or **active state** differs from the snapshot, if a seeded permission was deactivated, if any SUPER_ADMIN grant is no longer active, or if the bootstrap administrator's account, SUPER_ADMIN role, or credential is gone or it can no longer log in and resolve every seeded permission.
 
-It does **not** claim every seeded grant is unchanged. It reports, by name:
+Since Issue #93, suites never delete and re-insert seeded grants. A suite that needs a seeded role (roles are a fixed enum, so synthetic roles are not possible) narrows it only by **archiving** grants, snapshots the role first, and restores every snapshot row **in place** in `finally`/`afterAll`; a restore that finds a snapshot row missing throws rather than re-creating it. Grants a test added itself are removed on restore.
 
-- non-critical seeded grants whose active state differs from the snapshot;
-- seeded grant rows that suites delete and re-insert with the same pair when they narrow a role and restore it (they get new row identifiers).
-
-Both are a known coupling between some suites and the shared seeded roles, tracked separately from Issue #90.
+It reports but does not fail on seeded permission **description and scope-type** drift: several suites' permission upserts rewrite those fields on seeded permissions. That is a separate coupling from row identity.

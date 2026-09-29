@@ -21,10 +21,9 @@ import {
  * full integration pass against the same disposable database with no reseed.
  *
  * It compares the catalog with the snapshot taken right after provisioning,
- * never by counts alone. Roles and permissions must keep their identifier and
- * name/code, so one deleted and recreated fails even when counts match. A
- * grant's identity is its natural key (role name, permission code), the
- * table's unique pair. It proves:
+ * never by counts alone. Roles, permissions, and grants must keep their row
+ * identifier as well as their name/code or (role, permission) pair, so a row
+ * deleted and recreated fails even when counts match. It proves:
  *
  * - every seeded role and permission row, and every seeded grant pair, exists;
  * - SUPER_ADMIN still actively holds every seeded permission, and its
@@ -32,13 +31,13 @@ import {
  * - the bootstrap administrator's account, role, and credential survived, and
  *   it can still log in and read its own permissions.
  *
- * Not claimed unchanged, and reported rather than failed:
- * - non-critical seeded grants that suites archive on purpose to test
- *   restricted access;
- * - seeded grant rows that suites delete and re-insert with the same pair when
- *   they narrow a role and restore it afterwards (a new row identifier).
- * Both are a pre-existing coupling between suites and the shared seeded roles,
- * tracked separately from this gate.
+ * - every seeded grant keeps its baseline active state and its baseline row
+ *   identifier: suites narrow seeded roles only by archiving and restore the
+ *   exact rows in place (Issue #93), so zero replaced rows is enforced.
+ *
+ * Reported rather than failed: seeded permission description and scope-type
+ * drift from suites' permission upserts, a separate coupling. A deactivated
+ * seeded permission fails.
  */
 const snapshotPath = process.env.HIREME_TEST_CATALOG_SNAPSHOT;
 const prisma = new PrismaClient();
@@ -116,31 +115,67 @@ describe('seeded authorization catalog survives the integration suite', () => {
       snapshot.permissions.filter((permission) => !superAdminCodes.has(permission.code)),
     ).toEqual([]);
 
-    // Reported by name only: non-critical grants archived on purpose, and grant
-    // rows re-inserted with the same pair by a suite's narrow-and-restore helper.
+    // Issue #93: every seeded grant keeps its baseline active state and its
+    // baseline row identifier. Counted and printed first, then enforced.
     const changed = snapshot.grants
-      .filter((grant) => !critical.has(grant.role))
       .filter(
         (grant) =>
           (byPair.get(pair(grant.role, grant.permission))?.archivedAt === null) !== grant.active,
       )
       .map((grant) => pair(grant.role, grant.permission));
-    const reinsertedByRole = new Map<string, number>();
-    for (const grant of snapshot.grants) {
-      if (byPair.get(pair(grant.role, grant.permission))?.id !== grant.id) {
-        reinsertedByRole.set(grant.role, (reinsertedByRole.get(grant.role) ?? 0) + 1);
-      }
+    const replaced = snapshot.grants.filter(
+      (grant) => byPair.get(pair(grant.role, grant.permission))?.id !== grant.id,
+    );
+    const replacedByRole = new Map<string, number>();
+    for (const grant of replaced) {
+      replacedByRole.set(grant.role, (replacedByRole.get(grant.role) ?? 0) + 1);
     }
     console.info(
-      `[catalog] ${changed.length} non-critical seeded grants differ in active state${
-        changed.length > 0 ? `: ${changed.join(', ')}` : ''
+      `[catalog] seeded grants that differ in active state: ${changed.length}${
+        changed.length > 0 ? ` (${changed.join(', ')})` : ''
       }`,
     );
     console.info(
-      `[catalog] seeded grant rows re-inserted with the same pair: ${
-        [...reinsertedByRole].map(([role, count]) => `${role}=${count}`).join(', ') || 'none'
+      `[catalog] seeded grant rows replaced (new row identifier): ${replaced.length}${
+        replaced.length > 0
+          ? ` (${[...replacedByRole].map(([role, count]) => `${role}=${count}`).join(', ')})`
+          : ''
       }`,
     );
+    expect(changed, 'seeded grants whose active state changed').toEqual([]);
+    expect(
+      replaced.map((grant) => pair(grant.role, grant.permission)),
+      'seeded grant rows replaced',
+    ).toEqual([]);
+  });
+
+  it('reports seeded permission field drift and fails on deactivation', async () => {
+    // Several suites' permission upserts rewrite seeded permission descriptions
+    // and scope types. That coupling is tracked separately from Issue #93:
+    // reported here, never waived silently.
+    const baseline = snapshot.permissions.filter((permission) => permission.scopeType);
+    if (baseline.length === 0) {
+      console.info('[catalog] seeded permission field drift: snapshot predates field capture');
+      return;
+    }
+    const current = new Map(
+      (
+        await prisma.permission.findMany({
+          select: { id: true, description: true, scopeType: true, status: true },
+        })
+      ).map((permission) => [permission.id, permission]),
+    );
+    const drift = { description: 0, scopeType: 0, status: 0 };
+    for (const permission of baseline) {
+      const now = current.get(permission.id);
+      if (now?.description !== permission.description) drift.description += 1;
+      if (now?.scopeType !== permission.scopeType) drift.scopeType += 1;
+      if (now?.status !== permission.status) drift.status += 1;
+    }
+    console.info(
+      `[catalog] seeded permission field drift: description=${drift.description}, scopeType=${drift.scopeType}, status=${drift.status}`,
+    );
+    expect(drift.status, 'seeded permissions whose status changed').toBe(0);
   });
 
   it('keeps the bootstrap administrator account, role, and credential', async () => {
