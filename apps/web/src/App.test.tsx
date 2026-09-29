@@ -973,13 +973,15 @@ describe('App', () => {
 
     await openMissionWorkspace('Mission Operator');
 
-    expect(
-      await screen.findByRole('region', { name: /public opportunity controls/i }),
-    ).toBeVisible();
-    expect(screen.getByText(/DRAFT - application link disabled - unlisted/i)).toBeVisible();
-    expect(screen.getByRole('button', { name: /save public opportunity/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /enable applications/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /list on website/i })).toBeDisabled();
+    const region = await screen.findByRole('region', { name: 'Public opportunity' });
+    expect(region).toBeVisible();
+    expect(within(region).getByText('Draft')).toBeVisible();
+    expect(within(region).getByText('Application link disabled')).toBeVisible();
+    expect(within(region).getByText('Not listed on website')).toBeVisible();
+    expect(within(region).getByRole('combobox', { name: 'Job content language' })).toBeDisabled();
+    expect(within(region).queryByRole('button', { name: /save public opportunity/i })).toBeNull();
+    expect(within(region).queryByRole('button', { name: /enable applications/i })).toBeNull();
+    expect(within(region).queryByRole('button', { name: /list on website/i })).toBeNull();
   });
 
   it('requires publish permission for publication actions', async () => {
@@ -993,7 +995,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: /enable applications/i }));
 
     expect(await screen.findByText('Application link enabled.')).toBeVisible();
-    expect(screen.getByRole('button', { name: /save public opportunity/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /save public opportunity/i })).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/v1/missions/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/public-opportunity',
       expect.objectContaining({
@@ -1012,8 +1014,10 @@ describe('App', () => {
 
     await openMissionWorkspace('Mission Operator');
 
-    expect(await screen.findByRole('region', { name: /public applications/i })).toBeVisible();
-    expect(screen.getByText(/Public Applicant - applicant@example.test - 2 files/i)).toBeVisible();
+    const region = await screen.findByRole('region', { name: 'Public applications' });
+    const row = within(region).getByRole('row', { name: /Public Applicant/ });
+    expect(row).toHaveTextContent('applicant@example.test');
+    expect(row).toHaveTextContent('2 files');
   });
 
   it('allows authorized mission users to save public opportunity configuration safely', async () => {
@@ -1088,8 +1092,11 @@ describe('App', () => {
     mockMissionWorkspace(['missions:view', 'mission_candidates:view']);
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionProcess();
 
-    expect(screen.queryByRole('region', { name: /offer and placement controls/i })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Synthetic Candidate' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Offer' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Placement' })).toBeNull();
   });
 
   it('shows read-only offer controls without mutation authority', async () => {
@@ -1101,57 +1108,71 @@ describe('App', () => {
     ]);
 
     await openMissionWorkspace('Mission Operator');
-    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
+    await openMissionProcess();
 
-    expect(
-      await screen.findByRole('region', { name: /offer and placement controls/i }),
-    ).toBeVisible();
-    expect(screen.getByText(/current offer: sent - versions 1/i)).toBeVisible();
-    expect(screen.getByRole('button', { name: /revise offer/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /confirm placement/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /correct placement/i })).toBeDisabled();
+    const offer = await screen.findByRole('region', { name: 'Offer' });
+    expect(within(offer).getByText('Sent')).toBeVisible();
+    expect(within(offer).getByText('Version 1 of 1')).toBeVisible();
+    expect(within(offer).queryByRole('button')).toBeNull();
+    const placement = await screen.findByRole('region', { name: 'Placement' });
+    expect(within(placement).queryByRole('button')).toBeNull();
   });
 
   it('allows authorized mission users to create and progress offers', async () => {
-    const fetchMock = mockMissionWorkspace([
-      'missions:view',
-      'mission_candidates:view',
-      'offers:view',
-      'offers:create',
-      'offers:send_or_mark_sent',
-      'offers:record_response',
-      'placements:view',
-    ]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchMock = mockMissionWorkspace(
+      [
+        'missions:view',
+        'mission_candidates:view',
+        'offers:view',
+        'offers:create',
+        'offers:send_or_mark_sent',
+        'offers:record_response',
+        'placements:view',
+      ],
+      { offerStatus: 'DRAFT' },
+    );
 
     await openMissionWorkspace('Mission Operator');
-    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /mark sent/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /accepted/i }));
+    await openMissionProcess();
+    const offer = await screen.findByRole('region', { name: 'Offer' });
+    fireEvent.click(within(offer).getByRole('button', { name: 'Mark sent' }));
+    fireEvent.click(
+      await within(offer).findByRole('button', { name: 'Record response: Accepted' }),
+    );
 
     expect(fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/mark-sent'))).toBe(
       true,
     );
-    expect(fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/response'))).toBe(
-      true,
-    );
-    expect(await screen.findByText('Offer response recorded as ACCEPTED.')).toBeVisible();
+    expect(await screen.findByText('Offer response recorded: Accepted.')).toBeVisible();
+    const responseBody = fetchMock.mock.calls
+      .filter(([url]) => requestUrl(url).endsWith('/response'))
+      .map(([, init]) => requestJsonBody(init))
+      .at(-1);
+    expect(responseBody).toEqual(expect.objectContaining({ status: 'ACCEPTED' }));
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 
   it('requires placement permissions for confirmation and correction controls', async () => {
-    const fetchMock = mockMissionWorkspace([
-      'missions:view',
-      'mission_candidates:view',
-      'offers:view',
-      'placements:view',
-      'placements:confirm',
-      'placements:correct',
-      'placement_commercial_eligibility:view',
-    ]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchMock = mockMissionWorkspace(
+      [
+        'missions:view',
+        'mission_candidates:view',
+        'offers:view',
+        'placements:view',
+        'placements:confirm',
+        'placements:correct',
+        'placement_commercial_eligibility:view',
+      ],
+      { offerStatus: 'ACCEPTED', placement: null },
+    );
 
     await openMissionWorkspace('Mission Operator');
-    fireEvent.click(await screen.findByRole('button', { name: /load offer and placement/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /confirm placement/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /correct placement/i }));
+    await openMissionProcess();
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm placement' }));
+    expect(await screen.findByText('Placement confirmed from the accepted offer.')).toBeVisible();
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct placement' }));
 
     expect(
       fetchMock.mock.calls.some((call) => requestUrl(call[0]).endsWith('/confirm-placement')),
@@ -2239,11 +2260,25 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
   fireEvent.click(await screen.findByRole('link', { name: /commercial/i }));
 }
 
-function mockMissionWorkspace(permissions: string[]) {
+function mockMissionWorkspace(
+  permissions: string[],
+  options: { offerStatus?: string; placement?: null } = {},
+) {
   const mission = syntheticMission();
   const missionCandidate = syntheticMissionCandidate();
-  const offer = syntheticOffer();
-  const placement = syntheticPlacement();
+  const baseOffer = syntheticOffer();
+  const offer = options.offerStatus
+    ? {
+        ...baseOffer,
+        versions: baseOffer.versions.map((version) => ({
+          ...version,
+          status: options.offerStatus,
+        })),
+      }
+    : baseOffer;
+  const confirmedPlacement = syntheticPlacement();
+  let placement: ReturnType<typeof syntheticPlacement> | null =
+    options.placement === null ? null : confirmedPlacement;
   const publicOpportunity = syntheticPublicOpportunity();
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url = input instanceof Request ? input.url : input.toString();
@@ -2291,7 +2326,7 @@ function mockMissionWorkspace(permissions: string[]) {
       return Promise.resolve(jsonResponse({ mission }));
     }
 
-    if (url.endsWith(`/v1/missions/${mission.id}/candidates`)) {
+    if (isCandidateList(url, mission.id)) {
       return Promise.resolve(
         jsonResponse({
           candidates: [missionCandidate],
@@ -2341,7 +2376,11 @@ function mockMissionWorkspace(permissions: string[]) {
         `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/mark-sent`,
       )
     ) {
-      return Promise.resolve(jsonResponse({ offer }));
+      return Promise.resolve(
+        jsonResponse({
+          offer: { ...offer, versions: [{ ...offer.versions[0], status: 'SENT' }] },
+        }),
+      );
     }
 
     if (
@@ -2381,6 +2420,7 @@ function mockMissionWorkspace(permissions: string[]) {
         `/v1/missions/${mission.id}/candidates/${missionCandidate.id}/offers/${offer.currentVersionId}/confirm-placement`,
       )
     ) {
+      placement = confirmedPlacement;
       return Promise.resolve(jsonResponse({ placement }));
     }
 
@@ -2455,6 +2495,13 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
   fireEvent.click(await screen.findByRole('link', { name: /missions/i }));
   fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
+}
+
+async function openMissionProcess(): Promise<void> {
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Open the process for Synthetic Candidate' }),
+  );
+  await screen.findByRole('region', { name: 'Synthetic Candidate' });
 }
 
 function syntheticMission() {
@@ -2964,4 +3011,9 @@ function requestUrl(input: string | URL | Request): string {
     return input.toString();
   }
   return input;
+}
+
+/** The mission candidate-process list, with or without its pagination query. */
+function isCandidateList(url: string, missionId: string): boolean {
+  return new RegExp(`/v1/missions/${missionId}/candidates(\\?|$)`).test(url);
 }

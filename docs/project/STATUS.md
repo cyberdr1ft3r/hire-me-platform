@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `80936daee7b5f8345ea9d1a328c2a2592344f0d1` (Issue #93 test infrastructure merged through PR #104, after Issue #100 / PR #101). Issue #102 completed the Training rollout preflight; Issue #103 is adding the bounded Training option and participant-display sources before any Training UI work starts. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Health:** `main` is at `39e8720e45220475de2373a47d1e7dd32b763ce8` (Issue #103 Training option sources merged through PR #108, after Issue #93 / PR #104 and Issue #100 / PR #101). Issue #102 completed the Training rollout preflight; Issue #103 added the bounded Training option and participant-display sources under D-073, so the Training backend capability is available and Training UI work is unblocked. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
-**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Clients is merged. Missions Issue #99 may continue independently now that Issue #100 has merged. Training UI rollout remains blocked on Issue #103; no Training UI work has started and no Training bilingual claim is made. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
+**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Clients is merged. Missions Issue #99 is in review through draft PR #106. Training UI rollout is unblocked now that Issue #103 has merged; no Training UI work has started and no Training bilingual claim is made. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 
 ## Active work
 
@@ -56,14 +56,23 @@ Status owner: repository maintainer
 | Issue #93 | Complete | Preserve seeded RolePermission row identity in integration tests | Merged through PR #104 into `main` as `80936daee7b5f8345ea9d1a328c2a2592344f0d1`; D-071 catalog gate now requires zero seeded grant row replacement and zero active-state drift |
 | Issue #95 | Complete | Audit AppShell / EN/FR localization foundation before module rollout | Audit-only on `main` `cb0f3edb`; **APPSHELL / I18N FOUNDATION GATE: PASS**; evidence in `docs/audit/issue-95-appshell-i18n-evidence.md` |
 | Issue #97 | Complete | Bilingual responsive Clients CRM workspace | Merged through PR #98 into `main` as `94cb29b78642a3c1d5155082f58dbe1500c95f56`; **CLIENTS BROWSER GATE: PASS** |
-| Issue #99 | In progress independently | Bilingual responsive Missions workspace | Issue #100 has merged and removed the assignment-option blocker; Missions work proceeds separately from Training |
+| Issue #99 | In review | Bilingual responsive Missions workspace | Draft PR #106: Missions extracted into `apps/web/src/missions/`, full EN/FR, no raw-ID controls, D-074 option sources, paginated candidate pipeline; no backend, schema, or migration change. Remaining Missions follow-ups are Issue #110 |
 | Issue #100 | Complete | Permission-safe Mission assignment user options (D-072) | Merged through PR #101 into `main` as `2faff040456dab3317812686ab90a1862fada538`; no migration and no new permission |
 | Issue #102 | Complete | Preflight Training bilingual rollout and option sources | Discovery and review complete; identified bounded option/display capability required before UI rollout; no Training UI or localization change |
-| Issue #103 | In progress | Training-safe identity and enrollment option sources (D-073) | Backend/contracts capability only; Training UI remains untouched and English-deferred; no migration and no new permission |
+| Issue #103 | Complete | Training-safe identity and enrollment option sources (D-073) | Merged through PR #108 into `main` as `39e8720e45220475de2373a47d1e7dd32b763ce8`; backend/contracts capability only; Training UI remains untouched and English-deferred; no migration and no new permission |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | Public Opportunity and AppShell/i18n foundation gates **PASS** on `main`; next: bounded bilingual rollout for deferred legacy modules; D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
 | Issue #75 | Complete | Public Opportunity conformance after PR #74 and runtime evidence | A-75-01 through A-75-08 corrected on `main`; Issue #92 real-browser evidence **PASS**; Public Opportunity browser conformance complete; **D-068** production env/proxy body-size verification remains separate and outstanding operationally |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #99 Verification State (draft PR #106)
+
+- Branch `cursor/issue-99-missions-bilingual-effe` from `main` `2faff04`, with `main` `80936da` (PR #104) and `39e8720` (PR #108) merged in; only project-doc conflicts, resolved by keeping `main` and re-adding the Missions rows. Web-only: no API business logic, contract, schema, or migration change.
+- The legacy Missions panel left `App.tsx` for bounded components in `apps/web/src/missions/`. Every rendered section is EN/FR, and only `missions` left `deferredEnglishRoutes`. D-070 authored-content `lang` is preserved.
+- No raw-ID controls remain. Option sources follow D-074, and deep links use `/missions?mission=<uuid>` with server pagination and filters.
+- Async safety: session, mission, process, and interview request contexts drop late responses; one write runs at a time. A locale switch keeps selection, filters, and unsaved edits with no API refetch. Deferred-promise tests cover these.
+- The UI hides actions that it mirrors from server rules: presentation only through the present action from eligible stages, and fail-closed access without `missions:view`. The server remains authoritative.
+- Evidence: EN/FR browser capture at 1440/1024/800/430/390 against a D-071 disposable database with synthetic data. The candidate pipeline pages through every process (server pagination, Previous/Next). Remaining limits are in R-047 and Issue #110.
 
 ## Issue #82 Verification State (merged PR #83)
 
