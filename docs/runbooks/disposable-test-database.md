@@ -86,10 +86,13 @@ Every command (`provision`, `test:db`, `check-catalog`, `drop`, `verify-refusal`
 - The authentication suite removes only its own `@auth.test` users' sessions, credentials, and audit entries.
 - The administration suite restores the SUPER_ADMIN assignments it suspends during its concurrency test.
 
-## What `check-catalog` guarantees, and what it does not
+## What `check-catalog` guarantees
 
-It fails if any seeded role or permission row was deleted or replaced (compared by identifier and name/code), if any seeded grant pair (role, permission) is missing, if any seeded grant's **row identifier** or **active state** differs from the snapshot, if a seeded permission was deactivated, if any SUPER_ADMIN grant is no longer active, or if the bootstrap administrator's account, SUPER_ADMIN role, or credential is gone or it can no longer log in and resolve every seeded permission.
+It fails if any seeded role or permission row was deleted or replaced (compared by identifier and name/code), if any seeded grant pair (role, permission) is missing, if any seeded grant's **row identifier** or **active state** differs from the snapshot, if any seeded permission's **description, scope type, or status** differs from the snapshot, if a permission not in the snapshot is left behind, if any SUPER_ADMIN grant is no longer active, or if the bootstrap administrator's account, SUPER_ADMIN role, or credential is gone or it can no longer log in and resolve every seeded permission.
 
-Since Issue #93, suites never delete and re-insert seeded grants. A suite that needs a seeded role (roles are a fixed enum, so synthetic roles are not possible) narrows it only by **archiving** grants, snapshots the role first, and restores every snapshot row **in place** in `finally`/`afterAll`; a restore that finds a snapshot row missing throws rather than re-creating it. Grants a test added itself are removed on restore.
+How the suites keep that true:
 
-It reports but does not fail on seeded permission **description and scope-type** drift: several suites' permission upserts rewrite those fields on seeded permissions. That is a separate coupling from row identity.
+- **Grants (Issue #93).** Role names are a fixed enum, so a suite that needs a narrowed seeded role narrows it only by **archiving** grants, snapshots the role first, and restores every snapshot row **in place** in `finally`/`afterAll`; a restore that finds a snapshot row missing throws rather than re-creating it. Grants a test added itself are removed on restore.
+- **Permissions (Issue #105).** Suites get permissions through `ensurePermissionForTest` (`apps/api/test/support/permission-fixtures.ts`). An existing permission is returned unchanged: its description, scope type, and status are never written, and a non-ACTIVE one is refused rather than reactivated. Only a missing code is created, with test metadata; it is tracked and deleted after its test file by the integration setup file.
+
+A snapshot taken before Issue #105 has no permission metadata and is refused; provision a new database.
