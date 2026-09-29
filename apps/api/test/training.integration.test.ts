@@ -250,18 +250,14 @@ async function restoreRolePermissions(
       },
     },
   });
+  // Restore each snapshot row in place. A missing row is an error, never
+  // silently re-created, so a replaced seeded grant cannot hide (Issue #93).
   for (const rolePermission of snapshot.permissions) {
-    await prisma.rolePermission.upsert({
+    await prisma.rolePermission.update({
       where: {
         roleId_permissionId: { roleId: role.id, permissionId: rolePermission.permissionId },
       },
-      update: { grantedAt: rolePermission.grantedAt, archivedAt: rolePermission.archivedAt },
-      create: {
-        roleId: role.id,
-        permissionId: rolePermission.permissionId,
-        grantedAt: rolePermission.grantedAt,
-        archivedAt: rolePermission.archivedAt,
-      },
+      data: { grantedAt: rolePermission.grantedAt, archivedAt: rolePermission.archivedAt },
     });
   }
 }
