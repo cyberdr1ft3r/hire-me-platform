@@ -15,6 +15,7 @@ import {
   RoleName,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
+import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -59,19 +60,9 @@ async function ensurePermissionRole(
       status: 'ACTIVE',
     },
   });
-  const permission = await prisma.permission.upsert({
-    where: { code: permissionCode },
-    update: {
-      description: 'Synthetic test permission.',
-      scopeType: PermissionScopeType.ASSIGNED,
-      status: 'ACTIVE',
-    },
-    create: {
-      code: permissionCode,
-      description: 'Synthetic test permission.',
-      scopeType: PermissionScopeType.ASSIGNED,
-      status: 'ACTIVE',
-    },
+  const permission = await ensurePermissionForTest(prisma, permissionCode, {
+    description: 'Synthetic test permission.',
+    scopeType: PermissionScopeType.ASSIGNED,
   });
   await prisma.rolePermission.upsert({
     where: {
