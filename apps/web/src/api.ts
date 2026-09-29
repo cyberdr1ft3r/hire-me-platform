@@ -36,6 +36,8 @@ import {
   CandidateWorkExperienceDetailResponseSchema,
   MissionAssignmentDetailResponseSchema,
   MissionAssignmentListResponseSchema,
+  MissionAssignmentUserOptionsQuerySchema,
+  MissionAssignmentUserOptionsResponseSchema,
   MissionCandidateDetailResponseSchema,
   MissionCandidateListResponseSchema,
   OfferDetailResponseSchema,
@@ -152,6 +154,8 @@ import {
   type MissionAssignmentDetailResponse,
   type MissionAssignmentListResponse,
   type MissionAssignmentUpdateRequest,
+  type MissionAssignmentUserOptionsQuery,
+  type MissionAssignmentUserOptionsResponse,
   type MissionCandidateCreateRequest,
   type MissionCandidateDetailResponse,
   type MissionCandidateListResponse,
@@ -1770,6 +1774,33 @@ export async function listMissionAssignments(
 ): Promise<MissionAssignmentListResponse> {
   const response = await missionRequest(accessToken, `/${missionId}/assignments`, {}, apiBaseUrl);
   return MissionAssignmentListResponseSchema.parse(await response.json());
+}
+
+/**
+ * People the Mission assignment write would accept, for a picker that never
+ * asks for a user ID. Needs `mission_assignments:manage`; with `role`, users
+ * already actively assigned in that role are omitted. The chosen `id` becomes
+ * the assignment `userId`, which the write still validates.
+ */
+export async function listMissionAssignmentUserOptions(
+  accessToken: string,
+  missionId: string,
+  query: MissionAssignmentUserOptionsQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MissionAssignmentUserOptionsResponse> {
+  const parsed = MissionAssignmentUserOptionsQuerySchema.parse(query);
+  const parameters = new URLSearchParams();
+  if (parsed.search) parameters.set('search', parsed.search);
+  if (parsed.role) parameters.set('role', parsed.role);
+  const queryString = parameters.toString();
+  const suffix = queryString ? `?${queryString}` : '';
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignment-user-options${suffix}`,
+    {},
+    apiBaseUrl,
+  );
+  return MissionAssignmentUserOptionsResponseSchema.parse(await response.json());
 }
 
 export async function createMissionAssignment(
