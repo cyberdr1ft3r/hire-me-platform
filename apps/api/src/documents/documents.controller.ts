@@ -13,6 +13,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  DocumentContextOptionsQuerySchema,
+  DocumentContextOptionsResponseSchema,
   DocumentCreateRequestSchema,
   DocumentDetailResponseSchema,
   DocumentListQuerySchema,
@@ -61,6 +63,20 @@ export class DocumentsController {
 
     return DocumentDetailResponseSchema.parse(
       await this.documents.createDocument(parsed.data, request.user!.id, this.getContext(request)),
+    );
+  }
+
+  // Declared before `:documentId` so the literal segment is never parsed as an ID.
+  @Get('context-options')
+  @RequirePermissions(DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW)
+  async listContextOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = DocumentContextOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest('INVALID_DOCUMENT_CONTEXT_OPTIONS_QUERY', 'Invalid context options query.');
+    }
+
+    return DocumentContextOptionsResponseSchema.parse(
+      await this.documents.listContextOptions(parsed.data, request.user!.id),
     );
   }
 

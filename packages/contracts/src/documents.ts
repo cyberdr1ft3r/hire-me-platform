@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { GeneratedDocumentSourceSchema } from './document-generation.js';
+import { InterviewTypeSchema } from './missions.js';
+
 export const DocumentTypeSchema = z.enum([
   'JOB_DESCRIPTION',
   'INTERVIEW_REPORT',
@@ -119,6 +122,10 @@ export const DocumentListQuerySchema = z.object({
   candidateId: z.string().uuid().optional(),
   recruitmentMissionId: z.string().uuid().optional(),
   missionCandidateId: z.string().uuid().optional(),
+  // Issue #113. `source` matches the current version's provenance; `lifecycle`
+  // separates current documents from archived ones. Absent means both.
+  source: DocumentVersionSourceSchema.optional(),
+  lifecycle: z.enum(['current', 'archived']).optional(),
 });
 
 export const DocumentVersionSchema = z.object({
@@ -139,7 +146,50 @@ export const DocumentVersionSchema = z.object({
   status: DocumentStatusSchema,
   archivedAt: z.string().datetime().nullable(),
   createdByUserId: z.string().uuid().nullable(),
+  createdByDisplayName: z.string().nullable(),
   createdAt: z.string().datetime(),
+});
+
+const DocumentContextReferenceSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string(),
+});
+
+/**
+ * Issue #113 human presentation of the linked business context.
+ *
+ * The server only fills an entry for a context the visibility predicate has
+ * already proven readable to the actor, so a label never reveals more than the
+ * source module does. `interview.candidateLabel` is null unless the actor could
+ * also open the candidate process itself.
+ */
+export const DocumentContextDisplaySchema = z.object({
+  client: DocumentContextReferenceSchema.nullable(),
+  candidate: DocumentContextReferenceSchema.nullable(),
+  mission: DocumentContextReferenceSchema.nullable(),
+  missionCandidate: z
+    .object({
+      id: z.string().uuid(),
+      candidateLabel: z.string(),
+      missionLabel: z.string(),
+    })
+    .nullable(),
+  interview: z
+    .object({
+      id: z.string().uuid(),
+      interviewType: InterviewTypeSchema,
+      scheduledStartAt: z.string().datetime(),
+      missionLabel: z.string(),
+      candidateLabel: z.string().nullable(),
+    })
+    .nullable(),
+});
+
+export const DocumentCurrentVersionSchema = z.object({
+  id: z.string().uuid(),
+  versionNumber: z.number().int().positive(),
+  filename: z.string(),
+  source: DocumentVersionSourceSchema,
 });
 
 export const DocumentSummarySchema = z.object({
@@ -150,9 +200,14 @@ export const DocumentSummarySchema = z.object({
   status: DocumentStatusSchema,
   outputFamily: OutputFamilySchema.nullable(),
   ownerUserId: z.string().uuid().nullable(),
+  ownerDisplayName: z.string().nullable(),
   createdByUserId: z.string().uuid().nullable(),
+  createdByDisplayName: z.string().nullable(),
   context: DocumentContextSchema,
+  contextDisplay: DocumentContextDisplaySchema,
+  generatedSourceType: GeneratedDocumentSourceSchema.nullable(),
   currentVersionId: z.string().uuid().nullable(),
+  currentVersion: DocumentCurrentVersionSchema.nullable(),
   archivedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -179,6 +234,49 @@ export const DocumentVersionListResponseSchema = z.object({
   versions: z.array(DocumentVersionSchema),
 });
 
+export const DocumentContextOptionKindSchema = z.enum([
+  'client',
+  'candidate',
+  'mission',
+  'missionCandidate',
+  'interview',
+]);
+export const DocumentContextOptionLimit = 20;
+
+/**
+ * Issue #113 bounded option source for the Documents filters and the guided
+ * "attach to" flow. `filter` lists readable contexts; `attach` further narrows
+ * to contexts a new document may be linked to. Interview options are always
+ * scoped to one candidate process.
+ */
+export const DocumentContextOptionsQuerySchema = z
+  .object({
+    kind: DocumentContextOptionKindSchema,
+    purpose: z.enum(['filter', 'attach']).default('filter'),
+    search: z.string().trim().max(120).optional(),
+    missionCandidateId: z.string().uuid().optional(),
+  })
+  .strict()
+  .refine((value) => value.kind !== 'interview' || value.missionCandidateId !== undefined, {
+    message: 'Interview options require a candidate process.',
+  });
+
+export const DocumentContextOptionSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string(),
+  detail: z.string().nullable(),
+  interview: z
+    .object({
+      interviewType: InterviewTypeSchema,
+      scheduledStartAt: z.string().datetime(),
+    })
+    .nullable(),
+});
+
+export const DocumentContextOptionsResponseSchema = z.object({
+  options: z.array(DocumentContextOptionSchema).max(DocumentContextOptionLimit),
+});
+
 export type DocumentType = z.infer<typeof DocumentTypeSchema>;
 export type DocumentStatus = z.infer<typeof DocumentStatusSchema>;
 export type DocumentVisibility = z.infer<typeof DocumentVisibilitySchema>;
@@ -196,3 +294,9 @@ export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
 export type DocumentListResponse = z.infer<typeof DocumentListResponseSchema>;
 export type DocumentDetailResponse = z.infer<typeof DocumentDetailResponseSchema>;
 export type DocumentVersionListResponse = z.infer<typeof DocumentVersionListResponseSchema>;
+export type DocumentContextDisplay = z.infer<typeof DocumentContextDisplaySchema>;
+export type DocumentCurrentVersion = z.infer<typeof DocumentCurrentVersionSchema>;
+export type DocumentContextOptionKind = z.infer<typeof DocumentContextOptionKindSchema>;
+export type DocumentContextOptionsQuery = z.infer<typeof DocumentContextOptionsQuerySchema>;
+export type DocumentContextOption = z.infer<typeof DocumentContextOptionSchema>;
+export type DocumentContextOptionsResponse = z.infer<typeof DocumentContextOptionsResponseSchema>;

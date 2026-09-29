@@ -525,7 +525,14 @@ export type {
 } from './public-applications.js';
 export {
   DocumentBase64ContentMaxLength,
+  DocumentContextDisplaySchema,
+  DocumentContextOptionKindSchema,
+  DocumentContextOptionLimit,
+  DocumentContextOptionSchema,
+  DocumentContextOptionsQuerySchema,
+  DocumentContextOptionsResponseSchema,
   DocumentCreateRequestSchema,
+  DocumentCurrentVersionSchema,
   DocumentDetailResponseSchema,
   DocumentDetailSchema,
   DocumentListQuerySchema,
@@ -544,7 +551,13 @@ export {
 } from './documents.js';
 export type {
   DocumentContext,
+  DocumentContextDisplay,
+  DocumentContextOption,
+  DocumentContextOptionKind,
+  DocumentContextOptionsQuery,
+  DocumentContextOptionsResponse,
   DocumentCreateRequest,
+  DocumentCurrentVersion,
   DocumentDetail,
   DocumentDetailResponse,
   DocumentListQuery,
