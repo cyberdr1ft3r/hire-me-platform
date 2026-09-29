@@ -1,6 +1,6 @@
 # Risk Register
 
-Last updated: 2026-09-25
+Last updated: 2026-09-29
 
 | ID | Risk | Impact | Current mitigation | State |
 | --- | --- | --- | --- | --- |
@@ -57,6 +57,7 @@ Last updated: 2026-09-25
 | R-044 | Published public upload aggregate size can exceed the enforced JSON request body limit once base64 overhead is included. | Applicants can receive raw HTTP 413 while the UI advertises a higher combined limit, causing confusing failures. | Issue #84 / PR #85 (**A-75-03**, D-068): keep **5 MB** raw aggregate, **8mb** JSON parser scoped to public submit, stable **413** code, EN/FR **`payloadTooLarge`**, and PostgreSQL boundary tests. Production env overrides and upstream proxy/CDN limits are not yet verified. | Mitigated on `main` at application level; production verification pending |
 | R-045 | The foundational database integration suite can delete global authorization seed rows when run against a shared development database. | A second local `pnpm test:db` pass can fail authorization tests or mislead agents about migration health. | Issue #75 **A-75-08** requests disposable DB isolation or deterministic reseed; **never** run destructive cleanup against production or shared non-disposable databases. Issue #90 under accepted D-071: mandatory `TEST_DATABASE_URL` with a fail-closed guard (generated name, local run receipt, connected marker check), isolated foundational schema, scoped auth/admin cleanup, and a two-pass CI lifecycle with a catalog gate. Not corrected until merge; suites that narrow and restore shared seeded roles remain a reported coupling. | Mitigated in Issue #90 PR; pending merge |
 | R-046 | Public opportunity pages can expose recruiter-authored job text under a French document language without per-field language attribution. | Screen readers and accessibility tooling may mispronounce or mis-handle mixed-language content. | Issue #88 / **A-75-06/07** under accepted D-070: staff-declared `en`/`fr`/unknown language for the authored copy set, CHECK-constrained column, `lang` on each authored element and `lang=""` when undeclared; no translation or inference. Mixed-language fields remain out of scope. Merged through PR #89 (`fa2e594b4da68379ae2c1310a8c879ccc94f0639`); migration not run in production. | Corrected on `main` (D-070) |
+| R-047 | The bilingual Missions workspace (Issue #99) loads only the first server page of a mission's assignments and interviews, has no deadline range filter, confirms placements with today's date and `eligibleForInvoicing: false`, and keeps legacy fixed closure-reason strings. No seeded role has view-only Missions access, so read-only behaviour is proven only with test-granted permissions. | Large missions can show incomplete team or interview lists and restrict assignee/organizer pickers; operators cannot filter by deadline or set a placement start date or invoicing flag from this surface. | Server pagination, authorization, and validation are unchanged and authoritative; limits are recorded in PR #106 and D-073; follow-up issues are needed for full pagination, placement fields, and deadline filtering. | Accepted for Issue #99 |
 
 ## Risk protocol
 

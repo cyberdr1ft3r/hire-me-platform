@@ -6,9 +6,9 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` is at `94cb29b78642a3c1d5155082f58dbe1500c95f56` (Issue #97 Clients rollout merged through PR #98). Earlier milestones through PR #96 and D-071 remain on the ancestry above that commit. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
+**Health:** `main` is at `80936daee7b5f8345ea9d1a328c2a2592344f0d1` (Issue #93 merged through PR #104, above Issue #100 / D-072 through PR #101 at `2faff040456dab3317812686ab90a1862fada538` and Issue #97 Clients through PR #98). Earlier milestones through PR #96 and D-071 remain on that ancestry. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
-**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Clients is merged. Missions (Issue #99) is blocked after its Phase 1 discovery until Issue #100 (Mission assignment user options, D-072) merges; no Missions UI implementation has started and `/missions` is still English-only. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
+**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin), each in its own bounded issue. Clients is merged. Missions (Issue #99) is in review through draft PR #106 (bilingual `apps/web/src/missions/` workspace; `missions` removed from `deferredEnglishRoutes`); Training follows after it merges. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 
 ## Active work
 
@@ -53,15 +53,24 @@ Status owner: repository maintainer
 | Issue #88 | Complete | Attribute recruiter-authored public job content language (A-75-06/07 / R-046) | Merged through PR #89 into `main` as `fa2e594b4da68379ae2c1310a8c879ccc94f0639`; D-070 implemented; additive migration not run in production |
 | Issue #90 | Complete | Isolate database integration tests from seeded authorization state (A-75-08 / R-045) | Merged through PR #91 into `main` as `b3486e6b6e52838bdce74edbd8a7d5816c090e92`; **D-071** implemented; A-75-08 and R-045 corrected on `main` |
 | Issue #92 | Complete | Capture final EN/FR real-browser Public Opportunity evidence | Audit-only on `main` `b3486e6`; **PUBLIC OPPORTUNITY BROWSER GATE: PASS**; evidence in `docs/audit/issue-92-public-browser-evidence.md` |
-| Issue #93 | In review | Preserve seeded RolePermission row identity in integration tests | Draft PR: suites narrow seeded roles only by archiving and restore snapshot rows in place; D-071 catalog gate now fails on any seeded grant row replacement or active-state change. Test infrastructure only |
+| Issue #93 | Complete | Preserve seeded RolePermission row identity in integration tests | Merged through PR #104 into `main` as `80936daee7b5f8345ea9d1a328c2a2592344f0d1`; D-071 catalog gate fails on any seeded grant row replacement or active-state change. Test infrastructure only |
 | Issue #95 | Complete | Audit AppShell / EN/FR localization foundation before module rollout | Audit-only on `main` `cb0f3edb`; **APPSHELL / I18N FOUNDATION GATE: PASS**; evidence in `docs/audit/issue-95-appshell-i18n-evidence.md` |
 | Issue #97 | Complete | Bilingual responsive Clients CRM workspace | Merged through PR #98 into `main` as `94cb29b78642a3c1d5155082f58dbe1500c95f56`; **CLIENTS BROWSER GATE: PASS** |
-| Issue #99 | Blocked | Bilingual responsive Missions workspace | Phase 1 raw-ID discovery done: six of seven ID inputs have existing permission-safe option sources; creating a mission assignment has none. Blocked on Issue #100; no UI implementation started; resume at Phase 2 after #100 merges |
-| Issue #100 | In review | Permission-safe Mission assignment user options (D-072) | Draft PR adds `GET /v1/missions/:missionId/assignment-user-options` under `mission_assignments:manage`; no migration, no new permission |
+| Issue #99 | In review | Bilingual responsive Missions workspace | Draft PR #106: Missions extracted into `apps/web/src/missions/`, full EN/FR, no raw-ID controls, D-073 option sources; no backend, schema, or migration change. Review and merge after exact-head CI |
+| Issue #100 | Complete | Permission-safe Mission assignment user options (D-072) | Merged through PR #101 into `main` as `2faff040456dab3317812686ab90a1862fada538`; no migration, no new permission |
 | Issue #66 | Open | Audit product and UX drift before continuing module rollout | Public Opportunity and AppShell/i18n foundation gates **PASS** on `main`; next: bounded bilingual rollout for deferred legacy modules; D-DESIGN-01 whole-product UI-DNA v1.1 deferred |
 | Issue #75 | Complete | Public Opportunity conformance after PR #74 and runtime evidence | A-75-01 through A-75-08 corrected on `main`; Issue #92 real-browser evidence **PASS**; Public Opportunity browser conformance complete; **D-068** production env/proxy body-size verification remains separate and outstanding operationally |
 | Issue #76 | Complete | Reconcile project memory after salary merge and #75 audit progress | Merged through PR #77 into `main` as `c4b7fe8964cf396136237aa9d1c772ec020fc6d4` |
 | Issue #58 | Complete | Stabilize the timing-sensitive unbroken-token PDF rendering test | Merged through PR #59 into `main` as `938979bf7646a98a57d0cc3da82d518acafdf13a`; exact-head run `34468919515` passed |
+
+## Issue #99 Verification State (draft PR #106)
+
+- Branch `cursor/issue-99-missions-bilingual-effe` from `main` `2faff04`, with `main` `80936da` (PR #104) merged in without conflicts. Web-only: no API business logic, contract, schema, or migration change.
+- The legacy Missions panel left `App.tsx` for bounded components in `apps/web/src/missions/`. Every rendered section is EN/FR, and only `missions` left `deferredEnglishRoutes`. D-070 authored-content `lang` is preserved.
+- No raw-ID controls remain. Option sources follow D-073, and deep links use `/missions?mission=<uuid>` with server pagination and filters.
+- Async safety: session, mission, process, and interview request contexts drop late responses; one write runs at a time. A locale switch keeps selection, filters, and unsaved edits with no API refetch. Deferred-promise tests cover these.
+- The UI hides actions that it mirrors from server rules: presentation only through the present action from eligible stages, and fail-closed access without `missions:view`. The server remains authoritative.
+- Evidence: EN/FR browser capture at 1440/1024/800/430/390 against a D-071 disposable database with synthetic data. Known limits are in R-047.
 
 ## Issue #82 Verification State (merged PR #83)
 
