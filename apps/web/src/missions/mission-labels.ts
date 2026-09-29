@@ -154,7 +154,7 @@ export function nextProcessStates(state: MissionCandidateState): MissionCandidat
     HR_INTERVIEW_SCHEDULED: ['HR_INTERVIEW_COMPLETED', 'POSTPONED'],
     HR_INTERVIEW_COMPLETED: ['TECHNICAL_TEST', 'INTERNAL_VALIDATION'],
     TECHNICAL_TEST: ['INTERNAL_VALIDATION'],
-    INTERNAL_VALIDATION: ['PRESENTED_TO_CLIENT', 'WAITING', 'CANDIDATE_REJECTED'],
+    INTERNAL_VALIDATION: ['WAITING', 'CANDIDATE_REJECTED'],
     PRESENTED_TO_CLIENT: ['CLIENT_INTERVIEW_1', 'CLIENT_REJECTED'],
     CLIENT_INTERVIEW_1: ['CLIENT_INTERVIEW_2', 'CLIENT_OFFER', 'CLIENT_REJECTED'],
     CLIENT_INTERVIEW_2: ['CLIENT_OFFER', 'CLIENT_REJECTED'],
@@ -162,10 +162,25 @@ export function nextProcessStates(state: MissionCandidateState): MissionCandidat
     ACCEPTED: [],
     INTEGRATED: ['PROBATION_COMPLETED'],
     PROBATION_COMPLETED: ['PROCESS_COMPLETED'],
-    WAITING: ['CV_TO_REVIEW', 'HR_PRESELECTION', 'PRESENTED_TO_CLIENT', 'WITHDRAWN'],
+    WAITING: ['CV_TO_REVIEW', 'HR_PRESELECTION', 'WITHDRAWN'],
     POSTPONED: ['HR_INTERVIEW_SCHEDULED', 'CLIENT_INTERVIEW_1', 'CLIENT_INTERVIEW_2'],
   };
   return transitions[state] ?? [];
+}
+
+/**
+ * Stages from which the dedicated presentation action is accepted. The API refuses
+ * an ordinary transition to `PRESENTED_TO_CLIENT`
+ * (`MISSION_CANDIDATE_PRESENTATION_ACTION_REQUIRED`), so it is never offered as one.
+ */
+const PRESENTABLE_PROCESS_STATES: ReadonlySet<MissionCandidateState> = new Set([
+  'INTERNAL_VALIDATION',
+  'WAITING',
+  'PRESENTED_TO_CLIENT',
+]);
+
+export function canPresentInState(state: MissionCandidateState): boolean {
+  return PRESENTABLE_PROCESS_STATES.has(state);
 }
 
 export function isOptionalProcessSkip(

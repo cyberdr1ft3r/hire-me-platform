@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage, Select, StatusBadge, TextField } from '../ui/index.js';
 import type { MissionAccess } from './mission-access.js';
 import {
+  canPresentInState,
   isProcessWritable,
   nextProcessStates,
   processStateLabelKey,
@@ -92,7 +93,10 @@ export function MissionProcess({
         </div>
       ) : null}
 
-      {editable && access.canPresentProcesses && !process.clientVisible ? (
+      {editable &&
+      access.canPresentProcesses &&
+      !process.clientVisible &&
+      canPresentInState(process.state) ? (
         <div className="mission-actions">
           <Button disabled={writesLocked} onClick={model.onPresent} variant="secondary">
             {t('missions.process.present')}

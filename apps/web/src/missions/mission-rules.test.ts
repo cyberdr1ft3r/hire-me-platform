@@ -10,8 +10,10 @@ import {
   canArchiveMissionState,
   canBecomeLead,
   canCreateOfferInState,
+  canPresentInState,
   isMissionWritable,
   isProcessWritable,
+  nextProcessStates,
 } from './mission-labels.js';
 import { EMPTY_MISSION_CREATE } from './mission-state.js';
 
@@ -69,6 +71,15 @@ describe('mission rules mirrored from the API', () => {
     expect(isProcessWritable({ state: 'WITHDRAWN', archivedAt: null })).toBe(false);
     expect(canCreateOfferInState('CLIENT_OFFER')).toBe(true);
     expect(canCreateOfferInState('HR_PRESELECTION')).toBe(false);
+  });
+
+  it('presents only through the presentation action, from the stages that allow it', () => {
+    for (const state of ['INTERNAL_VALIDATION', 'WAITING'] as const) {
+      expect(nextProcessStates(state)).not.toContain('PRESENTED_TO_CLIENT');
+      expect(canPresentInState(state)).toBe(true);
+    }
+    expect(canPresentInState('NEW')).toBe(false);
+    expect(nextProcessStates('ACCEPTED')).not.toContain('INTEGRATED');
   });
 
   it('offers lead only to an active lead-recruiter assignment that is not already lead', () => {
