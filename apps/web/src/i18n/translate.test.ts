@@ -101,6 +101,8 @@ describe('dictionary contract', () => {
       'common.counts.clients',
       'common.counts.contacts',
       'common.pagination.results',
+      'missions.applications.files',
+      'missions.list.count',
       'publicOpportunity.list.count',
       'task.board.columnCount',
       'task.card.assignees',

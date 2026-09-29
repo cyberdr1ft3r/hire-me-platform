@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { listMissionAssignmentUserOptions } from './api';
+import { listMissionAssignmentUserOptions, listMissionCandidates } from './api';
 
 const API = 'https://api.example.test';
 const MISSION_ID = '33333333-3333-4333-8333-333333333333';
@@ -71,5 +71,35 @@ describe('listMissionAssignmentUserOptions', () => {
     await expect(listMissionAssignmentUserOptions('token-1', MISSION_ID, {}, API)).rejects.toThrow(
       'status 403',
     );
+  });
+});
+
+describe('listMissionCandidates', () => {
+  it('requests the given page and keeps the pagination metadata', async () => {
+    const fetchMock = mockFetch(200, {
+      candidates: [],
+      pagination: { page: 2, pageSize: 20, total: 25 },
+    });
+
+    const result = await listMissionCandidates(
+      'token-1',
+      MISSION_ID,
+      { page: 2, pageSize: 20 },
+      API,
+    );
+
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `${API}/v1/missions/${MISSION_ID}/candidates?page=2&pageSize=20`,
+    );
+    expect(result.pagination).toEqual({ page: 2, pageSize: 20, total: 25 });
+  });
+
+  it('keeps the unpaged call used by other workspaces', async () => {
+    const fetchMock = mockFetch(200, {
+      candidates: [],
+      pagination: { page: 1, pageSize: 20, total: 0 },
+    });
+    await listMissionCandidates('token-1', MISSION_ID, {}, API);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${API}/v1/missions/${MISSION_ID}/candidates`);
   });
 });

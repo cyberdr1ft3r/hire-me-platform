@@ -207,7 +207,6 @@ describe('Task workspace inside a French shell', () => {
       'admin',
       'commercial',
       'documents',
-      'missions',
       'training',
     ]);
     expect(isDeferredEnglishRoute('clients')).toBe(false);
@@ -217,6 +216,7 @@ describe('Task workspace inside a French shell', () => {
     // document again.
     expect(isDeferredEnglishRoute('reporting')).toBe(false);
     expect(isDeferredEnglishRoute('candidates')).toBe(false);
+    expect(isDeferredEnglishRoute('missions')).toBe(false);
     // The Overview page is translated, so it is never marked as English content.
     expect(isDeferredEnglishRoute('home')).toBe(false);
   });

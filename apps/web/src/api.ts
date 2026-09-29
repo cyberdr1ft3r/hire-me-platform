@@ -1299,9 +1299,9 @@ export class CandidateRequestError extends Error {
   }
 }
 
-const CANDIDATE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,79}$/;
+const STABLE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,79}$/;
 
-async function readCandidateErrorCode(response: Response): Promise<string | null> {
+async function readStableErrorCode(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.json();
     if (typeof body !== 'object' || body === null || !('error' in body)) {
@@ -1311,9 +1311,7 @@ async function readCandidateErrorCode(response: Response): Promise<string | null
     if (typeof error !== 'object' || error === null || !('code' in error)) {
       return null;
     }
-    return typeof error.code === 'string' && CANDIDATE_ERROR_CODE.test(error.code)
-      ? error.code
-      : null;
+    return typeof error.code === 'string' && STABLE_ERROR_CODE.test(error.code) ? error.code : null;
   } catch {
     return null;
   }
@@ -1338,7 +1336,7 @@ async function candidateRequest(
   });
 
   if (!response.ok) {
-    throw new CandidateRequestError(response.status, await readCandidateErrorCode(response));
+    throw new CandidateRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
@@ -1638,6 +1636,26 @@ type MissionListOptions = {
   apiBaseUrl?: string;
 };
 
+/**
+ * A failed mission-scoped request (missions, assignments, candidate processes,
+ * interviews, evaluations, offers, and placements).
+ *
+ * Like `CandidateRequestError`, it keeps only the HTTP status and the stable
+ * API error code, never the server's free-text message, so the Missions
+ * workspace can show its own localized copy for a conflict or a denial.
+ */
+export class MissionRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Mission request failed with status ${status}`);
+    this.name = 'MissionRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
 async function missionRequest(
   accessToken: string,
   path: string,
@@ -1657,7 +1675,7 @@ async function missionRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Mission request failed with status ${response.status}`);
+    throw new MissionRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
@@ -1875,9 +1893,19 @@ export async function archiveMissionAssignment(
 export async function listMissionCandidates(
   accessToken: string,
   missionId: string,
+  query: { page?: number; pageSize?: number } = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<MissionCandidateListResponse> {
-  const response = await missionRequest(accessToken, `/${missionId}/candidates`, {}, apiBaseUrl);
+  const params = new URLSearchParams();
+  if (query.page !== undefined) params.set('page', String(query.page));
+  if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
+  const search = params.toString() ? `?${params.toString()}` : '';
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/candidates${search}`,
+    {},
+    apiBaseUrl,
+  );
   return MissionCandidateListResponseSchema.parse(await response.json());
 }
 

@@ -1,4 +1,5 @@
 import { plural, type WidenMessages } from '../message.js';
+import { missionsEn } from './missions.en.js';
 
 /**
  * The canonical HireMe dictionary.
@@ -611,6 +612,7 @@ export const enMessages = {
       required: 'This field is required.',
     },
   },
+  missions: missionsEn,
   task: {
     actions: {
       addAssignee: 'Add assignee',

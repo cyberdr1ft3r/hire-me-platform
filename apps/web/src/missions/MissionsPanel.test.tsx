@@ -1,7 +1,23 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MissionsPanel } from './App.js';
+import { I18nProvider } from '../i18n/index.js';
+import { MissionsPanel } from './MissionsPanel.js';
+
+const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
+
+type PanelProps = Omit<ComponentProps<typeof MissionsPanel>, 'actorUserId'> & {
+  actorUserId?: string;
+};
+
+function Panel(props: PanelProps) {
+  return (
+    <I18nProvider initialLocale="en">
+      <MissionsPanel actorUserId={ACTOR_ID} {...props} />
+    </I18nProvider>
+  );
+}
 
 const MISSION_A_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const MISSION_B_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -50,17 +66,17 @@ describe('MissionsPanel request ownership', () => {
 
     window.history.pushState({}, '', `/missions?mission=${MISSION_A_ID}`);
     render(
-      <MissionsPanel
+      <Panel
         accessToken="token-a"
         initialMissionId={MISSION_A_ID}
-        onSelectionChange={(missionId) =>
+        onSelectionChange={(missionId: string) =>
           window.history.replaceState({}, '', `/missions?mission=${missionId}`)
         }
         permissions={['missions:view', 'mission_assignments:view']}
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Mission B' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission B/ }));
     expect(window.location.search).toBe(`?mission=${MISSION_B_ID}`);
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission B' })).toBeVisible();
     expect(await screen.findByText(/Mission B Recruiter/)).toBeVisible();
@@ -108,7 +124,7 @@ describe('MissionsPanel request ownership', () => {
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}/assignments`)) {
         return Promise.resolve(assignmentListResponse([]));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_B_ID}/candidates`)) {
+      if (isCandidateList(url, MISSION_B_ID)) {
         return Promise.resolve(missionCandidateListResponse());
       }
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}/public-opportunity`)) {
@@ -123,7 +139,7 @@ describe('MissionsPanel request ownership', () => {
     });
 
     const view = render(
-      <MissionsPanel
+      <Panel
         accessToken="token-a"
         initialMissionId={MISSION_A_ID}
         onSelectionChange={() => undefined}
@@ -141,7 +157,7 @@ describe('MissionsPanel request ownership', () => {
     ).toBe(true);
 
     view.rerender(
-      <MissionsPanel
+      <Panel
         accessToken="token-b"
         initialMissionId={MISSION_A_ID}
         onSelectionChange={() => undefined}
@@ -149,7 +165,7 @@ describe('MissionsPanel request ownership', () => {
       />,
     );
     expect(screen.queryByRole('heading', { level: 2, name: 'Mission A' })).toBeNull();
-    fireEvent.click(await screen.findByRole('button', { name: 'Mission B' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission B/ }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission B' })).toBeVisible();
 
     await settle(missionAAssignments, assignmentListResponse([]));
@@ -157,7 +173,7 @@ describe('MissionsPanel request ownership', () => {
     const oldTokenFollowUps = calls.filter(
       ({ authorization, url }) =>
         authorization === 'Bearer token-a' &&
-        (url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`) ||
+        (isCandidateList(url, MISSION_A_ID) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity/applications`)),
     );
@@ -197,7 +213,7 @@ describe('MissionsPanel request ownership', () => {
           assignmentListResponse([syntheticAssignment(MISSION_A_ID, 'Prior Recruiter')]),
         );
       }
-      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`)) {
+      if (isCandidateList(url, MISSION_A_ID)) {
         return Promise.resolve(missionCandidateListResponse('Prior Candidate'));
       }
       if (url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`)) {
@@ -210,7 +226,7 @@ describe('MissionsPanel request ownership', () => {
     });
 
     const view = render(
-      <MissionsPanel
+      <Panel
         accessToken="same-token"
         initialMissionId={MISSION_A_ID}
         onSelectionChange={() => undefined}
@@ -221,7 +237,7 @@ describe('MissionsPanel request ownership', () => {
     expect(screen.getAllByText(/Prior Recruiter/)).not.toHaveLength(0);
 
     view.rerender(
-      <MissionsPanel
+      <Panel
         accessToken="same-token"
         initialMissionId={MISSION_A_ID}
         onSelectionChange={() => undefined}
@@ -263,7 +279,7 @@ describe('MissionsPanel request ownership', () => {
     });
 
     render(
-      <MissionsPanel
+      <Panel
         accessToken="limited-token"
         initialMissionId={MISSION_A_ID}
         onSelectionChange={() => undefined}
@@ -285,14 +301,14 @@ describe('MissionsPanel request ownership', () => {
         404,
       ),
     );
-    expect(await screen.findByRole('status')).toHaveTextContent('Mission unavailable.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Mission unavailable');
     expect(screen.queryByText(/Classified detail/)).toBeNull();
     expect(screen.queryByText(MISSION_A_ID)).toBeNull();
     expect(
       calls.filter(
         (url) =>
           url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`) ||
-          url.endsWith(`/v1/missions/${MISSION_A_ID}/candidates`) ||
+          isCandidateList(url, MISSION_A_ID) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity/applications`),
       ),
@@ -345,7 +361,7 @@ describe('MissionsPanel request ownership', () => {
     });
 
     render(
-      <MissionsPanel
+      <Panel
         accessToken="staff-token"
         initialMissionId={null}
         onSelectionChange={() => undefined}
@@ -353,7 +369,7 @@ describe('MissionsPanel request ownership', () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
     const certificationEnabled = await screen.findByRole('checkbox', {
       name: 'Certifications enabled',
     });
@@ -443,14 +459,14 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
     const patchBodies: Array<Record<string, unknown>> = [];
     mockOpportunityApi({ contentLanguage: null }, patchBodies);
     render(
-      <MissionsPanel
+      <Panel
         accessToken="staff-token"
         initialMissionId={null}
         onSelectionChange={() => undefined}
         permissions={['missions:view', 'public_opportunities:view', 'public_opportunities:manage']}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });
     expect(select).toHaveValue('');
@@ -485,6 +501,10 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save public opportunity' }));
     await vi.waitFor(() => expect(patchBodies).toHaveLength(2));
     expect(patchBodies[1]).toEqual(expect.objectContaining({ contentLanguage: 'en' }));
+    // One write runs at a time, so the next save waits for this one to settle.
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save public opportunity' })).toBeEnabled(),
+    );
 
     // Not specified clears the stored language to null, never to an empty string.
     fireEvent.change(screen.getByRole('combobox', { name: 'Job content language' }), {
@@ -501,14 +521,14 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
   it('shows a stored language read-only without manage permission', async () => {
     mockOpportunityApi({ contentLanguage: 'en' }, []);
     render(
-      <MissionsPanel
+      <Panel
         accessToken="staff-token"
         initialMissionId={null}
         onSelectionChange={() => undefined}
         permissions={['missions:view', 'public_opportunities:view']}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Mission A' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });
     expect(select).toHaveValue('en');
@@ -707,4 +727,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function requestUrl(input: string | URL | Request): string {
   return input instanceof Request ? input.url : input.toString();
+}
+
+/** The mission candidate-process list, with or without its pagination query. */
+function isCandidateList(url: string, missionId: string): boolean {
+  return new RegExp(`/v1/missions/${missionId}/candidates(\\?|$)`).test(url);
 }
