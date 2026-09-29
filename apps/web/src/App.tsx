@@ -8,9 +8,6 @@ import type {
   AdminUserSummary,
   AuthenticatedUser,
   CommercialContractSummary,
-  DocumentDetail,
-  DocumentSummary,
-  DocumentType,
   DocumentGenerationRequest,
   DocumentGenerationResponse,
   DocumentVersion,
@@ -34,25 +31,21 @@ import type {
 import {
   archiveCommercialContract,
   archiveInvoice,
-  archiveDocument,
   archivePurchaseOrder,
   archiveQuotation,
   cancelInvoice,
   assignAdminRole,
   createCommercialContract,
   createInvoice,
-  createDocument,
   createAdminUser,
   createPurchaseOrder,
   createQuotation,
   fetchHealthStatus,
   fetchMeWithRefresh,
-  getDocument,
   getAdminUser,
   issueInvoice,
   listCommercialContracts,
   listInvoices,
-  listDocuments,
   listDocumentVersions,
   listAdminPermissions,
   listAdminRoles,
@@ -67,11 +60,9 @@ import {
   updateAdminUser,
   updateAdminUserStatus,
   updateCommercialContractStatus,
-  updateDocument,
   updatePurchaseOrderStatus,
   updateQuotationStatus,
   refresh,
-  addDocumentVersion,
   downloadDocumentVersion,
   generateContractDocument,
   generateInvoiceDocument,
@@ -124,6 +115,7 @@ import { InternalHome } from './ui/shell/InternalHome.js';
 import { ReportingPanel } from './reporting/index.js';
 import { CandidatesPanel } from './candidates/index.js';
 import { ClientsPanel } from './clients/ClientsPanel.js';
+import { DocumentsPanel } from './documents/index.js';
 import { MissionsPanel } from './missions/index.js';
 import { TasksPanel } from './tasks/index.js';
 import {
@@ -135,8 +127,6 @@ type ApiState =
   | { status: 'loading' }
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
-
-type CreatableDocumentType = Exclude<DocumentType, 'LEGACY_CONTRACT'>;
 
 /**
  * One localization provider wraps the whole application, so the public
@@ -1443,326 +1433,6 @@ function commercialAmount(
     : 'Hidden';
 }
 
-const documentTypes: DocumentType[] = [
-  'CONTRAT_RECRUTEMENT',
-  'CONTRAT_FORMATION',
-  'JOB_DESCRIPTION',
-  'INTERVIEW_REPORT',
-  'CANDIDATE_SUMMARY',
-  'HR_DOCUMENT',
-  'CLIENT_FILE',
-  'OTHER',
-];
-const creatableDocumentTypes = documentTypes.filter(
-  (type): type is CreatableDocumentType => type !== 'LEGACY_CONTRACT',
-);
-
-function DocumentsPanel({
-  accessToken,
-  permissions,
-}: {
-  accessToken: string;
-  permissions: string[];
-}) {
-  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
-  const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-  const canCreate = permissions.includes('documents:create');
-  const canAddVersion = permissions.includes('documents:versions:create');
-  const canUpdate = permissions.includes('documents:update');
-  const canArchive = permissions.includes('documents:archive');
-  const canDownload = permissions.includes('documents:download');
-
-  useEffect(() => {
-    void loadDocuments();
-  }, []);
-
-  async function loadDocuments(nextSearch = search, nextType = typeFilter): Promise<void> {
-    const response = await listDocuments({
-      accessToken,
-      search: nextSearch,
-      documentType: nextType || undefined,
-      pageSize: 20,
-    });
-    setDocuments(response.documents);
-  }
-
-  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    await loadDocuments(search, typeFilter);
-  }
-
-  async function selectDocument(documentId: string): Promise<void> {
-    const response = await getDocument(accessToken, documentId);
-    setSelectedDocument(response.document);
-    setVersions(response.document.versions);
-    setMessage(null);
-  }
-
-  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const file = firstFile(formData, 'versionFile');
-    const created = await createDocument(accessToken, {
-      title: formValue(formData, 'title'),
-      documentType: formValue(formData, 'documentType') as CreatableDocumentType,
-      visibility: 'INTERNAL_ONLY',
-      ownerUserId: optionalFormValue(formData, 'ownerUserId'),
-      context: {
-        clientId: optionalFormValue(formData, 'clientId'),
-        candidateId: optionalFormValue(formData, 'candidateId'),
-        recruitmentMissionId: optionalFormValue(formData, 'recruitmentMissionId'),
-        missionCandidateId: optionalFormValue(formData, 'missionCandidateId'),
-        interviewId: optionalFormValue(formData, 'interviewId'),
-      },
-      version: file ? await documentFileInput(file) : undefined,
-    });
-    form.reset();
-    setSelectedDocument(created.document);
-    setVersions(created.document.versions);
-    setMessage('Document registered.');
-    await loadDocuments();
-  }
-
-  async function handleUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (!selectedDocument) {
-      return;
-    }
-    const formData = new FormData(event.currentTarget);
-    const updated = await updateDocument(accessToken, selectedDocument.id, {
-      title: formValue(formData, 'title', selectedDocument.title),
-      visibility: formValue(formData, 'visibility', selectedDocument.visibility) as
-        'INTERNAL_ONLY' | 'ASSIGNED_ONLY' | 'CLIENT_SHARED' | 'PRIVATE',
-      ownerUserId: nullableFormValue(formData, 'ownerUserId'),
-    });
-    setSelectedDocument(updated.document);
-    setVersions(updated.document.versions);
-    setMessage('Document metadata updated.');
-    await loadDocuments();
-  }
-
-  async function handleAddVersion(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (!selectedDocument) {
-      return;
-    }
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const file = firstFile(formData, 'versionFile');
-    if (!file) {
-      setMessage('Choose a file to add.');
-      return;
-    }
-    const updated = await addDocumentVersion(
-      accessToken,
-      selectedDocument.id,
-      await documentFileInput(file),
-    );
-    form.reset();
-    setSelectedDocument(updated.document);
-    setVersions(updated.document.versions);
-    setMessage('Document version added.');
-    await loadDocuments();
-  }
-
-  async function refreshVersions(): Promise<void> {
-    if (!selectedDocument) {
-      return;
-    }
-    const response = await listDocumentVersions(accessToken, selectedDocument.id);
-    setVersions(response.versions);
-  }
-
-  async function archiveSelected(): Promise<void> {
-    if (!selectedDocument || !window.confirm('Archive this document?')) {
-      return;
-    }
-    const archived = await archiveDocument(accessToken, selectedDocument.id);
-    setSelectedDocument(archived.document);
-    setVersions(archived.document.versions);
-    setMessage('Document archived.');
-    await loadDocuments();
-  }
-
-  async function downloadVersion(versionId: string): Promise<void> {
-    if (!selectedDocument) {
-      return;
-    }
-    await downloadDocumentVersion(accessToken, selectedDocument.id, versionId);
-    setMessage('Download requested.');
-  }
-
-  return (
-    <section className="admin-panel" aria-label="Documents">
-      <div className="admin-grid">
-        <section aria-label="Document list">
-          <h2>Documents</h2>
-          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
-            <label>
-              Search
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-                name="search"
-              />
-            </label>
-            <label>
-              Type
-              <select
-                value={typeFilter}
-                onChange={(event) => setTypeFilter(event.currentTarget.value)}
-                name="documentType"
-              >
-                <option value="">Any</option>
-                {creatableDocumentTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit">Search documents</button>
-          </form>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Version</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((document) => (
-                <tr key={document.id}>
-                  <td>
-                    <button type="button" onClick={() => void selectDocument(document.id)}>
-                      {document.title}
-                    </button>
-                  </td>
-                  <td>{document.documentType}</td>
-                  <td>{document.status}</td>
-                  <td>{document.currentVersionId ? 'Current file' : 'No file'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {canCreate ? (
-            <form
-              className="stacked-form"
-              aria-label="Register document"
-              onSubmit={(event) => void handleCreate(event)}
-            >
-              <h3>Register document</h3>
-              <input name="title" placeholder="Document title" required />
-              <select name="documentType" defaultValue="CONTRAT_RECRUTEMENT">
-                {documentTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-              <input name="ownerUserId" placeholder="Owner user id" />
-              <input name="clientId" placeholder="Client id" />
-              <input name="candidateId" placeholder="Candidate id" />
-              <input name="recruitmentMissionId" placeholder="Recruitment mission id" />
-              <input name="missionCandidateId" placeholder="Mission candidate id" />
-              <input name="interviewId" placeholder="Interview id" />
-              <input name="versionFile" type="file" />
-              <button type="submit">Register document</button>
-            </form>
-          ) : null}
-        </section>
-
-        <section aria-label="Document detail">
-          {selectedDocument ? (
-            <>
-              <h2>{selectedDocument.title}</h2>
-              <p>
-                {selectedDocument.documentType} - {selectedDocument.status}
-              </p>
-              <dl>
-                <dt>Client</dt>
-                <dd>{selectedDocument.context.clientId ?? 'None'}</dd>
-                <dt>Candidate</dt>
-                <dd>{selectedDocument.context.candidateId ?? 'None'}</dd>
-                <dt>Mission</dt>
-                <dd>{selectedDocument.context.recruitmentMissionId ?? 'None'}</dd>
-              </dl>
-
-              {canUpdate ? (
-                <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
-                  <h3>Metadata</h3>
-                  <input name="title" defaultValue={selectedDocument.title} />
-                  <select name="visibility" defaultValue={selectedDocument.visibility}>
-                    <option value="INTERNAL_ONLY">Internal only</option>
-                    <option value="ASSIGNED_ONLY">Assigned only</option>
-                    <option value="CLIENT_SHARED">Client shared</option>
-                    <option value="PRIVATE">Private</option>
-                  </select>
-                  <input
-                    name="ownerUserId"
-                    placeholder="Owner user id"
-                    defaultValue={selectedDocument.ownerUserId ?? ''}
-                  />
-                  <button type="submit">Update metadata</button>
-                </form>
-              ) : null}
-
-              <section aria-label="Document versions">
-                <h3>Versions</h3>
-                <button type="button" onClick={() => void refreshVersions()}>
-                  Refresh versions
-                </button>
-                <ul>
-                  {versions.map((version) => (
-                    <li key={version.id}>
-                      v{version.versionNumber} - {version.filename} - {version.mimeType}
-                      {canDownload ? (
-                        <button type="button" onClick={() => void downloadVersion(version.id)}>
-                          Download
-                        </button>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              {canAddVersion ? (
-                <form
-                  className="stacked-form"
-                  aria-label="Add document version"
-                  onSubmit={(event) => void handleAddVersion(event)}
-                >
-                  <h3>Add version</h3>
-                  <input name="versionFile" type="file" required />
-                  <button type="submit">Add version</button>
-                </form>
-              ) : null}
-
-              {canArchive ? (
-                <button type="button" onClick={() => void archiveSelected()}>
-                  Archive document
-                </button>
-              ) : null}
-              {message ? <p role="status">{message}</p> : null}
-            </>
-          ) : (
-            <p>Select a document.</p>
-          )}
-        </section>
-      </div>
-    </section>
-  );
-}
-
 function formValue(formData: FormData, name: string, fallback = ''): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : fallback;
@@ -1785,30 +1455,6 @@ function dateTimeFormValue(formData: FormData, name: string): string {
 function optionalDateTimeFormValue(formData: FormData, name: string): string | undefined {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? new Date(value).toISOString() : undefined;
-}
-
-function nullableFormValue(formData: FormData, name: string): string | null {
-  const value = formValue(formData, name).trim();
-  return value.length > 0 ? value : null;
-}
-
-function firstFile(formData: FormData, name: string): File | null {
-  const value = formData.get(name);
-  return value instanceof File && value.size > 0 ? value : null;
-}
-
-async function documentFileInput(file: File) {
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return {
-    filename: file.name,
-    contentType: file.type || 'application/octet-stream',
-    base64Content: btoa(binary),
-  };
 }
 
 const trainingProgramStatuses: TrainingProgramSummary['status'][] = [
