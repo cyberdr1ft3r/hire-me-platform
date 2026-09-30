@@ -1244,11 +1244,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
-    expect(await screen.findByRole('heading', { name: /documents/i })).toBeVisible();
-    expect(await screen.findByText('Issue35 Contract')).toBeVisible();
-    expect(screen.queryByRole('form', { name: /register document/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /issue35 contract/i }));
-    expect(await screen.findByText(/CONTRAT_RECRUTEMENT - ACTIVE/i)).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Issue35 Contract' })).toBeVisible();
+    expect(screen.queryByRole('form', { name: /register a document/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Issue35 Contract' }));
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Issue35 Contract' }),
+    ).toBeVisible();
+    expect(screen.getAllByText('Recruitment contract').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/CONTRAT_RECRUTEMENT/)).toBeNull();
     expect(screen.queryByRole('button', { name: /archive document/i })).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/v1/documents?'),
@@ -2191,6 +2195,7 @@ function mockCommercialWorkspace(permissions: string[]) {
               status: 'ACTIVE',
               archivedAt: null,
               createdByUserId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              createdByDisplayName: 'Commercial Operator',
               createdAt: '2026-09-09T10:00:00.000Z',
             },
           ],
@@ -2660,7 +2665,18 @@ function syntheticDocument() {
       clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       recruitmentMissionId: syntheticMissionId,
     },
-    currentVersionId: '34343434-3434-4343-8343-343434343434',
+    ownerDisplayName: 'Document Operator',
+    createdByDisplayName: 'Document Operator',
+    contextDisplay: {
+      client: { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', label: 'Synthetic Client' },
+      candidate: null,
+      mission: { id: syntheticMissionId, label: 'Synthetic Mission' },
+      missionCandidate: null,
+      interview: null,
+    },
+    generatedSourceType: null,
+    currentVersionId: null,
+    currentVersion: null,
     archivedAt: null,
     createdAt: '2026-07-21T10:00:00.000Z',
     updatedAt: '2026-07-21T10:00:00.000Z',

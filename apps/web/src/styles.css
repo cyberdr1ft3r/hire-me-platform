@@ -7,5 +7,6 @@
 @import './reporting/reporting.css';
 @import './candidates/candidate.css';
 @import './clients/client.css';
+@import './documents/document.css';
 @import './missions/mission.css';
 @import './public-opportunities/public-opportunities.css';

@@ -4,21 +4,18 @@ Last updated: 2026-09-29
 
 ## Current situation
 
-- The latest product/test baseline entering this docs reconciliation includes PR #107 / Issue #105 merged as `94aba8808fabad4d57ba61789d3d53d4967621e8` (after PR #106 / Issue #99 bilingual Missions workspace as `2c7bffa973d6974c95aa93c435b39211a1788a37`, PR #108 / Issue #103, PR #104 / Issue #93, and PR #101 / Issue #100).
-- Issue #99 (Missions rollout) is **complete**: PR #106 merged. Missions lives in `apps/web/src/missions/`, is fully EN/FR and responsive, has no raw-ID controls, and uses the D-074 option sources (D-072 for new assignments). The candidate pipeline pages through every process. `missions` is no longer in `deferredEnglishRoutes`. It is web-only, with no backend, schema, or migration change.
-- Remaining Missions limits (assignment, interview, and evaluation pagination; client-contact option cap; deadline filter; placement fields; closure-reason UX; read-only role) are recorded in R-047 and tracked in Issue #110 (non-blocking).
-- Issue #102 Training preflight is complete. Issue #103 has merged (PR #108): it implements only the backend/contracts capability under D-073, so the Training UI rollout (Issue #111) is unblocked. It adds no permission or migration, does not edit `TrainingPanel`, and makes no bilingual Training claim. Candidate identity requires `candidates:view`; Client Contact identity requires both `clients:view` and `client_contacts:view`; hidden source identities are omitted from pickers and represented as `participantDisplay: null` on ordinary Training responses.
-- Issue #105 is **complete**: PR #107 merged (reviewed head `48239faf8458104e3d69dbb2c176b379ea23371e`, exact-head CI `36591355990` green). Test infrastructure only. The D-071 catalog gate now enforces, after each pass: seeded Permission description, scope-type, and status drift 0; leftover test-created permissions 0; seeded RolePermission row replacement 0 and active-state drift 0. Integration: pass 1 363/363; reverse pass 2 without reseed 363/363.
-- Issue #111 (bilingual Training workspace) is the current functional module rollout; it is open and no Training UI work has merged.
-- Issue #113 (Documents as a contextual Document Center) is an open product correction in progress through draft PR #119; it is not merged.
-- Issue #109 tracks the timing-based MissionCandidate archival/create race test flake; it is non-blocking and does not involve application behavior.
+- The latest product/test baseline includes PR #107 / Issue #105 merged as `94aba8808fabad4d57ba61789d3d53d4967621e8` and its docs reconciliation (PR #121 / Issue #120), after PR #106 / Issue #99 bilingual Missions workspace as `2c7bffa973d6974c95aa93c435b39211a1788a37`, PR #108 / Issue #103, PR #104 / Issue #93, and PR #101 / Issue #100.
+- Issue #113 (Documents as a contextual Document Center) is **delivered by PR #119** under accepted D-075, with EN/FR browser evidence at 1440/1024/800/430/390 and two-pass D-071 verification. It replaces the raw-ID Documents panel with `apps/web/src/documents/`, full EN/FR, removes only `documents` from `deferredEnglishRoutes`, and adds the D-075 bounded presentation/options capability. No migration and no new permission.
+- PR #119 also corrects a pre-existing list defect on `main`: actors with the mission-transfer override (including the seeded super admin) could open generated commercial documents by detail but never saw them in `GET /v1/documents`, because a bare empty Prisma to-one relation filter matches nothing. The list predicate now uses `is`; a regression test covers all five generated source types.
+- Issue #66 (product and UX drift audit) is closed as completed; its remaining implementation work lives in Issues #109–#118.
+- Issue #111 (bilingual Training workspace) is the active functional module rollout; no Training UI work has merged. Issue #99 is complete; its follow-ups are Issue #110. Issue #109 (MissionCandidate race test flake) is non-blocking.
 - D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
 
 ## Next concrete action
 
-1. **Training rollout (Issue #111):** Issue #103 has merged; branch from the current `main` and consume the bounded sources; keep `/training` in `deferredEnglishRoutes` until the complete bilingual rollout is verified.
-2. **Documents correction (Issue #113):** continue through draft PR #119 in parallel; merge only on maintainer approval after exact-head CI.
-3. **Issue #110:** schedule the Missions follow-ups separately; do not fold them into other rollouts. **Issue #109:** make the MissionCandidate race test deterministic separately.
+1. **Training rollout (Issue #111):** branch from current `main`; keep `/training` in `deferredEnglishRoutes` until the complete bilingual rollout is verified.
+2. **Documents follow-ups:** schedule R-048 limits (process/interview filters, sort, indirect Mission matching) as their own issue if the maintainer wants them; do not fold them into Training.
+3. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.
 4. Preserve the Issue #93 seeded RolePermission row-identity guarantees and the Issue #105 seeded Permission metadata guarantees in every integration fixture.
 5. Do **not** treat D-068 production proxy verification or D-070 production migration as closed.
 

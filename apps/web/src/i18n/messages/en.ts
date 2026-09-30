@@ -1,4 +1,5 @@
 import { plural, type WidenMessages } from '../message.js';
+import { documentsEn } from './documents.en.js';
 import { missionsEn } from './missions.en.js';
 
 /**
@@ -612,6 +613,7 @@ export const enMessages = {
       required: 'This field is required.',
     },
   },
+  documents: documentsEn,
   missions: missionsEn,
   task: {
     actions: {

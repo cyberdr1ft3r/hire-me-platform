@@ -18,6 +18,7 @@ import {
   CommercialContractListResponseSchema,
   CommercialContractStatusActionRequestSchema,
   CandidateDetailResponseSchema,
+  DocumentContextOptionsResponseSchema,
   DocumentDetailResponseSchema,
   DocumentGenerationRequestSchema,
   DocumentGenerationResponseSchema,
@@ -122,6 +123,8 @@ import {
   type CommercialContractListResponse,
   type CommercialContractStatusActionRequest,
   type CandidateCreateRequest,
+  type DocumentContextOptionKind,
+  type DocumentContextOptionsResponse,
   type DocumentCreateRequest,
   type DocumentDetailResponse,
   type DocumentListResponse,
@@ -855,6 +858,20 @@ type DocumentListOptions = {
   search?: string;
   documentType?: string;
   status?: string;
+  source?: string;
+  lifecycle?: 'current' | 'archived';
+  clientId?: string;
+  candidateId?: string;
+  recruitmentMissionId?: string;
+  apiBaseUrl?: string;
+};
+
+type DocumentContextOptionsOptions = {
+  accessToken: string;
+  kind: DocumentContextOptionKind;
+  purpose: 'filter' | 'attach';
+  search?: string;
+  missionCandidateId?: string;
   apiBaseUrl?: string;
 };
 
@@ -1139,6 +1156,23 @@ export async function archiveInvoice(
   return InvoiceDetailResponseSchema.parse(await response.json());
 }
 
+/**
+ * A failed document request, carrying the HTTP status and the API's stable
+ * error code when one was supplied. The server's free-text message is not kept:
+ * the Document Center shows its own localized copy.
+ */
+export class DocumentRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Document request failed with status ${status}`);
+    this.name = 'DocumentRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
 async function documentRequest(
   accessToken: string,
   path: string,
@@ -1158,7 +1192,7 @@ async function documentRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Document request failed with status ${response.status}`);
+    throw new DocumentRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
@@ -1178,6 +1212,18 @@ export async function listDocuments(options: DocumentListOptions): Promise<Docum
   if (options.status) {
     parameters.set('status', options.status);
   }
+  for (const key of [
+    'source',
+    'lifecycle',
+    'clientId',
+    'candidateId',
+    'recruitmentMissionId',
+  ] as const) {
+    const value = options[key];
+    if (value) {
+      parameters.set(key, value);
+    }
+  }
 
   const response = await documentRequest(
     options.accessToken,
@@ -1186,6 +1232,25 @@ export async function listDocuments(options: DocumentListOptions): Promise<Docum
     options.apiBaseUrl,
   );
   return DocumentListResponseSchema.parse(await response.json());
+}
+
+export async function listDocumentContextOptions(
+  options: DocumentContextOptionsOptions,
+): Promise<DocumentContextOptionsResponse> {
+  const parameters = new URLSearchParams({ kind: options.kind, purpose: options.purpose });
+  if (options.search) {
+    parameters.set('search', options.search);
+  }
+  if (options.missionCandidateId) {
+    parameters.set('missionCandidateId', options.missionCandidateId);
+  }
+  const response = await documentRequest(
+    options.accessToken,
+    `/context-options?${parameters.toString()}`,
+    {},
+    options.apiBaseUrl,
+  );
+  return DocumentContextOptionsResponseSchema.parse(await response.json());
 }
 
 export async function getDocument(

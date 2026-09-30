@@ -3,7 +3,10 @@ import { extname } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 
 import { Inject, Injectable } from '@nestjs/common';
+import { DocumentContextOptionLimit } from '@hire-me/contracts';
 import type {
+  DocumentContextOptionsQuery,
+  DocumentContextOptionsResponse,
   DocumentCreateRequest,
   DocumentDetailResponse,
   DocumentListQuery,
@@ -45,6 +48,7 @@ import { TRAINING_PERMISSIONS } from '../training/training-permissions.js';
 type PrismaTransaction = Prisma.TransactionClient;
 type DocumentRecord = Prisma.DocumentGetPayload<{ include: typeof documentInclude }>;
 type DocumentVersionRecord = Prisma.DocumentVersionGetPayload<Record<string, never>>;
+type PresentedVersionRecord = DocumentRecord['versions'][number];
 type PreparedVersion = {
   buffer: Buffer;
   filename: string;
@@ -176,6 +180,7 @@ export class DocumentsService {
             ? { recruitmentMissionId: query.recruitmentMissionId }
             : {}),
           ...(query.missionCandidateId ? { missionCandidateId: query.missionCandidateId } : {}),
+          ...(query.source ? { currentVersion: { source: query.source } } : {}),
           ...(query.search
             ? {
                 OR: [
@@ -189,6 +194,12 @@ export class DocumentsService {
               }
             : {}),
         },
+        query.lifecycle === 'current'
+          ? { status: { not: DocumentStatus.ARCHIVED }, archivedAt: null }
+          : {},
+        query.lifecycle === 'archived'
+          ? { OR: [{ status: DocumentStatus.ARCHIVED }, { archivedAt: { not: null } }] }
+          : {},
       ],
     };
     const [total, documents] = await this.prisma.$transaction([
@@ -202,8 +213,9 @@ export class DocumentsService {
       }),
     ]);
 
+    const scope = await this.presentationScope(documents, actorUserId, permissions);
     return {
-      documents: documents.map((document) => this.toDocumentSummary(document)),
+      documents: documents.map((document) => this.toDocumentSummary(document, scope)),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
   }
@@ -214,7 +226,8 @@ export class DocumentsService {
     const document = await this.findDocument(documentId);
     await this.assertDocumentAccess(document, actorUserId, permissions);
     await this.assertReadableContext(document, this.prisma);
-    return { document: this.toDocumentDetail(document) };
+    const scope = await this.presentationScope([document], actorUserId, permissions);
+    return { document: this.toDocumentDetail(document, scope) };
   }
 
   async canViewDocumentReference(
@@ -322,7 +335,12 @@ export class DocumentsService {
         return result;
       });
 
-      return { document: this.toDocumentDetail(document) };
+      return {
+        document: this.toDocumentDetail(
+          document,
+          await this.presentationScope([document], actorUserId),
+        ),
+      };
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       throw error;
@@ -351,7 +369,12 @@ export class DocumentsService {
       },
     );
 
-    return { document: this.toDocumentDetail(document) };
+    return {
+      document: this.toDocumentDetail(
+        document,
+        await this.presentationScope([document], actorUserId),
+      ),
+    };
   }
 
   async archiveDocument(
@@ -379,7 +402,12 @@ export class DocumentsService {
       },
     );
 
-    return { document: this.toDocumentDetail(document) };
+    return {
+      document: this.toDocumentDetail(
+        document,
+        await this.presentationScope([document], actorUserId),
+      ),
+    };
   }
 
   async listVersions(
@@ -437,7 +465,12 @@ export class DocumentsService {
         },
       );
 
-      return { document: this.toDocumentDetail(document) };
+      return {
+        document: this.toDocumentDetail(
+          document,
+          await this.presentationScope([document], actorUserId),
+        ),
+      };
     } catch (error: unknown) {
       await this.deleteStoredFiles(storedKeys);
       throw error;
@@ -480,6 +513,193 @@ export class DocumentsService {
       filename: version.filename,
       mimeType: version.mimeType,
     };
+  }
+
+  /**
+   * Issue #113 bounded option source for Documents filters and the guided attach
+   * flow. Each kind applies exactly the source permission and mission scope the
+   * Documents read/write checks apply, so an option is never a record the actor
+   * could not already see through Documents, and an `attach` option is never one
+   * the write path would reject for scope or lifecycle. At most
+   * `DocumentContextOptionLimit` rows are returned and no count is exposed.
+   */
+  async listContextOptions(
+    query: DocumentContextOptionsQuery,
+    actorUserId: string,
+  ): Promise<DocumentContextOptionsResponse> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW);
+    const attach = query.purpose === 'attach';
+    if (attach) {
+      this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_CREATE);
+    }
+    const search = query.search
+      ? { contains: query.search, mode: Prisma.QueryMode.insensitive }
+      : undefined;
+    const take = DocumentContextOptionLimit;
+    const writableMission: Prisma.RecruitmentMissionWhereInput = attach
+      ? { state: { in: [...writableMissionStates] } }
+      : {};
+    const activeCandidate: Prisma.CandidateWhereInput = {
+      status: { not: CandidateStatus.ARCHIVED },
+      archivedAt: null,
+    };
+    const has = (permission: string) => this.hasPermission(permissions, permission);
+    const canViewMissions = has(MISSION_PERMISSIONS.MISSIONS_VIEW);
+    const processMissionScope = this.hasProcessScopeOverride(permissions)
+      ? {}
+      : this.assignedMissionWhere(actorUserId);
+
+    switch (query.kind) {
+      case 'client': {
+        if (!has(CLIENT_PERMISSIONS.CLIENTS_VIEW)) {
+          throw forbidden('DOCUMENT_CLIENT_SCOPE_REQUIRED', 'Client scope is required.');
+        }
+        const clients = await this.prisma.client.findMany({
+          where: {
+            status: { not: ClientStatus.ARCHIVED },
+            archivedAt: null,
+            ...(search ? { name: search } : {}),
+          },
+          select: { id: true, name: true },
+          orderBy: [{ name: 'asc' }, { id: 'asc' }],
+          take,
+        });
+        return {
+          options: clients.map((client) => ({
+            id: client.id,
+            label: client.name,
+            detail: null,
+            interview: null,
+          })),
+        };
+      }
+      case 'candidate': {
+        if (!has(CANDIDATE_PERMISSIONS.CANDIDATES_VIEW)) {
+          throw forbidden('DOCUMENT_CANDIDATE_SCOPE_REQUIRED', 'Candidate scope is required.');
+        }
+        const candidates = await this.prisma.candidate.findMany({
+          where: { ...activeCandidate, ...(search ? { displayName: search } : {}) },
+          select: { id: true, displayName: true, currentJobTitle: true },
+          orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+          take,
+        });
+        return {
+          options: candidates.map((candidate) => ({
+            id: candidate.id,
+            label: candidate.displayName,
+            detail: candidate.currentJobTitle,
+            interview: null,
+          })),
+        };
+      }
+      case 'mission': {
+        if (!canViewMissions) {
+          throw forbidden('DOCUMENT_MISSION_SCOPE_REQUIRED', 'Mission scope is required.');
+        }
+        const missions = await this.prisma.recruitmentMission.findMany({
+          where: {
+            archivedAt: null,
+            ...this.assignedMissionWhere(actorUserId),
+            ...writableMission,
+            ...(search ? { title: search } : {}),
+          },
+          select: { id: true, title: true, client: { select: { name: true } } },
+          orderBy: [{ title: 'asc' }, { id: 'asc' }],
+          take,
+        });
+        const showClient = has(CLIENT_PERMISSIONS.CLIENTS_VIEW);
+        return {
+          options: missions.map((mission) => ({
+            id: mission.id,
+            label: mission.title,
+            detail: showClient ? mission.client.name : null,
+            interview: null,
+          })),
+        };
+      }
+      case 'missionCandidate': {
+        if (!canViewMissions || !has(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW)) {
+          throw forbidden(
+            'DOCUMENT_PROCESS_SCOPE_REQUIRED',
+            'Mission-candidate scope is required.',
+          );
+        }
+        const processes = await this.prisma.missionCandidate.findMany({
+          where: {
+            archivedAt: null,
+            candidate: { ...activeCandidate, ...(search ? { displayName: search } : {}) },
+            mission: { archivedAt: null, ...processMissionScope, ...writableMission },
+          },
+          select: {
+            id: true,
+            candidate: { select: { displayName: true } },
+            mission: { select: { title: true } },
+          },
+          orderBy: [{ candidate: { displayName: 'asc' } }, { id: 'asc' }],
+          take,
+        });
+        return {
+          options: processes.map((process) => ({
+            id: process.id,
+            label: process.candidate.displayName,
+            detail: process.mission.title,
+            interview: null,
+          })),
+        };
+      }
+      case 'interview': {
+        if (
+          !canViewMissions ||
+          !has(MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW) ||
+          !has(MISSION_PERMISSIONS.INTERVIEWS_VIEW)
+        ) {
+          throw forbidden('DOCUMENT_INTERVIEW_SCOPE_REQUIRED', 'Interview scope is required.');
+        }
+        // Reached through one candidate process, so both the process scope and the
+        // interview scope must hold.
+        const interviewMissionScope =
+          this.hasProcessScopeOverride(permissions) && this.hasInterviewScopeOverride(permissions)
+            ? {}
+            : this.assignedMissionWhere(actorUserId);
+        const interviews = await this.prisma.interview.findMany({
+          where: {
+            missionCandidateId: query.missionCandidateId ?? unmatchableId,
+            status: { not: InterviewStatus.ARCHIVED },
+            archivedAt: null,
+            missionCandidate: {
+              archivedAt: null,
+              candidate: activeCandidate,
+              mission: { archivedAt: null, ...interviewMissionScope, ...writableMission },
+            },
+          },
+          select: {
+            id: true,
+            type: true,
+            scheduledStartAt: true,
+            missionCandidate: {
+              select: {
+                candidate: { select: { displayName: true } },
+                mission: { select: { title: true } },
+              },
+            },
+          },
+          orderBy: [{ scheduledStartAt: 'asc' }, { id: 'asc' }],
+          take,
+        });
+        return {
+          options: interviews.map((interview) => ({
+            id: interview.id,
+            label: interview.missionCandidate.candidate.displayName,
+            detail: interview.missionCandidate.mission.title,
+            interview: {
+              interviewType: interview.type,
+              scheduledStartAt: interview.scheduledStartAt.toISOString(),
+            },
+          })),
+        };
+      }
+    }
   }
 
   private async withWritableDocumentLock<T>(
@@ -1073,8 +1293,10 @@ export class DocumentsService {
     ): Prisma.DocumentWhereInput => ({
       OR: [
         { [idKey]: null },
+        // `is` is required: Prisma matches nothing for a bare empty to-one relation
+        // filter, which would hide every linked source from unrestricted readers.
         {
-          [key]: this.commercialSourceWhere(actorUserId, permissions, sourceView),
+          [key]: { is: this.commercialSourceWhere(actorUserId, permissions, sourceView) },
         },
       ],
     });
@@ -1442,14 +1664,54 @@ export class DocumentsService {
     await Promise.all(keys.map((key) => this.storage.delete(key)));
   }
 
-  private toDocumentDetail(document: DocumentRecord) {
+  /**
+   * The actor facts that decide optional presentation detail. Assignment is only
+   * looked up for interview-linked missions, where it decides whether the
+   * interview may name its candidate.
+   */
+  private async presentationScope(
+    documents: readonly DocumentRecord[],
+    actorUserId: string,
+    permissions?: string[],
+  ): Promise<DocumentPresentationScope> {
+    const effective =
+      permissions ?? (await this.permissions.getEffectivePermissionCodes(actorUserId));
+    const missionIds = [
+      ...new Set(
+        documents.flatMap((document) =>
+          document.interview ? [document.interview.missionCandidate.missionId] : [],
+        ),
+      ),
+    ];
+    const assignments =
+      missionIds.length > 0
+        ? await this.prisma.missionRecruiter.findMany({
+            where: {
+              missionId: { in: missionIds },
+              userId: actorUserId,
+              status: AssignmentStatus.ACTIVE,
+              archivedAt: null,
+            },
+            select: { missionId: true },
+          })
+        : [];
     return {
-      ...this.toDocumentSummary(document),
+      permissions: effective,
+      assignedMissionIds: new Set(assignments.map((assignment) => assignment.missionId)),
+    };
+  }
+
+  private toDocumentDetail(document: DocumentRecord, scope: DocumentPresentationScope) {
+    return {
+      ...this.toDocumentSummary(document, scope),
       versions: document.versions.map((version) => this.toDocumentVersion(version)),
     };
   }
 
-  private toDocumentSummary(document: DocumentRecord) {
+  private toDocumentSummary(document: DocumentRecord, scope: DocumentPresentationScope) {
+    const currentVersion = document.currentVersionId
+      ? document.versions.find((version) => version.id === document.currentVersionId)
+      : undefined;
     return {
       id: document.id,
       title: document.title,
@@ -1458,16 +1720,77 @@ export class DocumentsService {
       status: document.status,
       outputFamily: document.outputFamily,
       ownerUserId: document.ownerUserId,
+      ownerDisplayName: document.owner?.displayName ?? null,
       createdByUserId: document.createdByUserId,
+      createdByDisplayName: document.createdBy?.displayName ?? null,
       context: this.toContext(document),
+      contextDisplay: this.toContextDisplay(document, scope),
+      generatedSourceType: document.generatedSourceType,
       currentVersionId: document.currentVersionId,
+      currentVersion: currentVersion
+        ? {
+            id: currentVersion.id,
+            versionNumber: currentVersion.versionNumber,
+            filename: currentVersion.filename,
+            source: currentVersion.source,
+          }
+        : null,
       archivedAt: isoOrNull(document.archivedAt),
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     };
   }
 
-  private toDocumentVersion(version: DocumentVersionRecord) {
+  /**
+   * Labels for the linked contexts. Every linked context of a returned document
+   * has passed `readableContextWhere` / `assertDocumentContextScope`, so naming it
+   * reveals nothing the source module hides. The one extra rule: an interview
+   * names its candidate only when the actor could open that candidate process.
+   */
+  private toContextDisplay(document: DocumentRecord, scope: DocumentPresentationScope) {
+    const interview = document.interview;
+    const interviewProcessVisible =
+      interview !== null &&
+      this.hasPermission(scope.permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_VIEW) &&
+      (this.hasProcessScopeOverride(scope.permissions) ||
+        scope.assignedMissionIds.has(interview.missionCandidate.missionId));
+    return {
+      client:
+        document.clientId && document.client
+          ? { id: document.clientId, label: document.client.name }
+          : null,
+      candidate:
+        document.candidateId && document.candidate
+          ? { id: document.candidateId, label: document.candidate.displayName }
+          : null,
+      mission:
+        document.recruitmentMissionId && document.recruitmentMission
+          ? { id: document.recruitmentMissionId, label: document.recruitmentMission.title }
+          : null,
+      missionCandidate:
+        document.missionCandidateId && document.missionCandidate
+          ? {
+              id: document.missionCandidateId,
+              candidateLabel: document.missionCandidate.candidate.displayName,
+              missionLabel: document.missionCandidate.mission.title,
+            }
+          : null,
+      interview:
+        document.interviewId && interview
+          ? {
+              id: document.interviewId,
+              interviewType: interview.type,
+              scheduledStartAt: interview.scheduledStartAt.toISOString(),
+              missionLabel: interview.missionCandidate.mission.title,
+              candidateLabel: interviewProcessVisible
+                ? interview.missionCandidate.candidate.displayName
+                : null,
+            }
+          : null,
+    };
+  }
+
+  private toDocumentVersion(version: PresentedVersionRecord) {
     return {
       id: version.id,
       documentId: version.documentId,
@@ -1486,6 +1809,7 @@ export class DocumentsService {
       status: version.status,
       archivedAt: isoOrNull(version.archivedAt),
       createdByUserId: version.createdByUserId,
+      createdByDisplayName: version.createdBy?.displayName ?? null,
       createdAt: version.createdAt.toISOString(),
     };
   }
@@ -1515,9 +1839,44 @@ type DocumentContextInput = {
   context: DocumentCreateRequest['context'];
 };
 
+const displayNameSelect = { select: { displayName: true } } as const;
+
+/**
+ * Issue #113 presentation relations. Only display fields are selected, and they
+ * are only emitted for contexts the visibility predicate already proved readable.
+ */
 const documentInclude = {
-  versions: { orderBy: [{ versionNumber: 'asc' as const }, { id: 'asc' as const }] },
+  versions: {
+    orderBy: [{ versionNumber: 'asc' as const }, { id: 'asc' as const }],
+    include: { createdBy: displayNameSelect },
+  },
+  owner: displayNameSelect,
+  createdBy: displayNameSelect,
+  client: { select: { name: true } },
+  candidate: displayNameSelect,
+  recruitmentMission: { select: { title: true } },
+  missionCandidate: {
+    select: { candidate: displayNameSelect, mission: { select: { title: true } } },
+  },
+  interview: {
+    select: {
+      type: true,
+      scheduledStartAt: true,
+      missionCandidate: {
+        select: {
+          missionId: true,
+          candidate: displayNameSelect,
+          mission: { select: { title: true } },
+        },
+      },
+    },
+  },
 } satisfies Prisma.DocumentInclude;
+
+type DocumentPresentationScope = {
+  permissions: string[];
+  assignedMissionIds: ReadonlySet<string>;
+};
 
 function sanitizeFilename(filename: string): string {
   const sanitized = safeOriginalFilename(filename)
