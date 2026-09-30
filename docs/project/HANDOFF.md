@@ -6,7 +6,7 @@ Last updated: 2026-10-01
 
 - The latest `main` is `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (PR #123 / Issue #111 bilingual Training workspace merged under D-076), after PR #119 / Issue #113 Documents, PR #107 / Issue #105, PR #106 / Issue #99 Missions, and related rollout merges.
 - Issue #111 (Training) is **merged**: bilingual `apps/web/src/training/`, full EN/FR, `training` removed from `deferredEnglishRoutes`; bounded D-076 presentation fields only. Limits remain in R-049.
-- Issue #114 (Missions first-public-opportunity empty state) is **ready for review on PR #122** (`cursor/missions-public-opportunity-empty-eafa`), rebased onto current `main`: web-only GET 404 → localized missing state, first PATCH create for authorized actors; evidence in `docs/audit/issue-114-missions-browser-evidence.md`.
+- Issue #114 (Missions first-public-opportunity empty state) is **ready for review on PR #122** (`cursor/missions-public-opportunity-empty-eafa`), rebased onto current `main`: web-only GET 404 → localized missing state, first PATCH create for authorized actors; EN/FR Chromium evidence @ 1440/390 in `docs/audit/issue-114-missions-browser-evidence.md`.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
 - D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
 
