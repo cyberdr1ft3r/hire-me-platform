@@ -155,7 +155,8 @@ describe('training option and participant presentation contracts', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
     expect(TrainingProgramSummarySchema.parse(program).clientDisplayName).toBeNull();
-    const { ownerDisplayName: _omitted, ...withoutOwnerName } = program;
+    const withoutOwnerName: Partial<typeof program> = { ...program };
+    delete withoutOwnerName.ownerDisplayName;
     expect(TrainingProgramSummarySchema.safeParse(withoutOwnerName).success).toBe(false);
 
     const session = {
@@ -182,6 +183,8 @@ describe('training option and participant presentation contracts', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
-    expect(TrainingSessionSummarySchema.parse(session).trainerDisplayName).toBe('Synthetic Trainer');
+    expect(TrainingSessionSummarySchema.parse(session).trainerDisplayName).toBe(
+      'Synthetic Trainer',
+    );
   });
 });

@@ -814,10 +814,14 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
       trainerUserId: operatorUserId,
       trainerDisplayName: ownerName,
     });
-    const cleared = await api(operatorToken, `/programs/${programId}/sessions/${String(session.id)}`, {
-      method: 'PATCH',
-      body: { trainerUserId: null },
-    });
+    const cleared = await api(
+      operatorToken,
+      `/programs/${programId}/sessions/${String(session.id)}`,
+      {
+        method: 'PATCH',
+        body: { trainerUserId: null },
+      },
+    );
     expect(cleared.body.session).toMatchObject({ trainerUserId: null, trainerDisplayName: null });
   });
 
