@@ -1,4 +1,5 @@
 import type {
+  InternalPublicOpportunity,
   InterviewSummary,
   MissionAssignmentSummary,
   MissionCandidateSummary,
@@ -209,14 +210,14 @@ export function syntheticInterview(
 
 export function syntheticPublicOpportunity(
   missionId: string,
-  overrides: Record<string, unknown> = {},
+  overrides: Partial<InternalPublicOpportunity> = {},
   uploadRequirementOverrides: Partial<{
     certificationsEnabled: boolean;
     certificationsRequired: boolean;
     diplomasEnabled: boolean;
     diplomasRequired: boolean;
   }> = {},
-) {
+): InternalPublicOpportunity {
   return {
     id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
     missionId,

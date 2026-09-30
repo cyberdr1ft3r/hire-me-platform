@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { InternalPublicOpportunity } from '@hire-me/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
@@ -119,7 +120,7 @@ function servePublic(
           status:
             typeof body.status === 'string' &&
             ['DRAFT', 'OPEN', 'PAUSED', 'CLOSED', 'ARCHIVED'].includes(body.status)
-              ? body.status
+              ? (body.status as InternalPublicOpportunity['status'])
               : base.status,
           contentLanguage:
             body.contentLanguage === null ||
