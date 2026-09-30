@@ -137,6 +137,10 @@ export const TrainingEnrollmentOptionsResponseSchema = z.object({
  * `clientId` is null when the program has no client context, and also when the
  * acting user is not authorized to read client context. A training identifier
  * must never become a path to unrelated client records.
+ *
+ * `ownerDisplayName` and `clientDisplayName` are read-only presentation so the
+ * workspace never shows an identifier: the owner is a Training-owned internal
+ * identity, and the client name follows exactly the `clientId` rule above.
  */
 export const TrainingProgramSummarySchema = z.object({
   id: z.string().uuid(),
@@ -146,7 +150,9 @@ export const TrainingProgramSummarySchema = z.object({
   targetAudience: z.string().nullable(),
   status: TrainingProgramStatusSchema,
   ownerUserId: z.string().uuid().nullable(),
+  ownerDisplayName: z.string().nullable(),
   clientId: z.string().uuid().nullable(),
+  clientDisplayName: z.string().nullable(),
   plannedStartDate: z.string().datetime().nullable(),
   plannedEndDate: z.string().datetime().nullable(),
   archivedAt: z.string().datetime().nullable(),
@@ -154,6 +160,7 @@ export const TrainingProgramSummarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/** `trainerDisplayName` is read-only presentation of the Training-owned trainer identity. */
 export const TrainingSessionSummarySchema = z.object({
   id: z.string().uuid(),
   trainingProgramId: z.string().uuid(),
@@ -163,6 +170,7 @@ export const TrainingSessionSummarySchema = z.object({
   scheduledEndAt: z.string().datetime(),
   deliveryMode: TrainingDeliveryModeSchema,
   trainerUserId: z.string().uuid().nullable(),
+  trainerDisplayName: z.string().nullable(),
   location: z.string().nullable(),
   meetingUrl: z.string().nullable(),
   status: TrainingSessionStatusSchema,

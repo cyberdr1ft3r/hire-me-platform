@@ -8,8 +8,10 @@ import {
   TrainingParticipationSummarySchema,
   TrainingParticipationListQuerySchema,
   TrainingProgramListQuerySchema,
+  TrainingProgramSummarySchema,
   TrainingQueryBooleanSchema,
   TrainingSessionListQuerySchema,
+  TrainingSessionSummarySchema,
 } from './training.js';
 
 describe('training query booleans', () => {
@@ -132,5 +134,54 @@ describe('training option and participant presentation contracts', () => {
       archivedAt: null,
     });
     expect(participation.enrollment.participantDisplay).toBeNull();
+  });
+
+  it('requires nullable name presentation for program owner, client, and session trainer', () => {
+    const program = {
+      id: '00000000-0000-4000-8000-000000000020',
+      reference: 'TRN-1',
+      name: 'Synthetic program',
+      description: null,
+      targetAudience: null,
+      status: 'PROGRAM_DRAFT',
+      ownerUserId: null,
+      ownerDisplayName: null,
+      clientId: null,
+      clientDisplayName: null,
+      plannedStartDate: null,
+      plannedEndDate: null,
+      archivedAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    expect(TrainingProgramSummarySchema.parse(program).clientDisplayName).toBeNull();
+    const { ownerDisplayName: _omitted, ...withoutOwnerName } = program;
+    expect(TrainingProgramSummarySchema.safeParse(withoutOwnerName).success).toBe(false);
+
+    const session = {
+      id: '00000000-0000-4000-8000-000000000021',
+      trainingProgramId: program.id,
+      title: 'Synthetic session',
+      sequence: null,
+      scheduledAt: '2026-01-02T09:00:00.000Z',
+      scheduledEndAt: '2026-01-02T12:00:00.000Z',
+      deliveryMode: 'ONSITE',
+      trainerUserId: '00000000-0000-4000-8000-000000000022',
+      trainerDisplayName: 'Synthetic Trainer',
+      location: null,
+      meetingUrl: null,
+      status: 'SESSION_PLANNED',
+      outcome: null,
+      rescheduleCount: 0,
+      previousScheduledAt: null,
+      lastRescheduledAt: null,
+      lastRescheduleReason: null,
+      canceledAt: null,
+      cancellationReason: null,
+      archivedAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    expect(TrainingSessionSummarySchema.parse(session).trainerDisplayName).toBe('Synthetic Trainer');
   });
 });
