@@ -1,4 +1,5 @@
 import type {
+  InternalPublicOpportunity,
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionSummary,
@@ -89,7 +90,17 @@ export type MissionDetailState =
 export type SectionState<T> =
   { status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
 
+/** Expected when a mission has never had a public opportunity (GET returns 404). */
+export type PublicOpportunitySectionState =
+  | Exclude<SectionState<InternalPublicOpportunity>, { status: 'ready' }>
+  | { status: 'ready'; data: InternalPublicOpportunity }
+  | { status: 'missing' };
+
 export const IDLE: SectionState<never> = { status: 'idle' };
+
+export function publicOpportunityWritable(section: PublicOpportunitySectionState): boolean {
+  return section.status === 'ready' || section.status === 'missing';
+}
 
 export function sectionData<T>(section: SectionState<T>): T | null {
   return section.status === 'ready' ? section.data : null;

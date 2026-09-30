@@ -15,7 +15,8 @@ import {
   isProcessWritable,
   nextProcessStates,
 } from './mission-labels.js';
-import { EMPTY_MISSION_CREATE } from './mission-state.js';
+import { EMPTY_MISSION_CREATE, publicOpportunityWritable } from './mission-state.js';
+import { MISSION_A_ID, syntheticPublicOpportunity } from './mission-test-data.js';
 
 describe('resolveMissionAccess', () => {
   it('grants nothing without missions:view, whatever else is held', () => {
@@ -129,6 +130,20 @@ describe('mission form mapping', () => {
       workArrangement: 'Remote',
       engagementType: null,
     });
+  });
+});
+
+describe('public opportunity section state', () => {
+  it('allows writes only in ready or missing states', () => {
+    expect(publicOpportunityWritable({ status: 'missing' })).toBe(true);
+    expect(
+      publicOpportunityWritable({
+        status: 'ready',
+        data: syntheticPublicOpportunity(MISSION_A_ID),
+      }),
+    ).toBe(true);
+    expect(publicOpportunityWritable({ status: 'loading' })).toBe(false);
+    expect(publicOpportunityWritable({ status: 'error' })).toBe(false);
   });
 });
 

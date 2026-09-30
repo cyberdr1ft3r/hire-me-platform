@@ -207,6 +207,58 @@ export function syntheticInterview(
   };
 }
 
+export function syntheticPublicOpportunity(
+  missionId: string,
+  overrides: Record<string, unknown> = {},
+  uploadRequirementOverrides: Partial<{
+    certificationsEnabled: boolean;
+    certificationsRequired: boolean;
+    diplomasEnabled: boolean;
+    diplomasRequired: boolean;
+  }> = {},
+) {
+  return {
+    id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    missionId,
+    status: 'OPEN',
+    applicationLinkEnabled: true,
+    listedOnWebsite: false,
+    publicSlug: 'synthetic-opportunity',
+    publicationStartsAt: null,
+    applicationDeadline: null,
+    publicTitle: 'Synthetic opportunity',
+    publicSummary: null,
+    publicDescription: null,
+    publicLocation: null,
+    publicWorkArrangement: null,
+    publicEngagementType: null,
+    publicExperienceLevel: null,
+    publicSkills: null,
+    contentLanguage: null,
+    clientName: null,
+    salary: null,
+    showClientName: false,
+    showSalary: false,
+    uploadRequirements: {
+      cvRequired: true,
+      certificationsEnabled: false,
+      certificationsRequired: false,
+      diplomasEnabled: false,
+      diplomasRequired: false,
+      additionalAttachmentsEnabled: false,
+      maxFileSizeBytes: 5_000_000,
+      maxTotalUploadBytes: 12_000_000,
+      allowedMimeTypes: ['application/pdf'],
+      ...uploadRequirementOverrides,
+    },
+    consentTextVersion: 'synthetic-v1',
+    archivedAt: null,
+    createdAt: TIMESTAMP,
+    updatedAt: TIMESTAMP,
+    ...overrides,
+  };
+}
+
 export function page<T>(key: string, items: T[]) {
   return { [key]: items, pagination: { page: 1, pageSize: 20, total: items.length } };
 }
@@ -244,7 +296,9 @@ export interface RecordedCall {
  * request rejects, so a test fails loudly on a read it did not expect.
  */
 export function mockMissionApi(
-  handler: (call: RecordedCall) => Promise<Response> | Response | undefined,
+  handler: (
+    call: RecordedCall,
+  ) => Promise<Response> | Response | undefined,
 ): RecordedCall[] {
   const calls: RecordedCall[] = [];
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {

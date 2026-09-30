@@ -70,6 +70,7 @@ import {
   updateMissionAssignment,
   updateMissionStatus,
   withdrawMissionCandidateOffer,
+  MissionRequestError,
 } from '../api.js';
 import { useI18n, type MessageKey, type PlainMessageKey } from '../i18n/index.js';
 import type { AssignmentCreateValues } from './MissionAssignments.js';
@@ -114,7 +115,9 @@ import {
   type MissionPendingAction,
   type MissionProfileValues,
   type PickerOption,
+  type PublicOpportunitySectionState,
   type SectionState,
+  publicOpportunityWritable,
 } from './mission-state.js';
 
 type SectionName =
@@ -238,8 +241,7 @@ export function MissionsPanel({
   const [assignments, setAssignments] = useState<SectionState<MissionAssignmentSummary[]>>(IDLE);
   const [processes, setProcesses] = useState<SectionState<MissionProcessPage>>(IDLE);
   const [processLeftPage, setProcessLeftPage] = useState(false);
-  const [publicOpportunity, setPublicOpportunity] =
-    useState<SectionState<InternalPublicOpportunity>>(IDLE);
+  const [publicOpportunity, setPublicOpportunity] = useState<PublicOpportunitySectionState>(IDLE);
   const [applications, setApplications] =
     useState<SectionState<InternalPublicApplicationSummary[]>>(IDLE);
   const [clientContacts, setClientContacts] = useState<SectionState<ClientContactSummary[]>>(IDLE);
@@ -571,13 +573,27 @@ export function MissionsPanel({
   }
 
   function loadPublicOpportunity(missionId: string, isCurrent: () => boolean, quiet: boolean) {
-    return loadSection(
-      'publicOpportunity',
-      setPublicOpportunity,
-      async () => (await getInternalPublicOpportunity(accessToken, missionId)).publicOpportunity,
-      isCurrent,
-      quiet,
-    );
+    const request = ++sectionRequests.current.publicOpportunity;
+    const latest = () => isCurrent() && sectionRequests.current.publicOpportunity === request;
+    if (!quiet) {
+      setPublicOpportunity({ status: 'loading' });
+    }
+    return getInternalPublicOpportunity(accessToken, missionId)
+      .then((response) => {
+        if (latest()) {
+          setPublicOpportunity({ status: 'ready', data: response.publicOpportunity });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!latest() || quiet) {
+          return;
+        }
+        if (error instanceof MissionRequestError && error.status === 404) {
+          setPublicOpportunity({ status: 'missing' });
+          return;
+        }
+        setPublicOpportunity({ status: 'error' });
+      });
   }
 
   function loadApplications(missionId: string, isCurrent: () => boolean, quiet: boolean) {
@@ -1495,7 +1511,7 @@ export function MissionsPanel({
     successKey: PlainMessageKey,
     clearDraft: boolean,
   ): void {
-    if (!readyMission || publicOpportunity.status !== 'ready') {
+    if (!readyMission || !publicOpportunityWritable(publicOpportunity)) {
       return;
     }
     const missionId = readyMission.id;
