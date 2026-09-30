@@ -1,0 +1,528 @@
+.training {
+  container: training / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--layout-content-max);
+  min-width: 0;
+}
+
+.training__workspace {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+@container training (min-width: 72rem) {
+  .training__workspace {
+    gap: var(--space-6);
+    grid-template-columns: minmax(0, 3fr) minmax(22rem, 2fr);
+  }
+
+  .training__list-pane {
+    border-inline-end: var(--border-width) solid var(--color-border);
+    padding-inline-end: var(--space-6);
+  }
+}
+
+.training__list-pane,
+.training__detail-pane,
+.training__operations {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.training__operations {
+  gap: var(--space-8);
+}
+
+.training__pane-title,
+.training-block__title,
+.training-disclosure__title {
+  font-size: var(--font-size-5);
+  margin-bottom: 0;
+}
+
+.training-muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  margin: 0;
+}
+
+.training-message__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.training-break {
+  overflow-wrap: anywhere;
+}
+
+/* Sections */
+
+.training-block {
+  border-block-start: var(--border-width) solid var(--color-border-strong);
+  padding-block-start: var(--space-5);
+}
+
+.training-section {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.training-section__subtitle,
+.training-record__title {
+  font-size: var(--font-size-4);
+  margin: 0;
+}
+
+/* Disclosures (create program, schedule session, enroll, correct attendance) */
+
+.training-disclosure {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.training-disclosure__summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-2);
+  min-height: var(--hit-target-min);
+}
+
+.training-disclosure__title {
+  display: inline;
+}
+
+.training-section .training-disclosure__title,
+.training-record .training-disclosure__title {
+  font-size: var(--font-size-3);
+}
+
+.training-disclosure__summary:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.training-disclosure[open] > .training-form {
+  margin-block-start: var(--space-4);
+}
+
+/* Filters */
+
+.training-filters {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+.training-filters--compact {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+.training-filters__controls {
+  align-items: start;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+}
+
+.training-filters__controls .ui-checkbox {
+  align-self: end;
+}
+
+.training-filters__actions,
+.training-form__actions,
+.training-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Option picker */
+
+.training-picker {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.training-picker__search {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.training-picker__search-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.training-picker__search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.training-picker__search-row input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* Participant identity */
+
+.training-participant {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.training-participant__name {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.training-participant--restricted .training-participant__name {
+  font-style: italic;
+  font-weight: var(--font-weight-regular);
+}
+
+.training-participant__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  overflow-wrap: anywhere;
+}
+
+/* Lists */
+
+.training-list {
+  container: training-list / inline-size;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  /* A table that still cannot fit scrolls inside its own region, never the page. */
+  overflow-x: auto;
+}
+
+.training-list__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+.training-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.training-table th,
+.training-table td {
+  border-block-end: var(--border-width) solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: top;
+}
+
+.training-table thead th {
+  background: var(--color-table-header);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.training-table tbody th {
+  font-weight: var(--font-weight-regular);
+}
+
+.training-table tbody tr {
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.training-table tbody tr:hover {
+  background: var(--color-table-hover);
+}
+
+/*
+ * The selected row is marked by background, a brand edge, and aria-current or
+ * aria-expanded on its control, so selection never depends on color alone.
+ * Foreground tokens are explicit so text keeps its contrast on the selected
+ * background.
+ */
+.training-table tbody tr[data-selected='true'] {
+  background: var(--color-table-selected);
+  box-shadow: inset var(--space-1) 0 0 var(--color-brand);
+  color: var(--color-text);
+}
+
+.training-table tbody tr[data-selected='true'] .training-table__secondary,
+.training-table tbody tr[data-selected='true'] .training-muted,
+.training-table tbody tr[data-selected='true'] .training-participant__meta {
+  color: var(--color-text-secondary);
+}
+
+.training-table__select {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  min-height: 0;
+  overflow-wrap: anywhere;
+  padding: 0;
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+}
+
+.training-table__select:hover:not(:disabled),
+.training-table__select:active:not(:disabled) {
+  background: transparent;
+  color: var(--color-text);
+  text-decoration-color: currentcolor;
+}
+
+.training-table__select[aria-current='true'] {
+  text-decoration-color: currentcolor;
+}
+
+.training-table__select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.training-table__secondary {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: var(--font-size-2);
+  overflow-wrap: anywhere;
+}
+
+/* Narrow lists read as stacked cards; each cell names its column. */
+@container training-list (max-width: 46rem) {
+  .training-table thead {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .training-table,
+  .training-table tbody,
+  .training-table tr,
+  .training-table th,
+  .training-table td {
+    display: block;
+  }
+
+  .training-table tbody {
+    border-block-start: var(--border-width) solid var(--color-border);
+  }
+
+  .training-table tbody tr {
+    border-block-end: var(--border-width) solid var(--color-border);
+    display: grid;
+    gap: var(--space-2) var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    padding: var(--space-3);
+  }
+
+  .training-table tbody th {
+    grid-column: 1 / -1;
+  }
+
+  .training-table th,
+  .training-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .training-table td::before {
+    color: var(--color-text-secondary);
+    content: attr(data-label);
+    display: block;
+    font-size: var(--font-size-1);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+/* Program profile and session detail */
+
+.training-profile,
+.training-detail {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.training-detail {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  padding: var(--space-4);
+}
+
+.training-profile__heading,
+.training-detail__heading {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.training-profile__reference {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.training-profile__title,
+.training-detail__title {
+  font-size: var(--font-size-6);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.training-detail__title {
+  font-size: var(--font-size-5);
+}
+
+.training-profile__title:focus-visible,
+.training-detail__title:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.training-profile__title:focus:not(:focus-visible),
+.training-detail__title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.training-profile__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.training-profile__description {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.training-profile__description p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.training-facts {
+  display: grid;
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  margin: 0;
+}
+
+.training-facts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.training-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Selected enrollment or attendance record */
+
+.training-record {
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: inset var(--space-1) 0 0 var(--color-brand);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.training-certificate {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: var(--space-4);
+}
+
+.training-certificate__status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.training-certificate__generated {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.training-certificate__generated p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.training-certificate__versions {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.training-certificate__versions li {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: space-between;
+}
+
+/* Forms */
+
+.training-form {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.training-form__grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.training-form--inline {
+  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.training-form--panel {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  padding: var(--space-4);
+}
