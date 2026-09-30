@@ -296,9 +296,7 @@ export interface RecordedCall {
  * request rejects, so a test fails loudly on a read it did not expect.
  */
 export function mockMissionApi(
-  handler: (
-    call: RecordedCall,
-  ) => Promise<Response> | Response | undefined,
+  handler: (call: RecordedCall) => Promise<Response> | Response | undefined,
 ): RecordedCall[] {
   const calls: RecordedCall[] = [];
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
