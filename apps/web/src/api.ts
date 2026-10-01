@@ -17,6 +17,8 @@ import {
   CommercialContractListQuerySchema,
   CommercialContractListResponseSchema,
   CommercialContractStatusActionRequestSchema,
+  CommercialPlacementOptionsQuerySchema,
+  CommercialPlacementOptionsResponseSchema,
   CandidateDetailResponseSchema,
   DocumentContextOptionsResponseSchema,
   DocumentDetailResponseSchema,
@@ -122,6 +124,8 @@ import {
   type CommercialContractListQuery,
   type CommercialContractListResponse,
   type CommercialContractStatusActionRequest,
+  type CommercialPlacementOptionsQuery,
+  type CommercialPlacementOptionsResponse,
   type CandidateCreateRequest,
   type DocumentContextOptionKind,
   type DocumentContextOptionsResponse,
@@ -895,10 +899,89 @@ async function commercialRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Commercial request failed with status ${response.status}`);
+    throw new CommercialRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
+}
+
+/**
+ * A failed Commercial request, carrying the HTTP status and the API's stable
+ * error code when one was supplied. The server's free-text message is not kept:
+ * the Commercial workspace shows its own localized copy.
+ */
+export class CommercialRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Commercial request failed with status ${status}`);
+    this.name = 'CommercialRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export async function getQuotation(
+  accessToken: string,
+  quotationId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<QuotationDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/quotations/${quotationId}`,
+    {},
+    apiBaseUrl,
+  );
+  return QuotationDetailResponseSchema.parse(await response.json());
+}
+
+export async function getCommercialContract(
+  accessToken: string,
+  contractId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialContractDetailResponse> {
+  const response = await commercialRequest(accessToken, `/contracts/${contractId}`, {}, apiBaseUrl);
+  return CommercialContractDetailResponseSchema.parse(await response.json());
+}
+
+export async function getPurchaseOrder(
+  accessToken: string,
+  purchaseOrderId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PurchaseOrderDetailResponse> {
+  const response = await commercialRequest(
+    accessToken,
+    `/purchase-orders/${purchaseOrderId}`,
+    {},
+    apiBaseUrl,
+  );
+  return PurchaseOrderDetailResponseSchema.parse(await response.json());
+}
+
+export async function getInvoice(
+  accessToken: string,
+  invoiceId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const response = await commercialRequest(accessToken, `/invoices/${invoiceId}`, {}, apiBaseUrl);
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+/** D-079 bounded placement source for the invoice form (at most 20 rows, no count). */
+export async function listCommercialPlacementOptions(
+  accessToken: string,
+  query: CommercialPlacementOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialPlacementOptionsResponse> {
+  const parsed = CommercialPlacementOptionsQuerySchema.parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/placement-options', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return CommercialPlacementOptionsResponseSchema.parse(await response.json());
 }
 
 export async function listQuotations(
