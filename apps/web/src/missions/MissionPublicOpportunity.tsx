@@ -2,12 +2,21 @@ import type {
   InternalPublicApplicationSummary,
   InternalPublicOpportunity,
   InternalPublicOpportunityUpdateRequest,
+  MissionSummary,
   PublicContentLanguage,
 } from '@hire-me/contracts';
 import { useState, type FormEvent } from 'react';
 
 import { authoredContentLanguage, useI18n } from '../i18n/index.js';
-import { Button, Checkbox, Select, StatusBadge, TextArea, TextField } from '../ui/index.js';
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  Select,
+  StatusBadge,
+  TextArea,
+  TextField,
+} from '../ui/index.js';
 import { ScrollTable, SectionStatus } from './MissionBits.js';
 import type { MissionAccess } from './mission-access.js';
 import {
@@ -18,52 +27,134 @@ import {
   optionalDateTimeFormValue,
 } from './mission-form.js';
 import { publicStatusLabelKey, publicStatusTone } from './mission-labels.js';
-import type { SectionState } from './mission-state.js';
+import type { PublicOpportunitySectionState, SectionState } from './mission-state.js';
 
 export type PublicationChange = 'disableApplications' | 'enableApplications' | 'list' | 'unlist';
 
 export interface MissionPublicOpportunityModel {
-  /** The editor's unsaved language choice; it belongs to one opportunity. */
+  /** The editor's unsaved language choice; it belongs to one opportunity or draft mission. */
   contentLanguageDraft: { opportunityId: string; value: PublicContentLanguage | null } | null;
   onContentLanguageChange: (opportunityId: string, value: PublicContentLanguage | null) => void;
   onCopyLink: (opportunity: InternalPublicOpportunity) => void;
   onPublication: (change: PublicationChange) => void;
   onRetry: () => void;
   onSave: (input: InternalPublicOpportunityUpdateRequest) => void;
-  opportunity: SectionState<InternalPublicOpportunity>;
+  opportunity: PublicOpportunitySectionState;
 }
 
 export function publicOpportunityPath(opportunity: Pick<InternalPublicOpportunity, 'publicSlug'>) {
   return `/opportunities/${opportunity.publicSlug}`;
 }
 
+const DEFAULT_UPLOADS = {
+  cvRequired: true,
+  certificationsEnabled: true,
+  certificationsRequired: false,
+  diplomasEnabled: true,
+  diplomasRequired: false,
+  additionalAttachmentsEnabled: false,
+} as const;
+
 export function MissionPublicOpportunity({
   access,
+  mission,
   model,
   writable,
   writesLocked,
 }: {
   access: MissionAccess;
+  mission: MissionSummary;
   model: MissionPublicOpportunityModel;
   writable: boolean;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const section = model.opportunity;
+
+  if (section.status === 'idle') {
+    return null;
+  }
+
   return (
     <section aria-label={t('missions.publicOpportunity.region')} className="mission-section">
       <h3 className="mission-section__title">{t('missions.publicOpportunity.title')}</h3>
-      <SectionStatus onRetry={model.onRetry} section={model.opportunity}>
-        {(opportunity) => (
-          <OpportunityDetail
-            access={access}
-            model={model}
-            opportunity={opportunity}
-            writable={writable}
-            writesLocked={writesLocked}
-          />
-        )}
-      </SectionStatus>
+      {section.status === 'loading' || section.status === 'error' ? (
+        <SectionStatus onRetry={model.onRetry} section={section}>
+          {() => null}
+        </SectionStatus>
+      ) : null}
+      {section.status === 'missing' ? (
+        <MissingPublicOpportunity
+          access={access}
+          mission={mission}
+          model={model}
+          writable={writable}
+          writesLocked={writesLocked}
+        />
+      ) : null}
+      {section.status === 'ready' ? (
+        <OpportunityDetail
+          access={access}
+          model={model}
+          opportunity={section.data}
+          writable={writable}
+          writesLocked={writesLocked}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function MissingPublicOpportunity({
+  access,
+  mission,
+  model,
+  writable,
+  writesLocked,
+}: {
+  access: MissionAccess;
+  mission: MissionSummary;
+  model: MissionPublicOpportunityModel;
+  writable: boolean;
+  writesLocked: boolean;
+}) {
+  const { t } = useI18n();
+  const canEdit = writable && access.canManagePublicOpportunity;
+
+  return (
+    <div className="mission-group">
+      <EmptyState title={t('missions.publicOpportunity.empty.title')}>
+        {t(
+          canEdit
+            ? 'missions.publicOpportunity.empty.body'
+            : 'missions.publicOpportunity.empty.readOnlyBody',
+        )}
+      </EmptyState>
+      {canEdit ? (
+        <OpportunityEditor
+          canEdit
+          contentKey={mission.id}
+          defaults={{
+            applicationDeadline: mission.applicationDeadline,
+            contentLanguage: null,
+            publicationStartsAt: null,
+            publicDescription: mission.description,
+            publicEngagementType: mission.engagementType,
+            publicExperienceLevel: null,
+            publicLocation: mission.location,
+            publicSkills: null,
+            publicSummary: mission.description,
+            publicTitle: mission.title,
+            publicWorkArrangement: mission.workArrangement,
+            showClientName: false,
+            showSalary: false,
+            uploadRequirements: { ...DEFAULT_UPLOADS },
+          }}
+          model={model}
+          writesLocked={writesLocked}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -169,13 +260,53 @@ function OpportunityDetail({
       ) : null}
       <OpportunityEditor
         canEdit={writable && access.canManagePublicOpportunity}
+        contentKey={opportunity.id}
+        defaults={{
+          applicationDeadline: opportunity.applicationDeadline,
+          contentLanguage: opportunity.contentLanguage,
+          publicationStartsAt: opportunity.publicationStartsAt,
+          publicDescription: opportunity.publicDescription,
+          publicEngagementType: opportunity.publicEngagementType,
+          publicExperienceLevel: opportunity.publicExperienceLevel,
+          publicLocation: opportunity.publicLocation,
+          publicSkills: opportunity.publicSkills,
+          publicSummary: opportunity.publicSummary,
+          publicTitle: opportunity.publicTitle,
+          publicWorkArrangement: opportunity.publicWorkArrangement,
+          showClientName: opportunity.showClientName,
+          showSalary: opportunity.showSalary,
+          uploadRequirements: opportunity.uploadRequirements,
+        }}
         model={model}
-        opportunity={opportunity}
         writesLocked={writesLocked}
       />
     </div>
   );
 }
+
+type EditorDefaults = {
+  applicationDeadline: string | null;
+  contentLanguage: PublicContentLanguage | null;
+  publicationStartsAt: string | null;
+  publicDescription: string | null;
+  publicEngagementType: string | null;
+  publicExperienceLevel: string | null;
+  publicLocation: string | null;
+  publicSkills: string | null;
+  publicSummary: string | null;
+  publicTitle: string;
+  publicWorkArrangement: string | null;
+  showClientName: boolean;
+  showSalary: boolean;
+  uploadRequirements: {
+    additionalAttachmentsEnabled: boolean;
+    certificationsEnabled: boolean;
+    certificationsRequired: boolean;
+    cvRequired: boolean;
+    diplomasEnabled: boolean;
+    diplomasRequired: boolean;
+  };
+};
 
 /**
  * The staff editor for the public job text. Every authored input states the
@@ -184,22 +315,24 @@ function OpportunityDetail({
  */
 function OpportunityEditor({
   canEdit,
+  contentKey,
+  defaults,
   model,
-  opportunity,
   writesLocked,
 }: {
   canEdit: boolean;
+  contentKey: string;
+  defaults: EditorDefaults;
   model: MissionPublicOpportunityModel;
-  opportunity: InternalPublicOpportunity;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const uploads = opportunity.uploadRequirements;
+  const uploads = defaults.uploadRequirements;
   const [certificationsEnabled, setCertificationsEnabled] = useState(uploads.certificationsEnabled);
   const [diplomasEnabled, setDiplomasEnabled] = useState(uploads.diplomasEnabled);
   const draft = model.contentLanguageDraft;
   const selectedLanguage =
-    draft?.opportunityId === opportunity.id ? draft.value : opportunity.contentLanguage;
+    draft?.opportunityId === contentKey ? draft.value : defaults.contentLanguage;
   const authored = authoredContentLanguage(selectedLanguage);
   const disabled = !canEdit;
 
@@ -211,7 +344,7 @@ function OpportunityEditor({
     const data = new FormData(event.currentTarget);
     const checked = (name: string) => data.get(name) === 'on';
     model.onSave({
-      publicTitle: formValue(data, 'publicTitle', opportunity.publicTitle).trim(),
+      publicTitle: formValue(data, 'publicTitle', defaults.publicTitle).trim(),
       publicSummary: nullableFormValue(data, 'publicSummary'),
       publicDescription: nullableFormValue(data, 'publicDescription'),
       publicLocation: nullableFormValue(data, 'publicLocation'),
@@ -246,10 +379,7 @@ function OpportunityEditor({
         label={t('missions.publicOpportunity.editor.contentLanguage')}
         name="contentLanguage"
         onChange={(event) =>
-          model.onContentLanguageChange(
-            opportunity.id,
-            contentLanguageValue(event.currentTarget.value),
-          )
+          model.onContentLanguageChange(contentKey, contentLanguageValue(event.currentTarget.value))
         }
         value={selectedLanguage ?? ''}
       >
@@ -260,7 +390,7 @@ function OpportunityEditor({
       <div className="mission-form__grid">
         <TextField
           {...authored}
-          defaultValue={opportunity.publicTitle}
+          defaultValue={defaults.publicTitle}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicTitle')}
           maxLength={180}
@@ -269,7 +399,7 @@ function OpportunityEditor({
         />
         <TextField
           {...authored}
-          defaultValue={opportunity.publicLocation ?? ''}
+          defaultValue={defaults.publicLocation ?? ''}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicLocation')}
           maxLength={160}
@@ -277,7 +407,7 @@ function OpportunityEditor({
         />
         <TextField
           {...authored}
-          defaultValue={opportunity.publicWorkArrangement ?? ''}
+          defaultValue={defaults.publicWorkArrangement ?? ''}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicWorkArrangement')}
           maxLength={120}
@@ -285,7 +415,7 @@ function OpportunityEditor({
         />
         <TextField
           {...authored}
-          defaultValue={opportunity.publicEngagementType ?? ''}
+          defaultValue={defaults.publicEngagementType ?? ''}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicEngagementType')}
           maxLength={120}
@@ -293,7 +423,7 @@ function OpportunityEditor({
         />
         <TextField
           {...authored}
-          defaultValue={opportunity.publicExperienceLevel ?? ''}
+          defaultValue={defaults.publicExperienceLevel ?? ''}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicExperienceLevel')}
           maxLength={120}
@@ -302,7 +432,7 @@ function OpportunityEditor({
       </div>
       <TextArea
         {...authored}
-        defaultValue={opportunity.publicSummary ?? ''}
+        defaultValue={defaults.publicSummary ?? ''}
         disabled={disabled}
         label={t('missions.publicOpportunity.editor.publicSummary')}
         maxLength={800}
@@ -311,7 +441,7 @@ function OpportunityEditor({
       />
       <TextArea
         {...authored}
-        defaultValue={opportunity.publicDescription ?? ''}
+        defaultValue={defaults.publicDescription ?? ''}
         disabled={disabled}
         label={t('missions.publicOpportunity.editor.publicDescription')}
         maxLength={4000}
@@ -320,7 +450,7 @@ function OpportunityEditor({
       />
       <TextArea
         {...authored}
-        defaultValue={opportunity.publicSkills ?? ''}
+        defaultValue={defaults.publicSkills ?? ''}
         disabled={disabled}
         label={t('missions.publicOpportunity.editor.publicSkills')}
         maxLength={1200}
@@ -329,14 +459,14 @@ function OpportunityEditor({
       />
       <div className="mission-form__grid">
         <TextField
-          defaultValue={dateTimeInputValue(opportunity.publicationStartsAt)}
+          defaultValue={dateTimeInputValue(defaults.publicationStartsAt)}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.publicationStartsAt')}
           name="publicationStartsAt"
           type="datetime-local"
         />
         <TextField
-          defaultValue={dateTimeInputValue(opportunity.applicationDeadline)}
+          defaultValue={dateTimeInputValue(defaults.applicationDeadline)}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.applicationDeadline')}
           name="applicationDeadline"
@@ -346,13 +476,13 @@ function OpportunityEditor({
       <fieldset className="mission-fieldset">
         <legend>{t('missions.publicOpportunity.editor.visibilityTitle')}</legend>
         <Checkbox
-          defaultChecked={opportunity.showClientName}
+          defaultChecked={defaults.showClientName}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.showClientName')}
           name="showClientName"
         />
         <Checkbox
-          defaultChecked={opportunity.showSalary}
+          defaultChecked={defaults.showSalary}
           disabled={disabled}
           label={t('missions.publicOpportunity.editor.showSalary')}
           name="showSalary"

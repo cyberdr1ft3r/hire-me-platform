@@ -402,6 +402,11 @@ export const missionsEn = {
       fr: 'French',
       unspecified: 'Not specified',
     },
+    empty: {
+      body: 'This mission does not have a public job posting yet. Complete the fields below and save to create one.',
+      readOnlyBody: 'This mission does not have a public job posting yet.',
+      title: 'No public opportunity yet',
+    },
     link: 'Public link',
     listed: 'Listed on website',
     publicationTitle: 'Publication',

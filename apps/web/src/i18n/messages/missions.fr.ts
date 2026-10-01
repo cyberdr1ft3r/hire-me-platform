@@ -408,6 +408,11 @@ export const missionsFr: Messages['missions'] = {
       fr: 'Français',
       unspecified: 'Non précisée',
     },
+    empty: {
+      body: 'Cette mission n’a pas encore d’annonce publique. Renseignez les champs ci-dessous et enregistrez pour en créer une.',
+      readOnlyBody: 'Cette mission n’a pas encore d’annonce publique.',
+      title: 'Aucune annonce publique pour l’instant',
+    },
     link: 'Lien public',
     listed: 'Publiée sur le site',
     publicationTitle: 'Publication',

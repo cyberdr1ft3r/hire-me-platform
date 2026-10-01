@@ -1,4 +1,5 @@
 import type {
+  InternalPublicOpportunity,
   InterviewSummary,
   MissionAssignmentSummary,
   MissionCandidateSummary,
@@ -204,6 +205,58 @@ export function syntheticInterview(
     evaluationCount: 0,
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
+  };
+}
+
+export function syntheticPublicOpportunity(
+  missionId: string,
+  overrides: Partial<InternalPublicOpportunity> = {},
+  uploadRequirementOverrides: Partial<{
+    certificationsEnabled: boolean;
+    certificationsRequired: boolean;
+    diplomasEnabled: boolean;
+    diplomasRequired: boolean;
+  }> = {},
+): InternalPublicOpportunity {
+  return {
+    id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    missionId,
+    status: 'OPEN',
+    applicationLinkEnabled: true,
+    listedOnWebsite: false,
+    publicSlug: 'synthetic-opportunity',
+    publicationStartsAt: null,
+    applicationDeadline: null,
+    publicTitle: 'Synthetic opportunity',
+    publicSummary: null,
+    publicDescription: null,
+    publicLocation: null,
+    publicWorkArrangement: null,
+    publicEngagementType: null,
+    publicExperienceLevel: null,
+    publicSkills: null,
+    contentLanguage: null,
+    clientName: null,
+    salary: null,
+    showClientName: false,
+    showSalary: false,
+    uploadRequirements: {
+      cvRequired: true,
+      certificationsEnabled: false,
+      certificationsRequired: false,
+      diplomasEnabled: false,
+      diplomasRequired: false,
+      additionalAttachmentsEnabled: false,
+      maxFileSizeBytes: 5_000_000,
+      maxTotalUploadBytes: 12_000_000,
+      allowedMimeTypes: ['application/pdf'],
+      ...uploadRequirementOverrides,
+    },
+    consentTextVersion: 'synthetic-v1',
+    archivedAt: null,
+    createdAt: TIMESTAMP,
+    updatedAt: TIMESTAMP,
+    ...overrides,
   };
 }
 

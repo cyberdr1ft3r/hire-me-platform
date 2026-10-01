@@ -365,6 +365,7 @@ function MissionDetailPane({
       {access.canViewPublicOpportunity ? (
         <MissionPublicOpportunity
           access={access}
+          mission={mission}
           model={model.publicOpportunity}
           writable={writable}
           writesLocked={writesLocked}
