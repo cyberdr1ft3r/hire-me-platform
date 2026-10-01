@@ -187,6 +187,9 @@ export function TaskCard({
   const { t } = useI18n();
   const contextField = primaryContextField(task.context);
   const assignedToMe = task.assigneeUserIds.includes(currentUserId);
+  // The signed-in person's own name adds nothing on their own board and made
+  // every card wrap, so ownership by the viewer is stated as "you".
+  const ownedByMe = task.ownerUserId === currentUserId;
 
   return (
     <article className="task-card" data-selected={selected || undefined}>
@@ -210,7 +213,9 @@ export function TaskCard({
         <DueLabel dueAt={task.dueAt} status={task.status} />
       </div>
       <p className="task-card__people">
-        {task.ownerDisplayName ? (
+        {ownedByMe ? (
+          <span>{t('task.card.ownedByYou')}</span>
+        ) : task.ownerDisplayName ? (
           <span>{t('task.card.owner', { name: task.ownerDisplayName })}</span>
         ) : null}
         <span>

@@ -61,9 +61,11 @@ The brand is a refined descendant of the historical `#174f64`: `--brand-700` is 
 | --- | ---: | ---: |
 | primary text / canvas | 14.89:1 | 4.5:1 |
 | secondary text / canvas | 6.49:1 | 4.5:1 |
-| muted text / canvas | 4.73:1 | 4.5:1 |
+| muted text / canvas | 5.17:1 | 4.5:1 |
 | primary text / surface | 15.87:1 | 4.5:1 |
-| muted text / surface | 5.05:1 | 4.5:1 |
+| muted text / surface | 5.51:1 | 4.5:1 |
+| muted text / selected row | 4.71:1 | 4.5:1 |
+| muted hint / subtle surface | 4.89:1 | 4.5:1 |
 | brand link text / canvas | 7.20:1 | 4.5:1 |
 | brand link text / surface | 7.67:1 | 4.5:1 |
 | inverse text / brand button | 7.67:1 | 4.5:1 |
@@ -76,11 +78,11 @@ The brand is a refined descendant of the historical `#174f64`: `--brand-700` is 
 | info / info subtle | 6.31:1 | 4.5:1 |
 | focus / surface | 5.33:1 | 3:1 non-text |
 | focus / canvas | 5.00:1 | 3:1 non-text |
-| disabled foreground / disabled background | 4.47:1 | 3:1 internal target |
+| disabled foreground / disabled background | 4.89:1 | 3:1 internal target |
 
 ## D. Typography
 
-No web font is required. `--font-family-ui` uses a system-first stack; Inter is used only if already installed locally. `--font-family-mono` is allowed for identifiers, code, and fixed-width values, not ordinary body text.
+No web font is required or loaded. `--font-family-ui` is a system stack (`ui-sans-serif`, `system-ui`, then platform fallbacks); it names no undeployed face, so the rendered font never depends on what a particular machine happens to have installed (Issue #115). `--font-family-mono` is allowed for identifiers, code, and fixed-width values, not ordinary body text.
 
 | Role | Token recipe | Usage |
 | --- | --- | --- |

@@ -19,7 +19,6 @@
 }
 
 .tasks__form-actions,
-.tasks__filter-actions,
 .task-record__badges,
 .task-card__meta {
   align-items: center;
@@ -167,6 +166,16 @@
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+/*
+ * The everyday filters are selects whose longest values are French ("Toutes les
+ * tâches visibles", "Échéance, la plus proche d’abord"). Their columns are
+ * sized for those values, so a laptop shows three readable columns instead of
+ * six truncated ones; narrower areas fall back to fewer columns, then one.
+ */
+.task-filters__row {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
 .task-filters__row > .ui-field:first-child {
@@ -699,6 +708,28 @@
   gap: var(--space-3);
 }
 
+/*
+ * The notification status filter and "Mark all read" form one control row:
+ * aligned on the control's bottom edge (not on the label above it), one shared
+ * control height, and the field sized for its longest French choice instead of
+ * stretching across the section.
+ */
+.tasks__notification-controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tasks__notification-controls > .ui-field {
+  flex: 0 1 16rem;
+  min-width: min(100%, 12rem);
+}
+
+.tasks__notification-controls > .ui-button {
+  flex: 0 0 auto;
+}
+
 .task-diagnostics {
   border-block-end: var(--border-width) solid var(--color-border);
   color: var(--color-text-secondary);
@@ -748,6 +779,16 @@
   .task-filters__actions .ui-button,
   .tasks__form-actions .ui-button {
     flex: 1 1 auto;
+    min-height: var(--hit-target-min);
+  }
+
+  /* On a phone both controls take a full touch target and stay one height. */
+  .tasks__notification-controls > .ui-field {
+    flex: 1 1 12rem;
+  }
+
+  .tasks__notification-controls .ui-field__control,
+  .tasks__notification-controls > .ui-button {
     min-height: var(--hit-target-min);
   }
 }

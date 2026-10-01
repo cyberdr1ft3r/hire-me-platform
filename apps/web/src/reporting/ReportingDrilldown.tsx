@@ -77,7 +77,15 @@ export function ReportingDrilldown({
       {drilldown.rows.length === 0 ? (
         <p className="reporting-panel__empty">{t('reporting.empty.table')}</p>
       ) : (
-        <div aria-busy={busy || undefined} className="reporting-table__scroll u-table-scroll">
+        // A focusable, named region, as for the other scrollable data tables, so
+        // keyboard users can scroll it wherever it still overflows.
+        <div
+          aria-busy={busy || undefined}
+          aria-label={t('reporting.table.scrollRegion', { label: t('reporting.table.title') })}
+          className="reporting-table__scroll u-table-scroll"
+          role="region"
+          tabIndex={0}
+        >
           <table aria-labelledby={headingId} className="reporting-table">
             <thead>
               <tr>

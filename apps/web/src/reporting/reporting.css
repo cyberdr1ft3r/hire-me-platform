@@ -352,6 +352,11 @@
   border: var(--border-width) solid var(--color-border);
 }
 
+.reporting-table__scroll:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
 .reporting-table {
   border-collapse: collapse;
   margin-top: 0;
@@ -364,6 +369,17 @@
   font-size: var(--font-size-2);
   padding: var(--space-2) var(--space-3);
   vertical-align: middle;
+}
+
+/*
+ * Names (mission, client, candidate, recruiter, source) may wrap between words,
+ * so the whole table fits a laptop-width content area instead of clipping the
+ * last column. Headings, the pipeline state, and the date stay on one line; the
+ * minimum width above still makes narrow screens scroll inside the region.
+ */
+.reporting-table th,
+.reporting-table td:nth-child(4),
+.reporting-table td:nth-child(7) {
   white-space: nowrap;
 }
 

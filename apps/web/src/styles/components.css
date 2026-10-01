@@ -104,7 +104,14 @@
   }
 }
 
+/*
+ * A field packs its label, control, and hint at the top of its own box. When a
+ * form grid stretches the field to its row height (because a neighbour carries
+ * a hint or an error), the spare height stays below the field instead of being
+ * shared out to the control, so neighbouring controls keep one height.
+ */
 .ui-field {
+  align-content: start;
   display: grid;
   gap: var(--space-control);
 }
@@ -130,12 +137,117 @@
   width: 100%;
 }
 
+/* Single-line inputs and selects share one line box, so side by side they are one height. */
+input.ui-field__control,
+select.ui-field__control {
+  line-height: var(--line-height-tight);
+}
+
 .ui-field__control:hover:not(:disabled) {
   border-color: var(--color-text-muted);
 }
 
 .ui-field[data-invalid='true'] .ui-field__control {
   border-color: var(--color-danger);
+}
+
+/*
+ * Selects stay native `<select>` elements, so their label, keyboard model, and
+ * form value are the browser's own. Only the presentation is aligned: the
+ * platform arrow is replaced by a chevron drawn from `currentColor`, so it
+ * follows the disabled color too, and the text never runs under it.
+ */
+select.ui-field__control {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--space-4) - var(--space-1) - var(--space-0-5)) 50%,
+    calc(100% - var(--space-4)) 50%;
+  background-repeat: no-repeat;
+  background-size: calc(var(--space-1) + var(--space-0-5)) calc(var(--space-1) + var(--space-0-5));
+  cursor: pointer;
+  overflow: hidden;
+  padding-inline-end: var(--space-8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+select.ui-field__control:disabled {
+  cursor: not-allowed;
+}
+
+/*
+ * Where the browser supports a customizable select, the opened choice list is
+ * drawn with the same surface, radius, elevation, and selection treatment as
+ * the rest of HireMe. It is still the native element: arrow keys, type-ahead,
+ * Escape, and the accessible listbox semantics are unchanged. Other browsers
+ * keep their native list, which is equally usable.
+ */
+@supports (appearance: base-select) {
+  select.ui-field__control,
+  select.ui-field__control::picker(select) {
+    appearance: base-select;
+  }
+
+  select.ui-field__control {
+    align-items: center;
+    display: flex;
+  }
+
+  select.ui-field__control::picker-icon {
+    display: none;
+  }
+
+  select.ui-field__control:open {
+    border-color: var(--color-focus);
+  }
+
+  select.ui-field__control::picker(select) {
+    background: var(--color-surface-raised);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-popover);
+    color: var(--color-text);
+    margin-block: var(--space-1);
+    max-block-size: calc(var(--control-height-standard) * 8);
+    padding: var(--space-1);
+  }
+
+  select.ui-field__control option {
+    border-radius: var(--radius-small);
+    font-size: var(--font-size-3);
+    gap: var(--space-2);
+    line-height: var(--line-height-tight);
+    min-block-size: var(--control-height-standard);
+    padding: var(--space-2) var(--space-3);
+    white-space: normal;
+  }
+
+  select.ui-field__control option::checkmark {
+    color: var(--color-brand);
+  }
+
+  select.ui-field__control option:hover:not(:disabled) {
+    background: var(--color-surface-subtle);
+  }
+
+  /* Keyboard focus inside the list is a fill and an inset ring, not color alone. */
+  select.ui-field__control option:focus-visible {
+    background: var(--color-brand-subtle);
+    color: var(--color-brand-pressed);
+    outline: var(--space-0-5) solid var(--color-focus);
+    outline-offset: calc(var(--space-0-5) * -1);
+  }
+
+  select.ui-field__control option:checked {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  select.ui-field__control option:disabled {
+    color: var(--color-disabled-fg);
+  }
 }
 
 .ui-field__hint,
@@ -178,8 +290,11 @@
   font-weight: var(--font-weight-semibold);
   gap: var(--space-2);
   line-height: var(--line-height-tight);
+  max-width: 100%;
   min-height: var(--space-6);
   padding-inline: var(--space-2);
+  /* A status is a label, never a bar: it keeps its content width in grid and flex rows. */
+  width: fit-content;
 }
 
 .ui-status__dot {
@@ -293,5 +408,5 @@
 .ui-empty p {
   font-size: var(--font-size-3);
   margin-bottom: var(--space-4);
-  max-width: var(--layout-reading-max);
+  max-width: min(var(--layout-reading-max), var(--layout-reading-measure));
 }

@@ -381,6 +381,14 @@ describe('recruitment reporting dashboard', () => {
     ]);
     expect(screen.getByText('Candidate 1')).toBeVisible();
     expect(screen.getByText('40 results')).toBeVisible();
+
+    // Like the other scrollable data tables, the wrapper is a named, focusable
+    // region so keyboard users can scroll it wherever it still overflows.
+    const region = screen.getByRole('region', {
+      name: 'Candidate process drilldown, scrollable table',
+    });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).toContainElement(table);
   });
 
   it('links authorized Candidate and Mission names without adding reporting reads', async () => {

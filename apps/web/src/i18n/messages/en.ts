@@ -198,6 +198,7 @@ export const enMessages = {
       openCandidate: 'Open candidate {name}',
       openMission: 'Open mission {name}',
       recruiter: 'Recruiter',
+      scrollRegion: '{label}, scrollable table',
       source: 'Source',
       state: 'Pipeline state',
       title: 'Candidate process drilldown',
@@ -205,6 +206,7 @@ export const enMessages = {
     },
     trends: {
       description: 'Weekly recruitment activity across the reporting window.',
+      noActivity: 'No activity in this window',
       tableCaption: 'Weekly counts for every trend metric',
       title: 'Weekly trends',
       total: 'Window total {total}',
@@ -668,6 +670,7 @@ export const enMessages = {
         other: '{count} assignees',
       }),
       owner: 'Owner: {name}',
+      ownedByYou: 'Owner: you',
       status: 'Status: {status}',
     },
     comments: {
