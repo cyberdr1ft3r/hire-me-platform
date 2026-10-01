@@ -1,5 +1,5 @@
 import type { MissionSummary } from '@hire-me/contracts';
-import type { FormEvent } from 'react';
+import { Fragment, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Select, TextField } from '../ui/index.js';
@@ -108,7 +108,15 @@ export function MissionProfile({
           <h4 className="mission-subtitle">{t('missions.profile.commercial.title')}</h4>
           <dl className="mission-summary">
             <SummaryItem label={t('missions.profile.commercial.salaryRange')}>
-              {salaryParts.length > 0 ? salaryParts.join(' – ') : null}
+              {/* A range may wrap between its bounds, never inside one amount. */}
+              {salaryParts.length > 0
+                ? salaryParts.map((part, index) => (
+                    <Fragment key={index}>
+                      {index > 0 ? ' – ' : null}
+                      <span className="u-nowrap">{part}</span>
+                    </Fragment>
+                  ))
+                : null}
             </SummaryItem>
             <SummaryItem label={t('missions.profile.commercial.summary')}>
               {commercial.commercialSummary}

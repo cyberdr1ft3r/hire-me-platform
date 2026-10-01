@@ -24,6 +24,9 @@ const MINIMUM_BAR = 0.75;
  * comparable instead of each being stretched to its own scale, and the complete
  * weekly counts are available as a real table for assistive technology.
  *
+ * A metric with no activity in the window gets a one-line "no activity" note
+ * instead of an empty chart, so zero series do not reserve blank blocks.
+ *
  * There is no charting dependency, no gradient, and no animation, so nothing
  * here needs to opt out of reduced motion.
  */
@@ -66,6 +69,20 @@ export function ReportingTrends({ series }: { series: readonly ReportingTrendSer
             <ul className="reporting-trends">
               {series.map((entry, index) => {
                 const total = entry.points.reduce((sum, point) => sum + point.count, 0);
+                if (total === 0) {
+                  return (
+                    <li className="reporting-trends__row" data-empty="true" key={entry.metric}>
+                      <div className="reporting-trends__meta">
+                        <span className="reporting-trends__label">
+                          {t(`domain.trendMetric.${entry.metric}`)}
+                        </span>
+                        <span className="reporting-trends__total">
+                          {t('reporting.trends.noActivity')}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                }
                 return (
                   <li className="reporting-trends__row" data-series={index + 1} key={entry.metric}>
                     <div className="reporting-trends__meta">

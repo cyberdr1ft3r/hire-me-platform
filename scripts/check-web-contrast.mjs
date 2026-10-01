@@ -35,6 +35,9 @@ const checks = [
   ['muted text / canvas', 'color-text-muted', 'color-canvas', 4.5],
   ['primary text / surface', 'color-text', 'color-surface', 4.5],
   ['muted text / surface', 'color-text-muted', 'color-surface', 4.5],
+  // Issue #115: muted metadata on a selected row and hints on subtle panels.
+  ['muted text / selected row', 'color-text-muted', 'color-table-selected', 4.5],
+  ['muted hint / subtle surface', 'color-text-muted', 'color-surface-subtle', 4.5],
   ['brand link text / canvas', 'color-brand', 'color-canvas', 4.5],
   ['brand link text / surface', 'color-brand', 'color-surface', 4.5],
   ['brand button text / brand', 'color-text-inverse', 'color-brand', 4.5],

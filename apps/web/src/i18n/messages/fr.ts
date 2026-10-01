@@ -208,6 +208,7 @@ export const frMessages: Messages = {
       openCandidate: 'Ouvrir le candidat {name}',
       openMission: 'Ouvrir la mission {name}',
       recruiter: 'Recruteur',
+      scrollRegion: '{label}, tableau défilant',
       source: 'Source',
       state: 'Étape du pipeline',
       title: 'Détail des processus candidats',
@@ -215,6 +216,7 @@ export const frMessages: Messages = {
     },
     trends: {
       description: 'Activité hebdomadaire de recrutement sur la période analysée.',
+      noActivity: 'Aucune activité sur la période',
       tableCaption: 'Effectifs hebdomadaires pour chaque indicateur de tendance',
       title: 'Tendances hebdomadaires',
       total: 'Total sur la période : {total}',
@@ -684,6 +686,7 @@ export const frMessages: Messages = {
         other: '{count} personnes assignées',
       }),
       owner: 'Responsable : {name}',
+      ownedByYou: 'Responsable : vous',
       status: 'Statut : {status}',
     },
     comments: {

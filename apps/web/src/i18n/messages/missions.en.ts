@@ -433,7 +433,7 @@ export const missionsEn = {
     loading: 'Loading options…',
     none: 'No matching option',
     searchAction: 'Search',
-    searchFor: 'Search {field}',
+    searchFor: 'Search: {field}',
   },
   table: {
     scrollRegion: '{label}, scrollable table',

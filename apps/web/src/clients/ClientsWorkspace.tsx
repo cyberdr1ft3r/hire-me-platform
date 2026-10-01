@@ -266,23 +266,29 @@ export function ClientsWorkspace({
 
               <section aria-label={t('clients.detail.lifecycleTitle')} className="client-lifecycle">
                 <h3 className="clients__pane-title">{t('clients.detail.lifecycleTitle')}</h3>
+                {/*
+                  The current state is shown by the badge above, so it is not
+                  offered again as an action that would change nothing.
+                */}
                 <div className="client-lifecycle__actions">
-                  {CLIENT_LIFECYCLE.map((status) => (
-                    <Button
-                      disabled={writesLocked || !access.canManageClientStatus || archivedClient}
-                      key={status}
-                      onClick={() => onChangeClientStatus(status)}
-                      size="compact"
-                      type="button"
-                      variant="secondary"
-                    >
-                      {status === 'PROSPECT'
-                        ? t('clients.lifecycle.moveTo.PROSPECT')
-                        : status === 'ACTIVE'
-                          ? t('clients.lifecycle.moveTo.ACTIVE')
-                          : t('clients.lifecycle.moveTo.INACTIVE')}
-                    </Button>
-                  ))}
+                  {CLIENT_LIFECYCLE.filter((status) => status !== detailClient.status).map(
+                    (status) => (
+                      <Button
+                        disabled={writesLocked || !access.canManageClientStatus || archivedClient}
+                        key={status}
+                        onClick={() => onChangeClientStatus(status)}
+                        size="compact"
+                        type="button"
+                        variant="secondary"
+                      >
+                        {status === 'PROSPECT'
+                          ? t('clients.lifecycle.moveTo.PROSPECT')
+                          : status === 'ACTIVE'
+                            ? t('clients.lifecycle.moveTo.ACTIVE')
+                            : t('clients.lifecycle.moveTo.INACTIVE')}
+                      </Button>
+                    ),
+                  )}
                   <Button
                     disabled={writesLocked || !access.canArchiveClients || archivedClient}
                     onClick={onArchiveClient}
@@ -364,28 +370,32 @@ export function ClientsWorkspace({
                         {t('clients.actions.saveContact')}
                       </Button>
                       <div className="client-lifecycle__actions">
-                        <Button
-                          disabled={
-                            writesLocked || !access.canManageContactStatus || archivedContact
-                          }
-                          onClick={() => onChangeContactStatus('ACTIVE')}
-                          size="compact"
-                          type="button"
-                          variant="secondary"
-                        >
-                          {t('clients.lifecycle.contactMoveTo.ACTIVE')}
-                        </Button>
-                        <Button
-                          disabled={
-                            writesLocked || !access.canManageContactStatus || archivedContact
-                          }
-                          onClick={() => onChangeContactStatus('INACTIVE')}
-                          size="compact"
-                          type="button"
-                          variant="secondary"
-                        >
-                          {t('clients.lifecycle.contactMoveTo.INACTIVE')}
-                        </Button>
+                        {selectedContact.status !== 'ACTIVE' ? (
+                          <Button
+                            disabled={
+                              writesLocked || !access.canManageContactStatus || archivedContact
+                            }
+                            onClick={() => onChangeContactStatus('ACTIVE')}
+                            size="compact"
+                            type="button"
+                            variant="secondary"
+                          >
+                            {t('clients.lifecycle.contactMoveTo.ACTIVE')}
+                          </Button>
+                        ) : null}
+                        {selectedContact.status !== 'INACTIVE' ? (
+                          <Button
+                            disabled={
+                              writesLocked || !access.canManageContactStatus || archivedContact
+                            }
+                            onClick={() => onChangeContactStatus('INACTIVE')}
+                            size="compact"
+                            type="button"
+                            variant="secondary"
+                          >
+                            {t('clients.lifecycle.contactMoveTo.INACTIVE')}
+                          </Button>
+                        ) : null}
                         <Button
                           disabled={writesLocked || !access.canArchiveContacts || archivedContact}
                           onClick={onArchiveContact}

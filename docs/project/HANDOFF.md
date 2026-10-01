@@ -4,15 +4,15 @@ Last updated: 2026-10-01
 
 ## Current situation
 
-- The latest `main` is `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (PR #123 / Issue #111 bilingual Training workspace merged under D-076), after PR #119 / Issue #113 Documents, PR #107 / Issue #105, PR #106 / Issue #99 Missions, and related rollout merges.
-- Issue #111 (Training) is **merged**: bilingual `apps/web/src/training/`, full EN/FR, `training` removed from `deferredEnglishRoutes`; bounded D-076 presentation fields only. Limits remain in R-049.
-- Issue #114 (Missions first-public-opportunity empty state) is **ready for review on PR #122** (`cursor/missions-public-opportunity-empty-eafa`), rebased onto current `main`: web-only GET 404 → localized missing state, first PATCH create for authorized actors; EN/FR Chromium evidence @ 1440/390 in `docs/audit/issue-114-missions-browser-evidence.md`.
+- The latest `main` is `fcf459c` (PR #122 / Issue #114 Missions first-public-opportunity empty state merged), after PR #123 / Issue #111 Training (D-076) and PR #119 / Issue #113 Documents.
+- Issue #115 (audited core UI accessibility and low-risk polish) is **in review on a draft PR** from `fix/issue-115-ui-a11y-polish`: web, CSS, i18n copy, contrast gate, and design docs only (no API, schema, migration, or permission change). It proposes D-077 (system font stack, darker muted token, native-select presentation with a customizable opened list, reading measure). Evidence: `docs/audit/issue-115-ui-polish-evidence.md`.
+- Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
 - D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
 
 ## Next concrete action
 
-1. **Issue #114 / PR #122:** maintainer or ChatGPT review and merge when satisfied after exact-head CI on the rebased head; do not expand into Issue #110 or re-touch Training #111 behavior.
+1. **Issue #115:** maintainer or ChatGPT review of the draft PR after exact-head CI; accept or amend D-077; do not merge automatically. Follow-ups noted there (Documents/Training `Search {field}` wording, other modules' current-state actions) need their own issues.
 2. Continue deferred-module rollout with **Commercial**, then Accounting and Admin, each in its own bounded issue.
 3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
 4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.

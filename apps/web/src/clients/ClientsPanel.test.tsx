@@ -635,3 +635,22 @@ describe('Client writes never overlap', () => {
     await waitFor(() => expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(2));
   });
 });
+
+describe('Client lifecycle actions', () => {
+  it('does not offer the current client or contact state as a no-op action', async () => {
+    stubClientsApi();
+    renderPanel();
+    await selectClientByName('Acme Corp');
+
+    // Acme is ACTIVE: its badge states that, and only real transitions remain.
+    const clientLifecycle = within(screen.getByRole('region', { name: 'Lifecycle' }));
+    expect(clientLifecycle.queryByRole('button', { name: 'Mark active' })).toBeNull();
+    expect(clientLifecycle.getByRole('button', { name: 'Mark prospect' })).toBeEnabled();
+    expect(clientLifecycle.getByRole('button', { name: 'Mark inactive' })).toBeEnabled();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
+    const contactForm = within(contactEditForm());
+    expect(contactForm.queryByRole('button', { name: 'Mark active' })).toBeNull();
+    expect(contactForm.getByRole('button', { name: 'Mark inactive' })).toBeEnabled();
+  });
+});

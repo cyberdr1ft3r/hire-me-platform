@@ -2,7 +2,11 @@ import { useId } from 'react';
 import type { ReportingDistributionEntry } from '@hire-me/contracts';
 
 import { useI18n } from '../i18n/index.js';
-import { isPipelineState, pipelineStateLabelKey } from './reporting-labels.js';
+import {
+  comparePipelineStates,
+  isPipelineState,
+  pipelineStateLabelKey,
+} from './reporting-labels.js';
 
 /**
  * Candidate processes by pipeline state, as accessible horizontal bars.
@@ -12,16 +16,14 @@ import { isPipelineState, pipelineStateLabelKey } from './reporting-labels.js';
  * the bar or distinguishing its color. The share is presentation only —
  * `count / (sum of the counts in this distribution)` — and the sum is checked
  * for zero before any division, so it never invents a metric or divides by
- * nothing. Rows are ordered by size for scanning; the underlying state values
- * are unchanged.
+ * nothing. Rows follow pipeline stage order, so the distribution reads like
+ * the pipeline itself; the underlying state values are unchanged.
  */
 export function ReportingPipeline({ entries }: { entries: readonly ReportingDistributionEntry[] }) {
   const { formatNumber, t } = useI18n();
   const headingId = useId();
   const total = entries.reduce((sum, entry) => sum + entry.count, 0);
-  const ordered = [...entries].sort(
-    (left, right) => right.count - left.count || left.key.localeCompare(right.key),
-  );
+  const ordered = [...entries].sort((left, right) => comparePipelineStates(left.key, right.key));
 
   return (
     <section aria-labelledby={headingId} className="reporting-panel">

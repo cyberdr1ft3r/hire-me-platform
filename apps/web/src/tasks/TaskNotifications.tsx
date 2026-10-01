@@ -62,7 +62,12 @@ export function TaskNotifications({
         </div>
         <span>{t('task.notifications.shown', { count: total })}</span>
       </div>
-      <div className="tasks__filter-actions">
+      {/*
+        The status filter and the bulk action share one bottom-aligned row with
+        one control height, so the button lines up with the select rather than
+        with its label.
+      */}
+      <div className="tasks__notification-controls">
         <Select
           label={t('task.notifications.status')}
           onChange={(event) => onFilter(event.target.value as NotificationFilter)}
@@ -78,7 +83,6 @@ export function TaskNotifications({
             loading={pending === 'notifications'}
             loadingLabel={t('task.actions.markAllRead')}
             onClick={onReadAll}
-            size="compact"
             variant="secondary"
           >
             {t('task.actions.markAllRead')}
@@ -163,7 +167,7 @@ export function ReminderDiagnostics({
   return (
     <details className="task-diagnostics">
       <summary>{t('task.diagnostics.title')}</summary>
-      <p>{t('task.diagnostics.description')}</p>
+      <p className="u-reading-measure">{t('task.diagnostics.description')}</p>
       <Button
         disabled={busy}
         loading={pending}
