@@ -153,6 +153,13 @@
   gap: var(--space-2);
 }
 
+/* Long French action labels wrap inside a phone-width pane instead of widening it. */
+.commercial-actions > .ui-button {
+  max-width: 100%;
+  text-align: start;
+  white-space: normal;
+}
+
 /* Option picker */
 
 .commercial-picker {
@@ -226,6 +233,10 @@
 .commercial-table th.commercial-table__amount,
 .commercial-table td.commercial-table__amount {
   text-align: end;
+  white-space: nowrap;
+}
+
+.commercial-table time {
   white-space: nowrap;
 }
 
