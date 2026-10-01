@@ -4,17 +4,17 @@ Last updated: 2026-10-01
 
 ## Current situation
 
-- The latest `main` is `fcf459c` (PR #122 / Issue #114 Missions first-public-opportunity empty state merged), after PR #123 / Issue #111 Training (D-076) and PR #119 / Issue #113 Documents.
-- Issue #115 (audited core UI accessibility and low-risk polish) is **in review on a draft PR** from `fix/issue-115-ui-a11y-polish`: web, CSS, i18n copy, contrast gate, and design docs only (no API, schema, migration, or permission change). It proposes D-077 (system font stack, darker muted token, native-select presentation with a customizable opened list, reading measure). Evidence: `docs/audit/issue-115-ui-polish-evidence.md`.
+- The latest `main` is `2193c19` (PR #128 / Issue #125 `FINANCE_MANAGER` role, D-078), after PR #126 / Issue #115 polish and PR #122 / Issue #114.
+- Issue #127 (Commercial V1 workspace): the raw-ID audit found no authorization-compatible source for invoice placements or for human labels on commercial list/detail rows. The bounded prerequisite (D-079) is on draft PR branch `cursor/issue-127-commercial-source-labels-eafa`: read-only `display` labels on Commercial summaries and `GET /v1/commercial/placement-options`; no migration, no new permission. The UI rollout is stacked on it on `cursor/issue-127-commercial-workspace-eafa`.
+- Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
 - Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
 - D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
 
 ## Next concrete action
 
-1. **Issue #125:** review draft PR for `FINANCE_MANAGER` role (D-078 permission matrix, migration, seed, integration tests) after exact-head CI; merge on maintainer approval only.
-2. **Issue #115:** maintainer or ChatGPT review of the draft PR after exact-head CI; accept or amend D-077; do not merge automatically. Follow-ups noted there (Documents/Training `Search {field}` wording, other modules' current-state actions) need their own issues.
-2. Continue deferred-module rollout with **Commercial**, then Accounting and Admin, each in its own bounded issue.
+1. **Issue #127:** review the D-079 prerequisite PR first (labels + placement options, PostgreSQL coverage in `commercial-presentation.integration.test.ts`), then the stacked Commercial UI PR; retarget the UI PR to `main` after the prerequisite merges. Decide R-050 (finance access to mission-linked commercial records) separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
+2. After Commercial, continue the deferred-module rollout with Accounting and Admin, each in its own bounded issue.
 3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
 4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.
 5. Preserve the Issue #93 seeded RolePermission row-identity guarantees and the Issue #105 seeded Permission metadata guarantees in every integration fixture.
