@@ -269,6 +269,42 @@ describe('linked sources and derived context', () => {
     expect(values.reference).toBe('');
   });
 
+  it('keeps the whole chain when following up a purchase order, by reference only', () => {
+    const purchaseOrder = syntheticPurchaseOrder({
+      contractId: CONTRACT_ID,
+      display: {
+        ...syntheticPurchaseOrder().display,
+        linkedContractReference: 'C-SYN-001',
+        linkedQuotationReference: 'Q-SYN-001',
+      },
+    });
+    const values = followUpForm({ kind: 'purchaseOrder', record: purchaseOrder });
+    expect(values.purchaseOrder?.id).toBe(PURCHASE_ORDER_ID);
+    expect(values.quotation).toMatchObject({ id: QUOTATION_ID, label: 'Q-SYN-001' });
+    expect(values.contract).toMatchObject({ id: CONTRACT_ID, label: 'C-SYN-001' });
+    expect(deriveContext('invoice', { ...values, reference: 'INV' }).status).toBe('derived');
+    const request = toCreateRequest('invoice', { ...values, reference: 'INV-CHAIN' });
+    expect(request.ok && request.value.request).toMatchObject({
+      contractId: CONTRACT_ID,
+      purchaseOrderId: PURCHASE_ORDER_ID,
+      quotationId: QUOTATION_ID,
+    });
+
+    // Without the reference the actor may not read that record type: never linked blind.
+    const restricted = followUpForm({
+      kind: 'purchaseOrder',
+      record: syntheticPurchaseOrder({
+        display: { ...syntheticPurchaseOrder().display, linkedQuotationReference: null },
+      }),
+    });
+    expect(restricted.quotation).toBeNull();
+    expect(restricted.contract).toBeNull();
+
+    const fromContract = followUpForm({ kind: 'contract', record: syntheticContract() });
+    expect(fromContract.contract?.id).toBe(CONTRACT_ID);
+    expect(fromContract.quotation).toMatchObject({ id: QUOTATION_ID, label: 'Q-SYN-001' });
+  });
+
   it('derives mission and currency from sources and reports disagreeing sources', () => {
     const values = { ...emptyCreateForm(), client, quotation: quotationOption };
     expect(deriveContext('invoice', values)).toMatchObject({

@@ -214,7 +214,54 @@ export function followUpForm(source: CommercialDetail): CreateFormValues {
   };
   if (field && field !== 'placement') values[field] = sourceOption(source.record);
   if (source.record.amounts) values.currency = source.record.amounts.currency;
+  for (const [ancestorField, ancestor] of upstreamLinks(source)) values[ancestorField] = ancestor;
   return values;
+}
+
+/**
+ * The records the source itself links to, so a follow-up keeps the whole
+ * chain. A link is carried only when the server sent its reference, that is
+ * when the actor may read that record type; otherwise it stays unlinked.
+ */
+function upstreamLinks(
+  source: CommercialDetail,
+): ['quotation' | 'contract', CommercialPickerOption][] {
+  const { record } = source;
+  const context = {
+    recruitmentMissionId: record.recruitmentMissionId,
+    missionTitle: record.display.missionTitle,
+    currency: record.amounts?.currency ?? null,
+  };
+  const link = (
+    id: string | null,
+    label: string | null,
+    extra: { sourceQuotationId?: string | null } = {},
+  ): CommercialPickerOption | null =>
+    id && label
+      ? { id, label, detail: record.display.missionTitle, context: { ...context, ...extra } }
+      : null;
+  const links: ['quotation' | 'contract', CommercialPickerOption | null][] = [];
+  if (source.kind === 'contract') {
+    links.push([
+      'quotation',
+      link(source.record.sourceQuotationId, record.display.linkedQuotationReference),
+    ]);
+  }
+  if (source.kind === 'purchaseOrder') {
+    links.push([
+      'quotation',
+      link(source.record.quotationId, record.display.linkedQuotationReference),
+    ]);
+    links.push([
+      'contract',
+      link(source.record.contractId, record.display.linkedContractReference, {
+        sourceQuotationId: source.record.quotationId,
+      }),
+    ]);
+  }
+  return links.filter(
+    (entry): entry is ['quotation' | 'contract', CommercialPickerOption] => entry[1] !== null,
+  );
 }
 
 /** Which linked sources each create form offers, in chain order. */
