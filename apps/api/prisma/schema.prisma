@@ -21,14 +21,15 @@ enum UserType {
 }
 
 enum RoleName {
-  SUPER_ADMIN @map("super_admin")
-  ADMIN       @map("admin")
-  HR_MANAGER  @map("hr_manager")
-  MANAGER     @map("manager")
-  TEAM_LEADER @map("team_leader")
-  EMPLOYEE    @map("employee")
-  GUEST       @map("guest")
-  CLIENT_USER @map("client_user")
+  SUPER_ADMIN     @map("super_admin")
+  ADMIN           @map("admin")
+  HR_MANAGER      @map("hr_manager")
+  MANAGER         @map("manager")
+  TEAM_LEADER     @map("team_leader")
+  EMPLOYEE        @map("employee")
+  FINANCE_MANAGER @map("finance_manager")
+  GUEST           @map("guest")
+  CLIENT_USER     @map("client_user")
 }
 
 enum RoleStatus {

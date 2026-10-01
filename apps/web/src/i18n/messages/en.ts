@@ -116,6 +116,19 @@ export const enMessages = {
     deniedRegion: 'Protected workspace',
     deniedTitle: 'Protected workspace',
   },
+  admin: {
+    roleNames: {
+      ADMIN: 'Administrator',
+      CLIENT_USER: 'Client user',
+      EMPLOYEE: 'Employee',
+      FINANCE_MANAGER: 'Finance manager',
+      GUEST: 'Guest',
+      HR_MANAGER: 'HR manager',
+      MANAGER: 'Manager',
+      SUPER_ADMIN: 'Super administrator',
+      TEAM_LEADER: 'Team leader',
+    },
+  },
   /**
    * Recruitment reporting. Every string here is presentation only: filters,
    * metric labels, and state labels never travel back to the API, and no

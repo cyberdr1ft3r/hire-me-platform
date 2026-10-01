@@ -1,4 +1,8 @@
 import {
+  FINANCE_MANAGER_PERMISSION_CODES,
+  FINANCE_MANAGER_ROLE_DESCRIPTION,
+} from '@hire-me/contracts';
+import {
   PermissionScopeType,
   PrismaClient,
   RoleName,
@@ -30,6 +34,10 @@ const roles = [
   {
     name: RoleName.EMPLOYEE,
     description: 'Development employee role for assigned work.',
+  },
+  {
+    name: RoleName.FINANCE_MANAGER,
+    description: FINANCE_MANAGER_ROLE_DESCRIPTION,
   },
   {
     name: RoleName.GUEST,
@@ -1040,6 +1048,7 @@ async function main(): Promise<void> {
       'notifications:view_own',
       'notifications:update_own',
     ],
+    [RoleName.FINANCE_MANAGER]: [...FINANCE_MANAGER_PERMISSION_CODES],
     [RoleName.GUEST]: ['records:view'],
     [RoleName.CLIENT_USER]: [
       'records:view',

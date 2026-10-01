@@ -129,6 +129,19 @@ export const frMessages: Messages = {
     deniedRegion: 'Espace protégé',
     deniedTitle: 'Espace protégé',
   },
+  admin: {
+    roleNames: {
+      ADMIN: 'Administrateur',
+      CLIENT_USER: 'Utilisateur client',
+      EMPLOYEE: 'Employé',
+      FINANCE_MANAGER: 'Responsable finance',
+      GUEST: 'Invité',
+      HR_MANAGER: 'Responsable RH',
+      MANAGER: 'Manager',
+      SUPER_ADMIN: 'Super-administrateur',
+      TEAM_LEADER: 'Chef d’équipe',
+    },
+  },
   reporting: {
     empty: {
       pipeline: 'Aucun processus candidat dans le périmètre sélectionné.',
