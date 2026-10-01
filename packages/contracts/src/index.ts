@@ -120,6 +120,11 @@ export {
   AdminUserSummarySchema,
   AdminUserTypeSchema,
 } from './admin.js';
+export {
+  FINANCE_MANAGER_PERMISSION_CODES,
+  FINANCE_MANAGER_ROLE_DESCRIPTION,
+} from './finance-manager-role.js';
+export type { FinanceManagerPermissionCode } from './finance-manager-role.js';
 export type {
   AdminAssignRoleRequest,
   AdminCreateUserRequest,

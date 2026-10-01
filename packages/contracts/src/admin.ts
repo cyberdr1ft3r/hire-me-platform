@@ -9,6 +9,7 @@ export const AdminRoleNameSchema = z.enum([
   'MANAGER',
   'TEAM_LEADER',
   'EMPLOYEE',
+  'FINANCE_MANAGER',
   'GUEST',
   'CLIENT_USER',
 ]);

@@ -12,7 +12,8 @@ Last updated: 2026-10-01
 
 ## Next concrete action
 
-1. **Issue #115:** maintainer or ChatGPT review of the draft PR after exact-head CI; accept or amend D-077; do not merge automatically. Follow-ups noted there (Documents/Training `Search {field}` wording, other modules' current-state actions) need their own issues.
+1. **Issue #125:** review draft PR for `FINANCE_MANAGER` role (D-078 permission matrix, migration, seed, integration tests) after exact-head CI; merge on maintainer approval only.
+2. **Issue #115:** maintainer or ChatGPT review of the draft PR after exact-head CI; accept or amend D-077; do not merge automatically. Follow-ups noted there (Documents/Training `Search {field}` wording, other modules' current-state actions) need their own issues.
 2. Continue deferred-module rollout with **Commercial**, then Accounting and Admin, each in its own bounded issue.
 3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
 4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.

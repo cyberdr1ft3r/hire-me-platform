@@ -93,6 +93,7 @@ import { ClientsPanel } from './clients/ClientsPanel.js';
 import { DocumentsPanel } from './documents/index.js';
 import { MissionsPanel } from './missions/index.js';
 import { TrainingPanel } from './training/index.js';
+import { formatAdminRoleName } from './admin/role-labels.js';
 import { TasksPanel } from './tasks/index.js';
 import {
   PublicOpportunitiesPanel,
@@ -404,6 +405,7 @@ function AppRoutes() {
 }
 
 function AdminPanel({ accessToken }: { accessToken: string }) {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [roles, setRoles] = useState<AdminRole[]>([]);
@@ -578,7 +580,10 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
                     </button>
                   </td>
                   <td>{adminUser.status}</td>
-                  <td>{adminUser.roles.join(', ') || 'None'}</td>
+                  <td>
+                    {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
+                      'None'}
+                  </td>
                   <td>{adminUser.activeSessionCount}</td>
                 </tr>
               ))}
@@ -639,7 +644,7 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
                   <select name="roleName" required>
                     {roles.map((role) => (
                       <option key={role.id} value={role.name}>
-                        {role.name}
+                        {formatAdminRoleName(t, role.name)}
                       </option>
                     ))}
                   </select>
@@ -650,7 +655,7 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
               <ul>
                 {selectedUser.roles.map((roleName) => (
                   <li key={roleName}>
-                    {roleName}{' '}
+                    {formatAdminRoleName(t, roleName)}{' '}
                     <button type="button" onClick={() => void removeRole(roleName)}>
                       Remove
                     </button>
