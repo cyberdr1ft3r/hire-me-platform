@@ -2697,6 +2697,15 @@ function syntheticQuotation() {
     reference: 'Q38-WEB',
     clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     recruitmentMissionId: syntheticMissionId,
+    display: {
+      clientName: 'Synthetic Commercial Client',
+      missionTitle: 'Synthetic Commercial Mission',
+      linkedQuotationReference: null,
+      linkedContractReference: null,
+      linkedPurchaseOrderReference: null,
+      correctionOfInvoiceReference: null,
+      placement: null,
+    },
     // Issued: generation controls are disabled for lifecycle-ineligible records.
     status: 'ISSUED',
     issueDate: null,

@@ -7,6 +7,8 @@ import type {
   CommercialContractStatusActionRequest,
   CommercialContractUpdateRequest,
   CommercialLineInput,
+  CommercialPlacementOptionsQuery,
+  CommercialPlacementOptionsResponse,
   InvoiceCancelRequest,
   InvoiceCreateRequest,
   InvoiceDetailResponse,
@@ -90,6 +92,10 @@ const terminalMissionStates = new Set<RecruitmentMissionState>([
   RecruitmentMissionState.CANCELED,
   RecruitmentMissionState.ARCHIVED,
 ]);
+
+const placementInvoiceBlockedMissionStates = [...terminalMissionStates].filter(
+  (state) => state !== RecruitmentMissionState.CLOSED_WITH_RECRUITMENT,
+);
 
 const POSTGRES_INT_MAX = 2_147_483_647;
 const IMPOSSIBLE_UUID = '00000000-0000-0000-0000-000000000000';
@@ -1470,6 +1476,75 @@ export class CommercialService {
     return { invoice: this.toInvoiceDetail(invoice, access) };
   }
 
+  /**
+   * Bounded placement source for the invoice form. It applies the same permission,
+   * client, mission-scope, lifecycle, and eligibility rules as placement-backed
+   * invoice creation, omits placements that already have an invoice, never returns
+   * candidate identity, and returns at most 20 rows without a count. Missing client
+   * or mission visibility yields an empty list rather than an error.
+   */
+  async listPlacementOptions(
+    query: CommercialPlacementOptionsQuery,
+    actorUserId: string,
+  ): Promise<CommercialPlacementOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertCommercialWrite(access, access.invoicesManage, 'invoices:manage');
+    this.assertPermission(
+      access.placementCommercialEligibility,
+      'placement_commercial_eligibility:view',
+      'PLACEMENT_COMMERCIAL_ELIGIBILITY_REQUIRED',
+    );
+    this.assertPermission(access.placementsView, 'placements:view', 'PLACEMENTS_VIEW_REQUIRED');
+    if (!access.clientsView || !access.missionsView) {
+      return { options: [] };
+    }
+    const placements = await this.prisma.missionPlacement.findMany({
+      where: {
+        status: PlacementStatus.CONFIRMED,
+        eligibleForInvoicing: true,
+        archivedAt: null,
+        invoices: { none: {} },
+        ...(query.recruitmentMissionId ? { missionId: query.recruitmentMissionId } : {}),
+        mission: {
+          clientId: query.clientId,
+          archivedAt: null,
+          state: { notIn: placementInvoiceBlockedMissionStates },
+          client: { archivedAt: null, status: { not: 'ARCHIVED' } },
+          ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
+          ...(access.missionCandidatesTransfer
+            ? {}
+            : {
+                recruiters: {
+                  some: {
+                    userId: actorUserId,
+                    status: AssignmentStatus.ACTIVE,
+                    archivedAt: null,
+                  },
+                },
+              }),
+        },
+      },
+      orderBy: [{ confirmedAt: 'desc' }, { id: 'asc' }],
+      take: 20,
+      select: {
+        id: true,
+        missionId: true,
+        integrationStartDate: true,
+        confirmedAt: true,
+        mission: { select: { title: true } },
+      },
+    });
+    return {
+      options: placements.map((placement) => ({
+        id: placement.id,
+        recruitmentMissionId: placement.missionId,
+        missionTitle: placement.mission.title,
+        integrationStartDate: placement.integrationStartDate.toISOString(),
+        confirmedAt: placement.confirmedAt.toISOString(),
+      })),
+    };
+  }
+
   private async validateInvoiceSourcesAndBuildLines(
     input: InvoiceCreateRequest,
     tx: Tx,
@@ -2128,6 +2203,7 @@ export class CommercialService {
       reference: quotation.reference,
       clientId: quotation.clientId,
       recruitmentMissionId: quotation.recruitmentMissionId,
+      display: recordDisplay(quotation, access),
       status: quotation.status,
       issueDate: isoOrNull(quotation.issueDate),
       validUntil: isoOrNull(quotation.validUntil),
@@ -2154,6 +2230,7 @@ export class CommercialService {
       clientId: contract.clientId,
       recruitmentMissionId: contract.recruitmentMissionId,
       sourceQuotationId: contract.sourceQuotationId,
+      display: recordDisplay(contract, access, { quotation: contract.sourceQuotation }),
       status: contract.status,
       effectiveDate: isoOrNull(contract.effectiveDate),
       startDate: isoOrNull(contract.startDate),
@@ -2188,6 +2265,7 @@ export class CommercialService {
       recruitmentMissionId: po.recruitmentMissionId,
       quotationId: po.quotationId,
       contractId: po.contractId,
+      display: recordDisplay(po, access, { quotation: po.quotation, contract: po.contract }),
       status: po.status,
       issueDate: isoOrNull(po.issueDate),
       receivedDate: isoOrNull(po.receivedDate),
@@ -2222,6 +2300,13 @@ export class CommercialService {
       quotationId: invoice.quotationId,
       contractId: invoice.contractId,
       purchaseOrderId: invoice.purchaseOrderId,
+      display: recordDisplay(invoice, access, {
+        quotation: invoice.quotation,
+        contract: invoice.contract,
+        purchaseOrder: invoice.purchaseOrder,
+        correctionOfInvoice: invoice.correctionOfInvoice,
+        placement: invoice.missionPlacement,
+      }),
       status: invoice.status,
       issueDate: isoOrNull(invoice.issueDate),
       dueDate: isoOrNull(invoice.dueDate),
@@ -2244,23 +2329,83 @@ export class CommercialService {
   }
 }
 
+const displaySourceInclude = {
+  client: { select: { name: true } },
+  recruitmentMission: { select: { title: true } },
+} as const;
+
 const quotationInclude = {
+  ...displaySourceInclude,
   lines: { orderBy: { sortOrder: 'asc' } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.CommercialQuotationInclude;
 
 const contractInclude = {
+  ...displaySourceInclude,
+  sourceQuotation: { select: { reference: true } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.CommercialContractInclude;
 
 const purchaseOrderInclude = {
+  ...displaySourceInclude,
+  quotation: { select: { reference: true } },
+  contract: { select: { reference: true } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.PurchaseOrderInclude;
 
 const invoiceInclude = {
+  ...displaySourceInclude,
+  quotation: { select: { reference: true } },
+  contract: { select: { reference: true } },
+  purchaseOrder: { select: { reference: true } },
+  correctionOfInvoice: { select: { reference: true } },
+  missionPlacement: { select: { integrationStartDate: true, confirmedAt: true } },
   lines: { orderBy: { sortOrder: 'asc' } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.InvoiceInclude;
+
+type DisplaySource = {
+  client: { name: string };
+  recruitmentMission: { title: string } | null;
+};
+
+/**
+ * Only called for records that already passed the Commercial record scope, so the
+ * client and mission labels name nothing the actor cannot already reach. Linked
+ * references additionally need the linked record type's view permission.
+ */
+function recordDisplay(
+  record: DisplaySource,
+  access: CommercialAccess,
+  links: {
+    quotation?: { reference: string } | null;
+    contract?: { reference: string } | null;
+    purchaseOrder?: { reference: string } | null;
+    correctionOfInvoice?: { reference: string } | null;
+    placement?: { integrationStartDate: Date; confirmedAt: Date } | null;
+  } = {},
+) {
+  const canDescribePlacement = access.placementsView && access.placementCommercialEligibility;
+  return {
+    clientName: record.client.name,
+    missionTitle: record.recruitmentMission?.title ?? null,
+    linkedQuotationReference: access.quotationsView ? (links.quotation?.reference ?? null) : null,
+    linkedContractReference: access.contractsView ? (links.contract?.reference ?? null) : null,
+    linkedPurchaseOrderReference: access.purchaseOrdersView
+      ? (links.purchaseOrder?.reference ?? null)
+      : null,
+    correctionOfInvoiceReference: access.invoicesView
+      ? (links.correctionOfInvoice?.reference ?? null)
+      : null,
+    placement:
+      canDescribePlacement && links.placement
+        ? {
+            integrationStartDate: links.placement.integrationStartDate.toISOString(),
+            confirmedAt: links.placement.confirmedAt.toISOString(),
+          }
+        : null,
+  };
+}
 
 function calculateLines(lines: CommercialLineInput[]): {
   lines: CalculatedLine[];
