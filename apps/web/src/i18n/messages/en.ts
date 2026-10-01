@@ -1,6 +1,7 @@
 import { plural, type WidenMessages } from '../message.js';
 import { documentsEn } from './documents.en.js';
 import { missionsEn } from './missions.en.js';
+import { trainingEn } from './training.en.js';
 
 /**
  * The canonical HireMe dictionary.
@@ -615,6 +616,7 @@ export const enMessages = {
   },
   documents: documentsEn,
   missions: missionsEn,
+  training: trainingEn,
   task: {
     actions: {
       addAssignee: 'Add assignee',

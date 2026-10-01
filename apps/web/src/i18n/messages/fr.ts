@@ -2,6 +2,7 @@ import { plural } from '../message.js';
 import type { Messages } from './en.js';
 import { documentsFr } from './documents.fr.js';
 import { missionsFr } from './missions.fr.js';
+import { trainingFr } from './training.fr.js';
 
 /**
  * French HireMe dictionary.
@@ -626,6 +627,7 @@ export const frMessages: Messages = {
   },
   documents: documentsFr,
   missions: missionsFr,
+  training: trainingFr,
   task: {
     actions: {
       addAssignee: 'Ajouter la personne',

@@ -774,6 +774,69 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     expect(allowed.status).toBe(200);
   });
 
+  it('presents owner, client, and trainer names without identity metadata', async () => {
+    const client = await prisma.client.create({
+      data: {
+        name: `Issue111 Client ${randomUUID().slice(0, 8)}`,
+        normalizedName: `issue111 client ${randomUUID().slice(0, 8)}`,
+        status: ClientStatus.ACTIVE,
+      },
+    });
+    const created = await createProgram({ clientId: client.id, ownerUserId: operatorUserId });
+    const programId = String(created.id);
+    const ownerName = 'Synthetic operator@training.test';
+    expect(created).toMatchObject({ ownerDisplayName: ownerName, clientDisplayName: client.name });
+
+    const detail = await api(operatorToken, `/programs/${programId}`);
+    expect(detail.body.program).toMatchObject({
+      ownerDisplayName: ownerName,
+      clientDisplayName: client.name,
+    });
+    const listed = await api(
+      operatorToken,
+      `/programs?search=${encodeURIComponent(String(created.reference))}`,
+    );
+    const [row] = (listed.body as { programs: Record<string, unknown>[] }).programs;
+    expect(row).toMatchObject({ ownerDisplayName: ownerName, clientDisplayName: client.name });
+    // Presentation is a name only: no email, status, role, or account metadata.
+    expect(Object.keys(row!).filter((key) => /owner|client/i.test(key))).toEqual([
+      'ownerUserId',
+      'ownerDisplayName',
+      'clientId',
+      'clientDisplayName',
+    ]);
+
+    await activateProgram(programId);
+    const session = await createSession(programId, { trainerUserId: operatorUserId });
+    expect(session.trainerDisplayName).toBe(ownerName);
+    const sessions = await api(operatorToken, `/programs/${programId}/sessions`);
+    expect((sessions.body as { sessions: Record<string, unknown>[] }).sessions[0]).toMatchObject({
+      trainerUserId: operatorUserId,
+      trainerDisplayName: ownerName,
+    });
+    const cleared = await api(
+      operatorToken,
+      `/programs/${programId}/sessions/${String(session.id)}`,
+      {
+        method: 'PATCH',
+        body: { trainerUserId: null },
+      },
+    );
+    expect(cleared.body.session).toMatchObject({ trainerUserId: null, trainerDisplayName: null });
+  });
+
+  it('never presents a client name to an actor without client read scope', async () => {
+    const unlinked = await createProgram({ ownerUserId: scopedUserId });
+    const scopedToken = await loginAccessToken('scoped@training.test');
+    const own = await api(scopedToken, `/programs/${String(unlinked.id)}`);
+    expect(own.status).toBe(200);
+    expect(own.body.program).toMatchObject({
+      clientId: null,
+      clientDisplayName: null,
+      ownerDisplayName: 'Synthetic scoped@training.test',
+    });
+  });
+
   it('refuses to link a training program to a client without client read scope', async () => {
     const client = await prisma.client.create({
       data: {

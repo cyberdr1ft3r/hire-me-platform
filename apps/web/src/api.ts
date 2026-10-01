@@ -279,6 +279,7 @@ import {
   type TrainingSessionListResponse,
   type TrainingSessionRescheduleRequest,
   type TrainingSessionStatusUpdateRequest,
+  type TrainingSessionUpdateRequest,
   ClientReceivableSummaryResponseSchema,
   ExpenseDetailResponseSchema,
   ExpenseListResponseSchema,
@@ -2912,10 +2913,27 @@ async function trainingRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Training request failed with status ${response.status}`);
+    throw new TrainingRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
+}
+
+/**
+ * A failed Training request, carrying the HTTP status and the API's stable
+ * error code when one was supplied. The server's free-text message is not kept:
+ * the Training workspace shows its own localized copy.
+ */
+export class TrainingRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Training request failed with status ${status}`);
+    this.name = 'TrainingRequestError';
+    this.code = code;
+    this.status = status;
+  }
 }
 
 export type TrainingProgramListOptions = {
@@ -3079,7 +3097,13 @@ export type TrainingSessionListOptions = {
   pageSize?: number;
   status?: string;
   search?: string;
+  trainerUserId?: string;
+  deliveryMode?: string;
+  scheduledFrom?: string;
+  scheduledTo?: string;
   includeArchived?: boolean;
+  sortBy?: string;
+  sortDirection?: string;
   apiBaseUrl?: string;
 };
 
@@ -3093,12 +3117,34 @@ export async function listTrainingSessions(
       pageSize: options.pageSize ?? 20,
       status: options.status,
       search: options.search,
+      trainerUserId: options.trainerUserId,
+      deliveryMode: options.deliveryMode,
+      scheduledFrom: options.scheduledFrom,
+      scheduledTo: options.scheduledTo,
       includeArchived: options.includeArchived,
+      sortBy: options.sortBy,
+      sortDirection: options.sortDirection,
     }),
     {},
     options.apiBaseUrl,
   );
   return TrainingSessionListResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingSession(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  input: TrainingSessionUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
 }
 
 export async function createTrainingSession(
@@ -3252,6 +3298,21 @@ export async function withdrawTrainingEnrollment(
     accessToken,
     `/programs/${programId}/enrollments/${enrollmentId}/withdraw`,
     { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return TrainingEnrollmentDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTrainingEnrollment(
+  accessToken: string,
+  programId: string,
+  enrollmentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingEnrollmentDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/enrollments/${enrollmentId}/archive`,
+    { method: 'POST' },
     apiBaseUrl,
   );
   return TrainingEnrollmentDetailResponseSchema.parse(await response.json());

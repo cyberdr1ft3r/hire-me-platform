@@ -109,6 +109,10 @@ describe('dictionary contract', () => {
       'task.card.assignees',
       'task.notifications.shown',
       'task.notifications.unread',
+      'training.enrollments.count',
+      'training.participation.count',
+      'training.programs.count',
+      'training.sessions.count',
     ]);
     for (const locale of SUPPORTED_LOCALES) {
       for (const key of canonicalPluralPaths) {

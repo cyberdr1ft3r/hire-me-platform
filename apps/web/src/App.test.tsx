@@ -1514,17 +1514,18 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
-    expect(await screen.findByRole('heading', { name: 'Training' })).toBeVisible();
-    expect(
-      await screen.findByRole('button', { name: /Issue37-001 — Internal Onboarding/i }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Training' })).toBeVisible();
+    expect(screen.getByText('Read-only access')).toBeVisible();
+    fireEvent.click(await screen.findByRole('button', { name: 'Internal Onboarding' }));
+    expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
 
     // Management, lifecycle, and archive controls stay hidden without the capability.
-    expect(screen.queryByRole('button', { name: /create training program/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /set program_active/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /archive training program/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /archive participation/i })).toBeNull();
-    expect(screen.queryByLabelText(/set certificate applicability/i)).toBeNull();
+    expect(screen.queryByText('New training program')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Activate program' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit program' })).toBeNull();
+    expect(screen.queryByText('Schedule a session')).toBeNull();
+    expect(screen.queryByText('Enroll a participant')).toBeNull();
+    expect(document.body.textContent).not.toMatch(SYNTHETIC_UUID);
   });
 
   it('exposes training lifecycle, enrollment, and attendance controls to an authorized operator', async () => {
@@ -1554,29 +1555,20 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
-    expect(await screen.findByRole('button', { name: /create training program/i })).toBeVisible();
+    expect(await screen.findByText('New training program')).toBeVisible();
+    fireEvent.click(await screen.findByRole('button', { name: 'Internal Onboarding' }));
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Issue37-001 — Internal Onboarding/i }),
-    );
+    expect(await screen.findByRole('button', { name: 'Activate program' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit program' })).toBeVisible();
+    expect(await screen.findByText('Enroll a participant')).toBeVisible();
 
-    expect(await screen.findByRole('button', { name: /set program_active/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /archive training program/i })).toBeVisible();
-    expect(
-      await screen.findByRole('button', { name: /create training enrollment/i }),
-    ).toBeVisible();
-    expect(screen.getByLabelText(/set certificate applicability/i)).toBeVisible();
-
-    fireEvent.click(await screen.findByRole('button', { name: /Day one induction/i }));
-
-    expect(
-      await screen.findByRole('button', { name: /reschedule training session/i }),
-    ).toBeVisible();
-    expect(screen.getByRole('button', { name: /cancel training session/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /archive training session/i })).toBeVisible();
-    expect(await screen.findByLabelText(/record attendance/i)).toBeVisible();
-    expect(screen.getByLabelText(/correct attendance/i)).toBeVisible();
-    expect(screen.getByRole('button', { name: /archive participation/i })).toBeVisible();
+    fireEvent.click(await screen.findByRole('button', { name: 'Day one induction' }));
+    expect(await screen.findByRole('button', { name: 'Reschedule' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Cancel session' })).toBeVisible();
+    fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
+    expect(await screen.findByRole('button', { name: 'Save attendance' })).toBeVisible();
+    expect(screen.getByText('Correct attendance')).toBeVisible();
+    expect(document.body.textContent).not.toMatch(SYNTHETIC_UUID);
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/v1/training/programs?'),
@@ -1924,6 +1916,9 @@ function mockAccountingWorkspace(permissions: string[], options: { redacted?: bo
   });
 }
 
+/** Any canonical UUID; Training screens must never show one. */
+const SYNTHETIC_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 function syntheticTrainingProgram() {
   return {
     id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
@@ -1933,7 +1928,9 @@ function syntheticTrainingProgram() {
     targetAudience: 'New internal staff',
     status: 'PROGRAM_DRAFT',
     ownerUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    ownerDisplayName: 'Training Operator',
     clientId: null,
+    clientDisplayName: null,
     plannedStartDate: null,
     plannedEndDate: null,
     archivedAt: null,
@@ -1952,9 +1949,10 @@ function syntheticTrainingSession(trainingProgramId: string) {
     scheduledEndAt: '2026-09-10T12:00:00.000Z',
     deliveryMode: 'ONSITE',
     trainerUserId: null,
+    trainerDisplayName: null,
     location: 'Casablanca office',
     meetingUrl: null,
-    status: 'SESSION_PLANNED',
+    status: 'SESSION_SCHEDULED',
     outcome: null,
     rescheduleCount: 0,
     previousScheduledAt: null,
@@ -2061,6 +2059,12 @@ function mockTrainingWorkspace(permissions: string[]) {
             permissions,
           },
         }),
+      );
+    }
+
+    if (url.includes('-user-options') || url.includes('/enrollment-options')) {
+      return Promise.resolve(
+        jsonResponse(url.includes('/enrollment-options') ? { enrollments: [] } : { users: [] }),
       );
     }
 

@@ -189,7 +189,7 @@ export class TrainingService {
     ]);
 
     return {
-      programs: programs.map((program) => this.toProgramSummary(program, access)),
+      programs: await this.presentPrograms(programs, access),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
   }
@@ -197,7 +197,7 @@ export class TrainingService {
   async getProgram(programId: string, actorUserId: string): Promise<TrainingProgramDetailResponse> {
     const access = await this.resolveAccess(actorUserId);
     const program = await this.findVisibleProgram(programId, actorUserId, access);
-    return { program: this.toProgramSummary(program, access) };
+    return { program: await this.presentProgram(program, access) };
   }
 
   async createProgram(
@@ -257,7 +257,7 @@ export class TrainingService {
         );
       });
 
-    return { program: this.toProgramSummary(program, access) };
+    return { program: await this.presentProgram(program, access) };
   }
 
   async updateProgram(
@@ -328,7 +328,7 @@ export class TrainingService {
       },
     );
 
-    return { program: this.toProgramSummary(program, access) };
+    return { program: await this.presentProgram(program, access) };
   }
 
   async updateProgramStatus(
@@ -375,7 +375,7 @@ export class TrainingService {
       },
     );
 
-    return { program: this.toProgramSummary(program, access) };
+    return { program: await this.presentProgram(program, access) };
   }
 
   async archiveProgram(
@@ -421,7 +421,7 @@ export class TrainingService {
       { allowArchived: true },
     );
 
-    return { program: this.toProgramSummary(program, access) };
+    return { program: await this.presentProgram(program, access) };
   }
 
   // ----------------------------------------------------------------------------
@@ -464,7 +464,7 @@ export class TrainingService {
     ]);
 
     return {
-      sessions: sessions.map((session) => toSessionSummary(session)),
+      sessions: await this.presentSessions(sessions),
       pagination: { page: query.page, pageSize: query.pageSize, total },
     };
   }
@@ -477,7 +477,7 @@ export class TrainingService {
     const access = await this.resolveAccess(actorUserId);
     await this.findVisibleProgram(programId, actorUserId, access);
     const session = await this.findSessionForProgram(programId, sessionId);
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async createSession(
@@ -539,7 +539,7 @@ export class TrainingService {
       },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async updateSession(
@@ -608,7 +608,7 @@ export class TrainingService {
       },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async rescheduleSession(
@@ -665,7 +665,7 @@ export class TrainingService {
       },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async updateSessionStatus(
@@ -715,7 +715,7 @@ export class TrainingService {
       },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async cancelSession(
@@ -771,7 +771,7 @@ export class TrainingService {
       },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   async archiveSession(
@@ -819,7 +819,7 @@ export class TrainingService {
       { allowArchivedProgram: true },
     );
 
-    return { session: toSessionSummary(session) };
+    return { session: await this.presentSession(session) };
   }
 
   // ----------------------------------------------------------------------------
@@ -2303,7 +2303,79 @@ export class TrainingService {
     return error;
   }
 
-  private toProgramSummary(program: ProgramRecord, access: TrainingAccess): TrainingProgramSummary {
+  /**
+   * Program presentation for the caller. Names are looked up in one bounded
+   * batch per response; a client name is only read when the caller may read
+   * client context, so it can never disclose more than `clientId` would.
+   */
+  private async presentPrograms(
+    programs: ProgramRecord[],
+    access: TrainingAccess,
+  ): Promise<TrainingProgramSummary[]> {
+    const ownerIds = distinctIds(programs.map((program) => program.ownerUserId));
+    const clientIds = access.clientsView
+      ? distinctIds(programs.map((program) => program.clientId))
+      : [];
+    const [owners, clients] = await Promise.all([
+      this.userDisplayNames(ownerIds),
+      clientIds.length > 0
+        ? this.prisma.client.findMany({
+            where: { id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+    return programs.map((program) =>
+      this.toProgramSummary(program, access, {
+        owner: program.ownerUserId ? (owners.get(program.ownerUserId) ?? null) : null,
+        client: program.clientId ? (clientNames.get(program.clientId) ?? null) : null,
+      }),
+    );
+  }
+
+  private async presentProgram(
+    program: ProgramRecord,
+    access: TrainingAccess,
+  ): Promise<TrainingProgramSummary> {
+    const [summary] = await this.presentPrograms([program], access);
+    return summary!;
+  }
+
+  private async presentSessions(sessions: SessionRecord[]): Promise<TrainingSessionSummary[]> {
+    const trainers = await this.userDisplayNames(
+      distinctIds(sessions.map((session) => session.trainerUserId)),
+    );
+    return sessions.map((session) =>
+      toSessionSummary(
+        session,
+        session.trainerUserId ? (trainers.get(session.trainerUserId) ?? null) : null,
+      ),
+    );
+  }
+
+  private async presentSession(session: SessionRecord): Promise<TrainingSessionSummary> {
+    const [summary] = await this.presentSessions([session]);
+    return summary!;
+  }
+
+  /** Display names only: no email, role, status, or other account data. */
+  private async userDisplayNames(ids: string[]): Promise<Map<string, string>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, displayName: true },
+    });
+    return new Map(users.map((user) => [user.id, user.displayName]));
+  }
+
+  private toProgramSummary(
+    program: ProgramRecord,
+    access: TrainingAccess,
+    names: { owner: string | null; client: string | null },
+  ): TrainingProgramSummary {
     return {
       id: program.id,
       reference: program.reference,
@@ -2312,8 +2384,10 @@ export class TrainingService {
       targetAudience: program.targetAudience,
       status: program.status,
       ownerUserId: program.ownerUserId,
+      ownerDisplayName: names.owner,
       // Client context is only disclosed to actors who may read client records.
       clientId: access.clientsView ? program.clientId : null,
+      clientDisplayName: access.clientsView ? names.client : null,
       plannedStartDate: isoOrNull(program.plannedStartDate),
       plannedEndDate: isoOrNull(program.plannedEndDate),
       archivedAt: isoOrNull(program.archivedAt),
@@ -2323,7 +2397,14 @@ export class TrainingService {
   }
 }
 
-function toSessionSummary(session: SessionRecord): TrainingSessionSummary {
+function distinctIds(ids: Array<string | null>): string[] {
+  return [...new Set(ids.filter((id): id is string => id !== null))];
+}
+
+function toSessionSummary(
+  session: SessionRecord,
+  trainerDisplayName: string | null,
+): TrainingSessionSummary {
   return {
     id: session.id,
     trainingProgramId: session.trainingProgramId,
@@ -2333,6 +2414,7 @@ function toSessionSummary(session: SessionRecord): TrainingSessionSummary {
     scheduledEndAt: session.scheduledEndAt.toISOString(),
     deliveryMode: session.deliveryMode,
     trainerUserId: session.trainerUserId,
+    trainerDisplayName,
     location: session.location,
     meetingUrl: session.meetingUrl,
     status: session.status,
