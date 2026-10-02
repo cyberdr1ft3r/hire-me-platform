@@ -293,6 +293,16 @@ import {
   PaymentDetailResponseSchema,
   PaymentListResponseSchema,
   ProfitabilitySummaryResponseSchema,
+  AccountingPlacementOptionsQuerySchema,
+  AccountingPlacementOptionsResponseSchema,
+  type AccountingPlacementOptionsQuery,
+  type AccountingPlacementOptionsResponse,
+  type ExpenseCategory,
+  type ExpenseCorrectRequest,
+  type ExpenseUpdateRequest,
+  type PaymentCorrectRequest,
+  type PaymentRecordStatus,
+  type PaymentUpdateRequest,
   type ClientReceivableSummaryResponse,
   type ExpenseCreateRequest,
   type ExpenseDetailResponse,
@@ -3668,28 +3678,98 @@ async function accountingRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`Accounting request failed with status ${response.status}`);
+    throw new AccountingRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
 }
 
+/**
+ * A failed Accounting request, carrying the HTTP status and the API's stable
+ * error code when one was supplied. The server's free-text message is not kept:
+ * the Accounting workspace shows its own localized copy.
+ */
+export class AccountingRequestError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(status: number, code: string | null) {
+    super(`Accounting request failed with status ${status}`);
+    this.name = 'AccountingRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export type AccountingListOptions = {
+  page?: number;
+  pageSize?: number;
+  clientId?: string;
+  includeArchived?: boolean;
+};
+
 export async function listPayments(
   accessToken: string,
-  options: { clientId?: string; includeArchived?: boolean; pageSize?: number } = {},
+  options: AccountingListOptions & { status?: PaymentRecordStatus } = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<PaymentListResponse> {
   const response = await accountingRequest(
     accessToken,
     queryPath('/payments', {
+      page: options.page,
       pageSize: options.pageSize ?? 20,
       clientId: options.clientId,
+      status: options.status,
       includeArchived: options.includeArchived ? 'true' : undefined,
     }),
     {},
     apiBaseUrl,
   );
   return PaymentListResponseSchema.parse(await response.json());
+}
+
+export async function updatePayment(
+  accessToken: string,
+  paymentId: string,
+  input: PaymentUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/payments/${paymentId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PaymentDetailResponseSchema.parse(await response.json());
+}
+
+export async function correctPayment(
+  accessToken: string,
+  paymentId: string,
+  input: PaymentCorrectRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/payments/${paymentId}/correct`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return PaymentDetailResponseSchema.parse(await response.json());
+}
+
+export async function archivePayment(
+  accessToken: string,
+  paymentId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<PaymentDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/payments/${paymentId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return PaymentDetailResponseSchema.parse(await response.json());
 }
 
 export async function createPayment(
@@ -3762,20 +3842,61 @@ export async function getInvoiceSettlement(
 
 export async function listExpenses(
   accessToken: string,
-  options: { clientId?: string; includeArchived?: boolean; pageSize?: number } = {},
+  options: AccountingListOptions & { category?: ExpenseCategory } = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<ExpenseListResponse> {
   const response = await accountingRequest(
     accessToken,
     queryPath('/expenses', {
+      page: options.page,
       pageSize: options.pageSize ?? 20,
       clientId: options.clientId,
+      category: options.category,
       includeArchived: options.includeArchived ? 'true' : undefined,
     }),
     {},
     apiBaseUrl,
   );
   return ExpenseListResponseSchema.parse(await response.json());
+}
+
+export async function getExpense(
+  accessToken: string,
+  expenseId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseDetailResponse> {
+  const response = await accountingRequest(accessToken, `/expenses/${expenseId}`, {}, apiBaseUrl);
+  return ExpenseDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateExpense(
+  accessToken: string,
+  expenseId: string,
+  input: ExpenseUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/expenses/${expenseId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ExpenseDetailResponseSchema.parse(await response.json());
+}
+
+export async function correctExpense(
+  accessToken: string,
+  expenseId: string,
+  input: ExpenseCorrectRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<ExpenseDetailResponse> {
+  const response = await accountingRequest(
+    accessToken,
+    `/expenses/${expenseId}/correct`,
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return ExpenseDetailResponseSchema.parse(await response.json());
 }
 
 export async function createExpense(
@@ -3822,12 +3943,13 @@ export async function getClientReceivables(
 
 export async function listOverdueReceivables(
   accessToken: string,
-  options: { clientId?: string; pageSize?: number } = {},
+  options: { clientId?: string; page?: number; pageSize?: number } = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<OverdueReceivableListResponse> {
   const response = await accountingRequest(
     accessToken,
     queryPath('/receivables/overdue', {
+      page: options.page,
       pageSize: options.pageSize ?? 20,
       clientId: options.clientId,
     }),
@@ -3850,6 +3972,21 @@ export async function getProfitability(
     apiBaseUrl,
   );
   return ProfitabilitySummaryResponseSchema.parse(await response.json());
+}
+
+export async function listAccountingPlacementOptions(
+  accessToken: string,
+  query: AccountingPlacementOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<AccountingPlacementOptionsResponse> {
+  const parsed = AccountingPlacementOptionsQuerySchema.parse(query);
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/placement-options', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return AccountingPlacementOptionsResponseSchema.parse(await response.json());
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { plural } from '../message.js';
 import type { Messages } from './en.js';
+import { accountingFr } from './accounting.fr.js';
 import { commercialFr } from './commercial.fr.js';
 import { documentsFr } from './documents.fr.js';
 import { missionsFr } from './missions.fr.js';
@@ -641,6 +642,7 @@ export const frMessages: Messages = {
       required: 'Ce champ est obligatoire.',
     },
   },
+  accounting: accountingFr,
   commercial: commercialFr,
   documents: documentsFr,
   missions: missionsFr,
