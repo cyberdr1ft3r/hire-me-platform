@@ -5,7 +5,7 @@ Last updated: 2026-10-02
 ## Current situation
 
 - The latest `main` is `696a539` (Issue #127 Commercial V1, PR #129 and PR #130), after PR #128 / Issue #125 `FINANCE_MANAGER` (D-078).
-- Issue #131 (Accounting V1 workspace): the raw-ID audit is `docs/audit/issue-131-accounting-source-audit.md`. The bounded prerequisite (D-081: read-only Accounting `display` labels and `GET /v1/accounting/placement-options`; no migration, no new permission) is on `cursor/issue-131-accounting-source-labels-eafa`, and the bilingual workspace is stacked on it.
+- Issue #131 (Accounting V1 workspace): the raw-ID audit is `docs/audit/issue-131-accounting-source-audit.md`. D-081 prerequisite is on `cursor/issue-131-accounting-source-labels-eafa` (draft PR #133). The bilingual web workspace is implemented on `cursor/issue-131-accounting-workspace-eafa` (`a6a7ec6`), stacked on the same D-081 commit until #133 merges.
 - Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
 - Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
