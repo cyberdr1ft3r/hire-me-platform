@@ -1,27 +1,28 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ## Current situation
 
-- The latest `main` is `2193c19` (PR #128 / Issue #125 `FINANCE_MANAGER` role, D-078), after PR #126 / Issue #115 polish and PR #122 / Issue #114.
-- Issue #127 (Commercial V1 workspace): the bounded prerequisite (D-079: read-only `display` labels and `GET /v1/commercial/placement-options`; no migration, no new permission) is draft PR #129. The bilingual workspace (D-080) is draft PR #130, stacked on #129, with browser evidence in `docs/audit/issue-127-commercial-evidence.md`.
-- Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
-- Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
-- Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
-- D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
+- Issue #132 preflight/design only: [report](../design/issue-132-electronic-signature-preflight.md). Audited main `696a539361f0455c843fd79c80c83c76ebaa842d` contains Commercial PR #130 and Finance Manager. No open PRs were returned at initial overlap check.
+- Proposed schema, role defaults, local/server boundary, PDF binding protocol, threat model and PR split are documented, not implemented or accepted.
+- Provider-neutral implementation planning is ready. Barid adapter/native-agent implementation remains gated on written interface confirmation and a sanitized token/PDF proof.
+- No migrations, runtime code, dependencies, provider transactions or production actions in this task. Keep the design PR draft/unmerged and Issue #132 open.
 
-## Next concrete action
+## Next concrete action and completion conditions
 
-1. **Issue #127:** review PR #129 first, then PR #130; after #129 merges, retarget #130 to `main`, merge latest `main` into it, rerun the full validation suite, and wait for exact-head CI. Decide R-050 (finance access to mission-linked commercial records) separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
-2. After Commercial, continue the deferred-module rollout with Accounting and Admin, each in its own bounded issue.
-3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
-4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.
-5. Preserve the Issue #93 seeded RolePermission row-identity guarantees and the Issue #105 seeded Permission metadata guarantees in every integration fixture.
-6. Do **not** treat D-068 production proxy verification or D-070 production migration as closed.
+1. Review #132 proposal: internal issuer identity, sign/seal/approve/admin defaults, self-approval V1, signing eligibility, stale rejection, trusted timestamp policy and one-operation boundary. Record accepted decisions only after review.
+2. Obtain Barid integration documentation/test setup and confirm exact token/SAC/API, certificate kinds, PDF/CMS binding and qualified timestamp onboarding. No support message has been sent.
+3. Split future foundation, validation/publication, feasibility, adapter/native agent and EN/FR UX PRs per the report. Do not start provider implementation from generic SafeNet capability alone.
+4. Foundation acceptance requires exact-version/hash and source-scope tests, immutable evidence/lineage, concurrency/replay rejection and permission/grant checks. Provider enablement additionally requires actual supported token and independently validated PDF evidence.
 
-## D-071 catalog guarantees on `main` (Issue #93 / PR #104, Issue #105 / PR #107)
+## Preserved unrelated follow-ups
 
-- `ensurePermissionForTest()` reuses seeded ACTIVE permissions without writing them, creates only missing codes (removed after the test file), and refuses an existing non-ACTIVE permission instead of reactivating it.
-- Every integration change must keep, after both passes (second pass reverse order, no reseed): zero seeded Permission description, scope-type, and status drift; zero leftover test-created permissions; zero seeded RolePermission row replacement and active-state drift.
-- Provision the disposable server with `C.UTF-8` collation (as CI's Alpine image sorts); a glibc `en_US` cluster reorders hyphenated names and fails the Task selector sort assertion.
+- R-050 finance access to mission-linked commercial records remains unresolved; do not grant missions:view as a signing workaround.
+- Deferred Accounting/Admin rollout and Issues #109/#110 remain separate. Issues #117/#118 and whole-product UI-DNA v1.1 remain deferred.
+- Documents R-048 broader filters/limits remain separate; the ability to upload a manual version on a generated Document is explicitly considered in #132's unsigned/stale policy.
+- D-068 production env/proxy body limits remain unverified; D-070 migration is not claimed deployed.
+
+## D-071 integration requirements for future implementation
+
+Use a marked disposable database with C.UTF-8 collation. Preserve seeded Permission metadata and RolePermission row identities/grants across both suite passes without reseed. Test-created permissions must be cleaned up; never use the development or production database.
