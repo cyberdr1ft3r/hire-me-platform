@@ -5,7 +5,7 @@ Last updated: 2026-10-01
 ## Current situation
 
 - The latest `main` is `2193c19` (PR #128 / Issue #125 `FINANCE_MANAGER` role, D-078), after PR #126 / Issue #115 polish and PR #122 / Issue #114.
-- Issue #127 (Commercial V1 workspace): the raw-ID audit found no authorization-compatible source for invoice placements or for human labels on commercial list/detail rows. The bounded prerequisite (D-079) is on draft PR branch `cursor/issue-127-commercial-source-labels-eafa`: read-only `display` labels on Commercial summaries and `GET /v1/commercial/placement-options`; no migration, no new permission. The UI rollout is stacked on it on `cursor/issue-127-commercial-workspace-eafa`.
+- Issue #127 (Commercial V1 workspace): the bounded prerequisite (D-079: read-only `display` labels and `GET /v1/commercial/placement-options`; no migration, no new permission) is draft PR #129. The bilingual workspace (D-080) is draft PR #130, stacked on #129, with browser evidence in `docs/audit/issue-127-commercial-evidence.md`.
 - Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
 - Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
@@ -13,7 +13,7 @@ Last updated: 2026-10-01
 
 ## Next concrete action
 
-1. **Issue #127:** review the D-079 prerequisite PR first (labels + placement options, PostgreSQL coverage in `commercial-presentation.integration.test.ts`), then the stacked Commercial UI PR; retarget the UI PR to `main` after the prerequisite merges. Decide R-050 (finance access to mission-linked commercial records) separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
+1. **Issue #127:** review PR #129 first, then PR #130; after #129 merges, retarget #130 to `main`, merge latest `main` into it, rerun the full validation suite, and wait for exact-head CI. Decide R-050 (finance access to mission-linked commercial records) separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
 2. After Commercial, continue the deferred-module rollout with Accounting and Admin, each in its own bounded issue.
 3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
 4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.

@@ -141,15 +141,11 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
  *
  * These are marked as English content so assistive technology is not told that
  * English copy is French. A route leaves this list when its own redesign makes
- * it bilingual. Reporting, Candidates, Clients, Missions, Documents, and Training have left it:
- * these surfaces are fully translated, so none may be announced as English inside a French
- * document.
+ * it bilingual. Reporting, Candidates, Clients, Missions, Documents, Training, and
+ * Commercial have left it: these surfaces are fully translated, so none may be announced as
+ * English inside a French document.
  */
-export const deferredEnglishRoutes: readonly InternalRoute[] = [
-  'accounting',
-  'admin',
-  'commercial',
-];
+export const deferredEnglishRoutes: readonly InternalRoute[] = ['accounting', 'admin'];
 
 export function isDeferredEnglishRoute(route: InternalRoute): boolean {
   return deferredEnglishRoutes.includes(route);
