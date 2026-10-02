@@ -62,6 +62,19 @@ Last updated: 2026-09-29
 | R-049 | The bilingual Training workspace (Issue #111) cannot create EXTERNAL participants (existing EXTERNAL enrollments are shown only through `participantDisplay`); attendance needs `training_sessions:view` because it lives under a selected session; the Candidate picker needs `candidates:view` and the contact picker `clients:view` plus `client_contacts:view`, so a Training manager without them can enroll only internal users; every picker shows at most 20 matches and relies on search; `/training` has no deep link to a program or session; and native date inputs follow the browser language. | Operators may need search to reach older people or clients, may need another account to enroll candidates or contacts, and cannot share a link to a program. | Server authorization, D-073 option privacy, lifecycle validation, and pagination stay authoritative; hidden identities render a localized restricted state; each limit is stated in the UI where it applies. EXTERNAL participant management and deep links need their own issue. | Accepted for Issue #111; follow-ups tracked separately |
 | R-050 | Under the existing Commercial record scope, actors without `missions:view` (including the Issue #125 `FINANCE_MANAGER`) cannot see or create mission-linked or placement-backed quotations, contracts, purchase orders, or invoices. | Finance staff may be unable to invoice recruitment placements without being granted recruitment visibility. | D-079 keeps the scope unchanged and grants no recruitment permission; the UI explains the limitation. Whether finance needs a bounded mission-linked commercial scope is an open product decision for a separate issue. | Open |
 
+## Issue #132 preflight risks (proposal, 2026-10-02)
+
+See the [preflight threat model and provider gates](../design/issue-132-electronic-signature-preflight.md).
+Existing risk IDs remain unchanged; these issue-scoped entries are not accepted implementation decisions.
+
+| Risk | Impact | Required gate | State |
+| --- | --- | --- | --- |
+| 132-PROVIDER | Generic SafeNet support mistaken for a supported Barid token/SDK or remote signing API | Written product/interface confirmation and real test-token proof; qualified TSA is a separate service | Open |
+| 132-BINDING | A valid signature accepted for another PDF or an unapproved incremental revision | Persist exact prepared payload/approval; independently validate ByteRange, certificate and allowed changes | Open |
+| 132-AUTHORITY | Customer identity or a personal certificate treated as issuer seal authority | Explicit internal issuer, verified certificate kind/identity and organization mandate; no role-only bypass | Open |
+| 132-RETENTION | Local filesystem and DB hashes mistaken for privileged-tamper-proof or qualified preservation | Checksum-on-read, immutable publication, protected evidence/backup and retention/restore policy before production | Open |
+| 132-TIME | Claimed local time or unavailable revocation data treated as trusted historical validity | Timestamp/revocation validation policy; indeterminate blocks acceptance; retain evidence and policy version | Open |
+
 ## Risk protocol
 
 - Update the register when likelihood, impact, mitigation, or ownership materially changes.

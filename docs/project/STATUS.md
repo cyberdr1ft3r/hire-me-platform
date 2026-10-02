@@ -1,7 +1,16 @@
 # Project Status
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 Status owner: repository maintainer
+
+## Issue #132 preflight — design only
+
+Audited main: `696a539361f0455c843fd79c80c83c76ebaa842d` (Commercial PR #130 merged).
+[Signing/sealing preflight](../design/issue-132-electronic-signature-preflight.md) proposes immutable version-bound approval, provider-neutral requests, certificate identities, independent validation and signed-output lineage. Ready for implementation planning: **YES**; provider-specific implementation: **blocked** pending the token/SDK and PDF binding proof. No migration, production code, provider call or signing credential was added. Proposal requires review; Issue #132 remains open.
+
+DGSSI lists Barid qualified signature, seal and timestamp services. Public Barid documentation confirms local SafeNet/desktop PDF signing and an RFC 3161 qualified TSA with mutual TLS; it does not confirm the intended token's custom integration contract. Review the report's role defaults, issuer model, approval/stale policies and phased PR plan before implementation.
+
+The older overall-state sections below predate audited main; their references to pending Commercial PRs are historical, not a dependency for #132. Do not broaden this preflight into a whole-project status reconciliation.
 
 ## Overall state
 

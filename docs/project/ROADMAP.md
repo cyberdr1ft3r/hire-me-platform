@@ -192,3 +192,10 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 - Do not combine unrelated phases into one Codex task.
 - Update this roadmap when sequencing or dependencies change.
 - Keep feature detail in product documentation and issue acceptance criteria, not in this overview.
+
+## Issue #132 — proposed signing/sealing sequence
+
+Design-only [preflight](../design/issue-132-electronic-signature-preflight.md), 2026-10-02.
+Sequence: design review → neutral schema/permissions/request foundation → PDF preparation/independent validation/publication → Barid adapter and any separately packaged native agent → EN/FR Commercial/Documents integration → separately authorized pilot.
+Provider feasibility/documentation can proceed alongside neutral work but blocks adapter implementation and production enablement. No migration or implementation starts in the preflight PR.
+This adds no deadline and does not close unrelated rollout or operational blockers.
