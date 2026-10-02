@@ -202,7 +202,7 @@ describe('Task workspace inside a French shell', () => {
   });
 
   it('applies the boundary to every deferred destination and to nothing else', () => {
-    expect([...deferredEnglishRoutes].sort()).toEqual(['accounting', 'admin']);
+    expect([...deferredEnglishRoutes].sort()).toEqual(['admin']);
     expect(isDeferredEnglishRoute('clients')).toBe(false);
     expect(isDeferredEnglishRoute('tasks')).toBe(false);
     // Reporting, Candidates, and Tasks are bilingual since their redesigns, so they left
@@ -214,6 +214,7 @@ describe('Task workspace inside a French shell', () => {
     expect(isDeferredEnglishRoute('documents')).toBe(false);
     expect(isDeferredEnglishRoute('training')).toBe(false);
     expect(isDeferredEnglishRoute('commercial')).toBe(false);
+    expect(isDeferredEnglishRoute('accounting')).toBe(false);
     // The Overview page is translated, so it is never marked as English content.
     expect(isDeferredEnglishRoute('home')).toBe(false);
   });
