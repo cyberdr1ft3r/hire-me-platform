@@ -86,7 +86,11 @@ describe('accounting form and list helpers', () => {
     const valid = toPaymentCreateRequest({
       ...emptyPaymentForm(),
       reference: 'PAY-NEW',
-      client: { id: '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a', label: 'Synthetic Client', detail: null },
+      client: {
+        id: '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a',
+        label: 'Synthetic Client',
+        detail: null,
+      },
       amount: '100.00',
       receivedDate: '2026-09-15',
     });
@@ -100,9 +104,9 @@ describe('accountingFailureKey', () => {
     expect(
       accountingFailureKey(new AccountingRequestError(409, 'PAYMENT_CORRECTION_BELOW_ALLOCATED')),
     ).toBe('accounting.feedback.failure.correctionBelowAllocated');
-    expect(accountingFailureKey(new AccountingRequestError(404, 'ACCOUNTING_RECORD_NOT_FOUND'))).toBe(
-      'accounting.feedback.failure.notFound',
-    );
+    expect(
+      accountingFailureKey(new AccountingRequestError(404, 'ACCOUNTING_RECORD_NOT_FOUND')),
+    ).toBe('accounting.feedback.failure.notFound');
     expect(accountingFailureKey(new AccountingRequestError(403, null))).toBe(
       'accounting.feedback.failure.forbidden',
     );

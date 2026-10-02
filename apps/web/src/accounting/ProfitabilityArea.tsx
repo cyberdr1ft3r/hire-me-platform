@@ -173,7 +173,9 @@ export function ProfitabilityArea({ access, loaders, session }: AreaProps) {
           </h3>
           {result.status === 'idle' ? (
             <p className="accounting-muted">
-              {t(`accounting.profitability.prompt.${context}` as 'accounting.profitability.prompt.CLIENT')}
+              {t(
+                `accounting.profitability.prompt.${context}` as 'accounting.profitability.prompt.CLIENT',
+              )}
             </p>
           ) : null}
           {result.status === 'loading' ? (

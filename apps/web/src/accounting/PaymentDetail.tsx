@@ -720,7 +720,9 @@ function AllocationForm({
   }
 
   const outstanding =
-    settlement.status === 'ready' ? (settlement.settlement.amounts?.outstandingCents ?? null) : null;
+    settlement.status === 'ready'
+      ? (settlement.settlement.amounts?.outstandingCents ?? null)
+      : null;
   const settled = outstanding !== null && outstanding <= 0;
 
   function submit(event: FormEvent<HTMLFormElement>): void {

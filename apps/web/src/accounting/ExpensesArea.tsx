@@ -28,11 +28,7 @@ import {
 } from '../ui/index.js';
 import type { AccountingAccess } from './accounting-access.js';
 import { recordStatusTone, useAccountingFormat } from './accounting-labels.js';
-import type {
-  AccountingLoaders,
-  AccountingWriteAction,
-  AreaProps,
-} from './accounting-session.js';
+import type { AccountingLoaders, AccountingWriteAction, AreaProps } from './accounting-session.js';
 import {
   accountingFailureKey,
   emptyExpenseForm,
@@ -113,9 +109,7 @@ export function ExpensesArea({ access, loaders, session }: AreaProps) {
     const sameSession = session.capture();
     const record = recordGeneration.current;
     return () =>
-      mounted.current &&
-      sameSession() &&
-      (scope === 'area' || recordGeneration.current === record);
+      mounted.current && sameSession() && (scope === 'area' || recordGeneration.current === record);
   }
 
   async function loadList(forQuery: ListQuery<ExpenseFilters>, quiet = false): Promise<void> {
@@ -855,7 +849,10 @@ function ExpenseRecord({
   const restricted = <span className="accounting-muted">{t('accounting.common.restricted')}</span>;
   const contextFacts: { label: string; value: ReactNode }[] = [];
   if (context.clientId) {
-    contextFacts.push({ label: t('accounting.form.client'), value: display.clientName ?? restricted });
+    contextFacts.push({
+      label: t('accounting.form.client'),
+      value: display.clientName ?? restricted,
+    });
   }
   if (context.recruitmentMissionId) {
     contextFacts.push({

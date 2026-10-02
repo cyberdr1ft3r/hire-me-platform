@@ -147,7 +147,9 @@ describe('AccountingPanel: presentation and localization', () => {
     expect(screen.getByText('1 payment')).toBeVisible();
 
     await openPayment();
-    expect(within(screen.getByRole('region', { name: 'History' })).getByText('Recorded')).toBeVisible();
+    expect(
+      within(screen.getByRole('region', { name: 'History' })).getByText('Recorded'),
+    ).toBeVisible();
     expect(screen.queryByText('Synthetic server summary')).toBeNull();
     expectNoRawIds();
   });
@@ -160,7 +162,9 @@ describe('AccountingPanel: presentation and localization', () => {
     expect(await screen.findByText('1 paiement')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Dépenses' })).toBeVisible();
     await openPayment();
-    expect(screen.getByRole('heading', { level: 3, name: 'Imputations sur factures' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Imputations sur factures' }),
+    ).toBeVisible();
     expectNoRawIds();
   });
 
@@ -178,7 +182,10 @@ describe('AccountingPanel: presentation and localization', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Toggle locale' }));
 
     expect(await screen.findByRole('heading', { level: 2, name: 'PAY-SYN-001' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Paiements' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Paiements' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });

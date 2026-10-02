@@ -129,9 +129,7 @@ export function PaymentsArea({
     const sameSession = session.capture();
     const record = recordGeneration.current;
     return () =>
-      mounted.current &&
-      sameSession() &&
-      (scope === 'area' || recordGeneration.current === record);
+      mounted.current && sameSession() && (scope === 'area' || recordGeneration.current === record);
   }
 
   async function loadList(forQuery: ListQuery<PaymentFilters>, quiet = false): Promise<void> {

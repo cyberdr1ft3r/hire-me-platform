@@ -2,12 +2,7 @@ import type { AccountingAccess } from './accounting-access.js';
 import type { LoadOptions, PickerOption } from './accounting-state.js';
 
 export type AccountingWriteAction =
-  | 'create'
-  | 'update'
-  | 'correct'
-  | 'archive'
-  | 'allocate'
-  | 'reverse';
+  'create' | 'update' | 'correct' | 'archive' | 'allocate' | 'reverse';
 
 /**
  * What an Accounting area needs from the panel that owns the session.

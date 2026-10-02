@@ -1,11 +1,7 @@
 import { EmptyState, InlineMessage, PageHeader } from '../ui/index.js';
 import type { AccountingAccess, AccountingArea } from './accounting-access.js';
 import { useAccountingFormat } from './accounting-labels.js';
-import type {
-  AccountingLoaders,
-  AccountingSession,
-  PaymentPrefill,
-} from './accounting-session.js';
+import type { AccountingLoaders, AccountingSession, PaymentPrefill } from './accounting-session.js';
 import { BalancesArea } from './BalancesArea.js';
 import { ExpensesArea } from './ExpensesArea.js';
 import { PaymentsArea } from './PaymentsArea.js';

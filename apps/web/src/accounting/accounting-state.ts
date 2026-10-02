@@ -28,7 +28,11 @@ export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   'OTHER',
 ];
 
-export const PAYMENT_STATUSES: readonly PaymentRecordStatus[] = ['RECORDED', 'CORRECTED', 'ARCHIVED'];
+export const PAYMENT_STATUSES: readonly PaymentRecordStatus[] = [
+  'RECORDED',
+  'CORRECTED',
+  'ARCHIVED',
+];
 
 export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'RECRUITMENT_SOURCING',
