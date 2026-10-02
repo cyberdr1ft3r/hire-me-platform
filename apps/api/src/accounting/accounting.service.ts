@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  AccountingPlacementOptionsQuery,
+  AccountingPlacementOptionsResponse,
   ClientReceivableSummaryResponse,
   ExpenseCorrectRequest,
   ExpenseCreateRequest,
@@ -13,6 +15,7 @@ import type {
   OverdueReceivableQuery,
   PaymentAllocationCreateRequest,
   PaymentAllocationDetailResponse,
+  PaymentAllocationDisplay,
   PaymentAllocationReverseRequest,
   PaymentAllocationSummary,
   PaymentCorrectRequest,
@@ -50,11 +53,18 @@ type Tx = Prisma.TransactionClient;
 type PrismaLike = Tx | PrismaService;
 
 const paymentInclude = {
+  client: { select: { name: true } },
   allocations: { orderBy: { createdAt: 'asc' } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.PaymentInclude;
 
 const expenseInclude = {
+  client: { select: { name: true } },
+  recruitmentMission: { select: { title: true } },
+  missionPlacement: {
+    select: { integrationStartDate: true, confirmedAt: true, mission: { select: { title: true } } },
+  },
+  trainingProgram: { select: { name: true } },
   events: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.ExpenseInclude;
 
@@ -172,7 +182,7 @@ export class AccountingService {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.paymentsView, ACCOUNTING_PERMISSIONS.PAYMENTS_VIEW);
     const payment = await this.getScopedPayment(id, access);
-    return { payment: this.toPaymentDetail(payment, access) };
+    return { payment: await this.presentPayment(payment, actorUserId, access) };
   }
 
   async createPayment(
@@ -233,7 +243,7 @@ export class AccountingService {
         );
       });
 
-    return { payment: this.toPaymentDetail(payment, access) };
+    return { payment: await this.presentPayment(payment, actorUserId, access) };
   }
 
   async updatePayment(
@@ -288,7 +298,7 @@ export class AccountingService {
       return this.reloadPayment(id, tx);
     });
 
-    return { payment: this.toPaymentDetail(payment, access) };
+    return { payment: await this.presentPayment(payment, actorUserId, access) };
   }
 
   /**
@@ -351,7 +361,7 @@ export class AccountingService {
       return this.reloadPayment(id, tx);
     });
 
-    return { payment: this.toPaymentDetail(payment, access) };
+    return { payment: await this.presentPayment(payment, actorUserId, access) };
   }
 
   async archivePayment(
@@ -401,7 +411,7 @@ export class AccountingService {
       return this.reloadPayment(id, tx);
     });
 
-    return { payment: this.toPaymentDetail(payment, access) };
+    return { payment: await this.presentPayment(payment, actorUserId, access) };
   }
 
   // --------------------------------------------------------------------------
@@ -536,10 +546,14 @@ export class AccountingService {
         );
       });
 
-    const payment = await this.reloadPayment(paymentId, this.prisma);
+    const payment = await this.presentPayment(
+      await this.reloadPayment(paymentId, this.prisma),
+      actorUserId,
+      access,
+    );
     return {
-      allocation: this.toAllocationSummary(result.allocation, access),
-      payment: this.toPaymentDetail(payment, access),
+      allocation: allocationFrom(payment, result.allocation.id),
+      payment,
     };
   }
 
@@ -605,10 +619,14 @@ export class AccountingService {
       return reversed;
     });
 
-    const payment = await this.reloadPayment(paymentId, this.prisma);
+    const payment = await this.presentPayment(
+      await this.reloadPayment(paymentId, this.prisma),
+      actorUserId,
+      access,
+    );
     return {
-      allocation: this.toAllocationSummary(allocation, access),
-      payment: this.toPaymentDetail(payment, access),
+      allocation: allocationFrom(payment, allocation.id),
+      payment,
     };
   }
 
@@ -633,6 +651,7 @@ export class AccountingService {
     const allocations = await this.prisma.paymentAllocation.findMany({
       where: { invoiceId },
       orderBy: { createdAt: 'asc' },
+      include: { payment: { select: { reference: true } } },
     });
     const allocated = allocations
       .filter((a) => a.status === PaymentAllocationStatus.ACTIVE)
@@ -655,7 +674,12 @@ export class AccountingService {
               outstandingCents: derived.outstanding,
             }
           : null,
-        allocations: allocations.map((a) => this.toAllocationSummary(a, access)),
+        allocations: allocations.map((a) =>
+          this.toAllocationSummary(a, access, {
+            invoiceReference: invoice.reference,
+            paymentReference: a.payment.reference,
+          }),
+        ),
       },
     };
   }
@@ -1009,6 +1033,7 @@ export class AccountingService {
     const candidates = await this.prisma.invoice.findMany({
       where,
       orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+      include: { client: { select: { name: true } } },
     });
 
     const rows = [];
@@ -1021,6 +1046,7 @@ export class AccountingService {
       rows.push({
         invoiceId: invoice.id,
         clientId: invoice.clientId,
+        display: { clientName: invoice.client.name },
         reference: invoice.reference,
         dueDate: isoOrNull(invoice.dueDate),
         daysOverdue: invoice.dueDate ? daysBetween(invoice.dueDate, now) : 0,
@@ -1120,6 +1146,56 @@ export class AccountingService {
           };
         }),
       },
+    };
+  }
+
+  /**
+   * Bounded placement source for placement profitability and placement-linked expenses
+   * (D-081). It needs `placements:view` (enforced by the route), commercial data
+   * access, and one of the two accounting capabilities that accept a placement, then
+   * applies the same mission scope as `assertPlacementScope`. One mission at a time,
+   * at most 20 non-archived placements, no count, and never candidate identity.
+   */
+  async listPlacementOptions(
+    query: AccountingPlacementOptionsQuery,
+    actorUserId: string,
+  ): Promise<AccountingPlacementOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    if (!access.profitabilityView && !access.expensesManage) {
+      throw forbidden(
+        'ACCOUNTING_PERMISSION_REQUIRED',
+        `This action requires ${ACCOUNTING_PERMISSIONS.PROFITABILITY_VIEW} or ${ACCOUNTING_PERMISSIONS.EXPENSES_MANAGE}.`,
+      );
+    }
+    this.assertCommercialData(access);
+    if (!access.placementsView) {
+      throw forbidden(
+        'ACCOUNTING_PERMISSION_REQUIRED',
+        `This action requires ${MISSION_PERMISSIONS.PLACEMENTS_VIEW}.`,
+      );
+    }
+    await this.assertMissionScope(query.recruitmentMissionId, actorUserId, access, this.prisma);
+
+    const placements = await this.prisma.missionPlacement.findMany({
+      where: { missionId: query.recruitmentMissionId, archivedAt: null },
+      orderBy: [{ confirmedAt: 'desc' }, { id: 'asc' }],
+      take: 20,
+      select: {
+        id: true,
+        missionId: true,
+        integrationStartDate: true,
+        confirmedAt: true,
+        mission: { select: { title: true } },
+      },
+    });
+    return {
+      options: placements.map((placement) => ({
+        id: placement.id,
+        recruitmentMissionId: placement.missionId,
+        missionTitle: placement.mission.title,
+        integrationStartDate: placement.integrationStartDate.toISOString(),
+        confirmedAt: placement.confirmedAt.toISOString(),
+      })),
     };
   }
 
@@ -1695,6 +1771,7 @@ export class AccountingService {
       id: payment.id,
       reference: payment.reference,
       clientId: payment.clientId,
+      display: { clientName: payment.client.name },
       receivedDate: payment.receivedDate.toISOString(),
       method: payment.method,
       externalReference: payment.externalReference,
@@ -1717,10 +1794,43 @@ export class AccountingService {
     };
   }
 
-  private toPaymentDetail(payment: PaymentRecord, access: AccountingAccess): PaymentDetail {
+  /**
+   * Allocation invoice references are resolved through `visibleInvoiceScope` in the
+   * database predicate, so an allocation to a mission-linked invoice outside the
+   * actor's mission scope keeps `invoiceReference: null`.
+   */
+  private async presentPayment(
+    payment: PaymentRecord,
+    actorUserId: string,
+    access: AccountingAccess,
+  ): Promise<PaymentDetail> {
+    const invoiceIds = [...new Set(payment.allocations.map((a) => a.invoiceId))];
+    const references = new Map<string, string>();
+    if (access.invoicesView && invoiceIds.length > 0) {
+      const invoices = await this.prisma.invoice.findMany({
+        where: { id: { in: invoiceIds }, AND: [this.visibleInvoiceScope(actorUserId, access)] },
+        select: { id: true, reference: true },
+      });
+      for (const invoice of invoices) {
+        references.set(invoice.id, invoice.reference);
+      }
+    }
+    return this.toPaymentDetail(payment, access, references);
+  }
+
+  private toPaymentDetail(
+    payment: PaymentRecord,
+    access: AccountingAccess,
+    invoiceReferences: Map<string, string>,
+  ): PaymentDetail {
     return {
       ...this.toPaymentSummary(payment, access),
-      allocations: payment.allocations.map((a) => this.toAllocationSummary(a, access)),
+      allocations: payment.allocations.map((a) =>
+        this.toAllocationSummary(a, access, {
+          invoiceReference: invoiceReferences.get(a.invoiceId) ?? null,
+          paymentReference: payment.reference,
+        }),
+      ),
       history: payment.events.map((event) => ({
         id: event.id,
         action: event.action,
@@ -1735,11 +1845,13 @@ export class AccountingService {
   private toAllocationSummary(
     allocation: AllocationRecord,
     access: AccountingAccess,
+    display: PaymentAllocationDisplay,
   ): PaymentAllocationSummary {
     return {
       id: allocation.id,
       paymentId: allocation.paymentId,
       invoiceId: allocation.invoiceId,
+      display,
       status: allocation.status,
       amountCents: access.commercialData ? allocation.amountCents : null,
       allocatedByUserId: allocation.allocatedByUserId,
@@ -1761,6 +1873,18 @@ export class AccountingService {
         recruitmentMissionId: expense.recruitmentMissionId,
         missionPlacementId: expense.missionPlacementId,
         trainingProgramId: expense.trainingProgramId,
+      },
+      display: {
+        clientName: expense.client?.name ?? null,
+        missionTitle: expense.recruitmentMission?.title ?? null,
+        placement: expense.missionPlacement
+          ? {
+              missionTitle: expense.missionPlacement.mission.title,
+              integrationStartDate: expense.missionPlacement.integrationStartDate.toISOString(),
+              confirmedAt: expense.missionPlacement.confirmedAt.toISOString(),
+            }
+          : null,
+        trainingProgramName: expense.trainingProgram?.name ?? null,
       },
       vendorLabel: access.commercialData ? expense.vendorLabel : null,
       description: access.commercialData ? expense.description : null,
@@ -1821,6 +1945,14 @@ function deriveSettlement(
     overdue: false,
     outstanding,
   };
+}
+
+function allocationFrom(payment: PaymentDetail, allocationId: string): PaymentAllocationSummary {
+  const allocation = payment.allocations.find((row) => row.id === allocationId);
+  if (!allocation) {
+    throw accountingNotFound();
+  }
+  return allocation;
 }
 
 function daysBetween(from: Date, to: Date): number {
