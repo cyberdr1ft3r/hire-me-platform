@@ -19,6 +19,8 @@ import {
   CommercialContractListResponseSchema,
   CommercialContractStatusActionRequestSchema,
   CommercialContractUpdateRequestSchema,
+  CommercialPlacementOptionsQuerySchema,
+  CommercialPlacementOptionsResponseSchema,
   InvoiceCancelRequestSchema,
   InvoiceCreateRequestSchema,
   InvoiceDetailResponseSchema,
@@ -344,6 +346,21 @@ export class CommercialController {
     }
     return InvoiceDetailResponseSchema.parse(
       await this.commercial.createInvoice(parsed.data, request.user!.id, this.context(request)),
+    );
+  }
+
+  @Get('placement-options')
+  @RequirePermissions(COMMERCIAL_PERMISSIONS.INVOICES_MANAGE)
+  async listPlacementOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = CommercialPlacementOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_COMMERCIAL_PLACEMENT_OPTIONS_QUERY',
+        'Invalid commercial placement options query.',
+      );
+    }
+    return CommercialPlacementOptionsResponseSchema.parse(
+      await this.commercial.listPlacementOptions(parsed.data, request.user!.id),
     );
   }
 

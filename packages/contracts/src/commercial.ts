@@ -67,11 +67,34 @@ export const CommercialAmountSummarySchema = z.object({
   totalCents: MoneyCentsSchema,
 });
 
+/**
+ * Read-only presentation labels for a commercial record the actor already passed
+ * the Commercial record scope for. Linked references are null unless the actor
+ * holds that linked record type's view permission; a placement is described only
+ * by dates (never candidate identity) and only with `placements:view` plus
+ * `placement_commercial_eligibility:view`.
+ */
+export const CommercialRecordDisplaySchema = z.object({
+  clientName: z.string(),
+  missionTitle: z.string().nullable(),
+  linkedQuotationReference: z.string().nullable(),
+  linkedContractReference: z.string().nullable(),
+  linkedPurchaseOrderReference: z.string().nullable(),
+  correctionOfInvoiceReference: z.string().nullable(),
+  placement: z
+    .object({
+      integrationStartDate: z.string().datetime(),
+      confirmedAt: z.string().datetime(),
+    })
+    .nullable(),
+});
+
 export const QuotationSummarySchema = z.object({
   id: z.string().uuid(),
   reference: z.string(),
   clientId: z.string().uuid(),
   recruitmentMissionId: z.string().uuid().nullable(),
+  display: CommercialRecordDisplaySchema,
   status: QuotationStatusSchema,
   issueDate: z.string().datetime().nullable(),
   validUntil: z.string().datetime().nullable(),
@@ -131,6 +154,7 @@ export const CommercialContractSummarySchema = z.object({
   clientId: z.string().uuid(),
   recruitmentMissionId: z.string().uuid().nullable(),
   sourceQuotationId: z.string().uuid().nullable(),
+  display: CommercialRecordDisplaySchema,
   status: CommercialContractStatusSchema,
   effectiveDate: z.string().datetime().nullable(),
   startDate: z.string().datetime().nullable(),
@@ -197,6 +221,7 @@ export const PurchaseOrderSummarySchema = z.object({
   recruitmentMissionId: z.string().uuid().nullable(),
   quotationId: z.string().uuid().nullable(),
   contractId: z.string().uuid().nullable(),
+  display: CommercialRecordDisplaySchema,
   status: PurchaseOrderStatusSchema,
   issueDate: z.string().datetime().nullable(),
   receivedDate: z.string().datetime().nullable(),
@@ -259,6 +284,7 @@ export const InvoiceSummarySchema = z.object({
   quotationId: z.string().uuid().nullable(),
   contractId: z.string().uuid().nullable(),
   purchaseOrderId: z.string().uuid().nullable(),
+  display: CommercialRecordDisplaySchema,
   status: InvoiceStatusSchema,
   issueDate: z.string().datetime().nullable(),
   dueDate: z.string().datetime().nullable(),
@@ -372,6 +398,24 @@ export const InvoiceListResponseSchema = z.object({
 });
 export const InvoiceDetailResponseSchema = z.object({ invoice: InvoiceDetailSchema });
 
+export const CommercialPlacementOptionsQuerySchema = z.object({
+  clientId: z.string().uuid(),
+  recruitmentMissionId: z.string().uuid().optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+export const CommercialPlacementOptionSchema = z.object({
+  id: z.string().uuid(),
+  recruitmentMissionId: z.string().uuid(),
+  missionTitle: z.string(),
+  integrationStartDate: z.string().datetime(),
+  confirmedAt: z.string().datetime(),
+});
+
+export const CommercialPlacementOptionsResponseSchema = z.object({
+  options: z.array(CommercialPlacementOptionSchema).max(20),
+});
+
 export type QuotationStatus = z.infer<typeof QuotationStatusSchema>;
 export type CommercialContractBusinessType = z.infer<typeof CommercialContractBusinessTypeSchema>;
 export type CommercialContractStatus = z.infer<typeof CommercialContractStatusSchema>;
@@ -418,3 +462,9 @@ export type InvoiceIssueRequest = z.infer<typeof InvoiceIssueRequestSchema>;
 export type InvoiceCancelRequest = z.infer<typeof InvoiceCancelRequestSchema>;
 export type InvoiceListResponse = z.infer<typeof InvoiceListResponseSchema>;
 export type InvoiceDetailResponse = z.infer<typeof InvoiceDetailResponseSchema>;
+export type CommercialRecordDisplay = z.infer<typeof CommercialRecordDisplaySchema>;
+export type CommercialPlacementOptionsQuery = z.infer<typeof CommercialPlacementOptionsQuerySchema>;
+export type CommercialPlacementOption = z.infer<typeof CommercialPlacementOptionSchema>;
+export type CommercialPlacementOptionsResponse = z.infer<
+  typeof CommercialPlacementOptionsResponseSchema
+>;
