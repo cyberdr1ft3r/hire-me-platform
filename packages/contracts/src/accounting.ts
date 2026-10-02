@@ -109,10 +109,19 @@ export const PaymentAmountsSchema = z.object({
   unallocatedCents: NonNegativeCentsSchema,
 });
 
+/**
+ * Read-only presentation labels (Issue #131, D-081). A payment is readable only with
+ * `clients:view`, so its client name names nothing the actor cannot already reach.
+ */
+export const PaymentDisplaySchema = z.object({
+  clientName: z.string(),
+});
+
 export const PaymentSummarySchema = z.object({
   id: z.string().uuid(),
   reference: z.string(),
   clientId: z.string().uuid(),
+  display: PaymentDisplaySchema,
   receivedDate: z.string().datetime(),
   method: PaymentMethodSchema,
   externalReference: z.string().nullable(),
@@ -127,10 +136,21 @@ export const PaymentSummarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/**
+ * `invoiceReference` is null unless the actor holds `invoices:view` and the invoice
+ * passes the same client and mission scope the Commercial invoice list applies, so an
+ * allocation never names an invoice the actor could not open.
+ */
+export const PaymentAllocationDisplaySchema = z.object({
+  invoiceReference: z.string().nullable(),
+  paymentReference: z.string(),
+});
+
 export const PaymentAllocationSummarySchema = z.object({
   id: z.string().uuid(),
   paymentId: z.string().uuid(),
   invoiceId: z.string().uuid(),
+  display: PaymentAllocationDisplaySchema,
   status: PaymentAllocationStatusSchema,
   amountCents: NonNegativeCentsSchema.nullable(),
   allocatedByUserId: z.string().uuid().nullable(),
@@ -311,6 +331,25 @@ export const ExpenseContextSchema = z.object({
   trainingProgramId: z.string().uuid().nullable(),
 });
 
+/**
+ * Labels for the expense's linked contexts. An expense is readable only when every
+ * linked context passes its own source scope, so each label names a record the actor
+ * can already reach. A placement is described by its mission title and dates, never
+ * by candidate identity.
+ */
+export const ExpenseContextDisplaySchema = z.object({
+  clientName: z.string().nullable(),
+  missionTitle: z.string().nullable(),
+  placement: z
+    .object({
+      missionTitle: z.string(),
+      integrationStartDate: z.string().datetime(),
+      confirmedAt: z.string().datetime(),
+    })
+    .nullable(),
+  trainingProgramName: z.string().nullable(),
+});
+
 export const ExpenseAmountsSchema = z.object({
   currency: CurrencyCodeSchema,
   amountCents: NonNegativeCentsSchema,
@@ -322,6 +361,7 @@ export const ExpenseSummarySchema = z.object({
   expenseDate: z.string().datetime(),
   category: ExpenseCategorySchema,
   context: ExpenseContextSchema,
+  display: ExpenseContextDisplaySchema,
   vendorLabel: z.string().nullable(),
   description: z.string().nullable(),
   status: ExpenseStatusSchema,
@@ -409,6 +449,7 @@ export const ClientReceivableSummarySchema = z.object({
 export const OverdueReceivableRowSchema = z.object({
   invoiceId: z.string().uuid(),
   clientId: z.string().uuid(),
+  display: z.object({ clientName: z.string() }),
   reference: z.string(),
   dueDate: z.string().datetime().nullable(),
   daysOverdue: z.number().int().nonnegative(),
@@ -456,6 +497,27 @@ export const ProfitabilitySummarySchema = z.object({
 export const ProfitabilityQuerySchema = z.object({
   context: ProfitabilityContextSchema,
   contextId: z.string().uuid(),
+});
+
+/**
+ * Bounded placement source for placement profitability and placement-linked expenses
+ * (D-081). One mission at a time, at most 20 non-archived placements, no count, and
+ * no candidate identity.
+ */
+export const AccountingPlacementOptionsQuerySchema = z.object({
+  recruitmentMissionId: z.string().uuid(),
+});
+
+export const AccountingPlacementOptionSchema = z.object({
+  id: z.string().uuid(),
+  recruitmentMissionId: z.string().uuid(),
+  missionTitle: z.string(),
+  integrationStartDate: z.string().datetime(),
+  confirmedAt: z.string().datetime(),
+});
+
+export const AccountingPlacementOptionsResponseSchema = z.object({
+  options: z.array(AccountingPlacementOptionSchema).max(20),
 });
 
 export const ClientReceivableQuerySchema = z.object({
@@ -539,3 +601,12 @@ export type ExpenseListResponse = z.infer<typeof ExpenseListResponseSchema>;
 export type ExpenseDetailResponse = z.infer<typeof ExpenseDetailResponseSchema>;
 export type ClientReceivableSummaryResponse = z.infer<typeof ClientReceivableSummaryResponseSchema>;
 export type ProfitabilitySummaryResponse = z.infer<typeof ProfitabilitySummaryResponseSchema>;
+export type PaymentDisplay = z.infer<typeof PaymentDisplaySchema>;
+export type PaymentAllocationDisplay = z.infer<typeof PaymentAllocationDisplaySchema>;
+export type ExpenseContextDisplay = z.infer<typeof ExpenseContextDisplaySchema>;
+export type OverdueReceivableRow = z.infer<typeof OverdueReceivableRowSchema>;
+export type AccountingPlacementOptionsQuery = z.infer<typeof AccountingPlacementOptionsQuerySchema>;
+export type AccountingPlacementOption = z.infer<typeof AccountingPlacementOptionSchema>;
+export type AccountingPlacementOptionsResponse = z.infer<
+  typeof AccountingPlacementOptionsResponseSchema
+>;

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 Status owner: repository maintainer
 
 ## Overall state
@@ -66,7 +66,8 @@ Status owner: repository maintainer
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #114 | Open (ready for review) | Fix Missions first-public-opportunity empty state and publish flow | PR #122 on `cursor/missions-public-opportunity-empty-eafa`; web-only; EN/FR Chromium evidence @ 1440/390; rebased onto post-#123 `main`; awaiting maintainer merge |
 | Issue #125 | Complete | Add `FINANCE_MANAGER` role with least-privilege commercial/accounting permissions | Merged through PR #128 into `main` as `2193c19` (D-078); no role-name authorization gates |
-| Issue #127 | Open (draft PRs) | Bilingual responsive Commercial V1 workspace | Prerequisite PR #129 (D-079: Commercial `display` labels + `GET /v1/commercial/placement-options`, no migration, no new permission) on `cursor/issue-127-commercial-source-labels-eafa`; UI PR #130 (D-080) stacked on it on `cursor/issue-127-commercial-workspace-eafa`, to be retargeted to `main` after #129 merges. R-050 records the unchanged mission-scope limit for finance actors |
+| Issue #127 | Complete | Bilingual responsive Commercial V1 workspace | Merged through PR #129 (D-079 prerequisite) and PR #130 (D-080 workspace) into `main` as `696a539`. R-050 records the unchanged mission-scope limit for finance actors |
+| Issue #131 | Open (draft PRs) | Bilingual responsive Accounting V1 workspace | Raw-ID audit in `docs/audit/issue-131-accounting-source-audit.md`. Prerequisite (D-081: Accounting `display` labels + `GET /v1/accounting/placement-options`, no migration, no new permission) on `cursor/issue-131-accounting-source-labels-eafa`; the UI branch is stacked on it. R-051 records the finance mission-scope limit |
 | Issue #115 | Complete | Fix audited core UI accessibility and low-risk polish defects | Merged through PR #126 into `main` as `b53dbab` (D-077). Web/CSS/docs only. Evidence in `docs/audit/issue-115-ui-polish-evidence.md` |
 | Issue #113 | Complete | Redesign Documents as a contextual Document Center | Implemented by PR #119: bilingual `apps/web/src/documents/` Document Center with D-075 permission-aware context display and bounded context options; also fixes the pre-existing generated-document list omission for transfer-override actors. No migration, no new permission. Limits in R-048 |
 | Issue #66 | Complete (closed) | Audit product and UX drift before continuing module rollout | Audit phase complete: Public Opportunity and AppShell/i18n foundation gates **PASS**; remaining implementation lives in Issues #109–#118 (Training rollout #111; Documents #113 delivered by PR #119); D-DESIGN-01 whole-product UI-DNA v1.1 deferred (Issues #117/#118) |

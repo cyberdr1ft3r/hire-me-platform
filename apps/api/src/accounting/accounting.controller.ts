@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  AccountingPlacementOptionsQuerySchema,
+  AccountingPlacementOptionsResponseSchema,
   ClientReceivableQuerySchema,
   ClientReceivableSummaryResponseSchema,
   ExpenseCorrectRequestSchema,
@@ -44,6 +46,7 @@ import type { RequestContext, RequestWithUser } from '../auth/auth.types.js';
 import { PermissionGuard } from '../auth/permission.guard.js';
 import { RequirePermissions } from '../auth/permissions.decorator.js';
 import { COMMERCIAL_PERMISSIONS } from '../commercial/commercial-permissions.js';
+import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 
 const UuidParamSchema = z.string().uuid();
 
@@ -351,6 +354,22 @@ export class AccountingController {
 
     return ProfitabilitySummaryResponseSchema.parse(
       await this.accounting.getProfitability(parsed.data, request.user!.id),
+    );
+  }
+
+  @Get('placement-options')
+  @RequirePermissions(MISSION_PERMISSIONS.PLACEMENTS_VIEW)
+  async listPlacementOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = AccountingPlacementOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_ACCOUNTING_PLACEMENT_OPTIONS_QUERY',
+        'A valid recruitmentMissionId is required.',
+      );
+    }
+
+    return AccountingPlacementOptionsResponseSchema.parse(
+      await this.accounting.listPlacementOptions(parsed.data, request.user!.id),
     );
   }
 
