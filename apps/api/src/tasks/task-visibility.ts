@@ -1,4 +1,5 @@
-import { Prisma, TaskAssignmentStatus } from '../persistence/prisma/generated-client.js';
+import type { Prisma } from '../persistence/prisma/generated-client.js';
+import { TaskAssignmentStatus } from '../persistence/prisma/generated-client.js';
 import { TASK_PERMISSIONS } from './task-permissions.js';
 
 export type TaskAccess = {

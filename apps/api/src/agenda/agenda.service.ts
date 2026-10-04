@@ -269,7 +269,7 @@ export class AgendaService {
     if (!permissions.has(MISSION_PERMISSIONS.INTERVIEWS_VIEW)) {
       return [];
     }
-    const missionScope = await this.interviewMissionScopeWhere(actorUserId, permissions);
+    const missionScope = this.interviewMissionScopeWhere(actorUserId, permissions);
     const involvement: Prisma.InterviewWhereInput = {
       OR: [
         { organizerUserId: actorUserId },
@@ -317,10 +317,10 @@ export class AgendaService {
     });
   }
 
-  private async interviewMissionScopeWhere(
+  private interviewMissionScopeWhere(
     actorUserId: string,
     permissions: ReadonlySet<string>,
-  ): Promise<Prisma.InterviewWhereInput> {
+  ): Prisma.InterviewWhereInput {
     if (
       permissions.has(MISSION_PERMISSIONS.INTERVIEWS_ARCHIVE) ||
       permissions.has(MISSION_PERMISSIONS.EVALUATIONS_INTERNAL_VIEW)
