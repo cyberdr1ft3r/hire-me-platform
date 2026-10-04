@@ -5,8 +5,8 @@ Last updated: 2026-10-04
 ## Current situation
 
 - Latest `main` is `a78adbc` (Accounting V1 workspace PR #135 merged).
-- Issue #124 (My Agenda + meetings prerequisite) is on `cursor/issue-124-meetings-prerequisite-eafa`, merged with `main` at `a78adbc`, addressing PR #136 review blockers (participant self-status, deep links, PG coverage, browser evidence).
-- Draft PR #136 remains open/unmerged.
+- Issue #124 (My Agenda + meetings prerequisite) is on `cursor/issue-124-meetings-prerequisite-eafa`, merged with `main` at `a78adbc` (Accounting V1 #135); PR #136 review blockers addressed (participant self-status, deep links, expanded agenda PG tests, browser evidence doc).
+- Draft PR #136 remains open/unmerged; meetings foundation stays in-stack with agenda (split at `60b7b79` deferred—branch already integrates accounting + review fixes).
 - Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
 ## Next concrete action
