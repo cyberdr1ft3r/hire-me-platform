@@ -124,10 +124,14 @@ function userOptions(users: { id: string; displayName: string; email: string }[]
 export function TrainingPanel({
   accessToken,
   actorUserId,
+  initialProgramId,
+  initialSessionId,
   permissions,
 }: {
   accessToken: string;
   actorUserId: string;
+  initialProgramId?: string | null;
+  initialSessionId?: string | null;
   permissions: string[];
 }) {
   const { t } = useI18n();
@@ -145,6 +149,8 @@ export function TrainingPanel({
   const selectedSessionRef = useRef<string | null>(null);
   const programQueryRef = useRef<ProgramListQuery>(FIRST_PROGRAM_PAGE);
   const sessionQueryRef = useRef<SessionListQuery>(FIRST_SESSION_PAGE);
+  const initialProgramIntent = useRef(initialProgramId ?? null);
+  const initialSessionIntent = useRef(initialSessionId ?? null);
   const enrollmentQueryRef = useRef<EnrollmentListQuery>(FIRST_ENROLLMENT_PAGE);
   const participationQueryRef = useRef<ParticipationListQuery>(FIRST_PARTICIPATION_PAGE);
   // A different token or permission set is a different session: nothing from
@@ -225,6 +231,37 @@ export function TrainingPanel({
 
   const selectedProgramId = selectedProgram?.id ?? null;
   const selectedSessionId = selectedSession?.id ?? null;
+
+  useEffect(() => {
+    initialProgramIntent.current = initialProgramId ?? null;
+    initialSessionIntent.current = initialSessionId ?? null;
+  }, [initialProgramId, initialSessionId]);
+
+  useEffect(() => {
+    const programId = initialProgramIntent.current;
+    if (!programId || programList.status !== 'ready') {
+      return;
+    }
+    const program = programList.items.find((row) => row.id === programId);
+    if (!program) {
+      return;
+    }
+    initialProgramIntent.current = null;
+    selectProgram(program);
+  }, [programList.status, programList.items]);
+
+  useEffect(() => {
+    const sessionId = initialSessionIntent.current;
+    if (!sessionId || sessionList.status !== 'ready' || !selectedProgramId) {
+      return;
+    }
+    const session = sessionList.items.find((row) => row.id === sessionId);
+    if (!session) {
+      return;
+    }
+    initialSessionIntent.current = null;
+    selectSession(session);
+  }, [sessionList.status, sessionList.items, selectedProgramId]);
 
   useEffect(() => {
     void loadPrograms(programQuery);

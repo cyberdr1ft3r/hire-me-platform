@@ -377,7 +377,7 @@ export class AgendaService {
       timezone: meeting.timezone,
       status: meeting.status,
       allDay: false,
-      deepLink: `/agenda?meeting=${meeting.id}`,
+      deepLink: `/meetings?meeting=${meeting.id}`,
     }));
   }
 

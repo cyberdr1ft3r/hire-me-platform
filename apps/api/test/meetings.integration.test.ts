@@ -199,4 +199,68 @@ describe('meetings foundation (Issue #124)', () => {
     const canceled = MeetingDetailResponseSchema.parse(await cancelResponse.json()).meeting;
     expect(canceled.status).toBe('CANCELED');
   });
+
+  it('lets a participant update only their own participation status', async () => {
+    const start = new Date('2026-10-20T10:00:00.000Z').toISOString();
+    const createResponse = await fetch(`${baseUrl}/v1/meetings`, {
+      method: 'POST',
+      headers: authHeaders(organizerToken),
+      body: JSON.stringify({
+        title: 'Issue124Meeting participant status',
+        scheduledStartAt: start,
+        timezone: 'UTC',
+        participantUserIds: [participantId],
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const meeting = MeetingDetailResponseSchema.parse(await createResponse.json()).meeting;
+    const selfParticipant = meeting.participants.find((row) => row.userId === participantId);
+    expect(selfParticipant).toBeTruthy();
+    const organizerParticipant = meeting.participants.find((row) => row.userId === organizerId);
+    expect(organizerParticipant).toBeTruthy();
+
+    const selfUpdate = await fetch(
+      `${baseUrl}/v1/meetings/${meeting.id}/participants/${selfParticipant!.id}/status`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(participantToken),
+        body: JSON.stringify({ status: 'DECLINED' }),
+      },
+    );
+    expect(selfUpdate.status).toBe(200);
+    const selfBody = MeetingDetailResponseSchema.parse(await selfUpdate.json()).meeting;
+    expect(
+      selfBody.participants.find((row) => row.id === selfParticipant!.id)?.status,
+    ).toBe('DECLINED');
+
+    const otherUpdate = await fetch(
+      `${baseUrl}/v1/meetings/${meeting.id}/participants/${organizerParticipant!.id}/status`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(participantToken),
+        body: JSON.stringify({ status: 'DECLINED' }),
+      },
+    );
+    expect(otherUpdate.status).toBe(403);
+
+    const outsiderUpdate = await fetch(
+      `${baseUrl}/v1/meetings/${meeting.id}/participants/${selfParticipant!.id}/status`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(outsiderToken),
+        body: JSON.stringify({ status: 'ACCEPTED' }),
+      },
+    );
+    expect(outsiderUpdate.status).toBe(404);
+
+    const participantReschedule = await fetch(`${baseUrl}/v1/meetings/${meeting.id}/schedule`, {
+      method: 'PATCH',
+      headers: authHeaders(participantToken),
+      body: JSON.stringify({
+        scheduledStartAt: new Date('2026-10-20T12:00:00.000Z').toISOString(),
+        timezone: 'UTC',
+      }),
+    });
+    expect(participantReschedule.status).toBe(403);
+  });
 });

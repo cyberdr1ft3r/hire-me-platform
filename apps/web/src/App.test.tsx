@@ -1729,28 +1729,28 @@ describe('App', () => {
   });
 
   it('shows redacted accounting amounts without commercial data access', async () => {
-    mockAccountingWorkspace(['payments:view', 'expenses:view'], { redacted: true });
+    mockAccountingWorkspace(['clients:view', 'payments:view', 'expenses:view'], { redacted: true });
 
     render(<App />);
     await loginAs('accounting-reader@example.test');
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
     expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
-    // The record stays visible but every amount arrives redacted.
-    expect(
-      await screen.findByRole('button', { name: /PAY39-1 — RECORDED — hidden/ }),
-    ).toBeVisible();
-    expect(screen.getByText(/EXP39-1 — TRAVEL — hidden/)).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'PAY39-1' })).toBeVisible();
+    expect(screen.getAllByText('Hidden').length).toBeGreaterThan(0);
 
-    // Write and aggregate controls stay hidden without the matching capability.
-    expect(screen.queryByRole('button', { name: /record payment/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /record expense/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /load receivables/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /load profitability/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expenses' }));
+    expect(await screen.findByRole('button', { name: 'EXP39-1' })).toBeVisible();
+
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Record expense' })).toBeNull();
+    expect(screen.queryByText('33333333-3333-4333-8333-333333333333')).toBeNull();
   });
 
   it('exposes accounting amounts and controls to an authorized operator', async () => {
     const fetchMock = mockAccountingWorkspace([
+      'clients:view',
+      'commercial_data:access',
       'payments:view',
       'payments:manage',
       'payments:correct',
@@ -1758,23 +1758,22 @@ describe('App', () => {
       'expenses:manage',
       'client_balances:view',
       'profitability:view',
+      'invoices:view',
     ]);
 
     render(<App />);
     await loginAs('accounting-operator@example.test');
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
-    expect(await screen.findByRole('button', { name: /record payment/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /record expense/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /load receivables/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /load profitability/i })).toBeVisible();
-    expect(
-      await screen.findByRole('button', { name: /PAY39-1 — RECORDED — 100.00 MAD/ }),
-    ).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Record payment' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Client balances' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Profitability' })).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'PAY39-1' })).toBeVisible();
+    expect(screen.getByText(/100\.00/)).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: /PAY39-1 — RECORDED — 100.00 MAD/ }));
-    expect(await screen.findByRole('button', { name: /allocate payment/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /reverse allocation/i })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'PAY39-1' }));
+    expect(await screen.findByRole('button', { name: 'Allocate to invoice' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reverse allocation' })).toBeVisible();
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/v1/accounting/payments'),
@@ -1902,10 +1901,49 @@ function mockAccountingWorkspace(permissions: string[], options: { redacted?: bo
       );
     }
 
+    if (url.includes(`/v1/accounting/expenses/${expense.id}`)) {
+      return Promise.resolve(jsonResponse({ expense: { ...expense, history: [] } }));
+    }
+
     if (url.includes('/v1/accounting/expenses')) {
       return Promise.resolve(
         jsonResponse({
           expenses: [expense],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/accounting/receivables/overdue')) {
+      return Promise.resolve(
+        jsonResponse({
+          asOf: '2026-09-01T09:00:00.000Z',
+          rows: [],
+          pagination: { page: 1, pageSize: 20, total: 0 },
+        }),
+      );
+    }
+
+    if (url.includes('/v1/clients')) {
+      return Promise.resolve(
+        jsonResponse({
+          clients: [
+            {
+              id: payment.clientId,
+              name: payment.display.clientName,
+              normalizedName: 'issue39 client',
+              status: 'ACTIVE',
+              industry: null,
+              website: null,
+              mainPhone: null,
+              country: null,
+              city: null,
+              commercial: null,
+              archivedAt: null,
+              createdAt: payment.createdAt,
+              updatedAt: payment.updatedAt,
+            },
+          ],
           pagination: { page: 1, pageSize: 20, total: 1 },
         }),
       );

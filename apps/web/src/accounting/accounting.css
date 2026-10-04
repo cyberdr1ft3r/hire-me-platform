@@ -1,0 +1,561 @@
+.accounting {
+  container: accounting / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--layout-content-max);
+  min-width: 0;
+}
+
+.accounting__workspace {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+@container accounting (min-width: 72rem) {
+  .accounting__workspace {
+    gap: var(--space-6);
+    grid-template-columns: minmax(0, 3fr) minmax(24rem, 2fr);
+  }
+
+  .accounting__list-pane {
+    border-inline-end: var(--border-width) solid var(--color-border);
+    padding-inline-end: var(--space-6);
+  }
+}
+
+.accounting__list-pane,
+.accounting__detail-pane {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.accounting__pane-title {
+  font-size: var(--font-size-5);
+  margin: 0;
+}
+
+.accounting__pane-title:focus-visible,
+.accounting-detail__title:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.accounting__pane-title:focus:not(:focus-visible),
+.accounting-detail__title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.accounting-muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  margin: 0;
+}
+
+.accounting-message__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.accounting-break {
+  overflow-wrap: anywhere;
+}
+
+/* An amount never splits between its digits and its currency. */
+.accounting-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Devis → commande → facture → paiement */
+
+.accounting-chain-hint {
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-1) var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.accounting-chain-hint li + li::before {
+  content: '→';
+  margin-inline-end: var(--space-2);
+}
+
+/* Filters */
+
+.accounting-filters {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+.accounting-filters__controls {
+  align-items: start;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+}
+
+.accounting-filters__controls .ui-checkbox {
+  align-self: end;
+}
+
+.accounting-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Long French action labels wrap inside a phone-width pane instead of widening it. */
+.accounting-actions > .ui-button {
+  max-width: 100%;
+  text-align: start;
+  white-space: normal;
+}
+
+/* Lists */
+
+.accounting-list {
+  container: accounting-list / inline-size;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  /* A table that still cannot fit scrolls inside its own region, never the page. */
+  overflow-x: auto;
+}
+
+.accounting-list__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin: 0;
+}
+
+.accounting-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.accounting-table th,
+.accounting-table td {
+  border-block-end: var(--border-width) solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: top;
+}
+
+.accounting-table thead th {
+  background: var(--color-table-header);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.accounting-table tbody th {
+  font-weight: var(--font-weight-regular);
+}
+
+.accounting-table th.accounting-table__amount,
+.accounting-table td.accounting-table__amount {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.accounting-table time {
+  white-space: nowrap;
+}
+
+.accounting-table tbody tr {
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.accounting-table tbody tr:hover {
+  background: var(--color-table-hover);
+}
+
+/*
+ * The selected row is marked by background, a brand edge, and aria-current on
+ * its control, so selection never depends on color alone.
+ */
+.accounting-table tbody tr[data-selected='true'] {
+  background: var(--color-table-selected);
+  box-shadow: inset var(--space-1) 0 0 var(--color-brand);
+  color: var(--color-text);
+}
+
+.accounting-table tbody tr[data-selected='true'] .accounting-table__secondary,
+.accounting-table tbody tr[data-selected='true'] .accounting-muted {
+  color: var(--color-text-secondary);
+}
+
+.accounting-table__select {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  min-height: 0;
+  overflow-wrap: anywhere;
+  padding: 0;
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+}
+
+.accounting-table__select:hover:not(:disabled),
+.accounting-table__select:active:not(:disabled) {
+  background: transparent;
+  color: var(--color-text);
+  text-decoration-color: currentcolor;
+}
+
+.accounting-table__select[aria-current='true'] {
+  text-decoration-color: currentcolor;
+}
+
+.accounting-table__select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+.accounting-table__secondary {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: var(--font-size-2);
+  overflow-wrap: anywhere;
+}
+
+/* Narrow lists read as stacked cards; each cell names its column. */
+@container accounting-list (max-width: 40rem) {
+  .accounting-table thead {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .accounting-table,
+  .accounting-table tbody,
+  .accounting-table tr,
+  .accounting-table th,
+  .accounting-table td {
+    display: block;
+  }
+
+  .accounting-table tbody {
+    border-block-start: var(--border-width) solid var(--color-border);
+  }
+
+  .accounting-table tbody tr {
+    border-block-end: var(--border-width) solid var(--color-border);
+    display: grid;
+    gap: var(--space-2) var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+    padding: var(--space-3);
+  }
+
+  .accounting-table tbody th {
+    grid-column: 1 / -1;
+  }
+
+  .accounting-table th,
+  .accounting-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .accounting-table th.accounting-table__amount,
+  .accounting-table td.accounting-table__amount {
+    text-align: start;
+  }
+
+  .accounting-table td::before {
+    color: var(--color-text-secondary);
+    content: attr(data-label);
+    display: block;
+    font-size: var(--font-size-1);
+    font-weight: var(--font-weight-semibold);
+    white-space: normal;
+  }
+}
+
+/* Record detail */
+
+.accounting-detail {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.accounting-detail__prompt {
+  padding-block: var(--space-4);
+}
+
+.accounting-detail__heading {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.accounting-detail__kind {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.accounting-detail__title {
+  font-size: var(--font-size-6);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.accounting-detail__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.accounting-section {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: var(--space-4);
+}
+
+.accounting-section__title {
+  font-size: var(--font-size-4);
+  margin: 0;
+}
+
+.accounting-section__subtitle {
+  font-size: var(--font-size-3);
+  margin: 0;
+}
+
+.accounting-facts,
+.accounting-amounts {
+  display: grid;
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  margin: 0;
+}
+
+.accounting-facts dt,
+.accounting-amounts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.accounting-facts dd,
+.accounting-amounts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.accounting-history {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.accounting-history li {
+  border-inline-start: var(--space-1) solid var(--color-border);
+  display: grid;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-3);
+}
+
+.accounting-history__action {
+  font-weight: var(--font-weight-semibold);
+}
+
+.accounting-history__reason {
+  white-space: pre-line;
+}
+
+/* Create form and confirmations */
+
+.accounting-create {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: inset var(--space-1) 0 0 var(--color-brand);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+}
+
+.accounting-form {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.accounting-form__grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.accounting-form--inline {
+  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.accounting-form--panel {
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  padding: var(--space-4);
+}
+
+.accounting-fieldset {
+  border: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.accounting-fieldset > legend {
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-semibold);
+  margin-block-end: var(--space-2);
+  padding: 0;
+}
+
+/* Finance area switch and profitability context switch */
+
+.accounting-areas,
+.accounting-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.accounting-areas {
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.accounting-areas__option,
+.accounting-segments__option {
+  background: transparent;
+  border: 0;
+  border-block-end: var(--space-1) solid transparent;
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--hit-target-min);
+  padding: var(--space-2) var(--space-3);
+}
+
+.accounting-segments__option {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.accounting-areas__option:hover:not(:disabled),
+.accounting-segments__option:hover {
+  background: var(--color-table-hover);
+  color: var(--color-text);
+}
+
+.accounting-areas__option:disabled {
+  cursor: not-allowed;
+}
+
+.accounting-areas__option[aria-pressed='true'] {
+  border-block-end-color: var(--color-brand);
+  color: var(--color-text);
+}
+
+/* The chosen context is marked by weight, border, and aria-pressed, never color alone. */
+.accounting-segments__option[aria-pressed='true'] {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-brand);
+  box-shadow: inset 0 calc(var(--space-1) * -1) 0 var(--color-brand);
+  color: var(--color-text);
+}
+
+.accounting-areas__option:focus-visible,
+.accounting-segments__option:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.accounting-chain-hint li[aria-current='step'] {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* One finance area */
+
+.accounting-area,
+.accounting-balances {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.accounting-area__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.accounting-area__header > .ui-button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.accounting-filters--single {
+  max-width: 36rem;
+}
+
+.accounting-note {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.accounting-note p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.accounting-table__primary {
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.accounting-table tbody th > .ui-button {
+  margin-block-start: var(--space-2);
+  max-width: 100%;
+  text-align: start;
+  white-space: normal;
+}

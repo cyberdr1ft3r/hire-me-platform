@@ -161,7 +161,12 @@ export class MeetingsService {
       throw badRequest('MEETING_INVALID_WINDOW', 'Meeting end must be after start.');
     }
     const meeting = await this.prisma.$transaction(async (tx) => {
-      const existing = await this.lockVisibleMeeting(tx, meetingId, actorUserId);
+      const existing = await this.lockVisibleMeetingForOrganizerManage(
+        tx,
+        meetingId,
+        actorUserId,
+        access,
+      );
       this.assertMeetingWritable(existing);
       return tx.meeting.update({
         where: { id: meetingId },
@@ -186,7 +191,12 @@ export class MeetingsService {
     const access = await this.resolveAccess(actorUserId);
     this.assertManage(access, actorUserId, meetingId);
     const meeting = await this.prisma.$transaction(async (tx) => {
-      const existing = await this.lockVisibleMeeting(tx, meetingId, actorUserId);
+      const existing = await this.lockVisibleMeetingForOrganizerManage(
+        tx,
+        meetingId,
+        actorUserId,
+        access,
+      );
       if (existing.status === MeetingStatus.COMPLETED) {
         throw conflict('MEETING_ALREADY_COMPLETED', 'Completed meetings cannot be canceled.');
       }
@@ -214,7 +224,12 @@ export class MeetingsService {
     const access = await this.resolveAccess(actorUserId);
     this.assertManage(access, actorUserId, meetingId);
     const meeting = await this.prisma.$transaction(async (tx) => {
-      const existing = await this.lockVisibleMeeting(tx, meetingId, actorUserId);
+      const existing = await this.lockVisibleMeetingForOrganizerManage(
+        tx,
+        meetingId,
+        actorUserId,
+        access,
+      );
       if (existing.status === MeetingStatus.CANCELED) {
         throw conflict('MEETING_CANCELED', 'Canceled meetings cannot be completed.');
       }
@@ -243,7 +258,7 @@ export class MeetingsService {
       'Meeting view permission is required.',
     );
     const meeting = await this.prisma.$transaction(async (tx) => {
-      const existing = await this.lockVisibleMeeting(tx, meetingId, actorUserId);
+      const existing = await this.lockVisibleMeetingForRead(tx, meetingId, actorUserId);
       const participant = existing.participants.find((row) => row.id === participantId);
       if (!participant) {
         throw notFound('MEETING_PARTICIPANT_NOT_FOUND', 'Meeting participant was not found.');
@@ -293,7 +308,7 @@ export class MeetingsService {
     return meeting;
   }
 
-  private async lockVisibleMeeting(
+  private async lockVisibleMeetingForRead(
     tx: PrismaTransaction,
     meetingId: string,
     actorUserId: string,
@@ -306,13 +321,22 @@ export class MeetingsService {
     if (!meeting) {
       throw notFound('MEETING_NOT_FOUND', 'Meeting was not found.');
     }
+    return meeting;
+  }
+
+  private async lockVisibleMeetingForOrganizerManage(
+    tx: PrismaTransaction,
+    meetingId: string,
+    actorUserId: string,
+    access: MeetingAccess,
+  ): Promise<MeetingRecord> {
+    const meeting = await this.lockVisibleMeetingForRead(tx, meetingId, actorUserId);
+    this.assertAccess(
+      access.manage,
+      'MEETINGS_MANAGE_REQUIRED',
+      'Meeting manage permission is required.',
+    );
     if (meeting.organizerUserId !== actorUserId) {
-      const access = await this.resolveAccess(actorUserId);
-      this.assertAccess(
-        access.manage,
-        'MEETINGS_MANAGE_REQUIRED',
-        'Only the organizer with manage permission can change this meeting.',
-      );
       throw forbidden(
         'MEETING_ORGANIZER_REQUIRED',
         'Only the meeting organizer can perform this action.',

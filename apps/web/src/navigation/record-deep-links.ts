@@ -37,7 +37,7 @@ export function recordNavigationIntent(
     processId: route === 'missions' ? uniqueValidUuid(parameters, 'process') : null,
     interviewId: route === 'missions' ? uniqueValidUuid(parameters, 'interview') : null,
     taskId: route === 'tasks' ? uniqueValidUuid(parameters, 'task') : null,
-    meetingId: route === 'agenda' ? uniqueValidUuid(parameters, 'meeting') : null,
+    meetingId: route === 'meetings' ? uniqueValidUuid(parameters, 'meeting') : null,
     programId: route === 'training' ? uniqueValidUuid(parameters, 'program') : null,
     sessionId: route === 'training' ? uniqueValidUuid(parameters, 'session') : null,
   };

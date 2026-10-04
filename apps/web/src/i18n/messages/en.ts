@@ -1,4 +1,5 @@
 import { plural, type WidenMessages } from '../message.js';
+import { accountingEn } from './accounting.en.js';
 import { commercialEn } from './commercial.en.js';
 import { documentsEn } from './documents.en.js';
 import { missionsEn } from './missions.en.js';
@@ -131,6 +132,23 @@ export const enMessages = {
       upcoming: 'Upcoming',
       week: 'Week',
     },
+  },
+  meetings: {
+    empty: {
+      selectFromAgenda: 'Open a meeting from My Agenda or a shared link.',
+    },
+    errors: {
+      notFound: 'This meeting is not available to you.',
+    },
+    fields: {
+      location: 'Location',
+      meetingLink: 'Join meeting',
+      organizer: 'Organizer',
+      status: 'Status',
+    },
+    loading: 'Loading meeting…',
+    participantsHeading: 'Participants',
+    region: 'Meeting',
   },
   auth: {
     apiStatusRegion: 'API status',
@@ -662,6 +680,7 @@ export const enMessages = {
       required: 'This field is required.',
     },
   },
+  accounting: accountingEn,
   commercial: commercialEn,
   documents: documentsEn,
   missions: missionsEn,

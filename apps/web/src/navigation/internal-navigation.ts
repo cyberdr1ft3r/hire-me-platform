@@ -4,6 +4,7 @@ export type InternalRoute =
   | 'home'
   | 'admin'
   | 'agenda'
+  | 'meetings'
   | 'clients'
   | 'candidates'
   | 'missions'
@@ -147,11 +148,11 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
  *
  * These are marked as English content so assistive technology is not told that
  * English copy is French. A route leaves this list when its own redesign makes
- * it bilingual. Reporting, Candidates, Clients, Missions, Documents, Training, and
- * Commercial have left it: these surfaces are fully translated, so none may be announced as
- * English inside a French document.
+ * it bilingual. Reporting, Candidates, Clients, Missions, Documents, Training,
+ * Commercial, and Accounting have left it: these surfaces are fully translated, so none
+ * may be announced as English inside a French document.
  */
-export const deferredEnglishRoutes: readonly InternalRoute[] = ['accounting', 'admin'];
+export const deferredEnglishRoutes: readonly InternalRoute[] = ['admin'];
 
 export function isDeferredEnglishRoute(route: InternalRoute): boolean {
   return deferredEnglishRoutes.includes(route);
@@ -164,6 +165,9 @@ export function routeToPath(route: InternalRoute): string {
 }
 
 export function pathToRoute(pathname: string): InternalRoute {
+  if (pathname === '/meetings') {
+    return 'meetings';
+  }
   return internalNavigationItems.find((item) => item.path === pathname)?.route ?? 'home';
 }
 

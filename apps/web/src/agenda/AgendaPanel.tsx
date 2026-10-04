@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getMeeting, listAgenda } from '../api.js';
+import { listAgenda } from '../api.js';
 import type { AgendaItem } from '@hire-me/contracts';
 import {
   applySourceFilter,
@@ -13,11 +13,9 @@ import './agenda.css';
 
 export function AgendaPanel({
   accessToken,
-  initialMeetingId,
   onNavigate,
 }: {
   accessToken: string;
-  initialMeetingId: string | null;
   onNavigate: (path: string) => void;
 }) {
   const [sessionKey, setSessionKey] = useState(0);
@@ -27,7 +25,6 @@ export function AgendaPanel({
   const [listState, setListState] = useState<AgendaListState>({ status: 'idle' });
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [pending, setPending] = useState(false);
-  const [meetingPreview, setMeetingPreview] = useState<string | null>(initialMeetingId);
 
   if (tokenRef.current !== accessToken) {
     tokenRef.current = accessToken;
@@ -61,29 +58,15 @@ export function AgendaPanel({
     };
   }, [accessToken, sessionKey, filters.view, filters.source]);
 
-  useEffect(() => {
-    if (!meetingPreview) return;
-    void getMeeting(accessToken, meetingPreview).catch(() => {
-      setMeetingPreview(null);
-    });
-  }, [accessToken, meetingPreview]);
-
   return (
-    <>
-      <AgendaWorkspace
-        filters={filters}
-        items={items}
-        listState={listState}
-        onFiltersChange={setFilters}
-        onOpenItem={(item) => onNavigate(item.deepLink)}
-        onRefresh={() => void loadAgenda()}
-        pending={pending}
-      />
-      {meetingPreview ? (
-        <p className="agenda-item-meta" data-testid="agenda-meeting-intent">
-          {meetingPreview}
-        </p>
-      ) : null}
-    </>
+    <AgendaWorkspace
+      filters={filters}
+      items={items}
+      listState={listState}
+      onFiltersChange={setFilters}
+      onOpenItem={(item) => onNavigate(item.deepLink)}
+      onRefresh={() => void loadAgenda()}
+      pending={pending}
+    />
   );
 }

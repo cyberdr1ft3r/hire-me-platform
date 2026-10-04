@@ -1,5 +1,6 @@
 import { plural } from '../message.js';
 import type { Messages } from './en.js';
+import { accountingFr } from './accounting.fr.js';
 import { commercialFr } from './commercial.fr.js';
 import { documentsFr } from './documents.fr.js';
 import { missionsFr } from './missions.fr.js';
@@ -144,6 +145,23 @@ export const frMessages: Messages = {
       upcoming: 'À venir',
       week: 'Semaine',
     },
+  },
+  meetings: {
+    empty: {
+      selectFromAgenda: 'Ouvrez une réunion depuis Mon agenda ou un lien partagé.',
+    },
+    errors: {
+      notFound: 'Cette réunion n’est pas disponible pour vous.',
+    },
+    fields: {
+      location: 'Lieu',
+      meetingLink: 'Rejoindre la réunion',
+      organizer: 'Organisateur',
+      status: 'Statut',
+    },
+    loading: 'Chargement de la réunion…',
+    participantsHeading: 'Participants',
+    region: 'Réunion',
   },
   auth: {
     apiStatusRegion: 'État de l’API',
@@ -673,6 +691,7 @@ export const frMessages: Messages = {
       required: 'Ce champ est obligatoire.',
     },
   },
+  accounting: accountingFr,
   commercial: commercialFr,
   documents: documentsFr,
   missions: missionsFr,

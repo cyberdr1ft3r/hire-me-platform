@@ -16,7 +16,7 @@ describe('AgendaPanel', () => {
   it('renders the agenda workspace shell', async () => {
     render(
       <I18nProvider>
-        <AgendaPanel accessToken="token" initialMeetingId={null} onNavigate={vi.fn()} />
+        <AgendaPanel accessToken="token" onNavigate={vi.fn()} />
       </I18nProvider>,
     );
     expect(await screen.findByRole('region', { name: /agenda/i })).toBeTruthy();
