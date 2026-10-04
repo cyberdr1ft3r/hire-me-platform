@@ -1,4 +1,5 @@
 import { plural, type WidenMessages } from '../message.js';
+import { accountingEn } from './accounting.en.js';
 import { commercialEn } from './commercial.en.js';
 import { documentsEn } from './documents.en.js';
 import { missionsEn } from './missions.en.js';
@@ -630,6 +631,7 @@ export const enMessages = {
       required: 'This field is required.',
     },
   },
+  accounting: accountingEn,
   commercial: commercialEn,
   documents: documentsEn,
   missions: missionsEn,

@@ -5,7 +5,7 @@ Last updated: 2026-10-02
 ## Current situation
 
 - The latest `main` is `696a539` (Issue #127 Commercial V1, PR #129 and PR #130), after PR #128 / Issue #125 `FINANCE_MANAGER` (D-078).
-- Issue #131 (Accounting V1 workspace): the raw-ID audit is `docs/audit/issue-131-accounting-source-audit.md`. The bounded prerequisite (D-081: read-only Accounting `display` labels and `GET /v1/accounting/placement-options`; no migration, no new permission) is on `cursor/issue-131-accounting-source-labels-eafa`, and the bilingual workspace is stacked on it.
+- Issue #131 (Accounting V1 workspace): audit `docs/audit/issue-131-accounting-source-audit.md`; browser evidence `docs/audit/issue-131-accounting-evidence.md`. D-081 prerequisite PR #133; web workspace draft PR #135 on `cursor/issue-131-accounting-workspace-eafa` (stacked on D-081 until #133 merges). Awaiting exact-head CI green on PR #135.
 - Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
 - Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
 - Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
@@ -13,7 +13,7 @@ Last updated: 2026-10-02
 
 ## Next concrete action
 
-1. **Issue #131:** review the D-081 prerequisite PR first, then the Accounting UI PR stacked on it. After the prerequisite merges, retarget the UI PR to `main`, merge latest `main`, rerun the full validation suite, and wait for exact-head CI. Decide R-050/R-051 (finance access to mission-linked records) separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
+1. **Issue #131:** merge D-081 PR #133 first, then review Accounting UI PR #135. After #133 merges, rebase #135 onto latest `main`, dedupe the stacked prerequisite commit, rerun validation and browser gate, and wait for exact-head CI. Decide R-050/R-051 separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
 2. After Accounting, continue the deferred-module rollout with Admin in its own bounded issue.
 3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
 4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.

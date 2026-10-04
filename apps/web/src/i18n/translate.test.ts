@@ -97,6 +97,10 @@ describe('dictionary contract', () => {
 
   it('pins which entries are count-sensitive, so runtime detection matches the dictionary', () => {
     expect(canonicalPluralPaths).toEqual([
+      'accounting.balances.daysOverdue',
+      'accounting.balances.overdueCount',
+      'accounting.expenses.count',
+      'accounting.payments.count',
       'commercial.list.count',
       'common.counts.candidates',
       'common.counts.clients',
