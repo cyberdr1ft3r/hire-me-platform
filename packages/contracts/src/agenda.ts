@@ -20,7 +20,7 @@ const QuerySourcesSchema = z.preprocess((value) => {
       .filter(Boolean);
   }
   if (Array.isArray(value)) {
-    return value;
+    return value.map(String);
   }
   return value;
 }, z.array(AgendaSourceTypeSchema).optional());
