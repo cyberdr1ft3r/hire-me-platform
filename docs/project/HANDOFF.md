@@ -1,27 +1,21 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-02
+Last updated: 2026-10-04
 
 ## Current situation
 
-- The latest `main` is `696a539` (Issue #127 Commercial V1, PR #129 and PR #130), after PR #128 / Issue #125 `FINANCE_MANAGER` (D-078).
-- Issue #131 (Accounting V1 workspace): audit `docs/audit/issue-131-accounting-source-audit.md`; browser evidence `docs/audit/issue-131-accounting-evidence.md`. D-081 prerequisite PR #133; web workspace draft PR #135 on `cursor/issue-131-accounting-workspace-eafa` (stacked on D-081 until #133 merges). Awaiting exact-head CI green on PR #135.
-- Issue #115 (audited core UI accessibility and low-risk polish, D-077) is merged through PR #126; Commercial V1 consumes its shared primitives.
-- Issues #117 (UI-DNA v1.1) and #118 (Missions restructuring) remain deferred and were not touched; Notifications placement stays an open product decision.
-- Issue #109 (MissionCandidate race test flake) and Issue #110 (Missions R-047 follow-ups) remain open and non-blocking.
-- D-068 production env/proxy body-size limits remain **unverified** operationally. D-070 production migration not run.
+- Latest `main` is `a78adbc` (Accounting V1 workspace PR #135 merged).
+- Issue #124 (My Agenda + meetings prerequisite) is on `cursor/issue-124-meetings-prerequisite-eafa`, merged with `main` at `a78adbc` (Accounting V1 #135); PR #136 review blockers addressed (participant self-status, deep links, expanded agenda PG tests, browser evidence doc).
+- Draft PR #136 remains open/unmerged; meetings foundation stays in-stack with agenda (split at `60b7b79` deferred—branch already integrates accounting + review fixes).
+- Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
 ## Next concrete action
 
-1. **Issue #131:** merge D-081 PR #133 first, then review Accounting UI PR #135. After #133 merges, rebase #135 onto latest `main`, dedupe the stacked prerequisite commit, rerun validation and browser gate, and wait for exact-head CI. Decide R-050/R-051 separately; do not grant `missions:view` to `FINANCE_MANAGER` as a workaround.
-2. After Accounting, continue the deferred-module rollout with Admin in its own bounded issue.
-3. **Documents follow-ups:** schedule R-048 limits as their own issue if wanted.
-4. **Issue #110 / Issue #109:** schedule separately; do not fold them into other rollouts.
-5. Preserve the Issue #93 seeded RolePermission row-identity guarantees and the Issue #105 seeded Permission metadata guarantees in every integration fixture.
-6. Do **not** treat D-068 production proxy verification or D-070 production migration as closed.
+1. **Issue #124:** finish PR #136 review fixes, exact-head CI green, browser evidence doc updated; consider split PR for meetings foundation at commit `60b7b79` if reviewers prefer.
+2. After Agenda merge, continue deferred-module rollout (Admin) in its own bounded issue.
+3. Preserve Issue #93 / #105 catalog guarantees in all integration fixtures.
 
-## D-071 catalog guarantees on `main` (Issue #93 / PR #104, Issue #105 / PR #107)
+## D-071 catalog guarantees on `main`
 
-- `ensurePermissionForTest()` reuses seeded ACTIVE permissions without writing them, creates only missing codes (removed after the test file), and refuses an existing non-ACTIVE permission instead of reactivating it.
-- Every integration change must keep, after both passes (second pass reverse order, no reseed): zero seeded Permission description, scope-type, and status drift; zero leftover test-created permissions; zero seeded RolePermission row replacement and active-state drift.
-- Provision the disposable server with `C.UTF-8` collation (as CI's Alpine image sorts); a glibc `en_US` cluster reorders hyphenated names and fails the Task selector sort assertion.
+- `ensurePermissionForTest()` reuses seeded ACTIVE permissions; never reactivate non-ACTIVE seeded permissions.
+- After both integration passes: zero seeded Permission/RolePermission drift; provision with `C.UTF-8` collation.

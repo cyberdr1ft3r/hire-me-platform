@@ -32,6 +32,8 @@ export {
   MissionCandidateState,
   MissionClosureReason,
   MissionRecruiterRole,
+  MeetingParticipantStatus,
+  MeetingStatus,
   NotificationStatus,
   OfferEventAction,
   OfferStatus,

@@ -89,9 +89,11 @@ const OPTION_PAGE_SIZE = 20;
  */
 export function TasksPanel({
   accessToken,
+  initialTaskId,
   user,
 }: {
   accessToken: string;
+  initialTaskId?: string | null;
   user: AuthenticatedUser;
 }) {
   const { t } = useI18n();
@@ -391,6 +393,12 @@ export function TasksPanel({
   useEffect(() => {
     loadUnreadCount();
   }, [accessToken, access.canViewNotifications]);
+
+  useEffect(() => {
+    if (initialTaskId) {
+      select(initialTaskId);
+    }
+  }, [initialTaskId]);
 
   // --- Selection -----------------------------------------------------------
 

@@ -199,14 +199,18 @@ function uniqueMembers(
 export function MissionsPanel({
   accessToken,
   actorUserId,
+  initialInterviewId,
   initialMissionId,
+  initialProcessId,
   onSelectionChange,
   permissions,
 }: {
   accessToken: string;
   /** The signed-in user, for the "Assigned to me" filter only. */
   actorUserId: string;
+  initialInterviewId?: string | null;
   initialMissionId: string | null;
+  initialProcessId?: string | null;
   onSelectionChange: (missionId: string) => void;
   permissions: string[];
 }) {
@@ -227,6 +231,8 @@ export function MissionsPanel({
   const processPageRef = useRef(1);
   const appliedQueryRef = useRef<MissionListQuery>(FIRST_MISSION_PAGE);
   const initialIntent = useRef(initialMissionId);
+  const initialProcessIntent = useRef(initialProcessId ?? null);
+  const initialInterviewIntent = useRef(initialInterviewId ?? null);
 
   const [session, setSession] = useState({ key: 0, principal, token: accessToken });
   const sessionKeyRef = useRef(session.key);
@@ -326,6 +332,29 @@ export function MissionsPanel({
       selectedMissionRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const processId = initialProcessIntent.current;
+    if (!processId || detail.status !== 'ready' || selectedMissionRef.current === null) {
+      return;
+    }
+    initialProcessIntent.current = null;
+    openProcess(processId);
+  }, [detail.status, selectedMissionId]);
+
+  useEffect(() => {
+    const interviewId = initialInterviewIntent.current;
+    if (
+      !interviewId ||
+      !activeProcessId ||
+      interviews.status !== 'ready' ||
+      selectedMissionRef.current === null
+    ) {
+      return;
+    }
+    initialInterviewIntent.current = null;
+    toggleInterview(interviewId);
+  }, [interviews.status, activeProcessId, activeInterviewId]);
 
   // ---- context guards --------------------------------------------------
 

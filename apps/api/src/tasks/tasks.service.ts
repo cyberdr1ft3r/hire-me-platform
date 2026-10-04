@@ -31,7 +31,11 @@ import type {
 import { TASK_USER_OPTION_LIMIT } from '@hire-me/contracts';
 
 import { TaskAuditService } from './task-audit.service.js';
-import { TASK_PERMISSIONS } from './task-permissions.js';
+import {
+  buildVisibleTaskWhere,
+  taskAccessFromPermissions,
+  type TaskAccess,
+} from './task-visibility.js';
 import { badRequest, conflict, forbidden, notFound } from './task.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
@@ -69,18 +73,6 @@ type NormalizedTaskContext = {
   trainingEnrollmentId: string | null;
   trainingSessionParticipationId: string | null;
   documentId: string | null;
-};
-
-type TaskAccess = {
-  view: boolean;
-  viewAll: boolean;
-  create: boolean;
-  update: boolean;
-  assign: boolean;
-  transition: boolean;
-  comment: boolean;
-  remindersManage: boolean;
-  archive: boolean;
 };
 
 /**
@@ -2228,78 +2220,7 @@ export class TasksService {
   }
 
   private visibleTaskWhere(actorUserId: string, access: TaskAccess): Prisma.TaskWhereInput {
-    if (access.viewAll) {
-      return {};
-    }
-    if (!access.view) {
-      return { id: '00000000-0000-0000-0000-000000000000' };
-    }
-    return {
-      archivedAt: null,
-      OR: [
-        { ownerUserId: actorUserId },
-        { createdByUserId: actorUserId },
-        {
-          assignments: {
-            some: { userId: actorUserId, status: TaskAssignmentStatus.ACTIVE, archivedAt: null },
-          },
-        },
-        {
-          recruitmentMission: {
-            recruiters: {
-              some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-            },
-          },
-        },
-        {
-          missionCandidate: {
-            mission: {
-              recruiters: {
-                some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-              },
-            },
-          },
-        },
-        {
-          interview: {
-            missionCandidate: {
-              mission: {
-                recruiters: {
-                  some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-                },
-              },
-            },
-          },
-        },
-        {
-          recruitmentOffer: {
-            mission: {
-              recruiters: {
-                some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-              },
-            },
-          },
-        },
-        {
-          recruitmentOfferVersion: {
-            mission: {
-              recruiters: {
-                some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-              },
-            },
-          },
-        },
-        {
-          missionPlacement: {
-            mission: {
-              recruiters: {
-                some: { userId: actorUserId, status: 'ACTIVE', archivedAt: null },
-              },
-            },
-          },
-        },
-      ],
-    };
+    return buildVisibleTaskWhere(actorUserId, access);
   }
 
   private async resolveAccess(userId: string): Promise<TaskAccess> {
@@ -2340,17 +2261,7 @@ export class TasksService {
   }
 
   private accessFromPermissions(permissions: ReadonlySet<string>): TaskAccess {
-    return {
-      view: permissions.has(TASK_PERMISSIONS.TASKS_VIEW),
-      viewAll: permissions.has(TASK_PERMISSIONS.TASKS_VIEW_ALL),
-      create: permissions.has(TASK_PERMISSIONS.TASKS_CREATE),
-      update: permissions.has(TASK_PERMISSIONS.TASKS_UPDATE),
-      assign: permissions.has(TASK_PERMISSIONS.TASKS_ASSIGN),
-      transition: permissions.has(TASK_PERMISSIONS.TASKS_TRANSITION),
-      comment: permissions.has(TASK_PERMISSIONS.TASKS_COMMENT),
-      remindersManage: permissions.has(TASK_PERMISSIONS.TASKS_REMINDERS_MANAGE),
-      archive: permissions.has(TASK_PERMISSIONS.TASKS_ARCHIVE),
-    };
+    return taskAccessFromPermissions(permissions);
   }
 
   private assertAccess(granted: boolean, code: string, message: string): void {

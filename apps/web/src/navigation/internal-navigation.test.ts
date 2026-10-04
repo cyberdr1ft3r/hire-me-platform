@@ -25,6 +25,7 @@ describe('internal navigation', () => {
     expect(groups.flatMap((group) => group.items.map((item) => item.route))).toEqual([
       'home',
       'tasks',
+      'agenda',
     ]);
     expect(groups.every((group) => group.items.length > 0)).toBe(true);
   });

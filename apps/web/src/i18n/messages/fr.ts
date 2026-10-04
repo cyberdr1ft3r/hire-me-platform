@@ -66,6 +66,7 @@ export const frMessages: Messages = {
       overview: 'Vue d’ensemble',
       reporting: 'Rapports',
       tasks: 'Tâches',
+      agenda: 'Mon agenda',
       training: 'Formation',
     },
     groups: {
@@ -113,6 +114,54 @@ export const frMessages: Messages = {
     introTitle: 'Votre espace de travail HireMe',
     signedInAs: 'Session ouverte : {email}',
     title: 'Vue d’ensemble',
+  },
+  agenda: {
+    description: 'Vue chronologique de votre travail daté dans Hire Me.',
+    emptyDescription: 'Aucun élément ne correspond à cette vue et à ce filtre.',
+    emptyTitle: 'Rien de planifié ici',
+    filters: {
+      source: 'Source',
+      view: 'Vue',
+    },
+    open: 'Ouvrir',
+    overdue: 'En retard',
+    refresh: 'Actualiser',
+    region: 'Mon agenda',
+    sources: {
+      all: 'Toutes les sources',
+      follow_up: 'Relances',
+      interview: 'Entretiens',
+      meeting: 'Réunions',
+      task: 'Tâches',
+      training: 'Formation',
+    },
+    title: 'Mon agenda',
+    undated: 'Sans date',
+    views: {
+      month: 'Mois',
+      overdue: 'En retard',
+      past: 'Passé',
+      today: "Aujourd'hui",
+      upcoming: 'À venir',
+      week: 'Semaine',
+    },
+  },
+  meetings: {
+    empty: {
+      selectFromAgenda: 'Ouvrez une réunion depuis Mon agenda ou un lien partagé.',
+    },
+    errors: {
+      notFound: 'Cette réunion n’est pas disponible pour vous.',
+    },
+    fields: {
+      location: 'Lieu',
+      meetingLink: 'Rejoindre la réunion',
+      organizer: 'Organisateur',
+      status: 'Statut',
+    },
+    loading: 'Chargement de la réunion…',
+    participantsHeading: 'Participants',
+    region: 'Réunion',
   },
   auth: {
     apiStatusRegion: 'État de l’API',

@@ -3,6 +3,8 @@ import type { PlainMessageKey } from '../i18n/index.js';
 export type InternalRoute =
   | 'home'
   | 'admin'
+  | 'agenda'
+  | 'meetings'
   | 'clients'
   | 'candidates'
   | 'missions'
@@ -47,6 +49,11 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
         path: '/tasks',
         permissions: ['tasks:view'],
         route: 'tasks',
+      },
+      {
+        labelKey: 'navigation.destinations.agenda',
+        path: '/agenda',
+        route: 'agenda',
       },
     ],
   },
@@ -158,6 +165,9 @@ export function routeToPath(route: InternalRoute): string {
 }
 
 export function pathToRoute(pathname: string): InternalRoute {
+  if (pathname === '/meetings') {
+    return 'meetings';
+  }
   return internalNavigationItems.find((item) => item.path === pathname)?.route ?? 'home';
 }
 

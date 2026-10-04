@@ -1,7 +1,10 @@
 import {
   AuthResponseSchema,
   HealthResponseSchema,
+  MeetingDetailResponseSchema,
   MeResponseSchema,
+  AgendaListQuerySchema,
+  AgendaListResponseSchema,
   AdminEffectivePermissionsResponseSchema,
   AdminPermissionListResponseSchema,
   AdminRoleListResponseSchema,
@@ -96,8 +99,10 @@ import {
   TaskUpdateRequestSchema,
   TaskUserOptionsQuerySchema,
   TaskUserOptionsResponseSchema,
+  type AgendaListResponse,
   type AuthResponse,
   type HealthResponse,
+  type MeetingDetailResponse,
   type MeResponse,
   type AdminAssignRoleRequest,
   type AdminCreateUserRequest,
@@ -4084,4 +4089,39 @@ export async function generateTrainingCertificateDocument(
     body,
     apiBaseUrl,
   );
+}
+
+export async function listAgenda(
+  accessToken: string,
+  query: Record<string, string | undefined>,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<AgendaListResponse> {
+  const parsed = AgendaListQuerySchema.parse(query);
+  const parameters = new URLSearchParams();
+  if (parsed.from) parameters.set('from', parsed.from);
+  if (parsed.to) parameters.set('to', parsed.to);
+  if (parsed.view) parameters.set('view', parsed.view);
+  if (parsed.sources?.length) parameters.set('sources', parsed.sources.join(','));
+  const suffix = parameters.toString();
+  const response = await fetch(`${apiBaseUrl}/v1/agenda${suffix ? `?${suffix}` : ''}`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Agenda request failed (${response.status}).`);
+  }
+  return AgendaListResponseSchema.parse(await response.json());
+}
+
+export async function getMeeting(
+  accessToken: string,
+  meetingId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<MeetingDetailResponse> {
+  const response = await fetch(`${apiBaseUrl}/v1/meetings/${meetingId}`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Meeting request failed (${response.status}).`);
+  }
+  return MeetingDetailResponseSchema.parse(await response.json());
 }

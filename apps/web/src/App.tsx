@@ -47,6 +47,8 @@ import { DocumentsPanel } from './documents/index.js';
 import { MissionsPanel } from './missions/index.js';
 import { TrainingPanel } from './training/index.js';
 import { formatAdminRoleName } from './admin/role-labels.js';
+import { AgendaPanel } from './agenda/index.js';
+import { MeetingsPanel } from './meetings/index.js';
 import { TasksPanel } from './tasks/index.js';
 import {
   PublicOpportunitiesPanel,
@@ -294,7 +296,9 @@ function AppRoutes() {
           <MissionsPanel
             accessToken={accessToken}
             actorUserId={user.id}
+            initialInterviewId={recordIntent.interviewId}
             initialMissionId={recordIntent.missionId}
+            initialProcessId={recordIntent.processId}
             onSelectionChange={(missionId) =>
               replaceRecordIntent(`/missions?mission=${encodeURIComponent(missionId)}`)
             }
@@ -302,8 +306,18 @@ function AppRoutes() {
           />
         );
         break;
+      case 'meetings':
+        routeContent = (
+          <MeetingsPanel accessToken={accessToken} initialMeetingId={recordIntent.meetingId} />
+        );
+        break;
+      case 'agenda':
+        routeContent = <AgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />;
+        break;
       case 'tasks':
-        routeContent = <TasksPanel accessToken={accessToken} user={user} />;
+        routeContent = (
+          <TasksPanel accessToken={accessToken} initialTaskId={recordIntent.taskId} user={user} />
+        );
         break;
       case 'documents':
         routeContent = <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />;
@@ -313,6 +327,8 @@ function AppRoutes() {
           <TrainingPanel
             accessToken={accessToken}
             actorUserId={user.id}
+            initialProgramId={recordIntent.programId}
+            initialSessionId={recordIntent.sessionId}
             permissions={user.permissions}
           />
         );

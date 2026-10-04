@@ -53,6 +53,7 @@ export const enMessages = {
       overview: 'Overview',
       reporting: 'Reporting',
       tasks: 'Tasks',
+      agenda: 'My Agenda',
       training: 'Training',
     },
     groups: {
@@ -100,6 +101,54 @@ export const enMessages = {
     introTitle: 'Your HireMe workspace',
     signedInAs: 'Signed in as {email}',
     title: 'Overview',
+  },
+  agenda: {
+    description: 'Chronological view of your dated work across Hire Me.',
+    emptyDescription: 'No agenda items match this view and filter.',
+    emptyTitle: 'Nothing scheduled here',
+    filters: {
+      source: 'Source',
+      view: 'View',
+    },
+    open: 'Open',
+    overdue: 'Overdue',
+    refresh: 'Refresh',
+    region: 'My Agenda',
+    sources: {
+      all: 'All sources',
+      follow_up: 'Follow-ups',
+      interview: 'Interviews',
+      meeting: 'Meetings',
+      task: 'Tasks',
+      training: 'Training',
+    },
+    title: 'My Agenda',
+    undated: 'Undated',
+    views: {
+      month: 'Month',
+      overdue: 'Overdue',
+      past: 'Past',
+      today: 'Today',
+      upcoming: 'Upcoming',
+      week: 'Week',
+    },
+  },
+  meetings: {
+    empty: {
+      selectFromAgenda: 'Open a meeting from My Agenda or a shared link.',
+    },
+    errors: {
+      notFound: 'This meeting is not available to you.',
+    },
+    fields: {
+      location: 'Location',
+      meetingLink: 'Join meeting',
+      organizer: 'Organizer',
+      status: 'Status',
+    },
+    loading: 'Loading meeting…',
+    participantsHeading: 'Participants',
+    region: 'Meeting',
   },
   auth: {
     apiStatusRegion: 'API status',
