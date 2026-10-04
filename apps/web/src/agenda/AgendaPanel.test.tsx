@@ -5,7 +5,7 @@ import { I18nProvider } from '../i18n/index.js';
 import { AgendaPanel } from './AgendaPanel.js';
 
 vi.mock('../api.js', () => ({
-  listAgenda: vi.fn(async () => ({
+  listAgenda: vi.fn(() => ({
     items: [],
     window: { from: '2026-10-01T00:00:00.000Z', to: '2026-10-31T00:00:00.000Z' },
   })),

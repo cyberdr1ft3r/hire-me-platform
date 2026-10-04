@@ -99,8 +99,10 @@ import {
   TaskUpdateRequestSchema,
   TaskUserOptionsQuerySchema,
   TaskUserOptionsResponseSchema,
+  type AgendaListResponse,
   type AuthResponse,
   type HealthResponse,
+  type MeetingDetailResponse,
   type MeResponse,
   type AdminAssignRoleRequest,
   type AdminCreateUserRequest,
@@ -3956,7 +3958,7 @@ export async function listAgenda(
   accessToken: string,
   query: Record<string, string | undefined>,
   apiBaseUrl = getApiBaseUrl(),
-): Promise<import('@hire-me/contracts').AgendaListResponse> {
+): Promise<AgendaListResponse> {
   const parsed = AgendaListQuerySchema.parse(query);
   const parameters = new URLSearchParams();
   if (parsed.from) parameters.set('from', parsed.from);
@@ -3977,7 +3979,7 @@ export async function getMeeting(
   accessToken: string,
   meetingId: string,
   apiBaseUrl = getApiBaseUrl(),
-): Promise<import('@hire-me/contracts').MeetingDetailResponse> {
+): Promise<MeetingDetailResponse> {
   const response = await fetch(`${apiBaseUrl}/v1/meetings/${meetingId}`, {
     headers: { authorization: `Bearer ${accessToken}` },
   });

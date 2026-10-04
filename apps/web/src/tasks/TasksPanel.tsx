@@ -398,9 +398,7 @@ export function TasksPanel({
     if (initialTaskId) {
       select(initialTaskId);
     }
-    // Deep-link intent is consumed once per mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialTaskId]);
 
   // --- Selection -----------------------------------------------------------
 
