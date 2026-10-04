@@ -5,6 +5,12 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export interface RecordNavigationIntent {
   candidateId: string | null;
   missionId: string | null;
+  processId: string | null;
+  interviewId: string | null;
+  taskId: string | null;
+  meetingId: string | null;
+  programId: string | null;
+  sessionId: string | null;
 }
 
 function validUuid(value: string | null): string | null {
@@ -28,6 +34,12 @@ export function recordNavigationIntent(
   return {
     candidateId: route === 'candidates' ? uniqueValidUuid(parameters, 'candidate') : null,
     missionId: route === 'missions' ? uniqueValidUuid(parameters, 'mission') : null,
+    processId: route === 'missions' ? uniqueValidUuid(parameters, 'process') : null,
+    interviewId: route === 'missions' ? uniqueValidUuid(parameters, 'interview') : null,
+    taskId: route === 'tasks' ? uniqueValidUuid(parameters, 'task') : null,
+    meetingId: route === 'agenda' ? uniqueValidUuid(parameters, 'meeting') : null,
+    programId: route === 'training' ? uniqueValidUuid(parameters, 'program') : null,
+    sessionId: route === 'training' ? uniqueValidUuid(parameters, 'session') : null,
   };
 }
 

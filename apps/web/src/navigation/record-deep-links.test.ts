@@ -12,10 +12,25 @@ describe('record deep-link contract', () => {
         'candidates',
         `?candidate=${CANDIDATE_ID}&mission=${MISSION_ID}&unknown=value`,
       ),
-    ).toEqual({ candidateId: CANDIDATE_ID, missionId: null });
+    ).toEqual({
+      candidateId: CANDIDATE_ID,
+      missionId: null,
+      processId: null,
+      interviewId: null,
+      taskId: null,
+      meetingId: null,
+      programId: null,
+      sessionId: null,
+    });
     expect(recordNavigationIntent('missions', `?mission=${MISSION_ID}`)).toEqual({
       candidateId: null,
       missionId: MISSION_ID,
+      processId: null,
+      interviewId: null,
+      taskId: null,
+      meetingId: null,
+      programId: null,
+      sessionId: null,
     });
   });
 
@@ -23,17 +38,38 @@ describe('record deep-link contract', () => {
     expect(recordNavigationIntent('candidates', '?candidate=not-a-uuid&id=secret')).toEqual({
       candidateId: null,
       missionId: null,
+      processId: null,
+      interviewId: null,
+      taskId: null,
+      meetingId: null,
+      programId: null,
+      sessionId: null,
     });
     expect(recordNavigationIntent('reporting', `?candidate=${CANDIDATE_ID}`)).toEqual({
       candidateId: null,
       missionId: null,
+      processId: null,
+      interviewId: null,
+      taskId: null,
+      meetingId: null,
+      programId: null,
+      sessionId: null,
     });
     expect(
       recordNavigationIntent(
         'candidates',
         `?candidate=${CANDIDATE_ID}&candidate=33333333-3333-4333-8333-333333333333`,
       ),
-    ).toEqual({ candidateId: null, missionId: null });
+    ).toEqual({
+      candidateId: null,
+      missionId: null,
+      processId: null,
+      interviewId: null,
+      taskId: null,
+      meetingId: null,
+      programId: null,
+      sessionId: null,
+    });
   });
 
   it('generates language-neutral record URLs containing IDs only', () => {

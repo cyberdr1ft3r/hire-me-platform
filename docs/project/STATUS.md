@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-02
+Last updated: 2026-10-04
 Status owner: repository maintainer
 
 ## Overall state
@@ -8,7 +8,7 @@ Status owner: repository maintainer
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
 **Health:** Project state includes Issue #111 bilingual Training workspace merged through PR #123 as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076), after Issue #99 Missions / PR #106, Issue #113 Documents / PR #119, Issue #105 / PR #107, and earlier rollout merges. Missions is fully EN/FR; remaining Missions follow-ups (R-047) are Issue #110; Issue #114 (first public-opportunity empty/create flow) is in review on PR #122. Issue #105 is complete: the D-071 catalog gate enforces seeded Permission and RolePermission integrity after each pass. Issue #66 (product and UX drift audit) is closed; remaining work lives in Issues #109–#118. Issue #109 (MissionCandidate race test flake) and Issue #110 are open and non-blocking. D-070's additive migration `20260925120000_public_opportunity_content_language` is in the repository but has **not** run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. R-039 is unchanged.
-**Next executable development task:** Deferred-module bilingual rollout per Issue #66 sequencing (Clients → Missions → Training → Commercial → Documents → Accounting → Admin). Clients, Missions, Training (#111), and Documents (#113) are merged. **Commercial** is the next bounded module issue. Issue #114 (PR #122) awaits review/merge. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
+**Next executable development task:** Issue #124 (My Agenda + meetings prerequisite) on branch `cursor/issue-124-meetings-prerequisite-eafa` awaits PR/CI review. Deferred-module bilingual rollout continues per Issue #66 sequencing. Issue #114 (PR #122) awaits review/merge. Whole-product UI-DNA v1.1 (D-DESIGN-01) stays deferred. D-068 production env/proxy body-size verification remains a separate operational check.
 
 ## Active work
 

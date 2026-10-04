@@ -64,6 +64,7 @@ import { DocumentsPanel } from './documents/index.js';
 import { MissionsPanel } from './missions/index.js';
 import { TrainingPanel } from './training/index.js';
 import { formatAdminRoleName } from './admin/role-labels.js';
+import { AgendaPanel } from './agenda/index.js';
 import { TasksPanel } from './tasks/index.js';
 import {
   PublicOpportunitiesPanel,
@@ -319,8 +320,19 @@ function AppRoutes() {
           />
         );
         break;
+      case 'agenda':
+        routeContent = (
+          <AgendaPanel
+            accessToken={accessToken}
+            initialMeetingId={recordIntent.meetingId}
+            onNavigate={navigateToPath}
+          />
+        );
+        break;
       case 'tasks':
-        routeContent = <TasksPanel accessToken={accessToken} user={user} />;
+        routeContent = (
+          <TasksPanel accessToken={accessToken} initialTaskId={recordIntent.taskId} user={user} />
+        );
         break;
       case 'documents':
         routeContent = <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />;
