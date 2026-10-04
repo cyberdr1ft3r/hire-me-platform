@@ -81,7 +81,7 @@ async function createUser(email: string, roleName: RoleName): Promise<string> {
 }
 
 async function loginAccessToken(baseUrl: string, email: string): Promise<string> {
-  const response = await fetch(`${baseUrl}/v1/auth/login`, {
+  const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, password: testPassword }),
