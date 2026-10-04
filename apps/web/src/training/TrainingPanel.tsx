@@ -242,26 +242,28 @@ export function TrainingPanel({
     if (!programId || programList.status !== 'ready') {
       return;
     }
-    const program = programList.items.find((row) => row.id === programId);
+    const { items } = programList;
+    const program = items.find((row) => row.id === programId);
     if (!program) {
       return;
     }
     initialProgramIntent.current = null;
     selectProgram(program);
-  }, [programList.status, programList.items]);
+  }, [programList]);
 
   useEffect(() => {
     const sessionId = initialSessionIntent.current;
     if (!sessionId || sessionList.status !== 'ready' || !selectedProgramId) {
       return;
     }
-    const session = sessionList.items.find((row) => row.id === sessionId);
+    const { items } = sessionList;
+    const session = items.find((row) => row.id === sessionId);
     if (!session) {
       return;
     }
     initialSessionIntent.current = null;
     selectSession(session);
-  }, [sessionList.status, sessionList.items, selectedProgramId]);
+  }, [sessionList, selectedProgramId]);
 
   useEffect(() => {
     void loadPrograms(programQuery);

@@ -36,23 +36,33 @@ async function setLocale(page, locale) {
     },
     [LOCALE_KEY, locale],
   );
-  await page.reload({ waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
 }
 
 async function signIn(page) {
-  await page.goto(`${WEB}/`, { waitUntil: 'networkidle' });
+  await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' });
   await page.locator('input[name="email"]').fill(login.email);
   await page.locator('input[name="password"]').fill(login.password);
-  await page.locator('form.auth-panel button[type="submit"]').click();
+  await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes('/auth/login') && response.status() === 201,
+    ),
+    page.locator('form.auth-panel button[type="submit"]').click(),
+  ]);
   await page.locator('.app-shell').waitFor({ state: 'visible', timeout: 60_000 });
 }
 
 async function openAgenda(page) {
-  await page.evaluate(() => {
-    window.history.pushState({}, '', '/agenda');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
-  await page.getByRole('region', { name: /agenda|mon agenda/i }).waitFor({
+  const region = page.getByRole('region', { name: /agenda|mon agenda/i });
+  if (await region.isVisible()) {
+    return;
+  }
+  const menuButton = page.getByRole('button', { name: /menu|navigation|ouvrir/i });
+  if (await menuButton.isVisible()) {
+    await menuButton.click();
+  }
+  await page.getByRole('link', { name: /my agenda|mon agenda/i }).click();
+  await region.waitFor({
     state: 'visible',
     timeout: 60_000,
   });
@@ -77,16 +87,18 @@ async function assertNoHorizontalOverflow(page) {
 }
 
 async function captureMatrix(page, locale, viewLabels, manifest) {
+  await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' });
   await setLocale(page, locale);
+  await signIn(page);
   await openAgenda(page);
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openAgenda(page);
     for (const viewLabel of viewLabels) {
-      const viewControl = page.getByRole('button', { name: viewLabel, exact: true });
-      if (await viewControl.count()) {
-        await viewControl.click();
-        await page.waitForTimeout(300);
+      const viewSelect = page.getByLabel(/view|vue/i);
+      if (await viewSelect.count()) {
+        await viewSelect.selectOption({ label: viewLabel });
+        await page.waitForTimeout(400);
       }
       const file = `agenda-${locale}-${viewport.label}-${viewLabel.replace(/\s+/g, '-').toLowerCase()}.png`;
       const screenshotPath = path.join(ARTIFACT_DIR, file);
@@ -95,10 +107,7 @@ async function captureMatrix(page, locale, viewLabels, manifest) {
       await page.screenshot({ path: screenshotPath, fullPage: true });
       manifest.captures.push({ locale, viewport: viewport.label, view: viewLabel, file });
     }
-    const sourceSelect = page
-      .locator('select')
-      .filter({ hasText: /source|source/i })
-      .first();
+    const sourceSelect = page.getByLabel(/source/i);
     if (await sourceSelect.count()) {
       await sourceSelect.selectOption({ label: locale === 'fr' ? 'Réunions' : 'Meetings' });
       await page.waitForTimeout(300);
@@ -132,9 +141,9 @@ async function main() {
   const browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
-  await signIn(page);
   await captureMatrix(page, 'en', VIEWS_EN, manifest);
   await captureMatrix(page, 'fr', VIEWS_FR, manifest);
+  await signIn(page);
   await exerciseKeyboard(page);
   await writeFile(path.join(ARTIFACT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   await browser.close();

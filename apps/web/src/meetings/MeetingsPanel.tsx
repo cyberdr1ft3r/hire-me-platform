@@ -77,6 +77,14 @@ export function MeetingsPanel({
     );
   }
 
+  if (detail.status !== 'ready') {
+    return (
+      <section aria-label={t('meetings.region')} className="meetings">
+        <p>{t('meetings.loading')}</p>
+      </section>
+    );
+  }
+
   const meeting = detail.meeting;
   return (
     <section aria-label={t('meetings.region')} className="meetings">
