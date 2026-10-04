@@ -312,9 +312,7 @@ function AppRoutes() {
         );
         break;
       case 'agenda':
-        routeContent = (
-          <AgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />
-        );
+        routeContent = <AgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />;
         break;
       case 'tasks':
         routeContent = (

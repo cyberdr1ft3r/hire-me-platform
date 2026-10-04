@@ -95,9 +95,11 @@ describe('meetings foundation (Issue #124)', () => {
   let baseUrl: string;
   let organizerId: string;
   let participantId: string;
+  let outsiderId: string;
   let organizerToken: string;
   let participantToken: string;
   let outsiderToken: string;
+  let strangerToken: string;
   let noMeetingsToken: string;
 
   beforeAll(async () => {
@@ -111,7 +113,8 @@ describe('meetings foundation (Issue #124)', () => {
     await ensureRolePermissions(RoleName.GUEST, ['records:view']);
     organizerId = await createUser('organizer@meetings124.test', RoleName.EMPLOYEE);
     participantId = await createUser('participant@meetings124.test', RoleName.EMPLOYEE);
-    await createUser('outsider@meetings124.test', RoleName.EMPLOYEE);
+    outsiderId = await createUser('outsider@meetings124.test', RoleName.EMPLOYEE);
+    await createUser('stranger@meetings124.test', RoleName.EMPLOYEE);
     await createUser('nomeetings@meetings124.test', RoleName.GUEST);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -120,6 +123,7 @@ describe('meetings foundation (Issue #124)', () => {
     organizerToken = await loginAccessToken(baseUrl, 'organizer@meetings124.test');
     participantToken = await loginAccessToken(baseUrl, 'participant@meetings124.test');
     outsiderToken = await loginAccessToken(baseUrl, 'outsider@meetings124.test');
+    strangerToken = await loginAccessToken(baseUrl, 'stranger@meetings124.test');
     noMeetingsToken = await loginAccessToken(baseUrl, 'nomeetings@meetings124.test');
   }, 30_000);
 
@@ -209,15 +213,15 @@ describe('meetings foundation (Issue #124)', () => {
         title: 'Issue124Meeting participant status',
         scheduledStartAt: start,
         timezone: 'UTC',
-        participantUserIds: [participantId],
+        participantUserIds: [participantId, outsiderId],
       }),
     });
     expect(createResponse.status).toBe(201);
     const meeting = MeetingDetailResponseSchema.parse(await createResponse.json()).meeting;
     const selfParticipant = meeting.participants.find((row) => row.userId === participantId);
     expect(selfParticipant).toBeTruthy();
-    const organizerParticipant = meeting.participants.find((row) => row.userId === organizerId);
-    expect(organizerParticipant).toBeTruthy();
+    const otherParticipant = meeting.participants.find((row) => row.userId === outsiderId);
+    expect(otherParticipant).toBeTruthy();
 
     const selfUpdate = await fetch(
       `${baseUrl}/v1/meetings/${meeting.id}/participants/${selfParticipant!.id}/status`,
@@ -229,12 +233,12 @@ describe('meetings foundation (Issue #124)', () => {
     );
     expect(selfUpdate.status).toBe(200);
     const selfBody = MeetingDetailResponseSchema.parse(await selfUpdate.json()).meeting;
-    expect(
-      selfBody.participants.find((row) => row.id === selfParticipant!.id)?.status,
-    ).toBe('DECLINED');
+    expect(selfBody.participants.find((row) => row.id === selfParticipant!.id)?.status).toBe(
+      'DECLINED',
+    );
 
     const otherUpdate = await fetch(
-      `${baseUrl}/v1/meetings/${meeting.id}/participants/${organizerParticipant!.id}/status`,
+      `${baseUrl}/v1/meetings/${meeting.id}/participants/${otherParticipant!.id}/status`,
       {
         method: 'PATCH',
         headers: authHeaders(participantToken),
@@ -243,15 +247,15 @@ describe('meetings foundation (Issue #124)', () => {
     );
     expect(otherUpdate.status).toBe(403);
 
-    const outsiderUpdate = await fetch(
+    const strangerUpdate = await fetch(
       `${baseUrl}/v1/meetings/${meeting.id}/participants/${selfParticipant!.id}/status`,
       {
         method: 'PATCH',
-        headers: authHeaders(outsiderToken),
+        headers: authHeaders(strangerToken),
         body: JSON.stringify({ status: 'ACCEPTED' }),
       },
     );
-    expect(outsiderUpdate.status).toBe(404);
+    expect(strangerUpdate.status).toBe(404);
 
     const participantReschedule = await fetch(`${baseUrl}/v1/meetings/${meeting.id}/schedule`, {
       method: 'PATCH',

@@ -452,6 +452,7 @@ describe('agenda aggregation (Issue #124)', () => {
         title: 'Issue124Agenda session',
         status: TrainingSessionStatus.SESSION_SCHEDULED,
         scheduledAt,
+        scheduledEndAt: new Date('2026-10-21T17:00:00.000Z'),
         trainerUserId: ownerId,
       },
     });
