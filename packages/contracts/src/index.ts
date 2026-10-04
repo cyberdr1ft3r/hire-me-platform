@@ -588,6 +588,50 @@ export type {
   OutputFamily,
 } from './documents.js';
 export {
+  AgendaItemSchema,
+  AgendaListQuerySchema,
+  AgendaListResponseSchema,
+  AgendaSourceTypeSchema,
+  AgendaViewSchema,
+} from './agenda.js';
+export type {
+  AgendaItem,
+  AgendaListQuery,
+  AgendaListResponse,
+  AgendaSourceType,
+  AgendaView,
+} from './agenda.js';
+export {
+  MeetingCancelRequestSchema,
+  MeetingCompleteRequestSchema,
+  MeetingCreateRequestSchema,
+  MeetingDetailResponseSchema,
+  MeetingDetailSchema,
+  MeetingListQuerySchema,
+  MeetingListResponseSchema,
+  MeetingParticipantSchema,
+  MeetingParticipantStatusSchema,
+  MeetingParticipantStatusUpdateRequestSchema,
+  MeetingScheduleUpdateRequestSchema,
+  MeetingStatusSchema,
+  MeetingSummarySchema,
+} from './meetings.js';
+export type {
+  MeetingCancelRequest,
+  MeetingCompleteRequest,
+  MeetingCreateRequest,
+  MeetingDetail,
+  MeetingDetailResponse,
+  MeetingListQuery,
+  MeetingListResponse,
+  MeetingParticipant,
+  MeetingParticipantStatus,
+  MeetingParticipantStatusUpdateRequest,
+  MeetingScheduleUpdateRequest,
+  MeetingStatus,
+  MeetingSummary,
+} from './meetings.js';
+export {
   NotificationDetailResponseSchema,
   NotificationListResponseSchema,
   NotificationListQuerySchema,

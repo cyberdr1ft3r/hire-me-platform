@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AccountingModule } from './accounting/accounting.module.js';
+import { AgendaModule } from './agenda/agenda.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CandidatesModule } from './candidates/candidates.module.js';
@@ -9,6 +10,7 @@ import { CommercialModule } from './commercial/commercial.module.js';
 import { DocumentGenerationModule } from './document-generation/document-generation.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
+import { MeetingsModule } from './meetings/meetings.module.js';
 import { MissionsModule } from './missions/missions.module.js';
 import { PublicApplicationsModule } from './public-applications/public-applications.module.js';
 import { ReportingModule } from './reporting/reporting.module.js';
@@ -25,7 +27,9 @@ import { TrainingModule } from './training/training.module.js';
     CommercialModule,
     DocumentsModule,
     DocumentGenerationModule,
+    MeetingsModule,
     MissionsModule,
+    AgendaModule,
     PublicApplicationsModule,
     ReportingModule,
     TasksModule,

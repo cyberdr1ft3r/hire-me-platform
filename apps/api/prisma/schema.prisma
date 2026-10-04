@@ -286,6 +286,21 @@ enum InterviewParticipantStatus {
   ARCHIVED @map("archived")
 }
 
+enum MeetingStatus {
+  SCHEDULED @map("scheduled")
+  COMPLETED @map("completed")
+  CANCELED  @map("canceled")
+}
+
+enum MeetingParticipantStatus {
+  SCHEDULED @map("scheduled")
+  ACCEPTED  @map("accepted")
+  DECLINED  @map("declined")
+  ATTENDED  @map("attended")
+  MISSED    @map("missed")
+  CANCELLED @map("cancelled")
+}
+
 enum InterviewEventAction {
   SCHEDULED           @map("scheduled")
   RESCHEDULED         @map("rescheduled")
@@ -628,6 +643,8 @@ model User {
   correctedPlacements                 MissionPlacement[]             @relation("MissionPlacementCorrector")
   placementEvents                     PlacementEvent[]               @relation("PlacementEventActor")
   organizedInterviews                 Interview[]                    @relation("InterviewOrganizer")
+  organizedMeetings                   Meeting[]                      @relation("MeetingOrganizer")
+  meetingParticipants                 MeetingParticipant[]           @relation("MeetingParticipantUser")
   interviewParticipants               InterviewParticipant[]         @relation("InterviewParticipantUser")
   interviewEvents                     InterviewEvent[]               @relation("InterviewEventActor")
   candidateEvaluations                CandidateEvaluation[]          @relation("EvaluationAuthor")
@@ -821,6 +838,7 @@ model Client {
   invoices             Invoice[]
   payments             Payment[]
   expenses             Expense[]
+  meetings               Meeting[]
 
   @@index([normalizedName])
   @@index([status])
@@ -1543,6 +1561,54 @@ model InterviewEvent {
   @@index([actorUserId])
   @@index([action])
   @@index([createdAt])
+}
+
+model Meeting {
+  id              String        @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?
+  scheduledStartAt DateTime
+  scheduledEndAt  DateTime?
+  timezone        String
+  location        String?
+  meetingUrl      String?
+  organizerUserId String        @db.Uuid
+  clientId        String?       @db.Uuid
+  status          MeetingStatus @default(SCHEDULED)
+  completedAt     DateTime?
+  canceledAt      DateTime?
+  cancellationReason String?
+  archivedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organizer    User                 @relation("MeetingOrganizer", fields: [organizerUserId], references: [id], onDelete: Restrict)
+  client       Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  participants MeetingParticipant[]
+
+  @@index([organizerUserId])
+  @@index([clientId])
+  @@index([scheduledStartAt])
+  @@index([status])
+  @@index([archivedAt])
+}
+
+model MeetingParticipant {
+  id        String                   @id @default(uuid()) @db.Uuid
+  meetingId String                   @db.Uuid
+  userId    String                   @db.Uuid
+  status    MeetingParticipantStatus @default(SCHEDULED)
+  archivedAt DateTime?
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  user    User    @relation("MeetingParticipantUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+  @@index([status])
 }
 
 model CandidateEvaluation {
