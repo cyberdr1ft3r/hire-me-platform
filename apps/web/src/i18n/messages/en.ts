@@ -41,6 +41,16 @@ export const enMessages = {
       working: 'Working…',
     },
   },
+  ui: {
+    picker: {
+      choose: 'Choose…',
+      error: 'Could not load options.',
+      loading: 'Loading options…',
+      none: 'No matching options.',
+      searchAction: 'Search',
+      searchFor: 'Search {field}',
+    },
+  },
   navigation: {
     destinations: {
       accounting: 'Accounting',

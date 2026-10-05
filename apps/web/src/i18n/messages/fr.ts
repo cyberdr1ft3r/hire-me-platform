@@ -54,6 +54,16 @@ export const frMessages: Messages = {
       working: 'Traitement en cours…',
     },
   },
+  ui: {
+    picker: {
+      choose: 'Choisir…',
+      error: 'Impossible de charger les options.',
+      loading: 'Chargement des options…',
+      none: 'Aucune option correspondante.',
+      searchAction: 'Rechercher',
+      searchFor: 'Rechercher {field}',
+    },
+  },
   navigation: {
     destinations: {
       accounting: 'Comptabilité',
