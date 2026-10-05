@@ -5,8 +5,8 @@ Last updated: 2026-10-05
 ## Current situation
 
 - Latest `main` is `4c0655d` (includes merged #116 stacked master-detail and #117 UI-DNA v1.1).
-- Issue #118 Missions IA/composition: implementation on `cursor/issue-118-missions-ia-909e` — local tab navigation (Overview / Team / Pipeline / Public), read-first mission profile, desktop pipeline/process split, deep-link → Pipeline tab; **727** web tests green locally.
-- Browser matrix script: `scripts/issue-118-missions-ia-evidence.mjs` (requires Docker + `pnpm dev`; not run in cloud agent VM — no Docker).
+- Issue #118 Missions IA/composition: branch `cursor/issue-118-missions-ia-909e` head `3abf317`; PR #139; exact-head CI run [37339464281](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/37339464281) **green** (includes unrelated audit-test flake fix in `document-generation.integration.test.ts`).
+- Browser matrix script: `scripts/issue-118-missions-ia-evidence.mjs` still not run in cloud agent VM (no Docker).
 - Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
 ## Next concrete action
