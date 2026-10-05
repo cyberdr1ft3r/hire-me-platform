@@ -28,6 +28,7 @@ import {
   syntheticProcess,
   type RecordedCall,
 } from './mission-test-data.js';
+import { showMissionDetailTab } from './mission-test-navigation.js';
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
@@ -160,12 +161,16 @@ function LocaleToggle() {
 
 function Workspace({
   accessToken = 'token-a',
+  initialInterviewId = null,
   initialMissionId = null,
+  initialProcessId = null,
   onSelectionChange = () => undefined,
   permissions,
 }: {
   accessToken?: string;
+  initialInterviewId?: string | null;
   initialMissionId?: string | null;
+  initialProcessId?: string | null;
   onSelectionChange?: (missionId: string) => void;
   permissions: string[];
 }) {
@@ -175,7 +180,9 @@ function Workspace({
       <MissionsPanel
         accessToken={accessToken}
         actorUserId={ACTOR_ID}
+        initialInterviewId={initialInterviewId}
         initialMissionId={initialMissionId}
+        initialProcessId={initialProcessId}
         onSelectionChange={onSelectionChange}
         permissions={permissions}
       />
@@ -206,7 +213,12 @@ async function selectMission(title: string): Promise<void> {
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${title}`) }));
 }
 
+async function showPipelineTab(locale: 'en' | 'fr' = 'en'): Promise<void> {
+  await showMissionDetailTab('pipeline', locale);
+}
+
 async function openProcess(candidateName: string): Promise<HTMLElement> {
+  await showPipelineTab();
   fireEvent.click(
     await screen.findByRole('button', { name: `Open the process for ${candidateName}` }),
   );
@@ -226,6 +238,53 @@ function writes(calls: RecordedCall[]): RecordedCall[] {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('Missions detail navigation (#118)', () => {
+  it('hides the edit form until Edit mission is chosen on Overview', async () => {
+    serve(world());
+    renderWorkspace({ permissions: MANAGE });
+
+    await selectMission('Mission Alpha');
+    await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' });
+    expect(screen.queryByRole('form', { name: 'Edit mission' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit mission' }));
+    expect(await screen.findByRole('form', { name: 'Edit mission' })).toBeVisible();
+  });
+
+  it('shows team content only on the Team tab', async () => {
+    serve(world());
+    renderWorkspace({ permissions: MANAGE });
+
+    await selectMission('Mission Alpha');
+    expect(screen.queryByRole('region', { name: 'Mission team' })).toBeNull();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Team' }));
+    expect(await screen.findByRole('region', { name: 'Mission team' })).toBeVisible();
+  });
+
+  it('opens the Pipeline tab and process detail for a process deep link', async () => {
+    serve(world());
+    renderWorkspace({
+      initialMissionId: MISSION_A_ID,
+      initialProcessId: processA.id,
+      permissions: MANAGE,
+    });
+
+    expect(await screen.findByRole('tab', { name: 'Pipeline', selected: true })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Alex Candidate' })).toBeVisible();
+    expect(await screen.findByText('Alpha contract')).toBeVisible();
+  });
+
+  it('keeps lifecycle actions on Overview while pipeline stays on Pipeline', async () => {
+    serve(world());
+    renderWorkspace({ permissions: MANAGE });
+
+    await selectMission('Mission Alpha');
+    expect(await screen.findByRole('region', { name: 'Lifecycle' })).toBeVisible();
+    await openProcess('Alex Candidate');
+    expect(screen.getByRole('tab', { name: 'Pipeline', selected: true })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Lifecycle' })).toBeNull();
+  });
 });
 
 describe('Missions workspace localization and structure', () => {
@@ -251,6 +310,13 @@ describe('Missions workspace localization and structure', () => {
     renderWorkspace({ permissions: MANAGE });
 
     await selectMission('Mission Alpha');
+    await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit mission' }));
+    const title = within(await screen.findByRole('form', { name: 'Edit mission' })).getByRole(
+      'textbox',
+      { name: 'Title' },
+    );
+    fireEvent.change(title, { target: { value: 'Typed but unsaved title' } });
     await openProcess('Alex Candidate');
     await screen.findByText('Alpha contract');
     const search = within(screen.getByRole('search', { name: 'Mission search' })).getByRole(
@@ -258,10 +324,6 @@ describe('Missions workspace localization and structure', () => {
       { name: 'Search' },
     );
     fireEvent.change(search, { target: { value: 'unapplied draft' } });
-    const title = within(screen.getByRole('form', { name: 'Edit mission' })).getByRole('textbox', {
-      name: 'Title',
-    });
-    fireEvent.change(title, { target: { value: 'Typed but unsaved title' } });
     await flush();
     const before = calls.length;
 
@@ -278,6 +340,7 @@ describe('Missions workspace localization and structure', () => {
         name: 'Rechercher',
       }),
     ).toHaveValue('unapplied draft');
+    await showMissionDetailTab('overview', 'fr');
     expect(
       within(screen.getByRole('form', { name: 'Modifier la mission' })).getByRole('textbox', {
         name: 'Intitulé',
@@ -304,6 +367,7 @@ describe('Missions option sources and raw identifiers', () => {
     await selectMission('Mission Alpha');
     await openProcess('Alex Candidate');
     await screen.findByText('Alpha contract');
+    await showMissionDetailTab('team');
     await screen.findByRole('option', { name: /Option Person/ });
 
     const controls = [
@@ -357,6 +421,7 @@ describe('Missions option sources and raw identifiers', () => {
     expect(
       await screen.findByText('Creating a mission requires access to the client directory.'),
     ).toBeInTheDocument();
+    await showMissionDetailTab('pipeline');
     expect(
       await screen.findByText('Linking a candidate requires access to the candidate directory.'),
     ).toBeVisible();
@@ -391,6 +456,7 @@ describe('Missions context ownership', () => {
 
     await selectMission('Mission Alpha');
     await selectMission('Mission Beta');
+    await showMissionDetailTab('team');
     expect(await screen.findByText('Beta Recruiter')).toBeVisible();
 
     await act(async () => {
@@ -420,8 +486,10 @@ describe('Missions context ownership', () => {
     renderWorkspace({ permissions: MANAGE });
 
     await selectMission('Mission Alpha');
+    await showMissionDetailTab('team');
     await screen.findByRole('region', { name: 'Mission team' });
     await selectMission('Mission Beta');
+    await showMissionDetailTab('team');
     expect(await screen.findByRole('option', { name: /Beta Option/ })).toBeInTheDocument();
 
     await act(async () => {
@@ -620,6 +688,7 @@ describe('Missions candidate pipeline pagination', () => {
   }
 
   async function nextPage(): Promise<void> {
+    await showPipelineTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Next candidate page' }));
     await flush();
   }
@@ -629,6 +698,7 @@ describe('Missions candidate pipeline pagination', () => {
     renderWorkspace({ permissions: VIEW });
 
     await selectMission('Mission Alpha');
+    await showPipelineTab();
     await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
     const firstPage = shownCandidates();
     expect(firstPage).toHaveLength(20);
@@ -746,10 +816,12 @@ describe('Missions candidate pipeline pagination', () => {
     const view = renderWorkspace({ permissions: VIEW });
 
     await selectMission('Mission Alpha');
+    await showPipelineTab();
     await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
     await nextPage();
     await selectMission('Mission Beta');
     await selectMission('Mission Alpha');
+    await showPipelineTab();
     await screen.findByRole('button', { name: 'Open the process for Candidate 01' });
 
     await act(async () => {
@@ -877,6 +949,7 @@ describe('Stacked master-detail reveal', () => {
     serve(world());
     renderWorkspace({ permissions: VIEW });
     fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await showMissionDetailTab('pipeline');
     const pipelineRegion = await screen.findByRole('region', { name: 'Candidate pipeline' });
     forceStackedMissionsLayout();
     fireEvent.click(within(pipelineRegion).getByRole('button', { name: 'Alex Candidate' }));

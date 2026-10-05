@@ -71,6 +71,13 @@ export const missionsEn = {
   detail: {
     archivedNoticeTitle: 'Archived mission',
     archivedNotice: 'This mission is archived. Its records are read-only and keep their history.',
+    nav: {
+      overview: 'Overview',
+      pipeline: 'Pipeline',
+      public: 'Public',
+      region: 'Mission sections',
+      team: 'Team',
+    },
     region: 'Selected mission',
     selectPrompt:
       'Select a mission to review its profile, team, candidate pipeline, and public opportunity.',
@@ -84,6 +91,8 @@ export const missionsEn = {
       summary: 'Commercial summary',
       title: 'Commercial terms',
     },
+    cancel: 'Cancel editing',
+    edit: 'Edit mission',
     editTitle: 'Edit mission',
     fields: {
       applicationDeadline: 'Application deadline',
@@ -202,6 +211,8 @@ export const missionsEn = {
     placementConfirmed: 'Placement confirmed',
     processLeftPage:
       'The open candidate process was closed because it is not on this page. Open a candidate on this page to continue.',
+    selectProcessDetail:
+      'Select a candidate in the pipeline to review their process, interviews, evaluations, offer, and placement.',
     region: 'Candidate pipeline',
     title: 'Candidate pipeline',
   },

@@ -82,6 +82,11 @@ import type { LoadPickerOptions } from './MissionPicker.js';
 import type { ProcessTransferValues } from './MissionProcess.js';
 import { publicOpportunityPath, type PublicationChange } from './MissionPublicOpportunity.js';
 import { bumpStackedDetailRevealToken } from '../layout/index.js';
+import {
+  defaultMissionDetailSectionForIntent,
+  type MissionDetailSection,
+  normalizeMissionDetailSection,
+} from './mission-detail-section.js';
 import { MissionsWorkspace } from './MissionsWorkspace.js';
 import { resolveMissionAccess } from './mission-access.js';
 import { classifyMissionFailure } from './mission-errors.js';
@@ -234,6 +239,11 @@ export function MissionsPanel({
   const initialIntent = useRef(initialMissionId);
   const initialProcessIntent = useRef(initialProcessId ?? null);
   const initialInterviewIntent = useRef(initialInterviewId ?? null);
+  const initialDetailSection = defaultMissionDetailSectionForIntent({
+    access,
+    hasInterviewIntent: initialInterviewIntent.current !== null,
+    hasProcessIntent: initialProcessIntent.current !== null,
+  });
 
   const [session, setSession] = useState({ key: 0, principal, token: accessToken });
   const sessionKeyRef = useRef(session.key);
@@ -265,6 +275,7 @@ export function MissionsPanel({
 
   const [feedback, setFeedback] = useState<MissionFeedback | null>(null);
   const [pending, setPending] = useState<MissionPendingAction | null>(null);
+  const [detailSection, setDetailSection] = useState<MissionDetailSection>(initialDetailSection);
 
   function resetMissionSections(): void {
     processPageRef.current = 1;
@@ -315,6 +326,7 @@ export function MissionsPanel({
     setEditValues(null);
     resetMissionSections();
     setFeedback(null);
+    setDetailSection('overview');
   }
 
   useEffect(() => {
@@ -480,6 +492,7 @@ export function MissionsPanel({
     setEditValues(null);
     resetMissionSections();
     setFeedback(null);
+    setDetailSection('overview');
     if (updateUrl) {
       initialIntent.current = null;
       onSelectionChange(missionId);
@@ -661,6 +674,7 @@ export function MissionsPanel({
     activeProcessRef.current = processId;
     setProcessDetailRevealToken(bumpStackedDetailRevealToken);
     setActiveProcessId(processId);
+    setDetailSection(normalizeMissionDetailSection('pipeline', access));
     void loadProcessContext(detail.mission, processId, false);
   }
 
@@ -893,14 +907,14 @@ export function MissionsPanel({
     });
   }
 
-  function handleSave(event: FormEvent<HTMLFormElement>): void {
+  async function handleSave(event: FormEvent<HTMLFormElement>): Promise<boolean> {
     event.preventDefault();
     if (!readyMission || !editValues || !access.canUpdate) {
-      return;
+      return false;
     }
     const missionId = readyMission.id;
     const request = toMissionUpdateRequest(editValues);
-    void runWrite({
+    return runWrite({
       action: 'updateMission',
       failureKey: 'missions.failure.action.update',
       isCurrent: captureMissionContext(missionId),
@@ -1818,7 +1832,9 @@ export function MissionsPanel({
         onSelect: (missionId) => selectMission(missionId),
         selectedId: selectedMissionId,
       }}
+      detailSection={detailSection}
       missionDetailRevealToken={missionDetailRevealToken}
+      onDetailSectionChange={setDetailSection}
       processDetailRevealToken={processDetailRevealToken}
       sessionKey={sessionKey}
       writesLocked={writesLocked}

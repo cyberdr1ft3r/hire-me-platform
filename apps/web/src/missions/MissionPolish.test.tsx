@@ -47,7 +47,11 @@ describe('Missions polish', () => {
       <MissionProfile
         canEdit={false}
         mission={mission}
-        model={{ editValues: null, onEditValuesChange: vi.fn(), onSave: vi.fn() }}
+        model={{
+          editValues: null,
+          onEditValuesChange: vi.fn(),
+          onSave: vi.fn().mockResolvedValue(true),
+        }}
         writesLocked={false}
       />,
     );
