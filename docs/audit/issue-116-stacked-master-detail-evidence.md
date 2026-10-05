@@ -2,7 +2,7 @@
 
 **Gate:** `STACKED MASTER-DETAIL GATE: PASS` (automated tests + live Chromium matrix)
 
-**Branch head (evidence run):** `cursor/issue-116-stacked-master-detail-909e` (pre-push; see PR #138 for exact SHA after commit)
+**Branch head (evidence run):** `dc23266be1af839f458ca13e0e8e3a8441542c8e` (PR #138)
 
 ### Shared contract
 
