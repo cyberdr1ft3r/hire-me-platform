@@ -1,7 +1,12 @@
 import type { ClientContactSummary, ClientStatus } from '@hire-me/contracts';
 import type { FormEvent } from 'react';
+import { useRef } from 'react';
 
 import { useI18n } from '../i18n/index.js';
+import {
+  CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
+  useStackedMasterDetailReveal,
+} from '../layout/index.js';
 import {
   Button,
   InlineMessage,
@@ -88,6 +93,8 @@ export function ClientsWorkspace({
   onSaveContact,
   onSelectClient,
   onSelectContact,
+  clientDetailRevealToken,
+  contactDetailRevealToken,
   selectedClientId,
   selectedContact,
   writesLocked,
@@ -130,11 +137,16 @@ export function ClientsWorkspace({
   onSaveContact: (event: FormEvent<HTMLFormElement>) => void;
   onSelectClient: (clientId: string) => void;
   onSelectContact: (contactId: string) => void;
+  clientDetailRevealToken: number;
+  contactDetailRevealToken: number;
   selectedClientId: string | null;
   selectedContact: ClientContactSummary | null;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const layoutContainerRef = useRef<HTMLElement>(null);
+  const clientHeadingRef = useRef<HTMLHeadingElement>(null);
+  const contactHeadingRef = useRef<HTMLHeadingElement>(null);
   const listBusy = clientList.status === 'loading';
   const filteredClients =
     appliedClientFilters.search.trim().length > 0 ||
@@ -153,8 +165,24 @@ export function ClientsWorkspace({
   const archivedClient = detailClient?.status === 'ARCHIVED';
   const archivedContact = selectedContact?.status === 'ARCHIVED';
 
+  useStackedMasterDetailReveal({
+    containerRef: layoutContainerRef,
+    ready: clientDetail.status === 'ready',
+    revealToken: clientDetailRevealToken,
+    sideBySideMinRem: CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
+    targetRef: clientHeadingRef,
+  });
+
+  useStackedMasterDetailReveal({
+    containerRef: layoutContainerRef,
+    ready: selectedContact !== null,
+    revealToken: contactDetailRevealToken,
+    sideBySideMinRem: CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
+    targetRef: contactHeadingRef,
+  });
+
   return (
-    <section aria-label={t('clients.region')} className="clients">
+    <section aria-label={t('clients.region')} className="clients" ref={layoutContainerRef}>
       <PageHeader
         description={t('clients.header.description')}
         eyebrow={t('clients.header.eyebrow')}
@@ -234,7 +262,13 @@ export function ClientsWorkspace({
           ) : detailClient && editClientValues ? (
             <>
               <div className="client-detail__heading">
-                <h2 className="clients__pane-title">{detailClient.name}</h2>
+                <h2
+                  className="clients__pane-title client-detail__title"
+                  ref={clientHeadingRef}
+                  tabIndex={-1}
+                >
+                  {detailClient.name}
+                </h2>
                 <StatusBadge tone={clientStatusTone(detailClient.status)}>
                   {t(clientStatusLabelKey(detailClient.status))}
                 </StatusBadge>
@@ -345,7 +379,13 @@ export function ClientsWorkspace({
                       className="client-form"
                       onSubmit={onSaveContact}
                     >
-                      <h4 className="clients__pane-title">{selectedContact.displayName}</h4>
+                      <h4
+                        className="clients__pane-title client-detail__title"
+                        ref={contactHeadingRef}
+                        tabIndex={-1}
+                      >
+                        {selectedContact.displayName}
+                      </h4>
                       {archivedContact ? (
                         <InlineMessage
                           title={t('clients.lifecycle.contactArchivedNotice')}

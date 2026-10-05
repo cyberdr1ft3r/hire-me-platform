@@ -61,6 +61,7 @@ import {
   type CandidateRecordUpdate,
   type CandidateSensitiveUpdate,
 } from './candidate-state.js';
+import { bumpStackedDetailRevealToken } from '../layout/index.js';
 import { CandidateWorkspace } from './CandidateWorkspace.js';
 
 /** An optional field: trimmed, or omitted when empty, exactly as before. */
@@ -278,6 +279,7 @@ export function CandidatesPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<CandidatePendingAction | null>(null);
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
+  const [detailRevealToken, setDetailRevealToken] = useState(0);
 
   /*
    * Monotonic request counters. A list or detail response may commit only while
@@ -450,6 +452,7 @@ export function CandidatesPanel({
     const candidateId = initialCandidateIntent.current;
     if (candidateId) {
       select(candidateId);
+      setDetailRevealToken(bumpStackedDetailRevealToken);
       void loadDetail(candidateId, false, true);
     }
   }, []);
@@ -512,6 +515,7 @@ export function CandidatesPanel({
   function handleSelect(candidateId: string): void {
     initialCandidateIntent.current = null;
     select(candidateId);
+    setDetailRevealToken(bumpStackedDetailRevealToken);
     onSelectionChange?.(candidateId);
     void loadDetail(candidateId);
   }
@@ -573,6 +577,7 @@ export function CandidatesPanel({
       const created = await createCandidate(accessToken, toCandidateCreateRequest(values));
       if (isCurrent()) {
         select(created.candidate.id);
+        setDetailRevealToken(bumpStackedDetailRevealToken);
         commitDetail(created.candidate, () => true);
         setFeedback({ kind: 'created', tone: 'success' });
       }
@@ -947,6 +952,7 @@ export function CandidatesPanel({
       onUpdate={handleUpdate}
       onUpdateRecord={handleUpdateRecord}
       onUpdateSensitive={handleUpdateSensitive}
+      detailRevealToken={detailRevealToken}
       pending={pending}
       selectedId={selectedId}
     />

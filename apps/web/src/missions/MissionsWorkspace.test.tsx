@@ -863,3 +863,25 @@ describe('Missions candidate pipeline pagination', () => {
     expect(calls.length).toBe(before);
   });
 });
+
+function forceStackedMissionsLayout(): void {
+  const container = document.querySelector('.missions');
+  if (!container) {
+    throw new Error('Missing missions layout container');
+  }
+  Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+}
+
+describe('Stacked master-detail reveal', () => {
+  it('opens a process from the candidate name control and focuses it on stacked layouts', async () => {
+    serve(world());
+    renderWorkspace({ permissions: VIEW });
+    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    const pipelineRegion = await screen.findByRole('region', { name: 'Candidate pipeline' });
+    forceStackedMissionsLayout();
+    fireEvent.click(within(pipelineRegion).getByRole('button', { name: 'Alex Candidate' }));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 3, name: 'Alex Candidate' })).toHaveFocus(),
+    );
+  });
+});

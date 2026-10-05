@@ -81,6 +81,7 @@ import type { OfferCreateValues } from './MissionOffers.js';
 import type { LoadPickerOptions } from './MissionPicker.js';
 import type { ProcessTransferValues } from './MissionProcess.js';
 import { publicOpportunityPath, type PublicationChange } from './MissionPublicOpportunity.js';
+import { bumpStackedDetailRevealToken } from '../layout/index.js';
 import { MissionsWorkspace } from './MissionsWorkspace.js';
 import { resolveMissionAccess } from './mission-access.js';
 import { classifyMissionFailure } from './mission-errors.js';
@@ -253,6 +254,8 @@ export function MissionsPanel({
   const [clientContacts, setClientContacts] = useState<SectionState<ClientContactSummary[]>>(IDLE);
   const [contentLanguageDraft, setContentLanguageDraft] = useState<ContentLanguageDraft>(null);
 
+  const [missionDetailRevealToken, setMissionDetailRevealToken] = useState(0);
+  const [processDetailRevealToken, setProcessDetailRevealToken] = useState(0);
   const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
   const [offer, setOffer] = useState<SectionState<OfferAggregate | null>>(IDLE);
   const [placement, setPlacement] = useState<SectionState<MissionPlacement | null>>(IDLE);
@@ -470,6 +473,8 @@ export function MissionsPanel({
     activeProcessRef.current = null;
     activeInterviewRef.current = null;
     contactsRequestedFor.current = null;
+    setMissionDetailRevealToken(bumpStackedDetailRevealToken);
+    setProcessDetailRevealToken(0);
     setSelectedMissionId(missionId);
     setDetail({ status: 'loading' });
     setEditValues(null);
@@ -654,6 +659,7 @@ export function MissionsPanel({
       return;
     }
     activeProcessRef.current = processId;
+    setProcessDetailRevealToken(bumpStackedDetailRevealToken);
     setActiveProcessId(processId);
     void loadProcessContext(detail.mission, processId, false);
   }
@@ -1812,6 +1818,8 @@ export function MissionsPanel({
         onSelect: (missionId) => selectMission(missionId),
         selectedId: selectedMissionId,
       }}
+      missionDetailRevealToken={missionDetailRevealToken}
+      processDetailRevealToken={processDetailRevealToken}
       sessionKey={sessionKey}
       writesLocked={writesLocked}
     />

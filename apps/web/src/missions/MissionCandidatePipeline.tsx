@@ -73,7 +73,7 @@ export function MissionCandidatePipeline({
           ) : (
             <>
               <ScrollTable label={title}>
-                <table className="mission-table">
+                <table className="mission-table mission-pipeline-table">
                   <thead>
                     <tr>
                       <th scope="col">{t('missions.pipeline.columns.candidate')}</th>
@@ -93,19 +93,31 @@ export function MissionCandidatePipeline({
                           data-selected={open}
                           key={process.id}
                         >
-                          <th scope="row">{process.candidate.displayName}</th>
-                          <td>
+                          <th scope="row">
+                            <button
+                              aria-current={open ? 'true' : undefined}
+                              aria-expanded={open}
+                              className="mission-pipeline__select"
+                              onClick={() => model.onOpen(process.id)}
+                              type="button"
+                            >
+                              {process.candidate.displayName}
+                            </button>
+                          </th>
+                          <td data-label={t('missions.pipeline.columns.state')}>
                             <StatusBadge tone={processStateTone(process.state)}>
                               {t(processStateLabelKey(process.state))}
                             </StatusBadge>
                           </td>
-                          <td>{process.responsibleRecruiterDisplayName}</td>
-                          <td>
+                          <td data-label={t('missions.pipeline.columns.responsible')}>
+                            {process.responsibleRecruiterDisplayName}
+                          </td>
+                          <td data-label={t('missions.pipeline.columns.priority')}>
                             <StatusBadge tone={missionPriorityTone(process.priority)}>
                               {t(missionPriorityLabelKey(process.priority))}
                             </StatusBadge>
                           </td>
-                          <td>
+                          <td data-label={t('missions.pipeline.columns.visibility')}>
                             <span className="mission-badges">
                               <span>
                                 {process.clientVisible
@@ -119,7 +131,10 @@ export function MissionCandidatePipeline({
                               ) : null}
                             </span>
                           </td>
-                          <td>
+                          <td
+                            className="mission-pipeline__actions"
+                            data-label={t('missions.pipeline.columns.actions')}
+                          >
                             <Button
                               aria-expanded={open}
                               aria-label={t('missions.pipeline.openLabel', {

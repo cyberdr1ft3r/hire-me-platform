@@ -18,6 +18,7 @@ import {
   type CandidateRecordUpdate,
 } from '../candidates/index.js';
 import { I18nProvider, useI18n } from '../i18n/index.js';
+import { bumpStackedDetailRevealToken } from '../layout/index.js';
 import { Select } from '../ui/index.js';
 import { AppShell } from '../ui/shell/AppShell.js';
 import {
@@ -211,6 +212,7 @@ function CandidatePreviewContent() {
   });
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(PREVIEW_CANDIDATES[0]?.id ?? null);
+  const [detailRevealToken, setDetailRevealToken] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
 
   const permissions = PREVIEW_PERMISSIONS[profile];
@@ -312,6 +314,7 @@ function CandidatePreviewContent() {
         onSearch={() => setQuery({ filters: { ...filters }, page: 1 })}
         onSelect={(id) => {
           setSelectedId(id);
+          setDetailRevealToken(bumpStackedDetailRevealToken);
           setFeedback(null);
         }}
         onUpdate={() => ACCEPTED}
@@ -338,6 +341,7 @@ function CandidatePreviewContent() {
           }
           return ACCEPTED;
         }}
+        detailRevealToken={detailRevealToken}
         pending={null}
         selectedId={selectedId}
       />

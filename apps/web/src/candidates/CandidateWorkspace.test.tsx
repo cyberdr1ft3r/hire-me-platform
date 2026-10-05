@@ -61,6 +61,7 @@ function renderWorkspace(
     onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
+    detailRevealToken: 0,
     pending: null,
     selectedId: shaped.id,
     ...overrides,
@@ -912,5 +913,85 @@ describe('Candidate experience description and education dates', () => {
       2,
     );
     expect(within(education).queryByText(/Start date|End date|As recorded/)).toBeNull();
+  });
+});
+
+function forceStackedLayout(selector: string): void {
+  const container = document.querySelector(selector);
+  if (!container) {
+    throw new Error(`Missing layout container: ${selector}`);
+  }
+  Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+}
+
+describe('Stacked master-detail reveal', () => {
+  it('focuses the record heading after an explicit reveal on stacked layouts', () => {
+    const candidate = syntheticCandidate();
+    const shaped = asServerWouldReturn(candidate, [P.view]);
+    const props = renderWorkspace([P.view], {
+      detail: { candidate: shaped, status: 'ready' },
+      detailRevealToken: 0,
+      list: { candidates: [shaped], page: 1, pageSize: 20, status: 'ready', total: 1 },
+      selectedId: shaped.id,
+    });
+    forceStackedLayout('.candidates');
+    cleanup();
+    const { rerender } = render(
+      <I18nProvider initialLocale="en">
+        <CandidateWorkspace {...props} detailRevealToken={0} />
+      </I18nProvider>,
+    );
+    forceStackedLayout('.candidates');
+    rerender(
+      <I18nProvider initialLocale="en">
+        <CandidateWorkspace {...props} detailRevealToken={1} />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Synthetic Candidate' })).toHaveFocus();
+  });
+
+  it('does not refocus the record when only the locale changes', () => {
+    const candidate = syntheticCandidate();
+    const shaped = asServerWouldReturn(candidate, [P.view]);
+    const baseProps = {
+      access: resolveCandidateAccess([P.view]),
+      appliedFilters: EMPTY_CANDIDATE_FILTERS,
+      detail: { candidate: shaped, status: 'ready' as const },
+      detailRevealToken: 1,
+      feedback: null,
+      filters: EMPTY_CANDIDATE_FILTERS,
+      list: { candidates: [shaped], page: 1, pageSize: 20, status: 'ready' as const, total: 1 },
+      onAddRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
+      onArchive: vi.fn(),
+      onArchiveRecord: vi.fn(() => Promise.resolve(true)),
+      onChangeStatus: vi.fn(),
+      onCreate: vi.fn(() => Promise.resolve({ ok: true as const })),
+      onFiltersChange: vi.fn(),
+      onPage: vi.fn(),
+      onResetFilters: vi.fn(),
+      onRetryDetail: vi.fn(),
+      onRetryList: vi.fn(),
+      onSearch: vi.fn(),
+      onSelect: vi.fn(),
+      onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
+      onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
+      onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
+      pending: null,
+      selectedId: shaped.id,
+    };
+    const { rerender } = render(
+      <I18nProvider initialLocale="en">
+        <CandidateWorkspace {...baseProps} />
+      </I18nProvider>,
+    );
+    forceStackedLayout('.candidates');
+    const heading = screen.getByRole('heading', { level: 2, name: 'Synthetic Candidate' });
+    heading.focus();
+    rerender(
+      <I18nProvider initialLocale="fr">
+        <CandidateWorkspace {...baseProps} />
+      </I18nProvider>,
+    );
+    expect(document.activeElement).toBe(heading);
   });
 });

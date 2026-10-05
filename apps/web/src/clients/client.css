@@ -36,6 +36,16 @@
   margin-bottom: 0;
 }
 
+.client-detail__title:focus {
+  outline: none;
+}
+
+.client-detail__title:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
 .client-filters {
   border-block-end: var(--border-width) solid var(--color-border);
   display: grid;

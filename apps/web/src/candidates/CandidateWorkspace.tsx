@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
+import { CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM } from '../layout/index.js';
 import { Button, PageHeader } from '../ui/index.js';
 import type { CandidateAccess } from './candidate-access.js';
 import {
@@ -50,6 +51,8 @@ export interface CandidateWorkspaceProps {
   /** Saves a partial compensation or consent update for the selected candidate. */
   onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
+  /** Advances when the operator explicitly opens a record for stacked reveal/focus. */
+  detailRevealToken: number;
   selectedId: string | null;
 }
 
@@ -89,12 +92,14 @@ export function CandidateWorkspace({
   onUpdateRecord,
   onUpdateSensitive,
   pending,
+  detailRevealToken,
   selectedId,
 }: CandidateWorkspaceProps) {
   const { t } = useI18n();
   const listHeadingId = useId();
   const createRegionId = useId();
   const headerRef = useRef<HTMLDivElement>(null);
+  const layoutContainerRef = useRef<HTMLDivElement>(null);
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
   // Set by a page change: once the new page has settled, focus moves to the list heading.
   const focusListAfterPage = useRef(false);
@@ -144,7 +149,7 @@ export function CandidateWorkspace({
   }
 
   return (
-    <div className="candidates">
+    <div className="candidates" ref={layoutContainerRef}>
       <div ref={headerRef}>
         <PageHeader
           description={t('candidate.header.description')}
@@ -211,7 +216,10 @@ export function CandidateWorkspace({
           <CandidateDetailView
             access={access}
             detail={detail}
+            detailRevealToken={detailRevealToken}
             feedback={feedback}
+            layoutContainerRef={layoutContainerRef}
+            sideBySideMinRem={CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM}
             onAddRecord={onAddRecord}
             onArchive={onArchive}
             onArchiveRecord={onArchiveRecord}
