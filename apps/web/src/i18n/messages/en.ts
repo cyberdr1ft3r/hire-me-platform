@@ -41,6 +41,14 @@ export const enMessages = {
       working: 'Working…',
     },
   },
+  ui: {
+    combobox: {
+      empty: 'No matching records.',
+      error: 'Could not load options.',
+      listLabel: 'Suggestions for {field}',
+      loading: 'Loading options…',
+    },
+  },
   navigation: {
     destinations: {
       accounting: 'Accounting',

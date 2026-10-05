@@ -54,6 +54,14 @@ export const frMessages: Messages = {
       working: 'Traitement en cours…',
     },
   },
+  ui: {
+    combobox: {
+      empty: 'Aucun enregistrement correspondant.',
+      error: 'Impossible de charger les options.',
+      listLabel: 'Suggestions pour {field}',
+      loading: 'Chargement des options…',
+    },
+  },
   navigation: {
     destinations: {
       accounting: 'Comptabilité',

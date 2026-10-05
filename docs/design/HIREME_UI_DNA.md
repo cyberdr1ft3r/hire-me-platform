@@ -1,6 +1,6 @@
 # HireMe UI-DNA v1
 
-Status: Phase 1 foundation approved; Task 2 AppShell awaiting visual approval
+Status: Phase 1 foundation approved; **Interaction grammar v1.1** proposed in Issue #117 (`HIREME_UI_DNA_v1.1-interactions.md`)
 
 Canonical implementation: `apps/web/src/styles/tokens.css`
 Review harness: `apps/web/design-system.html`
@@ -291,3 +291,18 @@ The public opportunity list, detail, and application form are the third represen
 - **A form candidates can finish.** Sections use real fieldsets and legends, labels are always visible, and fields pair up only where the form is wide enough. Validation repeats only rules the server enforces and appears beside each field, with focus moved to the first invalid one. File controls keep the native input for keyboard and assistive technology but show a localized button and the chosen file name. Success appears only after the server confirms receipt and promises nothing beyond it.
 
 Its development-only review surface is `apps/web/public-opportunity.html`. It renders the real public components inside the real locale provider, with synthetic public-contract data in each language and switchable list, detail, application, empty, loading, failure, not-found, and received states. It makes no request, is not linked from anywhere, and is excluded from the production build.
+
+## T. Interaction grammar (v1.1)
+
+Visual tokens and AppShell rules above stay in **UI-DNA v1**. Cross-product **record, edit, create, picker, action, and badge** rules live in **[HIREME_UI_DNA_v1.1-interactions.md](./HIREME_UI_DNA_v1.1-interactions.md)** (Issue #117).
+
+Summary:
+
+- **Read-first** record detail with **explicit, permission-gated edit** (Candidates reference; Clients/Missions to adopt).
+- **Top-level create** via PageHeader disclosure; **nested create** stays in parent context; permanently open create forms are exceptional.
+- **Type-ahead Combobox** (`BoundedCombobox`): one input + popup listbox; workflow-scoped sources only (#112); **not** search+button+`<select>`.
+- **One primary action per region**; destructive emphasis at confirmation.
+- **StatusBadge** for lifecycle, not every metadata field.
+- EN/FR and responsive rules extend §S and §K for interaction—not new visual tokens.
+
+Module migrations are tracked in `docs/audit/issue-117-ui-dna-v1.1-adoption-matrix.md`.
