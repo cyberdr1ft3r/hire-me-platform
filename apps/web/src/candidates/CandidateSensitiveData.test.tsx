@@ -54,6 +54,7 @@ function workspaceProps(
     onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
+    detailRevealToken: 0,
     pending: null,
     selectedId: shaped.id,
     ...overrides,

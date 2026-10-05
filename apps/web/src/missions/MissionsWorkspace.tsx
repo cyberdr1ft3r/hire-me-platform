@@ -5,7 +5,10 @@ import type {
   MissionPlacement,
 } from '@hire-me/contracts';
 
+import { useRef, type RefObject } from 'react';
+
 import { useI18n } from '../i18n/index.js';
+import { MISSION_SIDE_BY_SIDE_MIN_REM, useStackedMasterDetailReveal } from '../layout/index.js';
 import { InlineMessage, PageHeader, Skeleton, StatusBadge, EmptyState } from '../ui/index.js';
 import { MissionAssignments, type MissionAssignmentsModel } from './MissionAssignments.js';
 import { MissionCandidatePipeline, type MissionPipelineModel } from './MissionCandidatePipeline.js';
@@ -131,6 +134,8 @@ export function MissionsWorkspace({
   detail,
   feedback,
   list,
+  missionDetailRevealToken,
+  processDetailRevealToken,
   sessionKey,
   writesLocked,
 }: {
@@ -139,15 +144,18 @@ export function MissionsWorkspace({
   detail: MissionDetailModel;
   feedback: MissionFeedback | null;
   list: MissionListModel;
+  missionDetailRevealToken: number;
+  processDetailRevealToken: number;
   /** Names the option sources of this session, so pickers reload after a session change. */
   sessionKey: string;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const layoutContainerRef = useRef<HTMLElement>(null);
   const filtered = hasActiveMissionFilters(list.appliedFilters);
 
   return (
-    <section aria-label={t('missions.region')} className="missions">
+    <section aria-label={t('missions.region')} className="missions" ref={layoutContainerRef}>
       <PageHeader
         description={t('missions.header.description')}
         eyebrow={t('missions.header.eyebrow')}
@@ -199,8 +207,12 @@ export function MissionsWorkspace({
           <MissionDetailPane
             access={access}
             key={list.selectedId ?? 'none'}
+            layoutContainerRef={layoutContainerRef}
+            missionDetailRevealToken={missionDetailRevealToken}
             model={detail}
+            processDetailRevealToken={processDetailRevealToken}
             sessionKey={sessionKey}
+            sideBySideMinRem={MISSION_SIDE_BY_SIDE_MIN_REM}
             writesLocked={writesLocked}
           />
         </div>
@@ -211,17 +223,34 @@ export function MissionsWorkspace({
 
 function MissionDetailPane({
   access,
+  layoutContainerRef,
+  missionDetailRevealToken,
   model,
+  processDetailRevealToken,
   sessionKey,
+  sideBySideMinRem,
   writesLocked,
 }: {
   access: MissionAccess;
+  layoutContainerRef: RefObject<HTMLElement | null>;
+  missionDetailRevealToken: number;
   model: MissionDetailModel;
+  processDetailRevealToken: number;
   sessionKey: string;
+  sideBySideMinRem: number;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const missionHeadingRef = useRef<HTMLHeadingElement>(null);
   const detail = model.detail;
+
+  useStackedMasterDetailReveal({
+    containerRef: layoutContainerRef,
+    ready: detail.status === 'ready',
+    revealToken: missionDetailRevealToken,
+    sideBySideMinRem,
+    targetRef: missionHeadingRef,
+  });
 
   if (detail.status === 'idle') {
     return (
@@ -252,7 +281,9 @@ function MissionDetailPane({
   return (
     <article className="mission-detail">
       <header className="mission-detail__header">
-        <h2 className="mission-detail__title">{mission.title}</h2>
+        <h2 className="mission-detail__title" ref={missionHeadingRef} tabIndex={-1}>
+          {mission.title}
+        </h2>
         <p className="mission-detail__client">{mission.clientName}</p>
         <p className="mission-badges">
           <StatusBadge tone={missionStateTone(mission.state)}>
@@ -315,10 +346,13 @@ function MissionDetailPane({
         <MissionProcess
           access={access}
           key={process.id}
+          layoutContainerRef={layoutContainerRef}
           missionWritable={writable}
           model={context.processModel}
           process={process}
+          processDetailRevealToken={processDetailRevealToken}
           recruiters={model.pipeline.recruiters}
+          sideBySideMinRem={sideBySideMinRem}
           writesLocked={writesLocked}
         >
           {access.canViewOffers ? (

@@ -46,6 +46,7 @@ import {
   type ContactListQuery,
   type ContactListState,
 } from './client-state.js';
+import { bumpStackedDetailRevealToken } from '../layout/index.js';
 import { ClientsWorkspace } from './ClientsWorkspace.js';
 
 const EMPTY_CREATE_CLIENT: ClientCreateValues = {
@@ -111,6 +112,8 @@ export function ClientsPanel({
 
   const [feedback, setFeedback] = useState<ClientFeedback | null>(null);
   const [pending, setPending] = useState<ClientPendingAction | null>(null);
+  const [clientDetailRevealToken, setClientDetailRevealToken] = useState(0);
+  const [contactDetailRevealToken, setContactDetailRevealToken] = useState(0);
 
   if (session.token !== accessToken || session.principal !== principal) {
     const firstClientPage: ClientListQuery = { filters: { ...EMPTY_CLIENT_FILTERS }, page: 1 };
@@ -360,6 +363,8 @@ export function ClientsPanel({
     detailRequest.current += 1;
     selectedClientRef.current = clientId;
     selectedContactRef.current = null;
+    setClientDetailRevealToken(bumpStackedDetailRevealToken);
+    setContactDetailRevealToken(0);
     setSelectedClientId(clientId);
     setSelectedContact(null);
     setEditContactValues(null);
@@ -377,6 +382,7 @@ export function ClientsPanel({
     const contact = contactList.contacts.find((entry) => entry.id === contactId) ?? null;
     contactContextGeneration.current += 1;
     selectedContactRef.current = contactId;
+    setContactDetailRevealToken(bumpStackedDetailRevealToken);
     setSelectedContact(contact);
     setEditContactValues(contact ? contactSummaryToProfileValues(contact) : null);
   }
@@ -734,6 +740,8 @@ export function ClientsPanel({
       }}
       onSaveClient={(event) => void handleSaveClient(event)}
       onSaveContact={(event) => void handleSaveContact(event)}
+      clientDetailRevealToken={clientDetailRevealToken}
+      contactDetailRevealToken={contactDetailRevealToken}
       onSelectClient={selectClient}
       onSelectContact={selectContact}
       selectedClientId={selectedClientId}

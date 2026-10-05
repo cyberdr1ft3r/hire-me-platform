@@ -1,7 +1,8 @@
 import type { MissionCandidateState, MissionCandidateSummary } from '@hire-me/contracts';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
+import { useStackedMasterDetailReveal } from '../layout/index.js';
 import { Button, InlineMessage, Select, StatusBadge, TextField } from '../ui/index.js';
 import type { MissionAccess } from './mission-access.js';
 import {
@@ -29,31 +30,51 @@ export interface MissionProcessModel {
 export function MissionProcess({
   access,
   children,
+  layoutContainerRef,
   missionWritable,
   model,
   process,
+  processDetailRevealToken,
   recruiters,
+  sideBySideMinRem,
   writesLocked,
 }: {
   access: MissionAccess;
   children: ReactNode;
+  layoutContainerRef: RefObject<HTMLElement | null>;
   missionWritable: boolean;
   model: MissionProcessModel;
   process: MissionCandidateSummary;
+  processDetailRevealToken: number;
   /** Active recruiters on the mission; null when the team cannot be read. */
   recruiters: PickerOption[] | null;
+  sideBySideMinRem: number;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const editable = missionWritable && isProcessWritable(process);
   const transitions = nextProcessStates(process.state);
   const name = process.candidate.displayName;
   const titleId = `mission-process-${process.id}`;
 
+  useStackedMasterDetailReveal({
+    containerRef: layoutContainerRef,
+    ready: true,
+    revealToken: processDetailRevealToken,
+    sideBySideMinRem,
+    targetRef: headingRef,
+  });
+
   return (
     <section aria-labelledby={titleId} className="mission-section mission-process">
       <div className="mission-process__heading">
-        <h3 className="mission-section__title" id={titleId}>
+        <h3
+          className="mission-section__title mission-process__title"
+          id={titleId}
+          ref={headingRef}
+          tabIndex={-1}
+        >
           {name}
         </h3>
         <StatusBadge tone={processStateTone(process.state)}>

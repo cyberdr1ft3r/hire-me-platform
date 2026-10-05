@@ -1,7 +1,8 @@
 import type { CandidateDetail } from '@hire-me/contracts';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
+import { useStackedMasterDetailReveal } from '../layout/index.js';
 import { Button, EmptyState, InlineMessage, Skeleton, StatusBadge } from '../ui/index.js';
 import type { CandidateAccess } from './candidate-access.js';
 import { formatCandidateLocation } from './candidate-format.js';
@@ -35,7 +36,10 @@ import { CandidateSkills } from './CandidateSkills.js';
 export interface CandidateDetailViewProps {
   access: CandidateAccess;
   detail: CandidateDetailState;
+  detailRevealToken: number;
   feedback: CandidateFeedback | null;
+  layoutContainerRef: RefObject<HTMLElement | null>;
+  sideBySideMinRem: number;
   onAddRecord: (input: CandidateRecordInput) => Promise<CandidateFormOutcome>;
   onArchive: () => void;
   onArchiveRecord: (record: CandidateRecordRef) => Promise<boolean>;
@@ -79,13 +83,24 @@ export function CandidateDetailView(props: CandidateDetailViewProps) {
     );
   }
   // Keyed by candidate so edit mode and open forms never carry over to another record.
-  return <CandidateRecord {...props} candidate={detail.candidate} key={detail.candidate.id} />;
+  return (
+    <CandidateRecord
+      {...props}
+      candidate={detail.candidate}
+      detailRevealToken={props.detailRevealToken}
+      key={detail.candidate.id}
+      layoutContainerRef={props.layoutContainerRef}
+      sideBySideMinRem={props.sideBySideMinRem}
+    />
+  );
 }
 
 function CandidateRecord({
   access,
   candidate,
+  detailRevealToken,
   feedback,
+  layoutContainerRef,
   onAddRecord,
   onArchive,
   onArchiveRecord,
@@ -94,6 +109,7 @@ function CandidateRecord({
   onUpdateRecord,
   onUpdateSensitive,
   pending,
+  sideBySideMinRem,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
   const nameId = useId();
@@ -107,18 +123,13 @@ function CandidateRecord({
     formatCandidateLocation(candidate.city, candidate.country),
   ].filter(Boolean);
 
-  /*
-   * When the list and the record are stacked, a newly selected record can open
-   * below the fold. Moving focus to its name then brings it into view for
-   * keyboard and screen-reader users; beside the list it is already visible, so
-   * focus stays where the user left it.
-   */
-  useEffect(() => {
-    const heading = headingRef.current;
-    if (heading && heading.getBoundingClientRect().top > window.innerHeight) {
-      heading.focus();
-    }
-  }, []);
+  useStackedMasterDetailReveal({
+    containerRef: layoutContainerRef,
+    ready: true,
+    revealToken: detailRevealToken,
+    sideBySideMinRem,
+    targetRef: headingRef,
+  });
 
   // Write actions exist only with their own permission, and never on an archived record.
   const canEdit = access.canUpdate && !archived;

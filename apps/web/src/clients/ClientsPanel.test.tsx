@@ -636,6 +636,26 @@ describe('Client writes never overlap', () => {
   });
 });
 
+function forceStackedClientsLayout(): void {
+  const container = document.querySelector('.clients');
+  if (!container) {
+    throw new Error('Missing clients layout container');
+  }
+  Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+}
+
+describe('Stacked master-detail reveal', () => {
+  it('focuses the client heading after explicit selection on stacked layouts', async () => {
+    stubClientsApi();
+    renderPanel();
+    forceStackedClientsLayout();
+    fireEvent.click(await screen.findByRole('button', { name: /Acme Corp/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 2, name: 'Acme Corp' })).toHaveFocus(),
+    );
+  });
+});
+
 describe('Client lifecycle actions', () => {
   it('does not offer the current client or contact state as a no-op action', async () => {
     stubClientsApi();

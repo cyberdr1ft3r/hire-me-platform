@@ -42,6 +42,18 @@
   margin-bottom: 0;
 }
 
+.mission-detail__title:focus,
+.mission-process__title:focus {
+  outline: none;
+}
+
+.mission-detail__title:focus-visible,
+.mission-process__title:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
 .mission-message__text {
   margin: 0;
 }
@@ -243,6 +255,7 @@
 
 .mission-section {
   border-block-start: var(--border-width) solid var(--color-border);
+  container: mission-section / inline-size;
   display: grid;
   gap: var(--space-3);
   min-width: 0;
@@ -440,4 +453,74 @@
 .mission-table td,
 .mission-table th {
   vertical-align: middle;
+}
+
+.mission-pipeline__select {
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  padding: 0;
+  text-align: start;
+}
+
+.mission-pipeline__select:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-width);
+}
+
+@container mission-section (max-width: 46rem) {
+  .mission-pipeline-table thead {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .mission-pipeline-table,
+  .mission-pipeline-table tbody,
+  .mission-pipeline-table tr,
+  .mission-pipeline-table th,
+  .mission-pipeline-table td {
+    display: block;
+  }
+
+  .mission-pipeline-table tbody {
+    border-block-start: var(--border-width) solid var(--color-border);
+  }
+
+  .mission-pipeline-table tbody tr {
+    border-block-end: var(--border-width) solid var(--color-border);
+    display: grid;
+    gap: var(--space-2) var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    padding: var(--space-3);
+  }
+
+  .mission-pipeline-table tbody th {
+    grid-column: 1 / -1;
+  }
+
+  .mission-pipeline-table th,
+  .mission-pipeline-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .mission-pipeline-table td::before {
+    color: var(--color-text-secondary);
+    content: attr(data-label);
+    display: block;
+    font-size: var(--font-size-1);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .mission-pipeline-table .mission-pipeline__actions {
+    display: none;
+  }
 }
