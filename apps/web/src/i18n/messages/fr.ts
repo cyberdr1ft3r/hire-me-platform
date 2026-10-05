@@ -55,13 +55,11 @@ export const frMessages: Messages = {
     },
   },
   ui: {
-    picker: {
-      choose: 'Choisir…',
+    combobox: {
+      empty: 'Aucun enregistrement correspondant.',
       error: 'Impossible de charger les options.',
+      listLabel: 'Suggestions pour {field}',
       loading: 'Chargement des options…',
-      none: 'Aucune option correspondante.',
-      searchAction: 'Rechercher',
-      searchFor: 'Rechercher {field}',
     },
   },
   navigation: {

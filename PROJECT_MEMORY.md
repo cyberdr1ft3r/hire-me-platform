@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-09-29
+Last updated: 2026-10-05
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Reporting, Candidate, Public Opportunity, Task Pipeline, and Clients are merged and bilingual. `main` is at `80936daee7b5f8345ea9d1a328c2a2592344f0d1`, including D-066 through D-072, the Issue #100 Mission assignment option source, and the Issue #93 seeded RolePermission row-identity correction. Issue #99 Missions rollout continues independently. Issue #102 Training preflight is complete; Issue #103 supplies the bounded Training identity/enrollment option sources and redaction-safe participant display required before any Training UI work starts. Training remains English-deferred and no bilingual Training claim is made. Whole-product UI-DNA v1.1 (**D-DESIGN-01**) remains deferred.
+The Issue #52 representative milestone is complete. Core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda) are on `main` at `1ea34d5806b4375b119ea0379660f3dec891626a` (includes Issue #124 / PR #136, Accounting #135, Training #123). UI-DNA v1.1 **interaction grammar** (Issue #117 / D-082 proposed) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.

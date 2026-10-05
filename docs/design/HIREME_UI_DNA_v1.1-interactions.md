@@ -77,8 +77,8 @@ Do **not** force all creates into modals. Use **purpose-fit** containers:
 | Candidates | Header **Add candidate** → inline create region; focus returns to trigger on close | **Canonical** |
 | Tasks | Header **Add task** → inline create form | Align with Candidates |
 | Training | Header action → program create disclosure | Align |
-| Missions | `<details>` disclosure in list pane | Align (already contextual to list) |
-| Clients | **Permanent** create form in list pane | Move to header-triggered disclosure |
+| Missions | `<details>` in **list pane** (transitional) | **PageHeader** primary → disclosed create (same grammar as Candidates) |
+| Clients | **Permanent** create form in list pane | **PageHeader** primary → disclosed create |
 | Commercial | Header + area-specific create | Keep header pattern; unify copy |
 
 Rules:
@@ -109,62 +109,66 @@ Rules:
 
 **Exceptional only.** Require explicit product justification (e.g. high-volume data entry with no detail pane). Clients list-pane create is a **known deviation** to remove in a bounded Clients PR.
 
-## 4. Picker / Combobox contract (#112-safe)
+## 4. Type-ahead Combobox contract (#112-safe)
 
-### 4.1 Problem
+### 4.1 Problem (retire this pattern)
 
-Several modules duplicate **search input + Search button + native `<select>`** (Missions, Commercial, Training, Tasks variants). Legacy surfaces still use **raw UUID text fields** (#112).
+Several modules duplicate **search input + Search button + native `<select>`** (Missions, Commercial, Training, some Tasks flows). Issue #117 **replaces** that three-control pattern—not standardizes it. Legacy surfaces may still use **raw UUID text fields** (#112) until module rollouts.
 
-### 4.2 Approved primitive: bounded async picker
+### 4.2 Approved primitive: `BoundedCombobox`
 
-Implementation target: `BoundedAsyncPicker` in `apps/web/src/ui/` (Issue #117). Domain wrappers (Mission, Commercial, Training) may remain until follow-up PRs.
+Reference implementation: `apps/web/src/ui/BoundedCombobox.tsx` (Issue #117). Domain modules keep legacy pickers until bounded migration PRs.
+
+**One operator-facing surface:** a single text input (`role="combobox"`) showing the selected human identity when closed and the type-ahead query when open, plus an associated popup **listbox**—no parallel Search button and no native `<select>` for the same choice.
 
 **Data shape**
 
 ```ts
 type BoundedPickerOption = {
-  id: string;           // API only; never shown to operators
-  label: string;        // primary human identity
-  detail?: string | null; // secondary line (email, reference, client)
+  id: string; // API/state only; never shown to operators
+  label: string;
+  detail?: string | null;
 };
 type LoadBoundedOptions = (search: string) => Promise<BoundedPickerOption[]>;
 ```
 
-**Behavior**
+**Async loading & bounds**
 
 | Concern | Rule |
 | --- | --- |
-| Source | `loadOptions` from **one** bounded API/list already authorized for the target write |
-| Search | Trimmed term; **Enter** runs search; separate Search button; max length 120 |
-| Stale requests | Monotonic request id; only latest response commits |
-| Source reset | `sourceKey` prop changes → clear search, reload, increment request generation |
-| Selection | Native `<select>` holds value; options show `label · detail` when detail present |
-| Selected not in list | Keep selected option in list until source refresh replaces it |
-| Loading | `aria-busy` on select; placeholder option shows loading copy |
-| Empty | Distinct copy for “no matches” vs “nothing to choose” |
-| Error | Placeholder + inline error; retry via Search again |
-| Disabled / read-only | Native disabled; no fake selection |
-| IDs | **Never** render UUIDs; option `value` is for the platform only |
+| Source | `loadOptions` from **one** workflow-authorized bounded API (max rows per D-072–D-081); **never** a broad user/client/entity directory |
+| Query | Trimmed type-ahead; debounced async reload (~300ms) while open; max input length 120 |
+| Stale responses | Monotonic request id; only the latest response may update the listbox |
+| `sourceKey` | When the authorized source context changes, cancel in-flight loads, close listbox, reset options |
+| Pagination | Server returns a bounded page; UI copy may ask the operator to refine search when results hit the cap—no silent truncation without feedback |
+| Selected persistence | When closed, input shows `label · detail`; if the selected row is absent from the latest fetch, keep displaying the selected identity until cleared or replaced |
+| Loading / empty / error | Distinct listbox status rows; `aria-busy` on listbox while loading |
+| Disabled / read-only | Input `disabled` / `readOnly`; listbox does not open |
+| IDs | **Never** render UUIDs in the input or listbox |
 
-**Keyboard & a11y**
+**Accessibility & keyboard (required)**
 
-- Visible `<label>` on select; search field has its own label (“Search {field}”).
-- Hint via `aria-describedby`.
-- Enter in search must **not** submit parent form.
-- Focus order: select → search → search button.
+| Key / semantics | Behavior |
+| --- | --- |
+| `role="combobox"` on input | `aria-expanded`, `aria-controls` → listbox id, `aria-autocomplete="list"` |
+| Listbox | `role="listbox"` with `aria-label`; options `role="option"`, `aria-selected` |
+| Active option | `aria-activedescendant` on input while open |
+| **ArrowDown** | Open listbox (if closed) or move active option down (wrap) |
+| **ArrowUp** | Open listbox (if closed) or move active option up (wrap) |
+| **Enter** | Select active option; close listbox; keep focus on input |
+| **Escape** | Close listbox; restore closed display of current value without changing selection |
+| Labels | Visible field label + hint via `aria-describedby`; field-level errors via `FieldFrame` |
+| Focus | Pointer and keyboard focus stay on the combobox input; listbox is pointer-accessible but not a separate tab stop |
 
-**i18n**
+**i18n & responsive**
 
-- Shared strings under `ui.picker.*` (EN/FR); field label remains domain-specific.
+- Shared chrome under `ui.combobox.*` (EN/FR); domain field `label` stays module-specific.
+- Listbox is width-aligned to the input, scrolls internally, and respects touch hit targets per UI-DNA v1 §K.
 
-**Responsive**
+### 4.3 Deprecated (do not extend)
 
-- Search row wraps; controls stay full width on narrow viewports; hit targets follow §K in v1.
-
-### 4.3 What this is not
-
-- Not a free-text Combobox replacing `<select>` until native list styling (#115) is insufficient for a domain.
-- Not Admin `users:view`, Task `user-options`, or Mission assignment options used outside their workflow (#112, D-072–D-081).
+- **Search + button + `<select>`** pickers (`MissionPicker`, `CommercialOptionPicker`, `TrainingOptionPicker`, …)—migrate to `BoundedCombobox` or a thin domain wrapper.
+- Reusing Admin, Task, or Mission user directories for unrelated writes (#112).
 
 ### 4.4 Domain source map (existing)
 
@@ -259,7 +263,7 @@ Follow v1 §S:
 
 | Primitive | Status Issue #117 | Follow-up |
 | --- | --- | --- |
-| `BoundedAsyncPicker` | Added with unit tests | Wire Mission/Commercial/Training wrappers |
+| `BoundedCombobox` | Reference impl + keyboard/a11y tests | Replace legacy search+select pickers in module PRs |
 | `RecordReadEditShell` | Documented only | Optional helper after 2+ modules migrate |
 | `CreateDisclosure` | Documented pattern | Extract if Clients/Tasks unify markup |
 

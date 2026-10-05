@@ -5,7 +5,7 @@ export { InlineMessage } from './InlineMessage.js';
 export { PageHeader, type PageHeaderProps } from './PageHeader.js';
 export { StatusBadge, type StatusTone } from './StatusBadge.js';
 export {
-  BoundedAsyncPicker,
+  BoundedCombobox,
   type BoundedPickerOption,
   type LoadBoundedOptions,
-} from './BoundedAsyncPicker.js';
+} from './BoundedCombobox.js';

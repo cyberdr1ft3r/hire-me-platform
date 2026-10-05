@@ -42,13 +42,11 @@ export const enMessages = {
     },
   },
   ui: {
-    picker: {
-      choose: 'Choose…',
+    combobox: {
+      empty: 'No matching records.',
       error: 'Could not load options.',
+      listLabel: 'Suggestions for {field}',
       loading: 'Loading options…',
-      none: 'No matching options.',
-      searchAction: 'Search',
-      searchFor: 'Search {field}',
     },
   },
   navigation: {

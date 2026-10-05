@@ -51,7 +51,7 @@
 
 **Strengths**
 
-- Mission create in `<details>` disclosure with client picker (D-074).
+- Mission create uses disclosure with client picker (D-074)—**list-pane placement is transitional**; target PageHeader create like Candidates.
 - Rich bounded pickers (`MissionPicker`); no UUID typing in redesigned paths.
 - Write locks, session keys, process pagination preserved (#99/#106).
 - StatusBadge on mission state in lists.
@@ -134,7 +134,7 @@
 | `CommercialOptionPicker` | commercial | + `error` prop on Select |
 | `TrainingOptionPicker` | training | Same skeleton |
 | Task pickers | tasks | Multi-select + context pickers |
-| `BoundedAsyncPicker` | ui (#117) | Target consolidation |
+| `BoundedCombobox` | ui (#117) | Target consolidation (replaces search+select) |
 
 All use: async load, request id, `sourceKey`, native select, search row, Enter to search.
 

@@ -20,7 +20,7 @@ Legend: **Done** = already matches v1.1 · **Partial** · **Gap** · **N/A**
 
 ## Recommended follow-up PR sequence
 
-1. **Shared picker** — migrate `MissionPicker`, `CommercialOptionPicker`, `TrainingOptionPicker` to `BoundedAsyncPicker` (no API changes).
+1. **Shared Combobox** — migrate legacy search+select pickers to `BoundedCombobox` (no API changes).
 2. **Clients read/edit + create disclosure** — single module PR.
 3. **#116** — stacked reveal/focus (Candidates, Clients, Missions process); uses v1.1 focus targets, not full read/edit.
 4. **#118** — Missions IA/composition; adopts read-first + section action rules from v1.1 doc.
@@ -31,8 +31,8 @@ Legend: **Done** = already matches v1.1 · **Partial** · **Gap** · **N/A**
 
 | Primitive | Candidates | Clients | Missions | Commercial | Accounting | Training | Tasks |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `BoundedAsyncPicker` | — | — | Wrap | Wrap | Wrap | Wrap | Extend API for multi |
-| `ui.picker` i18n | — | Future | Future | Future | Future | Future | Future |
+| `BoundedCombobox` | — | — | Wrap | Wrap | Wrap | Wrap | Multi-select follow-up |
+| `ui.combobox` i18n | Reference (`BoundedCombobox`) | Future | Future | Future | Future | Future | Future |
 
 ## #118 explicit dependencies
 

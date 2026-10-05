@@ -300,7 +300,7 @@ Summary:
 
 - **Read-first** record detail with **explicit, permission-gated edit** (Candidates reference; Clients/Missions to adopt).
 - **Top-level create** via PageHeader disclosure; **nested create** stays in parent context; permanently open create forms are exceptional.
-- **Bounded async pickers** use workflow-scoped option sources only (#112); shared `BoundedAsyncPicker` in `apps/web/src/ui/` is the implementation target.
+- **Type-ahead Combobox** (`BoundedCombobox`): one input + popup listbox; workflow-scoped sources only (#112); **not** search+button+`<select>`.
 - **One primary action per region**; destructive emphasis at confirmation.
 - **StatusBadge** for lifecycle, not every metadata field.
 - EN/FR and responsive rules extend §S and §K for interaction—not new visual tokens.
