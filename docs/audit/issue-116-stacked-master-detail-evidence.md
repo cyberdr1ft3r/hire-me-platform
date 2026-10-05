@@ -2,7 +2,7 @@
 
 **Gate:** `STACKED MASTER-DETAIL GATE: PASS` (automated tests + live Chromium matrix)
 
-**Branch head (evidence run):** `dc23266be1af839f458ca13e0e8e3a8441542c8e` (PR #138)
+**Branch head (evidence run):** `dc23266be1af839f458ca13e0e8e3a8441542c8e` (PR #138; pre–`main`@`d75b329` integration). Behavior unchanged after rebase onto `d75b329`; browser matrix not re-run (docs-only integration conflicts).
 
 ### Shared contract
 
