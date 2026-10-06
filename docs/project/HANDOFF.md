@@ -5,8 +5,8 @@ Last updated: 2026-10-05
 ## Current situation
 
 - Latest `main` is `4c0655d` (includes merged #116 stacked master-detail and #117 UI-DNA v1.1).
-- Issue #118 Missions IA/composition: branch `cursor/issue-118-missions-ia-909e` head `3abf317`; PR #139; exact-head CI run [37339464281](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/37339464281) **green** (includes unrelated audit-test flake fix in `document-generation.integration.test.ts`).
-- Browser matrix script: `scripts/issue-118-missions-ia-evidence.mjs` still not run in cloud agent VM (no Docker).
+- Issue #118: PR #139 on `cursor/issue-118-missions-ia-909e` head `fd64489`; review fixes applied (panel a11y, no aria-live, evidence executed). Unrelated doc-gen fix split to PR #140.
+- Browser evidence: `docs/audit/issue-118-missions-ia-evidence.md`, manifest `/opt/cursor/artifacts/issue118-evidence/manifest.json` (10 captures PASS).
 - Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
 ## Next concrete action

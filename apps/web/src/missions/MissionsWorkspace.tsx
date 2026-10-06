@@ -31,7 +31,10 @@ import {
 } from './MissionPublicOpportunity.js';
 import type { MissionAccess } from './mission-access.js';
 import { missionDetailPanelProps } from './mission-detail-panel-props.js';
-import { normalizeMissionDetailSection, type MissionDetailSection } from './mission-detail-section.js';
+import {
+  normalizeMissionDetailSection,
+  type MissionDetailSection,
+} from './mission-detail-section.js';
 import {
   canCreateOfferInState,
   isMissionWritable,
@@ -399,7 +402,10 @@ function MissionDetailPane({
       </div>
 
       {access.canViewAssignments || access.canManageAssignments ? (
-        <div {...missionDetailPanelProps('team', access, section, t)} className="mission-detail__panel">
+        <div
+          {...missionDetailPanelProps('team', access, section, t)}
+          className="mission-detail__panel"
+        >
           <MissionAssignments
             access={access}
             model={model.assignments}
@@ -411,7 +417,10 @@ function MissionDetailPane({
       ) : null}
 
       {access.canViewProcesses ? (
-        <div {...missionDetailPanelProps('pipeline', access, section, t)} className="mission-detail__panel">
+        <div
+          {...missionDetailPanelProps('pipeline', access, section, t)}
+          className="mission-detail__panel"
+        >
           <div
             className={
               process
@@ -438,7 +447,10 @@ function MissionDetailPane({
       ) : null}
 
       {access.canViewPublicOpportunity || access.canViewPublicApplications ? (
-        <div {...missionDetailPanelProps('public', access, section, t)} className="mission-detail__panel">
+        <div
+          {...missionDetailPanelProps('public', access, section, t)}
+          className="mission-detail__panel"
+        >
           {access.canViewPublicOpportunity ? (
             <MissionPublicOpportunity
               access={access}
