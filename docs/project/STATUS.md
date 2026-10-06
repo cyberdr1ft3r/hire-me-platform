@@ -3,14 +3,15 @@
 Last updated: 2026-10-06
 Status owner: repository maintainer
 
-## Issue #132 preflight (design only — PR #134)
+## Issue #132 / #141 signing
 
-Re-audited **`main` @ `bcf4b42`** (2026-10-06). [Electronic signature and company seal preflight](../design/issue-132-electronic-signature-preflight.md) documents current `Document` / `DocumentVersion` generation, storage, authorization, and proposed provider-neutral signing integration points. **No migration, runtime code, or provider integration** in this PR. Issue #132 **remains open**. Ready for **neutral implementation planning: YES**; **provider-specific implementation: NO** (blocked on Barid/integration confirmation).
+- **#132 preflight (PR #134):** merged to **`main` @ `29101c2`**. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
+- **#141 Phase A (draft PR):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. See [Phase A preflight](../design/issue-141-phase-a-preflight.md) and **D-083** (proposed).
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `bcf4b42` includes merged Issue #118 Missions IA (PR #139), Issue #116 stacked master-detail (PR #138), Issue #117 UI-DNA v1.1 interaction grammar (PR #137 / D-082), Issue #124 My Agenda / meetings, Issue #131 Accounting V1, Training #123, Missions #106, Documents #119, document-generation audit test fix (PR #140), and earlier milestones. Issue #132 electronic signature/seal is **preflight only** (PR #134, open). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
+**Health:** `main` at `29101c2` includes merged #132 preflight docs (PR #134), Issue #118 Missions IA (PR #139), #116/#117 UI-DNA, Issue #124 Agenda/meetings, Issue #131 Accounting V1, Documents #119, doc-gen audit fix #140, and earlier milestones. Issue **#141** Phase A signing foundation is in review on a dedicated branch. Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
 **Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #132 provider-specific signing remains blocked pending Barid/integration confirmation. R-039 is unchanged.
 **Next executable development task:** Review Issue #132 preflight (PR #134); D-068 production env/proxy verification remains separate.
 
