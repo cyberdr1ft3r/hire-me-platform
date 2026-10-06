@@ -17,6 +17,55 @@ import {
   SigningRequestState,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
+
+type RolePermissionSnapshot = {
+  roleExisted: boolean;
+  permissions: { permissionId: string; grantedAt: Date; archivedAt: Date | null }[];
+};
+
+async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
+  const role = await prisma.role.findUnique({
+    where: { name: roleName },
+    include: { permissions: true },
+  });
+  if (!role) {
+    return { roleExisted: false, permissions: [] };
+  }
+  return {
+    roleExisted: true,
+    permissions: role.permissions.map((rp) => ({
+      permissionId: rp.permissionId,
+      grantedAt: rp.grantedAt,
+      archivedAt: rp.archivedAt,
+    })),
+  };
+}
+
+async function restoreRolePermissions(
+  roleName: RoleName,
+  snapshot: RolePermissionSnapshot,
+): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) {
+    return;
+  }
+  if (!snapshot.roleExisted) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    return;
+  }
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: { notIn: snapshot.permissions.map((rp) => rp.permissionId) },
+    },
+  });
+  for (const rp of snapshot.permissions) {
+    await prisma.rolePermission.update({
+      where: { roleId_permissionId: { roleId: role.id, permissionId: rp.permissionId } },
+      data: { grantedAt: rp.grantedAt, archivedAt: rp.archivedAt },
+    });
+  }
+}
 import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
 const prisma = new PrismaClient();
@@ -106,6 +155,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   let financeToken: string;
   let outsiderToken: string;
   let clientId: string;
+  let roleSnapshots: Map<RoleName, RolePermissionSnapshot>;
 
   async function login(email: string): Promise<string> {
     const response = await fetch(`${baseUrl}/auth/login`, {
@@ -162,6 +212,13 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   }
 
   beforeAll(async () => {
+    roleSnapshots = new Map(
+      await Promise.all(
+        [RoleName.HR_MANAGER, RoleName.FINANCE_MANAGER, RoleName.GUEST].map(
+          async (role) => [role, await snapshotRolePermissions(role)] as const,
+        ),
+      ),
+    );
     await cleanSigningRecords();
     await setRolePermissions(RoleName.HR_MANAGER, operatorPermissions);
     await setRolePermissions(RoleName.FINANCE_MANAGER, financeUseOnlyPermissions);
@@ -191,6 +248,9 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   afterAll(async () => {
     await app?.close();
     await cleanSigningRecords();
+    for (const [role, snapshot] of roleSnapshots) {
+      await restoreRolePermissions(role, snapshot);
+    }
     await prisma.$disconnect();
   }, 180_000);
 
