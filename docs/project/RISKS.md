@@ -63,6 +63,18 @@ Last updated: 2026-09-29
 | R-050 | Under the existing Commercial record scope, actors without `missions:view` (including the Issue #125 `FINANCE_MANAGER`) cannot see or create mission-linked or placement-backed quotations, contracts, purchase orders, or invoices. | Finance staff may be unable to invoice recruitment placements without being granted recruitment visibility. | D-079 keeps the scope unchanged and grants no recruitment permission; the UI explains the limitation. Whether finance needs a bounded mission-linked commercial scope is an open product decision for a separate issue. | Open |
 | R-051 | Under the existing Accounting scope, a reader without `missions:view` (including `FINANCE_MANAGER`) sees an allocation to a mission-linked invoice with its amount but no invoice reference, and cannot pick mission, placement, or training expense contexts or mission/placement profitability. | Finance staff can see that part of a payment went to an invoice they cannot name. | D-081 withholds the reference rather than widening scope; the UI shows a localized restricted label. Any finance-specific mission visibility is the same open product decision as R-050. | Open |
 
+## Issue #132 preflight risks (proposal, re-audited 2026-10-06)
+
+See the [preflight threat model and provider gates](../design/issue-132-electronic-signature-preflight.md). These entries are **not** accepted implementation decisions.
+
+| Risk | Impact | Required gate | State |
+| --- | --- | --- | --- |
+| 132-PROVIDER | Generic SafeNet/PKCS#11 capability mistaken for a supported Barid token/SDK or remote document-signing API | Written Barid product/interface confirmation and sanitized test-token/PDF proof; qualified TSA is a separate service | Open |
+| 132-BINDING | Valid signature accepted for wrong `DocumentVersion` or unapproved PDF revision | Persist exact prepared payload + approval; validate ByteRange, byte hash, and allowed incremental changes | Open |
+| 132-AUTHORITY | Customer `Client` or personal certificate treated as organization seal authority | Internal `SigningOrganization`, certificate kind validation, mandate + grant; no role-name bypass | Open |
+| 132-RETENTION | App DB/filesystem hashes mistaken for tamper-proof qualified preservation | Checksum-on-read, immutable signed publication, protected evidence + operational retention policy | Open |
+| 132-TIME | Local clock or missing revocation data treated as trusted signing time | RFC 3161 validation policy where required; INDETERMINATE blocks acceptance | Open |
+
 ## Risk protocol
 
 - Update the register when likelihood, impact, mitigation, or ownership materially changes.

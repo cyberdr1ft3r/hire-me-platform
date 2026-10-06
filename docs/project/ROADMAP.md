@@ -186,6 +186,14 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 - Deployment documentation.
 - Client validation and launch checklist.
 
+## Issue #132 — proposed signing/sealing sequence
+
+Design-only [preflight](../design/issue-132-electronic-signature-preflight.md), re-audited **2026-10-06** on **`main` @ `bcf4b42`** (PR #134).
+
+Sequence: preflight review → PR A (neutral schema/permissions/requests) → PR B (validation + signed `DocumentVersion` publication) → PR C (provider feasibility) → PR D (local/native adapter if required) → PR E (Commercial/Documents UX) → separately authorized pilot.
+
+Provider documentation can proceed alongside PR A/B; **adapter and production enablement remain blocked** until provider confirmation. Issue #132 stays open.
+
 ## Roadmap rules
 
 - Create separate issues before starting any planned phase or module.

@@ -3,12 +3,16 @@
 Last updated: 2026-10-06
 Status owner: repository maintainer
 
+## Issue #132 preflight (design only — PR #134)
+
+Re-audited **`main` @ `bcf4b42`** (2026-10-06). [Electronic signature and company seal preflight](../design/issue-132-electronic-signature-preflight.md) documents current `Document` / `DocumentVersion` generation, storage, authorization, and proposed provider-neutral signing integration points. **No migration, runtime code, or provider integration** in this PR. Issue #132 **remains open**. Ready for **neutral implementation planning: YES**; **provider-specific implementation: NO** (blocked on Barid/integration confirmation).
+
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `4c0655d` includes Issue #116 stacked master-detail (PR #138), Issue #117 UI-DNA v1.1 interaction grammar (PR #137 / D-082), Issue #124 My Agenda / meetings, Issue #131 Accounting V1, Training #123, Missions #106, Documents #119, and earlier milestones. Issue #118 Missions IA/composition is **implemented** on draft PR #139 (`cursor/issue-118-missions-ia-909e`): browser evidence **PASS** (10/10 matrix), exact-head CI **green** on reviewed implementation head `6d2f266` (run `37454859605`); **awaiting ChatGPT maintainer merge** (not merged). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons #109–#118 tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
-**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #118 awaits ChatGPT maintainer merge of PR #139 only. Unrelated document-generation flake fix lives on PR #140 only. R-039 is unchanged.
-**Next executable development task:** ChatGPT maintainer merge of Issue #118 PR #139; D-068 production env/proxy verification remains separate.
+**Health:** `main` at `bcf4b42` includes merged Issue #118 Missions IA (PR #139), Issue #116 stacked master-detail (PR #138), Issue #117 UI-DNA v1.1 interaction grammar (PR #137 / D-082), Issue #124 My Agenda / meetings, Issue #131 Accounting V1, Training #123, Missions #106, Documents #119, document-generation audit test fix (PR #140), and earlier milestones. Issue #132 electronic signature/seal is **preflight only** (PR #134, open). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
+**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #132 provider-specific signing remains blocked pending Barid/integration confirmation. R-039 is unchanged.
+**Next executable development task:** Review Issue #132 preflight (PR #134); D-068 production env/proxy verification remains separate.
 
 ## Active work
 
@@ -67,7 +71,8 @@ Status owner: repository maintainer
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |
 | Issue #117 | Complete | UI-DNA v1.1 interaction grammar | Merged to `main` (`BoundedCombobox`, interaction doc) |
-| Issue #118 | Awaiting ChatGPT maintainer merge (draft PR #139) | Missions workspace IA and candidate-process composition | Implemented on PR #139; self-validating evidence runner `3b77797`; browser matrix **10/10 PASS** (`docs/audit/issue-118-missions-ia-evidence.md`); reviewed implementation head `6d2f266`, exact-head CI **green** run `37454859605`; not merged |
+| Issue #118 | Complete | Missions workspace IA and candidate-process composition | Merged through PR #139 into `main` (`6620add`); evidence in `docs/audit/issue-118-missions-ia-evidence.md` |
+| Issue #132 | Open (preflight PR #134) | Electronic signature and company seal — design/preflight | Re-audit on `bcf4b42`; [preflight doc](../design/issue-132-electronic-signature-preflight.md); provider-specific implementation blocked; no runtime code in PR |
 | Issue #125 | Complete | Add `FINANCE_MANAGER` role with least-privilege commercial/accounting permissions | Merged through PR #128 into `main` as `2193c19` (D-078); no role-name authorization gates |
 | Issue #127 | Complete | Bilingual responsive Commercial V1 workspace | Merged through PR #129 (D-079 prerequisite) and PR #130 (D-080 workspace) into `main` as `696a539`. R-050 records the unchanged mission-scope limit for finance actors |
 | Issue #131 | Complete | Bilingual responsive Accounting V1 workspace | Merged through PR #135 into `main` (D-081 prerequisite PR #133); `apps/web/src/accounting/`; evidence in `docs/audit/issue-131-accounting-evidence.md`; R-051 records the finance mission-scope limit |

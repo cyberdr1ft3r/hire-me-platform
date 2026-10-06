@@ -4,15 +4,20 @@ Last updated: 2026-10-06
 
 ## Current situation
 
-- Latest `main` is `4c0655d` (includes merged #116 / PR #138 and #117 / PR #137 / D-082).
-- Issue #118: draft PR #139 — implementation and self-validating browser evidence are **complete** (reviewed implementation head `6d2f266`; evidence runner commit `3b77797`; **10/10** matrix PASS documented in `docs/audit/issue-118-missions-ia-evidence.md`; exact-head CI **green** on `6d2f266`, run `37454859605`).
-- Unrelated document-generation flake fix: PR #140 (`cursor/issue-doc-gen-audit-redaction-909e`), not in #139 diff.
+- Latest `main` is **`bcf4b42`** (merged #118 Missions IA, #140 doc-gen audit test fix, #116/#117, Accounting #131, Agenda/Meetings #124, Documents #119, and earlier milestones).
+- **Issue #132:** design/preflight only — PR **#134** on `docs/issue-132-signing-preflight`. Re-audited document generation and Documents/Commercial surfaces on `bcf4b42`; [preflight report](../design/issue-132-electronic-signature-preflight.md). **No implementation** in this PR. Issue #132 **open**.
 - Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
-## Next concrete action
+## Next concrete action (Issue #132)
 
-1. **Issue #118:** ChatGPT maintainer **merge** of PR #139 after this docs-only project-memory reconciliation passes exact-head CI. Do not merge from agent tasks.
-2. Preserve #116 reveal/focus and #117 picker/read-first rules in any follow-up edits.
+1. Maintainer review of PR #134 preflight (domain model, permissions, threat model, provider questions, phased PR plan).
+2. Obtain **written** Barid/integration answers (token model, PKCS#11/CSP, PDF/PAdES, timestamp onboarding, test token/sandbox) before any provider adapter PR.
+3. Do **not** start schema/migrations or signing libraries until preflight is accepted and phased PR A is scoped as its own issue.
+
+## Preserved unrelated follow-ups
+
+- R-050: FINANCE_MANAGER mission-scope limits unchanged; signing must not grant `missions:view` as a workaround.
+- D-068 production env/proxy verification; D-070 migration not deployed.
 
 ## D-071 catalog guarantees on `main`
 
