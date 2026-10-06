@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 Status owner: repository maintainer
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `4c0655d` includes Issue #116 stacked master-detail, Issue #117 UI-DNA v1.1 interaction grammar, Issue #124 My Agenda / meetings, Issue #131 Accounting V1, Training #123, Missions #106, Documents #119, and earlier milestones. Issue #118 Missions IA/composition in progress (draft PR). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons #109–#118 tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
-**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #118 browser evidence pending full local stack (Docker unavailable in cloud agent VM). R-039 is unchanged.
-**Next executable development task:** Issue #118 PR review after exact-head CI and browser matrix; D-068 production env/proxy verification remains separate.
+**Health:** `main` at `4c0655d` includes Issue #116 stacked master-detail, Issue #117 UI-DNA v1.1 interaction grammar, Issue #124 My Agenda / meetings, Issue #131 Accounting V1, Training #123, Missions #106, Documents #119, and earlier milestones. Issue #118 Missions IA/composition is implemented on draft PR #139 (`cursor/issue-118-missions-ia-909e`); ready for maintainer review (not merged). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons #109–#118 tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
+**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #118 awaits ChatGPT merge of PR #139 after final correction-pass CI. Unrelated document-generation flake fix lives on PR #140 only. R-039 is unchanged.
+**Next executable development task:** ChatGPT review/merge of Issue #118 PR #139; D-068 production env/proxy verification remains separate.
 
 ## Active work
 
@@ -67,7 +67,7 @@ Status owner: repository maintainer
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |
 | Issue #117 | Complete | UI-DNA v1.1 interaction grammar | Merged to `main` (`BoundedCombobox`, interaction doc) |
-| Issue #118 | Open (draft PR) | Missions workspace IA and candidate-process composition | Branch `cursor/issue-118-missions-ia-909e`; preflight `docs/audit/issue-118-missions-composition-preflight.md` |
+| Issue #118 | Ready for maintainer review (draft PR #139) | Missions workspace IA and candidate-process composition | Branch `cursor/issue-118-missions-ia-909e`; browser matrix PASS (`docs/audit/issue-118-missions-ia-evidence.md`); exact-head CI on final correction head pending push |
 | Issue #125 | Complete | Add `FINANCE_MANAGER` role with least-privilege commercial/accounting permissions | Merged through PR #128 into `main` as `2193c19` (D-078); no role-name authorization gates |
 | Issue #127 | Complete | Bilingual responsive Commercial V1 workspace | Merged through PR #129 (D-079 prerequisite) and PR #130 (D-080 workspace) into `main` as `696a539`. R-050 records the unchanged mission-scope limit for finance actors |
 | Issue #131 | Complete | Bilingual responsive Accounting V1 workspace | Merged through PR #135 into `main` (D-081 prerequisite PR #133); `apps/web/src/accounting/`; evidence in `docs/audit/issue-131-accounting-evidence.md`; R-051 records the finance mission-scope limit |

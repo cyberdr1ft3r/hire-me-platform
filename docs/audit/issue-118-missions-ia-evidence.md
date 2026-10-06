@@ -7,32 +7,50 @@
 
 ## Baseline vs measured (Issue #118 audit)
 
-| Metric | Pre-#118 audit | Post-#118 (this run, max across matrix) |
+Pre-#118 audit baseline: unstructured single column ~**3400px** desktop detail scroll; mobile ~**7500px** page height.
+
+Post-#118 representative metrics (bounded tabs, synthetic fixture `Issue118 Evidence Mission`):
+
+| Metric | Pre-#118 | Post-#118 (representative) |
 | --- | --- | --- |
-| Desktop unstructured detail scroll | ~3400px single column | **1667px** page height @ 1440 Pipeline tab; **1351px** `.mission-detail` scroll height |
-| Mobile unstructured detail scroll | ~7500px | **≤2274px** page height @ 390/430 (Public tab tallest); Pipeline+process **≤ ~1700px** typical |
-| Horizontal overflow | (audit concern) | **0** overflows in 10 captures |
-| Process detached from pipeline | yes | **Split pipeline workspace** with process detail adjacent when a process is open (`hasSplit: true` at 1440/1024 with process open) |
+| **Page height** @ 1440 Pipeline tab (no process open) | ~3400px unstructured stack | **1667px** |
+| **`.mission-detail` scroll height** @ 1440 Pipeline tab | (same stack) | **1351px** |
+| **Active panel scroll height** @ 1440 Pipeline tab | — | **1171px** |
+| **Page height** @ 1440 with process open (split) | — | **3152px** page / **2740px** detail / **2560px** active panel (expected: pipeline list + sticky process detail) |
+| **Page height** @ 390/430 (max across tabs, Public tallest) | ~7500px | **≤2274px** |
+| Horizontal overflow | audit concern | **0** in 10 matrix rows |
+| Process ↔ pipeline | detached | **Split workspace** when process open (`hasSplit: true` @ 1440/1024) |
 
-Bounded tabs materially reduce dead scrolling: operators see one of Overview / Team / Pipeline / Public at a time instead of a single ~3400px stack.
+Bounded tabs reduce dead scrolling: operators see one of Overview / Team / Pipeline / Public at a time instead of a single ~3400px stack.
 
-## Matrix
+## Matrix (10/10 PASS)
 
-Viewports: **1440, 1024, 800, 430, 390** × **EN, FR** (10 captures).
+Viewports: **1440, 1024, 800, 430, 390** × **EN, FR**.
 
-Verified per capture:
+Runner: `scripts/issue-118-missions-ia-evidence.mjs` (fails the job on assertion regression).
 
-| Area | Result |
+### Browser-backed checks (all matrix rows unless noted)
+
+| Check | Result |
 | --- | --- |
-| Local IA (tabs) | Overview, Team, Pipeline, Public opened where permitted |
-| Keyboard | ArrowRight moves tab focus @ ≥1024 |
-| Mission profile | Edit form hidden until Edit; shown after click |
-| Deep links | `?mission=&process=` selects Pipeline tab; interview query preserved |
-| Pipeline / process | Candidate-name control in viewport; process heading visible |
-| #116 stacked focus | @ ≤800: process heading focused on open; locale switch does **not** refocus |
-| Public | Public tab reachable with opportunity + applications fixture |
-| UUIDs | No operator-facing UUID substrings in body text |
-| Overflow | No page-level horizontal overflow |
+| Local IA tabs | Overview, Team, Pipeline, Public opened (4 tabs) |
+| Keyboard @ ≥1024 | ArrowRight, ArrowLeft, Home, End; focus stays on `role="tab"`; `aria-selected` matches activated tab (1440 EN sample: all **true**) |
+| Read-first profile | Edit form hidden → Edit reveals → Cancel read-first → Save read-first |
+| Mission-only deep link | `?mission=` opens fixture mission; Overview active |
+| Process deep link | `?mission=&process=` → Pipeline active; **Issue118 Primary Candidate** process open |
+| Interview deep link | `?mission=&process=&interview=` → Pipeline + process + **HR interview** detail visible (`#mission-interview-<id>`, row selected) |
+| Pipeline / #116 | Candidate-name control in viewport @ 430/390; process heading visible |
+| Stacked focus @ ≤800 | Process heading focused on open; locale switch does **not** refocus (browser) |
+| Overflow / UUIDs | No page-level horizontal overflow; no operator-facing UUIDs in body text |
+| Desktop split | `.mission-pipeline-workspace--split` with process open @ 1440/1024 |
+
+### Unit-backed checks (recorded in manifest `staticChecks`)
+
+| Check | Test |
+| --- | --- |
+| Single-section a11y (Overview-only actor) | `MissionsWorkspace.test.tsx` — *names the Overview panel without a missing tab when navigation is omitted* (`role="region"`, no tablist, no dangling `aria-labelledby`) |
+| Stacked reveal focus | `MissionsWorkspace.test.tsx` — *opens a process from the candidate name control and focuses it on stacked layouts* |
+| Background list refresh focus | Design: no `aria-live` on process reveal; generation guards in `MissionsPanel` (not re-exercised in browser matrix) |
 
 ## Commands
 
@@ -47,5 +65,6 @@ node scripts/issue-118-missions-ia-evidence.mjs
 
 ## CI / unit coverage
 
-- **729** `@hire-me/web` tests (includes single-section Overview region naming, navigation, deep links).
-- Exact-head CI: pending on branch head after review fixes.
+- **729+** `@hire-me/web` tests (includes single-section Overview region naming, navigation, deep links).
+- Exact-head CI: recorded on PR #139 final correction head after push (see PR / `docs/project/HANDOFF.md`).
+- Unrelated document-generation flake fix: **PR #140** only (not in #139 diff).
