@@ -5,7 +5,7 @@ Last updated: 2026-10-06
 ## Current situation
 
 - Latest `main` is **`29101c2`** (includes merged #132 preflight PR #134 and prior milestones).
-- **Issue #141 (Phase A):** draft PR **#142** on `cursor/issue-141-signing-foundation-909e`, head **`89405ce`** — maintainer review corrections applied; exact-head CI [run 37505067063](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/37505067063) green (D-071 pass 1/2 + catalog + refusal). Intermediate runs failed only on Issue **#109** mission-candidate race flake, not signing.
+- **Issue #141 (Phase A):** draft PR **#142** on `cursor/issue-141-signing-foundation-909e`, head **`5398155`** — maintainer review corrections applied; exact-head CI [run 37505067063](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/37505067063) green (D-071 pass 1/2 + catalog + refusal). Intermediate runs failed only on Issue **#109** mission-candidate race flake, not signing.
 - **Issue #132:** remains **open** (parent epic); Barid/provider confirmation still blocks provider-specific work (Phase C+).
 
 ## Next concrete action (Issue #141)
