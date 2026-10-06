@@ -30,12 +30,8 @@ import {
   type MissionPublicOpportunityModel,
 } from './MissionPublicOpportunity.js';
 import type { MissionAccess } from './mission-access.js';
-import {
-  missionDetailSectionPanelId,
-  missionDetailSectionTabId,
-  normalizeMissionDetailSection,
-  type MissionDetailSection,
-} from './mission-detail-section.js';
+import { missionDetailPanelProps } from './mission-detail-panel-props.js';
+import { normalizeMissionDetailSection, type MissionDetailSection } from './mission-detail-section.js';
 import {
   canCreateOfferInState,
   isMissionWritable,
@@ -381,11 +377,8 @@ function MissionDetailPane({
       <MissionDetailNav access={access} active={section} onChange={onSectionChange} />
 
       <div
-        aria-labelledby={missionDetailSectionTabId('overview')}
+        {...missionDetailPanelProps('overview', access, section, t)}
         className="mission-detail__panel"
-        hidden={section !== 'overview'}
-        id={missionDetailSectionPanelId('overview')}
-        role="tabpanel"
       >
         <MissionProfile
           canEdit={access.canUpdate && writable}
@@ -406,13 +399,7 @@ function MissionDetailPane({
       </div>
 
       {access.canViewAssignments || access.canManageAssignments ? (
-        <div
-          aria-labelledby={missionDetailSectionTabId('team')}
-          className="mission-detail__panel"
-          hidden={section !== 'team'}
-          id={missionDetailSectionPanelId('team')}
-          role="tabpanel"
-        >
+        <div {...missionDetailPanelProps('team', access, section, t)} className="mission-detail__panel">
           <MissionAssignments
             access={access}
             model={model.assignments}
@@ -424,13 +411,7 @@ function MissionDetailPane({
       ) : null}
 
       {access.canViewProcesses ? (
-        <div
-          aria-labelledby={missionDetailSectionTabId('pipeline')}
-          className="mission-detail__panel"
-          hidden={section !== 'pipeline'}
-          id={missionDetailSectionPanelId('pipeline')}
-          role="tabpanel"
-        >
+        <div {...missionDetailPanelProps('pipeline', access, section, t)} className="mission-detail__panel">
           <div
             className={
               process
@@ -447,7 +428,7 @@ function MissionDetailPane({
                 writesLocked={writesLocked}
               />
             </div>
-            <div aria-live="polite" className="mission-pipeline-workspace__detail">
+            <div className="mission-pipeline-workspace__detail">
               {processDetail ?? (
                 <p className="mission-muted">{t('missions.pipeline.selectProcessDetail')}</p>
               )}
@@ -457,13 +438,7 @@ function MissionDetailPane({
       ) : null}
 
       {access.canViewPublicOpportunity || access.canViewPublicApplications ? (
-        <div
-          aria-labelledby={missionDetailSectionTabId('public')}
-          className="mission-detail__panel"
-          hidden={section !== 'public'}
-          id={missionDetailSectionPanelId('public')}
-          role="tabpanel"
-        >
+        <div {...missionDetailPanelProps('public', access, section, t)} className="mission-detail__panel">
           {access.canViewPublicOpportunity ? (
             <MissionPublicOpportunity
               access={access}

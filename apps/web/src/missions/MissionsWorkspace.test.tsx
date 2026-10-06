@@ -241,6 +241,18 @@ afterEach(() => {
 });
 
 describe('Missions detail navigation (#118)', () => {
+  it('names the Overview panel without a missing tab when navigation is omitted', async () => {
+    serve(world());
+    renderWorkspace({ permissions: ['missions:view'] });
+
+    await selectMission('Mission Alpha');
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByRole('tabpanel')).toBeNull();
+    expect(await screen.findByRole('region', { name: 'Overview' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 3, name: 'Mission profile' })).toBeVisible();
+  });
+
   it('hides the edit form until Edit mission is chosen on Overview', async () => {
     serve(world());
     renderWorkspace({ permissions: MANAGE });

@@ -5,6 +5,26 @@ export type MissionDetailSection = 'overview' | 'team' | 'pipeline' | 'public';
 
 const SECTION_ORDER: readonly MissionDetailSection[] = ['overview', 'team', 'pipeline', 'public'];
 
+export type MissionDetailSectionLabelKey =
+  | 'missions.detail.nav.overview'
+  | 'missions.detail.nav.team'
+  | 'missions.detail.nav.pipeline'
+  | 'missions.detail.nav.public';
+
+export const MISSION_DETAIL_SECTION_LABEL_KEY: Record<
+  MissionDetailSection,
+  MissionDetailSectionLabelKey
+> = {
+  overview: 'missions.detail.nav.overview',
+  team: 'missions.detail.nav.team',
+  pipeline: 'missions.detail.nav.pipeline',
+  public: 'missions.detail.nav.public',
+};
+
+export function missionDetailUsesTabNavigation(access: MissionAccess): boolean {
+  return visibleMissionDetailSections(access).length > 1;
+}
+
 export function visibleMissionDetailSections(access: MissionAccess): MissionDetailSection[] {
   const sections: MissionDetailSection[] = ['overview'];
   if (access.canViewAssignments || access.canManageAssignments) {

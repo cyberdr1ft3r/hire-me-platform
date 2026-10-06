@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveMissionAccess } from './mission-access.js';
 import {
   defaultMissionDetailSectionForIntent,
+  missionDetailUsesTabNavigation,
   normalizeMissionDetailSection,
   visibleMissionDetailSections,
 } from './mission-detail-section.js';
@@ -37,6 +38,12 @@ describe('mission detail sections', () => {
         hasInterviewIntent: false,
       }),
     ).toBe('pipeline');
+  });
+
+  it('omits tab navigation when only overview is visible', () => {
+    const overviewOnly = resolveMissionAccess(['missions:view']);
+    expect(missionDetailUsesTabNavigation(overviewOnly)).toBe(false);
+    expect(visibleMissionDetailSections(overviewOnly)).toEqual(['overview']);
   });
 
   it('falls back to overview when pipeline is not visible', () => {

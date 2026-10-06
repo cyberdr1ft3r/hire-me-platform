@@ -3,25 +3,13 @@ import { useCallback, useRef, type KeyboardEvent } from 'react';
 import { useI18n } from '../i18n/index.js';
 import type { MissionAccess } from './mission-access.js';
 import {
+  MISSION_DETAIL_SECTION_LABEL_KEY,
   missionDetailSectionPanelId,
   missionDetailSectionTabId,
   nextMissionDetailSection,
   type MissionDetailSection,
   visibleMissionDetailSections,
 } from './mission-detail-section.js';
-
-const LABEL_KEYS: Record<
-  MissionDetailSection,
-  | 'missions.detail.nav.overview'
-  | 'missions.detail.nav.team'
-  | 'missions.detail.nav.pipeline'
-  | 'missions.detail.nav.public'
-> = {
-  overview: 'missions.detail.nav.overview',
-  team: 'missions.detail.nav.team',
-  pipeline: 'missions.detail.nav.pipeline',
-  public: 'missions.detail.nav.public',
-};
 
 export function MissionDetailNav({
   access,
@@ -92,7 +80,7 @@ export function MissionDetailNav({
             tabIndex={selected ? 0 : -1}
             type="button"
           >
-            {t(LABEL_KEYS[section])}
+            {t(MISSION_DETAIL_SECTION_LABEL_KEY[section])}
           </button>
         );
       })}
