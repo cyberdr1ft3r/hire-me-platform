@@ -5,7 +5,7 @@ Last updated: 2026-10-06
 ## Current situation
 
 - Latest `main` is **`29101c2`** (includes merged #132 preflight PR #134 and prior milestones).
-- **Issue #141 (Phase A):** provider-neutral signing domain on branch `cursor/issue-141-signing-foundation-909e` (draft PR #142, head `fae0889`) — schema, permissions, request lifecycle to `AWAITING_RESULT`, D-071 integration + catalog gates green on run `37495640341` DB job; await full-workflow green after unrelated web test flake retry. **No** provider/crypto/SIGNED UX.
+- **Issue #141 (Phase A):** provider-neutral signing domain on branch `cursor/issue-141-signing-foundation-909e` (draft PR #142, head `95ed1f2`) — exact-head CI run `37496219044` green (quality + D-071 pass 1/2 + catalog + refusal). **No** provider/crypto/SIGNED UX.
 - **Issue #132:** remains **open** (parent epic); Barid/provider confirmation still blocks provider-specific work (Phase C+).
 
 ## Next concrete action (Issue #141)
