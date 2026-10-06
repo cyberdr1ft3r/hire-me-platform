@@ -126,6 +126,19 @@ async function cleanSigningRecords(): Promise<void> {
   await prisma.signingOrganization.deleteMany({});
 }
 
+async function cleanSigning141TestUsers(): Promise<void> {
+  await prisma.refreshSession.deleteMany({
+    where: { user: { normalizedEmail: { endsWith: '@signing141.test' } } },
+  });
+  await prisma.passwordCredential.deleteMany({
+    where: { user: { normalizedEmail: { endsWith: '@signing141.test' } } },
+  });
+  await prisma.userRole.deleteMany({
+    where: { user: { normalizedEmail: { endsWith: '@signing141.test' } } },
+  });
+  await prisma.user.deleteMany({ where: { normalizedEmail: { endsWith: '@signing141.test' } } });
+}
+
 describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () => {
   let app: NestExpressApplication;
   let baseUrl: string;
@@ -135,7 +148,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   let financeToken: string;
   let outsiderToken: string;
   let clientId: string;
-  let guestRoleSnapshot: RolePermissionSnapshot;
+  let guestRoleSnapshot: RolePermissionSnapshot | undefined;
 
   async function login(email: string, password = testPassword): Promise<string> {
     const response = await fetch(`${baseUrl}/auth/login`, {
@@ -193,6 +206,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
 
   beforeAll(async () => {
     await cleanSigningRecords();
+    await cleanSigning141TestUsers();
     const bootstrapAdmin = await prisma.user.findUniqueOrThrow({
       where: { normalizedEmail: TEST_BOOTSTRAP_ADMIN_EMAIL.toLowerCase() },
     });
@@ -224,10 +238,16 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   }, 180_000);
 
   afterAll(async () => {
-    await app?.close();
-    await cleanSigningRecords();
-    await restoreRolePermissions(RoleName.GUEST, guestRoleSnapshot);
-    await prisma.$disconnect();
+    try {
+      await app?.close();
+      await cleanSigningRecords();
+      await cleanSigning141TestUsers();
+      if (guestRoleSnapshot) {
+        await restoreRolePermissions(RoleName.GUEST, guestRoleSnapshot);
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
   }, 180_000);
 
   it('rejects secret key material in credential registration', async () => {
