@@ -516,6 +516,131 @@ export class DocumentsService {
   }
 
   /**
+   * Issue #141 signing preparation gate: the actor must already pass the normal
+   * document/source authorization path, and the version must be the current GENERATED
+   * PDF checksum for a financial output document.
+   */
+  async assertFinancialSigningVersionAccess(
+    documentId: string,
+    versionId: string,
+    actorUserId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<{
+    document: DocumentRecord;
+    version: DocumentRecord['versions'][number];
+  }> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    this.assertHasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW);
+    const document = await this.findDocument(documentId, transaction);
+    await this.assertDocumentAccess(document, actorUserId, permissions, transaction);
+    const version = document.versions.find((item) => item.id === versionId);
+    if (!version) {
+      throw notFound('DOCUMENT_VERSION_NOT_FOUND', 'Document version was not found.');
+    }
+    if (version.status === DocumentStatus.ARCHIVED || version.archivedAt) {
+      throw conflict(
+        'DOCUMENT_VERSION_ARCHIVED',
+        'Archived document versions cannot be used for signing.',
+      );
+    }
+    if (version.source !== DocumentVersionSource.GENERATED) {
+      throw badRequest(
+        'SIGNING_SOURCE_NOT_GENERATED',
+        'Only generated document versions can be prepared for signing.',
+      );
+    }
+    if (!version.checksumSha256 || !/^[a-f0-9]{64}$/.test(version.checksumSha256)) {
+      throw badRequest('SIGNING_SOURCE_CHECKSUM_MISSING', 'Document version checksum is missing.');
+    }
+    if (version.mimeType !== 'application/pdf' || version.outputFamily !== 'PDF') {
+      throw badRequest(
+        'SIGNING_SOURCE_NOT_PDF',
+        'Only generated PDF versions can be prepared for signing.',
+      );
+    }
+    const financialTypes = new Set<DocumentType>([
+      DocumentType.QUOTATION,
+      DocumentType.PURCHASE_ORDER,
+      DocumentType.INVOICE,
+      DocumentType.CONTRAT_RECRUTEMENT,
+      DocumentType.CONTRAT_FORMATION,
+      DocumentType.LEGACY_CONTRACT,
+    ]);
+    if (!financialTypes.has(document.documentType)) {
+      throw badRequest(
+        'SIGNING_DOCUMENT_TYPE_UNSUPPORTED',
+        'This document type is not eligible for financial signing.',
+      );
+    }
+    if (document.currentVersionId !== versionId) {
+      throw conflict(
+        'SIGNING_VERSION_NOT_CURRENT',
+        'Signing requests must target the current document version.',
+      );
+    }
+    return { document, version };
+  }
+
+  async hasAuthorizedDocumentAccess(
+    documentId: string,
+    actorUserId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<boolean> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    if (!this.hasPermission(permissions, DOCUMENT_PERMISSIONS.DOCUMENTS_VIEW)) {
+      return false;
+    }
+    try {
+      const document = await this.findDocument(documentId, transaction);
+      return this.hasDocumentAccess(document, actorUserId, permissions, transaction);
+    } catch {
+      return false;
+    }
+  }
+
+  async assertFinancialSourceManageForSigning(
+    document: DocumentRecord,
+    actorUserId: string,
+    permissions: string[],
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<void> {
+    const deny = (): never => {
+      throw forbidden('SIGNING_SOURCE_MANAGE_DENIED', 'Signing approval was denied.');
+    };
+    if (
+      !this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS) ||
+      !this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW)
+    ) {
+      deny();
+    }
+    switch (document.generatedSourceType) {
+      case GeneratedDocumentSource.COMMERCIAL_QUOTATION:
+        if (!this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.QUOTATIONS_MANAGE)) {
+          deny();
+        }
+        break;
+      case GeneratedDocumentSource.PURCHASE_ORDER:
+        if (!this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.PURCHASE_ORDERS_MANAGE)) {
+          deny();
+        }
+        break;
+      case GeneratedDocumentSource.COMMERCIAL_CONTRACT:
+        if (!this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.CONTRACTS_MANAGE)) {
+          deny();
+        }
+        break;
+      case GeneratedDocumentSource.INVOICE:
+        if (!this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.INVOICES_MANAGE)) {
+          deny();
+        }
+        break;
+      default:
+        deny();
+    }
+    await this.assertGeneratedSourceScope(document, actorUserId, permissions, transaction);
+  }
+
+  /**
    * Issue #113 bounded option source for Documents filters and the guided attach
    * flow. Each kind applies exactly the source permission and mission scope the
    * Documents read/write checks apply, so an option is never a record the actor
@@ -1505,8 +1630,11 @@ export class DocumentsService {
     }
   }
 
-  private async findDocument(documentId: string): Promise<DocumentRecord> {
-    const document = await this.prisma.document.findUnique({
+  private async findDocument(
+    documentId: string,
+    transaction: PrismaService | PrismaTransaction = this.prisma,
+  ): Promise<DocumentRecord> {
+    const document = await transaction.document.findUnique({
       where: { id: documentId },
       include: documentInclude,
     });

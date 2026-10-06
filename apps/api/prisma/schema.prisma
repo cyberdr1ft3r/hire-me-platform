@@ -707,6 +707,14 @@ model User {
   targetedAuditLogs                   AuditLog[]                     @relation("AuditTargetUser")
   passwordCredential                  PasswordCredential?
   refreshSessions                     RefreshSession[]
+  signingCredentialsOwned             SigningCredential[]            @relation("SigningCredentialUserOwner")
+  signingCredentialGrants             SigningCredentialGrant[]       @relation("SigningCredentialGrantUser")
+  signingCredentialGrantsAuthorized   SigningCredentialGrant[]       @relation("SigningCredentialGrantAuthorizer")
+  signingCredentialsVerified          SigningCredential[]            @relation("SigningCredentialVerifier")
+  signingRequestsCreated              SigningRequest[]               @relation("SigningRequestRequester")
+  signingRequestsAsSigner             SigningRequest[]               @relation("SigningRequestIntendedSigner")
+  documentSigningApprovals            DocumentSigningApproval[]      @relation("DocumentSigningApprover")
+  signingEvents                       SigningEvent[]                 @relation("SigningEventActor")
 
   @@index([status])
   @@index([userType])
@@ -838,7 +846,7 @@ model Client {
   invoices             Invoice[]
   payments             Payment[]
   expenses             Expense[]
-  meetings               Meeting[]
+  meetings             Meeting[]
 
   @@index([normalizedName])
   @@index([status])
@@ -1564,23 +1572,23 @@ model InterviewEvent {
 }
 
 model Meeting {
-  id              String        @id @default(uuid()) @db.Uuid
-  title           String
-  description     String?
-  scheduledStartAt DateTime
-  scheduledEndAt  DateTime?
-  timezone        String
-  location        String?
-  meetingUrl      String?
-  organizerUserId String        @db.Uuid
-  clientId        String?       @db.Uuid
-  status          MeetingStatus @default(SCHEDULED)
-  completedAt     DateTime?
-  canceledAt      DateTime?
+  id                 String        @id @default(uuid()) @db.Uuid
+  title              String
+  description        String?
+  scheduledStartAt   DateTime
+  scheduledEndAt     DateTime?
+  timezone           String
+  location           String?
+  meetingUrl         String?
+  organizerUserId    String        @db.Uuid
+  clientId           String?       @db.Uuid
+  status             MeetingStatus @default(SCHEDULED)
+  completedAt        DateTime?
+  canceledAt         DateTime?
   cancellationReason String?
-  archivedAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  archivedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   organizer    User                 @relation("MeetingOrganizer", fields: [organizerUserId], references: [id], onDelete: Restrict)
   client       Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -1594,13 +1602,13 @@ model Meeting {
 }
 
 model MeetingParticipant {
-  id        String                   @id @default(uuid()) @db.Uuid
-  meetingId String                   @db.Uuid
-  userId    String                   @db.Uuid
-  status    MeetingParticipantStatus @default(SCHEDULED)
+  id         String                   @id @default(uuid()) @db.Uuid
+  meetingId  String                   @db.Uuid
+  userId     String                   @db.Uuid
+  status     MeetingParticipantStatus @default(SCHEDULED)
   archivedAt DateTime?
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Restrict)
   user    User    @relation("MeetingParticipantUser", fields: [userId], references: [id], onDelete: Restrict)
@@ -2082,6 +2090,7 @@ model Document {
   invoice             Invoice?             @relation("GeneratedInvoiceDocument", fields: [invoiceId], references: [id], onDelete: Restrict)
   versions            DocumentVersion[]    @relation("DocumentVersions")
   currentVersion      DocumentVersion?     @relation("CurrentDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  signingRequests     SigningRequest[]     @relation("SigningRequestDocument")
   tasks               Task[]
   notifications       Notification[]
 
@@ -2420,9 +2429,10 @@ model DocumentVersion {
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
 
-  document   Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
-  currentFor Document? @relation("CurrentDocumentVersion")
-  createdBy  User?     @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  document        Document         @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
+  currentFor      Document?        @relation("CurrentDocumentVersion")
+  createdBy       User?            @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  signingRequests SigningRequest[] @relation("SigningRequestSourceVersion")
 
   @@unique([documentId, versionNumber])
   @@index([documentId])
@@ -2699,4 +2709,187 @@ model ExpenseEvent {
   @@index([expenseId])
   @@index([actorUserId])
   @@index([createdAt])
+}
+
+/// Issue #141 — provider-neutral electronic signing foundation (Phase A).
+enum SigningOrganizationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum SigningCredentialOwnerType {
+  USER
+  ORGANIZATION
+}
+
+enum SigningCredentialStatus {
+  ENABLED
+  DISABLED
+  ARCHIVED
+}
+
+enum SigningGrantAction {
+  USE_PERSON_SIGNATURE
+  USE_ORGANIZATION_SEAL
+}
+
+enum SigningKind {
+  PERSON_SIGNATURE
+  ORGANIZATION_SEAL
+}
+
+enum SigningRequestState {
+  PREPARED
+  APPROVED
+  AWAITING_RESULT
+  CANCELLED
+  EXPIRED
+  FAILED
+  STALE
+}
+
+model SigningOrganization {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  legalName          String
+  registrationNumber String?
+  countryCode        String                    @default("MA")
+  status             SigningOrganizationStatus @default(ACTIVE)
+  archivedAt         DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  credentials  SigningCredential[] @relation("SigningOrganizationCredential")
+  sealRequests SigningRequest[]    @relation("SigningRequestOrganization")
+
+  @@index([status])
+}
+
+model SigningCredential {
+  id                           String                     @id @default(uuid()) @db.Uuid
+  ownerType                    SigningCredentialOwnerType
+  ownerUserId                  String?                    @db.Uuid
+  signingOrganizationId        String?                    @db.Uuid
+  providerLabel                String
+  serviceTypeOid               String?
+  certificateSerial            String
+  certificateFingerprintSha256 String                     @unique
+  certificateSubjectSummary    String
+  validFrom                    DateTime
+  validTo                      DateTime
+  status                       SigningCredentialStatus    @default(ENABLED)
+  verifiedAt                   DateTime?
+  verifiedByUserId             String?                    @db.Uuid
+  archivedAt                   DateTime?
+  createdAt                    DateTime                   @default(now())
+  updatedAt                    DateTime                   @updatedAt
+
+  ownerUser           User?                    @relation("SigningCredentialUserOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  signingOrganization SigningOrganization?     @relation("SigningOrganizationCredential", fields: [signingOrganizationId], references: [id], onDelete: Restrict)
+  verifiedBy          User?                    @relation("SigningCredentialVerifier", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  grants              SigningCredentialGrant[]
+  signingRequests     SigningRequest[]
+
+  @@index([ownerType])
+  @@index([ownerUserId])
+  @@index([signingOrganizationId])
+  @@index([status])
+}
+
+model SigningCredentialGrant {
+  id                 String             @id @default(uuid()) @db.Uuid
+  credentialId       String             @db.Uuid
+  userId             String             @db.Uuid
+  allowedAction      SigningGrantAction
+  authorityReference String
+  authorizedByUserId String             @db.Uuid
+  startsAt           DateTime           @default(now())
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  credential   SigningCredential @relation(fields: [credentialId], references: [id], onDelete: Restrict)
+  user         User              @relation("SigningCredentialGrantUser", fields: [userId], references: [id], onDelete: Restrict)
+  authorizedBy User              @relation("SigningCredentialGrantAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([credentialId])
+  @@index([userId])
+  @@index([revokedAt])
+}
+
+model SigningRequest {
+  id                          String              @id @default(uuid()) @db.Uuid
+  documentId                  String              @db.Uuid
+  sourceVersionId             String              @db.Uuid
+  sourceSha256                String
+  sourceSnapshotSha256        String?
+  kind                        SigningKind
+  requestedByUserId           String              @db.Uuid
+  intendedSignerUserId        String?             @db.Uuid
+  signingOrganizationId       String?             @db.Uuid
+  signingCredentialId         String              @db.Uuid
+  credentialFingerprintSha256 String
+  methodIdentifier            String
+  policyVersion               String
+  nonceHash                   String
+  bindingHash                 String
+  idempotencyKey              String
+  expiresAt                   DateTime
+  state                       SigningRequestState @default(PREPARED)
+  terminalReason              String?
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+
+  document            Document                 @relation("SigningRequestDocument", fields: [documentId], references: [id], onDelete: Restrict)
+  sourceVersion       DocumentVersion          @relation("SigningRequestSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  requestedBy         User                     @relation("SigningRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  intendedSigner      User?                    @relation("SigningRequestIntendedSigner", fields: [intendedSignerUserId], references: [id], onDelete: Restrict)
+  signingOrganization SigningOrganization?     @relation("SigningRequestOrganization", fields: [signingOrganizationId], references: [id], onDelete: Restrict)
+  signingCredential   SigningCredential        @relation(fields: [signingCredentialId], references: [id], onDelete: Restrict)
+  approval            DocumentSigningApproval?
+  events              SigningEvent[]
+
+  @@unique([requestedByUserId, idempotencyKey])
+  @@index([documentId])
+  @@index([sourceVersionId])
+  @@index([state])
+  @@index([expiresAt])
+  @@index([signingCredentialId])
+}
+
+model DocumentSigningApproval {
+  id                  String   @id @default(uuid()) @db.Uuid
+  signingRequestId    String   @unique @db.Uuid
+  approverUserId      String   @db.Uuid
+  bindingHash         String
+  confirmationSummary String?
+  approvedAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  signingRequest SigningRequest @relation(fields: [signingRequestId], references: [id], onDelete: Restrict)
+  approver       User           @relation("DocumentSigningApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@index([approverUserId])
+}
+
+model SigningEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  signingRequestId String   @db.Uuid
+  sequence         Int
+  action           String
+  actorUserId      String?  @db.Uuid
+  reasonCode       String?
+  metadataSummary  String
+  occurredAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  signingRequest SigningRequest @relation(fields: [signingRequestId], references: [id], onDelete: Restrict)
+  actor          User?          @relation("SigningEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([signingRequestId, sequence])
+  @@index([signingRequestId])
+  @@index([actorUserId])
+  @@index([occurredAt])
 }

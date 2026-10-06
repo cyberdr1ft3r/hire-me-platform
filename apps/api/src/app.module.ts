@@ -8,6 +8,7 @@ import { CandidatesModule } from './candidates/candidates.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { CommercialModule } from './commercial/commercial.module.js';
 import { DocumentGenerationModule } from './document-generation/document-generation.module.js';
+import { DocumentSigningModule } from './document-signing/document-signing.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
 import { MeetingsModule } from './meetings/meetings.module.js';
@@ -27,6 +28,7 @@ import { TrainingModule } from './training/training.module.js';
     CommercialModule,
     DocumentsModule,
     DocumentGenerationModule,
+    DocumentSigningModule,
     MeetingsModule,
     MissionsModule,
     AgendaModule,
