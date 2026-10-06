@@ -25,12 +25,11 @@ import { DocumentSigningService } from './document-signing.service.js';
 import { signingBadRequest } from './document-signing.errors.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { RequestContext, RequestWithUser } from '../auth/auth.types.js';
-import { PermissionGuard } from '../auth/permission.guard.js';
 
 const UuidParamSchema = z.string().uuid();
 
 @Controller('v1')
-@UseGuards(AuthGuard, PermissionGuard)
+@UseGuards(AuthGuard)
 export class DocumentSigningController {
   constructor(@Inject(DocumentSigningService) private readonly signing: DocumentSigningService) {}
 
