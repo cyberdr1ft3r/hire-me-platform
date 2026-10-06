@@ -237,6 +237,75 @@
   min-width: 0;
 }
 
+.mission-detail-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  padding-block: var(--space-1);
+}
+
+.mission-detail__panel {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.mission-detail__panel[hidden] {
+  display: none;
+}
+
+.mission-section--inset {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+.mission-section__heading-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.mission-pipeline-workspace {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@container mission-detail (min-width: 52rem) {
+  .mission-pipeline-workspace--split {
+    align-items: start;
+    gap: var(--space-5);
+    grid-template-columns: minmax(0, 1.1fr) minmax(16rem, 0.9fr);
+  }
+
+  .mission-pipeline-workspace__detail {
+    border-inline-start: var(--border-width) solid var(--color-border);
+    max-block-size: min(70vh, 48rem);
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-inline-start: var(--space-4);
+    position: sticky;
+    top: var(--space-4);
+  }
+}
+
+.mission-process--detail-pane {
+  border-block-start: 0;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block-start: 0;
+}
+
+.mission-process--detail-pane .mission-form {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
 .mission-detail__header {
   display: grid;
   gap: var(--space-2);

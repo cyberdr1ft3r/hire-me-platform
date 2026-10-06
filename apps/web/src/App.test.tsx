@@ -972,6 +972,7 @@ describe('App', () => {
     mockMissionWorkspace(['missions:view', 'public_opportunities:view']);
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
 
     const region = await screen.findByRole('region', { name: 'Public opportunity' });
     expect(region).toBeVisible();
@@ -992,6 +993,7 @@ describe('App', () => {
     ]);
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
     fireEvent.click(await screen.findByRole('button', { name: /enable applications/i }));
 
     expect(await screen.findByText('Application link enabled.')).toBeVisible();
@@ -1013,6 +1015,7 @@ describe('App', () => {
     ]);
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
 
     const region = await screen.findByRole('region', { name: 'Public applications' });
     const row = within(region).getByRole('row', { name: /Public Applicant/ });
@@ -1031,6 +1034,7 @@ describe('App', () => {
     const missionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
 
     const link = await screen.findByRole('link', {
       name: /http:\/\/localhost(?::3000)?\/opportunities\/synthetic-public-role/i,
@@ -1066,6 +1070,7 @@ describe('App', () => {
     const missionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
     fireEvent.click(await screen.findByRole('button', { name: /copy public link/i }));
 
     expect(writeText).toHaveBeenCalledWith(
@@ -1083,6 +1088,7 @@ describe('App', () => {
     });
 
     await openMissionWorkspace('Mission Operator');
+    await openMissionPublicTab();
     fireEvent.click(await screen.findByRole('button', { name: /copy public link/i }));
 
     expect(await screen.findByText('Public link could not be copied.')).toBeVisible();
@@ -2574,7 +2580,16 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
   fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
 }
 
+async function openMissionPipelineTab(): Promise<void> {
+  fireEvent.click(await screen.findByRole('tab', { name: 'Pipeline' }));
+}
+
+async function openMissionPublicTab(): Promise<void> {
+  fireEvent.click(await screen.findByRole('tab', { name: 'Public' }));
+}
+
 async function openMissionProcess(): Promise<void> {
+  await openMissionPipelineTab();
   fireEvent.click(
     await screen.findByRole('button', { name: 'Open the process for Synthetic Candidate' }),
   );

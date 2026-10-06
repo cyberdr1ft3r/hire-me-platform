@@ -30,6 +30,7 @@ export interface MissionProcessModel {
 export function MissionProcess({
   access,
   children,
+  detailPane = false,
   layoutContainerRef,
   missionWritable,
   model,
@@ -41,6 +42,8 @@ export function MissionProcess({
 }: {
   access: MissionAccess;
   children: ReactNode;
+  /** When true, styles the block as pipeline-associated detail rather than a standalone section. */
+  detailPane?: boolean;
   layoutContainerRef: RefObject<HTMLElement | null>;
   missionWritable: boolean;
   model: MissionProcessModel;
@@ -67,7 +70,14 @@ export function MissionProcess({
   });
 
   return (
-    <section aria-labelledby={titleId} className="mission-section mission-process">
+    <section
+      aria-labelledby={titleId}
+      className={
+        detailPane
+          ? 'mission-process mission-process--detail-pane'
+          : 'mission-section mission-process'
+      }
+    >
       <div className="mission-process__heading">
         <h3
           className="mission-section__title mission-process__title"

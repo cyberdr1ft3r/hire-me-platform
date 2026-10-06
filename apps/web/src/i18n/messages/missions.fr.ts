@@ -70,6 +70,13 @@ export const missionsFr: Messages['missions'] = {
     archivedNoticeTitle: 'Mission archivée',
     archivedNotice:
       'Cette mission est archivée. Ses données sont en lecture seule et conservent leur historique.',
+    nav: {
+      overview: 'Vue d’ensemble',
+      pipeline: 'Vivier',
+      public: 'Public',
+      region: 'Sections de la mission',
+      team: 'Équipe',
+    },
     region: 'Mission sélectionnée',
     selectPrompt:
       'Sélectionnez une mission pour consulter sa fiche, son équipe, son vivier de candidats et son annonce publique.',
@@ -83,6 +90,8 @@ export const missionsFr: Messages['missions'] = {
       summary: 'Résumé commercial',
       title: 'Conditions commerciales',
     },
+    cancel: 'Annuler la modification',
+    edit: 'Modifier la mission',
     editTitle: 'Modifier la mission',
     fields: {
       applicationDeadline: 'Date limite de candidature',
@@ -204,6 +213,8 @@ export const missionsFr: Messages['missions'] = {
     placementConfirmed: 'Placement confirmé',
     processLeftPage:
       'Le processus ouvert a été fermé car il ne figure pas sur cette page. Ouvrez un candidat de cette page pour continuer.',
+    selectProcessDetail:
+      'Sélectionnez un candidat dans le vivier pour consulter son processus, entretiens, évaluations, offre et placement.',
     region: 'Vivier de candidats',
     title: 'Vivier de candidats',
   },

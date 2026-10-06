@@ -14,6 +14,7 @@ import {
   syntheticPublicOpportunity,
   type RecordedCall,
 } from './mission-test-data.js';
+import { showMissionDetailTab } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 
@@ -143,8 +144,9 @@ function servePublic(
   });
 }
 
-async function selectMission(title: string): Promise<void> {
+async function selectMission(title: string, locale: 'en' | 'fr' = 'en'): Promise<void> {
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${title}`) }));
+  await showMissionDetailTab('public', locale);
 }
 
 async function flush(): Promise<void> {
@@ -199,7 +201,7 @@ describe('Missions public opportunity empty state (Issue #114)', () => {
     servePublic(worldWithMissions());
     render(<Panel locale="fr" permissions={PUBLIC_VIEW} />);
 
-    await selectMission('Mission Alpha');
+    await selectMission('Mission Alpha', 'fr');
     expect(await screen.findByText('Aucune annonce publique pour l’instant')).toBeVisible();
     expect(screen.getByText('Cette mission n’a pas encore d’annonce publique.')).toBeVisible();
   });

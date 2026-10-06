@@ -1,5 +1,5 @@
 import type { MissionSummary } from '@hire-me/contracts';
-import { Fragment, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Select, TextField } from '../ui/index.js';
@@ -14,7 +14,7 @@ import type { MissionProfileValues } from './mission-state.js';
 export interface MissionProfileModel {
   editValues: MissionProfileValues | null;
   onEditValuesChange: (values: MissionProfileValues) => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
 }
 
 function formatCents(
@@ -42,6 +42,7 @@ export function MissionProfile({
   writesLocked: boolean;
 }) {
   const { formatCurrency, formatDate, formatDateTime, formatNumber, t } = useI18n();
+  const [editing, setEditing] = useState(false);
   const commercial = mission.commercial;
   const salaryParts = commercial
     ? [commercial.salaryMinCents, commercial.salaryMaxCents]
@@ -49,11 +50,30 @@ export function MissionProfile({
         .map((value) => formatCents(value, commercial.salaryCurrency, formatCurrency, formatNumber))
     : [];
 
+  useEffect(() => {
+    setEditing(false);
+  }, [mission.id]);
+
   return (
-    <section aria-labelledby="mission-profile-title" className="mission-section">
-      <h3 className="mission-section__title" id="mission-profile-title">
-        {t('missions.profile.title')}
-      </h3>
+    <section
+      aria-labelledby="mission-profile-title"
+      className="mission-section mission-section--inset"
+    >
+      <div className="mission-section__heading-row">
+        <h3 className="mission-section__title" id="mission-profile-title">
+          {t('missions.profile.title')}
+        </h3>
+        {canEdit && model.editValues && !editing ? (
+          <Button
+            disabled={writesLocked}
+            onClick={() => setEditing(true)}
+            size="compact"
+            variant="secondary"
+          >
+            {t('missions.profile.edit')}
+          </Button>
+        ) : null}
+      </div>
       <dl className="mission-summary">
         <SummaryItem label={t('missions.profile.fields.client')}>{mission.clientName}</SummaryItem>
         <SummaryItem label={t('missions.profile.fields.priority')}>
@@ -108,7 +128,6 @@ export function MissionProfile({
           <h4 className="mission-subtitle">{t('missions.profile.commercial.title')}</h4>
           <dl className="mission-summary">
             <SummaryItem label={t('missions.profile.commercial.salaryRange')}>
-              {/* A range may wrap between its bounds, never inside one amount. */}
               {salaryParts.length > 0
                 ? salaryParts.map((part, index) => (
                     <Fragment key={index}>
@@ -125,17 +144,31 @@ export function MissionProfile({
         </div>
       ) : null}
 
-      {canEdit && model.editValues ? (
+      {canEdit && model.editValues && editing ? (
         <form
           aria-label={t('missions.profile.editTitle')}
           className="mission-form"
-          onSubmit={model.onSave}
+          onSubmit={(event) => {
+            void model.onSave(event).then((saved) => {
+              if (saved) {
+                setEditing(false);
+              }
+            });
+          }}
         >
           <h4 className="mission-subtitle">{t('missions.profile.editTitle')}</h4>
           <MissionProfileFields onChange={model.onEditValuesChange} values={model.editValues} />
           <div className="mission-actions">
             <Button disabled={writesLocked} type="submit" variant="primary">
               {t('missions.profile.save')}
+            </Button>
+            <Button
+              disabled={writesLocked}
+              onClick={() => setEditing(false)}
+              type="button"
+              variant="secondary"
+            >
+              {t('missions.profile.cancel')}
             </Button>
           </div>
         </form>

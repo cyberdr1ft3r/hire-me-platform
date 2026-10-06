@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
 import { MissionsPanel } from './MissionsPanel.js';
+import { showMissionDetailTab } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 
@@ -79,6 +80,7 @@ describe('MissionsPanel request ownership', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Mission B/ }));
     expect(window.location.search).toBe(`?mission=${MISSION_B_ID}`);
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission B' })).toBeVisible();
+    await showMissionDetailTab('team');
     expect(await screen.findByText(/Mission B Recruiter/)).toBeVisible();
 
     await settle(missionADetail, jsonResponse({ mission: missionA }));
@@ -233,7 +235,9 @@ describe('MissionsPanel request ownership', () => {
         permissions={fullPermissions}
       />,
     );
+    await showMissionDetailTab('pipeline');
     expect(await screen.findByText(/Prior Candidate/)).toBeVisible();
+    await showMissionDetailTab('team');
     expect(screen.getAllByText(/Prior Recruiter/)).not.toHaveLength(0);
 
     view.rerender(
@@ -370,6 +374,7 @@ describe('MissionsPanel request ownership', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await showMissionDetailTab('public');
     const certificationEnabled = await screen.findByRole('checkbox', {
       name: 'Certifications enabled',
     });
@@ -467,6 +472,7 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
       />,
     );
     fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await showMissionDetailTab('public');
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });
     expect(select).toHaveValue('');
@@ -529,6 +535,7 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
       />,
     );
     fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await showMissionDetailTab('public');
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });
     expect(select).toHaveValue('en');

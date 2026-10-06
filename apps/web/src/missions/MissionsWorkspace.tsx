@@ -10,6 +10,7 @@ import { useRef, type RefObject } from 'react';
 import { useI18n } from '../i18n/index.js';
 import { MISSION_SIDE_BY_SIDE_MIN_REM, useStackedMasterDetailReveal } from '../layout/index.js';
 import { InlineMessage, PageHeader, Skeleton, StatusBadge, EmptyState } from '../ui/index.js';
+import { MissionDetailNav } from './MissionDetailNav.js';
 import { MissionAssignments, type MissionAssignmentsModel } from './MissionAssignments.js';
 import { MissionCandidatePipeline, type MissionPipelineModel } from './MissionCandidatePipeline.js';
 import { MissionCreateForm } from './MissionCreateForm.js';
@@ -29,6 +30,11 @@ import {
   type MissionPublicOpportunityModel,
 } from './MissionPublicOpportunity.js';
 import type { MissionAccess } from './mission-access.js';
+import { missionDetailPanelProps } from './mission-detail-panel-props.js';
+import {
+  normalizeMissionDetailSection,
+  type MissionDetailSection,
+} from './mission-detail-section.js';
 import {
   canCreateOfferInState,
   isMissionWritable,
@@ -134,7 +140,9 @@ export function MissionsWorkspace({
   detail,
   feedback,
   list,
+  detailSection,
   missionDetailRevealToken,
+  onDetailSectionChange,
   processDetailRevealToken,
   sessionKey,
   writesLocked,
@@ -142,9 +150,11 @@ export function MissionsWorkspace({
   access: MissionAccess;
   create: MissionCreateModel;
   detail: MissionDetailModel;
+  detailSection: MissionDetailSection;
   feedback: MissionFeedback | null;
   list: MissionListModel;
   missionDetailRevealToken: number;
+  onDetailSectionChange: (section: MissionDetailSection) => void;
   processDetailRevealToken: number;
   /** Names the option sources of this session, so pickers reload after a session change. */
   sessionKey: string;
@@ -206,10 +216,12 @@ export function MissionsWorkspace({
         >
           <MissionDetailPane
             access={access}
+            activeSection={detailSection}
             key={list.selectedId ?? 'none'}
             layoutContainerRef={layoutContainerRef}
             missionDetailRevealToken={missionDetailRevealToken}
             model={detail}
+            onSectionChange={onDetailSectionChange}
             processDetailRevealToken={processDetailRevealToken}
             sessionKey={sessionKey}
             sideBySideMinRem={MISSION_SIDE_BY_SIDE_MIN_REM}
@@ -223,18 +235,22 @@ export function MissionsWorkspace({
 
 function MissionDetailPane({
   access,
+  activeSection,
   layoutContainerRef,
   missionDetailRevealToken,
   model,
+  onSectionChange,
   processDetailRevealToken,
   sessionKey,
   sideBySideMinRem,
   writesLocked,
 }: {
   access: MissionAccess;
+  activeSection: MissionDetailSection;
   layoutContainerRef: RefObject<HTMLElement | null>;
   missionDetailRevealToken: number;
   model: MissionDetailModel;
+  onSectionChange: (section: MissionDetailSection) => void;
   processDetailRevealToken: number;
   sessionKey: string;
   sideBySideMinRem: number;
@@ -277,6 +293,63 @@ function MissionDetailPane({
   const process = context.process;
   const processEditable = writable && process !== null && isProcessWritable(process);
   const placementRecorded = sectionData(context.placement) !== null;
+  const section = normalizeMissionDetailSection(activeSection, access);
+
+  const processDetail =
+    access.canViewProcesses && process ? (
+      <MissionProcess
+        access={access}
+        detailPane
+        key={process.id}
+        layoutContainerRef={layoutContainerRef}
+        missionWritable={writable}
+        model={context.processModel}
+        process={process}
+        processDetailRevealToken={processDetailRevealToken}
+        recruiters={model.pipeline.recruiters}
+        sideBySideMinRem={sideBySideMinRem}
+        writesLocked={writesLocked}
+      >
+        {access.canViewOffers ? (
+          <MissionOffers
+            access={access}
+            canCreateOffer={canCreateOfferInState(process.state)}
+            editable={processEditable}
+            model={context.offers}
+            placementRecorded={placementRecorded}
+            writesLocked={writesLocked}
+          />
+        ) : null}
+        {access.canViewPlacements ? (
+          <MissionPlacements
+            access={access}
+            editable={processEditable}
+            onCorrect={context.onCorrectPlacement}
+            onRetry={context.onRetryPlacement}
+            placement={context.placement}
+            writesLocked={writesLocked}
+          />
+        ) : null}
+        {access.canViewInterviews ? (
+          <MissionInterviews
+            access={access}
+            clientVisible={process.clientVisible}
+            editable={processEditable}
+            model={context.interviews}
+            renderEvaluations={() => (
+              <MissionEvaluations
+                access={access}
+                editable={processEditable}
+                model={context.evaluations}
+                writesLocked={writesLocked}
+              />
+            )}
+            team={model.team}
+            writesLocked={writesLocked}
+          />
+        ) : null}
+      </MissionProcess>
+    ) : null;
 
   return (
     <article className="mission-detail">
@@ -304,113 +377,96 @@ function MissionDetailPane({
         </InlineMessage>
       ) : null}
 
-      <MissionProfile
-        canEdit={access.canUpdate && writable}
-        mission={mission}
-        model={model.profile}
-        writesLocked={writesLocked}
-      />
+      <MissionDetailNav access={access} active={section} onChange={onSectionChange} />
 
-      {access.canManageStatus || access.canClose || access.canArchive ? (
-        <MissionLifecycle
-          access={access}
+      <div
+        {...missionDetailPanelProps('overview', access, section, t)}
+        className="mission-detail__panel"
+      >
+        <MissionProfile
+          canEdit={access.canUpdate && writable}
           mission={mission}
-          onArchive={model.lifecycle.onArchive}
-          onClose={model.lifecycle.onClose}
-          onMove={model.lifecycle.onMove}
+          model={model.profile}
           writesLocked={writesLocked}
         />
-      ) : null}
+        {access.canManageStatus || access.canClose || access.canArchive ? (
+          <MissionLifecycle
+            access={access}
+            mission={mission}
+            onArchive={model.lifecycle.onArchive}
+            onClose={model.lifecycle.onClose}
+            onMove={model.lifecycle.onMove}
+            writesLocked={writesLocked}
+          />
+        ) : null}
+      </div>
 
       {access.canViewAssignments || access.canManageAssignments ? (
-        <MissionAssignments
-          access={access}
-          model={model.assignments}
-          sourceKey={sourceKey}
-          writable={writable}
-          writesLocked={writesLocked}
-        />
+        <div
+          {...missionDetailPanelProps('team', access, section, t)}
+          className="mission-detail__panel"
+        >
+          <MissionAssignments
+            access={access}
+            model={model.assignments}
+            sourceKey={sourceKey}
+            writable={writable}
+            writesLocked={writesLocked}
+          />
+        </div>
       ) : null}
 
       {access.canViewProcesses ? (
-        <MissionCandidatePipeline
-          access={access}
-          model={model.pipeline}
-          sourceKey={sourceKey}
-          writable={writable}
-          writesLocked={writesLocked}
-        />
-      ) : null}
-
-      {access.canViewProcesses && process ? (
-        <MissionProcess
-          access={access}
-          key={process.id}
-          layoutContainerRef={layoutContainerRef}
-          missionWritable={writable}
-          model={context.processModel}
-          process={process}
-          processDetailRevealToken={processDetailRevealToken}
-          recruiters={model.pipeline.recruiters}
-          sideBySideMinRem={sideBySideMinRem}
-          writesLocked={writesLocked}
+        <div
+          {...missionDetailPanelProps('pipeline', access, section, t)}
+          className="mission-detail__panel"
         >
-          {access.canViewOffers ? (
-            <MissionOffers
-              access={access}
-              canCreateOffer={canCreateOfferInState(process.state)}
-              editable={processEditable}
-              model={context.offers}
-              placementRecorded={placementRecorded}
-              writesLocked={writesLocked}
-            />
-          ) : null}
-          {access.canViewPlacements ? (
-            <MissionPlacements
-              access={access}
-              editable={processEditable}
-              onCorrect={context.onCorrectPlacement}
-              onRetry={context.onRetryPlacement}
-              placement={context.placement}
-              writesLocked={writesLocked}
-            />
-          ) : null}
-          {access.canViewInterviews ? (
-            <MissionInterviews
-              access={access}
-              clientVisible={process.clientVisible}
-              editable={processEditable}
-              model={context.interviews}
-              renderEvaluations={() => (
-                <MissionEvaluations
-                  access={access}
-                  editable={processEditable}
-                  model={context.evaluations}
-                  writesLocked={writesLocked}
-                />
+          <div
+            className={
+              process
+                ? 'mission-pipeline-workspace mission-pipeline-workspace--split'
+                : 'mission-pipeline-workspace'
+            }
+          >
+            <div className="mission-pipeline-workspace__list">
+              <MissionCandidatePipeline
+                access={access}
+                model={model.pipeline}
+                sourceKey={sourceKey}
+                writable={writable}
+                writesLocked={writesLocked}
+              />
+            </div>
+            <div className="mission-pipeline-workspace__detail">
+              {processDetail ?? (
+                <p className="mission-muted">{t('missions.pipeline.selectProcessDetail')}</p>
               )}
-              team={model.team}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {access.canViewPublicOpportunity || access.canViewPublicApplications ? (
+        <div
+          {...missionDetailPanelProps('public', access, section, t)}
+          className="mission-detail__panel"
+        >
+          {access.canViewPublicOpportunity ? (
+            <MissionPublicOpportunity
+              access={access}
+              mission={mission}
+              model={model.publicOpportunity}
+              writable={writable}
               writesLocked={writesLocked}
             />
           ) : null}
-        </MissionProcess>
-      ) : null}
-
-      {access.canViewPublicOpportunity ? (
-        <MissionPublicOpportunity
-          access={access}
-          mission={mission}
-          model={model.publicOpportunity}
-          writable={writable}
-          writesLocked={writesLocked}
-        />
-      ) : null}
-
-      {access.canViewPublicApplications ? (
-        <MissionPublicApplications
-          applications={model.applications}
-          onRetry={model.onRetryApplications}
-        />
+          {access.canViewPublicApplications ? (
+            <MissionPublicApplications
+              applications={model.applications}
+              onRetry={model.onRetryApplications}
+            />
+          ) : null}
+        </div>
       ) : null}
     </article>
   );
