@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,7 +10,7 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Issue #52 representative milestone is complete. Core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda) are on `main` at `1ea34d5806b4375b119ea0379660f3dec891626a` (includes Issue #124 / PR #136, Accounting #135, Training #123). UI-DNA v1.1 **interaction grammar** (Issue #117 / D-082 proposed) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
+The Issue #52 representative milestone is complete. Stable pre–Issue #118 `main` is `4c0655d9ec59228b9a76d9a6964c1f505fa2be76`, including merged Issue #117 UI-DNA v1.1 interaction grammar (D-082) through PR #137, Issue #116 stacked master-detail through PR #138, Issue #124 / PR #136, Accounting #135, Training #123, Documents #119, and the core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda). UI-DNA v1.1 interaction grammar (Issue #117 / D-082, merged on `main`) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #118 Missions workspace IA/composition is implemented on open draft PR #139 and is **not merged** yet. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
 
 - Issue #1 is complete; PR #4 merged the approved product scope, architecture, domain model, workflows, and permissions.
 - Issue #5 is complete; PR #6 merged the persistent project-memory and agent-handoff system.
