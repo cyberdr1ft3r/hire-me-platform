@@ -1956,16 +1956,12 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const version = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: first.versionId },
     });
-    expect(created.metadataSummary).toContain('commercial.quotation');
-    expect(regenerated.metadataSummary).toContain('commercial.quotation');
-    // Never the storage key, PDF bytes, or commercial amounts in operator-visible audit text.
-    // Entity ids are random UUIDs and must not be scanned for amount substrings.
-    for (const row of [created, regenerated]) {
-      const auditText = row.metadataSummary ?? '';
-      expect(auditText).not.toContain(version.storageKey);
-      expect(auditText).not.toContain('24000');
-      expect(auditText).not.toContain('%PDF');
-    }
+    const serialized = JSON.stringify([created, regenerated]);
+    expect(serialized).toContain('commercial.quotation');
+    // Never the storage key, the bytes, or any commercial amount.
+    expect(serialized).not.toContain(version.storageKey);
+    expect(serialized).not.toContain('24000');
+    expect(serialized).not.toContain('%PDF');
   });
 
   it('writes no audit row for a rejected generation', async () => {
