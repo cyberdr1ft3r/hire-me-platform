@@ -6,7 +6,7 @@ Status owner: repository maintainer
 ## Issue #132 / #141 signing
 
 - **#132 preflight (PR #134):** merged to **`main` @ `29101c2`**. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
-- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Exact-head CI green on `6c77b3c` (run `37497516137`). See [Phase A preflight](../design/issue-141-phase-a-preflight.md) and **D-083** (proposed).
+- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Maintainer review corrections landed on branch; await fresh exact-head CI. See [Phase A preflight](../design/issue-141-phase-a-preflight.md) and **D-083** (proposed, pending acceptance).
 
 ## Overall state
 

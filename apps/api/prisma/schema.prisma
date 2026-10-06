@@ -2434,6 +2434,7 @@ model DocumentVersion {
   createdBy       User?            @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   signingRequests SigningRequest[] @relation("SigningRequestSourceVersion")
 
+  @@unique([id, documentId])
   @@unique([documentId, versionNumber])
   @@index([documentId])
   @@index([createdByUserId])
@@ -2776,6 +2777,7 @@ model SigningCredential {
   certificateSubjectSummary    String
   validFrom                    DateTime
   validTo                      DateTime
+  /// Enforced in DB: validTo > validFrom
   status                       SigningCredentialStatus    @default(ENABLED)
   verifiedAt                   DateTime?
   verifiedByUserId             String?                    @db.Uuid
@@ -2841,7 +2843,7 @@ model SigningRequest {
   updatedAt                   DateTime            @updatedAt
 
   document            Document                 @relation("SigningRequestDocument", fields: [documentId], references: [id], onDelete: Restrict)
-  sourceVersion       DocumentVersion          @relation("SigningRequestSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  sourceVersion       DocumentVersion          @relation("SigningRequestSourceVersion", fields: [sourceVersionId, documentId], references: [id, documentId], onDelete: Restrict)
   requestedBy         User                     @relation("SigningRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
   intendedSigner      User?                    @relation("SigningRequestIntendedSigner", fields: [intendedSignerUserId], references: [id], onDelete: Restrict)
   signingOrganization SigningOrganization?     @relation("SigningRequestOrganization", fields: [signingOrganizationId], references: [id], onDelete: Restrict)

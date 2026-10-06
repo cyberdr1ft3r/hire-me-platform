@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
 
+import {
+  commercialContractSourceFingerprint,
+  fingerprintOf,
+  invoiceSourceFingerprint,
+  purchaseOrderSourceFingerprint,
+  quotationSourceFingerprint,
+} from './financial-source-fingerprint.js';
+
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   DocumentGenerationRequest,
@@ -749,7 +757,7 @@ export class DocumentGenerationService {
           missionTitle: quotation.recruitmentMission?.title ?? null,
         },
       },
-      fingerprint: this.quotationFingerprint(quotation),
+      fingerprint: quotationSourceFingerprint(quotation),
       stabilize: (tx) => this.stabilizeCommercial(tx, 'CommercialQuotation', quotation),
       resnapshot: async (tx) => {
         const current = await tx.commercialQuotation.findUnique({
@@ -764,65 +772,9 @@ export class DocumentGenerationService {
           throw generationSourceNotFound();
         }
         this.assertQuotationEligible(current.status, current.archivedAt);
-        return this.quotationFingerprint(current);
+        return quotationSourceFingerprint(current);
       },
     };
-  }
-
-  private quotationFingerprint(quotation: {
-    id: string;
-    reference: string;
-    status: string;
-    clientId: string;
-    recruitmentMissionId: string | null;
-    currency: string;
-    issueDate: Date | null;
-    validUntil: Date | null;
-    subtotalCents: number;
-    taxCents: number;
-    totalCents: number;
-    archivedAt: Date | null;
-    client: { name: string };
-    recruitmentMission: { title: string } | null;
-    lines: {
-      sortOrder: number;
-      description: string;
-      quantity: number;
-      unitPriceCents: number;
-      taxRateBps: number;
-      lineSubtotalCents: number;
-      lineTaxCents: number;
-      lineTotalCents: number;
-    }[];
-  }): string {
-    return this.fingerprintOf([
-      'COMMERCIAL_QUOTATION',
-      quotation.id,
-      quotation.reference,
-      quotation.status,
-      quotation.clientId,
-      quotation.recruitmentMissionId,
-      quotation.currency,
-      quotation.issueDate,
-      quotation.validUntil,
-      quotation.subtotalCents,
-      quotation.taxCents,
-      quotation.totalCents,
-      quotation.archivedAt,
-      quotation.client.name,
-      quotation.recruitmentMission?.title ?? null,
-      quotation.lines.length,
-      ...quotation.lines.flatMap((line) => [
-        line.sortOrder,
-        line.description,
-        line.quantity,
-        line.unitPriceCents,
-        line.taxRateBps,
-        line.lineSubtotalCents,
-        line.lineTaxCents,
-        line.lineTotalCents,
-      ]),
-    ]);
   }
 
   private async resolvePurchaseOrder(
@@ -866,7 +818,7 @@ export class DocumentGenerationService {
           missionTitle: order.recruitmentMission?.title ?? null,
         },
       },
-      fingerprint: this.purchaseOrderFingerprint(order),
+      fingerprint: purchaseOrderSourceFingerprint(order),
       stabilize: (tx) => this.stabilizeCommercial(tx, 'PurchaseOrder', order),
       resnapshot: async (tx) => {
         const current = await tx.purchaseOrder.findUnique({
@@ -880,44 +832,9 @@ export class DocumentGenerationService {
           throw generationSourceNotFound();
         }
         this.assertPurchaseOrderEligible(current.status, current.archivedAt);
-        return this.purchaseOrderFingerprint(current);
+        return purchaseOrderSourceFingerprint(current);
       },
     };
-  }
-
-  private purchaseOrderFingerprint(order: {
-    id: string;
-    reference: string;
-    status: string;
-    clientId: string;
-    recruitmentMissionId: string | null;
-    currency: string;
-    amountCents: number;
-    taxCents: number;
-    totalCents: number;
-    issueDate: Date | null;
-    receivedDate: Date | null;
-    archivedAt: Date | null;
-    client: { name: string };
-    recruitmentMission: { title: string } | null;
-  }): string {
-    return this.fingerprintOf([
-      'PURCHASE_ORDER',
-      order.id,
-      order.reference,
-      order.status,
-      order.clientId,
-      order.recruitmentMissionId,
-      order.currency,
-      order.amountCents,
-      order.taxCents,
-      order.totalCents,
-      order.issueDate,
-      order.receivedDate,
-      order.archivedAt,
-      order.client.name,
-      order.recruitmentMission?.title ?? null,
-    ]);
   }
 
   private async resolveContract(
@@ -976,7 +893,7 @@ export class DocumentGenerationService {
           missionTitle: contract.recruitmentMission?.title ?? null,
         },
       },
-      fingerprint: this.contractFingerprint(contract),
+      fingerprint: commercialContractSourceFingerprint(contract),
       stabilize: (tx) => this.stabilizeCommercial(tx, 'CommercialContract', contract),
       resnapshot: async (tx) => {
         const current = await tx.commercialContract.findUnique({
@@ -990,50 +907,9 @@ export class DocumentGenerationService {
           throw generationSourceNotFound();
         }
         this.assertContractEligible(current.status, current.archivedAt);
-        return this.contractFingerprint(current);
+        return commercialContractSourceFingerprint(current);
       },
     };
-  }
-
-  private contractFingerprint(contract: {
-    id: string;
-    reference: string;
-    businessType: string;
-    status: string;
-    clientId: string;
-    recruitmentMissionId: string | null;
-    currency: string;
-    contractValueCents: number;
-    taxCents: number;
-    totalCents: number;
-    termsSummary: string | null;
-    effectiveDate: Date | null;
-    startDate: Date | null;
-    endDate: Date | null;
-    archivedAt: Date | null;
-    client: { name: string };
-    recruitmentMission: { title: string } | null;
-  }): string {
-    return this.fingerprintOf([
-      'COMMERCIAL_CONTRACT',
-      contract.id,
-      contract.reference,
-      contract.businessType,
-      contract.status,
-      contract.clientId,
-      contract.recruitmentMissionId,
-      contract.currency,
-      contract.contractValueCents,
-      contract.taxCents,
-      contract.totalCents,
-      contract.termsSummary,
-      contract.effectiveDate,
-      contract.startDate,
-      contract.endDate,
-      contract.archivedAt,
-      contract.client.name,
-      contract.recruitmentMission?.title ?? null,
-    ]);
   }
 
   private async resolveInvoice(
@@ -1090,7 +966,7 @@ export class DocumentGenerationService {
           missionTitle: invoice.recruitmentMission?.title ?? null,
         },
       },
-      fingerprint: this.invoiceFingerprint(invoice),
+      fingerprint: invoiceSourceFingerprint(invoice),
       stabilize: (tx) => this.stabilizeCommercial(tx, 'Invoice', invoice),
       resnapshot: async (tx) => {
         const current = await tx.invoice.findUnique({
@@ -1105,67 +981,9 @@ export class DocumentGenerationService {
           throw generationSourceNotFound();
         }
         this.assertInvoiceEligible(current.status, current.archivedAt);
-        return this.invoiceFingerprint(current);
+        return invoiceSourceFingerprint(current);
       },
     };
-  }
-
-  private invoiceFingerprint(invoice: {
-    id: string;
-    reference: string;
-    status: string;
-    clientId: string;
-    recruitmentMissionId: string | null;
-    currency: string;
-    issueDate: Date | null;
-    dueDate: Date | null;
-    issuedAt: Date | null;
-    subtotalCents: number;
-    taxCents: number;
-    totalCents: number;
-    archivedAt: Date | null;
-    client: { name: string };
-    recruitmentMission: { title: string } | null;
-    lines: {
-      sortOrder: number;
-      description: string;
-      quantity: number;
-      unitPriceCents: number;
-      taxRateBps: number;
-      lineSubtotalCents: number;
-      lineTaxCents: number;
-      lineTotalCents: number;
-    }[];
-  }): string {
-    return this.fingerprintOf([
-      'INVOICE',
-      invoice.id,
-      invoice.reference,
-      invoice.status,
-      invoice.clientId,
-      invoice.recruitmentMissionId,
-      invoice.currency,
-      invoice.issueDate,
-      invoice.dueDate,
-      invoice.issuedAt,
-      invoice.subtotalCents,
-      invoice.taxCents,
-      invoice.totalCents,
-      invoice.archivedAt,
-      invoice.client.name,
-      invoice.recruitmentMission?.title ?? null,
-      invoice.lines.length,
-      ...invoice.lines.flatMap((line) => [
-        line.sortOrder,
-        line.description,
-        line.quantity,
-        line.unitPriceCents,
-        line.taxRateBps,
-        line.lineSubtotalCents,
-        line.lineTaxCents,
-        line.lineTotalCents,
-      ]),
-    ]);
   }
 
   private async resolveCertificate(
@@ -1291,7 +1109,7 @@ export class DocumentGenerationService {
     },
     participantName: string,
   ): string {
-    return this.fingerprintOf([
+    return fingerprintOf([
       'TRAINING_ENROLLMENT',
       enrollment.id,
       enrollment.participantType,
@@ -1552,27 +1370,6 @@ export class DocumentGenerationService {
   // --------------------------------------------------------------------------
   // Naming, storage keys, helpers
   // --------------------------------------------------------------------------
-
-  /**
-   * Deterministic fingerprint over exactly the authoritative values an output renders.
-   *
-   * The input is an ordered array of primitives, so there is no object key-ordering
-   * ambiguity and no dependence on `updatedAt`, which would not change when a child line
-   * row is edited. Dates are normalised to ISO strings and nulls to an explicit marker,
-   * so two different shapes can never hash alike.
-   */
-  private fingerprintOf(parts: readonly (string | number | boolean | Date | null)[]): string {
-    const canonical = parts.map((part) => {
-      if (part === null) {
-        return '\u0000null';
-      }
-      if (part instanceof Date) {
-        return `\u0000date:${part.toISOString()}`;
-      }
-      return `\u0000${typeof part}:${String(part)}`;
-    });
-    return createHash('sha256').update(canonical.join('\u0001')).digest('hex');
-  }
 
   /**
    * Takes a shared row lock, in a fixed table order.

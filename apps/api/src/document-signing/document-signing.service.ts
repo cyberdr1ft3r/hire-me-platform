@@ -18,6 +18,13 @@ import {
 } from './document-signing.binding.js';
 import { DocumentSigningAuditService } from './document-signing-audit.service.js';
 import {
+  ACTIVE_SIGNING_REQUEST_STATES,
+  appendSigningEventInTransaction,
+  lockSigningRequest,
+  transitionSigningRequestTerminal,
+} from './document-signing.lifecycle.js';
+import { FinancialSourceSnapshotService } from '../document-generation/financial-source-snapshot.service.js';
+import {
   signingBadRequest,
   signingConflict,
   signingForbidden,
@@ -39,12 +46,6 @@ import {
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
 
-const activeStates: SigningRequestState[] = [
-  SigningRequestState.PREPARED,
-  SigningRequestState.APPROVED,
-  SigningRequestState.AWAITING_RESULT,
-];
-
 @Injectable()
 export class DocumentSigningService {
   constructor(
@@ -52,6 +53,8 @@ export class DocumentSigningService {
     @Inject(PermissionsService) private readonly permissions: PermissionsService,
     @Inject(DocumentsService) private readonly documents: DocumentsService,
     @Inject(DocumentSigningAuditService) private readonly signingAudit: DocumentSigningAuditService,
+    @Inject(FinancialSourceSnapshotService)
+    private readonly sourceSnapshot: FinancialSourceSnapshotService,
   ) {}
 
   async createOrganization(
@@ -266,19 +269,11 @@ export class DocumentSigningService {
             state: SigningRequestState.PREPARED,
           },
         });
-        const latest = await transaction.signingEvent.findFirst({
-          where: { signingRequestId: created.id },
-          orderBy: { sequence: 'desc' },
-          select: { sequence: true },
-        });
-        await transaction.signingEvent.create({
-          data: {
-            signingRequestId: created.id,
-            sequence: (latest?.sequence ?? -1) + 1,
-            action: 'request.prepared',
-            actorUserId,
-            metadataSummary: 'Signing request prepared for exact document version.',
-          },
+        await appendSigningEventInTransaction(transaction, {
+          signingRequestId: created.id,
+          action: 'request.prepared',
+          actorUserId,
+          metadataSummary: 'Signing request prepared for exact document version.',
         });
         return created;
       });
@@ -289,7 +284,7 @@ export class DocumentSigningService {
         metadataSummary: 'Signing request prepared.',
       });
 
-      const refreshed = await this.refreshRequestState(request.id, actorUserId);
+      const refreshed = await this.refreshRequestState(request.id);
       return { request: this.toSummary(refreshed) };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -300,7 +295,7 @@ export class DocumentSigningService {
                 requestedByUserId: actorUserId,
                 idempotencyKey: body.idempotencyKey,
               },
-              { sourceVersionId: versionId, state: { in: activeStates } },
+              { sourceVersionId: versionId, state: { in: ACTIVE_SIGNING_REQUEST_STATES } },
             ],
           },
         });
@@ -320,7 +315,7 @@ export class DocumentSigningService {
                 'Idempotency key is already bound to a different signing request.',
               );
             }
-            const refreshed = await this.refreshRequestState(existing.id, actorUserId);
+            const refreshed = await this.refreshRequestState(existing.id);
             return { request: this.toSummary(refreshed) };
           }
           throw signingConflict(
@@ -338,7 +333,7 @@ export class DocumentSigningService {
     actorUserId: string,
   ): Promise<SigningRequestDetailResponse> {
     const request = await this.loadAuthorizedRequest(requestId, actorUserId);
-    const refreshed = await this.refreshRequestState(request.id, actorUserId);
+    const refreshed = await this.refreshRequestState(request.id);
     return { request: this.toSummary(refreshed) };
   }
 
@@ -354,7 +349,7 @@ export class DocumentSigningService {
     await this.assertActiveInternalUser(actorUserId);
 
     const request = await this.loadAuthorizedRequest(requestId, actorUserId);
-    const refreshed = await this.refreshRequestState(request.id, actorUserId);
+    const refreshed = await this.refreshRequestState(request.id);
     if (refreshed.state !== SigningRequestState.PREPARED) {
       throw signingConflict('SIGNING_REQUEST_NOT_PREPARED', 'Signing request is not approvable.');
     }
@@ -384,6 +379,7 @@ export class DocumentSigningService {
     }
 
     await this.prisma.$transaction(async (transaction) => {
+      await lockSigningRequest(transaction, requestId);
       const current = await transaction.signingRequest.findUnique({ where: { id: requestId } });
       if (!current || current.state !== SigningRequestState.PREPARED) {
         throw signingConflict('SIGNING_REQUEST_NOT_PREPARED', 'Signing request is not approvable.');
@@ -400,6 +396,18 @@ export class DocumentSigningService {
         where: { id: requestId },
         data: { state: SigningRequestState.AWAITING_RESULT },
       });
+      await appendSigningEventInTransaction(transaction, {
+        signingRequestId: requestId,
+        action: 'request.approved',
+        actorUserId,
+        metadataSummary: 'Signing request approved.',
+      });
+      await appendSigningEventInTransaction(transaction, {
+        signingRequestId: requestId,
+        action: 'request.awaiting_result',
+        actorUserId,
+        metadataSummary: 'Signing request awaiting provider result (Phase B).',
+      });
     });
 
     await this.signingAudit.recordPlatformAudit('request.approved', context, {
@@ -407,20 +415,8 @@ export class DocumentSigningService {
       signingRequestId: requestId,
       metadataSummary: 'Signing request approved for exact binding.',
     });
-    await this.signingAudit.appendSigningEvent(
-      requestId,
-      'request.approved',
-      actorUserId,
-      'Signing request approved.',
-    );
-    await this.signingAudit.appendSigningEvent(
-      requestId,
-      'request.awaiting_result',
-      actorUserId,
-      'Signing request awaiting provider result (Phase B).',
-    );
 
-    const finalRequest = await this.refreshRequestState(requestId, actorUserId);
+    const finalRequest = await this.refreshRequestState(requestId);
     return { request: this.toSummary(finalRequest) };
   }
 
@@ -430,8 +426,8 @@ export class DocumentSigningService {
     context: RequestContext,
   ): Promise<SigningRequestDetailResponse> {
     const request = await this.loadAuthorizedRequest(requestId, actorUserId);
-    const refreshed = await this.refreshRequestState(request.id, actorUserId);
-    if (!activeStates.includes(refreshed.state)) {
+    const refreshed = await this.refreshRequestState(request.id);
+    if (!ACTIVE_SIGNING_REQUEST_STATES.includes(refreshed.state)) {
       throw signingConflict(
         'SIGNING_REQUEST_NOT_CANCELLABLE',
         'Signing request cannot be cancelled.',
@@ -442,25 +438,30 @@ export class DocumentSigningService {
       this.assertPermission(permissions, SIGNING_PERMISSIONS.APPROVE_SIGNING);
     }
 
-    await this.prisma.signingRequest.update({
-      where: { id: requestId },
-      data: {
-        state: SigningRequestState.CANCELLED,
-        terminalReason: 'CANCELLED_BY_ACTOR',
-      },
+    await this.prisma.$transaction(async (transaction) => {
+      await lockSigningRequest(transaction, requestId);
+      const current = await transaction.signingRequest.findUnique({ where: { id: requestId } });
+      if (!current || !ACTIVE_SIGNING_REQUEST_STATES.includes(current.state)) {
+        throw signingConflict(
+          'SIGNING_REQUEST_NOT_CANCELLABLE',
+          'Signing request cannot be cancelled.',
+        );
+      }
+      await transitionSigningRequestTerminal(
+        transaction,
+        current,
+        SigningRequestState.CANCELLED,
+        'CANCELLED_BY_ACTOR',
+        'request.cancelled',
+        actorUserId,
+        'Signing request cancelled.',
+      );
     });
     await this.signingAudit.recordPlatformAudit('request.cancelled', context, {
       actorUserId,
       signingRequestId: requestId,
       metadataSummary: 'Signing request cancelled.',
     });
-    await this.signingAudit.appendSigningEvent(
-      requestId,
-      'request.cancelled',
-      actorUserId,
-      'Signing request cancelled.',
-      'CANCELLED_BY_ACTOR',
-    );
     const finalRequest = await this.prisma.signingRequest.findUniqueOrThrow({
       where: { id: requestId },
     });
@@ -512,91 +513,214 @@ export class DocumentSigningService {
     return request;
   }
 
-  private async refreshRequestState(requestId: string, actorUserId: string) {
-    const request = await this.prisma.signingRequest.findUniqueOrThrow({
-      where: { id: requestId },
-    });
-    if (!activeStates.includes(request.state)) {
+  private async refreshRequestState(
+    requestId: string,
+  ): Promise<Prisma.SigningRequestGetPayload<Record<string, never>>> {
+    return this.prisma.$transaction(async (transaction) => {
+      await lockSigningRequest(transaction, requestId);
+      const request = await transaction.signingRequest.findUniqueOrThrow({
+        where: { id: requestId },
+      });
+      if (!ACTIVE_SIGNING_REQUEST_STATES.includes(request.state)) {
+        return request;
+      }
+
+      let terminalState: SigningRequestState | null = null;
+      let terminalReason: string | null = null;
+      let eventAction = 'request.failed';
+
+      if (request.expiresAt.getTime() <= Date.now()) {
+        terminalState = SigningRequestState.EXPIRED;
+        terminalReason = 'REQUEST_EXPIRED';
+        eventAction = 'request.expired';
+      }
+
+      const document = await transaction.document.findUnique({
+        where: { id: request.documentId },
+        select: { currentVersionId: true },
+      });
+      if (!terminalState && document?.currentVersionId !== request.sourceVersionId) {
+        terminalState = SigningRequestState.STALE;
+        terminalReason = 'SOURCE_VERSION_NO_LONGER_CURRENT';
+        eventAction = 'request.stale';
+      }
+
+      const version = await transaction.documentVersion.findUnique({
+        where: { id: request.sourceVersionId },
+        select: { checksumSha256: true, documentId: true },
+      });
+      if (!terminalState && version && version.checksumSha256 !== request.sourceSha256) {
+        terminalState = SigningRequestState.STALE;
+        terminalReason = 'SOURCE_BYTES_CHANGED';
+        eventAction = 'request.stale';
+      }
+
+      if (!terminalState && request.sourceSnapshotSha256) {
+        const currentSnapshot = await this.sourceSnapshot.computeCurrentFingerprint(
+          request.documentId,
+          transaction,
+        );
+        if (!currentSnapshot || currentSnapshot !== request.sourceSnapshotSha256) {
+          terminalState = SigningRequestState.STALE;
+          terminalReason = currentSnapshot ? 'SOURCE_BUSINESS_DATA_CHANGED' : 'SOURCE_UNAVAILABLE';
+          eventAction = 'request.stale';
+        }
+      }
+
+      const credential = await transaction.signingCredential.findUnique({
+        where: { id: request.signingCredentialId },
+        select: {
+          status: true,
+          validFrom: true,
+          validTo: true,
+          ownerType: true,
+          ownerUserId: true,
+          signingOrganizationId: true,
+          certificateFingerprintSha256: true,
+        },
+      });
+      const now = new Date();
+      if (
+        !terminalState &&
+        (!credential ||
+          credential.status !== SigningCredentialStatus.ENABLED ||
+          credential.validFrom > now ||
+          credential.validTo <= now ||
+          credential.certificateFingerprintSha256 !== request.credentialFingerprintSha256)
+      ) {
+        terminalState = SigningRequestState.FAILED;
+        terminalReason = 'CREDENTIAL_UNAVAILABLE';
+      }
+
+      if (!terminalState) {
+        const authorityFailure = await this.evaluateBoundSigningAuthority(
+          request,
+          credential,
+          transaction,
+        );
+        if (authorityFailure) {
+          terminalState = authorityFailure.terminalState;
+          terminalReason = authorityFailure.terminalReason;
+          eventAction = 'request.failed';
+        }
+      }
+
+      if (terminalState && terminalReason) {
+        return transitionSigningRequestTerminal(
+          transaction,
+          request,
+          terminalState,
+          terminalReason,
+          eventAction,
+          null,
+          'Signing request lifecycle reconciled.',
+        );
+      }
       return request;
-    }
-
-    let terminalState: SigningRequestState | null = null;
-    let terminalReason: string | null = null;
-
-    if (request.expiresAt.getTime() <= Date.now()) {
-      terminalState = SigningRequestState.EXPIRED;
-      terminalReason = 'REQUEST_EXPIRED';
-    }
-
-    const document = await this.prisma.document.findUnique({
-      where: { id: request.documentId },
-      select: { currentVersionId: true },
     });
-    if (!terminalState && document?.currentVersionId !== request.sourceVersionId) {
-      terminalState = SigningRequestState.STALE;
-      terminalReason = 'SOURCE_VERSION_NO_LONGER_CURRENT';
+  }
+
+  private async evaluateBoundSigningAuthority(
+    request: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    credential: {
+      ownerType: SigningCredentialOwnerType;
+      ownerUserId: string | null;
+      signingOrganizationId: string | null;
+    } | null,
+    transaction: Prisma.TransactionClient,
+  ): Promise<{ terminalState: SigningRequestState; terminalReason: string } | null> {
+    if (!credential) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'CREDENTIAL_UNAVAILABLE',
+      };
     }
 
-    const version = await this.prisma.documentVersion.findUnique({
-      where: { id: request.sourceVersionId },
-      select: { checksumSha256: true, sourceSnapshotSha256: true },
+    const boundUserId =
+      request.kind === SigningKind.PERSON_SIGNATURE
+        ? request.intendedSignerUserId
+        : request.requestedByUserId;
+    if (!boundUserId) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'BOUND_AUTHORITY_MISSING',
+      };
+    }
+
+    const boundUser = await transaction.user.findUnique({
+      where: { id: boundUserId },
+      select: { status: true, userType: true },
     });
     if (
-      !terminalState &&
-      version &&
-      (version.checksumSha256 !== request.sourceSha256 ||
-        version.sourceSnapshotSha256 !== request.sourceSnapshotSha256)
+      !boundUser ||
+      boundUser.status !== UserStatus.ACTIVE ||
+      boundUser.userType !== UserType.INTERNAL
     ) {
-      terminalState = SigningRequestState.STALE;
-      terminalReason = 'SOURCE_BINDING_CHANGED';
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'BOUND_ACTOR_INACTIVE',
+      };
     }
 
-    const credential = await this.prisma.signingCredential.findUnique({
-      where: { id: request.signingCredentialId },
-      select: { status: true },
-    });
-    if (!terminalState && credential?.status !== SigningCredentialStatus.ENABLED) {
-      terminalState = SigningRequestState.FAILED;
-      terminalReason = 'CREDENTIAL_DISABLED';
-    }
-
-    if (!terminalState && request.kind === SigningKind.ORGANIZATION_SEAL) {
-      const grantActive = await this.hasActiveSealGrant(request.signingCredentialId, actorUserId);
-      if (!grantActive) {
-        terminalState = SigningRequestState.FAILED;
-        terminalReason = 'SEAL_GRANT_REVOKED';
-      }
-    }
-
-    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
-    const documentAccess = await this.documents.hasAuthorizedDocumentAccess(
+    const boundPermissions = await this.permissions.getEffectivePermissionCodes(boundUserId);
+    const boundDocumentAccess = await this.documents.hasAuthorizedDocumentAccess(
       request.documentId,
-      actorUserId,
+      boundUserId,
+      transaction,
     );
-    if (!terminalState && !documentAccess) {
-      terminalState = SigningRequestState.FAILED;
-      terminalReason = 'ACTOR_AUTHORIZATION_LOST';
-    }
-    if (!terminalState && request.kind === SigningKind.PERSON_SIGNATURE) {
-      if (!permissions.includes(SIGNING_PERMISSIONS.SIGN)) {
-        terminalState = SigningRequestState.FAILED;
-        terminalReason = 'SIGN_PERMISSION_LOST';
-      }
-    }
-    if (!terminalState && request.kind === SigningKind.ORGANIZATION_SEAL) {
-      if (!permissions.includes(SIGNING_PERMISSIONS.SEAL)) {
-        terminalState = SigningRequestState.FAILED;
-        terminalReason = 'SEAL_PERMISSION_LOST';
-      }
+    if (!boundDocumentAccess) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'BOUND_ACTOR_DOCUMENT_ACCESS_LOST',
+      };
     }
 
-    if (terminalState) {
-      return this.prisma.signingRequest.update({
-        where: { id: requestId },
-        data: { state: terminalState, terminalReason },
-      });
+    if (request.kind === SigningKind.PERSON_SIGNATURE) {
+      if (!boundPermissions.includes(SIGNING_PERMISSIONS.SIGN)) {
+        return {
+          terminalState: SigningRequestState.FAILED,
+          terminalReason: 'SIGN_PERMISSION_LOST',
+        };
+      }
+      if (
+        credential.ownerType !== SigningCredentialOwnerType.USER ||
+        credential.ownerUserId !== boundUserId
+      ) {
+        return {
+          terminalState: SigningRequestState.FAILED,
+          terminalReason: 'CREDENTIAL_OWNER_MISMATCH',
+        };
+      }
+      return null;
     }
-    return request;
+
+    if (!boundPermissions.includes(SIGNING_PERMISSIONS.SEAL)) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'SEAL_PERMISSION_LOST',
+      };
+    }
+    if (
+      credential.ownerType !== SigningCredentialOwnerType.ORGANIZATION ||
+      credential.signingOrganizationId !== request.signingOrganizationId
+    ) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'SIGNING_ORGANIZATION_MISMATCH',
+      };
+    }
+    const grantActive = await this.hasActiveSealGrant(
+      request.signingCredentialId,
+      boundUserId,
+      transaction,
+    );
+    if (!grantActive) {
+      return {
+        terminalState: SigningRequestState.FAILED,
+        terminalReason: 'SEAL_GRANT_REVOKED',
+      };
+    }
+    return null;
   }
 
   private async assertActiveSealGrant(
@@ -623,9 +747,13 @@ export class DocumentSigningService {
     }
   }
 
-  private async hasActiveSealGrant(credentialId: string, userId: string): Promise<boolean> {
+  private async hasActiveSealGrant(
+    credentialId: string,
+    userId: string,
+    transaction: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
     const now = new Date();
-    const grant = await this.prisma.signingCredentialGrant.findFirst({
+    const grant = await transaction.signingCredentialGrant.findFirst({
       where: {
         credentialId,
         userId,

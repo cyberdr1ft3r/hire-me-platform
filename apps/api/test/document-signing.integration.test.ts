@@ -429,6 +429,165 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
     expect(response.status).toBe(403);
   });
 
+  it('does not invalidate a request when a non-bound document viewer reads it', async () => {
+    const financeSnapshot = await snapshotRolePermissions(RoleName.FINANCE_MANAGER);
+    await ensureRoleWithOnlyPermissions(RoleName.FINANCE_MANAGER, [
+      'records:view',
+      'clients:view',
+      'commercial_data:access',
+      'quotations:view',
+      'documents:view',
+    ]);
+    try {
+      const { documentId, versionId } = await generateQuotationDocument();
+      const credentialId = (
+        await api(operatorToken, '/v1/signing/credentials', {
+          method: 'POST',
+          body: {
+            ownerType: 'USER',
+            ownerUserId: operatorUserId,
+            providerLabel: 'TEST',
+            certificateSerial: 'SN-VIEWER',
+            certificateFingerprintSha256: fingerprint(`viewer-${randomUUID()}`),
+            certificateSubjectSummary: 'CN=Operator',
+            validFrom: new Date().toISOString(),
+            validTo: new Date(Date.now() + 86_400_000).toISOString(),
+          },
+        })
+      ).body.credentialId as string;
+      const created = await api(
+        operatorToken,
+        `/v1/documents/${documentId}/versions/${versionId}/signing-requests`,
+        {
+          method: 'POST',
+          body: {
+            kind: 'PERSON_SIGNATURE',
+            signingCredentialId: credentialId,
+            idempotencyKey: `viewer-${randomUUID()}`,
+            intendedSignerUserId: operatorUserId,
+          },
+        },
+      );
+      expect(created.status).toBe(201);
+      const requestId = (created.body as { request: { id: string } }).request.id;
+      const beforeEvents = await prisma.signingEvent.count({
+        where: { signingRequestId: requestId },
+      });
+
+      const viewed = await api(financeToken, `/v1/signing/requests/${requestId}`);
+      expect(viewed.status).toBe(200);
+      expect((viewed.body as { request: { state: string } }).request.state).toBe('PREPARED');
+
+      const viewedAgain = await api(financeToken, `/v1/signing/requests/${requestId}`);
+      expect((viewedAgain.body as { request: { state: string } }).request.state).toBe('PREPARED');
+      const afterEvents = await prisma.signingEvent.count({
+        where: { signingRequestId: requestId },
+      });
+      expect(afterEvents).toBe(beforeEvents);
+    } finally {
+      await restoreRolePermissions(RoleName.FINANCE_MANAGER, financeSnapshot);
+    }
+  });
+
+  it('marks requests stale when authoritative quotation data changes without regeneration', async () => {
+    const { documentId, versionId, quotationId } = await generateQuotationDocument();
+    const credentialId = (
+      await api(operatorToken, '/v1/signing/credentials', {
+        method: 'POST',
+        body: {
+          ownerType: 'USER',
+          ownerUserId: operatorUserId,
+          providerLabel: 'TEST',
+          certificateSerial: 'SN-SNAP',
+          certificateFingerprintSha256: fingerprint(`snap-${randomUUID()}`),
+          certificateSubjectSummary: 'CN=Operator',
+          validFrom: new Date().toISOString(),
+          validTo: new Date(Date.now() + 86_400_000).toISOString(),
+        },
+      })
+    ).body.credentialId as string;
+    const created = await api(
+      operatorToken,
+      `/v1/documents/${documentId}/versions/${versionId}/signing-requests`,
+      {
+        method: 'POST',
+        body: {
+          kind: 'PERSON_SIGNATURE',
+          signingCredentialId: credentialId,
+          idempotencyKey: `snap-${randomUUID()}`,
+          intendedSignerUserId: operatorUserId,
+        },
+      },
+    );
+    const requestId = (created.body as { request: { id: string } }).request.id;
+
+    await prisma.commercialQuotation.update({
+      where: { id: quotationId },
+      data: { subtotalCents: { increment: 100 } },
+    });
+
+    const refreshed = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(
+      (refreshed.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('STALE');
+    expect((refreshed.body as { request: { terminalReason: string } }).request.terminalReason).toBe(
+      'SOURCE_BUSINESS_DATA_CHANGED',
+    );
+
+    const staleEvents = await prisma.signingEvent.count({
+      where: { signingRequestId: requestId, action: 'request.stale' },
+    });
+    expect(staleEvents).toBe(1);
+    await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(
+      await prisma.signingEvent.count({
+        where: { signingRequestId: requestId, action: 'request.stale' },
+      }),
+    ).toBe(1);
+  });
+
+  it('rejects mismatched document and source version at the database layer', async () => {
+    const first = await generateQuotationDocument();
+    const second = await generateQuotationDocument();
+    const credential = await prisma.signingCredential.create({
+      data: {
+        ownerType: SigningCredentialOwnerType.USER,
+        ownerUserId: operatorUserId,
+        providerLabel: 'TEST',
+        certificateSerial: 'DB-MISMATCH',
+        certificateFingerprintSha256: fingerprint(`db-${randomUUID()}`),
+        certificateSubjectSummary: 'CN=Test',
+        validFrom: new Date(),
+        validTo: new Date(Date.now() + 86_400_000),
+        status: SigningCredentialStatus.ENABLED,
+      },
+    });
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: second.versionId },
+    });
+    await expect(
+      prisma.signingRequest.create({
+        data: {
+          documentId: first.documentId,
+          sourceVersionId: second.versionId,
+          sourceSha256: version.checksumSha256!,
+          sourceSnapshotSha256: version.sourceSnapshotSha256,
+          kind: 'PERSON_SIGNATURE',
+          requestedByUserId: operatorUserId,
+          intendedSignerUserId: operatorUserId,
+          signingCredentialId: credential.id,
+          credentialFingerprintSha256: credential.certificateFingerprintSha256,
+          methodIdentifier: 'NEUTRAL',
+          policyVersion: '1',
+          nonceHash: fingerprint(`nonce-${randomUUID()}`),
+          bindingHash: fingerprint(`bind-${randomUUID()}`),
+          idempotencyKey: `db-${randomUUID()}`,
+          expiresAt: new Date(Date.now() + 86_400_000),
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
   it('does not grant signing audit access to documents the actor cannot read', async () => {
     const { documentId, versionId } = await generateQuotationDocument();
     const credentialId = (
@@ -550,6 +709,16 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
     expect((approved.body as { request: { state: string } }).request.state).toBe('AWAITING_RESULT');
     const row = await prisma.signingRequest.findUniqueOrThrow({ where: { id: requestId } });
     expect(row.state).toBe(SigningRequestState.AWAITING_RESULT);
+    const events = await prisma.signingEvent.findMany({
+      where: { signingRequestId: requestId },
+      orderBy: { sequence: 'asc' },
+    });
+    expect(events.map((event) => event.action)).toEqual(
+      expect.arrayContaining(['request.prepared', 'request.approved', 'request.awaiting_result']),
+    );
+    expect(
+      await prisma.documentSigningApproval.count({ where: { signingRequestId: requestId } }),
+    ).toBe(1);
   });
 
   it('fails active seal requests when grant is revoked', async () => {
