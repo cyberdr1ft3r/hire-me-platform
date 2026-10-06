@@ -8,7 +8,7 @@ Last updated: 2026-10-06
 - Issue #118: draft PR #139 on `cursor/issue-118-missions-ia-909e`; implementation accepted in principle; final correction pass updates self-validating browser evidence and reconciles project memory.
 - Browser evidence: executed PASS — 10 captures (1440 / 1024 / 800 / 430 / 390 × EN / FR); manifest `/opt/cursor/artifacts/issue118-evidence/manifest.json`; audit `docs/audit/issue-118-missions-ia-evidence.md`.
 - Unrelated document-generation flake fix: PR #140 (`cursor/issue-doc-gen-audit-redaction-909e`), not in #139 diff.
-- Final review head `99af35b`; evidence runner commit `3b77797`. Exact-head CI **green** run `37451308296` on `99af35b`.
+- Final review head `804a6be`; evidence runner commit `3b77797`. Exact-head CI **green** run `37451892112` on `804a6be`.
 - Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
 
 ## Next concrete action
