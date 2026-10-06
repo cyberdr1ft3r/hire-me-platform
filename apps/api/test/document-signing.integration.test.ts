@@ -9,6 +9,7 @@ import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
 import { DocumentGenerationService } from '../src/document-generation/document-generation.service.js';
 import {
+  PermissionScopeType,
   PrismaClient,
   QuotationStatus,
   RoleName,
@@ -18,21 +19,26 @@ import {
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
 
+import {
+  TEST_BOOTSTRAP_ADMIN_EMAIL,
+  TEST_BOOTSTRAP_ADMIN_PASSWORD,
+} from './support/catalog-snapshot.js';
+import { ensurePermissionForTest } from './support/permission-fixtures.js';
+
+const prisma = new PrismaClient();
+const passwords = new PasswordService();
+const testPassword = 'Synthetic-passphrase-141!';
+
 type RolePermissionSnapshot = {
-  roleExisted: boolean;
   permissions: { permissionId: string; grantedAt: Date; archivedAt: Date | null }[];
 };
 
 async function snapshotRolePermissions(roleName: RoleName): Promise<RolePermissionSnapshot> {
-  const role = await prisma.role.findUnique({
+  const role = await prisma.role.findUniqueOrThrow({
     where: { name: roleName },
     include: { permissions: true },
   });
-  if (!role) {
-    return { roleExisted: false, permissions: [] };
-  }
   return {
-    roleExisted: true,
     permissions: role.permissions.map((rp) => ({
       permissionId: rp.permissionId,
       grantedAt: rp.grantedAt,
@@ -45,14 +51,7 @@ async function restoreRolePermissions(
   roleName: RoleName,
   snapshot: RolePermissionSnapshot,
 ): Promise<void> {
-  const role = await prisma.role.findUnique({ where: { name: roleName } });
-  if (!role) {
-    return;
-  }
-  if (!snapshot.roleExisted) {
-    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-    return;
-  }
+  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
   await prisma.rolePermission.deleteMany({
     where: {
       roleId: role.id,
@@ -60,75 +59,45 @@ async function restoreRolePermissions(
     },
   });
   for (const rp of snapshot.permissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: { roleId: role.id, permissionId: rp.permissionId },
-      },
-      create: {
-        roleId: role.id,
-        permissionId: rp.permissionId,
-        grantedAt: rp.grantedAt,
-        archivedAt: rp.archivedAt,
-      },
-      update: {
-        grantedAt: rp.grantedAt,
-        archivedAt: rp.archivedAt,
-      },
+    await prisma.rolePermission.update({
+      where: { roleId_permissionId: { roleId: role.id, permissionId: rp.permissionId } },
+      data: { grantedAt: rp.grantedAt, archivedAt: rp.archivedAt },
     });
   }
 }
-import { ensurePermissionForTest } from './support/permission-fixtures.js';
 
-const prisma = new PrismaClient();
-const passwords = new PasswordService();
-const testPassword = 'Synthetic-passphrase-141!';
+async function ensureRoleWithPermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
+  for (const code of permissionCodes) {
+    const permission = await ensurePermissionForTest(prisma, code, {
+      description: `Synthetic ${code} permission for signing tests.`,
+      scopeType: PermissionScopeType.EXPLICIT,
+    });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
+      update: { archivedAt: null },
+      create: { roleId: role.id, permissionId: permission.id },
+    });
+  }
+}
 
-const operatorPermissions = [
-  'documents:generate',
-  'documents:view',
-  'documents:download',
-  'commercial_data:access',
-  'quotations:view',
-  'quotations:manage',
-  'contracts:view',
-  'contracts:manage',
-  'purchase_orders:view',
-  'purchase_orders:manage',
-  'invoices:view',
-  'invoices:manage',
-  'clients:view',
-  'financial_documents:approve_signing',
-  'financial_documents:sign',
-  'financial_documents:seal',
-  'financial_documents:view_signature_audit',
-  'signing_credentials:manage',
-] as const;
-
-const financeUseOnlyPermissions = operatorPermissions.filter(
-  (code) => code !== 'signing_credentials:manage',
-);
+async function ensureRoleWithOnlyPermissions(
+  roleName: RoleName,
+  permissionCodes: readonly string[],
+): Promise<void> {
+  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
+  await prisma.rolePermission.updateMany({
+    where: { roleId: role.id, archivedAt: null },
+    data: { archivedAt: new Date() },
+  });
+  await ensureRoleWithPermissions(roleName, permissionCodes);
+}
 
 function fingerprint(label: string): string {
   return createHash('sha256').update(label).digest('hex');
-}
-
-async function setRolePermissions(roleName: RoleName, codes: readonly string[]): Promise<void> {
-  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
-  const permissions = await Promise.all(
-    codes.map((code) =>
-      ensurePermissionForTest(prisma, code, {
-        description: `Test permission ${code}`,
-        scopeType: 'EXPLICIT',
-      }),
-    ),
-  );
-  await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-  await prisma.rolePermission.createMany({
-    data: permissions.map((permission) => ({
-      roleId: role.id,
-      permissionId: permission.id,
-    })),
-  });
 }
 
 async function createUser(email: string, roleName: RoleName): Promise<string> {
@@ -166,13 +135,13 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   let financeToken: string;
   let outsiderToken: string;
   let clientId: string;
-  let roleSnapshots: Map<RoleName, RolePermissionSnapshot>;
+  let guestRoleSnapshot: RolePermissionSnapshot;
 
-  async function login(email: string): Promise<string> {
+  async function login(email: string, password = testPassword): Promise<string> {
     const response = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: testPassword }),
+      body: JSON.stringify({ email, password }),
     });
     return AuthResponseSchema.parse(await response.json()).accessToken;
   }
@@ -223,20 +192,18 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   }
 
   beforeAll(async () => {
-    roleSnapshots = new Map(
-      await Promise.all(
-        [RoleName.HR_MANAGER, RoleName.FINANCE_MANAGER, RoleName.GUEST].map(
-          async (role) => [role, await snapshotRolePermissions(role)] as const,
-        ),
-      ),
-    );
     await cleanSigningRecords();
-    await setRolePermissions(RoleName.HR_MANAGER, operatorPermissions);
-    await setRolePermissions(RoleName.FINANCE_MANAGER, financeUseOnlyPermissions);
-    await setRolePermissions(RoleName.GUEST, ['documents:view', 'clients:view']);
-
-    operatorUserId = await createUser('operator@signing141.test', RoleName.HR_MANAGER);
+    const bootstrapAdmin = await prisma.user.findUniqueOrThrow({
+      where: { normalizedEmail: TEST_BOOTSTRAP_ADMIN_EMAIL.toLowerCase() },
+    });
+    operatorUserId = bootstrapAdmin.id;
     await createUser('finance@signing141.test', RoleName.FINANCE_MANAGER);
+    guestRoleSnapshot = await snapshotRolePermissions(RoleName.GUEST);
+    await ensureRoleWithOnlyPermissions(RoleName.GUEST, [
+      'documents:view',
+      'clients:view',
+      'financial_documents:view_signature_audit',
+    ]);
     await createUser('outsider@signing141.test', RoleName.GUEST);
 
     clientId = (
@@ -251,7 +218,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
     baseUrl = await app.getUrl();
     generationService = app.get(DocumentGenerationService);
 
-    operatorToken = await login('operator@signing141.test');
+    operatorToken = await login(TEST_BOOTSTRAP_ADMIN_EMAIL, TEST_BOOTSTRAP_ADMIN_PASSWORD);
     financeToken = await login('finance@signing141.test');
     outsiderToken = await login('outsider@signing141.test');
   }, 180_000);
@@ -259,9 +226,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   afterAll(async () => {
     await app?.close();
     await cleanSigningRecords();
-    for (const [role, snapshot] of roleSnapshots) {
-      await restoreRolePermissions(role, snapshot);
-    }
+    await restoreRolePermissions(RoleName.GUEST, guestRoleSnapshot);
     await prisma.$disconnect();
   }, 180_000);
 
@@ -475,11 +440,6 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
       },
     );
     const requestId = (created.body as { request: { id: string } }).request.id;
-    await setRolePermissions(RoleName.GUEST, [
-      'documents:view',
-      'clients:view',
-      'financial_documents:view_signature_audit',
-    ]);
     const outsiderAudit = await api(outsiderToken, `/v1/signing/requests/${requestId}/audit`);
     expect(outsiderAudit.status).toBe(404);
   });
