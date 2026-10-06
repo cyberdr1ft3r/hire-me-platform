@@ -30,8 +30,9 @@ function rejectSecretKeys(value: unknown): boolean {
   if (!value || typeof value !== 'object') {
     return true;
   }
-  for (const key of Object.keys(value as Record<string, unknown>)) {
-    if (forbiddenSecretKeys.includes(key as (typeof forbiddenSecretKeys)[number])) {
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (forbiddenSecretKeys.some((forbidden) => forbidden === key)) {
       return false;
     }
   }
