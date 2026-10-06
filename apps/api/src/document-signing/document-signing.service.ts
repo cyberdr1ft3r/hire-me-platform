@@ -232,11 +232,12 @@ export class DocumentSigningService {
           },
         });
         if (existing) {
-          if (
-            existing.documentId !== documentId ||
-            existing.sourceVersionId !== versionId ||
-            existing.bindingHash !== bindingHash
-          ) {
+          const sameTarget =
+            existing.documentId === documentId &&
+            existing.sourceVersionId === versionId &&
+            existing.kind === body.kind &&
+            existing.signingCredentialId === body.signingCredentialId;
+          if (!sameTarget) {
             throw signingConflict(
               'SIGNING_IDEMPOTENCY_CONFLICT',
               'Idempotency key is already bound to a different signing request.',
@@ -308,7 +309,12 @@ export class DocumentSigningService {
             existing.requestedByUserId === actorUserId &&
             existing.idempotencyKey === body.idempotencyKey
           ) {
-            if (existing.bindingHash !== bindingHash) {
+            const sameTarget =
+              existing.documentId === documentId &&
+              existing.sourceVersionId === versionId &&
+              existing.kind === body.kind &&
+              existing.signingCredentialId === body.signingCredentialId;
+            if (!sameTarget) {
               throw signingConflict(
                 'SIGNING_IDEMPOTENCY_CONFLICT',
                 'Idempotency key is already bound to a different signing request.',
