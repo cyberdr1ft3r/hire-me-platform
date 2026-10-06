@@ -66,5 +66,5 @@ node scripts/issue-118-missions-ia-evidence.mjs
 ## CI / unit coverage
 
 - **729+** `@hire-me/web` tests (includes single-section Overview region naming, navigation, deep links).
-- Exact-head CI: **green** run `37450782395` on `35cc0bc` (PR #139).
+- Exact-head CI: **green** run `37451308296` on `99af35b` (PR #139).
 - Unrelated document-generation flake fix: **PR #140** only (not in #139 diff).
