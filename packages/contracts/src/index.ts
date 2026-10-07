@@ -133,6 +133,37 @@ export {
   FINANCE_MANAGER_ROLE_DESCRIPTION,
 } from './finance-manager-role.js';
 export type { FinanceManagerPermissionCode } from './finance-manager-role.js';
+export {
+  SigningCredentialCreateRequestSchema,
+  SigningCredentialGrantCreateRequestSchema,
+  SigningCredentialStatusSchema,
+  SigningEventSummarySchema,
+  SigningGrantActionSchema,
+  SigningKindSchema,
+  SigningOrganizationCreateRequestSchema,
+  SigningOrganizationSummarySchema,
+  SigningRequestApproveRequestSchema,
+  SigningRequestAuditResponseSchema,
+  SigningRequestCreateRequestSchema,
+  SigningRequestDetailResponseSchema,
+  SigningRequestStateSchema,
+  SigningRequestSummarySchema,
+} from './document-signing.js';
+export type {
+  SigningCredentialCreateRequest,
+  SigningCredentialGrantCreateRequest,
+  SigningKind,
+  SigningOrganizationCreateRequest,
+  SigningRequestApproveRequest,
+  SigningRequestAuditResponse,
+  SigningRequestCreateRequest,
+  SigningRequestDetailResponse,
+} from './document-signing.js';
+export {
+  FINANCE_MANAGER_SIGNING_PERMISSION_CODES,
+  SIGNING_PERMISSION_CODES,
+} from './signing-permissions.js';
+export type { SigningPermissionCode } from './signing-permissions.js';
 export type {
   AdminAssignRoleRequest,
   AdminCreateUserRequest,

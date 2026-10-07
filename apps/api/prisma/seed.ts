@@ -117,6 +117,34 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'financial_documents:approve_signing',
+    description:
+      'Approve an exact immutable document version binding before a signing or sealing operation.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'financial_documents:sign',
+    description: 'Initiate a natural-person electronic signature for an approved document version.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'financial_documents:seal',
+    description:
+      'Initiate an organization electronic seal for an approved document version when mandate grants allow.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'financial_documents:view_signature_audit',
+    description:
+      'View bounded signing request audit metadata within documents the actor can already access.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
+    code: 'signing_credentials:manage',
+    description: 'Register signing credentials and organization seal mandate grants.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'users:admin',
     description: 'Legacy umbrella permission retained for compatibility with prior seeds.',
     scopeType: PermissionScopeType.EXPLICIT,
@@ -895,6 +923,8 @@ async function main(): Promise<void> {
       'public_applications:view',
       'reporting:recruitment:view',
       'reporting:recruitment:export',
+      'financial_documents:view_signature_audit',
+      'signing_credentials:manage',
     ],
     [RoleName.HR_MANAGER]: [
       'records:view',

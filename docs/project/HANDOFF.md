@@ -1,23 +1,25 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## Current situation
 
-- Latest `main` is **`bcf4b42`** (merged #118 Missions IA, #140 doc-gen audit test fix, #116/#117, Accounting #131, Agenda/Meetings #124, Documents #119, and earlier milestones).
-- **Issue #132:** design/preflight only — PR **#134** on `docs/issue-132-signing-preflight`. Re-audited document generation and Documents/Commercial surfaces on `bcf4b42`; [preflight report](../design/issue-132-electronic-signature-preflight.md). **No implementation** in this PR. Issue #132 **open**.
-- Issue #109 / #110 non-blocking; D-068 / D-070 operational items still open.
+- Latest `main` is **`29101c2`** (includes merged #132 preflight **PR #134** and prior milestones).
+- **Issue #141 (Phase A):** draft PR **#142** on `cursor/issue-141-signing-foundation-909e` — architecture **maintainer-accepted**; final lifecycle regression coverage and **D-083 Accepted** docs reconciled; **awaiting maintainer merge only** (do **not** merge automatically).
+- **Issue #132:** remains **open** (parent epic); provider-specific / Barid work remains blocked until separately approved.
 
-## Next concrete action (Issue #132)
+## Next concrete action
 
-1. Maintainer review of PR #134 preflight (domain model, permissions, threat model, provider questions, phased PR plan).
-2. Obtain **written** Barid/integration answers (token model, PKCS#11/CSP, PDF/PAdES, timestamp onboarding, test token/sandbox) before any provider adapter PR.
-3. Do **not** start schema/migrations or signing libraries until preflight is accepted and phased PR A is scoped as its own issue.
+**ChatGPT maintainer final merge of PR #142** (Issue #141 Phase A).
+
+After merge, open **Phase B** (validation + SIGNED publication) as a **separate** issue/PR scope — not bundled with Phase A.
 
 ## Preserved unrelated follow-ups
 
-- R-050: FINANCE_MANAGER mission-scope limits unchanged; signing must not grant `missions:view` as a workaround.
-- D-068 production env/proxy verification; D-070 migration not deployed.
+- **R-050:** FINANCE_MANAGER mission-scope limits unchanged; signing must not grant `missions:view` as a workaround.
+- Issue **#109** flaky mission-candidate race test (non-blocking; unrelated to signing).
+- Issue **#110** Missions follow-ups.
+- **D-068** production env/proxy verification; **D-070** migration not deployed in production.
 
 ## D-071 catalog guarantees on `main`
 

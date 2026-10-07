@@ -26,6 +26,10 @@ export const FINANCE_MANAGER_PERMISSION_CODES = [
   'documents:view',
   'documents:download',
   'documents:generate',
+  'financial_documents:approve_signing',
+  'financial_documents:sign',
+  'financial_documents:seal',
+  'financial_documents:view_signature_audit',
 ] as const;
 
 export type FinanceManagerPermissionCode = (typeof FINANCE_MANAGER_PERMISSION_CODES)[number];
