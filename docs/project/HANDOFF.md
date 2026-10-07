@@ -4,13 +4,14 @@ Last updated: 2026-10-07
 
 ## Current situation
 
-- **Issue #143 (Phase B):** draft **PR #144** on `cursor/issue-143-validation-publication-909e` @ `753e9c5` — implementation, D-071 local gates, and **exact-head CI green** (run `37603828815`); awaiting ChatGPT/maintainer review only (do not merge automatically).
+- **Issue #143 (Phase B):** draft **PR #144** on `cursor/issue-143-validation-publication-909e` — maintainer review comment `6035751968` security corrections implemented locally; push fresh head and wait for **new** exact-head CI (do not merge automatically).
 - **Issue #132:** remains **open** (parent epic); Barid/provider/token/UX remain Phase C+.
 - **Issue #141 / D-083:** merged on `main` via PR #142.
+- **D-084:** **Proposed** (not Accepted by agents).
 
 ## Next concrete action
 
-**ChatGPT maintainer review of Issue #143 draft PR** (Phase B validation + SIGNED publication). Do not merge automatically.
+**ChatGPT maintainer re-review of PR #144** after correction commits and green exact-head CI on the new SHA.
 
 ## Preserved unrelated follow-ups
 

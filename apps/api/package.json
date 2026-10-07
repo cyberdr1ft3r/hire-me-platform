@@ -37,8 +37,6 @@
     "@peculiar/x509": "^2.1.0",
     "@prisma/client": "^6.13.0",
     "@signpdf/placeholder-plain": "^3.3.0",
-    "@signpdf/signer-p12": "^3.3.0",
-    "@signpdf/signpdf": "^3.3.0",
     "argon2": "^0.45.0",
     "asn1js": "^3.0.10",
     "bidi-js": "1.1.0",
@@ -54,6 +52,8 @@
     "zod": "^4.0.10"
   },
   "devDependencies": {
+    "@signpdf/signer-p12": "^3.3.0",
+    "@signpdf/signpdf": "^3.3.0",
     "@hire-me/config": "workspace:*",
     "@nestjs/testing": "^11.1.5",
     "@types/express": "^5.0.6",

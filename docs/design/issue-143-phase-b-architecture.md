@@ -1,44 +1,65 @@
 # Issue #143 — Phase B validation and SIGNED publication
 
-Parent: #132. Predecessor: D-083 / Phase A (#141).
+Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 remains Proposed** until maintainer re-accepts after PR #144 security corrections.
 
-## Validation engine (maintained stack)
+## Validator responsibility matrix (v2.0.0)
 
-Orchestrated in `apps/api/src/document-signing/validation/` — **no hand-rolled CMS, ASN.1, or ByteRange cryptography.**
+| Concern | Owner |
+|--------|--------|
+| PDF `/ByteRange` extraction | `pdf-signature-reader` helper (`extractSignature`) |
+| V1 exactly-one-signature / malformed ByteRange policy | Hire Me `pdf-byte-range-policy.ts` |
+| Unsigned trailing bytes after signed envelope | Hire Me `pdf-byte-range-policy.ts` |
+| Prepared-artifact binding (not source-prefix-only) | Hire Me `prepared-artifact-binding.ts` |
+| CMS `SignerInfo` → signer certificate DER | Hire Me `cms-pdf-signature.ts` (`pkijs`) |
+| Detached CMS integrity (messageDigest + authenticatedAttributes) | Hire Me `cms-pdf-signature.ts` (forge PKCS#7 verify pattern; signer key from resolved cert, **not** cert-bag order) |
+| Credential fingerprint / subject / issuer evidence | Same resolved signer DER (`node-forge` summaries) |
+| Trust path to configured anchors | Hire Me `signing-trust-policy.ts` (`@peculiar/x509` signature verification + explicit anchor termination) |
+| Policy decision (`VALID` / `INVALID` / `INDETERMINATE`) | `PdfSignatureValidatorService` v2.0.0 |
 
-| Concern | Library |
-|--------|---------|
-| PDF signature / ByteRange extract | `pdf-signature-reader` helpers |
-| CMS integrity over signed ranges | `pdf-signature-reader` |
-| Signer certificate extract | `pdf-signature-reader` + `node-forge` (DER fingerprint only) |
-| Trust policy | `@peculiar/x509` against explicit PEM anchors (`SIGNING_TRUST_ANCHOR_PEMS`, `\|\|\|` separated) |
-| V1 source binding | Hire Me policy: source bytes must appear unchanged as the ByteRange prefix of the signed PDF |
+Hire Me does **not** treat OS trust, `pdf-signature-reader` `authenticity`, cert-bag ordering, or a single `integrity` flag as the complete validation policy.
 
-Preflight spike: `apps/api/scripts/spike-issue-143-validation.mjs` and `docs/design/issue-143-validation-engine-preflight.md`.
+## Prepared signing artifact (approval binding)
 
-### What `VALID` means
+On approval, the API builds a deterministic placeholder PDF from the bound source version (`PreparedSigningArtifactService` / `@signpdf/placeholder-plain`), stores it under `signing-prepared/{requestId}.pdf`, and binds `preparedSigningArtifactSha256` on the request.
 
-- Cryptographic PDF signature present; CMS integrity passes; ByteRange covers the signed envelope with no unsigned trailing bytes; signed bytes derive from the bound source PDF under the V1 prefix policy; signer certificate fingerprint matches the bound credential; certificate is within validity window; chain verifies to a configured trust anchor.
+Validation compares the submitted signed PDF to that **prepared** artifact byte-for-byte except `/Contents` and `/ByteRange` regions. Generic “source PDF is a ByteRange prefix” is **not** sufficient (incremental-revision / visible-content change attacks).
 
-### What `VALID` does **not** prove
+## Trust anchors
 
-- Qualified Moroccan eIDAS/Barid legal status, long-term archival (LTV), production OCSP/CRL/TSA assurance, or multi-party workflow completeness.
-
-Empty trust configuration → chain `INDETERMINATE` / publication **fail-closed**.
+Path validation requires a verified chain from the CMS signer leaf to an explicitly configured PEM anchor (`SIGNING_TRUST_ANCHOR_PEMS`, `|||` separated). CMS bag certificates are untrusted path candidates; anchors are also available for path termination. Empty store → `INDETERMINATE` / fail-closed.
 
 ## Result submission and acceptance
 
-- `POST /v1/signing/requests/:requestId/results` — bound signer/seal operator only; quarantine storage; validate **outside** DB transaction; short acceptance transaction with full recheck (request `AWAITING_RESULT`, expiry, approval, authority, source version current, source SHA-256, business snapshot fingerprint, validation binding).
-- Terminal states added: `COMPLETED`, `VALIDATION_REJECTED`.
-- Exactly one accepted `DocumentSignature` / SIGNED `DocumentVersion` per request.
+- Validate **outside** the publication transaction (crypto, parsing, prepared binding, trust).
+- Stage signed PDF + evidence JSON **before** the short DB transaction; delete staged objects on rollback.
+- Inside transaction: lock request, recheck expiry/state/source current version/source SHA/business snapshot, run test barrier (if any), **re-run bound authority** (`assertAcceptanceAuthority`), publish rows, commit.
+- Platform audit `signature.accepted` is recorded **after** successful commit (not inside the transaction client).
 
-## SIGNED `DocumentVersion` lineage
+## Evidence DB invariants (migration `20261007120000_document_signing_phase_b_hardening`)
 
-`GENERATED` (or other source) → validated signed PDF → new row with `source = SIGNED`, `derivedFromVersionId`, new storage key and checksum. Ordinary upload path continues to create `UPLOADED` only.
+- SIGNED versions cannot self-reference (`derivedFromVersionId <> id`).
+- `DocumentSignature.performingOperatorUserId` → `ON DELETE RESTRICT`.
+- Composite FK: `DocumentSignature (acceptanceValidationId, signingRequestId)` → `SignatureValidation (id, signingRequestId)`.
 
-## Evidence
+## What `VALID` means
 
-`SignatureValidation` stores bounded result codes; optional `SigningEvidence` JSON blob in protected storage on acceptance (no private keys or provider secrets).
+Detached CMS integrity over ByteRange-covered bytes; prepared-artifact binding; signer fingerprint matches request; cert valid at reference time; chain terminates at configured anchor; V1 single signature.
+
+## What `VALID` does **not** prove
+
+Qualified Moroccan eIDAS/Barid legal status, LTV, production OCSP/CRL/TSA, multi-party signing, or provider token UX.
+
+## Runtime dependencies (Phase B)
+
+| Package | Role |
+|---------|------|
+| `pdf-signature-reader` | ByteRange / CMS DER extraction only |
+| `pkijs` + `asn1js` | CMS parse, SignerInfo resolution |
+| `node-forge` | Detached CMS integrity verify, PEM/DER helpers |
+| `@peculiar/x509` | Trust path signature checks |
+| `@signpdf/placeholder-plain` | Prepared artifact at approval |
+
+Test-only: `@signpdf/signpdf`, `@signpdf/signer-p12` (synthetic fixtures).
 
 ## Phase C blockers (out of scope)
 

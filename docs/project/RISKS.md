@@ -74,7 +74,7 @@ See the [preflight threat model and provider gates](../design/issue-132-electron
 | 132-AUTHORITY | Customer `Client` or personal certificate treated as organization seal authority | Internal `SigningOrganization`, certificate kind validation, mandate + grant; no role-name bypass | Open |
 | 132-RETENTION | App DB/filesystem hashes mistaken for tamper-proof qualified preservation | Checksum-on-read, immutable signed publication, protected evidence + operational retention policy | Open |
 | 132-TIME | Local clock or missing revocation data treated as trusted signing time | RFC 3161 validation policy where required; INDETERMINATE blocks acceptance | Open |
-| R-052 | Phase B `VALID` cryptographic success is mistaken for qualified Moroccan legal assurance, or empty/misconfigured trust anchors silently accept signatures. | Regulatory/compliance overstatement or acceptance of untrusted certificates. | D-084 documents non-legal meaning of `VALID`; `@peculiar/x509` trust requires explicit `SIGNING_TRUST_ANCHOR_PEMS`; empty store → INDETERMINATE/fail-closed; integration tests use synthetic anchors only. Production Barid root onboarding remains Phase C+. | Active |
+| R-052 | Phase B `VALID` cryptographic success is mistaken for qualified Moroccan legal assurance, or empty/misconfigured trust anchors silently accept signatures. | Regulatory/compliance overstatement or acceptance of untrusted certificates. | D-084 documents non-legal meaning of `VALID`; trust path must terminate at explicit `SIGNING_TRUST_ANCHOR_PEMS`; CMS signer from `SignerInfo`; prepared-artifact binding; empty store → INDETERMINATE/fail-closed. Production Barid root onboarding remains Phase C+. | Active |
 
 ## Risk protocol
 

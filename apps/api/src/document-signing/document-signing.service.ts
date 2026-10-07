@@ -57,6 +57,8 @@ import {
   UserType,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
+import { PreparedSigningArtifactService } from './prepared-signing-artifact.service.js';
+import { runSigningAcceptanceBarrierIfConfigured } from './signing-acceptance-barrier.js';
 import { ProtectedStorageService } from '../storage/protected-storage.service.js';
 
 @Injectable()
@@ -71,6 +73,8 @@ export class DocumentSigningService {
     @Inject(PdfSignatureValidatorService)
     private readonly pdfValidator: PdfSignatureValidatorService,
     @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
+    @Inject(PreparedSigningArtifactService)
+    private readonly preparedArtifact: PreparedSigningArtifactService,
   ) {}
 
   private static readonly signingResultMaxBytes = 8_000_000;
@@ -410,37 +414,64 @@ export class DocumentSigningService {
       );
     }
 
-    await this.prisma.$transaction(async (transaction) => {
-      await lockSigningRequest(transaction, requestId);
-      const current = await transaction.signingRequest.findUnique({ where: { id: requestId } });
-      if (!current || current.state !== SigningRequestState.PREPARED) {
-        throw signingConflict('SIGNING_REQUEST_NOT_PREPARED', 'Signing request is not approvable.');
-      }
-      await transaction.documentSigningApproval.create({
-        data: {
-          signingRequestId: requestId,
-          approverUserId: actorUserId,
-          bindingHash: current.bindingHash,
-          confirmationSummary: body.confirmationSummary?.slice(0, 500),
-        },
-      });
-      await transaction.signingRequest.update({
-        where: { id: requestId },
-        data: { state: SigningRequestState.AWAITING_RESULT },
-      });
-      await appendSigningEventInTransaction(transaction, {
-        signingRequestId: requestId,
-        action: 'request.approved',
-        actorUserId,
-        metadataSummary: 'Signing request approved.',
-      });
-      await appendSigningEventInTransaction(transaction, {
-        signingRequestId: requestId,
-        action: 'request.awaiting_result',
-        actorUserId,
-        metadataSummary: 'Signing request awaiting provider result (Phase B).',
-      });
+    const sourceVersion = await this.prisma.documentVersion.findUniqueOrThrow({
+      where: { id: refreshed.sourceVersionId },
     });
+    const sourcePdf = await this.storage.get(sourceVersion.storageKey);
+    if (createHash('sha256').update(sourcePdf).digest('hex') !== refreshed.sourceSha256) {
+      throw signingConflict(
+        'SIGNING_SOURCE_STALE',
+        'Source bytes no longer match the signing request.',
+      );
+    }
+    const preparedPdf = this.preparedArtifact.buildPreparedArtifact(sourcePdf);
+    const preparedSigningArtifactSha256 = this.preparedArtifact.preparedArtifactSha256(preparedPdf);
+    const preparedSigningStorageKey = `signing-prepared/${requestId}.pdf`;
+    await this.storage.put(preparedSigningStorageKey, preparedPdf);
+
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        await lockSigningRequest(transaction, requestId);
+        const current = await transaction.signingRequest.findUnique({ where: { id: requestId } });
+        if (!current || current.state !== SigningRequestState.PREPARED) {
+          throw signingConflict(
+            'SIGNING_REQUEST_NOT_PREPARED',
+            'Signing request is not approvable.',
+          );
+        }
+        await transaction.documentSigningApproval.create({
+          data: {
+            signingRequestId: requestId,
+            approverUserId: actorUserId,
+            bindingHash: current.bindingHash,
+            confirmationSummary: body.confirmationSummary?.slice(0, 500),
+          },
+        });
+        await transaction.signingRequest.update({
+          where: { id: requestId },
+          data: {
+            state: SigningRequestState.AWAITING_RESULT,
+            preparedSigningArtifactSha256,
+            preparedSigningStorageKey,
+          },
+        });
+        await appendSigningEventInTransaction(transaction, {
+          signingRequestId: requestId,
+          action: 'request.approved',
+          actorUserId,
+          metadataSummary: 'Signing request approved.',
+        });
+        await appendSigningEventInTransaction(transaction, {
+          signingRequestId: requestId,
+          action: 'request.awaiting_result',
+          actorUserId,
+          metadataSummary: 'Signing request awaiting provider result (Phase B).',
+        });
+      });
+    } catch (error) {
+      await this.storage.delete(preparedSigningStorageKey).catch(() => undefined);
+      throw error;
+    }
 
     await this.signingAudit.recordPlatformAudit('request.approved', context, {
       actorUserId,
@@ -885,20 +916,26 @@ export class DocumentSigningService {
       );
     }
 
-    const sourceVersion = await this.prisma.documentVersion.findUniqueOrThrow({
-      where: { id: refreshed.sourceVersionId },
-    });
-    const sourcePdf = await this.storage.get(sourceVersion.storageKey);
-    if (createHash('sha256').update(sourcePdf).digest('hex') !== refreshed.sourceSha256) {
+    if (!refreshed.preparedSigningStorageKey || !refreshed.preparedSigningArtifactSha256) {
       throw signingConflict(
-        'SIGNING_SOURCE_STALE',
-        'Source bytes no longer match the signing request.',
+        'SIGNING_PREPARED_ARTIFACT_MISSING',
+        'Signing request has no prepared artifact binding.',
+      );
+    }
+    const preparedPdf = await this.storage.get(refreshed.preparedSigningStorageKey);
+    if (
+      createHash('sha256').update(preparedPdf).digest('hex') !==
+      refreshed.preparedSigningArtifactSha256
+    ) {
+      throw signingConflict(
+        'SIGNING_PREPARED_ARTIFACT_STALE',
+        'Prepared signing artifact no longer matches the request binding.',
       );
     }
 
     const { anchors, version: trustStoreVersion } = this.resolveTrustAnchorPems();
     const validation = await this.pdfValidator.validateSignedPdf({
-      sourcePdf,
+      preparedArtifactPdf: preparedPdf,
       signedPdf: pdfBuffer,
       expectedCredentialFingerprintSha256: refreshed.credentialFingerprintSha256,
       trustAnchorPems: anchors,
@@ -1015,6 +1052,71 @@ export class DocumentSigningService {
     });
   }
 
+  private async assertAcceptanceAuthority(
+    current: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    actorUserId: string,
+    transaction: Prisma.TransactionClient,
+  ): Promise<void> {
+    const approval = await transaction.documentSigningApproval.findUnique({
+      where: { signingRequestId: current.id },
+    });
+    if (!approval || approval.bindingHash !== current.bindingHash) {
+      throw signingConflict(
+        'SIGNING_APPROVAL_BINDING_INVALID',
+        'Signing approval no longer matches the request binding.',
+      );
+    }
+
+    const boundUserId =
+      current.kind === SigningKind.PERSON_SIGNATURE
+        ? current.intendedSignerUserId
+        : current.requestedByUserId;
+    if (boundUserId !== actorUserId) {
+      throw signingForbidden(
+        'SIGNING_RESULT_ACTOR_REQUIRED',
+        'Signed results must be submitted by the bound signing authority.',
+      );
+    }
+
+    const credential = await transaction.signingCredential.findUnique({
+      where: { id: current.signingCredentialId },
+      select: {
+        status: true,
+        validFrom: true,
+        validTo: true,
+        ownerType: true,
+        ownerUserId: true,
+        signingOrganizationId: true,
+        certificateFingerprintSha256: true,
+      },
+    });
+    const now = new Date();
+    if (
+      !credential ||
+      credential.status !== SigningCredentialStatus.ENABLED ||
+      credential.validFrom > now ||
+      credential.validTo <= now ||
+      credential.certificateFingerprintSha256 !== current.credentialFingerprintSha256
+    ) {
+      throw signingConflict(
+        'SIGNING_CREDENTIAL_UNAVAILABLE',
+        'Signing credential is no longer valid.',
+      );
+    }
+
+    const authorityFailure = await this.evaluateBoundSigningAuthority(
+      current,
+      credential,
+      transaction,
+    );
+    if (authorityFailure) {
+      throw signingConflict(
+        authorityFailure.terminalReason,
+        'Bound signing authority is no longer valid for acceptance.',
+      );
+    }
+  }
+
   private async acceptValidatedResult(
     request: Prisma.SigningRequestGetPayload<Record<string, never>>,
     signedPdf: Buffer,
@@ -1022,10 +1124,22 @@ export class DocumentSigningService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<Prisma.SigningRequestGetPayload<Record<string, never>>> {
+    const sourceVersionRow = await this.prisma.documentVersion.findUniqueOrThrow({
+      where: { id: request.sourceVersionId },
+      select: { storageKey: true, filename: true, originalFilename: true },
+    });
+    const preReadSourcePdf = await this.storage.get(sourceVersionRow.storageKey);
+    const preReadSourceSha256 = createHash('sha256').update(preReadSourcePdf).digest('hex');
+
     const storageKey = `documents/${request.documentId}/${randomUUID()}-signed.pdf`;
+    const evidenceKey = `signing-evidence/${randomUUID()}.json`;
+    const evidencePayload = Buffer.from(validation.boundedEvidenceJson, 'utf8');
+    const stagedKeys = [storageKey, evidenceKey];
     await this.storage.put(storageKey, signedPdf);
+    await this.storage.put(evidenceKey, evidencePayload);
+
     try {
-      return await this.prisma.$transaction(async (transaction) => {
+      const completed = await this.prisma.$transaction(async (transaction) => {
         await lockSigningRequest(transaction, request.id);
         const current = await transaction.signingRequest.findUniqueOrThrow({
           where: { id: request.id },
@@ -1054,13 +1168,10 @@ export class DocumentSigningService {
           throw signingConflict('SIGNING_SOURCE_STALE', 'Source version is no longer current.');
         }
 
-        const sourceVersion = await transaction.documentVersion.findUniqueOrThrow({
-          where: { id: current.sourceVersionId },
-        });
-        const liveSource = await this.storage.get(sourceVersion.storageKey);
-        if (createHash('sha256').update(liveSource).digest('hex') !== current.sourceSha256) {
+        if (preReadSourceSha256 !== current.sourceSha256) {
           throw signingConflict('SIGNING_SOURCE_STALE', 'Source bytes changed.');
         }
+
         if (current.sourceSnapshotSha256) {
           const liveFingerprint = await this.sourceSnapshot.computeCurrentFingerprint(
             current.documentId,
@@ -1074,6 +1185,15 @@ export class DocumentSigningService {
           }
         }
 
+        await runSigningAcceptanceBarrierIfConfigured();
+        await this.assertAcceptanceAuthority(current, actorUserId, transaction);
+        if (process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK === current.id) {
+          throw signingConflict(
+            'SIGNING_TEST_PUBLICATION_ROLLBACK',
+            'Test-only publication rollback.',
+          );
+        }
+
         const lastVersion = await transaction.documentVersion.findFirst({
           where: { documentId: current.documentId },
           orderBy: { versionNumber: 'desc' },
@@ -1083,8 +1203,8 @@ export class DocumentSigningService {
           data: {
             documentId: current.documentId,
             versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
-            filename: sourceVersion.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
-            originalFilename: sourceVersion.originalFilename,
+            filename: sourceVersionRow.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
+            originalFilename: sourceVersionRow.originalFilename,
             storageKey,
             mimeType: 'application/pdf',
             sizeBytes: BigInt(signedPdf.length),
@@ -1100,7 +1220,7 @@ export class DocumentSigningService {
         const signatureValidation = await transaction.signatureValidation.create({
           data: {
             signingRequestId: current.id,
-            inputSourceSha256: validation.inputSourceSha256,
+            inputSourceSha256: validation.inputPreparedArtifactSha256,
             inputResultSha256: validation.inputResultSha256,
             overallResult: SignatureValidationOverallResult.VALID,
             cmsCryptoResult: validation.cmsCryptoResult,
@@ -1116,9 +1236,6 @@ export class DocumentSigningService {
           },
         });
 
-        const evidencePayload = Buffer.from(validation.boundedEvidenceJson, 'utf8');
-        const evidenceKey = `signing-evidence/${signatureValidation.id}.json`;
-        await this.storage.put(evidenceKey, evidencePayload);
         await transaction.signingEvidence.create({
           data: {
             signatureValidationId: signatureValidation.id,
@@ -1145,7 +1262,7 @@ export class DocumentSigningService {
           },
         });
 
-        const completed = await transaction.signingRequest.update({
+        const completedRequest = await transaction.signingRequest.update({
           where: { id: current.id },
           data: {
             state: SigningRequestState.COMPLETED,
@@ -1173,16 +1290,19 @@ export class DocumentSigningService {
           metadataSummary: `Signed version ${signedVersion.versionNumber} published.`,
         });
 
-        await this.signingAudit.recordPlatformAudit('signature.accepted', context, {
-          actorUserId,
-          signingRequestId: current.id,
-          metadataSummary: 'Signed PDF validated and published.',
-        });
-
-        return completed;
+        return completedRequest;
       });
+
+      await this.signingAudit.recordPlatformAudit('signature.accepted', context, {
+        actorUserId,
+        signingRequestId: request.id,
+        metadataSummary: 'Signed PDF validated and published.',
+      });
+      return completed;
     } catch (error) {
-      await this.storage.delete(storageKey).catch(() => undefined);
+      for (const key of stagedKeys) {
+        await this.storage.delete(key).catch(() => undefined);
+      }
       throw error;
     }
   }

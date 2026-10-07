@@ -18,14 +18,21 @@ import {
   QuotationStatus,
   RoleName,
   SigningRequestState,
+  SigningCredentialStatus,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
+import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
 
 import {
   TEST_BOOTSTRAP_ADMIN_EMAIL,
   TEST_BOOTSTRAP_ADMIN_PASSWORD,
 } from './support/catalog-snapshot.js';
-import { createSyntheticSigningP12, signPdfWithP12 } from './support/signing-synthetic-pdf.js';
+import {
+  createSyntheticIntermediateChainP12,
+  createSyntheticSigningP12,
+  signPreparedPdfWithP12,
+} from './support/signing-synthetic-pdf.js';
+import { setSigningAcceptanceBarrierForTests } from '../src/document-signing/signing-acceptance-barrier.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -198,9 +205,12 @@ describe(
       return { requestId, documentId, versionId, bundle: signingMaterial };
     }
 
-    async function sourcePdfForVersion(versionId: string): Promise<Buffer> {
-      const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } });
-      return storage.get(version.storageKey);
+    async function preparedPdfForRequest(requestId: string): Promise<Buffer> {
+      const row = await prisma.signingRequest.findUniqueOrThrow({ where: { id: requestId } });
+      if (!row.preparedSigningStorageKey) {
+        throw new Error('Prepared signing artifact missing on request.');
+      }
+      return storage.get(row.preparedSigningStorageKey);
     }
 
     async function submitSignedResult(
@@ -255,11 +265,16 @@ describe(
 
     it('accepts a valid synthetic person signature and publishes one SIGNED version', async () => {
       const { requestId, documentId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
 
       const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
       expect(submitted.status).toBe(200);
+      const validationRow = await prisma.signatureValidation.findFirst({
+        where: { signingRequestId: requestId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(validationRow?.reasonCode).toBe(null);
       expect((submitted.body as { request: { state: string } }).request.state).toBe('COMPLETED');
 
       const requestRow = await prisma.signingRequest.findUniqueOrThrow({
@@ -327,8 +342,8 @@ describe(
         method: 'POST',
         body: { confirmationSummary: 'Seal approval.' },
       });
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
       expect(submitted.status).toBe(200);
       expect((submitted.body as { request: { state: string } }).request.state).toBe('COMPLETED');
@@ -341,9 +356,9 @@ describe(
         wrongFingerprint,
       );
       const { requestId, versionId } = await createApprovedPersonRequest(signingMaterial);
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(
-        sourcePdf,
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(
+        preparedPdf,
         signingMaterial.p12,
         signingMaterial.passphrase,
       );
@@ -363,9 +378,9 @@ describe(
     });
 
     it('rejects CMS tampering and PDF content tampering', async () => {
-      const { requestId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const tamperedCms = Buffer.from(signedPdf);
       const tamperIndex = tamperedCms.length - 40;
       if (tamperIndex >= 0) {
@@ -378,10 +393,10 @@ describe(
       );
 
       const { requestId: requestId2, bundle: bundle2 } = await createApprovedPersonRequest();
-      const otherDoc = await generateQuotationDocument();
-      const foreignSource = await sourcePdfForVersion(otherDoc.versionId);
-      const wrongSourceSigned = await signPdfWithP12(
-        foreignSource,
+      const other = await createApprovedPersonRequest();
+      const foreignPrepared = await preparedPdfForRequest(other.requestId);
+      const wrongSourceSigned = await signPreparedPdfWithP12(
+        foreignPrepared,
         bundle2.p12,
         bundle2.passphrase,
       );
@@ -397,9 +412,9 @@ describe(
     });
 
     it('rejects unsigned trailing bytes after the signed ByteRange', async () => {
-      const { requestId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const trailing = Buffer.concat([signedPdf, Buffer.from('TRAILER')]);
       const submitted = await submitSignedResult(operatorToken, requestId, trailing);
       expect(submitted.status).toBe(200);
@@ -451,8 +466,12 @@ describe(
         method: 'POST',
         body: { confirmationSummary: 'Approve stale test.' },
       });
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, staleBundle.p12, staleBundle.passphrase);
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(
+        preparedPdf,
+        staleBundle.p12,
+        staleBundle.passphrase,
+      );
       await generationService.generateQuotation(
         quotation.id,
         { outputFamily: 'PDF', language: 'en', idempotencyKey: `stale-regen-${randomUUID()}` },
@@ -467,9 +486,9 @@ describe(
     });
 
     it('supports identical result idempotency and rejects a different second result', async () => {
-      const { requestId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const first = await submitSignedResult(operatorToken, requestId, signedPdf, 'idem-143-a');
       expect(first.status).toBe(200);
       const second = await submitSignedResult(operatorToken, requestId, signedPdf, 'idem-143-b');
@@ -479,33 +498,37 @@ describe(
         1,
       );
 
-      const {
-        requestId: requestId2,
-        versionId: versionId2,
-        bundle: bundle2,
-      } = await createApprovedPersonRequest();
-      const sourcePdf2 = await sourcePdfForVersion(versionId2);
-      const signedPdf2 = await signPdfWithP12(sourcePdf2, bundle2.p12, bundle2.passphrase);
+      const { requestId: requestId2, bundle: bundle2 } = await createApprovedPersonRequest();
+      const preparedPdf2 = await preparedPdfForRequest(requestId2);
+      const signedPdf2 = await signPreparedPdfWithP12(
+        preparedPdf2,
+        bundle2.p12,
+        bundle2.passphrase,
+      );
       await submitSignedResult(operatorToken, requestId2, signedPdf2);
-      const otherDoc = await generateQuotationDocument();
-      const otherSource = await sourcePdfForVersion(otherDoc.versionId);
-      const differentSigned = await signPdfWithP12(otherSource, bundle2.p12, bundle2.passphrase);
+      const other = await createApprovedPersonRequest();
+      const otherPrepared = await preparedPdfForRequest(other.requestId);
+      const differentSigned = await signPreparedPdfWithP12(
+        otherPrepared,
+        bundle2.p12,
+        bundle2.passphrase,
+      );
       const conflict = await submitSignedResult(operatorToken, requestId2, differentSigned);
       expect(conflict.status).toBe(409);
     });
 
     it('denies cross-scope result submission (IDOR)', async () => {
-      const { requestId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const denied = await submitSignedResult(outsiderToken, requestId, signedPdf);
       expect([403, 404]).toContain(denied.status);
     });
 
     it('rejects corrupted signed storage on download', async () => {
-      const { requestId, documentId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const { requestId, documentId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       await submitSignedResult(operatorToken, requestId, signedPdf);
       const requestRow = await prisma.signingRequest.findUniqueOrThrow({
         where: { id: requestId },
@@ -533,10 +556,151 @@ describe(
       }
     });
 
-    it('concurrent duplicate acceptance publishes exactly one signature', async () => {
+    it('accepts leaf signed by intermediate when configured root anchor matches', async () => {
+      const chain = createSyntheticIntermediateChainP12();
+      process.env.SIGNING_TRUST_ANCHOR_PEMS = chain.rootTrustAnchorPem;
+      const bundle = await freshSyntheticCredential(
+        { ownerType: 'USER', ownerUserId: operatorUserId },
+        chain.leafFingerprintSha256,
+      );
+      const { requestId } = await createApprovedPersonRequest({
+        ...bundle,
+        p12: chain.p12,
+        passphrase: chain.passphrase,
+        certificateFingerprintSha256: chain.leafFingerprintSha256,
+        trustAnchorPem: chain.rootTrustAnchorPem,
+      });
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, chain.p12, chain.passphrase);
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      expect(submitted.status).toBe(200);
+      expect((submitted.body as { request: { state: string } }).request.state).toBe('COMPLETED');
+    });
+
+    it('rejects unrelated self-signed signer against unrelated configured root', async () => {
+      const chain = createSyntheticIntermediateChainP12();
+      const unrelated = createSyntheticSigningP12('Unrelated Self Signed');
+      process.env.SIGNING_TRUST_ANCHOR_PEMS = chain.rootTrustAnchorPem;
+      const bundle = await freshSyntheticCredential(
+        { ownerType: 'USER', ownerUserId: operatorUserId },
+        unrelated.certificateFingerprintSha256,
+      );
+      const { requestId } = await createApprovedPersonRequest(bundle);
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(
+        preparedPdf,
+        unrelated.p12,
+        unrelated.passphrase,
+      );
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      expect(submitted.status).toBe(200);
+      expect((submitted.body as { request: { state: string } }).request.state).toBe(
+        'VALIDATION_REJECTED',
+      );
+    });
+
+    it('rejects prepared-artifact byte mutation outside signature contents', async () => {
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const mutatedPrepared = Buffer.from(preparedPdf);
+      mutatedPrepared[400] = (mutatedPrepared[400] ?? 0) ^ 0x01;
+      const signedPdf = await signPreparedPdfWithP12(
+        mutatedPrepared,
+        bundle.p12,
+        bundle.passphrase,
+      );
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      expect(submitted.status).toBe(200);
+      expect((submitted.body as { request: { state: string } }).request.state).toBe(
+        'VALIDATION_REJECTED',
+      );
+    });
+
+    it('rolls back staged publication without signature.accepted audit on forced failure', async () => {
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
+      process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK = requestId;
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      delete process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK;
+      expect(submitted.status).toBe(409);
+      expect(await prisma.documentSignature.count({ where: { signingRequestId: requestId } })).toBe(
+        0,
+      );
+      const auditCount = await prisma.auditLog.count({
+        where: { entityId: requestId, action: 'signing.signature.accepted' },
+      });
+      expect(auditCount).toBe(0);
+    });
+
+    it('rejects signing a PDF prepared from an incrementally revised source (not the bound artifact)', async () => {
       const { requestId, versionId, bundle } = await createApprovedPersonRequest();
-      const sourcePdf = await sourcePdfForVersion(versionId);
-      const signedPdf = await signPdfWithP12(sourcePdf, bundle.p12, bundle.passphrase);
+      const sourceVersion = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: versionId },
+      });
+      const sourcePdf = await storage.get(sourceVersion.storageKey);
+      const eofMarker = '%%EOF';
+      const eofIndex = sourcePdf.lastIndexOf(eofMarker);
+      expect(eofIndex).toBeGreaterThan(0);
+      const revisedSource = Buffer.concat([
+        sourcePdf.subarray(0, eofIndex),
+        Buffer.from('\n% visible-content revision object\n'),
+        sourcePdf.subarray(eofIndex),
+      ]);
+      const wrongPrepared = plainAddPlaceholder({
+        pdfBuffer: revisedSource,
+        reason: 'Hire Me signing placeholder',
+        contactInfo: 'signing@hireme.local',
+        name: 'Hire Me',
+        location: 'Prepared artifact',
+      });
+      const signedPdf = await signPreparedPdfWithP12(wrongPrepared, bundle.p12, bundle.passphrase);
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      expect(submitted.status).toBe(200);
+      expect((submitted.body as { request: { state: string } }).request.state).toBe(
+        'VALIDATION_REJECTED',
+      );
+    });
+
+    it('rejects when trust anchor store is empty at validation time', async () => {
+      const saved = process.env.SIGNING_TRUST_ANCHOR_PEMS;
+      try {
+        const { requestId, bundle } = await createApprovedPersonRequest();
+        process.env.SIGNING_TRUST_ANCHOR_PEMS = '';
+        const preparedPdf = await preparedPdfForRequest(requestId);
+        const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
+        const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+        expect(submitted.status).toBe(200);
+        expect((submitted.body as { request: { state: string } }).request.state).toBe(
+          'VALIDATION_REJECTED',
+        );
+      } finally {
+        process.env.SIGNING_TRUST_ANCHOR_PEMS = saved;
+      }
+    });
+
+    it('blocks publication when credential is disabled after validation (acceptance fence)', async () => {
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
+      setSigningAcceptanceBarrierForTests(async () => {
+        await prisma.signingCredential.update({
+          where: { id: bundle.credentialId },
+          data: { status: SigningCredentialStatus.DISABLED },
+        });
+      });
+      const submitted = await submitSignedResult(operatorToken, requestId, signedPdf);
+      setSigningAcceptanceBarrierForTests(null);
+      expect(submitted.status).toBe(409);
+      expect(await prisma.documentSignature.count({ where: { signingRequestId: requestId } })).toBe(
+        0,
+      );
+    });
+
+    it('concurrent duplicate acceptance publishes exactly one signature', async () => {
+      const { requestId, bundle } = await createApprovedPersonRequest();
+      const preparedPdf = await preparedPdfForRequest(requestId);
+      const signedPdf = await signPreparedPdfWithP12(preparedPdf, bundle.p12, bundle.passphrase);
       const results = await Promise.all([
         submitSignedResult(operatorToken, requestId, signedPdf, `conc-${randomUUID()}`),
         submitSignedResult(operatorToken, requestId, signedPdf, `conc-${randomUUID()}`),
