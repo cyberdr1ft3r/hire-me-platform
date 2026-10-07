@@ -1,19 +1,19 @@
 # Project Status
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 Status owner: repository maintainer
 
 ## Issue #132 / #141 signing
 
 - **#132 preflight (PR #134):** merged to **`main` @ `29101c2`**. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
-- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Maintainer review corrections on head `89405ce`; CI run `37505067063` green. See [Phase A preflight](../design/issue-141-phase-a-preflight.md) and **D-083** (proposed, pending acceptance).
+- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Architecture **maintainer-accepted** (ChatGPT review on PR #142); final lifecycle regression coverage complete; **D-083 Accepted**; awaiting maintainer merge only (not merged). See [Phase A preflight](../design/issue-141-phase-a-preflight.md). Fresh exact-head CI: see PR #142 for current head/run.
 
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `29101c2` includes merged #132 preflight docs (PR #134), Issue #118 Missions IA (PR #139), #116/#117 UI-DNA, Issue #124 Agenda/meetings, Issue #131 Accounting V1, Documents #119, doc-gen audit fix #140, and earlier milestones. Issue **#141** Phase A signing foundation is in review on a dedicated branch. Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue #109 and #110 non-blocking. D-070 migration not run in production. No production deployment.
-**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue #132 provider-specific signing remains blocked pending Barid/integration confirmation. R-039 is unchanged.
-**Next executable development task:** Review Issue #132 preflight (PR #134); D-068 production env/proxy verification remains separate.
+**Health:** `main` at `29101c2` includes merged #132 preflight docs (**PR #134**), Issue #118 Missions IA (PR #139), #116/#117 UI-DNA, Issue #124 Agenda/meetings, Issue #131 Accounting V1, Documents #119, doc-gen audit fix #140, and earlier milestones. Issue **#141** Phase A is implementation-complete on draft **PR #142** (maintainer-accepted architecture; merge pending). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue **#109** and **#110** non-blocking and unrelated to signing. **D-068** / **D-070** remain separate operational follow-ups. D-070 migration not run in production. No production deployment.
+**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue **#132** remains **open**; provider-specific signing (Barid/integration) remains blocked. R-039 is unchanged.
+**Next executable development task:** ChatGPT maintainer **merge of PR #142** (Phase A); **Phase B** (validation + SIGNED publication) is separately scoped after merge. D-068 production env/proxy verification remains separate.
 
 ## Active work
 

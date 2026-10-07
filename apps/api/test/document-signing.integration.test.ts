@@ -146,9 +146,59 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
   let operatorToken: string;
   let operatorUserId: string;
   let financeToken: string;
+  let signerToken: string;
+  let signerUserId: string;
   let outsiderToken: string;
   let clientId: string;
   let guestRoleSnapshot: RolePermissionSnapshot | undefined;
+
+  async function createSignerPersonRequest(): Promise<{
+    requestId: string;
+    documentId: string;
+    versionId: string;
+    credentialId: string;
+  }> {
+    const { documentId, versionId } = await generateQuotationDocument();
+    const credentialResponse = await api(operatorToken, '/v1/signing/credentials', {
+      method: 'POST',
+      body: {
+        ownerType: 'USER',
+        ownerUserId: signerUserId,
+        providerLabel: 'TEST',
+        certificateSerial: `SN-${randomUUID().slice(0, 6)}`,
+        certificateFingerprintSha256: fingerprint(`cred-${randomUUID()}`),
+        certificateSubjectSummary: 'CN=Bound Signer',
+        validFrom: new Date().toISOString(),
+        validTo: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    });
+    expect(credentialResponse.status).toBe(201);
+    const credentialId = (credentialResponse.body as { credentialId: string }).credentialId;
+    const created = await api(
+      signerToken,
+      `/v1/documents/${documentId}/versions/${versionId}/signing-requests`,
+      {
+        method: 'POST',
+        body: {
+          kind: 'PERSON_SIGNATURE',
+          signingCredentialId: credentialId,
+          idempotencyKey: `bound-${randomUUID()}`,
+          intendedSignerUserId: signerUserId,
+        },
+      },
+    );
+    expect(created.status).toBe(201);
+    return {
+      requestId: (created.body as { request: { id: string } }).request.id,
+      documentId,
+      versionId,
+      credentialId,
+    };
+  }
+
+  async function countEvents(requestId: string, action: string): Promise<number> {
+    return prisma.signingEvent.count({ where: { signingRequestId: requestId, action } });
+  }
 
   async function login(email: string, password = testPassword): Promise<string> {
     const response = await fetch(`${baseUrl}/auth/login`, {
@@ -212,6 +262,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
     });
     operatorUserId = bootstrapAdmin.id;
     await createUser('finance@signing141.test', RoleName.FINANCE_MANAGER);
+    signerUserId = await createUser('signer141@signing141.test', RoleName.FINANCE_MANAGER);
     guestRoleSnapshot = await snapshotRolePermissions(RoleName.GUEST);
     await ensureRoleWithOnlyPermissions(RoleName.GUEST, [
       'documents:view',
@@ -234,6 +285,7 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
 
     operatorToken = await login(TEST_BOOTSTRAP_ADMIN_EMAIL, TEST_BOOTSTRAP_ADMIN_PASSWORD);
     financeToken = await login('finance@signing141.test');
+    signerToken = await login('signer141@signing141.test');
     outsiderToken = await login('outsider@signing141.test');
   }, 180_000);
 
@@ -721,6 +773,170 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
     ).toBe(1);
   });
 
+  it('fails person-signature requests when the bound signer loses sign permission', async () => {
+    const financeSnapshot = await snapshotRolePermissions(RoleName.FINANCE_MANAGER);
+    try {
+      const { requestId } = await createSignerPersonRequest();
+      expect(
+        (
+          (await api(signerToken, `/v1/signing/requests/${requestId}`)).body as {
+            request: { state: string };
+          }
+        ).request.state,
+      ).toBe('PREPARED');
+
+      await ensureRoleWithOnlyPermissions(RoleName.FINANCE_MANAGER, [
+        'records:view',
+        'clients:view',
+        'commercial_data:access',
+        'quotations:view',
+        'documents:view',
+      ]);
+
+      const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+      expect(
+        (reconciled.body as { request: { state: string; terminalReason: string } }).request.state,
+      ).toBe('FAILED');
+      expect(
+        (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
+      ).toBe('SIGN_PERMISSION_LOST');
+      expect(await countEvents(requestId, 'request.failed')).toBe(1);
+
+      await api(operatorToken, `/v1/signing/requests/${requestId}`);
+      expect(await countEvents(requestId, 'request.failed')).toBe(1);
+    } finally {
+      await restoreRolePermissions(RoleName.FINANCE_MANAGER, financeSnapshot);
+    }
+  });
+
+  it('fails person-signature requests when the bound signer loses document access', async () => {
+    const financeSnapshot = await snapshotRolePermissions(RoleName.FINANCE_MANAGER);
+    try {
+      const { requestId } = await createSignerPersonRequest();
+      await ensureRoleWithOnlyPermissions(RoleName.FINANCE_MANAGER, [
+        'records:view',
+        'financial_documents:sign',
+        'financial_documents:seal',
+      ]);
+
+      const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+      expect(
+        (reconciled.body as { request: { state: string; terminalReason: string } }).request.state,
+      ).toBe('FAILED');
+      expect(
+        (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
+      ).toBe('BOUND_ACTOR_DOCUMENT_ACCESS_LOST');
+      expect(await countEvents(requestId, 'request.failed')).toBe(1);
+      await api(operatorToken, `/v1/signing/requests/${requestId}`);
+      expect(await countEvents(requestId, 'request.failed')).toBe(1);
+    } finally {
+      await restoreRolePermissions(RoleName.FINANCE_MANAGER, financeSnapshot);
+    }
+  });
+
+  it('expires prepared requests with a single request.expired event', async () => {
+    const { requestId } = await createSignerPersonRequest();
+    await prisma.signingRequest.update({
+      where: { id: requestId },
+      data: { expiresAt: new Date(Date.now() - 60_000) },
+    });
+    const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(
+      (reconciled.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('EXPIRED');
+    expect(
+      (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
+    ).toBe('REQUEST_EXPIRED');
+    expect(await countEvents(requestId, 'request.expired')).toBe(1);
+    await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(await countEvents(requestId, 'request.expired')).toBe(1);
+  });
+
+  it('fails prepared requests when the bound credential is disabled', async () => {
+    const { requestId, credentialId } = await createSignerPersonRequest();
+    await prisma.signingCredential.update({
+      where: { id: credentialId },
+      data: { status: SigningCredentialStatus.DISABLED },
+    });
+    const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(
+      (reconciled.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('FAILED');
+    expect(
+      (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
+    ).toBe('CREDENTIAL_UNAVAILABLE');
+    expect(await countEvents(requestId, 'request.failed')).toBe(1);
+    await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(await countEvents(requestId, 'request.failed')).toBe(1);
+  });
+
+  it('fails prepared requests when the bound credential is outside its validity window', async () => {
+    const { requestId, credentialId } = await createSignerPersonRequest();
+    await prisma.signingCredential.update({
+      where: { id: credentialId },
+      data: {
+        validFrom: new Date(Date.now() - 120_000),
+        validTo: new Date(Date.now() - 60_000),
+      },
+    });
+    const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect((reconciled.body as { request: { state: string; terminalReason: string } }).request.state).toBe(
+      'FAILED',
+    );
+    expect(
+      (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
+    ).toBe('CREDENTIAL_UNAVAILABLE');
+    expect(await countEvents(requestId, 'request.failed')).toBe(1);
+  });
+
+  it('cancels an active request once with a coherent cancelled event', async () => {
+    const { requestId } = await createSignerPersonRequest();
+    const cancelled = await api(signerToken, `/v1/signing/requests/${requestId}/cancel`, {
+      method: 'POST',
+    });
+    expect(cancelled.status).toBe(200);
+    expect(
+      (cancelled.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('CANCELLED');
+    expect((cancelled.body as { request: { terminalReason: string } }).request.terminalReason).toBe(
+      'CANCELLED_BY_ACTOR',
+    );
+    expect(await countEvents(requestId, 'request.cancelled')).toBe(1);
+
+    const secondCancel = await api(signerToken, `/v1/signing/requests/${requestId}/cancel`, {
+      method: 'POST',
+    });
+    expect(secondCancel.status).toBe(409);
+    expect(await countEvents(requestId, 'request.cancelled')).toBe(1);
+  });
+
+  it('serializes concurrent duplicate cancel attempts into one terminal outcome', async () => {
+    const { requestId } = await createSignerPersonRequest();
+    const [firstCancel, secondCancel] = await Promise.all([
+      api(signerToken, `/v1/signing/requests/${requestId}/cancel`, { method: 'POST' }),
+      api(signerToken, `/v1/signing/requests/${requestId}/cancel`, { method: 'POST' }),
+    ]);
+
+    const statuses = [firstCancel.status, secondCancel.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 409]);
+
+    const final = await prisma.signingRequest.findUniqueOrThrow({ where: { id: requestId } });
+    expect(final.state).toBe(SigningRequestState.CANCELLED);
+    expect(final.terminalReason).toBe('CANCELLED_BY_ACTOR');
+    expect(await countEvents(requestId, 'request.cancelled')).toBe(1);
+    expect(
+      await prisma.documentSigningApproval.count({ where: { signingRequestId: requestId } }),
+    ).toBe(0);
+
+    const events = await prisma.signingEvent.findMany({
+      where: { signingRequestId: requestId },
+      orderBy: { sequence: 'asc' },
+    });
+    const sequences = events.map((event) => event.sequence);
+    expect(new Set(sequences).size).toBe(sequences.length);
+    expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
+  });
+
   it('fails active seal requests when grant is revoked', async () => {
     const { documentId, versionId } = await generateQuotationDocument();
     const orgResponse = await api(operatorToken, '/v1/signing/organizations', {
@@ -771,7 +987,15 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
       data: { revokedAt: new Date() },
     });
     const refreshed = await api(operatorToken, `/v1/signing/requests/${requestId}`);
-    expect((refreshed.body as { request: { state: string } }).request.state).toBe('FAILED');
+    expect(
+      (refreshed.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('FAILED');
+    expect((refreshed.body as { request: { terminalReason: string } }).request.terminalReason).toBe(
+      'SEAL_GRANT_REVOKED',
+    );
+    expect(await countEvents(requestId, 'request.failed')).toBe(1);
+    await api(operatorToken, `/v1/signing/requests/${requestId}`);
+    expect(await countEvents(requestId, 'request.failed')).toBe(1);
   });
 
   it('prevents concurrent active requests for the same source version', async () => {
