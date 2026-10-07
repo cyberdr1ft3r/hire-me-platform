@@ -7,14 +7,14 @@ Status owner: repository maintainer
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
-- **#143 Phase B (draft PR #144):** provider-neutral validation + **SIGNED** publication — **implementation and full maintainer regression matrix complete** on branch `cursor/issue-143-validation-publication-909e`; **D-084 Proposed** (pending maintainer acceptance). Trust path, CMS SignerInfo binding, prepared-artifact binding, acceptance-time authority fence, staged storage compensation, audit IDOR, and DB evidence invariants covered in tests. See [Phase B architecture](../design/issue-143-phase-b-architecture.md).
+- **#143 Phase B (draft PR #144):** provider-neutral validation + **SIGNED** publication — **final security corrections complete** (PKI.js path validation, SERIALIZABLE acceptance fence, transaction-scoped permissions) on branch `cursor/issue-143-validation-publication-909e`; **D-084 Proposed** pending ChatGPT final acceptance. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `29101c2` includes merged #132 preflight docs (**PR #134**), Issue #118 Missions IA (PR #139), #116/#117 UI-DNA, Issue #124 Agenda/meetings, Issue #131 Accounting V1, Documents #119, doc-gen audit fix #140, and earlier milestones. Issue **#141** Phase A is implementation-complete on draft **PR #142** (maintainer-accepted architecture; merge pending). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue **#109** and **#110** non-blocking and unrelated to signing. **D-068** / **D-070** remain separate operational follow-ups. D-070 migration not run in production. No production deployment.
-**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue **#132** remains **open**; provider-specific signing (Barid/integration) remains blocked. R-039 is unchanged.
-**Next executable development task:** ChatGPT maintainer **merge of PR #142** (Phase A); **Phase B** (validation + SIGNED publication) is separately scoped after merge. D-068 production env/proxy verification remains separate.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A merged**, **Phase B** in final review on draft PR #144.
+**Health:** `main` at `2859efb3366b55da170e90bb95b8b7f4815ba09f` includes merged **#141 Phase A** (**PR #142**, **D-083 Accepted**), prior milestones (#132 preflight, Missions, UI-DNA, Accounting, Documents, etc.), and D-071 catalog gate. Issue **#109** / **#110** non-blocking. **D-068** / **D-070** operational follow-ups unchanged; no production deployment.
+**Current blocker:** **#143 / PR #144** awaits ChatGPT final Phase B review/merge decision; **#132** remains **open** (provider/Barid/UX blocked to Phase C+). D-070 migration not run in production.
+**Next executable development task:** ChatGPT maintainer **final review / merge of PR #144** (Phase B). Phase C remains separate and blocked on Phase B merge policy.
 
 ## Active work
 
