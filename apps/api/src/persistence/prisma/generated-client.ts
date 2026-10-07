@@ -60,6 +60,7 @@ export {
   SigningCredentialStatus,
   SigningGrantAction,
   SigningKind,
+  SignatureValidationOverallResult,
   SigningRequestState,
   TaskAssignmentStatus,
   TaskCommentStatus,

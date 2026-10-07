@@ -106,12 +106,48 @@ async function cleanGenerationTestRecords(): Promise<void> {
   await prisma.auditLog.deleteMany({
     where: { action: { in: ['documents.generated', 'documents.regenerated'] } },
   });
+  const generatedDocuments = await prisma.document.findMany({
+    where: { generatedDocumentKey: { not: null } },
+    select: { id: true },
+  });
+  const generatedDocumentIds = generatedDocuments.map((document) => document.id);
+  if (generatedDocumentIds.length > 0) {
+    await prisma.signingEvidence.deleteMany({
+      where: {
+        signatureValidation: { signingRequest: { documentId: { in: generatedDocumentIds } } },
+      },
+    });
+    await prisma.documentSignature.deleteMany({
+      where: { documentId: { in: generatedDocumentIds } },
+    });
+    await prisma.signatureValidation.deleteMany({
+      where: { signingRequest: { documentId: { in: generatedDocumentIds } } },
+    });
+    await prisma.signingEvent.deleteMany({
+      where: { signingRequest: { documentId: { in: generatedDocumentIds } } },
+    });
+    await prisma.documentSigningApproval.deleteMany({
+      where: { signingRequest: { documentId: { in: generatedDocumentIds } } },
+    });
+    await prisma.signingRequest.deleteMany({
+      where: { documentId: { in: generatedDocumentIds } },
+    });
+    await prisma.documentVersion.deleteMany({
+      where: {
+        source: DocumentVersionSource.SIGNED,
+        documentId: { in: generatedDocumentIds },
+      },
+    });
+  }
   await prisma.document.updateMany({
     where: { generatedDocumentKey: { not: null } },
     data: { currentVersionId: null },
   });
   await prisma.documentVersion.deleteMany({
-    where: { source: DocumentVersionSource.GENERATED },
+    where: {
+      source: DocumentVersionSource.GENERATED,
+      document: { generatedDocumentKey: { not: null } },
+    },
   });
   await prisma.document.deleteMany({ where: { generatedDocumentKey: { not: null } } });
   await prisma.invoiceLine.deleteMany({

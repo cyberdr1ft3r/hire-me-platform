@@ -7,6 +7,8 @@ export const SigningRequestStateSchema = z.enum([
   'PREPARED',
   'APPROVED',
   'AWAITING_RESULT',
+  'COMPLETED',
+  'VALIDATION_REJECTED',
   'CANCELLED',
   'EXPIRED',
   'FAILED',
@@ -109,6 +111,15 @@ export const SigningRequestCreateRequestSchema = z
     { message: 'Signing kind requires the matching identity target.' },
   );
 
+export const SigningResultSubmitRequestSchema = z
+  .object({
+    pdfBase64: z.string().min(1),
+    resultSha256: sha256Hex,
+    idempotencyKey: z.string().trim().min(1).max(120),
+  })
+  .strict()
+  .refine(rejectSecretKeys, { message: 'Secret key material is not accepted.' });
+
 export const SigningRequestApproveRequestSchema = z
   .object({
     confirmationSummary: z.string().trim().min(1).max(500).optional(),
@@ -153,6 +164,7 @@ export const SigningRequestAuditResponseSchema = z.object({
 export type SigningKind = z.infer<typeof SigningKindSchema>;
 export type SigningRequestCreateRequest = z.infer<typeof SigningRequestCreateRequestSchema>;
 export type SigningRequestApproveRequest = z.infer<typeof SigningRequestApproveRequestSchema>;
+export type SigningResultSubmitRequest = z.infer<typeof SigningResultSubmitRequestSchema>;
 export type SigningRequestDetailResponse = z.infer<typeof SigningRequestDetailResponseSchema>;
 export type SigningRequestAuditResponse = z.infer<typeof SigningRequestAuditResponseSchema>;
 export type SigningCredentialCreateRequest = z.infer<typeof SigningCredentialCreateRequestSchema>;

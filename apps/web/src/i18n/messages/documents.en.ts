@@ -239,6 +239,7 @@ export const documentsEn = {
   source: {
     GENERATED: 'Generated',
     IMPORTED: 'Imported',
+    SIGNED: 'Signed',
     UPLOADED: 'Uploaded',
   },
   generatedSource: {

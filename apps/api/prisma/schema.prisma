@@ -111,6 +111,7 @@ enum DocumentVersionSource {
   UPLOADED  @map("uploaded")
   GENERATED @map("generated")
   IMPORTED  @map("imported")
+  SIGNED    @map("signed")
 }
 
 enum PublicOpportunityStatus {
@@ -715,6 +716,8 @@ model User {
   signingRequestsAsSigner             SigningRequest[]               @relation("SigningRequestIntendedSigner")
   documentSigningApprovals            DocumentSigningApproval[]      @relation("DocumentSigningApprover")
   signingEvents                       SigningEvent[]                 @relation("SigningEventActor")
+  documentSignaturesAsSigner          DocumentSignature[]            @relation("DocumentSignatureIntendedSigner")
+  documentSignaturesAsOperator        DocumentSignature[]            @relation("DocumentSignatureOperator")
 
   @@index([status])
   @@index([userType])
@@ -2091,6 +2094,7 @@ model Document {
   versions            DocumentVersion[]    @relation("DocumentVersions")
   currentVersion      DocumentVersion?     @relation("CurrentDocumentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   signingRequests     SigningRequest[]     @relation("SigningRequestDocument")
+  documentSignatures  DocumentSignature[]
   tasks               Task[]
   notifications       Notification[]
 
@@ -2424,20 +2428,28 @@ model DocumentVersion {
   generationLanguage       String?
   generationIdempotencyKey String?               @unique
   sourceSnapshotSha256     String?
+  /// Phase B: exact GENERATED source version for accepted signed PDF lineage.
+  derivedFromVersionId     String?               @db.Uuid
   status                   DocumentStatus        @default(ACTIVE)
   archivedAt               DateTime?
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
 
-  document        Document         @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
-  currentFor      Document?        @relation("CurrentDocumentVersion")
-  createdBy       User?            @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  signingRequests SigningRequest[] @relation("SigningRequestSourceVersion")
+  document                  Document            @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
+  currentFor                Document?           @relation("CurrentDocumentVersion")
+  createdBy                 User?               @relation("DocumentVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  signingRequests           SigningRequest[]    @relation("SigningRequestSourceVersion")
+  derivedFromVersion        DocumentVersion?    @relation("DocumentVersionSignatureLineage", fields: [derivedFromVersionId, documentId], references: [id, documentId], onDelete: Restrict)
+  derivedSignedOutputs      DocumentVersion[]   @relation("DocumentVersionSignatureLineage")
+  documentSignature         DocumentSignature?  @relation("DocumentSignatureSignedVersion")
+  sourceDocumentSignatures  DocumentSignature[] @relation("DocumentSignatureSourceVersion")
+  acceptedForSigningRequest SigningRequest?     @relation("SigningRequestAcceptedSignedVersion")
 
   @@unique([id, documentId])
   @@unique([documentId, versionNumber])
   @@index([documentId])
   @@index([createdByUserId])
+  @@index([derivedFromVersionId])
 }
 
 model Notification {
@@ -2743,10 +2755,18 @@ enum SigningRequestState {
   PREPARED
   APPROVED
   AWAITING_RESULT
+  COMPLETED
+  VALIDATION_REJECTED
   CANCELLED
   EXPIRED
   FAILED
   STALE
+}
+
+enum SignatureValidationOverallResult {
+  VALID
+  INVALID
+  INDETERMINATE
 }
 
 model SigningOrganization {
@@ -2759,8 +2779,9 @@ model SigningOrganization {
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
 
-  credentials  SigningCredential[] @relation("SigningOrganizationCredential")
-  sealRequests SigningRequest[]    @relation("SigningRequestOrganization")
+  credentials        SigningCredential[] @relation("SigningOrganizationCredential")
+  sealRequests       SigningRequest[]    @relation("SigningRequestOrganization")
+  documentSignatures DocumentSignature[]
 
   @@index([status])
 }
@@ -2820,43 +2841,124 @@ model SigningCredentialGrant {
 }
 
 model SigningRequest {
-  id                          String              @id @default(uuid()) @db.Uuid
-  documentId                  String              @db.Uuid
-  sourceVersionId             String              @db.Uuid
-  sourceSha256                String
-  sourceSnapshotSha256        String?
-  kind                        SigningKind
-  requestedByUserId           String              @db.Uuid
-  intendedSignerUserId        String?             @db.Uuid
-  signingOrganizationId       String?             @db.Uuid
-  signingCredentialId         String              @db.Uuid
-  credentialFingerprintSha256 String
-  methodIdentifier            String
-  policyVersion               String
-  nonceHash                   String
-  bindingHash                 String
-  idempotencyKey              String
-  expiresAt                   DateTime
-  state                       SigningRequestState @default(PREPARED)
-  terminalReason              String?
-  createdAt                   DateTime            @default(now())
-  updatedAt                   DateTime            @updatedAt
+  id                            String              @id @default(uuid()) @db.Uuid
+  documentId                    String              @db.Uuid
+  sourceVersionId               String              @db.Uuid
+  sourceSha256                  String
+  sourceSnapshotSha256          String?
+  kind                          SigningKind
+  requestedByUserId             String              @db.Uuid
+  intendedSignerUserId          String?             @db.Uuid
+  signingOrganizationId         String?             @db.Uuid
+  signingCredentialId           String              @db.Uuid
+  credentialFingerprintSha256   String
+  methodIdentifier              String
+  policyVersion                 String
+  nonceHash                     String
+  bindingHash                   String
+  idempotencyKey                String
+  expiresAt                     DateTime
+  state                         SigningRequestState @default(PREPARED)
+  terminalReason                String?
+  acceptedSignedVersionId       String?             @unique @db.Uuid
+  acceptedResultSha256          String?
+  preparedSigningArtifactSha256 String?
+  preparedSigningStorageKey     String?             @unique
+  createdAt                     DateTime            @default(now())
+  updatedAt                     DateTime            @updatedAt
 
-  document            Document                 @relation("SigningRequestDocument", fields: [documentId], references: [id], onDelete: Restrict)
-  sourceVersion       DocumentVersion          @relation("SigningRequestSourceVersion", fields: [sourceVersionId, documentId], references: [id, documentId], onDelete: Restrict)
-  requestedBy         User                     @relation("SigningRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
-  intendedSigner      User?                    @relation("SigningRequestIntendedSigner", fields: [intendedSignerUserId], references: [id], onDelete: Restrict)
-  signingOrganization SigningOrganization?     @relation("SigningRequestOrganization", fields: [signingOrganizationId], references: [id], onDelete: Restrict)
-  signingCredential   SigningCredential        @relation(fields: [signingCredentialId], references: [id], onDelete: Restrict)
-  approval            DocumentSigningApproval?
-  events              SigningEvent[]
+  document              Document                 @relation("SigningRequestDocument", fields: [documentId], references: [id], onDelete: Restrict)
+  sourceVersion         DocumentVersion          @relation("SigningRequestSourceVersion", fields: [sourceVersionId, documentId], references: [id, documentId], onDelete: Restrict)
+  requestedBy           User                     @relation("SigningRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  intendedSigner        User?                    @relation("SigningRequestIntendedSigner", fields: [intendedSignerUserId], references: [id], onDelete: Restrict)
+  signingOrganization   SigningOrganization?     @relation("SigningRequestOrganization", fields: [signingOrganizationId], references: [id], onDelete: Restrict)
+  signingCredential     SigningCredential        @relation(fields: [signingCredentialId], references: [id], onDelete: Restrict)
+  approval              DocumentSigningApproval?
+  events                SigningEvent[]
+  documentSignature     DocumentSignature?
+  validations           SignatureValidation[]
+  acceptedSignedVersion DocumentVersion?         @relation("SigningRequestAcceptedSignedVersion", fields: [acceptedSignedVersionId, documentId], references: [id, documentId], onDelete: Restrict)
 
   @@unique([requestedByUserId, idempotencyKey])
+  @@unique([acceptedSignedVersionId, documentId])
   @@index([documentId])
   @@index([sourceVersionId])
   @@index([state])
   @@index([expiresAt])
   @@index([signingCredentialId])
+}
+
+model DocumentSignature {
+  id                           String      @id @default(uuid()) @db.Uuid
+  signingRequestId             String      @unique @db.Uuid
+  documentId                   String      @db.Uuid
+  sourceVersionId              String      @db.Uuid
+  signedVersionId              String      @unique @db.Uuid
+  kind                         SigningKind
+  intendedSignerUserId         String?     @db.Uuid
+  signingOrganizationId        String?     @db.Uuid
+  performingOperatorUserId     String?     @db.Uuid
+  certificateFingerprintSha256 String
+  certificateSubjectSummary    String
+  certificateIssuerSummary     String
+  acceptanceValidationId       String      @unique @db.Uuid
+  createdAt                    DateTime    @default(now())
+
+  signingRequest       SigningRequest       @relation(fields: [signingRequestId], references: [id], onDelete: Restrict)
+  document             Document             @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  sourceVersion        DocumentVersion      @relation("DocumentSignatureSourceVersion", fields: [sourceVersionId, documentId], references: [id, documentId], onDelete: Restrict)
+  signedVersion        DocumentVersion      @relation("DocumentSignatureSignedVersion", fields: [signedVersionId, documentId], references: [id, documentId], onDelete: Restrict)
+  intendedSigner       User?                @relation("DocumentSignatureIntendedSigner", fields: [intendedSignerUserId], references: [id], onDelete: Restrict)
+  signingOrganization  SigningOrganization? @relation(fields: [signingOrganizationId], references: [id], onDelete: Restrict)
+  performingOperator   User?                @relation("DocumentSignatureOperator", fields: [performingOperatorUserId], references: [id], onDelete: Restrict)
+  acceptanceValidation SignatureValidation  @relation("DocumentSignatureAcceptanceValidation", fields: [acceptanceValidationId, signingRequestId], references: [id, signingRequestId], onDelete: Restrict)
+
+  @@unique([signedVersionId, documentId])
+  @@unique([acceptanceValidationId, signingRequestId])
+  @@index([documentId])
+  @@index([sourceVersionId])
+  @@index([certificateFingerprintSha256])
+}
+
+model SignatureValidation {
+  id                        String                           @id @default(uuid()) @db.Uuid
+  signingRequestId          String                           @db.Uuid
+  inputSourceSha256         String
+  inputResultSha256         String
+  overallResult             SignatureValidationOverallResult
+  cmsCryptoResult           String
+  byteRangeResult           String
+  sourceBindingResult       String
+  certificateValidityResult String
+  chainTrustResult          String
+  timestampResult           String?
+  validatorName             String
+  validatorVersion          String
+  policyVersion             String
+  trustStoreVersion         String
+  reasonCode                String?
+  validatedAt               DateTime                         @default(now())
+  createdAt                 DateTime                         @default(now())
+
+  signingRequest    SigningRequest     @relation(fields: [signingRequestId], references: [id], onDelete: Restrict)
+  documentSignature DocumentSignature? @relation("DocumentSignatureAcceptanceValidation")
+  evidence          SigningEvidence?
+
+  @@unique([id, signingRequestId])
+  @@index([signingRequestId])
+  @@index([overallResult])
+  @@index([validatedAt])
+}
+
+model SigningEvidence {
+  id                    String   @id @default(uuid()) @db.Uuid
+  signatureValidationId String   @unique @db.Uuid
+  storageKey            String   @unique
+  sizeBytes             BigInt
+  mimeType              String
+  createdAt             DateTime @default(now())
+
+  signatureValidation SignatureValidation @relation(fields: [signatureValidationId], references: [id], onDelete: Restrict)
 }
 
 model DocumentSigningApproval {

@@ -118,6 +118,9 @@ async function createUser(email: string, roleName: RoleName): Promise<string> {
 }
 
 async function cleanSigningRecords(): Promise<void> {
+  await prisma.signingEvidence.deleteMany({});
+  await prisma.documentSignature.deleteMany({});
+  await prisma.signatureValidation.deleteMany({});
   await prisma.signingEvent.deleteMany({});
   await prisma.documentSigningApproval.deleteMany({});
   await prisma.signingRequest.deleteMany({});

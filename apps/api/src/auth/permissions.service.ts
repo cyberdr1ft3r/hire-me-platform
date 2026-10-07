@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import type { Prisma } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
+
+type PermissionDbClient = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
 export class PermissionsService {
@@ -10,8 +13,11 @@ export class PermissionsService {
     this.prisma = prisma;
   }
 
-  async getEffectivePermissionCodes(userId: string): Promise<string[]> {
-    const userRoles = await this.prisma.userRole.findMany({
+  async getEffectivePermissionCodes(
+    userId: string,
+    db: PermissionDbClient = this.prisma,
+  ): Promise<string[]> {
+    const userRoles = await db.userRole.findMany({
       where: {
         userId,
         archivedAt: null,

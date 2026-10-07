@@ -3,17 +3,18 @@
 Last updated: 2026-10-07
 Status owner: repository maintainer
 
-## Issue #132 / #141 signing
+## Issue #132 / signing phases
 
-- **#132 preflight (PR #134):** merged to **`main` @ `29101c2`**. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
-- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Architecture **maintainer-accepted** (ChatGPT review on PR #142); final lifecycle regression coverage complete; **D-083 Accepted**; awaiting maintainer merge only (not merged). See [Phase A preflight](../design/issue-141-phase-a-preflight.md). Fresh exact-head CI: see PR #142 for current head/run.
+- **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
+- **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
+- **#143 Phase B (PR #144):** provider-neutral validation + **SIGNED** publication — **maintainer-accepted** after final security review (PKI.js path validation, SERIALIZABLE acceptance fence, transaction-scoped permissions); **D-084 Accepted**. Exact-head CI is green on the reviewed implementation. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout after completion of the Issue #52 representative milestone.
-**Health:** `main` at `29101c2` includes merged #132 preflight docs (**PR #134**), Issue #118 Missions IA (PR #139), #116/#117 UI-DNA, Issue #124 Agenda/meetings, Issue #131 Accounting V1, Documents #119, doc-gen audit fix #140, and earlier milestones. Issue **#141** Phase A is implementation-complete on draft **PR #142** (maintainer-accepted architecture; merge pending). Issue #105 / D-071 catalog gate enforced. Issue #66 closed; follow-ons tracked. Issue **#109** and **#110** non-blocking and unrelated to signing. **D-068** / **D-070** remain separate operational follow-ups. D-070 migration not run in production. No production deployment.
-**Current blocker:** D-070's migration needs deployment approval before any production run, and the API must deploy with or before the strictly typed web client. A-75-03 / D-068 is corrected at the application level only: production environment overrides and upstream proxy/CDN body limits are not yet verified operationally. Issue **#132** remains **open**; provider-specific signing (Barid/integration) remains blocked. R-039 is unchanged.
-**Next executable development task:** ChatGPT maintainer **merge of PR #142** (Phase A); **Phase B** (validation + SIGNED publication) is separately scoped after merge. D-068 production env/proxy verification remains separate.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A merged**, **Phase B maintainer-accepted** through PR #144.
+**Health:** **#141 Phase A** is merged (**PR #142**, **D-083 Accepted**); **#143 Phase B** is maintainer-accepted (**PR #144**, **D-084 Accepted**) with green exact-head CI on the reviewed implementation. Prior milestones and the D-071 catalog gate remain intact. Issue **#109** / **#110** are non-blocking. **D-068** / **D-070** operational follow-ups are unchanged; no production deployment.
+**Current blocker:** No Phase B implementation blocker remains. If **PR #144** is still open, maintainer merge is the only remaining Phase B action. **#132** remains **open** for Phase C+ provider/Barid/UX work. D-070 migration is not run in production.
+**Next executable development task:** If **PR #144** is still open, merge the maintainer-accepted Phase B implementation. After merge, scope Phase C provider feasibility separately under **#132**.
 
 ## Active work
 

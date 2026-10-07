@@ -242,6 +242,7 @@ export const documentsFr: Messages['documents'] = {
   source: {
     GENERATED: 'Généré',
     IMPORTED: 'Importé',
+    SIGNED: 'Signé',
     UPLOADED: 'Téléversé',
   },
   generatedSource: {
