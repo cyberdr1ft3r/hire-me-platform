@@ -77,9 +77,10 @@ function verifyDetachedPdfCmsIntegrity(
 ): boolean {
   try {
     const message = forge.pkcs7.messageFromAsn1(
-      forge.asn1.fromDer(cmsDer.toString('binary'), { parseAllBytes: false } as Parameters<
-        typeof forge.asn1.fromDer
-      >[1]),
+      forge.asn1.fromDer(
+        cmsDer.toString('binary'),
+        { parseAllBytes: false } as unknown as Parameters<typeof forge.asn1.fromDer>[1],
+      ),
     );
     const signerCert = forge.pki.certificateFromAsn1(
       forge.asn1.fromDer(signerCertDer.toString('binary')),
