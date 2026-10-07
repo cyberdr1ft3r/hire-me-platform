@@ -148,6 +148,7 @@ export {
   SigningRequestDetailResponseSchema,
   SigningRequestStateSchema,
   SigningRequestSummarySchema,
+  SigningResultSubmitRequestSchema,
 } from './document-signing.js';
 export type {
   SigningCredentialCreateRequest,
@@ -158,6 +159,7 @@ export type {
   SigningRequestAuditResponse,
   SigningRequestCreateRequest,
   SigningRequestDetailResponse,
+  SigningResultSubmitRequest,
 } from './document-signing.js';
 export {
   FINANCE_MANAGER_SIGNING_PERMISSION_CODES,

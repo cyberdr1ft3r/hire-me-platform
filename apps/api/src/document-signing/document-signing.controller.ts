@@ -18,6 +18,7 @@ import {
   SigningRequestAuditResponseSchema,
   SigningRequestCreateRequestSchema,
   SigningRequestDetailResponseSchema,
+  SigningResultSubmitRequestSchema,
 } from '@hire-me/contracts';
 import { z } from 'zod';
 
@@ -129,6 +130,30 @@ export class DocumentSigningController {
     }
     return SigningRequestDetailResponseSchema.parse(
       await this.signing.approveSigningRequest(
+        requestId,
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post('signing/requests/:requestId/results')
+  @HttpCode(HttpStatus.OK)
+  async submitSigningResult(
+    @Param('requestId') requestId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    if (!UuidParamSchema.safeParse(requestId).success) {
+      throw signingBadRequest('INVALID_SIGNING_REQUEST_ID', 'Invalid signing request id.');
+    }
+    const parsed = SigningResultSubmitRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw signingBadRequest('INVALID_SIGNING_RESULT', 'Invalid signed result body.');
+    }
+    return SigningRequestDetailResponseSchema.parse(
+      await this.signing.submitSigningResult(
         requestId,
         parsed.data,
         request.user!.id,

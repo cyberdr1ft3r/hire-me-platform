@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   SigningCredentialCreateRequest,
@@ -7,6 +9,7 @@ import type {
   SigningRequestAuditResponse,
   SigningRequestCreateRequest,
   SigningRequestDetailResponse,
+  SigningResultSubmitRequest,
 } from '@hire-me/contracts';
 
 import {
@@ -31,6 +34,12 @@ import {
   signingNotFound,
 } from './document-signing.errors.js';
 import { SIGNING_PERMISSIONS } from './document-signing-permissions.js';
+import {
+  PDF_SIGNATURE_VALIDATOR_NAME,
+  PDF_SIGNATURE_VALIDATOR_VERSION,
+  PdfSignatureValidatorService,
+  type PdfSignatureValidationOutcome,
+} from './validation/pdf-signature-validator.service.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -41,10 +50,14 @@ import {
   SigningGrantAction,
   SigningKind,
   SigningRequestState,
+  DocumentVersionSource,
+  DocumentStatus,
+  SignatureValidationOverallResult,
   UserStatus,
   UserType,
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
+import { ProtectedStorageService } from '../storage/protected-storage.service.js';
 
 @Injectable()
 export class DocumentSigningService {
@@ -55,7 +68,26 @@ export class DocumentSigningService {
     @Inject(DocumentSigningAuditService) private readonly signingAudit: DocumentSigningAuditService,
     @Inject(FinancialSourceSnapshotService)
     private readonly sourceSnapshot: FinancialSourceSnapshotService,
+    @Inject(PdfSignatureValidatorService)
+    private readonly pdfValidator: PdfSignatureValidatorService,
+    @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
   ) {}
+
+  private static readonly signingResultMaxBytes = 8_000_000;
+
+  private resolveTrustAnchorPems(): { anchors: string[]; version: string } {
+    const raw = process.env.SIGNING_TRUST_ANCHOR_PEMS?.trim();
+    if (!raw) {
+      return { anchors: [], version: 'empty-v1' };
+    }
+    return {
+      anchors: raw
+        .split('|||')
+        .map((pem) => pem.trim())
+        .filter(Boolean),
+      version: createHash('sha256').update(raw).digest('hex').slice(0, 16),
+    };
+  }
 
   async createOrganization(
     body: SigningOrganizationCreateRequest,
@@ -807,6 +839,351 @@ export class DocumentSigningService {
           'Private keys, PINs, and token secrets cannot be submitted.',
         );
       }
+    }
+  }
+
+  async submitSigningResult(
+    requestId: string,
+    body: SigningResultSubmitRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<SigningRequestDetailResponse> {
+    this.rejectSecretMaterial(body);
+    const request = await this.loadAuthorizedRequest(requestId, actorUserId);
+    const refreshed = await this.refreshRequestState(request.id);
+
+    if (refreshed.state === SigningRequestState.COMPLETED) {
+      if (refreshed.acceptedResultSha256 === body.resultSha256) {
+        return { request: this.toSummary(refreshed) };
+      }
+      throw signingConflict(
+        'SIGNING_RESULT_ALREADY_ACCEPTED',
+        'This signing request already accepted a different signed result.',
+      );
+    }
+    if (refreshed.state !== SigningRequestState.AWAITING_RESULT) {
+      throw signingConflict(
+        'SIGNING_REQUEST_NOT_AWAITING_RESULT',
+        'Signing request is not awaiting a signed result.',
+      );
+    }
+
+    await this.assertBoundActorForResultSubmission(refreshed, actorUserId);
+
+    const pdfBuffer = Buffer.from(body.pdfBase64, 'base64');
+    if (pdfBuffer.length === 0 || pdfBuffer.length > DocumentSigningService.signingResultMaxBytes) {
+      throw signingBadRequest(
+        'SIGNING_RESULT_TOO_LARGE',
+        'Signed PDF result exceeds allowed size.',
+      );
+    }
+    const resultSha256 = createHash('sha256').update(pdfBuffer).digest('hex');
+    if (resultSha256 !== body.resultSha256) {
+      throw signingBadRequest(
+        'SIGNING_RESULT_HASH_MISMATCH',
+        'Result checksum does not match payload.',
+      );
+    }
+
+    const sourceVersion = await this.prisma.documentVersion.findUniqueOrThrow({
+      where: { id: refreshed.sourceVersionId },
+    });
+    const sourcePdf = await this.storage.get(sourceVersion.storageKey);
+    if (createHash('sha256').update(sourcePdf).digest('hex') !== refreshed.sourceSha256) {
+      throw signingConflict(
+        'SIGNING_SOURCE_STALE',
+        'Source bytes no longer match the signing request.',
+      );
+    }
+
+    const { anchors, version: trustStoreVersion } = this.resolveTrustAnchorPems();
+    const validation = await this.pdfValidator.validateSignedPdf({
+      sourcePdf,
+      signedPdf: pdfBuffer,
+      expectedCredentialFingerprintSha256: refreshed.credentialFingerprintSha256,
+      trustAnchorPems: anchors,
+      trustStoreVersion,
+    });
+
+    const quarantineKey = `signing-quarantine/${requestId}/${randomUUID()}.pdf`;
+    await this.storage.put(quarantineKey, pdfBuffer);
+
+    try {
+      if (validation.overallResult !== 'VALID') {
+        await this.persistRejectedValidation(refreshed, validation, actorUserId, context);
+        const rejected = await this.prisma.signingRequest.findUniqueOrThrow({
+          where: { id: requestId },
+        });
+        return { request: this.toSummary(rejected) };
+      }
+
+      const accepted = await this.acceptValidatedResult(
+        refreshed,
+        pdfBuffer,
+        validation,
+        actorUserId,
+        context,
+      );
+      return { request: this.toSummary(accepted) };
+    } finally {
+      await this.storage.delete(quarantineKey).catch(() => undefined);
+    }
+  }
+
+  private async assertBoundActorForResultSubmission(
+    request: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    actorUserId: string,
+  ): Promise<void> {
+    const boundUserId =
+      request.kind === SigningKind.PERSON_SIGNATURE
+        ? request.intendedSignerUserId
+        : request.requestedByUserId;
+    if (boundUserId !== actorUserId) {
+      throw signingForbidden(
+        'SIGNING_RESULT_ACTOR_REQUIRED',
+        'Signed results must be submitted by the bound signing authority.',
+      );
+    }
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+    if (request.kind === SigningKind.PERSON_SIGNATURE) {
+      this.assertPermission(permissions, SIGNING_PERMISSIONS.SIGN);
+    } else {
+      this.assertPermission(permissions, SIGNING_PERMISSIONS.SEAL);
+      await this.assertActiveSealGrant(
+        request.signingCredentialId,
+        actorUserId,
+        request.signingOrganizationId!,
+      );
+    }
+  }
+
+  private mapOverallResult(
+    value: 'VALID' | 'INVALID' | 'INDETERMINATE',
+  ): SignatureValidationOverallResult {
+    if (value === 'VALID') return SignatureValidationOverallResult.VALID;
+    if (value === 'INDETERMINATE') return SignatureValidationOverallResult.INDETERMINATE;
+    return SignatureValidationOverallResult.INVALID;
+  }
+
+  private async persistRejectedValidation(
+    request: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    validation: PdfSignatureValidationOutcome,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (transaction) => {
+      await lockSigningRequest(transaction, request.id);
+      const current = await transaction.signingRequest.findUniqueOrThrow({
+        where: { id: request.id },
+      });
+      if (current.state !== SigningRequestState.AWAITING_RESULT) {
+        return;
+      }
+      await transaction.signatureValidation.create({
+        data: {
+          signingRequestId: request.id,
+          inputSourceSha256: validation.inputSourceSha256,
+          inputResultSha256: validation.inputResultSha256,
+          overallResult: this.mapOverallResult(validation.overallResult),
+          cmsCryptoResult: validation.cmsCryptoResult,
+          byteRangeResult: validation.byteRangeResult,
+          sourceBindingResult: validation.sourceBindingResult,
+          certificateValidityResult: validation.certificateValidityResult,
+          chainTrustResult: validation.chainTrustResult,
+          timestampResult: validation.timestampResult,
+          validatorName: PDF_SIGNATURE_VALIDATOR_NAME,
+          validatorVersion: PDF_SIGNATURE_VALIDATOR_VERSION,
+          policyVersion: validation.policyVersion,
+          trustStoreVersion: validation.trustStoreVersion,
+          reasonCode: validation.reasonCode,
+        },
+      });
+      await transitionSigningRequestTerminal(
+        transaction,
+        current,
+        SigningRequestState.VALIDATION_REJECTED,
+        validation.reasonCode ?? 'VALIDATION_REJECTED',
+        'result.rejected',
+        actorUserId,
+        'Signed result rejected after independent validation.',
+      );
+    });
+    await this.signingAudit.recordPlatformAudit('result.rejected', context, {
+      actorUserId,
+      signingRequestId: request.id,
+      metadataSummary: validation.reasonCode ?? 'VALIDATION_REJECTED',
+    });
+  }
+
+  private async acceptValidatedResult(
+    request: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    signedPdf: Buffer,
+    validation: PdfSignatureValidationOutcome,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<Prisma.SigningRequestGetPayload<Record<string, never>>> {
+    const storageKey = `documents/${request.documentId}/${randomUUID()}-signed.pdf`;
+    await this.storage.put(storageKey, signedPdf);
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await lockSigningRequest(transaction, request.id);
+        const current = await transaction.signingRequest.findUniqueOrThrow({
+          where: { id: request.id },
+        });
+        if (current.state === SigningRequestState.COMPLETED) {
+          return current;
+        }
+        if (current.state !== SigningRequestState.AWAITING_RESULT) {
+          throw signingConflict(
+            'SIGNING_REQUEST_NOT_AWAITING_RESULT',
+            'Signing request is not awaiting a signed result.',
+          );
+        }
+        if (current.expiresAt.getTime() <= Date.now()) {
+          throw signingConflict(
+            'SIGNING_REQUEST_EXPIRED',
+            'Signing request expired before acceptance.',
+          );
+        }
+
+        const document = await transaction.document.findUniqueOrThrow({
+          where: { id: current.documentId },
+          select: { currentVersionId: true },
+        });
+        if (document.currentVersionId !== current.sourceVersionId) {
+          throw signingConflict('SIGNING_SOURCE_STALE', 'Source version is no longer current.');
+        }
+
+        const sourceVersion = await transaction.documentVersion.findUniqueOrThrow({
+          where: { id: current.sourceVersionId },
+        });
+        const liveSource = await this.storage.get(sourceVersion.storageKey);
+        if (createHash('sha256').update(liveSource).digest('hex') !== current.sourceSha256) {
+          throw signingConflict('SIGNING_SOURCE_STALE', 'Source bytes changed.');
+        }
+        if (current.sourceSnapshotSha256) {
+          const liveFingerprint = await this.sourceSnapshot.computeCurrentFingerprint(
+            current.documentId,
+            transaction,
+          );
+          if (liveFingerprint !== current.sourceSnapshotSha256) {
+            throw signingConflict(
+              'SIGNING_SOURCE_BUSINESS_STALE',
+              'Authoritative business source changed.',
+            );
+          }
+        }
+
+        const lastVersion = await transaction.documentVersion.findFirst({
+          where: { documentId: current.documentId },
+          orderBy: { versionNumber: 'desc' },
+          select: { versionNumber: true },
+        });
+        const signedVersion = await transaction.documentVersion.create({
+          data: {
+            documentId: current.documentId,
+            versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
+            filename: sourceVersion.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
+            originalFilename: sourceVersion.originalFilename,
+            storageKey,
+            mimeType: 'application/pdf',
+            sizeBytes: BigInt(signedPdf.length),
+            checksumSha256: validation.inputResultSha256,
+            outputFamily: 'PDF',
+            source: DocumentVersionSource.SIGNED,
+            derivedFromVersionId: current.sourceVersionId,
+            createdByUserId: actorUserId,
+            status: DocumentStatus.ACTIVE,
+          },
+        });
+
+        const signatureValidation = await transaction.signatureValidation.create({
+          data: {
+            signingRequestId: current.id,
+            inputSourceSha256: validation.inputSourceSha256,
+            inputResultSha256: validation.inputResultSha256,
+            overallResult: SignatureValidationOverallResult.VALID,
+            cmsCryptoResult: validation.cmsCryptoResult,
+            byteRangeResult: validation.byteRangeResult,
+            sourceBindingResult: validation.sourceBindingResult,
+            certificateValidityResult: validation.certificateValidityResult,
+            chainTrustResult: validation.chainTrustResult,
+            timestampResult: validation.timestampResult,
+            validatorName: PDF_SIGNATURE_VALIDATOR_NAME,
+            validatorVersion: PDF_SIGNATURE_VALIDATOR_VERSION,
+            policyVersion: validation.policyVersion,
+            trustStoreVersion: validation.trustStoreVersion,
+          },
+        });
+
+        const evidencePayload = Buffer.from(validation.boundedEvidenceJson, 'utf8');
+        const evidenceKey = `signing-evidence/${signatureValidation.id}.json`;
+        await this.storage.put(evidenceKey, evidencePayload);
+        await transaction.signingEvidence.create({
+          data: {
+            signatureValidationId: signatureValidation.id,
+            storageKey: evidenceKey,
+            sizeBytes: BigInt(evidencePayload.length),
+            mimeType: 'application/json',
+          },
+        });
+
+        await transaction.documentSignature.create({
+          data: {
+            signingRequestId: current.id,
+            documentId: current.documentId,
+            sourceVersionId: current.sourceVersionId,
+            signedVersionId: signedVersion.id,
+            kind: current.kind,
+            intendedSignerUserId: current.intendedSignerUserId,
+            signingOrganizationId: current.signingOrganizationId,
+            performingOperatorUserId: actorUserId,
+            certificateFingerprintSha256: validation.certificateFingerprintSha256!,
+            certificateSubjectSummary: validation.certificateSubjectSummary!,
+            certificateIssuerSummary: validation.certificateIssuerSummary!,
+            acceptanceValidationId: signatureValidation.id,
+          },
+        });
+
+        const completed = await transaction.signingRequest.update({
+          where: { id: current.id },
+          data: {
+            state: SigningRequestState.COMPLETED,
+            terminalReason: 'SIGNATURE_ACCEPTED',
+            acceptedSignedVersionId: signedVersion.id,
+            acceptedResultSha256: validation.inputResultSha256,
+          },
+        });
+
+        await transaction.document.update({
+          where: { id: current.documentId },
+          data: { currentVersionId: signedVersion.id },
+        });
+
+        await appendSigningEventInTransaction(transaction, {
+          signingRequestId: current.id,
+          action: 'signature.accepted',
+          actorUserId,
+          metadataSummary: 'Signed PDF accepted after validation.',
+        });
+        await appendSigningEventInTransaction(transaction, {
+          signingRequestId: current.id,
+          action: 'signed_version.published',
+          actorUserId,
+          metadataSummary: `Signed version ${signedVersion.versionNumber} published.`,
+        });
+
+        await this.signingAudit.recordPlatformAudit('signature.accepted', context, {
+          actorUserId,
+          signingRequestId: current.id,
+          metadataSummary: 'Signed PDF validated and published.',
+        });
+
+        return completed;
+      });
+    } catch (error) {
+      await this.storage.delete(storageKey).catch(() => undefined);
+      throw error;
     }
   }
 

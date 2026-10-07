@@ -3,10 +3,11 @@
 Last updated: 2026-10-07
 Status owner: repository maintainer
 
-## Issue #132 / #141 signing
+## Issue #132 / signing phases
 
-- **#132 preflight (PR #134):** merged to **`main` @ `29101c2`**. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
-- **#141 Phase A (draft PR #142):** provider-neutral signing persistence, permissions, request/approval/events API — **no** Barid/crypto/SIGNED publication/UX. Architecture **maintainer-accepted** (ChatGPT review on PR #142); final lifecycle regression coverage complete; **D-083 Accepted**; awaiting maintainer merge only (not merged). See [Phase A preflight](../design/issue-141-phase-a-preflight.md). Fresh exact-head CI: see PR #142 for current head/run.
+- **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
+- **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
+- **#143 Phase B (draft PR pending):** provider-neutral PDF/CMS validation, trust policy, `POST .../results`, immutable **SIGNED** `DocumentVersion` publication — **no** Barid/token/UX. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md). **D-084 Proposed.**
 
 ## Overall state
 

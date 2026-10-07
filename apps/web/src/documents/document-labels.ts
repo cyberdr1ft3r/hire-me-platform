@@ -52,6 +52,7 @@ export const DOCUMENT_SOURCES: readonly DocumentVersionSource[] = [
   'UPLOADED',
   'GENERATED',
   'IMPORTED',
+  'SIGNED',
 ];
 
 export function documentStatusTone(status: DocumentStatus): StatusTone {
@@ -68,7 +69,13 @@ export function documentStatusTone(status: DocumentStatus): StatusTone {
 }
 
 export function documentSourceTone(source: DocumentVersionSource): StatusTone {
-  return source === 'GENERATED' ? 'info' : 'neutral';
+  if (source === 'GENERATED') {
+    return 'info';
+  }
+  if (source === 'SIGNED') {
+    return 'success';
+  }
+  return 'neutral';
 }
 
 export type SizeUnit = 'bytes' | 'kilobytes' | 'megabytes';

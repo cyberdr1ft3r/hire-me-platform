@@ -28,7 +28,7 @@ export const DocumentVisibilitySchema = z.enum([
   'CLIENT_SHARED',
   'PRIVATE',
 ]);
-export const DocumentVersionSourceSchema = z.enum(['UPLOADED', 'GENERATED', 'IMPORTED']);
+export const DocumentVersionSourceSchema = z.enum(['UPLOADED', 'GENERATED', 'IMPORTED', 'SIGNED']);
 export const OutputFamilySchema = z.enum(['PDF', 'WORD', 'EXCEL', 'OTHER']);
 export const DocumentBase64ContentMaxLength = 5_400_000;
 

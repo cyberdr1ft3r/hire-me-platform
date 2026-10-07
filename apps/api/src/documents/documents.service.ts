@@ -500,6 +500,22 @@ export class DocumentsService {
     }
 
     const content = await this.storage.get(version.storageKey);
+    if (
+      version.source === DocumentVersionSource.SIGNED &&
+      version.checksumSha256 &&
+      createHash('sha256').update(content).digest('hex') !== version.checksumSha256
+    ) {
+      await this.audit.record('documents.version.integrity_mismatch', context, {
+        actorUserId,
+        entityType: 'DocumentVersion',
+        entityId: version.id,
+        metadataSummary: 'Signed document storage checksum mismatch detected.',
+      });
+      throw conflict(
+        'DOCUMENT_VERSION_INTEGRITY_MISMATCH',
+        'Document version integrity verification failed.',
+      );
+    }
 
     await this.audit.record('documents.version.downloaded', context, {
       actorUserId,
