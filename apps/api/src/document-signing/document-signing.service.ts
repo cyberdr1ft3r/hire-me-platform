@@ -23,11 +23,17 @@ import { DocumentSigningAuditService } from './document-signing-audit.service.js
 import {
   ACTIVE_SIGNING_REQUEST_STATES,
   appendSigningEventInTransaction,
+  lockActiveSealGrants,
+  lockAuthoritativeFinancialSourceRow,
+  lockBoundUserRolePermissions,
+  lockDocumentRow,
+  lockSigningCredentialRow,
   lockSigningRequest,
   transitionSigningRequestTerminal,
 } from './document-signing.lifecycle.js';
 import { FinancialSourceSnapshotService } from '../document-generation/financial-source-snapshot.service.js';
 import {
+  isSigningPublicationSerializationConflict,
   signingBadRequest,
   signingConflict,
   signingForbidden,
@@ -58,7 +64,10 @@ import {
 } from '../persistence/prisma/generated-client.js';
 import { PrismaService } from '../persistence/prisma/prisma.service.js';
 import { PreparedSigningArtifactService } from './prepared-signing-artifact.service.js';
-import { runSigningAcceptanceBarrierIfConfigured } from './signing-acceptance-barrier.js';
+import {
+  runSigningAcceptanceBarrierIfConfigured,
+  runSigningPostAuthorityBarrierIfConfigured,
+} from './signing-acceptance-barrier.js';
 import { ProtectedStorageService } from '../storage/protected-storage.service.js';
 
 @Injectable()
@@ -725,7 +734,10 @@ export class DocumentSigningService {
       };
     }
 
-    const boundPermissions = await this.permissions.getEffectivePermissionCodes(boundUserId);
+    const boundPermissions = await this.permissions.getEffectivePermissionCodes(
+      boundUserId,
+      transaction,
+    );
     const boundDocumentAccess = await this.documents.hasAuthorizedDocumentAccess(
       request.documentId,
       boundUserId,
@@ -1052,10 +1064,60 @@ export class DocumentSigningService {
     });
   }
 
+  private async assertPublicationPreconditions(
+    locked: Prisma.SigningRequestGetPayload<Record<string, never>>,
+    actorUserId: string,
+    preReadSourceSha256: string,
+    transaction: Prisma.TransactionClient,
+    phase: 'initial' | 'final',
+  ): Promise<void> {
+    if (locked.expiresAt.getTime() <= Date.now()) {
+      throw signingConflict(
+        'SIGNING_REQUEST_EXPIRED',
+        'Signing request expired before acceptance.',
+      );
+    }
+
+    if (phase === 'final') {
+      await lockDocumentRow(transaction, locked.documentId);
+      if (locked.sourceSnapshotSha256) {
+        await lockAuthoritativeFinancialSourceRow(transaction, locked.documentId);
+      }
+    }
+
+    const document = await transaction.document.findUniqueOrThrow({
+      where: { id: locked.documentId },
+      select: { currentVersionId: true },
+    });
+    if (document.currentVersionId !== locked.sourceVersionId) {
+      throw signingConflict('SIGNING_SOURCE_STALE', 'Source version is no longer current.');
+    }
+
+    if (preReadSourceSha256 !== locked.sourceSha256) {
+      throw signingConflict('SIGNING_SOURCE_STALE', 'Source bytes changed.');
+    }
+
+    if (locked.sourceSnapshotSha256) {
+      const liveFingerprint = await this.sourceSnapshot.computeCurrentFingerprint(
+        locked.documentId,
+        transaction,
+      );
+      if (liveFingerprint !== locked.sourceSnapshotSha256) {
+        throw signingConflict(
+          'SIGNING_SOURCE_BUSINESS_STALE',
+          'Authoritative business source changed.',
+        );
+      }
+    }
+
+    await this.assertAcceptanceAuthority(locked, actorUserId, transaction, phase);
+  }
+
   private async assertAcceptanceAuthority(
     current: Prisma.SigningRequestGetPayload<Record<string, never>>,
     actorUserId: string,
     transaction: Prisma.TransactionClient,
+    phase: 'initial' | 'final',
   ): Promise<void> {
     const approval = await transaction.documentSigningApproval.findUnique({
       where: { signingRequestId: current.id },
@@ -1076,6 +1138,14 @@ export class DocumentSigningService {
         'SIGNING_RESULT_ACTOR_REQUIRED',
         'Signed results must be submitted by the bound signing authority.',
       );
+    }
+
+    if (phase === 'final') {
+      await lockBoundUserRolePermissions(transaction, boundUserId);
+      await lockSigningCredentialRow(transaction, current.signingCredentialId);
+      if (current.kind === SigningKind.ORGANIZATION_SEAL) {
+        await lockActiveSealGrants(transaction, current.signingCredentialId, boundUserId);
+      }
     }
 
     const credential = await transaction.signingCredential.findUnique({
@@ -1139,167 +1209,161 @@ export class DocumentSigningService {
     await this.storage.put(evidenceKey, evidencePayload);
 
     try {
-      const completed = await this.prisma.$transaction(async (transaction) => {
-        await runSigningAcceptanceBarrierIfConfigured();
+      const completed = await this.prisma.$transaction(
+        async (transaction) => {
+          await runSigningAcceptanceBarrierIfConfigured();
 
-        await lockSigningRequest(transaction, request.id);
-        const locked = await transaction.signingRequest.findUniqueOrThrow({
-          where: { id: request.id },
-        });
-        if (locked.state === SigningRequestState.COMPLETED) {
-          return locked;
-        }
-        if (locked.state !== SigningRequestState.AWAITING_RESULT) {
-          throw signingConflict(
-            'SIGNING_REQUEST_NOT_AWAITING_RESULT',
-            'Signing request is not awaiting a signed result.',
-          );
-        }
-
-        if (locked.expiresAt.getTime() <= Date.now()) {
-          throw signingConflict(
-            'SIGNING_REQUEST_EXPIRED',
-            'Signing request expired before acceptance.',
-          );
-        }
-
-        const document = await transaction.document.findUniqueOrThrow({
-          where: { id: locked.documentId },
-          select: { currentVersionId: true },
-        });
-        if (document.currentVersionId !== locked.sourceVersionId) {
-          throw signingConflict('SIGNING_SOURCE_STALE', 'Source version is no longer current.');
-        }
-
-        if (preReadSourceSha256 !== locked.sourceSha256) {
-          throw signingConflict('SIGNING_SOURCE_STALE', 'Source bytes changed.');
-        }
-
-        if (locked.sourceSnapshotSha256) {
-          const liveFingerprint = await this.sourceSnapshot.computeCurrentFingerprint(
-            locked.documentId,
-            transaction,
-          );
-          if (liveFingerprint !== locked.sourceSnapshotSha256) {
+          await lockSigningRequest(transaction, request.id);
+          const locked = await transaction.signingRequest.findUniqueOrThrow({
+            where: { id: request.id },
+          });
+          if (locked.state === SigningRequestState.COMPLETED) {
+            return locked;
+          }
+          if (locked.state !== SigningRequestState.AWAITING_RESULT) {
             throw signingConflict(
-              'SIGNING_SOURCE_BUSINESS_STALE',
-              'Authoritative business source changed.',
+              'SIGNING_REQUEST_NOT_AWAITING_RESULT',
+              'Signing request is not awaiting a signed result.',
             );
           }
-        }
 
-        await this.assertAcceptanceAuthority(locked, actorUserId, transaction);
-        if (process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK === locked.id) {
-          throw signingConflict(
-            'SIGNING_TEST_PUBLICATION_ROLLBACK',
-            'Test-only publication rollback.',
+          await this.assertPublicationPreconditions(
+            locked,
+            actorUserId,
+            preReadSourceSha256,
+            transaction,
+            'initial',
           );
-        }
 
-        const lastVersion = await transaction.documentVersion.findFirst({
-          where: { documentId: locked.documentId },
-          orderBy: { versionNumber: 'desc' },
-          select: { versionNumber: true },
-        });
-        const signedVersion = await transaction.documentVersion.create({
-          data: {
-            documentId: locked.documentId,
-            versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
-            filename: sourceVersionRow.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
-            originalFilename: sourceVersionRow.originalFilename,
-            storageKey,
-            mimeType: 'application/pdf',
-            sizeBytes: BigInt(signedPdf.length),
-            checksumSha256: validation.inputResultSha256,
-            outputFamily: 'PDF',
-            source: DocumentVersionSource.SIGNED,
-            derivedFromVersionId: locked.sourceVersionId,
-            createdByUserId: actorUserId,
-            status: DocumentStatus.ACTIVE,
-          },
-        });
-
-        const signatureValidation = await transaction.signatureValidation.create({
-          data: {
-            signingRequestId: locked.id,
-            inputSourceSha256: validation.inputPreparedArtifactSha256,
-            inputResultSha256: validation.inputResultSha256,
-            overallResult: SignatureValidationOverallResult.VALID,
-            cmsCryptoResult: validation.cmsCryptoResult,
-            byteRangeResult: validation.byteRangeResult,
-            sourceBindingResult: validation.sourceBindingResult,
-            certificateValidityResult: validation.certificateValidityResult,
-            chainTrustResult: validation.chainTrustResult,
-            timestampResult: validation.timestampResult,
-            validatorName: PDF_SIGNATURE_VALIDATOR_NAME,
-            validatorVersion: PDF_SIGNATURE_VALIDATOR_VERSION,
-            policyVersion: validation.policyVersion,
-            trustStoreVersion: validation.trustStoreVersion,
-          },
-        });
-
-        await transaction.signingEvidence.create({
-          data: {
-            signatureValidationId: signatureValidation.id,
-            storageKey: evidenceKey,
-            sizeBytes: BigInt(evidencePayload.length),
-            mimeType: 'application/json',
-          },
-        });
-        if (process.env.SIGNING_TEST_PUBLICATION_FAIL_AFTER === 'post_evidence') {
-          throw signingConflict(
-            'SIGNING_TEST_PUBLICATION_ROLLBACK',
-            'Test-only publication rollback after evidence staging.',
+          await runSigningPostAuthorityBarrierIfConfigured();
+          await this.assertPublicationPreconditions(
+            locked,
+            actorUserId,
+            preReadSourceSha256,
+            transaction,
+            'final',
           );
-        }
 
-        await transaction.documentSignature.create({
-          data: {
+          if (process.env.SIGNING_TEST_PUBLICATION_SERIALIZATION === '1') {
+            throw new Prisma.PrismaClientKnownRequestError('Serialization failure (test hook).', {
+              code: 'P2034',
+              clientVersion: 'test',
+            });
+          }
+
+          if (process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK === locked.id) {
+            throw signingConflict(
+              'SIGNING_TEST_PUBLICATION_ROLLBACK',
+              'Test-only publication rollback.',
+            );
+          }
+
+          const lastVersion = await transaction.documentVersion.findFirst({
+            where: { documentId: locked.documentId },
+            orderBy: { versionNumber: 'desc' },
+            select: { versionNumber: true },
+          });
+          const signedVersion = await transaction.documentVersion.create({
+            data: {
+              documentId: locked.documentId,
+              versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
+              filename: sourceVersionRow.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
+              originalFilename: sourceVersionRow.originalFilename,
+              storageKey,
+              mimeType: 'application/pdf',
+              sizeBytes: BigInt(signedPdf.length),
+              checksumSha256: validation.inputResultSha256,
+              outputFamily: 'PDF',
+              source: DocumentVersionSource.SIGNED,
+              derivedFromVersionId: locked.sourceVersionId,
+              createdByUserId: actorUserId,
+              status: DocumentStatus.ACTIVE,
+            },
+          });
+
+          const signatureValidation = await transaction.signatureValidation.create({
+            data: {
+              signingRequestId: locked.id,
+              inputSourceSha256: validation.inputPreparedArtifactSha256,
+              inputResultSha256: validation.inputResultSha256,
+              overallResult: SignatureValidationOverallResult.VALID,
+              cmsCryptoResult: validation.cmsCryptoResult,
+              byteRangeResult: validation.byteRangeResult,
+              sourceBindingResult: validation.sourceBindingResult,
+              certificateValidityResult: validation.certificateValidityResult,
+              chainTrustResult: validation.chainTrustResult,
+              timestampResult: validation.timestampResult,
+              validatorName: PDF_SIGNATURE_VALIDATOR_NAME,
+              validatorVersion: PDF_SIGNATURE_VALIDATOR_VERSION,
+              policyVersion: validation.policyVersion,
+              trustStoreVersion: validation.trustStoreVersion,
+            },
+          });
+
+          await transaction.signingEvidence.create({
+            data: {
+              signatureValidationId: signatureValidation.id,
+              storageKey: evidenceKey,
+              sizeBytes: BigInt(evidencePayload.length),
+              mimeType: 'application/json',
+            },
+          });
+          if (process.env.SIGNING_TEST_PUBLICATION_FAIL_AFTER === 'post_evidence') {
+            throw signingConflict(
+              'SIGNING_TEST_PUBLICATION_ROLLBACK',
+              'Test-only publication rollback after evidence staging.',
+            );
+          }
+
+          await transaction.documentSignature.create({
+            data: {
+              signingRequestId: locked.id,
+              documentId: locked.documentId,
+              sourceVersionId: locked.sourceVersionId,
+              signedVersionId: signedVersion.id,
+              kind: locked.kind,
+              intendedSignerUserId: locked.intendedSignerUserId,
+              signingOrganizationId: locked.signingOrganizationId,
+              performingOperatorUserId: actorUserId,
+              certificateFingerprintSha256: validation.certificateFingerprintSha256!,
+              certificateSubjectSummary: validation.certificateSubjectSummary!,
+              certificateIssuerSummary: validation.certificateIssuerSummary!,
+              acceptanceValidationId: signatureValidation.id,
+            },
+          });
+
+          const completedRequest = await transaction.signingRequest.update({
+            where: { id: locked.id },
+            data: {
+              state: SigningRequestState.COMPLETED,
+              terminalReason: 'SIGNATURE_ACCEPTED',
+              acceptedSignedVersionId: signedVersion.id,
+              acceptedResultSha256: validation.inputResultSha256,
+            },
+          });
+
+          await transaction.document.update({
+            where: { id: locked.documentId },
+            data: { currentVersionId: signedVersion.id },
+          });
+
+          await appendSigningEventInTransaction(transaction, {
             signingRequestId: locked.id,
-            documentId: locked.documentId,
-            sourceVersionId: locked.sourceVersionId,
-            signedVersionId: signedVersion.id,
-            kind: locked.kind,
-            intendedSignerUserId: locked.intendedSignerUserId,
-            signingOrganizationId: locked.signingOrganizationId,
-            performingOperatorUserId: actorUserId,
-            certificateFingerprintSha256: validation.certificateFingerprintSha256!,
-            certificateSubjectSummary: validation.certificateSubjectSummary!,
-            certificateIssuerSummary: validation.certificateIssuerSummary!,
-            acceptanceValidationId: signatureValidation.id,
-          },
-        });
+            action: 'signature.accepted',
+            actorUserId,
+            metadataSummary: 'Signed PDF accepted after validation.',
+          });
+          await appendSigningEventInTransaction(transaction, {
+            signingRequestId: locked.id,
+            action: 'signed_version.published',
+            actorUserId,
+            metadataSummary: `Signed version ${signedVersion.versionNumber} published.`,
+          });
 
-        const completedRequest = await transaction.signingRequest.update({
-          where: { id: locked.id },
-          data: {
-            state: SigningRequestState.COMPLETED,
-            terminalReason: 'SIGNATURE_ACCEPTED',
-            acceptedSignedVersionId: signedVersion.id,
-            acceptedResultSha256: validation.inputResultSha256,
-          },
-        });
-
-        await transaction.document.update({
-          where: { id: locked.documentId },
-          data: { currentVersionId: signedVersion.id },
-        });
-
-        await appendSigningEventInTransaction(transaction, {
-          signingRequestId: locked.id,
-          action: 'signature.accepted',
-          actorUserId,
-          metadataSummary: 'Signed PDF accepted after validation.',
-        });
-        await appendSigningEventInTransaction(transaction, {
-          signingRequestId: locked.id,
-          action: 'signed_version.published',
-          actorUserId,
-          metadataSummary: `Signed version ${signedVersion.versionNumber} published.`,
-        });
-
-        return completedRequest;
-      });
+          return completedRequest;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
 
       await this.signingAudit.recordPlatformAudit('signature.accepted', context, {
         actorUserId,
@@ -1310,6 +1374,21 @@ export class DocumentSigningService {
     } catch (error) {
       for (const key of stagedKeys) {
         await this.storage.delete(key).catch(() => undefined);
+      }
+      if (isSigningPublicationSerializationConflict(error)) {
+        const latest = await this.prisma.signingRequest.findUnique({
+          where: { id: request.id },
+        });
+        if (
+          latest?.state === SigningRequestState.COMPLETED &&
+          latest.acceptedResultSha256 === validation.inputResultSha256
+        ) {
+          return latest;
+        }
+        throw signingConflict(
+          'SIGNING_PUBLICATION_SERIALIZATION_CONFLICT',
+          'Publication could not commit safely; retry submission after re-validation.',
+        );
       }
       throw error;
     }

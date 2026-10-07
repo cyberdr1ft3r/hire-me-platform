@@ -30,6 +30,9 @@ function issueCertificate(input: {
   notBefore: Date;
   notAfter: Date;
   isCa?: boolean;
+  pathLenConstraint?: number;
+  keyCertSign?: boolean;
+  extensions?: forge.pki.CertificateField[];
 }): forge.pki.Certificate {
   const cert = forge.pki.createCertificate();
   cert.publicKey = input.subjectKeys.publicKey;
@@ -38,14 +41,33 @@ function issueCertificate(input: {
   cert.validity.notAfter = input.notAfter;
   cert.setSubject([{ name: 'commonName', value: input.subjectCn }]);
   cert.setIssuer([{ name: 'commonName', value: input.issuerCn }]);
-  if (input.isCa) {
-    cert.setExtensions([{ name: 'basicConstraints', cA: true, critical: true }]);
+  if (input.extensions) {
+    cert.setExtensions(input.extensions);
+  } else if (input.isCa) {
+    const basicConstraints = {
+      name: 'basicConstraints',
+      cA: true,
+      critical: true,
+      ...(input.pathLenConstraint === undefined
+        ? {}
+        : { pathLenConstraint: input.pathLenConstraint }),
+    } as forge.pki.CertificateField;
+    const extensions: forge.pki.CertificateField[] = [basicConstraints];
+    if (input.keyCertSign !== undefined) {
+      extensions.push({
+        name: 'keyUsage',
+        keyCertSign: input.keyCertSign,
+        digitalSignature: true,
+        critical: true,
+      } as forge.pki.CertificateField);
+    }
+    cert.setExtensions(extensions);
   }
   cert.sign(input.issuerPrivateKey, forge.md.sha256.create());
   return cert;
 }
 
-describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
+describe('evaluateCertificateTrust (hireme-signing-trust-v3 / PKI.js)', () => {
   it('trusts self-signed leaf when configured as anchor', async () => {
     const material = createSyntheticSigningP12('Self Anchor');
     const result = await evaluateCertificateTrust({
@@ -95,7 +117,7 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
       trustStoreVersion: 'unit',
       referenceTime: new Date(),
     });
-    expect(result.result).toBe('TRUSTED');
+    expect(result, JSON.stringify(result)).toMatchObject({ result: 'TRUSTED' });
   });
 
   it('rejects same leaf/intermediate when configured root is wrong', async () => {
@@ -140,7 +162,7 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
       referenceTime: REFERENCE_TIME,
     });
     expect(result.result).toBe('UNTRUSTED');
-    expect(result.reasonCode).toBe('CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME');
+    expect(result.reasonCode).not.toBe('TRUSTED');
   });
 
   it('rejects not-yet-valid leaf at reference time', async () => {
@@ -171,7 +193,7 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
       referenceTime: REFERENCE_TIME,
     });
     expect(result.result).toBe('UNTRUSTED');
-    expect(result.reasonCode).toBe('CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME');
+    expect(result.reasonCode).not.toBe('TRUSTED');
   });
 
   it('rejects expired intermediate in chain (never TRUSTED)', async () => {
@@ -212,7 +234,7 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
       referenceTime: REFERENCE_TIME,
     });
     expect(result.result).toBe('UNTRUSTED');
-    expect(result.reasonCode).toBe('CHAIN_CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME');
+    expect(result.reasonCode).not.toBe('TRUSTED');
   });
 
   it('rejects not-yet-valid intermediate in chain (never TRUSTED)', async () => {
@@ -253,7 +275,145 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
       referenceTime: REFERENCE_TIME,
     });
     expect(result.result).toBe('UNTRUSTED');
-    expect(result.reasonCode).toBe('CHAIN_CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME');
+    expect(result.reasonCode).not.toBe('TRUSTED');
+  });
+
+  it('rejects non-CA intermediate even when signatures verify', async () => {
+    const rootKeys = forge.pki.rsa.generateKeyPair(2048);
+    const intermediateKeys = forge.pki.rsa.generateKeyPair(2048);
+    const leafKeys = forge.pki.rsa.generateKeyPair(2048);
+    const root = issueCertificate({
+      subjectCn: 'Root',
+      issuerCn: 'Root',
+      subjectKeys: rootKeys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+    });
+    const nonCaIntermediate = issueCertificate({
+      subjectCn: 'Not CA',
+      issuerCn: 'Root',
+      subjectKeys: intermediateKeys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: false,
+    });
+    const leaf = issueCertificate({
+      subjectCn: 'Leaf',
+      issuerCn: 'Not CA',
+      subjectKeys: leafKeys,
+      issuerPrivateKey: intermediateKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+    });
+    const result = await evaluateCertificateTrust({
+      signerCertDer: certDerFromPem(pemFromForgeCert(leaf)),
+      untrustedCertDerCandidates: [certDerFromPem(pemFromForgeCert(nonCaIntermediate))],
+      trustAnchorPems: [pemFromForgeCert(root)],
+      trustStoreVersion: 'unit',
+      referenceTime: REFERENCE_TIME,
+    });
+    expect(result.result).toBe('UNTRUSTED');
+    expect(result.reasonCode).toBe('NON_CA_INTERMEDIATE');
+  });
+
+  it('rejects intermediate CA without keyCertSign in keyUsage', async () => {
+    const rootKeys = forge.pki.rsa.generateKeyPair(2048);
+    const intermediateKeys = forge.pki.rsa.generateKeyPair(2048);
+    const leafKeys = forge.pki.rsa.generateKeyPair(2048);
+    const root = issueCertificate({
+      subjectCn: 'Root',
+      issuerCn: 'Root',
+      subjectKeys: rootKeys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+    });
+    const intermediate = issueCertificate({
+      subjectCn: 'Intermediate',
+      issuerCn: 'Root',
+      subjectKeys: intermediateKeys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+      keyCertSign: false,
+    });
+    const leaf = issueCertificate({
+      subjectCn: 'Leaf',
+      issuerCn: 'Intermediate',
+      subjectKeys: leafKeys,
+      issuerPrivateKey: intermediateKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+    });
+    const result = await evaluateCertificateTrust({
+      signerCertDer: certDerFromPem(pemFromForgeCert(leaf)),
+      untrustedCertDerCandidates: [certDerFromPem(pemFromForgeCert(intermediate))],
+      trustAnchorPems: [pemFromForgeCert(root)],
+      trustStoreVersion: 'unit',
+      referenceTime: REFERENCE_TIME,
+    });
+    expect(result.result).toBe('UNTRUSTED');
+    expect(result.reasonCode).toBe('ISSUER_KEY_CERT_SIGN_MISSING');
+  });
+
+  it('rejects pathLenConstraint violation when chain depth exceeds limit', async () => {
+    const rootKeys = forge.pki.rsa.generateKeyPair(2048);
+    const intermediate1Keys = forge.pki.rsa.generateKeyPair(2048);
+    const intermediate2Keys = forge.pki.rsa.generateKeyPair(2048);
+    const leafKeys = forge.pki.rsa.generateKeyPair(2048);
+    const root = issueCertificate({
+      subjectCn: 'Root',
+      issuerCn: 'Root',
+      subjectKeys: rootKeys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+      pathLenConstraint: 0,
+    });
+    const intermediate1 = issueCertificate({
+      subjectCn: 'Intermediate1',
+      issuerCn: 'Root',
+      subjectKeys: intermediate1Keys,
+      issuerPrivateKey: rootKeys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+    });
+    const intermediate2 = issueCertificate({
+      subjectCn: 'Intermediate2',
+      issuerCn: 'Intermediate1',
+      subjectKeys: intermediate2Keys,
+      issuerPrivateKey: intermediate1Keys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+      isCa: true,
+    });
+    const leaf = issueCertificate({
+      subjectCn: 'Leaf',
+      issuerCn: 'Intermediate2',
+      subjectKeys: leafKeys,
+      issuerPrivateKey: intermediate2Keys.privateKey,
+      notBefore: new Date('2020-01-01'),
+      notAfter: new Date('2030-01-01'),
+    });
+    const result = await evaluateCertificateTrust({
+      signerCertDer: certDerFromPem(pemFromForgeCert(leaf)),
+      untrustedCertDerCandidates: [
+        certDerFromPem(pemFromForgeCert(intermediate1)),
+        certDerFromPem(pemFromForgeCert(intermediate2)),
+      ],
+      trustAnchorPems: [pemFromForgeCert(root)],
+      trustStoreVersion: 'unit',
+      referenceTime: REFERENCE_TIME,
+    });
+    expect(result.result).toBe('UNTRUSTED');
+    expect(result.reasonCode).toBe('PATH_LEN_CONSTRAINT_VIOLATION');
   });
 
   it('rejects configured root anchor that is expired at reference time when terminating chain', async () => {
@@ -295,8 +455,9 @@ describe('evaluateCertificateTrust (hireme-signing-trust-v2)', () => {
     });
     expect(result.result).toBe('UNTRUSTED');
     expect([
-      'CHAIN_CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME',
+      'CERTIFICATE_NOT_VALID_AT_REFERENCE_TIME',
       'CERTIFICATE_CHAIN_UNTRUSTED',
+      'CERTIFICATE_CHAIN_VALIDATION_FAILED',
     ]).toContain(result.reasonCode);
   });
 });

@@ -17,6 +17,107 @@ export async function lockSigningRequest(
   `;
 }
 
+/** Serialize publication against concurrent document version / lineage mutations. */
+export async function lockDocumentRow(
+  transaction: Prisma.TransactionClient,
+  documentId: string,
+): Promise<void> {
+  await transaction.$executeRaw`
+    SELECT "id" FROM "Document" WHERE "id" = ${documentId}::uuid FOR UPDATE
+  `;
+}
+
+/** Serialize acceptance against concurrent credential disable or fingerprint changes. */
+export async function lockSigningCredentialRow(
+  transaction: Prisma.TransactionClient,
+  credentialId: string,
+): Promise<void> {
+  await transaction.$executeRaw`
+    SELECT "id" FROM "SigningCredential" WHERE "id" = ${credentialId}::uuid FOR UPDATE
+  `;
+}
+
+/** Serialize acceptance against concurrent permission grant/revoke on the bound user. */
+export async function lockBoundUserRolePermissions(
+  transaction: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  await transaction.$executeRaw`
+    SELECT ur."id"
+    FROM "UserRole" ur
+    WHERE ur."userId" = ${userId}::uuid
+      AND ur."archivedAt" IS NULL
+    FOR UPDATE
+  `;
+  await transaction.$executeRaw`
+    SELECT rp."roleId", rp."permissionId"
+    FROM "RolePermission" rp
+    INNER JOIN "UserRole" ur ON ur."roleId" = rp."roleId"
+    WHERE ur."userId" = ${userId}::uuid
+      AND ur."archivedAt" IS NULL
+      AND rp."archivedAt" IS NULL
+    FOR UPDATE
+  `;
+}
+
+/** Serialize organization seal acceptance against concurrent mandate revocation. */
+export async function lockActiveSealGrants(
+  transaction: Prisma.TransactionClient,
+  credentialId: string,
+  userId: string,
+): Promise<void> {
+  await transaction.$executeRaw`
+    SELECT "id"
+    FROM "SigningCredentialGrant"
+    WHERE "credentialId" = ${credentialId}::uuid
+      AND "userId" = ${userId}::uuid
+      AND "revokedAt" IS NULL
+    FOR UPDATE
+  `;
+}
+
+/** Serialize acceptance against concurrent authoritative business-source edits. */
+export async function lockAuthoritativeFinancialSourceRow(
+  transaction: Prisma.TransactionClient,
+  documentId: string,
+): Promise<void> {
+  const document = await transaction.document.findUnique({
+    where: { id: documentId },
+    select: {
+      commercialQuotationId: true,
+      purchaseOrderId: true,
+      commercialContractId: true,
+      invoiceId: true,
+    },
+  });
+  if (!document) {
+    return;
+  }
+  if (document.commercialQuotationId) {
+    await transaction.$executeRaw`
+      SELECT "id" FROM "CommercialQuotation" WHERE "id" = ${document.commercialQuotationId}::uuid FOR UPDATE
+    `;
+    return;
+  }
+  if (document.purchaseOrderId) {
+    await transaction.$executeRaw`
+      SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${document.purchaseOrderId}::uuid FOR UPDATE
+    `;
+    return;
+  }
+  if (document.commercialContractId) {
+    await transaction.$executeRaw`
+      SELECT "id" FROM "CommercialContract" WHERE "id" = ${document.commercialContractId}::uuid FOR UPDATE
+    `;
+    return;
+  }
+  if (document.invoiceId) {
+    await transaction.$executeRaw`
+      SELECT "id" FROM "Invoice" WHERE "id" = ${document.invoiceId}::uuid FOR UPDATE
+    `;
+  }
+}
+
 export async function nextSigningEventSequence(
   transaction: Prisma.TransactionClient,
   signingRequestId: string,
