@@ -4,14 +4,14 @@ Last updated: 2026-10-07
 
 ## Current situation
 
-- **Issue #143 (Phase B):** draft **PR #144** on `cursor/issue-143-validation-publication-909e` — final security corrections (PKI.js trust path, SERIALIZABLE acceptance, transaction-scoped permissions) complete; **D-084 Proposed**; exact-head CI green on latest head (do not merge automatically).
+- **Issue #143 (Phase B):** **PR #144** on `cursor/issue-143-validation-publication-909e` — final security corrections complete and **maintainer-accepted**; **D-084 Accepted**; exact-head CI green on the reviewed implementation.
 - **Issue #132:** remains **open** (parent epic); Barid/provider/token/UX remain Phase C+.
 - **Issue #141 / D-083:** merged on `main` via PR #142.
-- **D-084:** **Proposed** (not Accepted by agents).
+- **D-084:** **Accepted** by maintainer for the provider-neutral Phase B architecture.
 
 ## Next concrete action
 
-**ChatGPT maintainer final review / merge decision for PR #144** (Phase B). **#132** remains open; Phase C separate; **D-084** stays Proposed until maintainer acceptance; no production deployment.
+If **PR #144** is still open, perform the maintainer merge. After merge, Phase B is complete; **#132** remains open and Phase C provider feasibility stays separate. No production deployment.
 
 ## Preserved unrelated follow-ups
 
