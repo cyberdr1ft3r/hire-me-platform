@@ -69,6 +69,8 @@ export function createSyntheticIntermediateChainP12(): {
   p12: Buffer;
   passphrase: string;
   leafFingerprintSha256: string;
+  leafCertPem: string;
+  intermediateCertPem: string;
   rootTrustAnchorPem: string;
   wrongRootTrustAnchorPem: string;
 } {
@@ -138,6 +140,8 @@ export function createSyntheticIntermediateChainP12(): {
     p12: Buffer.from(forge.asn1.toDer(p12Asn1).getBytes(), 'binary'),
     passphrase,
     leafFingerprintSha256,
+    leafCertPem: forge.pki.certificateToPem(leafCert),
+    intermediateCertPem: forge.pki.certificateToPem(intermediateCert),
     rootTrustAnchorPem: forge.pki.certificateToPem(rootCert),
     wrongRootTrustAnchorPem: forge.pki.certificateToPem(wrongRoot),
   };

@@ -26,7 +26,7 @@ export function assertV1SingleSignatureStructure(pdf: Buffer): ValidatedByteRang
     len1 === undefined ||
     start2 === undefined ||
     len2 === undefined ||
-    start1 < 0 ||
+    start1 !== 0 ||
     len1 < 0 ||
     start2 < 0 ||
     len2 < 0 ||

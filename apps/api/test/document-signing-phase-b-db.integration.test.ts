@@ -14,72 +14,66 @@ import {
 
 const prisma = new PrismaClient();
 
+async function createDocumentWithVersion(title: string): Promise<{
+  documentId: string;
+  versionId: string;
+  checksum: string;
+}> {
+  const document = await prisma.document.create({
+    data: { title, documentType: DocumentType.OTHER },
+  });
+  const checksum = createHash('sha256').update(randomUUID()).digest('hex');
+  const version = await prisma.documentVersion.create({
+    data: {
+      documentId: document.id,
+      versionNumber: 1,
+      filename: 'test.pdf',
+      originalFilename: 'test.pdf',
+      storageKey: `test/${randomUUID()}.pdf`,
+      mimeType: 'application/pdf',
+      sizeBytes: 1n,
+      checksumSha256: checksum,
+      outputFamily: 'PDF',
+      source: DocumentVersionSource.UPLOADED,
+      status: DocumentStatus.ACTIVE,
+    },
+  });
+  return { documentId: document.id, versionId: version.id, checksum };
+}
+
 describe('document signing Phase B DB evidence invariants', () => {
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
   it('rejects SIGNED DocumentVersion with self lineage', async () => {
-    const document = await prisma.document.create({
-      data: { title: 'db-invariant-test', documentType: DocumentType.OTHER },
-    });
-    const version = await prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        versionNumber: 1,
-        filename: 'test.pdf',
-        originalFilename: 'test.pdf',
-        storageKey: `test/${randomUUID()}.pdf`,
-        mimeType: 'application/pdf',
-        sizeBytes: 1n,
-        checksumSha256: 'a'.repeat(64),
-        outputFamily: 'PDF',
-        source: DocumentVersionSource.UPLOADED,
-        status: DocumentStatus.ACTIVE,
-      },
-    });
+    const { documentId, versionId } = await createDocumentWithVersion('db-invariant-test');
     await expect(
       prisma.documentVersion.update({
-        where: { id: version.id },
+        where: { id: versionId },
         data: {
           source: DocumentVersionSource.SIGNED,
-          derivedFromVersionId: version.id,
+          derivedFromVersionId: versionId,
         },
       }),
     ).rejects.toThrow();
-    await prisma.documentVersion.delete({ where: { id: version.id } });
-    await prisma.document.delete({ where: { id: document.id } });
+    await prisma.documentVersion.delete({ where: { id: versionId } });
+    await prisma.document.delete({ where: { id: documentId } });
   });
 
   it('rejects DocumentSignature acceptanceValidation from another signing request', async () => {
-    const document = await prisma.document.create({
-      data: { title: 'cross-request-test', documentType: DocumentType.OTHER },
-    });
-    const sourceVersion = await prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        versionNumber: 1,
-        filename: 'src.pdf',
-        originalFilename: 'src.pdf',
-        storageKey: `test/${randomUUID()}.pdf`,
-        mimeType: 'application/pdf',
-        sizeBytes: 1n,
-        checksumSha256: 'b'.repeat(64),
-        outputFamily: 'PDF',
-        source: DocumentVersionSource.UPLOADED,
-        status: DocumentStatus.ACTIVE,
-      },
-    });
+    const { documentId, versionId, checksum } =
+      await createDocumentWithVersion('cross-request-test');
     const signedVersion = await prisma.documentVersion.create({
       data: {
-        documentId: document.id,
+        documentId,
         versionNumber: 2,
         filename: 'signed.pdf',
         originalFilename: 'signed.pdf',
         storageKey: `test/${randomUUID()}-signed.pdf`,
         mimeType: 'application/pdf',
         sizeBytes: 1n,
-        checksumSha256: 'c'.repeat(64),
+        checksumSha256: createHash('sha256').update('signed').digest('hex'),
         outputFamily: 'PDF',
         source: DocumentVersionSource.UPLOADED,
         status: DocumentStatus.ACTIVE,
@@ -102,9 +96,9 @@ describe('document signing Phase B DB evidence invariants', () => {
 
     const requestA = await prisma.signingRequest.create({
       data: {
-        documentId: document.id,
-        sourceVersionId: sourceVersion.id,
-        sourceSha256: sourceVersion.checksumSha256 ?? 'b'.repeat(64),
+        documentId,
+        sourceVersionId: versionId,
+        sourceSha256: checksum,
         kind: SigningKind.PERSON_SIGNATURE,
         state: SigningRequestState.COMPLETED,
         methodIdentifier: 'test',
@@ -121,9 +115,9 @@ describe('document signing Phase B DB evidence invariants', () => {
     });
     const requestB = await prisma.signingRequest.create({
       data: {
-        documentId: document.id,
-        sourceVersionId: sourceVersion.id,
-        sourceSha256: sourceVersion.checksumSha256 ?? 'b'.repeat(64),
+        documentId,
+        sourceVersionId: versionId,
+        sourceSha256: checksum,
         kind: SigningKind.PERSON_SIGNATURE,
         state: SigningRequestState.COMPLETED,
         methodIdentifier: 'test',
@@ -161,8 +155,8 @@ describe('document signing Phase B DB evidence invariants', () => {
       prisma.documentSignature.create({
         data: {
           signingRequestId: requestB.id,
-          documentId: document.id,
-          sourceVersionId: sourceVersion.id,
+          documentId,
+          sourceVersionId: versionId,
           signedVersionId: signedVersion.id,
           kind: SigningKind.PERSON_SIGNATURE,
           intendedSignerUserId: user.id,
@@ -180,7 +174,163 @@ describe('document signing Phase B DB evidence invariants', () => {
     });
     await prisma.signingRequest.deleteMany({ where: { id: { in: [requestA.id, requestB.id] } } });
     await prisma.signingCredential.delete({ where: { id: credential.id } });
-    await prisma.documentVersion.deleteMany({ where: { documentId: document.id } });
-    await prisma.document.delete({ where: { id: document.id } });
+    await prisma.documentVersion.deleteMany({ where: { documentId } });
+    await prisma.document.delete({ where: { id: documentId } });
+  });
+
+  it('rejects SigningRequest acceptedSignedVersionId from another document', async () => {
+    const docA = await createDocumentWithVersion('doc-a');
+    const docB = await createDocumentWithVersion('doc-b');
+    const user = await prisma.user.findFirstOrThrow();
+    const credential = await prisma.signingCredential.create({
+      data: {
+        ownerType: 'USER',
+        ownerUserId: user.id,
+        providerLabel: 'DB-TEST',
+        certificateSerial: randomUUID(),
+        certificateFingerprintSha256: createHash('sha256').update(randomUUID()).digest('hex'),
+        certificateSubjectSummary: 'test',
+        validFrom: new Date(Date.now() - 86_400_000),
+        validTo: new Date(Date.now() + 86_400_000),
+        status: 'ENABLED',
+      },
+    });
+    const request = await prisma.signingRequest.create({
+      data: {
+        documentId: docA.documentId,
+        sourceVersionId: docA.versionId,
+        sourceSha256: docA.checksum,
+        kind: SigningKind.PERSON_SIGNATURE,
+        state: SigningRequestState.COMPLETED,
+        methodIdentifier: 'test',
+        policyVersion: 'test',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        bindingHash: 'a'.repeat(64),
+        nonceHash: 'b'.repeat(64),
+        idempotencyKey: `db-cross-doc-${randomUUID()}`,
+        signingCredentialId: credential.id,
+        credentialFingerprintSha256: credential.certificateFingerprintSha256,
+        intendedSignerUserId: user.id,
+        requestedByUserId: user.id,
+      },
+    });
+    await expect(
+      prisma.signingRequest.update({
+        where: { id: request.id },
+        data: { acceptedSignedVersionId: docB.versionId },
+      }),
+    ).rejects.toThrow();
+    await prisma.signingRequest.delete({ where: { id: request.id } });
+    await prisma.signingCredential.delete({ where: { id: credential.id } });
+    await prisma.documentVersion.deleteMany({
+      where: { documentId: { in: [docA.documentId, docB.documentId] } },
+    });
+    await prisma.document.deleteMany({ where: { id: { in: [docA.documentId, docB.documentId] } } });
+  });
+
+  it('rejects DocumentSignature when signed version belongs to another document', async () => {
+    const docA = await createDocumentWithVersion('sig-doc-a');
+    const docB = await createDocumentWithVersion('sig-doc-b');
+    const user = await prisma.user.findFirstOrThrow();
+    const credential = await prisma.signingCredential.create({
+      data: {
+        ownerType: 'USER',
+        ownerUserId: user.id,
+        providerLabel: 'DB-TEST',
+        certificateSerial: randomUUID(),
+        certificateFingerprintSha256: createHash('sha256').update(randomUUID()).digest('hex'),
+        certificateSubjectSummary: 'test',
+        validFrom: new Date(Date.now() - 86_400_000),
+        validTo: new Date(Date.now() + 86_400_000),
+        status: 'ENABLED',
+      },
+    });
+    const request = await prisma.signingRequest.create({
+      data: {
+        documentId: docA.documentId,
+        sourceVersionId: docA.versionId,
+        sourceSha256: docA.checksum,
+        kind: SigningKind.PERSON_SIGNATURE,
+        state: SigningRequestState.COMPLETED,
+        methodIdentifier: 'test',
+        policyVersion: 'test',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        bindingHash: 'c'.repeat(64),
+        nonceHash: 'd'.repeat(64),
+        idempotencyKey: `db-sig-cross-${randomUUID()}`,
+        signingCredentialId: credential.id,
+        credentialFingerprintSha256: credential.certificateFingerprintSha256,
+        intendedSignerUserId: user.id,
+        requestedByUserId: user.id,
+      },
+    });
+    const validation = await prisma.signatureValidation.create({
+      data: {
+        signingRequestId: request.id,
+        inputSourceSha256: '1'.repeat(64),
+        inputResultSha256: '2'.repeat(64),
+        overallResult: SignatureValidationOverallResult.VALID,
+        cmsCryptoResult: 'VALID',
+        byteRangeResult: 'VALID',
+        sourceBindingResult: 'VALID',
+        certificateValidityResult: 'VALID',
+        chainTrustResult: 'TRUSTED',
+        validatorName: 'test',
+        validatorVersion: '0',
+        policyVersion: 'test',
+        trustStoreVersion: 'test',
+      },
+    });
+    await expect(
+      prisma.documentSignature.create({
+        data: {
+          signingRequestId: request.id,
+          documentId: docA.documentId,
+          sourceVersionId: docA.versionId,
+          signedVersionId: docB.versionId,
+          kind: SigningKind.PERSON_SIGNATURE,
+          intendedSignerUserId: user.id,
+          performingOperatorUserId: user.id,
+          certificateFingerprintSha256: credential.certificateFingerprintSha256,
+          certificateSubjectSummary: 'test',
+          certificateIssuerSummary: 'test',
+          acceptanceValidationId: validation.id,
+        },
+      }),
+    ).rejects.toThrow();
+    await prisma.signatureValidation.delete({ where: { id: validation.id } });
+    await prisma.signingRequest.delete({ where: { id: request.id } });
+    await prisma.signingCredential.delete({ where: { id: credential.id } });
+    await prisma.documentVersion.deleteMany({
+      where: { documentId: { in: [docA.documentId, docB.documentId] } },
+    });
+    await prisma.document.deleteMany({ where: { id: { in: [docA.documentId, docB.documentId] } } });
+  });
+
+  it('rejects SIGNED version derivedFromVersionId pointing at another document version', async () => {
+    const docA = await createDocumentWithVersion('lineage-a');
+    const docB = await createDocumentWithVersion('lineage-b');
+    await expect(
+      prisma.documentVersion.create({
+        data: {
+          documentId: docA.documentId,
+          versionNumber: 2,
+          filename: 'signed-cross.pdf',
+          originalFilename: 'signed-cross.pdf',
+          storageKey: `test/${randomUUID()}-signed.pdf`,
+          mimeType: 'application/pdf',
+          sizeBytes: 1n,
+          checksumSha256: createHash('sha256').update('x').digest('hex'),
+          outputFamily: 'PDF',
+          source: DocumentVersionSource.SIGNED,
+          derivedFromVersionId: docB.versionId,
+          status: DocumentStatus.ACTIVE,
+        },
+      }),
+    ).rejects.toThrow();
+    await prisma.documentVersion.deleteMany({
+      where: { documentId: { in: [docA.documentId, docB.documentId] } },
+    });
+    await prisma.document.deleteMany({ where: { id: { in: [docA.documentId, docB.documentId] } } });
   });
 });

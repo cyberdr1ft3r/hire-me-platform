@@ -38,6 +38,10 @@ async function verifySignedBy(child: X509Certificate, issuer: X509Certificate): 
 /**
  * Path validation: leaf must chain to an explicitly configured trust anchor.
  * CMS certificate bag entries are untrusted path-building candidates only.
+ *
+ * Trust anchors are evaluated like any other certificate in the chain: each anchor
+ * used for path termination must be valid at referenceTime (notBefore/notAfter).
+ * OS/Node system roots are never consulted.
  */
 export async function evaluateCertificateTrust(input: {
   signerCertDer: Buffer;

@@ -7,7 +7,7 @@ Status owner: repository maintainer
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
-- **#143 Phase B (draft PR #144):** provider-neutral validation + **SIGNED** publication — **under maintainer re-review** after PR #144 security corrections (trust path, CMS signer identity, prepared-artifact binding, acceptance authority fence, staged storage, audit atomicity, DB evidence FKs). **D-084 Proposed.** See [Phase B architecture](../design/issue-143-phase-b-architecture.md).
+- **#143 Phase B (draft PR #144):** provider-neutral validation + **SIGNED** publication — **implementation and full maintainer regression matrix complete** on branch `cursor/issue-143-validation-publication-909e`; **D-084 Proposed** (pending maintainer acceptance). Trust path, CMS SignerInfo binding, prepared-artifact binding, acceptance-time authority fence, staged storage compensation, audit IDOR, and DB evidence invariants covered in tests. See [Phase B architecture](../design/issue-143-phase-b-architecture.md).
 
 ## Overall state
 

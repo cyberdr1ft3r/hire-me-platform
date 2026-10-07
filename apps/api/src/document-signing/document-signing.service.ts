@@ -1140,20 +1140,23 @@ export class DocumentSigningService {
 
     try {
       const completed = await this.prisma.$transaction(async (transaction) => {
+        await runSigningAcceptanceBarrierIfConfigured();
+
         await lockSigningRequest(transaction, request.id);
-        const current = await transaction.signingRequest.findUniqueOrThrow({
+        const locked = await transaction.signingRequest.findUniqueOrThrow({
           where: { id: request.id },
         });
-        if (current.state === SigningRequestState.COMPLETED) {
-          return current;
+        if (locked.state === SigningRequestState.COMPLETED) {
+          return locked;
         }
-        if (current.state !== SigningRequestState.AWAITING_RESULT) {
+        if (locked.state !== SigningRequestState.AWAITING_RESULT) {
           throw signingConflict(
             'SIGNING_REQUEST_NOT_AWAITING_RESULT',
             'Signing request is not awaiting a signed result.',
           );
         }
-        if (current.expiresAt.getTime() <= Date.now()) {
+
+        if (locked.expiresAt.getTime() <= Date.now()) {
           throw signingConflict(
             'SIGNING_REQUEST_EXPIRED',
             'Signing request expired before acceptance.',
@@ -1161,23 +1164,23 @@ export class DocumentSigningService {
         }
 
         const document = await transaction.document.findUniqueOrThrow({
-          where: { id: current.documentId },
+          where: { id: locked.documentId },
           select: { currentVersionId: true },
         });
-        if (document.currentVersionId !== current.sourceVersionId) {
+        if (document.currentVersionId !== locked.sourceVersionId) {
           throw signingConflict('SIGNING_SOURCE_STALE', 'Source version is no longer current.');
         }
 
-        if (preReadSourceSha256 !== current.sourceSha256) {
+        if (preReadSourceSha256 !== locked.sourceSha256) {
           throw signingConflict('SIGNING_SOURCE_STALE', 'Source bytes changed.');
         }
 
-        if (current.sourceSnapshotSha256) {
+        if (locked.sourceSnapshotSha256) {
           const liveFingerprint = await this.sourceSnapshot.computeCurrentFingerprint(
-            current.documentId,
+            locked.documentId,
             transaction,
           );
-          if (liveFingerprint !== current.sourceSnapshotSha256) {
+          if (liveFingerprint !== locked.sourceSnapshotSha256) {
             throw signingConflict(
               'SIGNING_SOURCE_BUSINESS_STALE',
               'Authoritative business source changed.',
@@ -1185,9 +1188,8 @@ export class DocumentSigningService {
           }
         }
 
-        await runSigningAcceptanceBarrierIfConfigured();
-        await this.assertAcceptanceAuthority(current, actorUserId, transaction);
-        if (process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK === current.id) {
+        await this.assertAcceptanceAuthority(locked, actorUserId, transaction);
+        if (process.env.SIGNING_TEST_FORCE_PUBLICATION_ROLLBACK === locked.id) {
           throw signingConflict(
             'SIGNING_TEST_PUBLICATION_ROLLBACK',
             'Test-only publication rollback.',
@@ -1195,13 +1197,13 @@ export class DocumentSigningService {
         }
 
         const lastVersion = await transaction.documentVersion.findFirst({
-          where: { documentId: current.documentId },
+          where: { documentId: locked.documentId },
           orderBy: { versionNumber: 'desc' },
           select: { versionNumber: true },
         });
         const signedVersion = await transaction.documentVersion.create({
           data: {
-            documentId: current.documentId,
+            documentId: locked.documentId,
             versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
             filename: sourceVersionRow.filename.replace(/\.pdf$/i, '') + '-signed.pdf',
             originalFilename: sourceVersionRow.originalFilename,
@@ -1211,7 +1213,7 @@ export class DocumentSigningService {
             checksumSha256: validation.inputResultSha256,
             outputFamily: 'PDF',
             source: DocumentVersionSource.SIGNED,
-            derivedFromVersionId: current.sourceVersionId,
+            derivedFromVersionId: locked.sourceVersionId,
             createdByUserId: actorUserId,
             status: DocumentStatus.ACTIVE,
           },
@@ -1219,7 +1221,7 @@ export class DocumentSigningService {
 
         const signatureValidation = await transaction.signatureValidation.create({
           data: {
-            signingRequestId: current.id,
+            signingRequestId: locked.id,
             inputSourceSha256: validation.inputPreparedArtifactSha256,
             inputResultSha256: validation.inputResultSha256,
             overallResult: SignatureValidationOverallResult.VALID,
@@ -1244,16 +1246,22 @@ export class DocumentSigningService {
             mimeType: 'application/json',
           },
         });
+        if (process.env.SIGNING_TEST_PUBLICATION_FAIL_AFTER === 'post_evidence') {
+          throw signingConflict(
+            'SIGNING_TEST_PUBLICATION_ROLLBACK',
+            'Test-only publication rollback after evidence staging.',
+          );
+        }
 
         await transaction.documentSignature.create({
           data: {
-            signingRequestId: current.id,
-            documentId: current.documentId,
-            sourceVersionId: current.sourceVersionId,
+            signingRequestId: locked.id,
+            documentId: locked.documentId,
+            sourceVersionId: locked.sourceVersionId,
             signedVersionId: signedVersion.id,
-            kind: current.kind,
-            intendedSignerUserId: current.intendedSignerUserId,
-            signingOrganizationId: current.signingOrganizationId,
+            kind: locked.kind,
+            intendedSignerUserId: locked.intendedSignerUserId,
+            signingOrganizationId: locked.signingOrganizationId,
             performingOperatorUserId: actorUserId,
             certificateFingerprintSha256: validation.certificateFingerprintSha256!,
             certificateSubjectSummary: validation.certificateSubjectSummary!,
@@ -1263,7 +1271,7 @@ export class DocumentSigningService {
         });
 
         const completedRequest = await transaction.signingRequest.update({
-          where: { id: current.id },
+          where: { id: locked.id },
           data: {
             state: SigningRequestState.COMPLETED,
             terminalReason: 'SIGNATURE_ACCEPTED',
@@ -1273,18 +1281,18 @@ export class DocumentSigningService {
         });
 
         await transaction.document.update({
-          where: { id: current.documentId },
+          where: { id: locked.documentId },
           data: { currentVersionId: signedVersion.id },
         });
 
         await appendSigningEventInTransaction(transaction, {
-          signingRequestId: current.id,
+          signingRequestId: locked.id,
           action: 'signature.accepted',
           actorUserId,
           metadataSummary: 'Signed PDF accepted after validation.',
         });
         await appendSigningEventInTransaction(transaction, {
-          signingRequestId: current.id,
+          signingRequestId: locked.id,
           action: 'signed_version.published',
           actorUserId,
           metadataSummary: `Signed version ${signedVersion.versionNumber} published.`,
