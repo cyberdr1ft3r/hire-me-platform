@@ -880,9 +880,9 @@ describe('document signing foundation (Issue #141)', { timeout: 120_000 }, () =>
       },
     });
     const reconciled = await api(operatorToken, `/v1/signing/requests/${requestId}`);
-    expect((reconciled.body as { request: { state: string; terminalReason: string } }).request.state).toBe(
-      'FAILED',
-    );
+    expect(
+      (reconciled.body as { request: { state: string; terminalReason: string } }).request.state,
+    ).toBe('FAILED');
     expect(
       (reconciled.body as { request: { terminalReason: string } }).request.terminalReason,
     ).toBe('CREDENTIAL_UNAVAILABLE');
