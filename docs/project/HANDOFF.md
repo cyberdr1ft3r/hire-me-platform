@@ -4,7 +4,7 @@ Last updated: 2026-10-07
 
 ## Current situation
 
-- **Issue #143 (Phase B):** draft PR on `cursor/issue-143-validation-publication-909e` — validation engine preflight complete; SIGNED publication, tests, and D-084 docs in progress / pending maintainer review.
+- **Issue #143 (Phase B):** draft **PR #144** on `cursor/issue-143-validation-publication-909e` @ `753e9c5` — implementation, D-071 local gates, and **exact-head CI green** (run `37603828815`); awaiting ChatGPT/maintainer review only (do not merge automatically).
 - **Issue #132:** remains **open** (parent epic); Barid/provider/token/UX remain Phase C+.
 - **Issue #141 / D-083:** merged on `main` via PR #142.
 

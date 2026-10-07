@@ -7,7 +7,7 @@ Status owner: repository maintainer
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
-- **#143 Phase B (draft PR pending):** provider-neutral PDF/CMS validation, trust policy, `POST .../results`, immutable **SIGNED** `DocumentVersion` publication — **no** Barid/token/UX. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md). **D-084 Proposed.**
+- **#143 Phase B (draft PR #144):** provider-neutral PDF/CMS validation, trust policy, `POST .../results`, immutable **SIGNED** `DocumentVersion` publication — **no** Barid/token/UX. Head `753e9c5`; exact-head CI run `37603828815` **green**. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md). **D-084 Proposed.**
 
 ## Overall state
 
