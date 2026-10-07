@@ -7,14 +7,14 @@ Status owner: repository maintainer
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
-- **#143 Phase B (draft PR #144):** provider-neutral validation + **SIGNED** publication — **final security corrections complete** (PKI.js path validation, SERIALIZABLE acceptance fence, transaction-scoped permissions) on branch `cursor/issue-143-validation-publication-909e`; **D-084 Proposed** pending ChatGPT final acceptance. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
+- **#143 Phase B (PR #144):** provider-neutral validation + **SIGNED** publication — **maintainer-accepted** after final security review (PKI.js path validation, SERIALIZABLE acceptance fence, transaction-scoped permissions); **D-084 Accepted**. Exact-head CI is green on the reviewed implementation. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A merged**, **Phase B** in final review on draft PR #144.
-**Health:** `main` at `2859efb3366b55da170e90bb95b8b7f4815ba09f` includes merged **#141 Phase A** (**PR #142**, **D-083 Accepted**), prior milestones (#132 preflight, Missions, UI-DNA, Accounting, Documents, etc.), and D-071 catalog gate. Issue **#109** / **#110** non-blocking. **D-068** / **D-070** operational follow-ups unchanged; no production deployment.
-**Current blocker:** **#143 / PR #144** awaits ChatGPT final Phase B review/merge decision; **#132** remains **open** (provider/Barid/UX blocked to Phase C+). D-070 migration not run in production.
-**Next executable development task:** ChatGPT maintainer **final review / merge of PR #144** (Phase B). Phase C remains separate and blocked on Phase B merge policy.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A merged**, **Phase B maintainer-accepted** through PR #144.
+**Health:** **#141 Phase A** is merged (**PR #142**, **D-083 Accepted**); **#143 Phase B** is maintainer-accepted (**PR #144**, **D-084 Accepted**) with green exact-head CI on the reviewed implementation. Prior milestones and the D-071 catalog gate remain intact. Issue **#109** / **#110** are non-blocking. **D-068** / **D-070** operational follow-ups are unchanged; no production deployment.
+**Current blocker:** No Phase B implementation blocker remains. If **PR #144** is still open, maintainer merge is the only remaining Phase B action. **#132** remains **open** for Phase C+ provider/Barid/UX work. D-070 migration is not run in production.
+**Next executable development task:** If **PR #144** is still open, merge the maintainer-accepted Phase B implementation. After merge, scope Phase C provider feasibility separately under **#132**.
 
 ## Active work
 
