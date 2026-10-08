@@ -190,9 +190,9 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 Design: [preflight](../design/issue-132-electronic-signature-preflight.md); Phase A/B merged on `main` (**#141**, **#143**, D-083/D-084 Accepted).
 
-Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → ~~PR C (#145 provider feasibility)~~ → **C2 Barid engagement + fixtures** → PR D (adapter / optional native bridge only if evidence supports it) → PR E (Commercial/Documents UX) → separately authorized pilot.
+Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → **PR C (#145 provider feasibility — final first-party evidence pass)** → C2 Barid engagement + fixtures → PR D (adapter / optional native bridge only if evidence supports it) → PR E (Commercial/Documents UX) → separately authorized pilot.
 
-**Issue #145** ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)): feasibility evidence is maintainer-accepted under **D-085**; **Ready for provider implementation: NO**. Next gate is direct Barid engagement plus sanitized fixtures/test token or signing sandbox and prepared-artifact compatibility proof. Issue #132 stays open.
+**Issue #145** ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)): **D-085 Proposed**; current first-party Barid PC/DPC/CGU/PIN/revocation/trust-chain documents must be incorporated before the external questionnaire is finalized. **Ready for provider implementation: NO**. Issue #132 stays open.
 
 ## Roadmap rules
 
