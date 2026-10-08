@@ -1,6 +1,6 @@
 # Issue #143 — Phase B validation and SIGNED publication
 
-Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 remains Proposed** until maintainer re-accepts after PR #144 security corrections.
+Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 Accepted** (PR #144 merged). Phase C provider feasibility: Issue #145.
 
 ## Validator responsibility matrix (v2.0.0)
 
@@ -13,7 +13,7 @@ Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 remains Proposed** un
 | CMS `SignerInfo` → signer certificate DER | Hire Me `cms-pdf-signature.ts` (`pkijs`) |
 | Detached CMS integrity (messageDigest + authenticatedAttributes) | Hire Me `cms-pdf-signature.ts` (forge PKCS#7 verify pattern; signer key from resolved cert, **not** cert-bag order) |
 | Credential fingerprint / subject / issuer evidence | Same resolved signer DER (`node-forge` summaries) |
-| Trust path to configured anchors | Hire Me `signing-trust-policy.ts` (`@peculiar/x509` signature verification + explicit anchor termination) |
+| Trust path to configured anchors | `signing-trust-policy.ts`: **PKI.js `CertificateChainValidationEngine` + Node WebCrypto** for maintained PKIX path validation to explicit configured anchors; Hire Me policy uses `@peculiar/x509` for explicit CA/key-usage/path-length checks and bounded policy mapping |
 | Policy decision (`VALID` / `INVALID` / `INDETERMINATE`) | `PdfSignatureValidatorService` v2.0.0 |
 
 Hire Me does **not** treat OS trust, `pdf-signature-reader` `authenticity`, cert-bag ordering, or a single `integrity` flag as the complete validation policy.
@@ -32,7 +32,7 @@ Path validation requires a verified chain from the CMS signer leaf to an explici
 
 - Validate **outside** the publication transaction (crypto, parsing, prepared binding, trust).
 - Stage signed PDF + evidence JSON **before** the short DB transaction; delete staged objects on rollback.
-- Inside transaction: lock request, recheck expiry/state/source current version/source SHA/business snapshot, run test barrier (if any), **re-run bound authority** (`assertAcceptanceAuthority`), publish rows, commit.
+- Inside a **PostgreSQL SERIALIZABLE** transaction: lock/reload the request and mutable authority/source rows, recheck expiry/state/source current version/source SHA/business snapshot, use transaction-scoped permission/source reads, **re-run bound authority** (`assertAcceptanceAuthority`), publish rows, and fail closed on serialization conflict.
 - Platform audit `signature.accepted` is recorded **after** successful commit (not inside the transaction client).
 
 ## Evidence DB invariants (migration `20261007120000_document_signing_phase_b_hardening`)
@@ -43,7 +43,7 @@ Path validation requires a verified chain from the CMS signer leaf to an explici
 
 ## What `VALID` means
 
-Detached CMS integrity over ByteRange-covered bytes; prepared-artifact binding; signer fingerprint matches request; cert valid at reference time; chain terminates at configured anchor; V1 single signature.
+Detached CMS integrity over ByteRange-covered bytes; prepared-artifact binding; signer fingerprint matches request; cert valid at reference time; maintained PKIX validation terminates at an explicitly configured anchor; V1 single signature.
 
 ## What `VALID` does **not** prove
 

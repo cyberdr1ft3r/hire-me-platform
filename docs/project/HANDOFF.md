@@ -1,17 +1,21 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## Current situation
 
-- **Issue #143 (Phase B):** **PR #144** on `cursor/issue-143-validation-publication-909e` — final security corrections complete and **maintainer-accepted**; **D-084 Accepted**; exact-head CI green on the reviewed implementation.
-- **Issue #132:** remains **open** (parent epic); Barid/provider/token/UX remain Phase C+.
-- **Issue #141 / D-083:** merged on `main` via PR #142.
-- **D-084:** **Accepted** by maintainer for the provider-neutral Phase B architecture.
+- **Issue #145 (Phase C):** Final **first-party Barid evidence pass** completed and **maintainer-accepted** on branch `cursor/issue-145-barid-feasibility-909e` (PR #146) — PC/DPC v6.0, CGUs, PKI disclosure, PIN/Go>Sign guides, trust chain, CRL/OCSP URLs, TSA docs incorporated; **D-085 Accepted**; **Ready for provider implementation: NO**.
+- **Issue #143 / D-084:** merged on **`main`** (`0b8da9aa71055249a85831309229e5ef36d53e11` at #145 creation).
+- **Issue #141 / D-083:** merged on `main`.
+- **Issue #132:** remains **open** (parent epic).
 
 ## Next concrete action
 
-If **PR #144** is still open, perform the maintainer merge. After merge, Phase B is complete; **#132** remains open and Phase C provider feasibility stays separate. No production deployment.
+1. If PR #146 is still open, **merge the maintainer-accepted Phase C evidence deliverable**.
+2. **Send §18 minimal Barid questionnaire** (integration + fixtures + test token only).
+3. Obtain **sanitized person/seal signed PDFs** and optional **integrator test token**; run **Phase B prepared-artifact compatibility** proof before any Route A pilot or adapter work.
+
+**Ready for provider implementation: NO** (see [feasibility doc](../design/issue-145-barid-esign-feasibility.md) executive summary).
 
 ## Preserved unrelated follow-ups
 
