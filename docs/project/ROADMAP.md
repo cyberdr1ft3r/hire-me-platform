@@ -188,11 +188,11 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 ## Issue #132 — proposed signing/sealing sequence
 
-Design-only [preflight](../design/issue-132-electronic-signature-preflight.md), re-audited **2026-10-06** on **`main` @ `bcf4b42`** (PR #134).
+Design: [preflight](../design/issue-132-electronic-signature-preflight.md); Phase A/B merged on `main` (**#141**, **#143**, D-083/D-084 Accepted).
 
-Sequence: preflight review → PR A (neutral schema/permissions/requests) → PR B (validation + signed `DocumentVersion` publication) → PR C (provider feasibility) → PR D (local/native adapter if required) → PR E (Commercial/Documents UX) → separately authorized pilot.
+Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → **PR C (#145 provider feasibility — in progress)** → PR D (adapter / optional native bridge if required) → PR E (Commercial/Documents UX) → separately authorized pilot.
 
-Provider documentation can proceed alongside PR A/B; **adapter and production enablement remain blocked** until provider confirmation. Issue #132 stays open.
+**Issue #145** ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)): evidence-only; **Ready for provider implementation: NO** until Barid fixtures/test token. Issue #132 stays open.
 
 ## Roadmap rules
 

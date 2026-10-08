@@ -1,17 +1,21 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## Current situation
 
-- **Issue #143 (Phase B):** **PR #144** on `cursor/issue-143-validation-publication-909e` — final security corrections complete and **maintainer-accepted**; **D-084 Accepted**; exact-head CI green on the reviewed implementation.
-- **Issue #132:** remains **open** (parent epic); Barid/provider/token/UX remain Phase C+.
-- **Issue #141 / D-083:** merged on `main` via PR #142.
-- **D-084:** **Accepted** by maintainer for the provider-neutral Phase B architecture.
+- **Issue #145 (Phase C):** Barid eSign **feasibility / evidence** on branch `cursor/issue-145-barid-feasibility-909e` — docs-only deliverable + **D-085 Proposed**; draft PR for maintainer review.
+- **Issue #143 / D-084:** merged on **`main`** (`0b8da9aa71055249a85831309229e5ef36d53e11` at #145 creation).
+- **Issue #141 / D-083:** merged on `main`.
+- **Issue #132:** remains **open** (parent epic).
 
 ## Next concrete action
 
-If **PR #144** is still open, perform the maintainer merge. After merge, Phase B is complete; **#132** remains open and Phase C provider feasibility stays separate. No production deployment.
+1. **ChatGPT / maintainer review** of Issue #145 draft PR and [issue-145-barid-esign-feasibility.md](../design/issue-145-barid-esign-feasibility.md).
+2. **Send Barid questionnaire** (feasibility doc §16); request **test USB token** and **sanitized signed PDF fixtures** (person + organization seal).
+3. **Do not merge** provider adapter or native bridge until **prepared-artifact compatibility** is proven with Phase B validator on Barid fixtures.
+
+**Ready for provider implementation: NO** (see feasibility doc executive summary).
 
 ## Preserved unrelated follow-ups
 

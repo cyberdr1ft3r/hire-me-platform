@@ -1,20 +1,21 @@
 # Project Status
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 Status owner: repository maintainer
 
 ## Issue #132 / signing phases
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
-- **#143 Phase B (PR #144):** provider-neutral validation + **SIGNED** publication — **maintainer-accepted** after final security review (PKI.js path validation, SERIALIZABLE acceptance fence, transaction-scoped permissions); **D-084 Accepted**. Exact-head CI is green on the reviewed implementation. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
+- **#143 Phase B (PR #144):** merged on **`main`** — provider-neutral validation + **SIGNED** publication; **D-084 Accepted**. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
+- **#145 Phase C (in progress):** Barid eSign provider/token **feasibility evidence only** — [issue-145 feasibility doc](../design/issue-145-barid-esign-feasibility.md); **D-085 Proposed** (manual desktop pilot route pending prepared-artifact proof); **no production Barid adapter**.
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A merged**, **Phase B maintainer-accepted** through PR #144.
-**Health:** **#141 Phase A** is merged (**PR #142**, **D-083 Accepted**); **#143 Phase B** is maintainer-accepted (**PR #144**, **D-084 Accepted**) with green exact-head CI on the reviewed implementation. Prior milestones and the D-071 catalog gate remain intact. Issue **#109** / **#110** are non-blocking. **D-068** / **D-070** operational follow-ups are unchanged; no production deployment.
-**Current blocker:** No Phase B implementation blocker remains. If **PR #144** is still open, maintainer merge is the only remaining Phase B action. **#132** remains **open** for Phase C+ provider/Barid/UX work. D-070 migration is not run in production.
-**Next executable development task:** If **PR #144** is still open, merge the maintainer-accepted Phase B implementation. After merge, scope Phase C provider feasibility separately under **#132**.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B merged on `main`**; **Phase C (#145) provider feasibility** in flight.
+**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Prior milestones and D-071 catalog gate remain intact. Issue **#109** / **#110** non-blocking. **D-068** / **D-070** unchanged; no production deployment.
+**Current blocker:** **Provider implementation blocked** until Barid confirms integration mechanism, provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. **#132** remains **open**.
+**Next executable development task:** Maintainer review of **Issue #145** deliverable (draft PR); send Barid questionnaire (§16 of feasibility doc); obtain test credentials/fixtures. Do **not** implement PKCS#11/bridge until confirmed.
 
 ## Active work
 

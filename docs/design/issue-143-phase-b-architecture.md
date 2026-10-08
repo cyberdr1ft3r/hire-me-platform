@@ -1,6 +1,6 @@
 # Issue #143 — Phase B validation and SIGNED publication
 
-Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 remains Proposed** until maintainer re-accepts after PR #144 security corrections.
+Parent: #132. Predecessor: D-083 / Phase A (#141). **D-084 Accepted** (PR #144 merged). Phase C provider feasibility: Issue #145.
 
 ## Validator responsibility matrix (v2.0.0)
 

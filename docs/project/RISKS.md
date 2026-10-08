@@ -69,12 +69,13 @@ See the [preflight threat model and provider gates](../design/issue-132-electron
 
 | Risk | Impact | Required gate | State |
 | --- | --- | --- | --- |
-| 132-PROVIDER | Generic SafeNet/PKCS#11 capability mistaken for a supported Barid token/SDK or remote document-signing API | Written Barid product/interface confirmation and sanitized test-token/PDF proof; qualified TSA is a separate service | Open |
+| 132-PROVIDER | Generic SafeNet/PKCS#11 capability mistaken for a supported Barid token/SDK or remote document-signing API | Written Barid product/interface confirmation and sanitized test-token/PDF proof; qualified TSA is a separate service | Open — Issue #145: no public Barid SDK/API; Thales SAC is **vendor-only**; spike **blocked** without test token ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)) |
+| 132-PREPARED-BARID | Barid/Adobe desktop signing rewrites PDF bytes outside Phase B prepared-artifact zones, causing valid-looking signatures that fail Hire Me binding or, worse, weakens pressure to keep exact-byte discipline | Require Barid sanitized fixtures + `PdfSignatureValidatorService` proof before enabling Route A pilot; never weaken D-084 binding | Open — Issue #145 |
 | 132-BINDING | Valid signature accepted for wrong `DocumentVersion` or unapproved PDF revision | Persist exact prepared payload + approval; validate ByteRange, byte hash, and allowed incremental changes | Open |
 | 132-AUTHORITY | Customer `Client` or personal certificate treated as organization seal authority | Internal `SigningOrganization`, certificate kind validation, mandate + grant; no role-name bypass | Open |
 | 132-RETENTION | App DB/filesystem hashes mistaken for tamper-proof qualified preservation | Checksum-on-read, immutable signed publication, protected evidence + operational retention policy | Open |
 | 132-TIME | Local clock or missing revocation data treated as trusted signing time | RFC 3161 validation policy where required; INDETERMINATE blocks acceptance | Open |
-| R-052 | Phase B `VALID` cryptographic success is mistaken for qualified Moroccan legal assurance, or empty/misconfigured trust anchors silently accept signatures. | Regulatory/compliance overstatement or acceptance of untrusted certificates. | D-084 documents non-legal meaning of `VALID`; trust path must terminate at explicit `SIGNING_TRUST_ANCHOR_PEMS`; CMS signer from `SignerInfo`; prepared-artifact binding; empty store → INDETERMINATE/fail-closed. Production Barid root onboarding remains Phase C+. | Active |
+| R-052 | Phase B `VALID` cryptographic success is mistaken for qualified Moroccan legal assurance, or empty/misconfigured trust anchors silently accept signatures. | Regulatory/compliance overstatement or acceptance of untrusted certificates. | D-084 documents non-legal meaning of `VALID`; trust path must terminate at explicit `SIGNING_TRUST_ANCHOR_PEMS`; CMS signer from `SignerInfo`; prepared-artifact binding; empty store → INDETERMINATE/fail-closed. Production Barid root onboarding remains post–Issue #145 (Phase D/E). | Active |
 
 ## Risk protocol
 
