@@ -4,16 +4,16 @@ Last updated: 2026-10-08
 
 ## Current situation
 
-- **Issue #145 (Phase C):** Barid eSign **feasibility / evidence** on branch `cursor/issue-145-barid-feasibility-909e` — docs-only deliverable + **D-085 Proposed**; draft PR for maintainer review.
+- **Issue #145 (Phase C):** Barid eSign **feasibility / evidence** on branch `cursor/issue-145-barid-feasibility-909e` — docs-only deliverable is **maintainer-accepted**; **D-085 Accepted** as a conditional sequencing decision; provider implementation remains blocked.
 - **Issue #143 / D-084:** merged on **`main`** (`0b8da9aa71055249a85831309229e5ef36d53e11` at #145 creation).
 - **Issue #141 / D-083:** merged on `main`.
 - **Issue #132:** remains **open** (parent epic).
 
 ## Next concrete action
 
-1. **ChatGPT / maintainer review** of Issue #145 draft PR and [issue-145-barid-esign-feasibility.md](../design/issue-145-barid-esign-feasibility.md).
-2. **Send Barid questionnaire** (feasibility doc §16); request **test USB token** and **sanitized signed PDF fixtures** (person + organization seal).
-3. **Do not merge** provider adapter or native bridge until **prepared-artifact compatibility** is proven with Phase B validator on Barid fixtures.
+1. If PR #146 is still open, **merge the maintainer-accepted Phase C evidence deliverable**.
+2. **Send Barid questionnaire** (feasibility doc §16); request **test USB token/signing sandbox** and **sanitized signed PDF fixtures** (person + organization seal).
+3. Run the Barid fixture/token compatibility proof against the existing Phase B validator. **Do not implement** a provider adapter or native bridge until the documented entry gates are met.
 
 **Ready for provider implementation: NO** (see feasibility doc executive summary).
 
