@@ -4,18 +4,18 @@ Last updated: 2026-10-08
 
 ## Current situation
 
-- **Issue #145 (Phase C):** Final **first-party Barid evidence pass** completed and **maintainer-accepted** on branch `cursor/issue-145-barid-feasibility-909e` (PR #146) — PC/DPC v6.0, CGUs, PKI disclosure, PIN/Go>Sign guides, trust chain, CRL/OCSP URLs, TSA docs incorporated; **D-085 Accepted**; **Ready for provider implementation: NO**.
-- **Issue #143 / D-084:** merged on **`main`** (`0b8da9aa71055249a85831309229e5ef36d53e11` at #145 creation).
-- **Issue #141 / D-083:** merged on `main`.
-- **Issue #132:** remains **open** (parent epic).
+- **Issue #147 (C2):** Provider engagement package on branch `cursor/issue-147-barid-c2-fixtures-909e` — [C2 runbook](../design/issue-147-barid-c2-provider-engagement.md). **State:** `READY_TO_CONTACT_PROVIDER`. **Questionnaire sent:** NO. **Fixtures / Route A proof:** BLOCKED.
+- **Issue #145 / D-085:** Accepted on `main` (sequencing: manual desktop proof before adapter).
+- **Issue #143 / D-084**, **#141 / D-083:** merged on `main`.
+- **Issue #132:** **open**.
 
 ## Next concrete action
 
-1. If PR #146 is still open, **merge the maintainer-accepted Phase C evidence deliverable**.
-2. **Send §18 minimal Barid questionnaire** (integration + fixtures + test token only).
-3. Obtain **sanitized person/seal signed PDFs** and optional **integrator test token**; run **Phase B prepared-artifact compatibility** proof before any Route A pilot or adapter work.
+1. **Human:** Send French cover + technical questionnaire to **ServiceClient@poste.ma** (subject: intégration logicielle tierce); use phone **080 200 60 60** for routing to integration/commercial if needed.
+2. Update C2 state to `WAITING_ON_PROVIDER` and tracking table when sent/responses arrive.
+3. On sanitized PDFs and/or test token: run [compatibility test plan](../design/issue-147-barid-c2-provider-engagement.md#8-compatibility-test-plan-execute-when-fixturestoken-exist); classify Route A PASS/FAIL/BLOCKED.
 
-**Ready for provider implementation: NO** (see [feasibility doc](../design/issue-145-barid-esign-feasibility.md) executive summary).
+**Ready for provider implementation: NO**
 
 ## Preserved unrelated follow-ups
 
