@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-09-29
+Last updated: 2026-10-08
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -190,9 +190,9 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 Design: [preflight](../design/issue-132-electronic-signature-preflight.md); Phase A/B merged on `main` (**#141**, **#143**, D-083/D-084 Accepted).
 
-Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → **PR C (#145 provider feasibility — in progress)** → PR D (adapter / optional native bridge if required) → PR E (Commercial/Documents UX) → separately authorized pilot.
+Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → ~~PR C (#145 provider feasibility)~~ → **C2 Barid engagement + fixtures** → PR D (adapter / optional native bridge only if evidence supports it) → PR E (Commercial/Documents UX) → separately authorized pilot.
 
-**Issue #145** ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)): evidence-only; **Ready for provider implementation: NO** until Barid fixtures/test token. Issue #132 stays open.
+**Issue #145** ([feasibility doc](../design/issue-145-barid-esign-feasibility.md)): feasibility evidence is maintainer-accepted under **D-085**; **Ready for provider implementation: NO**. Next gate is direct Barid engagement plus sanitized fixtures/test token or signing sandbox and prepared-artifact compatibility proof. Issue #132 stays open.
 
 ## Roadmap rules
 
