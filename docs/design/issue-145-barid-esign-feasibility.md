@@ -1,6 +1,6 @@
 # Issue #145 — Phase C: Barid eSign provider integration and token feasibility
 
-Date: 2026-10-08 (final first-party Barid evidence pass). Status: **feasibility evidence for maintainer review** (no production adapter authorized).
+Date: 2026-10-08 (final first-party Barid evidence pass). Status: **Phase C feasibility evidence accepted by maintainer** (no production adapter authorized).
 
 Source of truth: [Issue #145](https://github.com/cyberdr1ft3r/hire-me-platform/issues/145). Parent: [#132](https://github.com/cyberdr1ft3r/hire-me-platform/issues/132) (**open**).
 
@@ -20,12 +20,12 @@ Publications index: [Barid Publications](https://www.barid.ma/bamb2cstorefront/f
 | --- | --- |
 | **Ready for provider implementation** | **NO** |
 | **Ready for ChatGPT final Phase C review** | **YES** (first-party Barid set incorporated; residual gaps explicit) |
-| **Recommended primary route (Proposed D-085)** | **A — Manual desktop fallback** after prepared-artifact byte proof with Barid fixtures |
+| **Recommended primary route (D-085 Accepted)** | **A — Manual desktop fallback** after prepared-artifact byte proof with Barid fixtures |
 | **Custom local bridge required for route A** | **NO** |
 | **Custom local bridge required for in-app USB signing** | **UNKNOWN** (likely **YES** unless Barid supplies a maintained third-party signing component) |
 | **Remote Barid document-signing API confirmed** | **NOT FOUND** |
 | **Isolated technical spike** | **BLOCKED** (no signing-capable test token; public audit certs have no private keys) |
-| **Recommend D-085 acceptance (status stays Proposed)** | **YES** — sequencing unchanged; evidence strengthens gates, does not remove them |
+| **D-085** | **Accepted** as a sequencing decision; it does **not** authorize provider implementation or production signing |
 
 Phase B invariants are **not** weakened: provider output must pass independent CMS/X.509/prepared-artifact validation; `VALID` still does not imply Moroccan qualified legal status ([validation preflight](./issue-143-validation-engine-preflight.md)).
 
@@ -289,14 +289,14 @@ All items below were located on the official [Publications](https://www.barid.ma
 
 ---
 
-## 16. Integration architecture (Proposed D-085)
+## 16. Integration architecture (D-085 Accepted)
 
 **Recommendation unchanged:** **Route A** manual desktop (prepare → download → sign with Barid-documented desktop stack → upload → Phase B validate) **only after** fixture proof. **Route B** custom bridge only if in-app signing required **and** Barid confirms PKCS#11/CSP module + redistribution. **No Route D** without written API.
 
 | Custom bridge for Route A | **NO** |
 | Custom bridge for in-app USB | **UNKNOWN** (likely **YES** if no official Barid signing component) |
 
-**Recommend maintainer accept D-085 direction:** **YES** (evidence reinforces gates; does not authorize adapter).
+**D-085 accepted:** manual desktop compatibility proof remains the first route to prove; this does **not** authorize an adapter, pilot, or production signing before the documented entry gates pass.
 
 ---
 
