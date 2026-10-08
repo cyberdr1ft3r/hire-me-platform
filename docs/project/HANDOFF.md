@@ -4,15 +4,15 @@ Last updated: 2026-10-08
 
 ## Current situation
 
-- **Issue #145 (Phase C):** Final **first-party Barid evidence pass** completed on branch `cursor/issue-145-barid-feasibility-909e` (PR #146) — PC/DPC v6.0, CGUs, PKI disclosure, PIN/Go>Sign guides, trust chain, CRL/OCSP URLs, TSA docs incorporated; **D-085 Proposed**; **Ready for provider implementation: NO**.
+- **Issue #145 (Phase C):** Final **first-party Barid evidence pass** completed and **maintainer-accepted** on branch `cursor/issue-145-barid-feasibility-909e` (PR #146) — PC/DPC v6.0, CGUs, PKI disclosure, PIN/Go>Sign guides, trust chain, CRL/OCSP URLs, TSA docs incorporated; **D-085 Accepted**; **Ready for provider implementation: NO**.
 - **Issue #143 / D-084:** merged on **`main`** (`0b8da9aa71055249a85831309229e5ef36d53e11` at #145 creation).
 - **Issue #141 / D-083:** merged on `main`.
 - **Issue #132:** remains **open** (parent epic).
 
 ## Next concrete action
 
-1. **Maintainer / ChatGPT review** of PR #146 after fresh exact-head CI on the new commit.
-2. If accepted, **send §18 minimal Barid questionnaire** (integration + fixtures + test token only).
+1. If PR #146 is still open, **merge the maintainer-accepted Phase C evidence deliverable**.
+2. **Send §18 minimal Barid questionnaire** (integration + fixtures + test token only).
 3. Obtain **sanitized person/seal signed PDFs** and optional **integrator test token**; run **Phase B prepared-artifact compatibility** proof before any Route A pilot or adapter work.
 
 **Ready for provider implementation: NO** (see [feasibility doc](../design/issue-145-barid-esign-feasibility.md) executive summary).
