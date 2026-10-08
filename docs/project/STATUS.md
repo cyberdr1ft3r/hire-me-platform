@@ -8,14 +8,14 @@ Status owner: repository maintainer
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
 - **#143 Phase B (PR #144):** merged on **`main`** — provider-neutral validation + **SIGNED** publication; **D-084 Accepted**. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
-- **#145 Phase C (PR #146):** Barid eSign provider/token **feasibility evidence complete and maintainer-accepted** — [issue-145 feasibility doc](../design/issue-145-barid-esign-feasibility.md); **D-085 Accepted** as a conditional sequencing decision. **Ready for provider implementation: NO**; no production Barid adapter is authorized.
+- **#145 Phase C (PR #146):** Barid eSign provider/token **feasibility evidence under maintainer correction** — current Barid first-party PC/DPC/CGU/PIN/revocation/trust-chain publications still need to be exhausted before provider questions are finalized; **D-085 Proposed**. **Ready for provider implementation: NO**; no production Barid adapter is authorized.
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B merged on `main`**; **Phase C (#145) feasibility accepted**, with provider engagement/fixtures still required before implementation.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B merged on `main`**; **Phase C (#145) feasibility** is in final evidence-completion review.
 **Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Prior milestones and D-071 catalog gate remain intact. Issue **#109** / **#110** non-blocking. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms integration mechanism, provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. **#132** remains **open**.
-**Next executable development task:** If PR #146 is still open, merge the accepted Phase C evidence deliverable. Then send the Barid questionnaire (§16), obtain a test token or signing sandbox plus sanitized person/seal PDF fixtures, and run the prepared-artifact compatibility proof. Do **not** implement PKCS#11/bridge until confirmed.
+**Next executable development task:** Complete the current Barid first-party PC/DPC/CGU/PIN/revocation/trust-chain review on PR #146, remove provider questions already answered by those documents, and reclassify remaining gaps. After maintainer acceptance, send only the residual Barid questionnaire and obtain fixtures/test credentials. Do **not** implement PKCS#11/bridge until confirmed.
 
 ## Active work
 
