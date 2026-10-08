@@ -86,7 +86,8 @@ A future **Barid adapter** supplies signed bytes or drives a local signing step;
 | Product family | **CONFIRMED — official** | Barid eSign **Classe 3 signature** (qualified), OID above. |
 | Issuing CA / chain | **CONFIRMED — official (#132 S3)** | Guides reference **AC Racine G2 / Qualified CA Barid eSign**; [PKI repository](https://pki.baridesign.ma/repository) and [CRL](https://crl.pki.baridesign.ma/crl/) cited in Barid usage guide (repository fetch timed out 2026-10-08 — verify live). |
 | Certificate policy OID in certs | **REQUIRES BARID CONFIRMATION** | Guide mentions OID `1.2.504.1.1.1.2.12.14.1` in verification context (#132 S3); map to **issued** qualified person certs at enrollment. |
-| Hardware-bound key | **CONFIRMED — official (#132 S2–S3)** | Qualified workflow documented with **USB token + SafeNet**; aligns with QSCD Type 1 model. |
+| Documented local token workflow | **CONFIRMED — official (#132 S2–S3)** | Qualified workflow is documented with **USB token + SafeNet**. |
+| Exact hardware-bound / non-exportability status of the issued key | **REQUIRES BARID CONFIRMATION** | The public USB-token workflow is consistent with a local QSCD model, but the exact token model, QSCD identity/certification and key-export properties for the intended issued credential were not established in this pass. |
 | Renewal / revocation | **CONFIRMED — official (#132 S3)** | CRL publication documented; operational renewal via Barid channels — **REQUIRES BARID CONFIRMATION** for SLA and replacement token process. |
 | Advanced (non-qualified) signature product | **CONFIRMED — official** | DGSSI table lists **Certificat classe 3 de signature avancée** (separate OID `1.2.504.1.1.1.1.1.1.1.27.6`) — do not treat as qualified Classe 3 signature. |
 
