@@ -6,6 +6,11 @@ import { parseSalaryAmount } from '../money/index.js';
 import { Button, StatusBadge, TextArea, TextField } from '../ui/index.js';
 import { SectionStatus, SummaryItem } from './MissionBits.js';
 import type { MissionAccess } from './mission-access.js';
+import { formValue, isBusinessDateInput, optionalFormValue } from './mission-form.js';
+import {
+  buildPlacementConfirmRequest,
+  type PlacementConfirmFormValues,
+} from './placement-confirm.js';
 import {
   OFFER_RESPONSES,
   canOfferMoveTo,
@@ -27,7 +32,12 @@ export interface OfferCreateValues {
 
 export interface MissionOffersModel {
   offer: SectionState<OfferAggregate | null>;
-  onConfirmPlacement: (offer: OfferAggregate) => void;
+  placementConfirm: {
+    context: { missionId: string; offerVersionId: string; processId: string } | null;
+    onCancel: () => void;
+    onOpen: (offer: OfferAggregate) => void;
+    onSubmit: (values: PlacementConfirmFormValues) => Promise<boolean>;
+  };
   onCreate: (values: OfferCreateValues) => Promise<boolean>;
   onMarkSent: (offer: OfferAggregate) => void;
   onResponse: (offer: OfferAggregate, status: OfferResponseStatus) => void;
@@ -196,7 +206,7 @@ function OfferDetail({
             {access.canConfirmPlacements && status === 'ACCEPTED' && !placementRecorded ? (
               <Button
                 disabled={writesLocked}
-                onClick={() => model.onConfirmPlacement(offer)}
+                onClick={() => model.placementConfirm.onOpen(offer)}
                 size="compact"
                 variant="primary"
               >
@@ -204,6 +214,12 @@ function OfferDetail({
               </Button>
             ) : null}
           </div>
+          {access.canConfirmPlacements &&
+          status === 'ACCEPTED' &&
+          !placementRecorded &&
+          model.placementConfirm.context?.offerVersionId === current.id ? (
+            <PlacementConfirmForm access={access} model={model} writesLocked={writesLocked} />
+          ) : null}
           {access.canRecordOfferResponses && responses.length > 0 ? (
             <div className="mission-group">
               <h5 className="mission-minor-title">{t('missions.offers.responsesTitle')}</h5>
@@ -227,6 +243,88 @@ function OfferDetail({
         </>
       ) : null}
     </div>
+  );
+}
+
+function PlacementConfirmForm({
+  access,
+  model,
+  writesLocked,
+}: {
+  access: MissionAccess;
+  model: MissionOffersModel;
+  writesLocked: boolean;
+}) {
+  const { t } = useI18n();
+  const [dateError, setDateError] = useState(false);
+  const title = t('missions.placements.confirmForm.title');
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const integrationStartDate = formValue(data, 'integrationStartDate').trim();
+    if (!isBusinessDateInput(integrationStartDate)) {
+      setDateError(true);
+      return;
+    }
+    setDateError(false);
+    const payload = buildPlacementConfirmRequest({
+      integrationStartDate,
+      operationalNote: optionalFormValue(data, 'operationalNote'),
+    });
+    if (!payload) {
+      setDateError(true);
+      return;
+    }
+    await model.placementConfirm.onSubmit({
+      integrationStartDate,
+      operationalNote: optionalFormValue(data, 'operationalNote'),
+    });
+  }
+
+  return (
+    <form
+      aria-label={title}
+      className="mission-form"
+      onSubmit={(event) => void handleSubmit(event)}
+    >
+      <h5 className="mission-minor-title">{title}</h5>
+      <p className="mission-muted">{t('missions.placements.confirmForm.intro')}</p>
+      <TextField
+        error={
+          dateError ? t('missions.placements.confirmForm.integrationStartDateError') : undefined
+        }
+        hint={t('missions.placements.confirmForm.integrationStartDateHelp')}
+        label={t('missions.placements.confirmForm.integrationStartDate')}
+        name="integrationStartDate"
+        required
+        type="date"
+      />
+      <TextArea
+        hint={t('missions.placements.confirmForm.operationalNoteHelp')}
+        label={t('missions.placements.confirmForm.operationalNote')}
+        maxLength={1000}
+        name="operationalNote"
+        rows={3}
+      />
+      {access.canViewPlacementCommercialEligibility ? (
+        <p className="mission-muted">{t('missions.placements.confirmForm.invoicingReadOnly')}</p>
+      ) : null}
+      <div className="mission-actions">
+        <Button
+          disabled={writesLocked}
+          onClick={() => model.placementConfirm.onCancel()}
+          size="compact"
+          type="button"
+          variant="secondary"
+        >
+          {t('common.actions.cancel')}
+        </Button>
+        <Button disabled={writesLocked} size="compact" type="submit" variant="primary">
+          {t('missions.placements.confirmForm.submit')}
+        </Button>
+      </div>
+    </form>
   );
 }
 

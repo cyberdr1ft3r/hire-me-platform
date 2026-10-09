@@ -4,16 +4,16 @@ Last updated: 2026-10-09
 
 ## Current situation
 
-- **Issue #150** (child of **#110**): nested Missions pagination (assignments, interviews, evaluations) and searchable/paged client-contact invitation options — **draft PR #151** updated for maintainer review comment **6080326068** (load-more semantics, contact multi-select, acceptance tests); awaiting exact-head CI and ChatGPT final review.
-- **Issue #109:** **closed** — PR **#149** merged (deterministic MissionCandidate race integration test).
-- **Issue #110:** **open** parent for remaining Missions V1+ items after #150.
+- **Issue #150:** **complete** — merged via PR **#151** on `main` (nested pagination + client-contact selection).
+- **Issue #152** (child of **#110**): bounded placement confirmation form — **draft PR open**; authority audit documents **eligibility SET permission: MISSING** (no new permission added); awaiting maintainer decision on commercial-eligibility write capability and ChatGPT review.
+- **Issue #110:** **open** parent for remaining Missions V1+ items.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
 ## Next concrete action
 
-1. Review and merge **Issue #150** draft PR when exact-head CI is green and review passes.
-2. Continue **#110** with the next scoped child (placement confirmation fields, deadline filters, closure reason, or read-only persona — per issue sequencing).
-3. Signing track: maintainer sends **#147 C2** questionnaire when ready; no Route A adapter until fixtures arrive.
+1. Maintainer decision on whether to add an explicit permission (or other capability) for setting `eligibleForInvoicing` at placement confirmation; until then web submits contract default `false` only.
+2. Review and merge **Issue #152** draft PR when CI is green and review passes.
+3. Continue **#110** with next scoped children (deadline filters, closure reason, read-only persona) after #152.
 
 ## Preserved unrelated follow-ups
 
