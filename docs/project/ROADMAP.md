@@ -192,7 +192,7 @@ Design: [preflight](../design/issue-132-electronic-signature-preflight.md); Phas
 
 Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → ~~PR C (#145)~~ → **C2 (#147 engagement + fixtures + Route A proof)** → PR D (adapter / optional native bridge only if evidence supports it) → PR E (Commercial/Documents UX) → separately authorized pilot.
 
-**Issue #147** ([C2 doc](../design/issue-147-barid-c2-provider-engagement.md)): engagement package prepared (`READY_TO_CONTACT_PROVIDER`); awaiting Barid fixtures/token and prepared-artifact proof. **Ready for provider implementation: NO**. Issue #132 stays open.
+**Issue #147** ([C2 doc](../design/issue-147-barid-c2-provider-engagement.md)): engagement package prepared (`READY_TO_CONTACT_PROVIDER`); provider contact has **not yet been sent**. After send, transition to `WAITING_ON_PROVIDER`; fixtures/token and prepared-artifact proof remain required. **Ready for provider implementation: NO**. Issue #132 stays open.
 
 ## Roadmap rules
 
