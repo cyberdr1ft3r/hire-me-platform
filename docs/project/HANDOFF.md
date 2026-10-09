@@ -20,7 +20,7 @@ Last updated: 2026-10-08
 ## Preserved unrelated follow-ups
 
 - **R-050:** FINANCE_MANAGER mission-scope limits unchanged.
-- Issue **#109** flaky mission-candidate race test (non-blocking).
+- Issue **#109:** draft PR for deterministic mission/candidate archival vs MissionCandidate create race test; await exact-head CI and ChatGPT review.
 - Issue **#110** Missions follow-ups.
 - **D-068** production env/proxy verification; **D-070** migration not deployed in production.
 

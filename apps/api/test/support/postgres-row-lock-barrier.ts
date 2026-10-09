@@ -1,0 +1,346 @@
+import type { PrismaClient } from '../../src/persistence/prisma/generated-client.js';
+
+const DEFAULT_POLL_INTERVAL_MS = 15;
+const DEFAULT_TIMEOUT_MS = 8_000;
+
+export type RowLockBarrierTable = 'RecruitmentMission' | 'Candidate';
+
+export interface RowLockWaiterSnapshot {
+  pid: number;
+  granted: boolean;
+  mode: string;
+  relname: string;
+  waitEventType: string | null;
+  waitEvent: string | null;
+  blockingPids: number[];
+}
+
+export class RowLockBarrierTimeout extends Error {
+  constructor(
+    message: string,
+    readonly relname: string,
+    readonly expectedMinWaiters: number,
+    readonly blockerPid: number | null,
+    readonly snapshots: RowLockWaiterSnapshot[],
+    readonly grantedHolderPids: number[],
+  ) {
+    super(message);
+    this.name = 'RowLockBarrierTimeout';
+  }
+}
+
+async function listGrantedRowLockHolderPids(
+  prisma: PrismaClient,
+  relname: RowLockBarrierTable,
+  holderPids?: readonly number[],
+): Promise<number[]> {
+  const rows = await prisma.$queryRaw<Array<{ pid: number }>>`
+    SELECT DISTINCT l.pid::int AS pid
+    FROM pg_locks l
+    INNER JOIN pg_class c ON c.oid = l.relation
+    INNER JOIN pg_stat_activity act ON act.pid = l.pid
+    WHERE c.relname = ${relname}
+      AND l.granted = true
+      AND act.datname = current_database()
+      AND act.state IN ('active in transaction', 'idle in transaction')
+      AND l.locktype IN ('relation', 'tuple')
+  `;
+  const pids = rows.map((row) => row.pid);
+  if (!holderPids || holderPids.length === 0) {
+    return pids;
+  }
+  const allowed = new Set(holderPids);
+  return pids.filter((pid) => allowed.has(pid));
+}
+
+async function queryBackendsBlockedBy(
+  prisma: PrismaClient,
+  blockerPid: number,
+): Promise<
+  Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }>
+> {
+  return prisma.$queryRaw`
+    SELECT
+      act.pid::int AS pid,
+      act.wait_event_type AS "waitEventType",
+      act.wait_event AS "waitEvent",
+      pg_blocking_pids(act.pid)::int[] AS "blockingPids"
+    FROM pg_stat_activity act
+    WHERE act.datname = current_database()
+      AND act.pid <> pg_backend_pid()
+      AND cardinality(pg_blocking_pids(act.pid)) > 0
+      AND ${blockerPid} = ANY(pg_blocking_pids(act.pid))
+  `;
+}
+
+async function queryRowLockWaitersBlockedBy(
+  prisma: PrismaClient,
+  blockerPid: number,
+  relname: RowLockBarrierTable,
+): Promise<RowLockWaiterSnapshot[]> {
+  return prisma.$queryRaw<RowLockWaiterSnapshot[]>`
+    SELECT DISTINCT
+      blocked_activity.pid::int AS "pid",
+      blocked_locks.granted AS "granted",
+      blocked_locks.mode::text AS "mode",
+      c.relname::text AS "relname",
+      blocked_activity.wait_event_type AS "waitEventType",
+      blocked_activity.wait_event AS "waitEvent",
+      pg_blocking_pids(blocked_activity.pid)::int[] AS "blockingPids"
+    FROM pg_catalog.pg_locks blocked_locks
+    INNER JOIN pg_catalog.pg_locks blocking_locks
+      ON blocking_locks.locktype = blocked_locks.locktype
+      AND blocking_locks.database IS NOT DISTINCT FROM blocked_locks.database
+      AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+      AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+      AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+      AND blocking_locks.virtualtransaction IS NOT DISTINCT FROM blocked_locks.virtualtransaction
+      AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+      AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+      AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+      AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+    INNER JOIN pg_class c ON c.oid = blocked_locks.relation
+    INNER JOIN pg_stat_activity blocked_activity ON blocked_activity.pid = blocked_locks.pid
+    WHERE NOT blocked_locks.granted
+      AND blocking_locks.granted
+      AND blocking_locks.pid = ${blockerPid}
+      AND c.relname = ${relname}
+      AND blocked_activity.datname = current_database()
+  `;
+}
+
+async function waitForBackendsBlockedBy(
+  prisma: PrismaClient,
+  blockerPid: number,
+  minWaiters: number,
+  timeoutMs: number,
+  relname: RowLockBarrierTable,
+): Promise<
+  Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }>
+> {
+  const deadline = Date.now() + timeoutMs;
+  let lastSnapshots: Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }> = [];
+
+  while (Date.now() < deadline) {
+    lastSnapshots = await queryBackendsBlockedBy(prisma, blockerPid);
+    if (lastSnapshots.length >= minWaiters) {
+      return lastSnapshots;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_POLL_INTERVAL_MS));
+  }
+
+  const grantedHolderPids = await listGrantedRowLockHolderPids(prisma, relname);
+  const lockSnapshots = await queryRowLockWaitersBlockedBy(prisma, blockerPid, relname);
+  throw new RowLockBarrierTimeout(
+    `Timed out after ${timeoutMs}ms waiting for ${minWaiters} backend(s) blocked by PID ${blockerPid}.`,
+    relname,
+    minWaiters,
+    blockerPid,
+    lockSnapshots,
+    grantedHolderPids,
+  );
+}
+
+async function isBackendInOpenTransaction(prisma: PrismaClient, pid: number): Promise<boolean> {
+  const rows = await prisma.$queryRaw<Array<{ inTx: boolean }>>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_stat_activity act
+      WHERE act.pid = ${pid}
+        AND act.datname = current_database()
+        AND act.state IN ('active in transaction', 'idle in transaction')
+    ) AS "inTx"
+  `;
+  return rows[0]?.inTx === true;
+}
+
+async function waitForPrimaryArchiveTransaction(
+  prisma: PrismaClient,
+  relname: RowLockBarrierTable,
+  holderPid: number,
+  timeoutMs: number,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const holders = await listGrantedRowLockHolderPids(prisma, relname, [holderPid]);
+    if (holders.includes(holderPid)) {
+      return;
+    }
+    if (await isBackendInOpenTransaction(prisma, holderPid)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_POLL_INTERVAL_MS));
+  }
+
+  const grantedHolderPids = await listGrantedRowLockHolderPids(prisma, relname);
+  throw new RowLockBarrierTimeout(
+    `Timed out after ${timeoutMs}ms waiting for PID ${holderPid} to hold a granted row lock or open transaction on "${relname}".`,
+    relname,
+    1,
+    holderPid,
+    [],
+    grantedHolderPids,
+  );
+}
+
+async function waitForRowLockWaitersBlockedBy(
+  prisma: PrismaClient,
+  blockerPid: number,
+  relname: RowLockBarrierTable,
+  minWaiters: number,
+  timeoutMs: number,
+): Promise<RowLockWaiterSnapshot[]> {
+  const deadline = Date.now() + timeoutMs;
+  let lastSnapshots: RowLockWaiterSnapshot[] = [];
+
+  while (Date.now() < deadline) {
+    lastSnapshots = await queryRowLockWaitersBlockedBy(prisma, blockerPid, relname);
+    if (lastSnapshots.length >= minWaiters) {
+      return lastSnapshots;
+    }
+    const blockedByPid = await queryBackendsBlockedBy(prisma, blockerPid);
+    if (blockedByPid.length >= minWaiters) {
+      return lastSnapshots;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_POLL_INTERVAL_MS));
+  }
+
+  const grantedHolderPids = await listGrantedRowLockHolderPids(prisma, relname);
+  throw new RowLockBarrierTimeout(
+    `Timed out after ${timeoutMs}ms waiting for ${minWaiters} backend(s) blocked on "${relname}" by PID ${blockerPid}.`,
+    relname,
+    minWaiters,
+    blockerPid,
+    lastSnapshots,
+    grantedHolderPids,
+  );
+}
+
+async function acquireRowForUpdate(
+  transaction: Pick<PrismaClient, '$queryRaw'>,
+  table: RowLockBarrierTable,
+  rowId: string,
+): Promise<void> {
+  if (table === 'RecruitmentMission') {
+    await transaction.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${rowId}::uuid FOR UPDATE`;
+    return;
+  }
+  await transaction.$queryRaw`SELECT id FROM "Candidate" WHERE id = ${rowId}::uuid FOR UPDATE`;
+}
+
+export interface RowLockRaceOptions<TPrimary, TSecondary> {
+  prisma: PrismaClient;
+  table: RowLockBarrierTable;
+  rowId: string;
+  primaryRequest: () => Promise<TPrimary>;
+  secondaryRequest: () => Promise<TSecondary>;
+  waiterTimeoutMs?: number;
+}
+
+/**
+ * Deterministic race helper:
+ * 1. A test transaction holds `FOR UPDATE` on the target row.
+ * 2. The primary request starts and queues behind that lock.
+ * 3. Once the primary backend is blocked, the secondary request starts and queues too.
+ * 4. The test lock releases; the primary (first waiter) acquires the row lock.
+ * 5. Poll until the primary holds the lock and the secondary waits on the primary.
+ */
+export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
+  options: RowLockRaceOptions<TPrimary, TSecondary>,
+): Promise<[TPrimary, TSecondary]> {
+  const {
+    prisma,
+    table,
+    rowId,
+    primaryRequest,
+    secondaryRequest,
+    waiterTimeoutMs = DEFAULT_TIMEOUT_MS,
+  } = options;
+
+  let releaseTestLock: (() => void) | undefined;
+  let testLockReady: (() => void) | undefined;
+  let testHolderPid = 0;
+
+  const releasePromise = new Promise<void>((resolve) => {
+    releaseTestLock = resolve;
+  });
+  const testLockReadyPromise = new Promise<void>((resolve) => {
+    testLockReady = resolve;
+  });
+
+  const testLockPromise = prisma.$transaction(
+    async (transaction) => {
+      testHolderPid = (
+        await transaction.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid()::int AS pid`
+      )[0]!.pid;
+      await acquireRowForUpdate(transaction, table, rowId);
+      testLockReady?.();
+      await releasePromise;
+    },
+    { timeout: 45_000 },
+  );
+
+  try {
+    await testLockReadyPromise;
+    const primaryPromise = primaryRequest();
+    const primaryBlocked = await waitForBackendsBlockedBy(
+      prisma,
+      testHolderPid,
+      1,
+      waiterTimeoutMs,
+      table,
+    );
+    const primaryBackendPid = primaryBlocked[0]!.pid;
+
+    releaseTestLock?.();
+    const secondaryPromise = secondaryRequest();
+
+    try {
+      await waitForPrimaryArchiveTransaction(
+        prisma,
+        table,
+        primaryBackendPid,
+        Math.min(waiterTimeoutMs, 2_000),
+      );
+    } catch (error) {
+      if (!(error instanceof RowLockBarrierTimeout)) {
+        throw error;
+      }
+    }
+
+    try {
+      await waitForRowLockWaitersBlockedBy(
+        prisma,
+        primaryBackendPid,
+        table,
+        1,
+        Math.min(waiterTimeoutMs, 2_000),
+      );
+    } catch (error) {
+      if (!(error instanceof RowLockBarrierTimeout)) {
+        throw error;
+      }
+    }
+
+    const [primary, secondary] = await Promise.all([primaryPromise, secondaryPromise]);
+    return [primary, secondary];
+  } finally {
+    releaseTestLock?.();
+    await testLockPromise.catch(() => undefined);
+  }
+}

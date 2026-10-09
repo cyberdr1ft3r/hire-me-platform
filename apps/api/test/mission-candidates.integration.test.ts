@@ -21,6 +21,7 @@ import {
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
 import { ensurePermissionForTest } from './support/permission-fixtures.js';
+import { raceWhileHoldingRowLock } from './support/postgres-row-lock-barrier.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -44,7 +45,7 @@ const restrictedMissionCandidatePermissions = [
   'mission_candidates:present',
   'mission_candidates:integration:confirm',
 ] as const;
-const supportingMissionPermissions = ['missions:archive'] as const;
+const supportingMissionPermissions = ['missions:archive', 'candidates:archive'] as const;
 const sensitiveCandidatePermissions = [
   'candidate_compensation:view',
   'candidate_consent:view',
@@ -286,68 +287,6 @@ async function transitionProcess(
     headers: authHeaders(accessToken),
     body: JSON.stringify({ state, reason, skip }),
   });
-}
-
-async function raceAfterMissionLock<T>(
-  missionId: string,
-  startRequests: () => Promise<T>,
-): Promise<T> {
-  let releaseLock: (() => void) | undefined;
-  let locked: (() => void) | undefined;
-  const releasePromise = new Promise<void>((resolve) => {
-    releaseLock = resolve;
-  });
-  const lockedPromise = new Promise<void>((resolve) => {
-    locked = resolve;
-  });
-
-  const lockPromise = prisma.$transaction(
-    async (transaction) => {
-      await transaction.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${missionId}::uuid FOR UPDATE`;
-      locked?.();
-      await releasePromise;
-    },
-    { timeout: 10000 },
-  );
-
-  await lockedPromise;
-  const resultPromise = startRequests();
-  await new Promise((resolve) => setTimeout(resolve, 75));
-  releaseLock?.();
-  const result = await resultPromise;
-  await lockPromise;
-  return result;
-}
-
-async function raceAfterCandidateLock<T>(
-  candidateId: string,
-  startRequests: () => Promise<T>,
-): Promise<T> {
-  let releaseLock: (() => void) | undefined;
-  let locked: (() => void) | undefined;
-  const releasePromise = new Promise<void>((resolve) => {
-    releaseLock = resolve;
-  });
-  const lockedPromise = new Promise<void>((resolve) => {
-    locked = resolve;
-  });
-
-  const lockPromise = prisma.$transaction(
-    async (transaction) => {
-      await transaction.$queryRaw`SELECT id FROM "Candidate" WHERE id = ${candidateId}::uuid FOR UPDATE`;
-      locked?.();
-      await releasePromise;
-    },
-    { timeout: 10000 },
-  );
-
-  await lockedPromise;
-  const resultPromise = startRequests();
-  await new Promise((resolve) => setTimeout(resolve, 75));
-  releaseLock?.();
-  const result = await resultPromise;
-  await lockPromise;
-  return result;
 }
 
 describe('Mission candidate process API', () => {
@@ -846,19 +785,17 @@ describe('Mission candidate process API', () => {
       },
     });
 
-    const [archive, createAfterArchive] = await raceAfterMissionLock(missionRaceId, async () => {
-      const archivePromise = fetch(`${baseUrl}/v1/missions/${missionRaceId}/archive`, {
-        method: 'POST',
-        headers: authHeaders(token),
-      });
-      const createPromise = createProcess(
-        baseUrl,
-        token,
-        missionRaceId,
-        missionRaceCandidate.id,
-        hrUserId,
-      );
-      return Promise.all([archivePromise, createPromise]);
+    const [archive, createAfterArchive] = await raceWhileHoldingRowLock({
+      prisma,
+      table: 'RecruitmentMission',
+      rowId: missionRaceId,
+      primaryRequest: () =>
+        fetch(`${baseUrl}/v1/missions/${missionRaceId}/archive`, {
+          method: 'POST',
+          headers: authHeaders(token),
+        }),
+      secondaryRequest: () =>
+        createProcess(baseUrl, token, missionRaceId, missionRaceCandidate.id, hrUserId),
     });
 
     expect(archive.status).toBe(201);
@@ -874,26 +811,23 @@ describe('Mission candidate process API', () => {
     const candidateRace = await createCandidate('candidate-race@mission-candidates.test');
     await assignUserToMission(candidateRaceMissionId, hrUserId);
 
-    const [archiveCandidate, createAfterCandidateArchive] = await raceAfterCandidateLock(
-      candidateRace.id,
-      async () => {
-        const archivePromise = prisma.candidate.update({
-          where: { id: candidateRace.id },
-          data: { status: CandidateStatus.ARCHIVED, archivedAt: new Date() },
-        });
-        await new Promise((resolve) => setTimeout(resolve, 25));
-        const createPromise = createProcess(
-          baseUrl,
-          token,
-          candidateRaceMissionId,
-          candidateRace.id,
-          hrUserId,
-        );
-        return Promise.all([archivePromise, createPromise]);
-      },
-    );
+    const [archiveCandidate, createAfterCandidateArchive] = await raceWhileHoldingRowLock({
+      prisma,
+      table: 'Candidate',
+      rowId: candidateRace.id,
+      primaryRequest: () =>
+        fetch(`${baseUrl}/v1/candidates/${candidateRace.id}/archive`, {
+          method: 'POST',
+          headers: authHeaders(token),
+        }),
+      secondaryRequest: () =>
+        createProcess(baseUrl, token, candidateRaceMissionId, candidateRace.id, hrUserId),
+    });
 
-    expect(archiveCandidate.status).toBe(CandidateStatus.ARCHIVED);
+    expect(archiveCandidate.status).toBe(201);
+    expect(
+      (await prisma.candidate.findUniqueOrThrow({ where: { id: candidateRace.id } })).status,
+    ).toBe(CandidateStatus.ARCHIVED);
     expect(createAfterCandidateArchive.status).toBe(409);
     expect(await readErrorCode(createAfterCandidateArchive)).toBe('CANDIDATE_ARCHIVED');
     expect(
@@ -901,5 +835,5 @@ describe('Mission candidate process API', () => {
         where: { missionId: candidateRaceMissionId, candidateId: candidateRace.id },
       }),
     ).toBe(0);
-  });
+  }, 45_000);
 });
