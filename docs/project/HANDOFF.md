@@ -4,7 +4,7 @@ Last updated: 2026-10-09
 
 ## Current situation
 
-- **Issue #150** (child of **#110**): nested Missions pagination (assignments, interviews, evaluations) and searchable/paged client-contact invitation options — **draft PR open**, awaiting exact-head CI and ChatGPT review.
+- **Issue #150** (child of **#110**): nested Missions pagination (assignments, interviews, evaluations) and searchable/paged client-contact invitation options — **draft PR #151** updated for maintainer review comment **6080326068** (load-more semantics, contact multi-select, acceptance tests); awaiting exact-head CI and ChatGPT final review.
 - **Issue #109:** **closed** — PR **#149** merged (deterministic MissionCandidate race integration test).
 - **Issue #110:** **open** parent for remaining Missions V1+ items after #150.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
