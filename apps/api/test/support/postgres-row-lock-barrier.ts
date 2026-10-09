@@ -156,77 +156,102 @@ async function waitForBackendsBlockedBy(
   );
 }
 
-async function isBackendInOpenTransaction(prisma: PrismaClient, pid: number): Promise<boolean> {
-  const rows = await prisma.$queryRaw<Array<{ inTx: boolean }>>`
-    SELECT EXISTS (
-      SELECT 1
-      FROM pg_stat_activity act
-      WHERE act.pid = ${pid}
-        AND act.datname = current_database()
-        AND act.state IN ('active in transaction', 'idle in transaction')
-    ) AS "inTx"
+async function querySecondaryRaceParticipant(
+  prisma: PrismaClient,
+  testHolderPid: number,
+  primaryBackendPid: number,
+  relname: RowLockBarrierTable,
+): Promise<
+  Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }>
+> {
+  const blockedByTest = await queryBackendsBlockedBy(prisma, testHolderPid);
+  const secondaryOnTest = blockedByTest.filter((row) => row.pid !== primaryBackendPid);
+
+  const blockedInGraph = await prisma.$queryRaw<
+    Array<{
+      pid: number;
+      waitEventType: string | null;
+      waitEvent: string | null;
+      blockingPids: number[];
+    }>
+  >`
+    SELECT
+      act.pid::int AS pid,
+      act.wait_event_type AS "waitEventType",
+      act.wait_event AS "waitEvent",
+      pg_blocking_pids(act.pid)::int[] AS "blockingPids"
+    FROM pg_stat_activity act
+    WHERE act.datname = current_database()
+      AND act.pid <> pg_backend_pid()
+      AND act.pid <> ${primaryBackendPid}
+      AND cardinality(pg_blocking_pids(act.pid)) > 0
+      AND (
+        ${testHolderPid} = ANY(pg_blocking_pids(act.pid))
+        OR ${primaryBackendPid} = ANY(pg_blocking_pids(act.pid))
+      )
   `;
-  return rows[0]?.inTx === true;
+
+  const lockWaiters = await queryRowLockWaitersBlockedBy(prisma, testHolderPid, relname);
+  const secondaryLockWaiters = lockWaiters.filter((row) => row.pid !== primaryBackendPid);
+
+  const byPid = new Map<
+    number,
+    { pid: number; waitEventType: string | null; waitEvent: string | null; blockingPids: number[] }
+  >();
+  for (const row of [...secondaryOnTest, ...blockedInGraph, ...secondaryLockWaiters]) {
+    byPid.set(row.pid, row);
+  }
+  return [...byPid.values()];
 }
 
-async function waitForPrimaryArchiveTransaction(
+async function waitForSecondaryRaceParticipant(
   prisma: PrismaClient,
+  testHolderPid: number,
+  primaryBackendPid: number,
   relname: RowLockBarrierTable,
-  holderPid: number,
   timeoutMs: number,
-): Promise<void> {
+): Promise<
+  Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }>
+> {
   const deadline = Date.now() + timeoutMs;
+  let lastSnapshots: Array<{
+    pid: number;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockingPids: number[];
+  }> = [];
+
   while (Date.now() < deadline) {
-    const holders = await listGrantedRowLockHolderPids(prisma, relname, [holderPid]);
-    if (holders.includes(holderPid)) {
-      return;
-    }
-    if (await isBackendInOpenTransaction(prisma, holderPid)) {
-      return;
+    lastSnapshots = await querySecondaryRaceParticipant(
+      prisma,
+      testHolderPid,
+      primaryBackendPid,
+      relname,
+    );
+    if (lastSnapshots.length >= 1) {
+      return lastSnapshots;
     }
     await new Promise((resolve) => setTimeout(resolve, DEFAULT_POLL_INTERVAL_MS));
   }
 
   const grantedHolderPids = await listGrantedRowLockHolderPids(prisma, relname);
+  const lockSnapshots = await queryRowLockWaitersBlockedBy(prisma, testHolderPid, relname);
   throw new RowLockBarrierTimeout(
-    `Timed out after ${timeoutMs}ms waiting for PID ${holderPid} to hold a granted row lock or open transaction on "${relname}".`,
+    `Timed out after ${timeoutMs}ms waiting for a secondary backend (distinct from PID ${primaryBackendPid}) blocked on "${relname}" by the test holder and/or the primary archive backend.`,
     relname,
     1,
-    holderPid,
-    [],
-    grantedHolderPids,
-  );
-}
-
-async function waitForRowLockWaitersBlockedBy(
-  prisma: PrismaClient,
-  blockerPid: number,
-  relname: RowLockBarrierTable,
-  minWaiters: number,
-  timeoutMs: number,
-): Promise<RowLockWaiterSnapshot[]> {
-  const deadline = Date.now() + timeoutMs;
-  let lastSnapshots: RowLockWaiterSnapshot[] = [];
-
-  while (Date.now() < deadline) {
-    lastSnapshots = await queryRowLockWaitersBlockedBy(prisma, blockerPid, relname);
-    if (lastSnapshots.length >= minWaiters) {
-      return lastSnapshots;
-    }
-    const blockedByPid = await queryBackendsBlockedBy(prisma, blockerPid);
-    if (blockedByPid.length >= minWaiters) {
-      return lastSnapshots;
-    }
-    await new Promise((resolve) => setTimeout(resolve, DEFAULT_POLL_INTERVAL_MS));
-  }
-
-  const grantedHolderPids = await listGrantedRowLockHolderPids(prisma, relname);
-  throw new RowLockBarrierTimeout(
-    `Timed out after ${timeoutMs}ms waiting for ${minWaiters} backend(s) blocked on "${relname}" by PID ${blockerPid}.`,
-    relname,
-    minWaiters,
-    blockerPid,
-    lastSnapshots,
+    testHolderPid,
+    lockSnapshots,
     grantedHolderPids,
   );
 }
@@ -256,9 +281,9 @@ export interface RowLockRaceOptions<TPrimary, TSecondary> {
  * Deterministic race helper:
  * 1. A test transaction holds `FOR UPDATE` on the target row.
  * 2. The primary request starts and queues behind that lock.
- * 3. Once the primary backend is blocked, the secondary request starts and queues too.
- * 4. The test lock releases; the primary (first waiter) acquires the row lock.
- * 5. Poll until the primary holds the lock and the secondary waits on the primary.
+ * 3. While the test lock remains held, the secondary request starts and must queue on the same row-lock graph.
+ * 4. Only after both backends are observable in `pg_blocking_pids()` / `pg_locks`, the test lock releases.
+ * 5. FIFO queue hands the row to the primary archive transaction; the secondary remains blocked until archival completes.
  */
 export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
   options: RowLockRaceOptions<TPrimary, TSecondary>,
@@ -307,35 +332,16 @@ export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
     );
     const primaryBackendPid = primaryBlocked[0]!.pid;
 
-    releaseTestLock?.();
     const secondaryPromise = secondaryRequest();
+    await waitForSecondaryRaceParticipant(
+      prisma,
+      testHolderPid,
+      primaryBackendPid,
+      table,
+      waiterTimeoutMs,
+    );
 
-    try {
-      await waitForPrimaryArchiveTransaction(
-        prisma,
-        table,
-        primaryBackendPid,
-        Math.min(waiterTimeoutMs, 2_000),
-      );
-    } catch (error) {
-      if (!(error instanceof RowLockBarrierTimeout)) {
-        throw error;
-      }
-    }
-
-    try {
-      await waitForRowLockWaitersBlockedBy(
-        prisma,
-        primaryBackendPid,
-        table,
-        1,
-        Math.min(waiterTimeoutMs, 2_000),
-      );
-    } catch (error) {
-      if (!(error instanceof RowLockBarrierTimeout)) {
-        throw error;
-      }
-    }
+    releaseTestLock?.();
 
     const [primary, secondary] = await Promise.all([primaryPromise, secondaryPromise]);
     return [primary, secondary];
