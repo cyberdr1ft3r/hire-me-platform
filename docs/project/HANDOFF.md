@@ -20,8 +20,8 @@ Last updated: 2026-10-08
 ## Preserved unrelated follow-ups
 
 - **R-050:** FINANCE_MANAGER mission-scope limits unchanged.
-- Issue **#109** flaky mission-candidate race test (non-blocking).
-- Issue **#110** Missions follow-ups.
+- Issue **#109:** PR #149 deterministic mission/candidate archival vs MissionCandidate create race test is maintainer-accepted; merge if still open. No production behavior change.
+- Issue **#110:** next unblocked Missions V1+ follow-up after #109 merge.
 - **D-068** production env/proxy verification; **D-070** migration not deployed in production.
 
 ## D-071 catalog guarantees
