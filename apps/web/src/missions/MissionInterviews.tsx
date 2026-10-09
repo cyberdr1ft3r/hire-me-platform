@@ -26,21 +26,29 @@ import {
   interviewTypeLabelKey,
   isInterviewOpen,
 } from './mission-labels.js';
+import type { AccumulatedListState } from './mission-accumulated-list.js';
+import { MissionLoadMorePagination } from './MissionLoadMorePagination.js';
 import type { PickerOption, SectionState } from './mission-state.js';
 
 export type InterviewAction = 'archive' | 'cancel' | 'complete' | 'postpone';
 
 export interface MissionInterviewsModel {
   activeInterviewId: string | null;
+  clientContactSearch: string;
   /** The mission client's active contacts; idle when they are not offered. */
-  clientContacts: SectionState<ClientContactSummary[]>;
-  interviews: SectionState<InterviewSummary[]>;
+  clientContacts: SectionState<AccumulatedListState<ClientContactSummary>>;
+  interviews: SectionState<AccumulatedListState<InterviewSummary>>;
   onAction: (interview: InterviewSummary, action: InterviewAction) => void;
+  onClientContactSearch: (search: string) => void;
+  onLoadMoreClientContacts: () => void;
+  onLoadMoreInterviews: () => void;
   onReschedule: (
     interview: InterviewSummary,
     input: InterviewRescheduleRequest,
   ) => Promise<boolean>;
   onRetry: () => void;
+  onRetryLoadMoreClientContacts: () => void;
+  onRetryLoadMoreInterviews: () => void;
   onSchedule: (input: InterviewScheduleRequest) => Promise<boolean>;
   onToggle: (interviewId: string) => void;
 }
@@ -74,8 +82,8 @@ export function MissionInterviews({
         {title}
       </h4>
       <SectionStatus onRetry={model.onRetry} section={model.interviews}>
-        {(interviews) =>
-          interviews.length === 0 ? (
+        {(list) =>
+          list.items.length === 0 ? (
             <p className="mission-muted">{t('missions.interviews.empty')}</p>
           ) : (
             <>
@@ -91,7 +99,7 @@ export function MissionInterviews({
                     </tr>
                   </thead>
                   <tbody>
-                    {interviews.map((interview) => {
+                    {list.items.map((interview) => {
                       const expanded = interview.id === model.activeInterviewId;
                       return (
                         <tr data-selected={expanded} key={interview.id}>
@@ -125,7 +133,18 @@ export function MissionInterviews({
                   </tbody>
                 </table>
               </ScrollTable>
-              {interviews
+              <MissionLoadMorePagination
+                labels={{
+                  loadMore: t('missions.nestedPagination.loadMore'),
+                  loadMoreFailed: t('missions.nestedPagination.loadMoreFailed'),
+                  progress: (values) => t('missions.nestedPagination.progress', values),
+                  region: t('missions.interviews.pagination.region'),
+                }}
+                list={list}
+                onLoadMore={model.onLoadMoreInterviews}
+                onRetryLoadMore={model.onRetryLoadMoreInterviews}
+              />
+              {list.items
                 .filter((interview) => interview.id === model.activeInterviewId)
                 .map((interview) => (
                   <InterviewDetail
@@ -462,22 +481,42 @@ function ScheduleForm({
         <fieldset className="mission-fieldset">
           <legend>{t('missions.interviews.schedule.clientContacts')}</legend>
           <p className="ui-field__hint">{t('missions.interviews.schedule.clientContactsHint')}</p>
+          <TextField
+            hint={t('missions.interviews.schedule.clientContactsSearchHint')}
+            label={t('missions.interviews.schedule.clientContactsSearch')}
+            name="clientContactSearch"
+            onChange={(event) => model.onClientContactSearch(event.currentTarget.value)}
+            value={model.clientContactSearch}
+          />
           <SectionStatus section={model.clientContacts}>
-            {(contacts) =>
-              contacts.length === 0 ? (
+            {(contactList) =>
+              contactList.items.length === 0 ? (
                 <p className="mission-muted">
                   {t('missions.interviews.schedule.clientContactsEmpty')}
                 </p>
               ) : (
-                contacts.map((contact) => (
-                  <Checkbox
-                    hint={contact.roleTitle ?? undefined}
-                    key={contact.id}
-                    label={contact.displayName}
-                    name="clientContactParticipant"
-                    value={contact.id}
+                <>
+                  {contactList.items.map((contact) => (
+                    <Checkbox
+                      hint={contact.roleTitle ?? undefined}
+                      key={contact.id}
+                      label={contact.displayName}
+                      name="clientContactParticipant"
+                      value={contact.id}
+                    />
+                  ))}
+                  <MissionLoadMorePagination
+                    labels={{
+                      loadMore: t('missions.nestedPagination.loadMore'),
+                      loadMoreFailed: t('missions.nestedPagination.loadMoreFailed'),
+                      progress: (values) => t('missions.nestedPagination.progress', values),
+                      region: t('missions.interviews.schedule.clientContactsPagination'),
+                    }}
+                    list={contactList}
+                    onLoadMore={model.onLoadMoreClientContacts}
+                    onRetryLoadMore={model.onRetryLoadMoreClientContacts}
                   />
-                ))
+                </>
               )
             }
           </SectionStatus>

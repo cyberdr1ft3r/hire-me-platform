@@ -264,6 +264,17 @@ export function page<T>(key: string, items: T[]) {
   return { [key]: items, pagination: { page: 1, pageSize: 20, total: items.length } };
 }
 
+/** Slices like the API using `page` and `pageSize` query parameters. */
+export function serverPage<T>(key: string, items: T[], search: URLSearchParams) {
+  const pageNumber = Number(search.get('page') ?? '1');
+  const pageSize = Number(search.get('pageSize') ?? '20');
+  const start = (pageNumber - 1) * pageSize;
+  return {
+    [key]: items.slice(start, start + pageSize),
+    pagination: { page: pageNumber, pageSize, total: items.length },
+  };
+}
+
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
