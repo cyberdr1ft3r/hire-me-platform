@@ -151,10 +151,7 @@ describe('MissionsPanel request ownership', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission A' })).toBeVisible();
     expect(
       calls.some(({ authorization, url }) =>
-        Boolean(
-          authorization === 'Bearer token-a' &&
-          isAssignmentList(url, MISSION_A_ID),
-        ),
+        Boolean(authorization === 'Bearer token-a' && isAssignmentList(url, MISSION_A_ID)),
       ),
     ).toBe(true);
 
