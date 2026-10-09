@@ -52,12 +52,12 @@ describe('MissionsPanel request ownership', () => {
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}`)) {
         return Promise.resolve(jsonResponse({ mission: missionB }));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_B_ID}/assignments`)) {
+      if (isAssignmentList(url, MISSION_B_ID)) {
         return Promise.resolve(
           assignmentListResponse([syntheticAssignment(MISSION_B_ID, 'Mission B Recruiter')]),
         );
       }
-      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`)) {
+      if (isAssignmentList(url, MISSION_A_ID)) {
         return Promise.resolve(
           assignmentListResponse([syntheticAssignment(MISSION_A_ID, 'Mission A Recruiter')]),
         );
@@ -89,7 +89,7 @@ describe('MissionsPanel request ownership', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Mission A' })).toBeNull();
     expect(screen.queryByText(/Mission A Recruiter/)).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
-    expect(calls.filter((url) => url.endsWith(`/${MISSION_A_ID}/assignments`))).toHaveLength(0);
+    expect(calls.filter((url) => isAssignmentList(url, MISSION_A_ID))).toHaveLength(0);
   });
 
   it('stops an old-token Mission chain after session replacement and lets the new session load', async () => {
@@ -117,13 +117,13 @@ describe('MissionsPanel request ownership', () => {
       if (url.endsWith(`/v1/missions/${MISSION_A_ID}`)) {
         return Promise.resolve(jsonResponse({ mission: missionA }));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`)) {
+      if (isAssignmentList(url, MISSION_A_ID)) {
         return missionAAssignments.promise;
       }
       if (url.endsWith(`/v1/missions/${MISSION_B_ID}`)) {
         return Promise.resolve(jsonResponse({ mission: missionB }));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_B_ID}/assignments`)) {
+      if (isAssignmentList(url, MISSION_B_ID)) {
         return Promise.resolve(assignmentListResponse([]));
       }
       if (isCandidateList(url, MISSION_B_ID)) {
@@ -151,10 +151,7 @@ describe('MissionsPanel request ownership', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission A' })).toBeVisible();
     expect(
       calls.some(({ authorization, url }) =>
-        Boolean(
-          authorization === 'Bearer token-a' &&
-          url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`),
-        ),
+        Boolean(authorization === 'Bearer token-a' && isAssignmentList(url, MISSION_A_ID)),
       ),
     ).toBe(true);
 
@@ -210,7 +207,7 @@ describe('MissionsPanel request ownership', () => {
       if (url.endsWith(`/v1/missions/${MISSION_A_ID}`)) {
         return Promise.resolve(jsonResponse({ mission: missionA }));
       }
-      if (url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`)) {
+      if (isAssignmentList(url, MISSION_A_ID)) {
         return Promise.resolve(
           assignmentListResponse([syntheticAssignment(MISSION_A_ID, 'Prior Recruiter')]),
         );
@@ -311,7 +308,7 @@ describe('MissionsPanel request ownership', () => {
     expect(
       calls.filter(
         (url) =>
-          url.endsWith(`/v1/missions/${MISSION_A_ID}/assignments`) ||
+          isAssignmentList(url, MISSION_A_ID) ||
           isCandidateList(url, MISSION_A_ID) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity`) ||
           url.endsWith(`/v1/missions/${MISSION_A_ID}/public-opportunity/applications`),
@@ -739,4 +736,8 @@ function requestUrl(input: string | URL | Request): string {
 /** The mission candidate-process list, with or without its pagination query. */
 function isCandidateList(url: string, missionId: string): boolean {
   return new RegExp(`/v1/missions/${missionId}/candidates(\\?|$)`).test(url);
+}
+
+function isAssignmentList(url: string, missionId: string): boolean {
+  return new RegExp(`/v1/missions/${missionId}/assignments(\\?|$)`).test(url);
 }

@@ -182,6 +182,7 @@ export function syntheticOffer(
 export function syntheticInterview(
   process: MissionCandidateSummary,
   organizerDisplayName: string,
+  overrides: Partial<InterviewSummary> = {},
 ): InterviewSummary {
   return {
     id: scopedId(process.missionId, '000000000033'),
@@ -205,6 +206,20 @@ export function syntheticInterview(
     evaluationCount: 0,
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
+    ...overrides,
+  };
+}
+
+export function syntheticInterviewDetail(
+  process: MissionCandidateSummary,
+  organizerDisplayName: string,
+  overrides: Partial<InterviewSummary> = {},
+) {
+  return {
+    ...syntheticInterview(process, organizerDisplayName, overrides),
+    participants: [],
+    evaluations: [],
+    history: [],
   };
 }
 
@@ -262,6 +277,17 @@ export function syntheticPublicOpportunity(
 
 export function page<T>(key: string, items: T[]) {
   return { [key]: items, pagination: { page: 1, pageSize: 20, total: items.length } };
+}
+
+/** Slices like the API using `page` and `pageSize` query parameters. */
+export function serverPage<T>(key: string, items: T[], search: URLSearchParams) {
+  const pageNumber = Number(search.get('page') ?? '1');
+  const pageSize = Number(search.get('pageSize') ?? '20');
+  const start = (pageNumber - 1) * pageSize;
+  return {
+    [key]: items.slice(start, start + pageSize),
+    pagination: { page: pageNumber, pageSize, total: items.length },
+  };
 }
 
 export function jsonResponse(body: unknown, status = 200): Response {

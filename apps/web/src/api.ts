@@ -41,6 +41,7 @@ import {
   CandidateSkillDetailResponseSchema,
   CandidateWorkExperienceDetailResponseSchema,
   MissionAssignmentDetailResponseSchema,
+  MissionAssignmentListQuerySchema,
   MissionAssignmentListResponseSchema,
   MissionAssignmentUserOptionsQuerySchema,
   MissionAssignmentUserOptionsResponseSchema,
@@ -63,8 +64,10 @@ import {
   InternalPublicApplicationListResponseSchema,
   InternalPublicOpportunityDetailResponseSchema,
   InterviewDetailResponseSchema,
+  InterviewListQuerySchema,
   InterviewListResponseSchema,
   EvaluationDetailResponseSchema,
+  EvaluationListQuerySchema,
   EvaluationListResponseSchema,
   MissionListResponseSchema,
   PublicApplicationSubmitResponseSchema,
@@ -164,6 +167,7 @@ import {
   type CandidateWorkExperienceUpdateRequest,
   type MissionAssignmentCreateRequest,
   type MissionAssignmentDetailResponse,
+  type MissionAssignmentListQuery,
   type MissionAssignmentListResponse,
   type MissionAssignmentUpdateRequest,
   type MissionAssignmentUserOptionsQuery,
@@ -204,10 +208,12 @@ import {
   type InterviewCancellationRequest,
   type InterviewParticipantCreateRequest,
   type InterviewDetailResponse,
+  type InterviewListQuery,
   type InterviewListResponse,
   type EvaluationCreateRequest,
   type EvaluationUpdateRequest,
   type EvaluationDetailResponse,
+  type EvaluationListQuery,
   type EvaluationListResponse,
   type MissionClosureRequest,
   type MissionCreateRequest,
@@ -1960,9 +1966,22 @@ export async function archiveMission(
 export async function listMissionAssignments(
   accessToken: string,
   missionId: string,
+  query: Partial<MissionAssignmentListQuery> = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<MissionAssignmentListResponse> {
-  const response = await missionRequest(accessToken, `/${missionId}/assignments`, {}, apiBaseUrl);
+  const parsed = MissionAssignmentListQuerySchema.parse(query);
+  const parameters = new URLSearchParams({
+    page: String(parsed.page),
+    pageSize: String(parsed.pageSize),
+  });
+  if (parsed.status) parameters.set('status', parsed.status);
+  if (parsed.role) parameters.set('role', parsed.role);
+  const response = await missionRequest(
+    accessToken,
+    `/${missionId}/assignments?${parameters.toString()}`,
+    {},
+    apiBaseUrl,
+  );
   return MissionAssignmentListResponseSchema.parse(await response.json());
 }
 
@@ -2287,11 +2306,19 @@ export async function listInterviews(
   accessToken: string,
   missionId: string,
   processId: string,
+  query: Partial<InterviewListQuery> = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<InterviewListResponse> {
+  const parsed = InterviewListQuerySchema.parse(query);
+  const parameters = new URLSearchParams({
+    page: String(parsed.page),
+    pageSize: String(parsed.pageSize),
+  });
+  if (parsed.type) parameters.set('type', parsed.type);
+  if (parsed.status) parameters.set('status', parsed.status);
   const response = await missionRequest(
     accessToken,
-    `/${missionId}/candidates/${processId}/interviews`,
+    `/${missionId}/candidates/${processId}/interviews?${parameters.toString()}`,
     {},
     apiBaseUrl,
   );
@@ -2420,11 +2447,19 @@ export async function listEvaluations(
   missionId: string,
   processId: string,
   interviewId: string,
+  query: Partial<EvaluationListQuery> = {},
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<EvaluationListResponse> {
+  const parsed = EvaluationListQuerySchema.parse(query);
+  const parameters = new URLSearchParams({
+    page: String(parsed.page),
+    pageSize: String(parsed.pageSize),
+  });
+  if (parsed.evaluationType) parameters.set('evaluationType', parsed.evaluationType);
+  if (parsed.status) parameters.set('status', parsed.status);
   const response = await missionRequest(
     accessToken,
-    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations`,
+    `/${missionId}/candidates/${processId}/interviews/${interviewId}/evaluations?${parameters.toString()}`,
     {},
     apiBaseUrl,
   );

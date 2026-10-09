@@ -16,6 +16,11 @@ export const missionsFr: Messages['missions'] = {
   },
   notRecorded: 'Non renseigné',
   actionFor: '{action} : {name}',
+  nestedPagination: {
+    loadMore: 'Afficher plus',
+    loadMoreFailed: 'Impossible de charger d’autres enregistrements.',
+    progress: '{loaded} sur {total} affichés',
+  },
   list: {
     count: plural({
       many: '{count} de missions',
@@ -168,6 +173,9 @@ export const missionsFr: Messages['missions'] = {
       deactivate: 'Désactiver',
       makeLead: 'Désigner principal',
     },
+    pagination: {
+      region: 'Plus de membres de l’équipe',
+    },
     region: 'Équipe de la mission',
     title: 'Équipe',
   },
@@ -260,6 +268,9 @@ export const missionsFr: Messages['missions'] = {
     confirmComplete: 'Marquer cet entretien comme réalisé ?',
     confirmPostpone: 'Reporter cet entretien ?',
     empty: 'Aucun entretien n’est encore planifié pour ce candidat.',
+    pagination: {
+      region: 'Plus d’entretiens',
+    },
     region: 'Entretiens',
     reschedule: {
       reason: 'Motif',
@@ -270,6 +281,12 @@ export const missionsFr: Messages['missions'] = {
       clientContacts: 'Contacts client',
       clientContactsEmpty: 'Ce client n’a aucun contact actif.',
       clientContactsHint: 'Contacts du client de la mission.',
+      clientContactsPagination: 'Plus de contacts client',
+      clientContactsSearch: 'Rechercher des contacts',
+      clientContactsSearchHint: 'Recherche par nom, e-mail ou intitulé de poste.',
+      removeClientContact: 'Retirer {name} des participants à l’entretien',
+      removeClientContactAction: 'Retirer',
+      selectedClientContacts: 'Contacts client sélectionnés pour cet entretien',
       end: 'Fin',
       format: 'Format',
       internalParticipants: 'Participants internes',
@@ -308,6 +325,9 @@ export const missionsFr: Messages['missions'] = {
     },
     author: 'Par {name}',
     empty: 'Aucune évaluation n’a été enregistrée pour cet entretien.',
+    pagination: {
+      region: 'Plus d’évaluations',
+    },
     finalize: 'Finaliser',
     redacted: 'Certains détails sont masqués pour votre niveau d’accès.',
     region: 'Évaluations',

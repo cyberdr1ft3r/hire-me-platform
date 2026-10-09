@@ -13,6 +13,8 @@ import {
   assignmentStatusTone,
   canBecomeLead,
 } from './mission-labels.js';
+import type { AccumulatedListState } from './mission-accumulated-list.js';
+import { MissionLoadMorePagination } from './MissionLoadMorePagination.js';
 import type { PickerOption, SectionState } from './mission-state.js';
 
 type AssignableRole = MissionAssignmentSummary['role'];
@@ -24,14 +26,16 @@ export interface AssignmentCreateValues {
 }
 
 export interface MissionAssignmentsModel {
-  assignments: SectionState<MissionAssignmentSummary[]>;
+  assignments: SectionState<AccumulatedListState<MissionAssignmentSummary>>;
   /** Assignment user options for one role; the endpoint omits users already in it. */
   loadUserOptions: (role: AssignableRole) => LoadPickerOptions;
   onArchive: (assignment: MissionAssignmentSummary) => void;
   onCreate: (values: AssignmentCreateValues) => Promise<boolean>;
   onDeactivate: (assignment: MissionAssignmentSummary) => void;
+  onLoadMore: () => void;
   onMakeLead: (assignment: MissionAssignmentSummary) => void;
   onRetry: () => void;
+  onRetryLoadMore: () => void;
 }
 
 export function MissionAssignments({
@@ -56,55 +60,68 @@ export function MissionAssignments({
       <h3 className="mission-section__title">{title}</h3>
       {access.canViewAssignments ? (
         <SectionStatus onRetry={model.onRetry} section={model.assignments}>
-          {(assignments) =>
-            assignments.length === 0 ? (
+          {(list) =>
+            list.items.length === 0 ? (
               <p className="mission-muted">{t('missions.assignments.empty')}</p>
             ) : (
-              <ScrollTable label={title}>
-                <table className="mission-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{t('missions.assignments.columns.member')}</th>
-                      <th scope="col">{t('missions.assignments.columns.role')}</th>
-                      <th scope="col">{t('missions.assignments.columns.status')}</th>
-                      {manage ? (
-                        <th scope="col">{t('missions.assignments.columns.actions')}</th>
-                      ) : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assignments.map((assignment) => (
-                      <tr key={assignment.id}>
-                        <th scope="row">{assignment.userDisplayName}</th>
-                        <td>
-                          <span className="mission-badges">
-                            <span>{t(assignmentRoleLabelKey(assignment.role))}</span>
-                            {assignment.isLead ? (
-                              <StatusBadge tone="info">
-                                {t('missions.assignments.lead')}
-                              </StatusBadge>
-                            ) : null}
-                          </span>
-                        </td>
-                        <td>
-                          <StatusBadge tone={assignmentStatusTone(assignment.status)}>
-                            {t(assignmentStatusLabelKey(assignment.status))}
-                          </StatusBadge>
-                        </td>
+              <>
+                <ScrollTable label={title}>
+                  <table className="mission-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('missions.assignments.columns.member')}</th>
+                        <th scope="col">{t('missions.assignments.columns.role')}</th>
+                        <th scope="col">{t('missions.assignments.columns.status')}</th>
                         {manage ? (
-                          <td>
-                            <AssignmentActions
-                              assignment={assignment}
-                              model={model}
-                              writesLocked={writesLocked}
-                            />
-                          </td>
+                          <th scope="col">{t('missions.assignments.columns.actions')}</th>
                         ) : null}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollTable>
+                    </thead>
+                    <tbody>
+                      {list.items.map((assignment) => (
+                        <tr key={assignment.id}>
+                          <th scope="row">{assignment.userDisplayName}</th>
+                          <td>
+                            <span className="mission-badges">
+                              <span>{t(assignmentRoleLabelKey(assignment.role))}</span>
+                              {assignment.isLead ? (
+                                <StatusBadge tone="info">
+                                  {t('missions.assignments.lead')}
+                                </StatusBadge>
+                              ) : null}
+                            </span>
+                          </td>
+                          <td>
+                            <StatusBadge tone={assignmentStatusTone(assignment.status)}>
+                              {t(assignmentStatusLabelKey(assignment.status))}
+                            </StatusBadge>
+                          </td>
+                          {manage ? (
+                            <td>
+                              <AssignmentActions
+                                assignment={assignment}
+                                model={model}
+                                writesLocked={writesLocked}
+                              />
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollTable>
+                <MissionLoadMorePagination
+                  labels={{
+                    loadMore: t('missions.nestedPagination.loadMore'),
+                    loadMoreFailed: t('missions.nestedPagination.loadMoreFailed'),
+                    progress: (values) => t('missions.nestedPagination.progress', values),
+                    region: t('missions.assignments.pagination.region'),
+                  }}
+                  list={list}
+                  onLoadMore={model.onLoadMore}
+                  onRetryLoadMore={model.onRetryLoadMore}
+                />
+              </>
             )
           }
         </SectionStatus>

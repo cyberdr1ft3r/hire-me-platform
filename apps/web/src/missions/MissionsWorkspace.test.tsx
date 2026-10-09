@@ -122,7 +122,9 @@ function serve(data: World, override?: Override): RecordedCall[] {
     }
     match = /^\/v1\/missions\/([^/]+)\/assignments$/.exec(path);
     if (match && method === 'GET') {
-      return jsonResponse(page('assignments', data.assignments[match[1]!] ?? []));
+      return jsonResponse(
+        serverPage('assignments', data.assignments[match[1]!] ?? [], call.search),
+      );
     }
     match = /^\/v1\/missions\/([^/]+)\/assignment-user-options$/.exec(path);
     if (match) {
@@ -141,7 +143,7 @@ function serve(data: World, override?: Override): RecordedCall[] {
     }
     match = /^\/v1\/missions\/[^/]+\/candidates\/([^/]+)\/interviews$/.exec(path);
     if (match && method === 'GET') {
-      return jsonResponse(page('interviews', data.interviews[match[1]!] ?? []));
+      return jsonResponse(serverPage('interviews', data.interviews[match[1]!] ?? [], call.search));
     }
     if (path === '/v1/clients' || path === '/v1/candidates') {
       return jsonResponse(page(path === '/v1/clients' ? 'clients' : 'candidates', []));

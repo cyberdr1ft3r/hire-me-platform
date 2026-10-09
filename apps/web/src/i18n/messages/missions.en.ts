@@ -22,6 +22,11 @@ export const missionsEn = {
   },
   notRecorded: 'Not recorded',
   actionFor: '{action}: {name}',
+  nestedPagination: {
+    loadMore: 'Show more',
+    loadMoreFailed: 'More records could not be loaded.',
+    progress: '{loaded} of {total} shown',
+  },
   list: {
     count: plural({ one: '{count} mission', other: '{count} missions' }),
     pagination: {
@@ -168,6 +173,9 @@ export const missionsEn = {
       deactivate: 'Deactivate',
       makeLead: 'Make lead',
     },
+    pagination: {
+      region: 'More team members',
+    },
     region: 'Mission team',
     title: 'Team',
   },
@@ -258,6 +266,9 @@ export const missionsEn = {
     confirmComplete: 'Mark this interview as completed?',
     confirmPostpone: 'Postpone this interview?',
     empty: 'No interview is scheduled for this candidate yet.',
+    pagination: {
+      region: 'More interviews',
+    },
     region: 'Interviews',
     reschedule: {
       reason: 'Reason',
@@ -268,6 +279,12 @@ export const missionsEn = {
       clientContacts: 'Client contacts',
       clientContactsEmpty: 'This client has no active contact.',
       clientContactsHint: 'Contacts of the mission’s client.',
+      clientContactsPagination: 'More client contacts',
+      clientContactsSearch: 'Search contacts',
+      clientContactsSearchHint: 'Search by name, email, or role title.',
+      removeClientContact: 'Remove {name} from interview participants',
+      removeClientContactAction: 'Remove',
+      selectedClientContacts: 'Selected client contacts for this interview',
       end: 'End',
       format: 'Format',
       internalParticipants: 'Internal participants',
@@ -303,6 +320,9 @@ export const missionsEn = {
     },
     author: 'By {name}',
     empty: 'No evaluation has been recorded for this interview.',
+    pagination: {
+      region: 'More evaluations',
+    },
     finalize: 'Finalize',
     redacted: 'Some details are hidden for your access level.',
     region: 'Evaluations',

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 Status owner: repository maintainer
 
 ## Issue #132 / signing phases
@@ -14,7 +14,7 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
-**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Prior milestones and D-071 catalog gate remain intact. Issue **#109** deterministic race barrier is maintainer-accepted for merge; **#110** is the next unblocked Missions V1+ follow-up. **D-068** / **D-070** unchanged; no production deployment.
+**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Prior milestones and D-071 catalog gate remain intact. Issue **#109** closed via merged PR **#149** (deterministic MissionCandidate race barrier). Issue **#150** (nested Missions pagination + client-contact options) is in **review-fix** on draft PR **#151** (load-more + contact selection per comment **6080326068**); parent **#110** remains open. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms **third-party signing interface** (PKCS#11/CSP/SDK), provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. OCSP/CRL/trust URLs are now documented for Phase D/E only. **#132** remains **open**.
 **Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed.
 
@@ -69,8 +69,9 @@ Status owner: repository maintainer
 | Issue #100 | Complete | Permission-safe Mission assignment user options (D-072) | Merged through PR #101 into `main` as `2faff040456dab3317812686ab90a1862fada538`; no migration and no new permission |
 | Issue #102 | Complete | Preflight Training bilingual rollout and option sources | Discovery and review complete; identified bounded option/display capability required before UI rollout; no Training UI or localization change |
 | Issue #103 | Complete | Training-safe identity and enrollment option sources (D-073) | Merged through PR #108 into `main` as `39e8720e45220475de2373a47d1e7dd32b763ce8`; backend/contracts capability only; Training UI remains untouched and English-deferred; no migration and no new permission |
-| Issue #109 | Complete pending merge | Stabilize MissionCandidate archival/create race integration test | PR #149 replaces timing-based ordering with a mandatory PostgreSQL lock-graph barrier for both archive/create races; 25× stress proof, D-071 normal/reverse, and exact-head CI green; no production code change |
-| Issue #110 | Open (non-blocking) | Complete Missions R-047 post-V1 follow-ups | Schedule separately from other rollouts |
+| Issue #109 | Complete | Stabilize MissionCandidate archival/create race integration test | Merged through PR #149; deterministic PostgreSQL lock-graph barrier; no production application change |
+| Issue #110 | Open (non-blocking) | Complete Missions R-047 post-V1 follow-ups | Parent epic; **#150** active (nested pagination + client-contact options); remaining children: placement confirmation UX, deadline filters, closure policy, read-only persona |
+| Issue #150 | In progress | Missions nested pagination and safe client-contact invitation options | Draft PR; web-only pagination/load-more + searchable paged `GET /v1/clients/:clientId/contacts` for the mission client |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |

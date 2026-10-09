@@ -11,8 +11,8 @@ import type { MissionFailure } from './mission-errors.js';
 export const MISSION_LIST_PAGE_SIZE = 20;
 export const MISSION_OPTION_PAGE_SIZE = 20;
 export const MISSION_PROCESS_PAGE_SIZE = 20;
-/** One bounded page of the mission client's contacts for interview invitations. */
-export const MISSION_CONTACT_PAGE_SIZE = 50;
+/** Paged client contacts for interview invitations (search + load-more). */
+export const MISSION_CONTACT_PAGE_SIZE = 20;
 
 /** A named record chosen from an option source; its ID is submitted, never shown. */
 export type PickerOption = {
