@@ -264,7 +264,12 @@ export function MissionsPanel({
 
   const [assignments, setAssignments] =
     useState<SectionState<AccumulatedListState<MissionAssignmentSummary>>>(IDLE);
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
   const [clientContactSearch, setClientContactSearch] = useState('');
+  const [selectedInterviewClientContacts, setSelectedInterviewClientContacts] = useState<
+    { displayName: string; id: string; roleTitle: string | null }[]
+  >([]);
   const [processes, setProcesses] = useState<SectionState<MissionProcessPage>>(IDLE);
   const [processLeftPage, setProcessLeftPage] = useState(false);
   const [publicOpportunity, setPublicOpportunity] = useState<PublicOpportunitySectionState>(IDLE);
@@ -272,6 +277,8 @@ export function MissionsPanel({
     useState<SectionState<InternalPublicApplicationSummary[]>>(IDLE);
   const [clientContacts, setClientContacts] =
     useState<SectionState<AccumulatedListState<ClientContactSummary>>>(IDLE);
+  const clientContactsRef = useRef(clientContacts);
+  clientContactsRef.current = clientContacts;
   const [contentLanguageDraft, setContentLanguageDraft] = useState<ContentLanguageDraft>(null);
 
   const [missionDetailRevealToken, setMissionDetailRevealToken] = useState(0);
@@ -281,9 +288,13 @@ export function MissionsPanel({
   const [placement, setPlacement] = useState<SectionState<MissionPlacement | null>>(IDLE);
   const [interviews, setInterviews] =
     useState<SectionState<AccumulatedListState<InterviewSummary>>>(IDLE);
+  const interviewsRef = useRef(interviews);
+  interviewsRef.current = interviews;
   const [activeInterviewId, setActiveInterviewId] = useState<string | null>(null);
   const [evaluations, setEvaluations] =
     useState<SectionState<AccumulatedListState<CandidateEvaluation>>>(IDLE);
+  const evaluationsRef = useRef(evaluations);
+  evaluationsRef.current = evaluations;
 
   const [feedback, setFeedback] = useState<MissionFeedback | null>(null);
   const [pending, setPending] = useState<MissionPendingAction | null>(null);
@@ -293,6 +304,7 @@ export function MissionsPanel({
     processPageRef.current = 1;
     clientContactSearchRef.current = '';
     setClientContactSearch('');
+    setSelectedInterviewClientContacts([]);
     setAssignments(IDLE);
     setProcesses(IDLE);
     setProcessLeftPage(false);
@@ -408,10 +420,18 @@ export function MissionsPanel({
     interviewId: string,
   ): () => boolean {
     const isProcess = captureProcessContext(missionId, processId);
-    const generation = interviewGeneration.current;
+    return () => isProcess() && activeInterviewRef.current === interviewId;
+  }
+
+  /** List loads only need mission/process/interview identity, not generation tokens. */
+  function captureInterviewEvaluationsContext(
+    missionId: string,
+    processId: string,
+    interviewId: string,
+  ): () => boolean {
     return () =>
-      isProcess() &&
-      interviewGeneration.current === generation &&
+      selectedMissionRef.current === missionId &&
+      activeProcessRef.current === processId &&
       activeInterviewRef.current === interviewId;
   }
 
@@ -455,26 +475,45 @@ export function MissionsPanel({
       pagination: { page: number; pageSize: number; total: number };
     }>,
     isCurrent: () => boolean,
-    options: { append?: boolean; page?: number; quiet?: boolean } = {},
+    options: { append?: boolean; page?: number; quiet?: boolean; force?: boolean } = {},
   ): Promise<void> {
     const page = options.page ?? 1;
     const append = options.append ?? false;
+    if (append && options.force) {
+      setter((current) =>
+        current.status === 'ready'
+          ? {
+              status: 'ready',
+              data: { ...current.data, loadingMore: true, loadMoreFailed: false },
+            }
+          : current,
+      );
+    } else if (append) {
+      let proceed = false;
+      setter((current) => {
+        if (current.status !== 'ready') {
+          return current;
+        }
+        if (current.data.loadingMore && !current.data.loadMoreFailed) {
+          return current;
+        }
+        const base = current.data.loadMoreFailed
+          ? { ...current.data, loadingMore: false }
+          : current.data;
+        proceed = true;
+        return {
+          status: 'ready',
+          data: { ...base, loadingMore: true, loadMoreFailed: false },
+        };
+      });
+      if (!proceed) {
+        return;
+      }
+    } else if (!options.quiet) {
+      setter({ status: 'loading' });
+    }
     const request = ++sectionRequests.current[name];
     const latest = () => isCurrent() && sectionRequests.current[name] === request;
-    if (!options.quiet) {
-      if (append) {
-        setter((current) =>
-          current.status === 'ready'
-            ? {
-                status: 'ready',
-                data: { ...current.data, loadingMore: true, loadMoreFailed: false },
-              }
-            : current,
-        );
-      } else {
-        setter({ status: 'loading' });
-      }
-    }
     try {
       const { items, pagination } = await fetchPage(page);
       if (!latest()) {
@@ -498,9 +537,6 @@ export function MissionsPanel({
         };
       });
     } catch {
-      if (!latest() || options.quiet) {
-        return;
-      }
       if (append) {
         setter((current) =>
           current.status === 'ready'
@@ -508,9 +544,14 @@ export function MissionsPanel({
                 status: 'ready',
                 data: { ...current.data, loadingMore: false, loadMoreFailed: true },
               }
-            : { status: 'error' },
+            : current,
         );
-      } else {
+        return;
+      }
+      if (!latest()) {
+        return;
+      }
+      if (!options.quiet) {
         setter({ status: 'error' });
       }
     }
@@ -643,12 +684,29 @@ export function MissionsPanel({
     );
   }
 
-  function loadMoreAssignments(missionId: string): void {
-    const state = assignments;
+  function nextAccumulatedLoadPage<T>(state: SectionState<AccumulatedListState<T>>): number | null {
     if (state.status !== 'ready' || state.data.loadingMore) {
-      return;
+      return null;
+    }
+    if (!state.data.loadMoreFailed && state.data.items.length >= state.data.total) {
+      return null;
+    }
+    if (state.data.loadMoreFailed) {
+      return state.data.page + 1;
     }
     if (state.data.items.length >= state.data.total) {
+      return null;
+    }
+    return state.data.page + 1;
+  }
+
+  function retryLoadMoreAssignments(missionId: string): void {
+    const state = assignmentsRef.current;
+    if (state.status !== 'ready') {
+      return;
+    }
+    const nextPage = state.data.page + 1;
+    if (!state.data.loadMoreFailed && state.data.items.length >= state.data.total) {
       return;
     }
     void loadAccumulatedSection(
@@ -662,7 +720,27 @@ export function MissionsPanel({
         return { items: response.assignments, pagination: response.pagination };
       },
       captureMissionContext(missionId),
-      { append: true, page: state.data.page + 1, quiet: true },
+      { append: true, page: nextPage, force: true },
+    );
+  }
+
+  function loadMoreAssignments(missionId: string): void {
+    const nextPage = nextAccumulatedLoadPage(assignmentsRef.current);
+    if (nextPage === null) {
+      return;
+    }
+    void loadAccumulatedSection(
+      'assignments',
+      setAssignments,
+      async (page) => {
+        const response = await listMissionAssignments(accessToken, missionId, {
+          page,
+          pageSize: MISSION_NESTED_PAGE_SIZE,
+        });
+        return { items: response.assignments, pagination: response.pagination };
+      },
+      captureMissionContext(missionId),
+      { append: true, page: nextPage, force: true },
     );
   }
 
@@ -777,6 +855,7 @@ export function MissionsPanel({
     activeInterviewRef.current = null;
     clientContactSearchRef.current = '';
     setClientContactSearch('');
+    setSelectedInterviewClientContacts([]);
     setClientContacts(IDLE);
     resetProcessSections();
     setProcessLeftPage(false);
@@ -798,6 +877,10 @@ export function MissionsPanel({
     invalidate(PROCESS_SECTIONS);
     activeProcessRef.current = null;
     activeInterviewRef.current = null;
+    clientContactSearchRef.current = '';
+    setClientContactSearch('');
+    setSelectedInterviewClientContacts([]);
+    setClientContacts(IDLE);
     setActiveProcessId(null);
     resetProcessSections();
   }
@@ -855,7 +938,7 @@ export function MissionsPanel({
     missionId: string,
     isCurrent: () => boolean,
     quiet: boolean,
-    options: { append?: boolean; page?: number } = {},
+    options: { append?: boolean; page?: number; force?: boolean } = {},
   ) {
     const search = clientContactSearchRef.current.trim();
     return loadAccumulatedSection(
@@ -877,17 +960,31 @@ export function MissionsPanel({
     );
   }
 
-  function loadMoreClientContacts(mission: MissionSummary): void {
-    const state = clientContacts;
-    if (state.status !== 'ready' || state.data.loadingMore) {
+  function retryLoadMoreClientContacts(mission: MissionSummary): void {
+    const state = clientContactsRef.current;
+    if (state.status !== 'ready') {
       return;
     }
-    if (state.data.items.length >= state.data.total) {
+    const nextPage = state.data.page + 1;
+    if (!state.data.loadMoreFailed && state.data.items.length >= state.data.total) {
       return;
     }
     void loadClientContacts(mission.clientId, mission.id, captureMissionContext(mission.id), true, {
       append: true,
-      page: state.data.page + 1,
+      page: nextPage,
+      force: true,
+    });
+  }
+
+  function loadMoreClientContacts(mission: MissionSummary): void {
+    const nextPage = nextAccumulatedLoadPage(clientContactsRef.current);
+    if (nextPage === null) {
+      return;
+    }
+    void loadClientContacts(mission.clientId, mission.id, captureMissionContext(mission.id), true, {
+      append: true,
+      page: nextPage,
+      force: true,
     });
   }
 
@@ -898,12 +995,40 @@ export function MissionsPanel({
     void loadClientContacts(mission.clientId, mission.id, captureMissionContext(mission.id), false);
   }
 
+  function toggleSelectedInterviewClientContact(
+    contact: ClientContactSummary,
+    selected: boolean,
+  ): void {
+    setSelectedInterviewClientContacts((current) => {
+      if (selected) {
+        if (current.some((entry) => entry.id === contact.id)) {
+          return current;
+        }
+        return [
+          ...current,
+          {
+            id: contact.id,
+            displayName: contact.displayName,
+            roleTitle: contact.roleTitle,
+          },
+        ];
+      }
+      return current.filter((entry) => entry.id !== contact.id);
+    });
+  }
+
+  function removeSelectedInterviewClientContact(contactId: string): void {
+    setSelectedInterviewClientContacts((current) =>
+      current.filter((entry) => entry.id !== contactId),
+    );
+  }
+
   function loadInterviews(
     missionId: string,
     processId: string,
     isCurrent: () => boolean,
     quiet: boolean,
-    options: { append?: boolean; page?: number } = {},
+    options: { append?: boolean; page?: number; force?: boolean } = {},
   ) {
     return loadAccumulatedSection(
       'interviews',
@@ -920,17 +1045,31 @@ export function MissionsPanel({
     );
   }
 
-  function loadMoreInterviews(missionId: string, processId: string): void {
-    const state = interviews;
-    if (state.status !== 'ready' || state.data.loadingMore) {
+  function retryLoadMoreInterviews(missionId: string, processId: string): void {
+    const state = interviewsRef.current;
+    if (state.status !== 'ready') {
       return;
     }
-    if (state.data.items.length >= state.data.total) {
+    const nextPage = state.data.page + 1;
+    if (!state.data.loadMoreFailed && state.data.items.length >= state.data.total) {
       return;
     }
     void loadInterviews(missionId, processId, captureProcessContext(missionId, processId), true, {
       append: true,
-      page: state.data.page + 1,
+      page: nextPage,
+      force: true,
+    });
+  }
+
+  function loadMoreInterviews(missionId: string, processId: string): void {
+    const nextPage = nextAccumulatedLoadPage(interviewsRef.current);
+    if (nextPage === null) {
+      return;
+    }
+    void loadInterviews(missionId, processId, captureProcessContext(missionId, processId), true, {
+      append: true,
+      page: nextPage,
+      force: true,
     });
   }
 
@@ -939,7 +1078,7 @@ export function MissionsPanel({
     processId: string,
     interviewId: string,
     quiet: boolean,
-    options: { append?: boolean; page?: number } = {},
+    options: { append?: boolean; page?: number; force?: boolean } = {},
   ) {
     return loadAccumulatedSection(
       'evaluations',
@@ -951,22 +1090,40 @@ export function MissionsPanel({
         });
         return { items: response.evaluations, pagination: response.pagination };
       },
-      captureInterviewContext(missionId, processId, interviewId),
+      captureInterviewEvaluationsContext(missionId, processId, interviewId),
       { ...options, quiet },
     );
   }
 
-  function loadMoreEvaluations(missionId: string, processId: string, interviewId: string): void {
-    const state = evaluations;
-    if (state.status !== 'ready' || state.data.loadingMore) {
+  function retryLoadMoreEvaluations(
+    missionId: string,
+    processId: string,
+    interviewId: string,
+  ): void {
+    const state = evaluationsRef.current;
+    if (state.status !== 'ready') {
       return;
     }
-    if (state.data.items.length >= state.data.total) {
+    const nextPage = state.data.page + 1;
+    if (!state.data.loadMoreFailed && state.data.items.length >= state.data.total) {
       return;
     }
     void loadEvaluations(missionId, processId, interviewId, true, {
       append: true,
-      page: state.data.page + 1,
+      page: nextPage,
+      force: true,
+    });
+  }
+
+  function loadMoreEvaluations(missionId: string, processId: string, interviewId: string): void {
+    const nextPage = nextAccumulatedLoadPage(evaluationsRef.current);
+    if (nextPage === null) {
+      return;
+    }
+    void loadEvaluations(missionId, processId, interviewId, true, {
+      append: true,
+      page: nextPage,
+      force: true,
     });
   }
 
@@ -1618,6 +1775,7 @@ export function MissionsPanel({
     return interviewWrite(
       (missionId, processId) => scheduleInterview(accessToken, missionId, processId, input),
       'missions.feedback.interviewScheduled',
+      () => setSelectedInterviewClientContacts([]),
     );
   }
 
@@ -1902,7 +2060,7 @@ export function MissionsPanel({
           },
           onRetryLoadMore: () => {
             if (readyMission) {
-              loadMoreAssignments(readyMission.id);
+              retryLoadMoreAssignments(readyMission.id);
             }
           },
         },
@@ -1934,8 +2092,11 @@ export function MissionsPanel({
             onCreate: handleCreateEvaluation,
             onFinalize: handleFinalizeEvaluation,
             onLoadMore: () => {
-              if (readyMission && activeProcessId && activeInterviewId) {
-                loadMoreEvaluations(readyMission.id, activeProcessId, activeInterviewId);
+              const missionId = selectedMissionRef.current;
+              const processId = activeProcessRef.current;
+              const interviewId = activeInterviewRef.current;
+              if (missionId && processId && interviewId) {
+                loadMoreEvaluations(missionId, processId, interviewId);
               }
             },
             onRetry: () => {
@@ -1945,7 +2106,7 @@ export function MissionsPanel({
             },
             onRetryLoadMore: () => {
               if (readyMission && activeProcessId && activeInterviewId) {
-                loadMoreEvaluations(readyMission.id, activeProcessId, activeInterviewId);
+                retryLoadMoreEvaluations(readyMission.id, activeProcessId, activeInterviewId);
               }
             },
           },
@@ -1955,19 +2116,24 @@ export function MissionsPanel({
             clientContacts,
             interviews,
             onAction: handleInterviewAction,
+            onRemoveSelectedClientContact: removeSelectedInterviewClientContact,
+            onToggleClientContactParticipant: toggleSelectedInterviewClientContact,
             onClientContactSearch: (search) => {
               if (readyMission) {
                 handleClientContactSearch(readyMission, search);
               }
             },
             onLoadMoreClientContacts: () => {
-              if (readyMission) {
-                loadMoreClientContacts(readyMission);
+              const missionId = selectedMissionRef.current;
+              if (missionId && detail.status === 'ready') {
+                loadMoreClientContacts(detail.mission);
               }
             },
             onLoadMoreInterviews: () => {
-              if (readyMission && activeProcessId) {
-                loadMoreInterviews(readyMission.id, activeProcessId);
+              const missionId = selectedMissionRef.current;
+              const processId = activeProcessRef.current;
+              if (missionId && processId) {
+                loadMoreInterviews(missionId, processId);
               }
             },
             onReschedule: handleReschedule,
@@ -1983,16 +2149,17 @@ export function MissionsPanel({
             },
             onRetryLoadMoreClientContacts: () => {
               if (readyMission) {
-                loadMoreClientContacts(readyMission);
+                retryLoadMoreClientContacts(readyMission);
               }
             },
             onRetryLoadMoreInterviews: () => {
               if (readyMission && activeProcessId) {
-                loadMoreInterviews(readyMission.id, activeProcessId);
+                retryLoadMoreInterviews(readyMission.id, activeProcessId);
               }
             },
             onSchedule: handleSchedule,
             onToggle: toggleInterview,
+            selectedInterviewClientContacts,
           },
           offers: {
             offer,

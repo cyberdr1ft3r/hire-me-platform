@@ -182,6 +182,7 @@ export function syntheticOffer(
 export function syntheticInterview(
   process: MissionCandidateSummary,
   organizerDisplayName: string,
+  overrides: Partial<InterviewSummary> = {},
 ): InterviewSummary {
   return {
     id: scopedId(process.missionId, '000000000033'),
@@ -205,6 +206,20 @@ export function syntheticInterview(
     evaluationCount: 0,
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
+    ...overrides,
+  };
+}
+
+export function syntheticInterviewDetail(
+  process: MissionCandidateSummary,
+  organizerDisplayName: string,
+  overrides: Partial<InterviewSummary> = {},
+) {
+  return {
+    ...syntheticInterview(process, organizerDisplayName, overrides),
+    participants: [],
+    evaluations: [],
+    history: [],
   };
 }
 

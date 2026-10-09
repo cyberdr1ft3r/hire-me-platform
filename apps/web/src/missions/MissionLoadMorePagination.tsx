@@ -40,7 +40,12 @@ export function MissionLoadMorePagination({
           <p className="mission-message__text" role="alert">
             {labels.loadMoreFailed}
           </p>
-          <Button onClick={onRetryLoadMore} size="compact" variant="secondary">
+          <Button
+            disabled={list.loadingMore}
+            onClick={onRetryLoadMore}
+            size="compact"
+            variant="secondary"
+          >
             {t('common.actions.retry')}
           </Button>
         </>

@@ -49,8 +49,15 @@ export interface MissionInterviewsModel {
   onRetry: () => void;
   onRetryLoadMoreClientContacts: () => void;
   onRetryLoadMoreInterviews: () => void;
+  onRemoveSelectedClientContact: (contactId: string) => void;
   onSchedule: (input: InterviewScheduleRequest) => Promise<boolean>;
   onToggle: (interviewId: string) => void;
+  onToggleClientContactParticipant: (contact: ClientContactSummary, selected: boolean) => void;
+  selectedInterviewClientContacts: {
+    displayName: string;
+    id: string;
+    roleTitle: string | null;
+  }[];
 }
 
 export function MissionInterviews({
@@ -386,7 +393,9 @@ function ScheduleForm({
       meetingUrl: optionalFormValue(data, 'meetingUrl'),
       organizerUserId: organizer,
       internalUserParticipantIds: formValues(data, 'internalParticipant'),
-      clientContactParticipantIds: formValues(data, 'clientContactParticipant'),
+      clientContactParticipantIds: model.selectedInterviewClientContacts.map(
+        (contact) => contact.id,
+      ),
       externalParticipants: [],
     });
     if (done) {
@@ -488,6 +497,35 @@ function ScheduleForm({
             onChange={(event) => model.onClientContactSearch(event.currentTarget.value)}
             value={model.clientContactSearch}
           />
+          {model.selectedInterviewClientContacts.length > 0 ? (
+            <ul
+              aria-label={t('missions.interviews.schedule.selectedClientContacts')}
+              className="mission-selected-contacts"
+            >
+              {model.selectedInterviewClientContacts.map((contact) => (
+                <li className="mission-selected-contacts__item" key={contact.id}>
+                  <span>
+                    {contact.displayName}
+                    {contact.roleTitle ? (
+                      <span className="mission-muted">{` · ${contact.roleTitle}`}</span>
+                    ) : null}
+                  </span>
+                  <Button
+                    aria-label={t('missions.interviews.schedule.removeClientContact', {
+                      name: contact.displayName,
+                    })}
+                    disabled={writesLocked}
+                    onClick={() => model.onRemoveSelectedClientContact(contact.id)}
+                    size="compact"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t('missions.interviews.schedule.removeClientContactAction')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <SectionStatus section={model.clientContacts}>
             {(contactList) =>
               contactList.items.length === 0 ? (
@@ -498,11 +536,15 @@ function ScheduleForm({
                 <>
                   {contactList.items.map((contact) => (
                     <Checkbox
+                      checked={model.selectedInterviewClientContacts.some(
+                        (entry) => entry.id === contact.id,
+                      )}
                       hint={contact.roleTitle ?? undefined}
                       key={contact.id}
                       label={contact.displayName}
-                      name="clientContactParticipant"
-                      value={contact.id}
+                      onChange={(event) =>
+                        model.onToggleClientContactParticipant(contact, event.currentTarget.checked)
+                      }
                     />
                   ))}
                   <MissionLoadMorePagination
