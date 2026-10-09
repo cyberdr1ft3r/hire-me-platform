@@ -389,6 +389,20 @@ export const missionsFr: Messages['missions'] = {
     confirmConfirm:
       'Confirmer le placement à partir de l’offre acceptée, avec une intégration commençant aujourd’hui ?',
     confirmCorrect: 'Enregistrer une correction administrative de ce placement ?',
+    confirmForm: {
+      integrationStartDate: 'Date de début d’intégration',
+      integrationStartDateError: 'Saisissez une date de début d’intégration valide.',
+      integrationStartDateHelp:
+        'Date calendaire de début d’intégration du candidat. Enregistrée à minuit UTC pour ce jour.',
+      intro:
+        'Vérifiez les valeurs ci-dessous, puis confirmez le placement à partir de la version d’offre acceptée en cours.',
+      invoicingReadOnly:
+        'L’éligibilité à la facturation reste désactivée pour cette confirmation tant qu’une autorisation dédiée n’existe pas.',
+      operationalNote: 'Note opérationnelle',
+      operationalNoteHelp: 'Note interne facultative (1 000 caractères maximum).',
+      submit: 'Confirmer le placement',
+      title: 'Confirmer le placement',
+    },
     correct: 'Corriger le placement',
     empty: 'Aucun placement n’a été confirmé pour ce candidat.',
     integrationStart: 'Début d’intégration : {date}',

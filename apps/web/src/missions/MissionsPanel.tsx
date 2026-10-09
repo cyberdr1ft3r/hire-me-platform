@@ -92,6 +92,11 @@ import { resolveMissionAccess } from './mission-access.js';
 import { classifyMissionFailure } from './mission-errors.js';
 import { optionalText, toMissionCreateRequest, toMissionUpdateRequest } from './mission-form.js';
 import {
+  buildPlacementConfirmRequest,
+  type PlacementConfirmContext,
+  type PlacementConfirmFormValues,
+} from './placement-confirm.js';
+import {
   CLOSURE_REASON_BY_STATE,
   RESPONSIBLE_RECRUITER_ROLES,
   assignmentRoleLabelKey,
@@ -285,6 +290,10 @@ export function MissionsPanel({
   const [processDetailRevealToken, setProcessDetailRevealToken] = useState(0);
   const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
   const [offer, setOffer] = useState<SectionState<OfferAggregate | null>>(IDLE);
+  const offerRef = useRef(offer);
+  offerRef.current = offer;
+  const [placementConfirmContext, setPlacementConfirmContext] =
+    useState<PlacementConfirmContext | null>(null);
   const [placement, setPlacement] = useState<SectionState<MissionPlacement | null>>(IDLE);
   const [interviews, setInterviews] =
     useState<SectionState<AccumulatedListState<InterviewSummary>>>(IDLE);
@@ -305,6 +314,7 @@ export function MissionsPanel({
     clientContactSearchRef.current = '';
     setClientContactSearch('');
     setSelectedInterviewClientContacts([]);
+    setPlacementConfirmContext(null);
     setAssignments(IDLE);
     setProcesses(IDLE);
     setProcessLeftPage(false);
@@ -317,6 +327,7 @@ export function MissionsPanel({
   }
 
   function resetProcessSections(): void {
+    setPlacementConfirmContext(null);
     setOffer(IDLE);
     setPlacement(IDLE);
     setInterviews(IDLE);
@@ -397,6 +408,23 @@ export function MissionsPanel({
     toggleInterview(interviewId);
   }, [interviews.status, activeProcessId, activeInterviewId]);
 
+  useEffect(() => {
+    setPlacementConfirmContext(null);
+  }, [selectedMissionId, activeProcessId]);
+
+  useEffect(() => {
+    if (!placementConfirmContext) {
+      return;
+    }
+    if (offer.status !== 'ready' || !offer.data) {
+      setPlacementConfirmContext(null);
+      return;
+    }
+    if (offer.data.currentVersionId !== placementConfirmContext.offerVersionId) {
+      setPlacementConfirmContext(null);
+    }
+  }, [offer, placementConfirmContext]);
+
   // ---- context guards --------------------------------------------------
 
   function captureMissionContext(missionId: string): () => boolean {
@@ -412,6 +440,26 @@ export function MissionsPanel({
       isMission() &&
       processGeneration.current === generation &&
       activeProcessRef.current === processId;
+  }
+
+  function capturePlacementConfirmContext(context: PlacementConfirmContext): () => boolean {
+    const isProcess = captureProcessContext(context.missionId, context.processId);
+    return () => {
+      if (!isProcess()) {
+        return false;
+      }
+      const currentOffer = offerRef.current;
+      if (currentOffer.status !== 'ready' || !currentOffer.data) {
+        return false;
+      }
+      const version = currentOffer.data.versions.find(
+        (entry) => entry.id === context.offerVersionId,
+      );
+      return (
+        version?.status === 'ACCEPTED' &&
+        currentOffer.data.currentVersionId === context.offerVersionId
+      );
+    };
   }
 
   function captureInterviewContext(
@@ -1697,30 +1745,55 @@ export function MissionsPanel({
     refreshMission(mission.id);
   }
 
-  function handleConfirmPlacement(current: OfferAggregate): void {
+  function handleOpenPlacementConfirm(current: OfferAggregate): void {
     const version = currentVersion(current);
-    if (
-      !version ||
-      !access.canConfirmPlacements ||
-      !confirmed(t('missions.placements.confirmConfirm'))
-    ) {
+    if (!version || version.status !== 'ACCEPTED' || !access.canConfirmPlacements) {
       return;
     }
-    void offerWrite(
-      (missionId, processId) =>
-        confirmMissionCandidatePlacement(accessToken, missionId, processId, version.id, {
-          integrationStartDate: new Date().toISOString(),
-          eligibleForInvoicing: false,
-          operationalNote: 'Placement confirmed from the protected mission workspace.',
-        }),
-      (response, mission) =>
-        commitPlacement(response.placement, 'missions.feedback.placementConfirmed', mission),
-      {
-        action: 'placement',
-        failureKey: 'missions.failure.action.placement',
-        refreshList: true,
+    if (!readyMission || !activeProcess) {
+      return;
+    }
+    setPlacementConfirmContext({
+      missionId: readyMission.id,
+      offerVersionId: version.id,
+      processId: activeProcess.id,
+    });
+  }
+
+  function handleCancelPlacementConfirm(): void {
+    setPlacementConfirmContext(null);
+  }
+
+  function handleSubmitPlacementConfirm(values: PlacementConfirmFormValues): Promise<boolean> {
+    const context = placementConfirmContext;
+    if (!context || !access.canConfirmPlacements || !readyMission || !activeProcess) {
+      return Promise.resolve(false);
+    }
+    const body = buildPlacementConfirmRequest(values);
+    if (!body) {
+      return Promise.resolve(false);
+    }
+    const mission = readyMission;
+    const processId = activeProcess.id;
+    return runWrite({
+      action: 'placement',
+      failureKey: 'missions.failure.action.placement',
+      isCurrent: capturePlacementConfirmContext(context),
+      onStale: () => refreshProcess(mission, processId),
+      refreshList: true,
+      request: () =>
+        confirmMissionCandidatePlacement(
+          accessToken,
+          mission.id,
+          processId,
+          context.offerVersionId,
+          body,
+        ),
+      onSuccess: (response) => {
+        setPlacementConfirmContext(null);
+        commitPlacement(response.placement, 'missions.feedback.placementConfirmed', mission);
       },
-    );
+    });
   }
 
   function handleCorrectPlacement(): void {
@@ -2166,7 +2239,12 @@ export function MissionsPanel({
           },
           offers: {
             offer,
-            onConfirmPlacement: handleConfirmPlacement,
+            placementConfirm: {
+              context: placementConfirmContext,
+              onCancel: handleCancelPlacementConfirm,
+              onOpen: handleOpenPlacementConfirm,
+              onSubmit: handleSubmitPlacementConfirm,
+            },
             onCreate: handleCreateOffer,
             onMarkSent: handleMarkSent,
             onResponse: handleOfferResponse,
