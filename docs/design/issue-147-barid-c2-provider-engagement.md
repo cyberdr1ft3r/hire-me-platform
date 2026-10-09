@@ -18,10 +18,10 @@ Platform baseline: `main` @ `b729c1758462a538d07a9f2dfab72fc38343edc6`.
 | --- | --- |
 | **C2 state** | `READY_TO_CONTACT_PROVIDER` |
 | **Questionnaire sent to Barid** | **NO** (package prepared; human/maintainer send required) |
-| **Provider response** | **WAITING** |
-| **Person fixture** | **WAITING** |
-| **Organization seal fixture** | **WAITING** |
-| **Test token / sandbox** | **NOT AVAILABLE** |
+| **Provider response** | **NOT REQUESTED YET** |
+| **Person fixture** | **NOT REQUESTED / NOT RECEIVED** |
+| **Organization seal fixture** | **NOT REQUESTED / NOT RECEIVED** |
+| **Test token / sandbox** | **NOT REQUESTED / AVAILABILITY UNKNOWN** |
 | **Third-party PKCS#11/CSP/KSP** | **UNKNOWN** (not Barid-confirmed) |
 | **SDK / native / remote signing API** | **NOT CONFIRMED** |
 | **Prepared-artifact compatibility** | **BLOCKED** (no Barid-signed fixtures) |
@@ -318,5 +318,6 @@ Extends [#132](./issue-132-electronic-signature-preflight.md) and [#145 §17](./
 - `pnpm format:check`, `git diff --check`.
 
 **Questionnaire sent:** **NO**  
+**Provider response:** **NOT REQUESTED YET**  
 **Ready for provider implementation:** **NO**  
 **Ready for ChatGPT review:** **YES** (engagement package complete; external dependency explicit)
