@@ -300,12 +300,18 @@ export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
   let releaseTestLock: (() => void) | undefined;
   let testLockReady: (() => void) | undefined;
   let testHolderPid = 0;
+  let testLockReadySignaled = false;
+  let rejectTestLockReady: ((error: unknown) => void) | undefined;
 
   const releasePromise = new Promise<void>((resolve) => {
     releaseTestLock = resolve;
   });
-  const testLockReadyPromise = new Promise<void>((resolve) => {
-    testLockReady = resolve;
+  const testLockReadyPromise = new Promise<void>((resolve, reject) => {
+    rejectTestLockReady = reject;
+    testLockReady = () => {
+      testLockReadySignaled = true;
+      resolve();
+    };
   });
 
   const testLockPromise = prisma.$transaction(
@@ -319,6 +325,16 @@ export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
     },
     { timeout: 45_000 },
   );
+
+  void testLockPromise.catch((error: unknown) => {
+    if (!testLockReadySignaled) {
+      rejectTestLockReady?.(error);
+    }
+  });
+
+  let bodyError: unknown;
+  let transactionError: unknown;
+  let raceResult: [TPrimary, TSecondary] | undefined;
 
   try {
     await testLockReadyPromise;
@@ -343,10 +359,28 @@ export async function raceWhileHoldingRowLock<TPrimary, TSecondary>(
 
     releaseTestLock?.();
 
-    const [primary, secondary] = await Promise.all([primaryPromise, secondaryPromise]);
-    return [primary, secondary];
+    raceResult = await Promise.all([primaryPromise, secondaryPromise]);
+  } catch (error) {
+    bodyError = error;
   } finally {
     releaseTestLock?.();
-    await testLockPromise.catch(() => undefined);
+    try {
+      await testLockPromise;
+    } catch (error) {
+      transactionError = error;
+    }
   }
+
+  if (bodyError !== undefined) {
+    throw toThrownError(bodyError);
+  }
+  if (transactionError !== undefined) {
+    throw toThrownError(transactionError);
+  }
+
+  return raceResult!;
+}
+
+function toThrownError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
