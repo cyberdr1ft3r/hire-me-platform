@@ -538,6 +538,9 @@ export function MissionsPanel({
       });
     } catch {
       if (append) {
+        if (!latest()) {
+          return;
+        }
         setter((current) =>
           current.status === 'ready'
             ? {

@@ -523,6 +523,68 @@ describe('Missions nested pagination', () => {
     ).toBeInTheDocument();
   });
 
+  it('does not apply a stale client-contact append failure after search changes', async () => {
+    const contacts = Array.from({ length: 55 }, (_, index) =>
+      syntheticContact(`Contact ${index + 1}`, index + 1),
+    );
+    const stalePage2Append = deferred<Response>();
+    mockMissionApi((call) => {
+      if (call.path === '/v1/missions' && call.method === 'GET') return missionListHandler();
+      if (call.path === `/v1/missions/${MISSION_A_ID}` && call.method === 'GET')
+        return missionDetailHandler();
+      const pipe = pipelineHandlers(PROCESS_A)(call);
+      if (pipe) return pipe;
+      if (call.path.includes('/interviews')) {
+        return jsonResponse({ interviews: [], pagination: { page: 1, pageSize: 20, total: 0 } });
+      }
+      if (call.path.includes(`/v1/clients/${CLIENT_ID}/contacts`)) {
+        const search = call.search.get('search') ?? '';
+        const page = call.search.get('page') ?? '1';
+        if (search === '' && page === '2') {
+          return stalePage2Append.promise;
+        }
+        const filtered = contacts.filter((contact) =>
+          contact.displayName.toLowerCase().includes(search.toLowerCase()),
+        );
+        return jsonResponse(
+          serverPage('contacts', filtered.length ? filtered : contacts, call.search),
+        );
+      }
+      return undefined;
+    });
+
+    renderPanel();
+    await selectMissionAlpha();
+    await openAlexProcess();
+    const clientContactsGroup = screen.getByRole('group', { name: /Client contacts/i });
+    await within(clientContactsGroup).findByRole('checkbox', { name: /^Contact 20$/i });
+    fireEvent.click(
+      within(screen.getByLabelText(/More client contacts/i)).getByRole('button', {
+        name: /Show more/i,
+      }),
+    );
+    await waitFor(() => expect(stalePage2Append.promise).toBeDefined());
+    fireEvent.change(screen.getByLabelText(/Search contacts/i), {
+      target: { value: 'Contact 55' },
+    });
+    await within(clientContactsGroup).findByRole('checkbox', { name: /^Contact 55$/i });
+    const loadMoreRegion = screen.getByLabelText(/More client contacts/i);
+    expect(within(loadMoreRegion).getByText('1 of 1 shown')).toBeInTheDocument();
+    await act(async () => {
+      stalePage2Append.resolve(jsonResponse({ code: 'SERVER_ERROR', message: 'fail' }, 500));
+      await stalePage2Append.promise.catch(() => undefined);
+      await Promise.resolve();
+    });
+    expect(
+      within(clientContactsGroup).getByRole('checkbox', { name: /^Contact 55$/i }),
+    ).toBeInTheDocument();
+    expect(within(loadMoreRegion).queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      within(loadMoreRegion).queryByRole('button', { name: /^Try again$/i }),
+    ).not.toBeInTheDocument();
+    expect(within(loadMoreRegion).getByText('1 of 1 shown')).toBeInTheDocument();
+  });
+
   it('pages client contacts beyond 50 with search and ignores stale search responses', async () => {
     const contacts = Array.from({ length: 55 }, (_, index) =>
       syntheticContact(`Contact ${index + 1}`, index + 1),
