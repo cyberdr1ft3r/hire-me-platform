@@ -8,14 +8,15 @@ Status owner: repository maintainer
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
 - **#141 Phase A (PR #142):** merged on **`main`** (**D-083 Accepted**). See [Phase A preflight](../design/issue-141-phase-a-preflight.md).
 - **#143 Phase B (PR #144):** merged on **`main`** — provider-neutral validation + **SIGNED** publication; **D-084 Accepted**. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
-- **#145 Phase C (PR #146):** Barid eSign **final first-party evidence pass accepted** (PC/DPC v6.0, CGUs, PKI disclosure, PIN guides, trust chain zip, TSA docs, revocation guides); OID mapping and minimal integration questionnaire updated; **D-085 Accepted** as a sequencing decision. **Ready for provider implementation: NO**; no production Barid adapter is authorized.
+- **#145 Phase C (PR #146):** Barid eSign first-party feasibility **accepted**; **D-085 Accepted**. See [feasibility doc](../design/issue-145-barid-esign-feasibility.md).
+- **#147 Phase C2 (in progress):** Barid **provider engagement package** prepared — [C2 doc](../design/issue-147-barid-c2-provider-engagement.md). **C2 state:** `READY_TO_CONTACT_PROVIDER`. **Questionnaire not sent** from automation; fixtures/route proof **blocked**. **Ready for provider implementation: NO**.
 
 ## Overall state
 
-**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B merged on `main`**; **Phase C (#145) feasibility accepted**. Provider engagement/fixtures are the next gate.
+**Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
 **Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Prior milestones and D-071 catalog gate remain intact. Issue **#109** / **#110** non-blocking. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms **third-party signing interface** (PKCS#11/CSP/SDK), provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. OCSP/CRL/trust URLs are now documented for Phase D/E only. **#132** remains **open**.
-**Next executable development task:** If PR #146 is still open, merge the accepted Phase C evidence deliverable. Then send **§18 minimal questionnaire** to Barid, obtain fixtures/test credentials, and run the Phase B prepared-artifact proof. Do **not** implement PKCS#11/bridge until confirmed.
+**Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed.
 
 ## Active work
 
