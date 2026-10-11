@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Checkbox, Select, TextField } from '../ui/index.js';
@@ -9,6 +9,7 @@ import {
   missionPriorityLabelKey,
   missionStateLabelKey,
 } from './mission-labels.js';
+import { hasValidDeadlineRange } from './mission-deadline-filter.js';
 import type { MissionFilterValues } from './mission-state.js';
 
 export function MissionFilters({
@@ -32,10 +33,23 @@ export function MissionFilters({
   values: MissionFilterValues;
 }) {
   const { t } = useI18n();
+  const [deadlineRangeInvalid, setDeadlineRangeInvalid] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
+    if (!hasValidDeadlineRange(values)) {
+      setDeadlineRangeInvalid(true);
+      return;
+    }
+    setDeadlineRangeInvalid(false);
     onSubmit();
+  }
+
+  function handleChange(next: MissionFilterValues): void {
+    if (hasValidDeadlineRange(next)) {
+      setDeadlineRangeInvalid(false);
+    }
+    onChange(next);
   }
 
   return (
@@ -52,7 +66,7 @@ export function MissionFilters({
           label={t('missions.filters.search')}
           maxLength={120}
           name="search"
-          onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
+          onChange={(event) => handleChange({ ...values, search: event.currentTarget.value })}
           type="search"
           value={values.search}
         />
@@ -60,7 +74,7 @@ export function MissionFilters({
           label={t('missions.filters.state')}
           name="state"
           onChange={(event) =>
-            onChange({
+            handleChange({
               ...values,
               state:
                 MISSION_STATE_FILTER_OPTIONS.find((state) => state === event.currentTarget.value) ??
@@ -80,7 +94,7 @@ export function MissionFilters({
           label={t('missions.filters.priority')}
           name="priority"
           onChange={(event) =>
-            onChange({
+            handleChange({
               ...values,
               priority:
                 MISSION_PRIORITIES.find((priority) => priority === event.currentTarget.value) ?? '',
@@ -101,7 +115,7 @@ export function MissionFilters({
             hint={t('missions.filters.clientHint')}
             label={t('missions.filters.client')}
             loadOptions={loadClientOptions}
-            onChange={(client) => onChange({ ...values, client })}
+            onChange={(client) => handleChange({ ...values, client })}
             sourceKey={`${sourceKey}:client-filter`}
             value={values.client}
           />
@@ -111,7 +125,28 @@ export function MissionFilters({
           hint={t('missions.filters.assignedToMeHint')}
           label={t('missions.filters.assignedToMe')}
           name="assignedToMe"
-          onChange={(event) => onChange({ ...values, assignedToMe: event.currentTarget.checked })}
+          onChange={(event) =>
+            handleChange({ ...values, assignedToMe: event.currentTarget.checked })
+          }
+        />
+        <TextField
+          error={
+            deadlineRangeInvalid && !hasValidDeadlineRange(values)
+              ? t('missions.filters.deadlineRangeInvalid')
+              : undefined
+          }
+          label={t('missions.filters.deadlineFrom')}
+          name="deadlineFrom"
+          onChange={(event) => handleChange({ ...values, deadlineFrom: event.currentTarget.value })}
+          type="date"
+          value={values.deadlineFrom}
+        />
+        <TextField
+          label={t('missions.filters.deadlineTo')}
+          name="deadlineTo"
+          onChange={(event) => handleChange({ ...values, deadlineTo: event.currentTarget.value })}
+          type="date"
+          value={values.deadlineTo}
         />
       </div>
       <div className="mission-filters__actions">
@@ -119,7 +154,15 @@ export function MissionFilters({
           {t('missions.filters.submit')}
         </Button>
         {showReset ? (
-          <Button disabled={busy} onClick={onReset} size="compact" variant="secondary">
+          <Button
+            disabled={busy}
+            onClick={() => {
+              setDeadlineRangeInvalid(false);
+              onReset();
+            }}
+            size="compact"
+            variant="secondary"
+          >
             {t('missions.filters.reset')}
           </Button>
         ) : null}

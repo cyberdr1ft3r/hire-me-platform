@@ -5,14 +5,15 @@ Last updated: 2026-10-11
 ## Current situation
 
 - **Issue #150:** **complete** — merged via PR **#151** on `main`.
-- **Issue #152** (child of **#110**): bounded placement confirmation form + **`placement_commercial_eligibility:update`** — draft PR **#153**; server enforces confirm-only `false` vs update-authorized `true`; **ADMIN** seeded with update; **HR_MANAGER** remains confirm-only for eligibility.
-- **Issue #110:** **open** parent for remaining Missions V1+ items.
+- **Issue #152:** **complete** — merged via PR **#153** on `main` as `13a1134`; bounded placement confirmation is implemented and **`placement_commercial_eligibility:update`** is server-enforced. **ADMIN** has update authority; **HR_MANAGER** remains confirm-only for eligibility.
+- **Issue #154** (child of **#110**): inclusive Mission deadline range filters — active draft PR **#155**.
+- **Issue #110:** **open** parent. Remaining after #154: closure-reason decision/UX and read-only Missions persona decision.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
 ## Next concrete action
 
-1. Review and merge **Issue #152** draft PR **#153** when exact-head CI is green and ChatGPT final review passes.
-2. Continue **#110** with next scoped children (deadline filters, closure reason, read-only persona) after #152.
+1. Complete final review of **Issue #154** draft PR **#155** after fresh exact-head CI; do not merge automatically.
+2. Continue **#110** with separately scoped closure-reason decision/UX and read-only Missions persona work after #154.
 
 ## Preserved unrelated follow-ups
 

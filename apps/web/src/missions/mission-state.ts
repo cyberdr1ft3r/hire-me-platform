@@ -27,6 +27,8 @@ export type MissionFilterValues = {
   priority: '' | MissionSummary['priority'];
   client: PickerOption | null;
   assignedToMe: boolean;
+  deadlineFrom: string;
+  deadlineTo: string;
 };
 
 export const EMPTY_MISSION_FILTERS: MissionFilterValues = {
@@ -35,6 +37,8 @@ export const EMPTY_MISSION_FILTERS: MissionFilterValues = {
   priority: '',
   client: null,
   assignedToMe: false,
+  deadlineFrom: '',
+  deadlineTo: '',
 };
 
 export type MissionListQuery = {
@@ -53,7 +57,9 @@ export function hasActiveMissionFilters(filters: MissionFilterValues): boolean {
     filters.state !== '' ||
     filters.priority !== '' ||
     filters.client !== null ||
-    filters.assignedToMe
+    filters.assignedToMe ||
+    filters.deadlineFrom !== '' ||
+    filters.deadlineTo !== ''
   );
 }
 
