@@ -697,12 +697,7 @@ describe('offer and placement lifecycle', () => {
       'Issue29 Correction',
       placementUpdaterId,
     );
-    const offer = await createAcceptedOffer(
-      baseUrl,
-      placementUpdaterToken,
-      mission.id,
-      process.id,
-    );
+    const offer = await createAcceptedOffer(baseUrl, placementUpdaterToken, mission.id, process.id);
     const versionId = offer.offer.currentVersionId!;
     await fetch(
       `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
