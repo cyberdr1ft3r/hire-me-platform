@@ -1803,6 +1803,8 @@ type MissionListOptions = {
   state?: string;
   priority?: string;
   assigneeUserId?: string;
+  deadlineFrom?: string;
+  deadlineTo?: string;
   apiBaseUrl?: string;
 };
 
@@ -1870,6 +1872,12 @@ export async function listMissions(options: MissionListOptions): Promise<Mission
   }
   if (options.assigneeUserId) {
     parameters.set('assigneeUserId', options.assigneeUserId);
+  }
+  if (options.deadlineFrom) {
+    parameters.set('deadlineFrom', options.deadlineFrom);
+  }
+  if (options.deadlineTo) {
+    parameters.set('deadlineTo', options.deadlineTo);
   }
 
   const response = await missionRequest(

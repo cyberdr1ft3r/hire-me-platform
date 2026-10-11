@@ -89,6 +89,7 @@ import {
 } from './mission-detail-section.js';
 import { MissionsWorkspace } from './MissionsWorkspace.js';
 import { resolveMissionAccess } from './mission-access.js';
+import { deadlineFromDate, deadlineToDate } from './mission-deadline-filter.js';
 import { classifyMissionFailure } from './mission-errors.js';
 import { optionalText, toMissionCreateRequest, toMissionUpdateRequest } from './mission-form.js';
 import {
@@ -625,6 +626,8 @@ export function MissionsPanel({
         priority: query.filters.priority || undefined,
         clientId: query.filters.client?.id,
         assigneeUserId: query.filters.assignedToMe ? actorUserId : undefined,
+        deadlineFrom: deadlineFromDate(query.filters.deadlineFrom),
+        deadlineTo: deadlineToDate(query.filters.deadlineTo),
       });
       if (request !== listRequest.current) {
         return;
