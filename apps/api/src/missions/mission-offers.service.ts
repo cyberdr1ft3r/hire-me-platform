@@ -48,6 +48,7 @@ type OfferAccess = {
   placementConfirm: boolean;
   placementCorrect: boolean;
   commercialEligibilityView: boolean;
+  commercialEligibilityUpdate: boolean;
 };
 
 const terminalMissionStates = new Set<RecruitmentMissionState>([
@@ -379,6 +380,13 @@ export class MissionOffersService {
       'placements:confirm',
       'PLACEMENTS_CONFIRM_REQUIRED',
     );
+    if (input.eligibleForInvoicing) {
+      this.assertPermission(
+        access.commercialEligibilityUpdate,
+        MISSION_PERMISSIONS.PLACEMENT_COMMERCIAL_ELIGIBILITY_UPDATE,
+        'PLACEMENT_COMMERCIAL_ELIGIBILITY_UPDATE_REQUIRED',
+      );
+    }
     const { placement, changed, closureEligible } = await this.withOfferLock(
       missionId,
       processId,
@@ -740,6 +748,9 @@ export class MissionOffersService {
       placementCorrect: permissions.includes(MISSION_PERMISSIONS.PLACEMENTS_CORRECT),
       commercialEligibilityView: permissions.includes(
         MISSION_PERMISSIONS.PLACEMENT_COMMERCIAL_ELIGIBILITY_VIEW,
+      ),
+      commercialEligibilityUpdate: permissions.includes(
+        MISSION_PERMISSIONS.PLACEMENT_COMMERCIAL_ELIGIBILITY_UPDATE,
       ),
     };
   }

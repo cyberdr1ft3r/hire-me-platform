@@ -446,7 +446,7 @@ describe('offer and placement lifecycle', () => {
     );
     const payload = {
       integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
-      eligibleForInvoicing: true,
+      eligibleForInvoicing: false,
       operationalNote: 'Synthetic operational note.',
     };
     const [first, second] = await Promise.all([
@@ -540,7 +540,7 @@ describe('offer and placement lifecycle', () => {
         headers: authHeaders(recruiterToken),
         body: JSON.stringify({
           integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
-          eligibleForInvoicing: true,
+          eligibleForInvoicing: false,
         }),
       },
     );
@@ -606,7 +606,7 @@ describe('offer and placement lifecycle', () => {
           headers: authHeaders(recruiterToken),
           body: JSON.stringify({
             integrationStartDate: new Date('2026-09-17T00:00:00.000Z').toISOString(),
-            eligibleForInvoicing: true,
+            eligibleForInvoicing: false,
           }),
         },
       ),
@@ -686,17 +686,24 @@ describe('offer and placement lifecycle', () => {
   });
 
   it('corrects placement once without negative counts and removes commercial eligibility', async () => {
+    const commercialUpdatePermissions = [
+      ...offerPermissions,
+      'placement_commercial_eligibility:update',
+    ] as const;
+    await ensureRoleWithPermissions(RoleName.MANAGER, commercialUpdatePermissions);
+    const placementUpdaterId = await createUser('placement-updater@offers.test', RoleName.MANAGER);
+    const placementUpdaterToken = await loginAccessToken(baseUrl, 'placement-updater@offers.test');
     const { mission, process } = await createMissionWithProcess(
       'Issue29 Correction',
-      recruiterUserId,
+      placementUpdaterId,
     );
-    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const offer = await createAcceptedOffer(baseUrl, placementUpdaterToken, mission.id, process.id);
     const versionId = offer.offer.currentVersionId!;
     await fetch(
       `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
       {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({
           integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
           eligibleForInvoicing: true,
@@ -706,12 +713,12 @@ describe('offer and placement lifecycle', () => {
     const [first, second] = await Promise.all([
       fetch(`${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement/correct`, {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({ reason: 'PROBATION_FAILED', comment: 'Synthetic correction.' }),
       }),
       fetch(`${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement/correct`, {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({
           reason: 'PROBATION_FAILED',
           comment: 'Synthetic correction retry.',
@@ -735,6 +742,149 @@ describe('offer and placement lifecycle', () => {
     expect(firstBody.placement!.eligibleForInvoicing).toBe(false);
     expect(reloadedMission.filledPlacementCount).toBe(0);
     expect(correctedEvents).toHaveLength(1);
+  });
+
+  it('allows confirm-only actors to confirm with eligibleForInvoicing false', async () => {
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Commercial False',
+      recruiterUserId,
+    );
+    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const versionId = offer.offer.currentVersionId!;
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({
+          integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
+          eligibleForInvoicing: false,
+        }),
+      },
+    );
+    const body = PlacementDetailResponseSchema.parse(await response.json());
+    expect(response.status).toBe(200);
+    expect(body.placement!.eligibleForInvoicing).toBe(false);
+  });
+
+  it('forbids confirm-only actors from setting eligibleForInvoicing true', async () => {
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Commercial Forbidden',
+      recruiterUserId,
+    );
+    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const versionId = offer.offer.currentVersionId!;
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({
+          integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
+          eligibleForInvoicing: true,
+        }),
+      },
+    );
+    expect(response.status).toBe(403);
+    expect(await readErrorCode(response)).toBe('PLACEMENT_COMMERCIAL_ELIGIBILITY_UPDATE_REQUIRED');
+    expect(
+      await prisma.missionPlacement.count({
+        where: { missionCandidateId: process.id },
+      }),
+    ).toBe(0);
+  });
+
+  it('allows update-authorized actors to confirm with eligibleForInvoicing true', async () => {
+    const commercialUpdatePermissions = [
+      ...offerPermissions,
+      'placement_commercial_eligibility:update',
+    ] as const;
+    await ensureRoleWithPermissions(RoleName.MANAGER, commercialUpdatePermissions);
+    const updaterId = await createUser('commercial-true@offers.test', RoleName.MANAGER);
+    const updaterToken = await loginAccessToken(baseUrl, 'commercial-true@offers.test');
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Commercial True',
+      updaterId,
+    );
+    const offer = await createAcceptedOffer(baseUrl, updaterToken, mission.id, process.id);
+    const versionId = offer.offer.currentVersionId!;
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
+      {
+        method: 'POST',
+        headers: authHeaders(updaterToken),
+        body: JSON.stringify({
+          integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
+          eligibleForInvoicing: true,
+        }),
+      },
+    );
+    const body = PlacementDetailResponseSchema.parse(await response.json());
+    expect(response.status).toBe(200);
+    expect(body.placement!.eligibleForInvoicing).toBe(true);
+  });
+
+  it('redacts commercial eligibility in placement responses without view permission', async () => {
+    const confirmWithoutView = offerPermissions.filter(
+      (code) => code !== 'placement_commercial_eligibility:view',
+    );
+    await ensureRoleWithPermissions(RoleName.EMPLOYEE, confirmWithoutView);
+    const viewlessUserId = await createUser('scoped-viewless@offers.test', RoleName.EMPLOYEE);
+    const viewlessToken = await loginAccessToken(baseUrl, 'scoped-viewless@offers.test');
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Commercial Redact',
+      viewlessUserId,
+    );
+    const offer = await createAcceptedOffer(baseUrl, viewlessToken, mission.id, process.id);
+    await prisma.missionPlacement.create({
+      data: {
+        missionId: mission.id,
+        missionCandidateId: process.id,
+        offerVersionId: offer.offer.currentVersionId!,
+        integrationStartDate: new Date('2026-09-15T00:00:00.000Z'),
+        confirmedByUserId: viewlessUserId,
+        eligibleForInvoicing: true,
+        invoicingEligibleAt: new Date('2026-09-15T00:00:00.000Z'),
+        commercialEligibilityByUserId: viewlessUserId,
+      },
+    });
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement`,
+      { headers: authHeaders(viewlessToken) },
+    );
+    const body = PlacementDetailResponseSchema.parse(await response.json());
+    expect(response.status).toBe(200);
+    expect(body.placement!.eligibleForInvoicing).toBe(false);
+    expect(body.placement!.invoicingEligibleAt).toBeNull();
+  });
+
+  it('returns stored commercial eligibility to view-authorized actors', async () => {
+    const { mission, process } = await createMissionWithProcess(
+      'Issue29 Commercial View',
+      recruiterUserId,
+    );
+    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const versionId = offer.offer.currentVersionId!;
+    await prisma.missionPlacement.create({
+      data: {
+        missionId: mission.id,
+        missionCandidateId: process.id,
+        offerVersionId: versionId,
+        integrationStartDate: new Date('2026-09-15T00:00:00.000Z'),
+        confirmedByUserId: recruiterUserId,
+        eligibleForInvoicing: true,
+        invoicingEligibleAt: new Date('2026-09-15T00:00:00.000Z'),
+        commercialEligibilityByUserId: recruiterUserId,
+      },
+    });
+    const response = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement`,
+      { headers: authHeaders(recruiterToken) },
+    );
+    const body = PlacementDetailResponseSchema.parse(await response.json());
+    expect(response.status).toBe(200);
+    expect(body.placement!.eligibleForInvoicing).toBe(true);
+    expect(body.placement!.invoicingEligibleAt).toBe('2026-09-15T00:00:00.000Z');
   });
 
   it('prevents mission/process IDOR even when the actor has offer permissions', async () => {

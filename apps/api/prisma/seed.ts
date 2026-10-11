@@ -527,6 +527,11 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'placement_commercial_eligibility:update',
+    description: 'Set whether a confirmed placement is eligible for later invoicing.',
+    scopeType: PermissionScopeType.EXPLICIT,
+  },
+  {
     code: 'interviews:view',
     description: 'View interviews for authorized mission candidate processes.',
     scopeType: PermissionScopeType.EXPLICIT,
@@ -884,6 +889,7 @@ async function main(): Promise<void> {
       'placements:confirm',
       'placements:correct',
       'placement_commercial_eligibility:view',
+      'placement_commercial_eligibility:update',
       'interviews:view',
       'interviews:schedule',
       'interviews:reschedule',

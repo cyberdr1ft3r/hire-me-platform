@@ -45,6 +45,7 @@ export interface MissionAccess {
   canConfirmPlacements: boolean;
   canCorrectPlacements: boolean;
   canViewPlacementCommercialEligibility: boolean;
+  canUpdatePlacementCommercialEligibility: boolean;
 
   canViewPublicOpportunity: boolean;
   canManagePublicOpportunity: boolean;
@@ -133,6 +134,7 @@ export function resolveMissionAccess(permissions: readonly string[]): MissionAcc
     canConfirmPlacements: has('placements:confirm'),
     canCorrectPlacements: has('placements:correct'),
     canViewPlacementCommercialEligibility: has('placement_commercial_eligibility:view'),
+    canUpdatePlacementCommercialEligibility: has('placement_commercial_eligibility:update'),
 
     canViewPublicOpportunity: has('public_opportunities:view'),
     canManagePublicOpportunity: has('public_opportunities:manage'),

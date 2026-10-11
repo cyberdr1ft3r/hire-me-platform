@@ -1177,6 +1177,11 @@ describe('App', () => {
     await openMissionWorkspace('Mission Operator');
     await openMissionProcess();
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm placement' }));
+    const placementForm = await screen.findByRole('form', { name: 'Confirm placement' });
+    fireEvent.change(within(placementForm).getByLabelText(/Integration start date/i), {
+      target: { value: '2026-09-15' },
+    });
+    fireEvent.click(within(placementForm).getByRole('button', { name: 'Confirm placement' }));
     expect(await screen.findByText('Placement confirmed from the accepted offer.')).toBeVisible();
     fireEvent.click(await screen.findByRole('button', { name: 'Correct placement' }));
 

@@ -383,6 +383,21 @@ export const missionsEn = {
     closureEligible: 'Counts toward mission closure',
     confirmConfirm: 'Confirm the placement from the accepted offer, starting integration today?',
     confirmCorrect: 'Record an administrative correction of this placement?',
+    confirmForm: {
+      integrationStartDate: 'Integration start date',
+      integrationStartDateError: 'Enter a valid integration start date.',
+      integrationStartDateHelp:
+        'The calendar date when the candidate starts integration. Stored as UTC midnight for that day.',
+      intro:
+        'Review the values below, then confirm placement from the current accepted offer version.',
+      invoicingEligible: 'Eligible for invoicing',
+      invoicingEligibleHelp:
+        'When checked, this placement may be used for later invoicing once commercial workflows allow it.',
+      operationalNote: 'Operational note',
+      operationalNoteHelp: 'Optional internal note (up to 1,000 characters).',
+      submit: 'Confirm placement',
+      title: 'Confirm placement',
+    },
     correct: 'Correct placement',
     empty: 'No placement has been confirmed for this candidate.',
     integrationStart: 'Integration start: {date}',

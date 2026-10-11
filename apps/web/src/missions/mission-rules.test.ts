@@ -44,6 +44,14 @@ describe('resolveMissionAccess', () => {
     expect(resolveMissionAccess(['missions:view', 'clients:view']).canViewClientContacts).toBe(
       false,
     );
+    expect(
+      resolveMissionAccess(['missions:view', 'placement_commercial_eligibility:view'])
+        .canUpdatePlacementCommercialEligibility,
+    ).toBe(false);
+    expect(
+      resolveMissionAccess(['missions:view', 'placement_commercial_eligibility:update'])
+        .canUpdatePlacementCommercialEligibility,
+    ).toBe(true);
   });
 });
 

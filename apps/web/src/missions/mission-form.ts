@@ -79,6 +79,22 @@ export function dateTimeFormValue(formData: FormData, name: string): string {
   return new Date(formValue(formData, name)).toISOString();
 }
 
+/**
+ * A `<input type="date">` value is a calendar day without timezone. The API stores an instant;
+ * map each chosen day to UTC midnight so the business date does not shift with local zones.
+ */
+export function businessDateToUtcIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  return `${trimmed}T00:00:00.000Z`;
+}
+
+export function isBusinessDateInput(value: string): boolean {
+  return businessDateToUtcIso(value) !== null;
+}
+
 export function optionalDateTimeFormValue(formData: FormData, name: string): string | undefined {
   const value = formValue(formData, name).trim();
   return value.length > 0 ? new Date(value).toISOString() : undefined;
