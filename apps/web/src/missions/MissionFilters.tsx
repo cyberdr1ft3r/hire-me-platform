@@ -130,7 +130,11 @@ export function MissionFilters({
           }
         />
         <TextField
-          error={deadlineRangeInvalid ? t('missions.filters.deadlineRangeInvalid') : undefined}
+          error={
+            deadlineRangeInvalid && !hasValidDeadlineRange(values)
+              ? t('missions.filters.deadlineRangeInvalid')
+              : undefined
+          }
           label={t('missions.filters.deadlineFrom')}
           name="deadlineFrom"
           onChange={(event) => handleChange({ ...values, deadlineFrom: event.currentTarget.value })}

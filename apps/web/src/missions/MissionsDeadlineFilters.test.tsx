@@ -162,20 +162,24 @@ describe('Missions deadline filters (#154)', () => {
     expect(screen.getByLabelText('Deadline to')).toHaveValue('');
   });
 
-  it('returns deadline drafts and the applied query to the canonical empty state on session reset', async () => {
+  it('clears an invalid deadline draft and its validation error on session reset', async () => {
     const calls = serveList();
     const view = renderPanel();
     await screen.findByText('Mission result');
-    setDate('Deadline from', '2026-10-01');
-    setDate('Deadline to', '2026-10-31');
+    setDate('Deadline from', '2026-10-31');
+    setDate('Deadline to', '2026-10-01');
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
-    await waitFor(() => expect(missionCalls(calls)).toHaveLength(2));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Deadline from must be on or before deadline to.',
+    );
+    expect(missionCalls(calls)).toHaveLength(1);
 
     view.rerender(panel('en', 'token-b'));
 
-    await waitFor(() => expect(missionCalls(calls)).toHaveLength(3));
+    await waitFor(() => expect(missionCalls(calls)).toHaveLength(2));
     expect(screen.getByLabelText('Deadline from')).toHaveValue('');
     expect(screen.getByLabelText('Deadline to')).toHaveValue('');
+    expect(screen.queryByRole('alert')).toBeNull();
     const newSession = missionCalls(calls).at(-1)!.search;
     expect(newSession.has('deadlineFrom')).toBe(false);
     expect(newSession.has('deadlineTo')).toBe(false);
