@@ -16,6 +16,7 @@ import {
   nextProcessStates,
 } from './mission-labels.js';
 import { EMPTY_MISSION_CREATE, publicOpportunityWritable } from './mission-state.js';
+import { MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS } from './mission-test-personas.js';
 import { MISSION_A_ID, syntheticPublicOpportunity } from './mission-test-data.js';
 
 describe('resolveMissionAccess', () => {
@@ -33,6 +34,13 @@ describe('resolveMissionAccess', () => {
     expect(access.canViewProcesses).toBe(true);
     expect(access.readOnly).toBe(true);
     expect(access.canCreate).toBe(false);
+  });
+
+  it('marks the canonical read-only evidence bundle as read-only', () => {
+    const access = resolveMissionAccess(MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS);
+    expect(access.readOnly).toBe(true);
+    expect(access.canCreate).toBe(false);
+    expect(access.canConfirmPlacements).toBe(false);
   });
 
   it('maps each capability to its own backend permission, never a broader one', () => {

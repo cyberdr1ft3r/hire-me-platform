@@ -28,18 +28,12 @@ import {
   syntheticProcess,
   type RecordedCall,
 } from './mission-test-data.js';
+import { MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS } from './mission-test-personas.js';
 import { showMissionDetailTab } from './mission-test-navigation.js';
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-const VIEW = [
-  'missions:view',
-  'mission_assignments:view',
-  'mission_candidates:view',
-  'offers:view',
-  'placements:view',
-  'interviews:view',
-];
+const VIEW = [...MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS];
 
 const MANAGE = [
   ...VIEW,
