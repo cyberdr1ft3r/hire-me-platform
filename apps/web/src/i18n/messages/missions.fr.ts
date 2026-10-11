@@ -138,6 +138,10 @@ export const missionsFr: Messages['missions'] = {
       confirm:
         'Clôturer cette mission avec l’issue « {state} » ? Une mission clôturée et ses données ne peuvent plus être modifiées.',
       filled: 'Postes pourvus',
+      filledRecruitmentError:
+        'La clôture avec recrutement réussi exige que tous les postes prévus soient pourvus.',
+      filledRecruitmentHint:
+        'Pour cette issue, le nombre de postes pourvus doit être au moins {count}. Le serveur valide cette valeur.',
       reason: 'Motif de clôture',
       state: 'Issue de la clôture',
       submit: 'Clôturer la mission',
