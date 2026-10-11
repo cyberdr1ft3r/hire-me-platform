@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { parseSalaryAmount } from '../money/index.js';
-import { Button, StatusBadge, TextArea, TextField } from '../ui/index.js';
+import { Button, Checkbox, StatusBadge, TextArea, TextField } from '../ui/index.js';
 import { SectionStatus, SummaryItem } from './MissionBits.js';
 import type { MissionAccess } from './mission-access.js';
 import { formValue, isBusinessDateInput, optionalFormValue } from './mission-form.js';
@@ -268,9 +268,14 @@ function PlacementConfirmForm({
       return;
     }
     setDateError(false);
+    const eligibleForInvoicing = access.canUpdatePlacementCommercialEligibility
+      ? data.get('eligibleForInvoicing') === 'on'
+      : false;
     const payload = buildPlacementConfirmRequest({
       integrationStartDate,
       operationalNote: optionalFormValue(data, 'operationalNote'),
+      eligibleForInvoicing,
+      canSetCommercialEligibility: access.canUpdatePlacementCommercialEligibility,
     });
     if (!payload) {
       setDateError(true);
@@ -279,6 +284,7 @@ function PlacementConfirmForm({
     await model.placementConfirm.onSubmit({
       integrationStartDate,
       operationalNote: optionalFormValue(data, 'operationalNote'),
+      eligibleForInvoicing,
     });
   }
 
@@ -307,8 +313,12 @@ function PlacementConfirmForm({
         name="operationalNote"
         rows={3}
       />
-      {access.canViewPlacementCommercialEligibility ? (
-        <p className="mission-muted">{t('missions.placements.confirmForm.invoicingReadOnly')}</p>
+      {access.canUpdatePlacementCommercialEligibility ? (
+        <Checkbox
+          hint={t('missions.placements.confirmForm.invoicingEligibleHelp')}
+          label={t('missions.placements.confirmForm.invoicingEligible')}
+          name="eligibleForInvoicing"
+        />
       ) : null}
       <div className="mission-actions">
         <Button

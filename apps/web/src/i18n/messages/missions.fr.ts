@@ -396,8 +396,9 @@ export const missionsFr: Messages['missions'] = {
         'Date calendaire de début d’intégration du candidat. Enregistrée à minuit UTC pour ce jour.',
       intro:
         'Vérifiez les valeurs ci-dessous, puis confirmez le placement à partir de la version d’offre acceptée en cours.',
-      invoicingReadOnly:
-        'L’éligibilité à la facturation reste désactivée pour cette confirmation tant qu’une autorisation dédiée n’existe pas.',
+      invoicingEligible: 'Éligible à la facturation',
+      invoicingEligibleHelp:
+        'Si coché, ce placement pourra servir à une facturation ultérieure lorsque les workflows commerciaux le permettront.',
       operationalNote: 'Note opérationnelle',
       operationalNoteHelp: 'Note interne facultative (1 000 caractères maximum).',
       submit: 'Confirmer le placement',

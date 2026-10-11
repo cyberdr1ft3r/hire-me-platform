@@ -1769,7 +1769,10 @@ export function MissionsPanel({
     if (!context || !access.canConfirmPlacements || !readyMission || !activeProcess) {
       return Promise.resolve(false);
     }
-    const body = buildPlacementConfirmRequest(values);
+    const body = buildPlacementConfirmRequest({
+      ...values,
+      canSetCommercialEligibility: access.canUpdatePlacementCommercialEligibility,
+    });
     if (!body) {
       return Promise.resolve(false);
     }

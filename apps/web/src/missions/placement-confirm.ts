@@ -5,6 +5,7 @@ import { businessDateToUtcIso, optionalText } from './mission-form.js';
 export interface PlacementConfirmFormValues {
   integrationStartDate: string;
   operationalNote?: string;
+  eligibleForInvoicing?: boolean;
 }
 
 export interface PlacementConfirmContext {
@@ -13,10 +14,11 @@ export interface PlacementConfirmContext {
   processId: string;
 }
 
-/** Server default for invoicing eligibility until an explicit set permission exists. */
 export function buildPlacementConfirmRequest(input: {
   integrationStartDate: string;
   operationalNote?: string;
+  eligibleForInvoicing?: boolean;
+  canSetCommercialEligibility: boolean;
 }): PlacementConfirmRequest | null {
   const integrationStartDate = businessDateToUtcIso(input.integrationStartDate);
   if (!integrationStartDate) {
@@ -25,6 +27,8 @@ export function buildPlacementConfirmRequest(input: {
   return {
     integrationStartDate,
     operationalNote: optionalText(input.operationalNote ?? ''),
-    eligibleForInvoicing: false,
+    eligibleForInvoicing: input.canSetCommercialEligibility
+      ? Boolean(input.eligibleForInvoicing)
+      : false,
   };
 }

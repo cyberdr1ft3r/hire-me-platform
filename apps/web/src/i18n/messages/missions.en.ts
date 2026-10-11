@@ -390,8 +390,9 @@ export const missionsEn = {
         'The calendar date when the candidate starts integration. Stored as UTC midnight for that day.',
       intro:
         'Review the values below, then confirm placement from the current accepted offer version.',
-      invoicingReadOnly:
-        'Invoicing eligibility stays off for this confirmation unless a dedicated authorization is added later.',
+      invoicingEligible: 'Eligible for invoicing',
+      invoicingEligibleHelp:
+        'When checked, this placement may be used for later invoicing once commercial workflows allow it.',
       operationalNote: 'Operational note',
       operationalNoteHelp: 'Optional internal note (up to 1,000 characters).',
       submit: 'Confirm placement',

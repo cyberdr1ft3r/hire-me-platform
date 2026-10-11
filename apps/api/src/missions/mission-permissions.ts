@@ -28,6 +28,7 @@ export const MISSION_PERMISSIONS = {
   PLACEMENTS_CONFIRM: 'placements:confirm',
   PLACEMENTS_CORRECT: 'placements:correct',
   PLACEMENT_COMMERCIAL_ELIGIBILITY_VIEW: 'placement_commercial_eligibility:view',
+  PLACEMENT_COMMERCIAL_ELIGIBILITY_UPDATE: 'placement_commercial_eligibility:update',
   INTERVIEWS_VIEW: 'interviews:view',
   INTERVIEWS_SCHEDULE: 'interviews:schedule',
   INTERVIEWS_RESCHEDULE: 'interviews:reschedule',

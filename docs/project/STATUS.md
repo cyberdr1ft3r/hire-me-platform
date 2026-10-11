@@ -14,7 +14,7 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
-**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Issue **#109** closed via PR **#149**; Issue **#150** complete via merged PR **#151** (nested pagination + client-contact selection on `main`). Active child **#152** (placement confirmation form) in draft PR review; parent **#110** remains open. **D-068** / **D-070** unchanged; no production deployment.
+**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Issue **#109** closed via PR **#149**; Issue **#150** complete via merged PR **#151**; active child **#152** (placement confirmation + commercial eligibility update permission) in draft PR **#153** review; parent **#110** remains open. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms **third-party signing interface** (PKCS#11/CSP/SDK), provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. OCSP/CRL/trust URLs are now documented for Phase D/E only. **#132** remains **open**.
 **Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed.
 
@@ -72,7 +72,7 @@ Status owner: repository maintainer
 | Issue #109 | Complete | Stabilize MissionCandidate archival/create race integration test | Merged through PR #149; deterministic PostgreSQL lock-graph barrier; no production application change |
 | Issue #110 | Open (non-blocking) | Complete Missions R-047 post-V1 follow-ups | Parent epic; **#150** complete (PR **#151**); **#152** active (placement confirmation form); remaining: deadline filters, closure policy, read-only persona |
 | Issue #150 | Complete | Missions nested pagination and safe client-contact invitation options | Merged via PR **#151** on `main`; nested load-more + client-contact selection |
-| Issue #152 | In progress | Bounded placement confirmation form and commercial eligibility authority audit | Draft PR; web-only form; eligibility SET permission **MISSING** — maintainer decision before backend auth change |
+| Issue #152 | In progress | Bounded placement confirmation form and commercial eligibility authority | Draft PR #153; `placement_commercial_eligibility:update` enforced server-side; ADMIN granted update; HR_MANAGER confirm-only (false) |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |
