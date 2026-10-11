@@ -92,6 +92,7 @@ import { resolveMissionAccess } from './mission-access.js';
 import { deadlineFromDate, deadlineToDate } from './mission-deadline-filter.js';
 import { classifyMissionFailure } from './mission-errors.js';
 import { optionalText, toMissionCreateRequest, toMissionUpdateRequest } from './mission-form.js';
+import { isLegalClosureTransition } from './mission-closure.js';
 import {
   buildPlacementConfirmRequest,
   type PlacementConfirmContext,
@@ -1353,6 +1354,9 @@ export function MissionsPanel({
 
   function handleClose(values: MissionClosureValues): void {
     if (!readyMission || !access.canClose) {
+      return;
+    }
+    if (!isLegalClosureTransition(readyMission.state, values.state)) {
       return;
     }
     const missionId = readyMission.id;

@@ -138,6 +138,10 @@ export const missionsEn = {
       confirm:
         'Close this mission as “{state}”? A closed mission and its records can no longer be changed.',
       filled: 'Filled positions',
+      filledRecruitmentError:
+        'Successful recruitment closure requires every planned position to be filled.',
+      filledRecruitmentHint:
+        'For this closure outcome, filled positions must be at least {count}. The server validates this value.',
       reason: 'Closure reason',
       state: 'Closure outcome',
       submit: 'Close mission',
