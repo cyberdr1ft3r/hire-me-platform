@@ -690,34 +690,40 @@ describe('offer and placement lifecycle', () => {
       ...offerPermissions,
       'placement_commercial_eligibility:update',
     ] as const;
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, commercialUpdatePermissions);
+    await ensureRoleWithPermissions(RoleName.MANAGER, commercialUpdatePermissions);
+    const placementUpdaterId = await createUser('placement-updater@offers.test', RoleName.MANAGER);
+    const placementUpdaterToken = await loginAccessToken(baseUrl, 'placement-updater@offers.test');
     const { mission, process } = await createMissionWithProcess(
       'Issue29 Correction',
-      recruiterUserId,
+      placementUpdaterId,
     );
-    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const offer = await createAcceptedOffer(
+      baseUrl,
+      placementUpdaterToken,
+      mission.id,
+      process.id,
+    );
     const versionId = offer.offer.currentVersionId!;
     await fetch(
       `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
       {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({
           integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
           eligibleForInvoicing: true,
         }),
       },
     );
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, offerPermissions);
     const [first, second] = await Promise.all([
       fetch(`${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement/correct`, {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({ reason: 'PROBATION_FAILED', comment: 'Synthetic correction.' }),
       }),
       fetch(`${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/placement/correct`, {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(placementUpdaterToken),
         body: JSON.stringify({
           reason: 'PROBATION_FAILED',
           comment: 'Synthetic correction retry.',
@@ -798,18 +804,20 @@ describe('offer and placement lifecycle', () => {
       ...offerPermissions,
       'placement_commercial_eligibility:update',
     ] as const;
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, commercialUpdatePermissions);
+    await ensureRoleWithPermissions(RoleName.MANAGER, commercialUpdatePermissions);
+    const updaterId = await createUser('commercial-true@offers.test', RoleName.MANAGER);
+    const updaterToken = await loginAccessToken(baseUrl, 'commercial-true@offers.test');
     const { mission, process } = await createMissionWithProcess(
       'Issue29 Commercial True',
-      recruiterUserId,
+      updaterId,
     );
-    const offer = await createAcceptedOffer(baseUrl, recruiterToken, mission.id, process.id);
+    const offer = await createAcceptedOffer(baseUrl, updaterToken, mission.id, process.id);
     const versionId = offer.offer.currentVersionId!;
     const response = await fetch(
       `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/confirm-placement`,
       {
         method: 'POST',
-        headers: authHeaders(recruiterToken),
+        headers: authHeaders(updaterToken),
         body: JSON.stringify({
           integrationStartDate: new Date('2026-09-15T00:00:00.000Z').toISOString(),
           eligibleForInvoicing: true,
@@ -819,7 +827,6 @@ describe('offer and placement lifecycle', () => {
     const body = PlacementDetailResponseSchema.parse(await response.json());
     expect(response.status).toBe(200);
     expect(body.placement!.eligibleForInvoicing).toBe(true);
-    await ensureRoleWithPermissions(RoleName.HR_MANAGER, offerPermissions);
   });
 
   it('redacts commercial eligibility in placement responses without view permission', async () => {
