@@ -362,7 +362,9 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
     financeUserId = await createUser(`finance${emailDomain}`, RoleName.FINANCE_MANAGER);
     recruiterUserId = await createUser(`recruiter${emailDomain}`, RoleName.EMPLOYEE);
     hybridUserId = await createUser(`hybrid${emailDomain}`, RoleName.FINANCE_MANAGER);
-    const employeeRole = await prisma.role.findUniqueOrThrow({ where: { name: RoleName.EMPLOYEE } });
+    const employeeRole = await prisma.role.findUniqueOrThrow({
+      where: { name: RoleName.EMPLOYEE },
+    });
     await prisma.userRole.create({ data: { userId: hybridUserId, roleId: employeeRole.id } });
 
     clientA = await prisma.client.create({
