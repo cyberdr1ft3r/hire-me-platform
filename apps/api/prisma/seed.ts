@@ -1,6 +1,7 @@
 import {
   FINANCE_MANAGER_PERMISSION_CODES,
   FINANCE_MANAGER_ROLE_DESCRIPTION,
+  MESSAGING_PERMISSION_CODES,
 } from '@hire-me/contracts';
 import {
   PermissionScopeType,
@@ -1115,13 +1116,19 @@ async function main(): Promise<void> {
     ],
     [RoleName.FINANCE_MANAGER]: [...FINANCE_MANAGER_PERMISSION_CODES],
     [RoleName.GUEST]: ['records:view'],
-    [RoleName.CLIENT_USER]: [
-      'records:view',
-      'documents:download',
-      'messages:view',
-      'messages:create',
-    ],
+    // D-087 (Issue #171): messaging is internal-only, so CLIENT_USER holds no
+    // messaging permission.
+    [RoleName.CLIENT_USER]: ['records:view', 'documents:download'],
   } satisfies Record<RoleName, string[]>;
+
+  // Grants the seed must actively revoke from databases seeded before the
+  // correction. Revocation archives the grant (keeping its history); effective
+  // permission resolution ignores archived grants. Migration
+  // 20261012170000_messaging_foundation applies the same rule to databases that
+  // are never seeded (production).
+  const revokedPermissionCodesByRole: Partial<Record<RoleName, string[]>> = {
+    [RoleName.CLIENT_USER]: [...MESSAGING_PERMISSION_CODES],
+  };
 
   await Promise.all(
     roleRecords.flatMap((role) =>
@@ -1148,6 +1155,25 @@ async function main(): Promise<void> {
       }),
     ),
   );
+
+  for (const role of roleRecords) {
+    const revokedCodes = revokedPermissionCodesByRole[role.name] ?? [];
+    if (revokedCodes.length === 0) {
+      continue;
+    }
+    const grantedCodes: readonly string[] = basePermissionCodesByRole[role.name];
+    if (revokedCodes.some((code) => grantedCodes.includes(code))) {
+      throw new Error(`Seed grants and revokes the same permission for ${role.name}`);
+    }
+    await prisma.rolePermission.updateMany({
+      where: {
+        roleId: role.id,
+        archivedAt: null,
+        permission: { code: { in: revokedCodes } },
+      },
+      data: { archivedAt: new Date() },
+    });
+  }
 }
 
 main()
