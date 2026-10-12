@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ export function createEphemeralSofthsmEnvironment(tokenLabel: string): SofthsmEp
       { env: process.env, stdio: ['ignore', 'ignore', 'pipe'] },
     );
   } catch {
-    process.env.SOFTHSM2_CONF = previousSofthsmConf;
+    restoreSofthsmConf(previousSofthsmConf);
     rmSync(rootDir, { recursive: true, force: true });
     throw mapNativePkcs11Failure('PKCS11_TOKEN_NOT_FOUND');
   }
@@ -46,12 +47,19 @@ export function createEphemeralSofthsmEnvironment(tokenLabel: string): SofthsmEp
 }
 
 export function destroyEphemeralSofthsmEnvironment(env: SofthsmEphemeralEnvironment): void {
-  process.env.SOFTHSM2_CONF = env.previousSofthsmConf;
+  restoreSofthsmConf(env.previousSofthsmConf);
   rmSync(env.rootDir, { recursive: true, force: true });
 }
 
+function restoreSofthsmConf(previous: string | undefined): void {
+  if (previous === undefined) {
+    delete process.env.SOFTHSM2_CONF;
+  } else {
+    process.env.SOFTHSM2_CONF = previous;
+  }
+}
+
+/** Per-run PIN from the CSPRNG; never logged, persisted, or committed. */
 function randomLabPin(kind: 'user' | 'so'): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  const hex = Buffer.from(bytes).toString('hex');
-  return `hm-${kind}-${hex}`;
+  return `hm-${kind}-${randomBytes(16).toString('hex')}`;
 }

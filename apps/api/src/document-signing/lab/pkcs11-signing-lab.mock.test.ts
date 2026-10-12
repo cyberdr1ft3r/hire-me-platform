@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 
+import { randomBytes } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import { Pkcs11LabError } from './pkcs11-lab.errors.js';
@@ -9,7 +11,7 @@ import { createMinimalLabSourcePdf } from './pkcs11-lab-source-pdf.js';
 import { PdfSignatureValidatorService } from '../validation/pdf-signature-validator.service.js';
 
 describe('PKCS#11 lab failure matrix (mock token)', () => {
-  const pin = 'mock-lab-pin-not-committed';
+  const pin = `mock-${randomBytes(16).toString('hex')}`;
 
   it('maps wrong PIN to safe error without echoing supplied PIN', () => {
     const client = createMockPkcs11TokenClient({ pin });
