@@ -5,7 +5,7 @@ Last updated: 2026-10-11
 ## Current situation
 
 - **Issue #150–#156:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**).
-- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; `MISSIONS_WRITE_PERMISSIONS` completeness fix (ChatGPT review); no new seeded production role; canonical synthetic permission bundle unchanged.
+- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; exact-head CI run **38187873668** green on `aff16fd`; `MISSIONS_WRITE_PERMISSIONS` completeness fix; no new seeded production role.
 - **Issue #110:** **open** until maintainer final review/merge of **#159**; **no remaining scoped V1+ child work** after #159.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
