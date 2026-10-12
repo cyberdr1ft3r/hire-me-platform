@@ -22,6 +22,12 @@ import {
   TrainingEnrollmentOptionsResponseSchema,
   TrainingEnrollmentStatusUpdateRequestSchema,
   TrainingEnrollmentWithdrawRequestSchema,
+  TrainingExternalParticipantCreateRequestSchema,
+  TrainingExternalParticipantDetailResponseSchema,
+  TrainingExternalParticipantOptionQuerySchema,
+  TrainingExternalParticipantOptionsResponseSchema,
+  TrainingExternalParticipantStatusUpdateRequestSchema,
+  TrainingExternalParticipantUpdateRequestSchema,
   TrainingInternalUserOptionQuerySchema,
   TrainingInternalUserOptionsResponseSchema,
   TrainingParticipationCreateRequestSchema,
@@ -411,6 +417,132 @@ export class TrainingController {
       await this.training.archiveSession(
         this.uuid(programId),
         this.uuid(sessionId),
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  // --- External training participants -----------------------------------------
+
+  @Get('programs/:programId/external-participant-options')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async listExternalParticipantOptions(
+    @Param('programId') programId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingExternalParticipantOptionQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_TRAINING_EXTERNAL_PARTICIPANT_OPTIONS_QUERY',
+        'Invalid external training participant options query.',
+      );
+    }
+
+    return TrainingExternalParticipantOptionsResponseSchema.parse(
+      await this.training.listExternalParticipantOptions(
+        this.uuid(programId),
+        parsed.data,
+        request.user!.id,
+      ),
+    );
+  }
+
+  @Post('external-participants')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async createExternalParticipant(@Body() body: unknown, @Req() request: RequestWithUser) {
+    const parsed = TrainingExternalParticipantCreateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_CREATE_EXTERNAL_TRAINING_PARTICIPANT_REQUEST',
+        'Invalid create external training participant request.',
+      );
+    }
+
+    return TrainingExternalParticipantDetailResponseSchema.parse(
+      await this.training.createExternalParticipant(
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Patch('external-participants/:participantId')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async updateExternalParticipant(
+    @Param('participantId') participantId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingExternalParticipantUpdateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_UPDATE_EXTERNAL_TRAINING_PARTICIPANT_REQUEST',
+        'Invalid update external training participant request.',
+      );
+    }
+
+    return TrainingExternalParticipantDetailResponseSchema.parse(
+      await this.training.updateExternalParticipant(
+        this.uuid(participantId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post('external-participants/:participantId/status')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async updateExternalParticipantStatus(
+    @Param('participantId') participantId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithUser,
+  ) {
+    const parsed = TrainingExternalParticipantStatusUpdateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_EXTERNAL_TRAINING_PARTICIPANT_STATUS_REQUEST',
+        'Invalid external training participant status request.',
+      );
+    }
+
+    return TrainingExternalParticipantDetailResponseSchema.parse(
+      await this.training.updateExternalParticipantStatus(
+        this.uuid(participantId),
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
+  }
+
+  @Post('external-participants/:participantId/archive')
+  @RequirePermissions(
+    TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW,
+    TRAINING_PERMISSIONS.TRAINING_ENROLLMENTS_MANAGE,
+  )
+  async archiveExternalParticipant(
+    @Param('participantId') participantId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return TrainingExternalParticipantDetailResponseSchema.parse(
+      await this.training.archiveExternalParticipant(
+        this.uuid(participantId),
         request.user!.id,
         this.getContext(request),
       ),

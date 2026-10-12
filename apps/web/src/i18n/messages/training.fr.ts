@@ -378,6 +378,16 @@ export const trainingFr: Messages['training'] = {
     contactClient: 'Client',
     contactClientHint: 'Choisissez le client dont vous voulez inscrire un contact.',
     contactHint: 'Contacts actifs de ce client.',
+    external: 'Participant externe',
+    externalCreate: 'Créer un participant externe',
+    externalCreateHint:
+      'Fiche propre à la formation uniquement. Aucun compte plateforme ni fiche CRM n’est créé.',
+    externalCreateTitle: 'Nouveau participant externe',
+    externalDisplayName: 'Nom affiché',
+    externalEmail: 'E-mail',
+    externalHint: 'Recherchez les participants externes actifs gérés par la formation.',
+    externalOrganization: 'Organisation',
+    externalPhone: 'Téléphone',
     count: plural({
       many: '{count} d’inscriptions',
       one: '{count} inscription',
@@ -465,6 +475,7 @@ export const trainingFr: Messages['training'] = {
     downloadStarted: 'Téléchargement lancé.',
     enrollmentArchived: 'Inscription archivée.',
     enrollmentCreated: 'Participant inscrit.',
+    externalParticipantCreated: 'Participant externe enregistré.',
     enrollmentStatusChanged: 'Statut de l’inscription mis à jour.',
     enrollmentWithdrawn: 'Inscription retirée.',
     errorTitle: 'Action non effectuée',
@@ -494,6 +505,7 @@ export const trainingFr: Messages['training'] = {
       clientInvalid: 'Ce client ne peut pas être rattaché à un programme de formation.',
       download: 'Le téléchargement n’a pas pu être lancé.',
       enrollmentNotActive: 'Cette inscription n’est pas active dans ce programme.',
+      externalEmailTaken: 'Un participant externe utilise déjà cet e-mail.',
       generic: 'Une erreur est survenue. Réessayez.',
       invalid: 'Certaines valeurs n’ont pas été acceptées. Vérifiez le formulaire, puis réessayez.',
       lifecycle:

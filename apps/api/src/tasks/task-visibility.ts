@@ -28,6 +28,43 @@ export function taskAccessFromPermissions(permissions: ReadonlySet<string>): Tas
   };
 }
 
+/**
+ * Resolves a user's Task access from active role grants inside the caller's
+ * transaction, so a check made under a Task lock sees the same snapshot as the
+ * write it guards.
+ */
+export async function resolveTaskAccessInTransaction(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<TaskAccess> {
+  const userRoles = await tx.userRole.findMany({
+    where: {
+      userId,
+      archivedAt: null,
+      role: { status: 'ACTIVE' },
+    },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            where: {
+              archivedAt: null,
+              permission: { status: 'ACTIVE' },
+            },
+            include: { permission: true },
+          },
+        },
+      },
+    },
+  });
+  const permissions = new Set(
+    userRoles.flatMap((userRole) =>
+      userRole.role.permissions.map((rolePermission) => rolePermission.permission.code),
+    ),
+  );
+  return taskAccessFromPermissions(permissions);
+}
+
 /** Server-authoritative task list/detail visibility predicate (Issue #31). */
 export function buildVisibleTaskWhere(
   actorUserId: string,

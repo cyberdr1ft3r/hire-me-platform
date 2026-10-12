@@ -329,6 +329,13 @@ function AppRoutes() {
             actorUserId={user.id}
             initialProgramId={recordIntent.programId}
             initialSessionId={recordIntent.sessionId}
+            onSelectionChange={(programId, sessionId) => {
+              const parameters = new URLSearchParams({ program: programId });
+              if (sessionId) {
+                parameters.set('session', sessionId);
+              }
+              replaceRecordIntent(`/training?${parameters.toString()}`);
+            }}
             permissions={user.permissions}
           />
         );
