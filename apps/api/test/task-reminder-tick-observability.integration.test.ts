@@ -88,14 +88,19 @@ describe('task reminder tick observability (R-036 PR C)', () => {
   });
 
   it('does not write AuditLog on an idle scheduler tick', async () => {
+    const before = await prisma.auditLog.count({
+      where: { action: 'tasks.reminders_processed' },
+    });
     await service().runDueTick({
       now: BASE_NOW,
       limit: 10,
       trigger: 'scheduler',
       actorUserId: null,
     });
-    const rows = await prisma.auditLog.findMany({ where: { action: 'tasks.reminders_processed' } });
-    expect(rows).toHaveLength(0);
+    const after = await prisma.auditLog.count({
+      where: { action: 'tasks.reminders_processed' },
+    });
+    expect(after).toBe(before);
   });
 
   it('writes one null-actor AuditLog with safe counts when a reminder is delivered', async () => {
