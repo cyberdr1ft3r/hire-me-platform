@@ -42,7 +42,7 @@ Code lives under `apps/api/src/document-signing/lab/` and is **not** imported by
 # Developer mode: SoftHSM suite runs when SoftHSM2 is installed, otherwise it is skipped
 pnpm --filter @hire-me/api test:signing-pkcs11-lab
 
-# Required mode (dedicated CI job): fails closed if softhsm2-util or the module is missing,
+# Required mode (dedicated CI job): fails closed if softhsm2-util, the native binding, or the module is missing,
 # if any lab test fails, or if zero real SoftHSM tests executed
 pnpm --filter @hire-me/api test:signing-pkcs11-lab:required
 
@@ -59,7 +59,7 @@ PKCS11_LAB_REAL_SOFTHSM_TESTS_NOT_PASSED=0
 PKCS11_LAB_REQUIRED: OK
 ```
 
-Failure lines are `PKCS11_LAB_REQUIRED: FAILED <SOFTHSM_CLI_MISSING | MODULE_UNAVAILABLE | LAB_TESTS_FAILED | REAL_SOFTHSM_SUITE_NOT_EXECUTED | REAL_SOFTHSM_SUITE_INCOMPLETE | ...>`. Inside the suite, `PKCS11_LAB_REQUIRED=1` also turns the "SoftHSM unavailable" fallback test into a failure.
+Failure lines are `PKCS11_LAB_REQUIRED: FAILED <SOFTHSM_CLI_MISSING | NATIVE_BINDING_UNAVAILABLE | MODULE_UNAVAILABLE | LAB_TESTS_FAILED | REAL_SOFTHSM_SUITE_NOT_EXECUTED | REAL_SOFTHSM_SUITE_INCOMPLETE | ...>`. Inside the suite, `PKCS11_LAB_REQUIRED=1` also turns the "SoftHSM unavailable" fallback test into a failure.
 
 Environment overrides:
 
@@ -100,10 +100,11 @@ Real SoftHSM rows run in the dedicated CI job (required mode) and locally when S
 | Case | Code / outcome | Evidence |
 | --- | --- | --- |
 | Ephemeral token init with runtime PINs | — | Real SoftHSM |
-| On-token key pair, cert object, shared `CKA_ID`, labels; resolve after module re-initialization | `sensitive=true`, `extractable=false`, public-key object matched | Real SoftHSM |
+| On-token key pair, cert object, shared `CKA_ID`, labels; resolve after module re-initialization | private key read from token: `CKA_TOKEN`, `CKA_PRIVATE`, `CKA_SENSITIVE`, `CKA_LOCAL`, `CKA_ALWAYS_SENSITIVE`, `CKA_NEVER_EXTRACTABLE` true, `CKA_EXTRACTABLE` false; certificate `CKA_TOKEN` true; public-key object matched | Real SoftHSM |
 | Prepared PDF signed with token-resolved credential; CMS signer cert == token cert DER; signer public key == token key modulus; Phase B `VALID` | `VALID` | Real SoftHSM |
 | Person signature vs organization seal distinct (`CKA_ID`, fingerprint, CN) | — | Real SoftHSM |
-| Tampered signed bytes / different prepared source / wrong expected fingerprint | not `VALID` / binding `INVALID` | Real SoftHSM |
+| Tampered signed bytes | `INVALID`, `PREPARED_ARTIFACT_BYTE_MISMATCH` | Real SoftHSM |
+| Different prepared source / wrong expected fingerprint | binding `INVALID` / not `VALID` | Real SoftHSM |
 | Wrong PIN (no PIN in message or stack) | `PKCS11_LOGIN_FAILED` | Real SoftHSM + mock |
 | Certificate object missing | `PKCS11_CERT_NOT_FOUND` | Real SoftHSM + mock |
 | Private key object missing | `PKCS11_KEY_NOT_FOUND` | Real SoftHSM + mock |
@@ -116,7 +117,7 @@ Real SoftHSM rows run in the dedicated CI job (required mode) and locally when S
 | Unknown token label | `PKCS11_SLOT_NOT_FOUND` | Real SoftHSM |
 | Module path missing | `PKCS11_MODULE_UNAVAILABLE` | Real module resolution (no token) |
 | Non-PKCS#11 file as module | `PKCS11_MODULE_LOAD_FAILED` | Real native load (no token) |
-| Wrong trust anchor | chain not `TRUSTED`, not `VALID` | Mock only |
+| Wrong trust anchor (unrelated synthetic anchor with the same CN) | CMS and binding `VALID`, chain `UNTRUSTED`, `INVALID`, `CERTIFICATE_CHAIN_UNTRUSTED` | Real SoftHSM + mock |
 | Sign failure / unsupported mechanism at sign boundary | `PKCS11_SIGN_FAILED` / `PKCS11_SIGN_MECHANISM_UNSUPPORTED` | Mock only (SoftHSM supports both mechanisms) |
 | Session failure during resolution | `PKCS11_SESSION_FAILED` | Mock only |
 | Token initialization failure | `PKCS11_TOKEN_INIT_FAILED` | Not exercised (lab setup guard only) |
