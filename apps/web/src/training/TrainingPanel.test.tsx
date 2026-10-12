@@ -430,7 +430,7 @@ describe('TrainingPanel: privacy and permissions', () => {
     expectNoRawIds();
   });
 
-  it('offers each enrollment source only with its source permissions, and never EXTERNAL', async () => {
+  it('offers each enrollment source only with its source permissions, including EXTERNAL for enrollment managers', async () => {
     standardApi();
     render(<Panel permissions={[...READ_ONLY, 'training_enrollments:manage']} />);
     await openProgram('Synthetic Onboarding');
@@ -441,7 +441,7 @@ describe('TrainingPanel: privacy and permissions', () => {
       within(type)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Internal user']);
+    ).toEqual(['Internal user', 'External participant']);
     expect(screen.queryByRole('columnheader', { name: 'Client' })).toBeNull();
     expect(within(programFilters()).queryByLabelText('Client')).toBeNull();
   });
