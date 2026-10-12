@@ -24,6 +24,10 @@ import { PermissionsService } from '../auth/permissions.service.js';
 import { CANDIDATE_PERMISSIONS } from '../candidates/candidate-permissions.js';
 import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
 import { COMMERCIAL_PERMISSIONS } from '../commercial/commercial-permissions.js';
+import {
+  type FinancialMissionScope,
+  resolveFinancialMissionScope,
+} from '../commercial/financial-mission-scope.js';
 import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
   CandidateStatus,
@@ -1228,10 +1232,12 @@ export class DocumentsService {
       if (!record.recruitmentMissionId) {
         return;
       }
-      if (!this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW)) {
+      // D-086: the same financial mission scope as the Commercial record scope.
+      const missionScope = this.financialMissionScope(permissions);
+      if (missionScope === 'NONE') {
         deny();
       }
-      if (this.hasPermission(permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER)) {
+      if (missionScope === 'ALL') {
         return;
       }
       const assignment = await transaction.missionRecruiter.findFirst({
@@ -1389,6 +1395,24 @@ export class DocumentsService {
     };
   }
 
+  /**
+   * D-086 mission scope for commercial generated sources only. Recruitment document
+   * contexts (mission, process, interview) keep their `missions:view` rules.
+   */
+  private financialMissionScope(permissions: string[]): FinancialMissionScope {
+    return resolveFinancialMissionScope({
+      missionsView: this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW),
+      missionCandidatesTransfer: this.hasPermission(
+        permissions,
+        MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER,
+      ),
+      recruitmentFinancialContext: this.hasPermission(
+        permissions,
+        COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+      ),
+    });
+  }
+
   /** Commercial source visibility as a predicate, matching `assertGeneratedSourceScope`. */
   private commercialSourceWhere(
     actorUserId: string,
@@ -1402,10 +1426,11 @@ export class DocumentsService {
     ) {
       return { id: unmatchableId };
     }
-    if (!this.hasPermission(permissions, MISSION_PERMISSIONS.MISSIONS_VIEW)) {
+    const missionScope = this.financialMissionScope(permissions);
+    if (missionScope === 'NONE') {
       return { recruitmentMissionId: null };
     }
-    if (this.hasPermission(permissions, MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER)) {
+    if (missionScope === 'ALL') {
       return {};
     }
     return {

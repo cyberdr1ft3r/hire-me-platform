@@ -9,6 +9,8 @@ import type {
   CommercialLineInput,
   CommercialPlacementOptionsQuery,
   CommercialPlacementOptionsResponse,
+  FinancialMissionContextOptionsQuery,
+  FinancialMissionContextOptionsResponse,
   InvoiceCancelRequest,
   InvoiceCreateRequest,
   InvoiceDetailResponse,
@@ -32,6 +34,10 @@ import type {
 
 import { CommercialAuditService } from './commercial-audit.service.js';
 import { COMMERCIAL_PERMISSIONS } from './commercial-permissions.js';
+import {
+  type FinancialMissionScope,
+  resolveFinancialMissionScope,
+} from './financial-mission-scope.js';
 import { badRequest, conflict, forbidden, notFound } from './commercial.errors.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
@@ -67,6 +73,9 @@ type CommercialAccess = {
   missionCandidatesTransfer: boolean;
   placementsView: boolean;
   placementCommercialEligibility: boolean;
+  recruitmentFinancialContext: boolean;
+  /** D-086 financial mission scope derived from the three mission-related grants. */
+  missionScope: FinancialMissionScope;
 };
 type QuotationRecord = Prisma.CommercialQuotationGetPayload<{ include: typeof quotationInclude }>;
 type ContractRecord = Prisma.CommercialContractGetPayload<{ include: typeof contractInclude }>;
@@ -1498,6 +1507,70 @@ export class CommercialService {
     if (!access.clientsView || !access.missionsView) {
       return { options: [] };
     }
+    return this.findInvoicePlacementOptions(
+      query,
+      access.missionCandidatesTransfer ? {} : this.assignedMissionWhere(actorUserId),
+    );
+  }
+
+  /**
+   * D-086 / Issue #168 finance-bounded mission context source for Commercial writes.
+   * Requires `recruitment_financial_context:view` (route), `clients:view`,
+   * `commercial_data:access`, and a Commercial manage capability. Returns at most 20
+   * `{ id, title }` rows of one client's writable missions, under the same D-086
+   * mission scope `assertMissionContext` enforces, and no count. It never returns
+   * assignments, requirements, descriptions, salary, commercial mission fields, or
+   * candidate data, and never makes `GET /v1/missions` reachable.
+   */
+  async listFinancialMissionOptions(
+    query: FinancialMissionContextOptionsQuery,
+    actorUserId: string,
+  ): Promise<FinancialMissionContextOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertFinancialContextSource(
+      access,
+      access.quotationsManage ||
+        access.contractsManage ||
+        access.purchaseOrdersManage ||
+        access.invoicesManage,
+      'quotations:manage, contracts:manage, purchase_orders:manage, or invoices:manage',
+    );
+    const missions = await this.prisma.recruitmentMission.findMany({
+      where: {
+        clientId: query.clientId,
+        archivedAt: null,
+        state: { notIn: [...terminalMissionStates] },
+        client: { archivedAt: null, status: { not: 'ARCHIVED' } },
+        ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
+        ...this.financialMissionWhere(access, actorUserId),
+      },
+      orderBy: [{ title: 'asc' }, { id: 'asc' }],
+      take: 20,
+      select: { id: true, title: true },
+    });
+    return { options: missions.map((mission) => ({ id: mission.id, title: mission.title })) };
+  }
+
+  /**
+   * D-086 / Issue #168 finance-bounded placement source for placement-backed invoices.
+   * Same lifecycle and eligibility filter as `listPlacementOptions` and invoice
+   * creation (confirmed, eligible, non-archived, not yet invoiced, invoiceable mission
+   * of a non-archived client), authorized by the bounded finance context instead of
+   * the generic `placements:view` / `placement_commercial_eligibility:view` grants.
+   */
+  async listFinancialPlacementOptions(
+    query: CommercialPlacementOptionsQuery,
+    actorUserId: string,
+  ): Promise<CommercialPlacementOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertFinancialContextSource(access, access.invoicesManage, 'invoices:manage');
+    return this.findInvoicePlacementOptions(query, this.financialMissionWhere(access, actorUserId));
+  }
+
+  private async findInvoicePlacementOptions(
+    query: CommercialPlacementOptionsQuery,
+    missionScope: Prisma.RecruitmentMissionWhereInput,
+  ): Promise<CommercialPlacementOptionsResponse> {
     const placements = await this.prisma.missionPlacement.findMany({
       where: {
         status: PlacementStatus.CONFIRMED,
@@ -1511,17 +1584,7 @@ export class CommercialService {
           state: { notIn: placementInvoiceBlockedMissionStates },
           client: { archivedAt: null, status: { not: 'ARCHIVED' } },
           ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
-          ...(access.missionCandidatesTransfer
-            ? {}
-            : {
-                recruiters: {
-                  some: {
-                    userId: actorUserId,
-                    status: AssignmentStatus.ACTIVE,
-                    archivedAt: null,
-                  },
-                },
-              }),
+          ...missionScope,
         },
       },
       orderBy: [{ confirmedAt: 'desc' }, { id: 'asc' }],
@@ -1542,6 +1605,42 @@ export class CommercialService {
         integrationStartDate: placement.integrationStartDate.toISOString(),
         confirmedAt: placement.confirmedAt.toISOString(),
       })),
+    };
+  }
+
+  private assertFinancialContextSource(
+    access: CommercialAccess,
+    moduleCapability: boolean,
+    moduleCapabilityLabel: string,
+  ): void {
+    this.assertPermission(
+      access.recruitmentFinancialContext,
+      COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+      'RECRUITMENT_FINANCIAL_CONTEXT_REQUIRED',
+    );
+    this.assertCommercialWrite(access, moduleCapability, moduleCapabilityLabel);
+    this.assertPermission(access.clientsView, 'clients:view', 'CLIENTS_VIEW_REQUIRED');
+  }
+
+  /** Mission fragment for the D-086 scope; `NONE` callers never reach a mission query. */
+  private financialMissionWhere(
+    access: CommercialAccess,
+    actorUserId: string,
+  ): Prisma.RecruitmentMissionWhereInput {
+    if (access.missionScope === 'ALL') {
+      return {};
+    }
+    if (access.missionScope === 'ASSIGNED') {
+      return this.assignedMissionWhere(actorUserId);
+    }
+    return { id: IMPOSSIBLE_UUID };
+  }
+
+  private assignedMissionWhere(actorUserId: string): Prisma.RecruitmentMissionWhereInput {
+    return {
+      recruiters: {
+        some: { userId: actorUserId, status: AssignmentStatus.ACTIVE, archivedAt: null },
+      },
     };
   }
 
@@ -1721,12 +1820,17 @@ export class CommercialService {
       await this.assertAcyclicCorrection(input.correctionOfInvoiceId, tx);
     }
     if (input.missionPlacementId) {
-      this.assertPermission(
-        access.placementCommercialEligibility,
-        'placement_commercial_eligibility:view',
-        'PLACEMENT_COMMERCIAL_ELIGIBILITY_REQUIRED',
-      );
-      this.assertPermission(access.placementsView, 'placements:view', 'PLACEMENTS_VIEW_REQUIRED');
+      // D-086: inside this financial invoice path only, the bounded finance context is
+      // an alternative authority to resolve the placement. Confirmation, eligibility,
+      // archival, mission/client linkage, and mission lifecycle stay enforced below.
+      if (!access.recruitmentFinancialContext) {
+        this.assertPermission(
+          access.placementCommercialEligibility,
+          'placement_commercial_eligibility:view',
+          'PLACEMENT_COMMERCIAL_ELIGIBILITY_REQUIRED',
+        );
+        this.assertPermission(access.placementsView, 'placements:view', 'PLACEMENTS_VIEW_REQUIRED');
+      }
       await tx.$queryRaw`SELECT id FROM "MissionPlacement" WHERE id = ${input.missionPlacementId}::uuid FOR UPDATE`;
       const placement = await tx.missionPlacement.findUnique({
         where: { id: input.missionPlacementId },
@@ -1797,11 +1901,11 @@ export class CommercialService {
     }
     await tx.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${missionId}::uuid FOR UPDATE`;
     const mission = await tx.recruitmentMission.findUnique({ where: { id: missionId } });
-    if (!mission || !access.missionsView) {
+    if (!mission || access.missionScope === 'NONE') {
       throw notFound('COMMERCIAL_SOURCE_NOT_FOUND', 'Commercial source was not found.');
     }
     this.assertSameClient(mission.clientId, clientId, 'COMMERCIAL_MISSION_CLIENT_MISMATCH');
-    if (!access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ASSIGNED') {
       const assignment = await tx.missionRecruiter.findFirst({
         where: {
           missionId,
@@ -1832,11 +1936,11 @@ export class CommercialService {
   ): Promise<void> {
     await tx.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${missionId}::uuid FOR UPDATE`;
     const mission = await tx.recruitmentMission.findUnique({ where: { id: missionId } });
-    if (!mission || !access.missionsView) {
+    if (!mission || access.missionScope === 'NONE') {
       throw notFound('COMMERCIAL_SOURCE_NOT_FOUND', 'Commercial source was not found.');
     }
     this.assertSameClient(mission.clientId, clientId, 'INVOICE_PLACEMENT_CLIENT_MISMATCH');
-    if (!access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ASSIGNED') {
       const assignment = await tx.missionRecruiter.findFirst({
         where: {
           missionId,
@@ -1884,10 +1988,10 @@ export class CommercialService {
     | Prisma.CommercialContractWhereInput
     | Prisma.PurchaseOrderWhereInput
     | Prisma.InvoiceWhereInput {
-    if (!access.missionsView) {
+    if (access.missionScope === 'NONE') {
       return { recruitmentMissionId: null };
     }
-    if (access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ALL') {
       return {};
     }
     return {
@@ -1927,7 +2031,7 @@ export class CommercialService {
     if (!record.recruitmentMissionId) {
       return;
     }
-    if (!access.missionsView) {
+    if (access.missionScope === 'NONE') {
       throw notFound(notFoundCode, notFoundMessage);
     }
     const mission = await prisma.recruitmentMission.findUnique({
@@ -1937,7 +2041,7 @@ export class CommercialService {
     if (!mission || mission.clientId !== record.clientId) {
       throw notFound(notFoundCode, notFoundMessage);
     }
-    if (access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ALL') {
       return;
     }
     const assignment = await prisma.missionRecruiter.findFirst({
@@ -2125,6 +2229,18 @@ export class CommercialService {
       placementCommercialEligibility: permissions.includes(
         COMMERCIAL_PERMISSIONS.PLACEMENT_COMMERCIAL_ELIGIBILITY_VIEW,
       ),
+      recruitmentFinancialContext: permissions.includes(
+        COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+      ),
+      missionScope: resolveFinancialMissionScope({
+        missionsView: permissions.includes(MISSION_PERMISSIONS.MISSIONS_VIEW),
+        missionCandidatesTransfer: permissions.includes(
+          MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER,
+        ),
+        recruitmentFinancialContext: permissions.includes(
+          COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+        ),
+      }),
     };
   }
 
@@ -2385,7 +2501,9 @@ function recordDisplay(
     placement?: { integrationStartDate: Date; confirmedAt: Date } | null;
   } = {},
 ) {
-  const canDescribePlacement = access.placementsView && access.placementCommercialEligibility;
+  const canDescribePlacement =
+    (access.placementsView && access.placementCommercialEligibility) ||
+    access.recruitmentFinancialContext;
   return {
     clientName: record.client.name,
     missionTitle: record.recruitmentMission?.title ?? null,

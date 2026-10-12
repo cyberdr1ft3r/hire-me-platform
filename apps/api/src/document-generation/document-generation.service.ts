@@ -32,6 +32,10 @@ import { PermissionsService } from '../auth/permissions.service.js';
 import { CANDIDATE_PERMISSIONS } from '../candidates/candidate-permissions.js';
 import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
 import { COMMERCIAL_PERMISSIONS } from '../commercial/commercial-permissions.js';
+import {
+  type FinancialMissionScope,
+  resolveFinancialMissionScope,
+} from '../commercial/financial-mission-scope.js';
 import { DOCUMENT_PERMISSIONS } from '../documents/document-permissions.js';
 import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
@@ -117,8 +121,8 @@ type GenerationAccess = {
   purchaseOrdersView: boolean;
   invoicesView: boolean;
   clientsView: boolean;
-  missionsView: boolean;
-  missionCandidatesTransfer: boolean;
+  /** D-086 financial mission scope for commercial sources only. */
+  financialMissionScope: FinancialMissionScope;
   candidatesView: boolean;
   clientContactsView: boolean;
   trainingProgramsView: boolean;
@@ -1275,8 +1279,11 @@ export class DocumentGenerationService {
       purchaseOrdersView: has(COMMERCIAL_PERMISSIONS.PURCHASE_ORDERS_VIEW),
       invoicesView: has(COMMERCIAL_PERMISSIONS.INVOICES_VIEW),
       clientsView: has(CLIENT_PERMISSIONS.CLIENTS_VIEW),
-      missionsView: has(MISSION_PERMISSIONS.MISSIONS_VIEW),
-      missionCandidatesTransfer: has(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
+      financialMissionScope: resolveFinancialMissionScope({
+        missionsView: has(MISSION_PERMISSIONS.MISSIONS_VIEW),
+        missionCandidatesTransfer: has(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
+        recruitmentFinancialContext: has(COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW),
+      }),
       candidatesView: has(CANDIDATE_PERMISSIONS.CANDIDATES_VIEW),
       clientContactsView: has(TRAINING_PERMISSIONS.CLIENT_CONTACTS_VIEW),
       trainingProgramsView: has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW),
@@ -1313,7 +1320,7 @@ export class DocumentGenerationService {
     if (!record.recruitmentMissionId) {
       return;
     }
-    if (!access.missionsView) {
+    if (access.financialMissionScope === 'NONE') {
       throw generationSourceNotFound();
     }
     const mission = await prisma.recruitmentMission.findUnique({
@@ -1323,7 +1330,7 @@ export class DocumentGenerationService {
     if (!mission || mission.clientId !== record.clientId) {
       throw generationSourceNotFound();
     }
-    if (access.missionCandidatesTransfer) {
+    if (access.financialMissionScope === 'ALL') {
       return;
     }
     const assignment = await prisma.missionRecruiter.findFirst({

@@ -9,4 +9,5 @@ export const COMMERCIAL_PERMISSIONS = {
   INVOICES_VIEW: 'invoices:view',
   INVOICES_MANAGE: 'invoices:manage',
   PLACEMENT_COMMERCIAL_ELIGIBILITY_VIEW: 'placement_commercial_eligibility:view',
+  RECRUITMENT_FINANCIAL_CONTEXT_VIEW: 'recruitment_financial_context:view',
 } as const;
