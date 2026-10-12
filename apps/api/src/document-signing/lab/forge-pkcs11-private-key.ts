@@ -16,9 +16,9 @@ export function createForgePrivateKeyFromPkcs11(
     publicKey.e,
   );
   const signingKey = privateKey;
-  (signingKey as unknown as { sign(md: forge.md.MessageDigest): forge.util.ByteStringBuffer }).sign = (
-    md: forge.md.MessageDigest,
-  ) => {
+  (
+    signingKey as unknown as { sign(md: forge.md.MessageDigest): forge.util.ByteStringBuffer }
+  ).sign = (md: forge.md.MessageDigest) => {
     const digest = Buffer.from(md.digest().getBytes(), 'binary');
     const signature = signDigest(digest);
     return signature.toString('latin1') as unknown as forge.util.ByteStringBuffer;

@@ -10,10 +10,7 @@ export class ForgeMemoryPdfSigner extends Signer {
     super();
   }
 
-  override sign(
-    pdfBuffer: Buffer,
-    signingTime: Date | undefined = undefined,
-  ): Promise<Buffer> {
+  override sign(pdfBuffer: Buffer, signingTime: Date | undefined = undefined): Promise<Buffer> {
     const p7 = forge.pkcs7.createSignedData();
     p7.content = forge.util.createBuffer(pdfBuffer.toString('binary'));
     p7.addCertificate(this.certificate);
@@ -28,9 +25,7 @@ export class ForgeMemoryPdfSigner extends Signer {
       ] as never,
     });
     p7.sign({ detached: true });
-    return Promise.resolve(
-      Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary'),
-    );
+    return Promise.resolve(Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary'));
   }
 }
 

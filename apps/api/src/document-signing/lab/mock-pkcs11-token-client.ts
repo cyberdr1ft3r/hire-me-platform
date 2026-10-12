@@ -74,7 +74,9 @@ export function createMockPkcs11TokenClient(options: {
         algorithm: 'sha256',
         digest: () => forge.util.createBuffer(digest.toString('binary')),
       } as forge.md.MessageDigest;
-      const signed = (privateKey as forge.pki.rsa.PrivateKey).sign(md) as unknown as forge.util.ByteStringBuffer;
+      const signed = (privateKey as forge.pki.rsa.PrivateKey).sign(
+        md,
+      ) as unknown as forge.util.ByteStringBuffer;
       return Buffer.from(signed.getBytes(), 'binary');
     },
     close() {

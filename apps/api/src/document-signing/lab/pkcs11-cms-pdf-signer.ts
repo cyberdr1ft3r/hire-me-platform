@@ -12,10 +12,7 @@ export class Pkcs11CmsPdfSigner extends Signer {
     super();
   }
 
-  override sign(
-    pdfBuffer: Buffer,
-    signingTime: Date | undefined = undefined,
-  ): Promise<Buffer> {
+  override sign(pdfBuffer: Buffer, signingTime: Date | undefined = undefined): Promise<Buffer> {
     if (!(pdfBuffer instanceof Buffer)) {
       throw new Error('PDF expected as Buffer.');
     }
@@ -40,8 +37,6 @@ export class Pkcs11CmsPdfSigner extends Signer {
       ] as never,
     });
     p7.sign({ detached: true });
-    return Promise.resolve(
-      Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary'),
-    );
+    return Promise.resolve(Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary'));
   }
 }

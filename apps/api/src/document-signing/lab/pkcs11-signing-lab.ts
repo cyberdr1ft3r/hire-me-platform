@@ -5,7 +5,10 @@ import { PreparedSigningArtifactService } from '../prepared-signing-artifact.ser
 import { PdfSignatureValidatorService } from '../validation/pdf-signature-validator.service.js';
 import { Pkcs11CmsPdfSigner } from './pkcs11-cms-pdf-signer.js';
 import { ForgeMemoryPdfSigner, isForgePrivateKey } from './forge-memory-pdf-signer.js';
-import type { LabTokenCertificateMaterial, Pkcs11TokenClient } from './pkcs11-token-client.types.js';
+import type {
+  LabTokenCertificateMaterial,
+  Pkcs11TokenClient,
+} from './pkcs11-token-client.types.js';
 
 export const LAB_PERSON_SIGNER_CN = 'Hire-Me PKCS11 Test Signer - NOT QUALIFIED';
 export const LAB_ORG_SEAL_CN = 'Hire-Me PKCS11 Test Seal - NOT QUALIFIED';
