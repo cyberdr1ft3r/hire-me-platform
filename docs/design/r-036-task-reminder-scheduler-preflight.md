@@ -2,7 +2,7 @@
 
 Date: 2026-10-12. Base: `main` @ `6cf0e52d091744c3201019a8820c91da8ac5ae92`.
 Scope: design only. No production code, schema, or migration changes in this preflight.
-Decision record: D-088 (Proposed).
+Decision record: D-088 (Accepted). PR A (Issue #169) implements sections 5–8; see the note in section 13.
 
 ## 1. Summary
 
@@ -340,6 +340,14 @@ transaction), not timing.
 | **A** — delivery domain | Extract `TaskReminderDeliveryService` (`runDueTick`), `Clock`, per-reminder transactions, `SKIP LOCKED`, bounded backoff, failure recording, recipient eligibility re-check/cancellation, overdue pagination (F5), null system actor, reschedule resets the attempt fields (F9). `process-due` delegates to it. Tests 1–11 and the time-zone and starvation regressions. | NO | No web change, no contract change. |
 | **B** — runner | `apps/api/src/jobs/run-due-reminders.ts` (application context, `loadWorkerEnvironment`, `--once` default, `--loop`, SIGTERM handling, JSON summary, exit codes) and the `reminders:run-due` script. CLI smoke test. | NO | No new dependency. |
 | **C** — operations | Runbook `docs/runbooks/task-reminder-scheduler.md` (systemd units, cron fallback, alert rule, DB `timezone` advice, dedicated DB role), per-tick AuditLog row, including the small audit-helper change required to support a null system actor safely, lag fields, and an update to the manager diagnostic copy ("scheduler configured" stays deployment-dependent; no UI behavior change). Closes R-036 once a scheduler is running in staging. | NO | Docs plus small API changes |
+
+**PR A implementation notes (Issue #169):** the engine is `TaskReminderDeliveryService.runDueTick` in
+`apps/api/src/tasks/task-reminder-delivery.service.ts`. Deviation from section 5.2: the failure recorder first takes
+`FOR KEY SHARE` on the parent Task, then runs the guarded update. Writing the `REMINDER_FAILED` TaskEvent needs a key-share
+lock on the Task anyway (foreign key), and taking it first keeps the Task-before-reminder order, so the recorder waits behind
+a user's Task lock instead of deadlocking with it. The guard also compares `remindAt` and `updatedAt`, so a reschedule that
+leaves `attemptCount` at 0 still beats a stale failure. Terminal-task cancellations now write a `REMINDER_CANCELED` TaskEvent
+with their own fixed summary. The manual endpoint still answers `201` with the unchanged response shape.
 
 No Task UI redesign is included. R-036 moves to *mitigated in code* after A and B, and to *closed* when C's scheduler is
 proven in a deployed environment.

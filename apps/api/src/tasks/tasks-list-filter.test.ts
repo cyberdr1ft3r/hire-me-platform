@@ -30,6 +30,7 @@ function serviceFor(permissions: string[]) {
     {} as never,
     permissionsService as never,
     prisma as never,
+    {} as never,
   );
   return { calls, service };
 }
