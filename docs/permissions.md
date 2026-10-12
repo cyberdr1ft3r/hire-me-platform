@@ -564,6 +564,14 @@ Development seed mapping gives `documents:generate` to `SUPER_ADMIN`, `ADMIN`, a
 `HR_MANAGER`, which are the roles that already hold the full document set together with
 the commercial and training read capabilities the generation path re-checks.
 
+## Implemented Messaging Permission Foundation (D-087, Issue #171)
+
+- Messaging reuses the existing `messages:view` (read) and `messages:create` (write) permissions. V1 adds no messaging permission. `messages:moderate` is a deferred proposal only.
+- Seed and catalog mapping: `SUPER_ADMIN`, `ADMIN`, `HR_MANAGER`, `MANAGER`, `TEAM_LEADER`, `EMPLOYEE`, and `FINANCE_MANAGER` hold both. `CLIENT_USER` and `GUEST` hold neither. Migration `20261012170000_messaging_foundation` archives any active `CLIENT_USER` messaging grant and adds the `FINANCE_MANAGER` grants on databases that are never seeded. The seed archives stale `CLIENT_USER` grants on databases it seeds.
+- Defense in depth: every messaging call also requires an active, non-archived `INTERNAL` user, so a `CLIENT` or `GUEST` account that is manually granted messaging permissions is still refused.
+- Record scope is the actor's own `ACTIVE` membership. Missing, foreign, left, and removed conversations return the identical `CONVERSATION_NOT_FOUND`. No role, `SUPER_ADMIN` included, can list or read other people's conversations.
+- Group management authority comes from the `OWNER` membership role in that group (data), never from a platform role name.
+
 ## Security and Audit Requirements
 
 - Export, document download, commercial-data access, user administration, role changes, permission changes, deletion, mission assignment changes, training enrollment changes, and sensitive conversation membership changes should create `AuditLog` records.

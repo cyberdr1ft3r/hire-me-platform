@@ -535,36 +535,46 @@ Issue #38 physically implements quotations, recruitment/training commercial cont
 
 ### Conversation
 
-- Purpose and owner: private message thread or discussion group; owned by collaboration features.
-- Important attributes: id, conversation type, title, related entity type, related entity id, status.
-- Relationships: has conversation members, messages, and optional documents or attachments.
-- Cardinality: one conversation can have many members and messages.
-- Lifecycle: active, archived.
-- Sensitive fields: title, membership, related entity, and message context.
-- Uniqueness rules: unresolved; direct conversation uniqueness may be enforced later.
-- Audit requirements: membership changes, archival, and attachment downloads should be audited when linked to confidential records.
+- Purpose and owner: internal direct conversation (`PRIVATE`) or named discussion group (`GROUP`); owned by the messaging module (D-087, Issue #171).
+- Important attributes: id, type, title (`GROUP` only, trimmed 1-120 characters), `directKey` (`PRIVATE` only), creator, status, archive actor and time (`GROUP` only), `lastMessageSequence` (BIGINT, allocated under the Conversation row lock), `lastMessageAt`. The legacy free-form `relatedEntityType`/`relatedEntityId` pair was removed; any future context link uses typed optional foreign keys.
+- Relationships: has conversation members and messages. Message attachments through `Document` remain deferred.
+- Cardinality: `PRIVATE` has exactly two `MEMBER` rows and immutable membership. `GROUP` has the creator as `OWNER`, 3-50 active members at creation, and never more than 50 active members. These are cross-row invariants enforced transactionally under the Conversation row lock (`MessagingAccessService`), not CHECK constraints.
+- Lifecycle: active; a `GROUP` may be archived (read-only). A `PRIVATE` conversation is never archived.
+- Sensitive fields: title, membership, and message context.
+- Uniqueness rules: `directKey` = `"<lowerUuid>:<higherUuid>"` of the two user IDs, unique, so one conversation per unordered pair. A CHECK enforces the format and ordering.
+- Audit requirements: creation, membership changes, rename, and archival are audited by the API (PR B); audit metadata never contains titles or message bodies.
 
 ### ConversationMember
 
-- Purpose and owner: participant membership in a conversation; owned by collaboration features.
-- Important attributes: id, conversation id, user id, member role, joined date, muted status, active status.
+- Purpose and owner: participant membership in a conversation; owned by the messaging module.
+- Important attributes: id, conversation id, user id, role (`OWNER`/`MEMBER`), status (`ACTIVE`/`LEFT`/`REMOVED`), joined date, left date, remover, `historyAfterSequence`, `lastReadSequence`, `hiddenAt`, muted (unused in V1).
 - Relationships: belongs to one conversation and one user.
 - Cardinality: one conversation can have many members; one user can belong to many conversations.
-- Lifecycle: active, inactive, archived.
+- Lifecycle: active, left, removed. Re-adding reactivates the same row. A member who left or was removed loses all read access.
+- History window: `historyAfterSequence` is an exclusive boundary. A member (re)joining when the conversation's last sequence is N may read only messages with `sequence > N`. Founding members have 0.
 - Sensitive fields: membership can reveal confidential client or candidate activity.
-- Uniqueness rules: one active membership per user per conversation.
-- Audit requirements: add, remove, role change, and archival should be audited for sensitive conversations.
+- Uniqueness rules: one row per user per conversation. CHECKs keep both sequence fields nonnegative and the status, left date, and remover consistent.
+- Audit requirements: add, remove, leave, and owner promotion are audited by the API (PR B).
 
 ### Message
 
-- Purpose and owner: message posted in a private conversation or discussion group; owned by collaboration features.
-- Important attributes: id, conversation id, author user id, body, status, created date, edited date.
-- Relationships: belongs to one conversation; written by one user; may have message attachments through `Document`.
+- Purpose and owner: plain-text message in a conversation; owned by the messaging module.
+- Important attributes: id, conversation id, author, `sequence` (BIGINT, per conversation), `clientMessageId` (client UUID for idempotent retries), body (1-4000 characters, not blank), status, edit date and count (0-10), archive (withdrawal) actor and date.
+- Relationships: belongs to one conversation; written by one user; has immutable `MessageRevision` history; message attachments through `Document` remain deferred.
 - Cardinality: one conversation can have many messages.
-- Lifecycle: active, edited, archived.
-- Sensitive fields: message body and attachments may include candidate, HR, client, or commercial data.
-- Uniqueness rules: no global uniqueness beyond id.
-- Audit requirements: message deletion or archival and attachment access should be audited; audit logs should not store full message bodies.
+- Lifecycle: active, edited, archived (withdrawn; the body is retained but never returned by the API).
+- Sensitive fields: message body may include candidate, HR, client, or commercial data.
+- Uniqueness rules: unique `(conversationId, sequence)`; unique `(conversationId, authorUserId, clientMessageId)`.
+- Audit requirements: edits and withdrawals are audited by the API (PR B) without bodies; ordinary sends are not audited.
+
+### MessageRevision
+
+- Purpose and owner: append-only record of a message's previous body before each edit (D-087).
+- Important attributes: id, message id, revision number (1-10), previous body, editor, edit time.
+- Relationships: belongs to one message and one editing user.
+- Lifecycle: insert only. A database trigger rejects `UPDATE`, `DELETE`, and `TRUNCATE`. There is no API in V1.
+- Uniqueness rules: unique `(messageId, revisionNumber)`.
+- Retention: V1 has no automated purge. Broad production rollout requires a documented, approved messaging retention policy.
 
 ### AuditLog
 
@@ -655,6 +665,7 @@ erDiagram
     User ||--o{ ConversationMember : joins
     Conversation ||--o{ Message : contains
     User ||--o{ Message : writes
+    Message ||--o{ MessageRevision : revises
     Message ||--o{ Document : attaches
 
     User ||--o{ AuditLog : performs

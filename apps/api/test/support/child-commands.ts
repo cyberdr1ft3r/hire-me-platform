@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { API_ROOT } from './disposable-database.js';
 
 const requireFromApi = createRequire(join(API_ROOT, 'package.json'));
-const prismaCli = requireFromApi.resolve('prisma/build/index.js');
+export const PRISMA_CLI = requireFromApi.resolve('prisma/build/index.js');
 export const TSX_CLI = requireFromApi.resolve('tsx/cli');
 const vitestCli = requireFromApi.resolve('vitest/vitest.mjs');
 export const PRISMA_SCHEMA = join(API_ROOT, 'prisma/schema.prisma');
@@ -47,10 +47,19 @@ export function runNodeCaptured(
 }
 
 export function runPrisma(args: string[], env: NodeJS.ProcessEnv): void {
-  const status = runNode(prismaCli, [...args, '--schema', PRISMA_SCHEMA], env);
+  const status = runNode(PRISMA_CLI, [...args, '--schema', PRISMA_SCHEMA], env);
   if (status !== 0) {
     throw new Error(`prisma ${args.join(' ')} failed with exit code ${status}.`);
   }
+}
+
+/** Runs Prisma against an explicit schema file and captures its output. */
+export function runPrismaCaptured(
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  schemaPath: string = PRISMA_SCHEMA,
+): { status: number; output: string } {
+  return runNodeCaptured(PRISMA_CLI, [...args, '--schema', schemaPath], env);
 }
 
 export function runTsx(script: string, env: NodeJS.ProcessEnv): void {

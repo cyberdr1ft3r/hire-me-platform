@@ -3,7 +3,7 @@ import type { PrismaClient } from '../../src/persistence/prisma/generated-client
 const DEFAULT_POLL_INTERVAL_MS = 15;
 const DEFAULT_TIMEOUT_MS = 8_000;
 
-export type RowLockBarrierTable = 'RecruitmentMission' | 'Candidate';
+export type RowLockBarrierTable = 'RecruitmentMission' | 'Candidate' | 'Conversation';
 
 export interface RowLockWaiterSnapshot {
   pid: number;
@@ -263,6 +263,10 @@ async function acquireRowForUpdate(
 ): Promise<void> {
   if (table === 'RecruitmentMission') {
     await transaction.$queryRaw`SELECT id FROM "RecruitmentMission" WHERE id = ${rowId}::uuid FOR UPDATE`;
+    return;
+  }
+  if (table === 'Conversation') {
+    await transaction.$queryRaw`SELECT id FROM "Conversation" WHERE id = ${rowId}::uuid FOR UPDATE`;
     return;
   }
   await transaction.$queryRaw`SELECT id FROM "Candidate" WHERE id = ${rowId}::uuid FOR UPDATE`;

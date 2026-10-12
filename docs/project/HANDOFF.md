@@ -6,7 +6,7 @@ Last updated: 2026-10-12
 
 - **D-068 / D-070:** production-readiness runbook is `RUNBOOK_READY`; no production inspection/migration has run. D-070 recovery explicitly handles possible partial Prisma v6 PostgreSQL migration application; do not assume a canceled migration rolled back both ALTER statements.
 
-- **Messaging V1 preflight:** PR #165, **D-087 Proposed**. Architecture reviewed: internal-only membership scope; FINANCE_MANAGER included; CLIENT_USER grants must be removed; 15-minute auditable edits; 50-member groups; moderation deferred; exclusive late-join history boundary; no purge engine in V1, with retention policy required before broad production rollout.
+- **Messaging V1:** preflight PR #165 merged (**D-087 Proposed**); PR A foundation implemented under Issue #171 (draft PR, pending review). Parent #170 open. Architecture reviewed: internal-only membership scope; FINANCE_MANAGER included; CLIENT_USER grants must be removed; 15-minute auditable edits; 50-member groups; moderation deferred; exclusive late-join history boundary; no purge engine in V1, with retention policy required before broad production rollout.
 
 - **R-036 Task reminder scheduler:** PR #166 preflight rebased onto current main; **D-088 Proposed**. Architecture review accepted the one-shot DB-coordinated worker direction with maintainer decisions: lost recipient access → CANCELED; retry 5 attempts with 1/5/15/60-minute backoff; manual global processor requires `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior unchanged. No production code/schema/migration in the preflight.
 
@@ -19,7 +19,7 @@ Last updated: 2026-10-12
 - **D-068 operator inspection:** execute only the runbook's read-only topology/config checks and synthetic honeypot probe matrix under an approved production session; record sanitized evidence.
 - **D-070 production migration:** only after a named release/window, verified backup, exact pending migration list, and prechecks. Migrate DB before deploying a D-070 build; on any failure/cancel, inspect for partial schema before `migrate resolve` or retry.
 
-- Implement messaging PR A only after PR #165 merges: fail-closed/lossless migration of dormant conversation tables, contracts/access layer, exclusive history boundary, CLIENT_USER grant removal, FINANCE_MANAGER grant addition, and DB constraint/concurrency evidence. No routes in PR A.
+- **Messaging PR A (Issue #171):** draft PR open, not merged. Review migration `20261012170000_messaging_foundation` (fail-closed legacy gate, CHECKs, append-only `MessageRevision`, grant reconciliation), `MessagingAccessService`, and contracts. After merge: open PR B (routes `/v1/messages/*`, picker, send/read/edit/withdraw, audit, stated rate-limit scope) using the access helpers, and keep every write Conversation-lock-first. Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; if any count is non-zero follow `docs/runbooks/messaging-legacy-rows.md`.
 
 - Implement R-036 PR A only after PR #166 merges: per-reminder delivery transactions, UTC clock, bounded retry, recipient eligibility cancellation, overdue starvation fix, and manual endpoint auth tightening. PR B adds the runner; PR C adds deployment/audit evidence.
 
