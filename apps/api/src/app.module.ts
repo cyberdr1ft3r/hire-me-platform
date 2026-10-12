@@ -12,6 +12,7 @@ import { DocumentSigningModule } from './document-signing/document-signing.modul
 import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
 import { MeetingsModule } from './meetings/meetings.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 import { MissionsModule } from './missions/missions.module.js';
 import { PublicApplicationsModule } from './public-applications/public-applications.module.js';
 import { ReportingModule } from './reporting/reporting.module.js';
@@ -30,6 +31,7 @@ import { TrainingModule } from './training/training.module.js';
     DocumentGenerationModule,
     DocumentSigningModule,
     MeetingsModule,
+    MessagingModule,
     MissionsModule,
     AgendaModule,
     PublicApplicationsModule,
