@@ -5,9 +5,14 @@ import {
   classifyTaskReminderFailure,
   isFinalTaskReminderAttempt,
   isTaskReminderBackoffElapsed,
-  taskReminderBackoffElapsedWhere,
   type TaskReminderFailureCode,
 } from './task-reminder-retry.js';
+import {
+  eligibleDueReminderWhere,
+  isCombinedTickBudgetExhausted,
+  oldestDueAgeSeconds as computeOldestDueAgeSeconds,
+} from './task-reminder-eligible-reminder-where.js';
+import { recordTaskReminderTickAuditIfMaterial } from './task-reminder-tick-observability.js';
 import { buildVisibleTaskWhere, resolveTaskAccessInTransaction } from './task-visibility.js';
 import {
   Prisma,
@@ -63,6 +68,11 @@ export type TaskReminderTickInput = {
   actorUserId: string | null;
   /** Overdue tasks to examine; defaults to {@link TASK_OVERDUE_TICK_DEFAULT_LIMIT}. */
   overdueLimit?: number;
+  /** Optional request metadata for manual tick AuditLog rows only. */
+  auditContext?: {
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  };
 };
 
 export type TaskReminderTickResult = {
@@ -81,6 +91,9 @@ export type TaskReminderTickResult = {
   overdueNotificationsCreated: number;
   overdueSkippedLocked: number;
   overdueFailed: number;
+  backlogDue: number;
+  oldestDueAgeSeconds: number;
+  budgetExhausted: boolean;
 };
 
 /** What the candidate query observed; the failure recorder's guard compares against it. */
@@ -149,7 +162,20 @@ export class TaskReminderDeliveryService {
       overdueNotificationsCreated: 0,
       overdueSkippedLocked: 0,
       overdueFailed: 0,
+      backlogDue: 0,
+      oldestDueAgeSeconds: 0,
+      budgetExhausted: false,
     };
+
+    const reminderWhere = eligibleDueReminderWhere(now);
+    result.backlogDue = await this.prisma.taskReminder.count({ where: reminderWhere });
+    const oldestDue = await this.prisma.taskReminder.findFirst({
+      where: reminderWhere,
+      orderBy: [{ remindAt: 'asc' }, { id: 'asc' }],
+      select: { remindAt: true },
+    });
+    result.oldestDueAgeSeconds = computeOldestDueAgeSeconds(now, oldestDue?.remindAt);
+    const overdueBacklog = await this.countOverdueTasks(now);
 
     const candidates = await this.selectDueReminders(now, limit);
     result.candidates = candidates.length;
@@ -191,6 +217,18 @@ export class TaskReminderDeliveryService {
         result.overdueFailed += 1;
       }
     }
+
+    result.budgetExhausted = isCombinedTickBudgetExhausted(
+      result.backlogDue,
+      limit,
+      overdueBacklog,
+      overdueLimit,
+    );
+    await recordTaskReminderTickAuditIfMaterial(this.prisma, {
+      actorUserId,
+      result,
+      auditContext: input.auditContext,
+    });
     return result;
   }
 
@@ -201,12 +239,7 @@ export class TaskReminderDeliveryService {
    */
   async selectDueReminders(now: Date, limit: number): Promise<TaskReminderCandidate[]> {
     return this.prisma.taskReminder.findMany({
-      where: {
-        status: TaskReminderStatus.PENDING,
-        archivedAt: null,
-        remindAt: { lte: now },
-        ...taskReminderBackoffElapsedWhere(now),
-      },
+      where: eligibleDueReminderWhere(now),
       orderBy: [{ remindAt: 'asc' }, { id: 'asc' }],
       take: limit,
       select: {
@@ -378,6 +411,37 @@ export class TaskReminderDeliveryService {
    * occupy every slot. `now` is bound as text and cast to `timestamp(3)`, which
    * ignores the session time zone.
    */
+  /** Count of overdue tasks still missing at least one overdue notification recipient. */
+  async countOverdueTasks(now: Date): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "Task" t
+      WHERE t."dueAt" < ${now.toISOString()}::timestamp(3)
+        AND t."status" IN ('open', 'in_progress', 'waiting', 'blocked')
+        AND t."archivedAt" IS NULL
+        AND EXISTS (
+          SELECT 1
+          FROM (
+            SELECT t."ownerUserId" AS "userId"
+            UNION
+            SELECT a."userId"
+            FROM "TaskAssignment" a
+            WHERE a."taskId" = t."id"
+              AND a."status" = 'active'
+              AND a."archivedAt" IS NULL
+          ) recipients
+          WHERE recipients."userId" IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "Notification" n
+              WHERE n."idempotencyKey" =
+                'task-overdue:' || t."id"::text || ':' || recipients."userId"::text
+            )
+        )
+    `;
+    return Number(rows[0]?.count ?? 0n);
+  }
+
   async selectOverdueTasks(now: Date, limit: number): Promise<string[]> {
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT t."id"

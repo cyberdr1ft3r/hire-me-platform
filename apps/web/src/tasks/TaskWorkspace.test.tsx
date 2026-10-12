@@ -176,7 +176,7 @@ describe('Task workspace presentation', () => {
     expect(screen.queryByRole('button', { name: 'Add comment' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change owner' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Schedule reminder' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Reminder delivery')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reminder delivery (manual diagnostic)')).not.toBeInTheDocument();
   });
 
   it('distinguishes initial loading, empty, filtered-empty, and request failure', () => {
@@ -641,7 +641,7 @@ describe('Task detail dialog and global write lock', () => {
     );
     const header = screen.getByRole('heading', { level: 1 }).closest('header')!;
     expect(within(header).queryByRole('button', { name: /reminders/i })).not.toBeInTheDocument();
-    expect(screen.getByText('Reminder delivery')).toBeInTheDocument();
+    expect(screen.getByText('Reminder delivery (manual diagnostic)')).toBeInTheDocument();
   });
 });
 

@@ -1,0 +1,30 @@
+# Example systemd oneshot unit — template only, not deployed from this repository.
+# Install paths, user, and EnvironmentFile must be set per host. See docs/runbooks/task-reminder-scheduler.md.
+
+[Unit]
+Description=Hire Me task reminder delivery (one shot)
+Documentation=file:///opt/hire-me/docs/runbooks/task-reminder-scheduler.md
+# PostgreSQL is reached through DATABASE_URL and may be remote or managed, so no
+# database unit is assumed. The runner exits non-zero when the database is unreachable.
+# Hosts running PostgreSQL locally may add their actual unit, for example:
+#   After=postgresql@16-main.service
+#   Requires=postgresql@16-main.service
+After=network-online.target
+Wants=network-online.target
+# Optional: uncomment only if this host provides an alert unit with this name.
+# Non-zero exit means bootstrap/DB failure; per-reminder transient failures still exit 0.
+#OnFailure=hire-me-reminders-alert.service
+
+[Service]
+Type=oneshot
+User=hire-me
+Group=hire-me
+WorkingDirectory=/opt/hire-me/apps/api
+# Required: DATABASE_URL is mandatory, so a missing file must fail the unit start.
+EnvironmentFile=/etc/hire-me/reminders.env
+ExecStart=/usr/bin/node /opt/hire-me/apps/api/dist/jobs/run-due-reminders.js --once
+TimeoutStartSec=55
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
