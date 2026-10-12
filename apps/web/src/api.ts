@@ -260,6 +260,12 @@ import {
   TrainingEnrollmentOptionQuerySchema,
   TrainingEnrollmentOptionsResponseSchema,
   TrainingEnrollmentListResponseSchema,
+  TrainingExternalParticipantCreateRequestSchema,
+  TrainingExternalParticipantDetailResponseSchema,
+  TrainingExternalParticipantOptionQuerySchema,
+  TrainingExternalParticipantOptionsResponseSchema,
+  TrainingExternalParticipantStatusUpdateRequestSchema,
+  TrainingExternalParticipantUpdateRequestSchema,
   TrainingInternalUserOptionQuerySchema,
   TrainingInternalUserOptionsResponseSchema,
   TrainingParticipationDetailResponseSchema,
@@ -278,6 +284,12 @@ import {
   type TrainingEnrollmentListResponse,
   type TrainingEnrollmentStatusUpdateRequest,
   type TrainingEnrollmentWithdrawRequest,
+  type TrainingExternalParticipantCreateRequest,
+  type TrainingExternalParticipantDetailResponse,
+  type TrainingExternalParticipantOptionQuery,
+  type TrainingExternalParticipantOptionsResponse,
+  type TrainingExternalParticipantStatusUpdateRequest,
+  type TrainingExternalParticipantUpdateRequest,
   type TrainingInternalUserOptionQuery,
   type TrainingInternalUserOptionsResponse,
   type TrainingParticipationCreateRequest,
@@ -3142,6 +3154,86 @@ export async function listTrainingEnrollmentUserOptions(
   return TrainingInternalUserOptionsResponseSchema.parse(await response.json());
 }
 
+export async function listTrainingExternalParticipantOptions(
+  accessToken: string,
+  programId: string,
+  query: TrainingExternalParticipantOptionQuery = {},
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingExternalParticipantOptionsResponse> {
+  const parsed = TrainingExternalParticipantOptionQuerySchema.parse(query);
+  const response = await trainingRequest(
+    accessToken,
+    trainingOptionQueryPath(
+      `/programs/${programId}/external-participant-options`,
+      parsed.search,
+    ),
+    {},
+    apiBaseUrl,
+  );
+  return TrainingExternalParticipantOptionsResponseSchema.parse(await response.json());
+}
+
+export async function createTrainingExternalParticipant(
+  accessToken: string,
+  input: TrainingExternalParticipantCreateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingExternalParticipantDetailResponse> {
+  const body = TrainingExternalParticipantCreateRequestSchema.parse(input);
+  const response = await trainingRequest(
+    accessToken,
+    '/external-participants',
+    { method: 'POST', body: JSON.stringify(body) },
+    apiBaseUrl,
+  );
+  return TrainingExternalParticipantDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingExternalParticipant(
+  accessToken: string,
+  participantId: string,
+  input: TrainingExternalParticipantUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingExternalParticipantDetailResponse> {
+  const body = TrainingExternalParticipantUpdateRequestSchema.parse(input);
+  const response = await trainingRequest(
+    accessToken,
+    `/external-participants/${participantId}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+    apiBaseUrl,
+  );
+  return TrainingExternalParticipantDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateTrainingExternalParticipantStatus(
+  accessToken: string,
+  participantId: string,
+  input: TrainingExternalParticipantStatusUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingExternalParticipantDetailResponse> {
+  const body = TrainingExternalParticipantStatusUpdateRequestSchema.parse(input);
+  const response = await trainingRequest(
+    accessToken,
+    `/external-participants/${participantId}/status`,
+    { method: 'POST', body: JSON.stringify(body) },
+    apiBaseUrl,
+  );
+  return TrainingExternalParticipantDetailResponseSchema.parse(await response.json());
+}
+
+export async function archiveTrainingExternalParticipant(
+  accessToken: string,
+  participantId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingExternalParticipantDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/external-participants/${participantId}/archive`,
+    { method: 'POST' },
+    apiBaseUrl,
+  );
+  return TrainingExternalParticipantDetailResponseSchema.parse(await response.json());
+}
+
 export async function listTrainingPrograms(
   options: TrainingProgramListOptions,
 ): Promise<TrainingProgramListResponse> {
@@ -3270,6 +3362,21 @@ export async function listTrainingSessions(
     options.apiBaseUrl,
   );
   return TrainingSessionListResponseSchema.parse(await response.json());
+}
+
+export async function getTrainingSession(
+  accessToken: string,
+  programId: string,
+  sessionId: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<TrainingSessionDetailResponse> {
+  const response = await trainingRequest(
+    accessToken,
+    `/programs/${programId}/sessions/${sessionId}`,
+    {},
+    apiBaseUrl,
+  );
+  return TrainingSessionDetailResponseSchema.parse(await response.json());
 }
 
 export async function updateTrainingSession(

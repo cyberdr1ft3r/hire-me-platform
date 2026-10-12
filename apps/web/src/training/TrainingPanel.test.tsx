@@ -125,6 +125,14 @@ function standardApi(
     switch (call.path) {
       case programsPath:
         return jsonResponse(page('programs', [programA, programB]));
+      case `${programsPath}/${PROGRAM_A_ID}`:
+        return jsonResponse({ program: programA });
+      case `${programsPath}/${PROGRAM_B_ID}`:
+        return jsonResponse({ program: programB });
+      case `${sessionsPath(PROGRAM_A_ID)}/${SESSION_A_ID}`:
+        return jsonResponse({ session: sessionA });
+      case `/v1/training/programs/${PROGRAM_A_ID}/external-participant-options`:
+        return jsonResponse({ participants: [] });
       case sessionsPath(PROGRAM_A_ID):
         return jsonResponse(page('sessions', [sessionA], { pageSize: 10 }));
       case sessionsPath(PROGRAM_B_ID):
