@@ -21,6 +21,8 @@ import {
   ExpenseListQuerySchema,
   ExpenseListResponseSchema,
   ExpenseUpdateRequestSchema,
+  FinancialMissionContextOptionsQuerySchema,
+  FinancialMissionContextOptionsResponseSchema,
   InvoiceSettlementResponseSchema,
   OverdueReceivableListResponseSchema,
   OverdueReceivableQuerySchema,
@@ -370,6 +372,46 @@ export class AccountingController {
 
     return AccountingPlacementOptionsResponseSchema.parse(
       await this.accounting.listPlacementOptions(parsed.data, request.user!.id),
+    );
+  }
+
+  /** D-086 finance-bounded mission context; never routes through `/v1/missions`. */
+  @Get('financial-context/missions')
+  @RequirePermissions(
+    COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+    COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS,
+  )
+  async listFinancialMissionOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = FinancialMissionContextOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_FINANCIAL_MISSION_OPTIONS_QUERY',
+        'Invalid financial mission context options query.',
+      );
+    }
+
+    return FinancialMissionContextOptionsResponseSchema.parse(
+      await this.accounting.listFinancialMissionOptions(parsed.data, request.user!.id),
+    );
+  }
+
+  /** D-086 finance-bounded placement context; no generic `placements:view` grant. */
+  @Get('financial-context/placements')
+  @RequirePermissions(
+    COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+    COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS,
+  )
+  async listFinancialPlacementOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = AccountingPlacementOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_ACCOUNTING_PLACEMENT_OPTIONS_QUERY',
+        'A valid recruitmentMissionId is required.',
+      );
+    }
+
+    return AccountingPlacementOptionsResponseSchema.parse(
+      await this.accounting.listFinancialPlacementOptions(parsed.data, request.user!.id),
     );
   }
 

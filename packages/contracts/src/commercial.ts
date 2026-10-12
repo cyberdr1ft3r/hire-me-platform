@@ -416,6 +416,26 @@ export const CommercialPlacementOptionsResponseSchema = z.object({
   options: z.array(CommercialPlacementOptionSchema).max(20),
 });
 
+/**
+ * D-086 / Issue #168 finance-bounded mission context option source. A client is
+ * mandatory, at most 20 rows are returned, there is no count, and each row carries
+ * only the mission id and title: never assignments, requirements, description,
+ * salary, commercial mission fields, or candidate data.
+ */
+export const FinancialMissionContextOptionsQuerySchema = z.object({
+  clientId: z.string().uuid(),
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+export const FinancialMissionContextOptionSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+});
+
+export const FinancialMissionContextOptionsResponseSchema = z.object({
+  options: z.array(FinancialMissionContextOptionSchema).max(20),
+});
+
 export type QuotationStatus = z.infer<typeof QuotationStatusSchema>;
 export type CommercialContractBusinessType = z.infer<typeof CommercialContractBusinessTypeSchema>;
 export type CommercialContractStatus = z.infer<typeof CommercialContractStatusSchema>;
@@ -467,4 +487,11 @@ export type CommercialPlacementOptionsQuery = z.infer<typeof CommercialPlacement
 export type CommercialPlacementOption = z.infer<typeof CommercialPlacementOptionSchema>;
 export type CommercialPlacementOptionsResponse = z.infer<
   typeof CommercialPlacementOptionsResponseSchema
+>;
+export type FinancialMissionContextOptionsQuery = z.infer<
+  typeof FinancialMissionContextOptionsQuerySchema
+>;
+export type FinancialMissionContextOption = z.infer<typeof FinancialMissionContextOptionSchema>;
+export type FinancialMissionContextOptionsResponse = z.infer<
+  typeof FinancialMissionContextOptionsResponseSchema
 >;

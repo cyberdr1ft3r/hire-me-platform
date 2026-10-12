@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   AccountingPlacementOptionsQuery,
   AccountingPlacementOptionsResponse,
+  FinancialMissionContextOptionsQuery,
+  FinancialMissionContextOptionsResponse,
   ClientReceivableSummaryResponse,
   ExpenseCorrectRequest,
   ExpenseCreateRequest,
@@ -37,6 +39,10 @@ import type { RequestContext } from '../auth/auth.types.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 import { CLIENT_PERMISSIONS } from '../clients/client-permissions.js';
 import { COMMERCIAL_PERMISSIONS } from '../commercial/commercial-permissions.js';
+import {
+  type FinancialMissionScope,
+  resolveFinancialMissionScope,
+} from '../commercial/financial-mission-scope.js';
 import { MISSION_PERMISSIONS } from '../missions/mission-permissions.js';
 import {
   AssignmentStatus,
@@ -84,9 +90,10 @@ type AccountingAccess = {
   profitabilityView: boolean;
   invoicesView: boolean;
   clientsView: boolean;
-  missionsView: boolean;
-  missionCandidatesTransfer: boolean;
   placementsView: boolean;
+  recruitmentFinancialContext: boolean;
+  /** D-086 financial mission scope derived from the three mission-related grants. */
+  missionScope: FinancialMissionScope;
   trainingProgramsView: boolean;
   trainingProgramsViewAll: boolean;
 };
@@ -1174,6 +1181,78 @@ export class AccountingService {
         `This action requires ${MISSION_PERMISSIONS.PLACEMENTS_VIEW}.`,
       );
     }
+    return this.findPlacementOptions(query, actorUserId, access);
+  }
+
+  /**
+   * D-086 / Issue #168 finance-bounded mission context source for expense contexts and
+   * mission profitability. Requires `recruitment_financial_context:view` (route),
+   * `clients:view`, `commercial_data:access`, and `profitability:view` or
+   * `expenses:manage`. One client, at most 20 non-archived `{ id, title }` rows under
+   * the same D-086 scope `assertMissionScope` enforces, and no count.
+   */
+  async listFinancialMissionOptions(
+    query: FinancialMissionContextOptionsQuery,
+    actorUserId: string,
+  ): Promise<FinancialMissionContextOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertFinancialContextSource(access);
+    if (!access.clientsView) {
+      throw forbidden(
+        'ACCOUNTING_PERMISSION_REQUIRED',
+        `This action requires ${CLIENT_PERMISSIONS.CLIENTS_VIEW}.`,
+      );
+    }
+    const missions = await this.prisma.recruitmentMission.findMany({
+      where: {
+        clientId: query.clientId,
+        archivedAt: null,
+        ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
+        ...(access.missionScope === 'ASSIGNED' ? this.assignedMissionFilter(actorUserId) : {}),
+      },
+      orderBy: [{ title: 'asc' }, { id: 'asc' }],
+      take: 20,
+      select: { id: true, title: true },
+    });
+    return { options: missions.map((mission) => ({ id: mission.id, title: mission.title })) };
+  }
+
+  /**
+   * D-086 / Issue #168 finance-bounded placement source: the D-081 Accounting placement
+   * semantics (one mission, at most 20 non-archived placements, no count, never
+   * candidate identity) authorized by the bounded finance context instead of the
+   * generic `placements:view` grant.
+   */
+  async listFinancialPlacementOptions(
+    query: AccountingPlacementOptionsQuery,
+    actorUserId: string,
+  ): Promise<AccountingPlacementOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertFinancialContextSource(access);
+    return this.findPlacementOptions(query, actorUserId, access);
+  }
+
+  private assertFinancialContextSource(access: AccountingAccess): void {
+    if (!access.recruitmentFinancialContext) {
+      throw forbidden(
+        'ACCOUNTING_PERMISSION_REQUIRED',
+        `This action requires ${COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW}.`,
+      );
+    }
+    if (!access.profitabilityView && !access.expensesManage) {
+      throw forbidden(
+        'ACCOUNTING_PERMISSION_REQUIRED',
+        `This action requires ${ACCOUNTING_PERMISSIONS.PROFITABILITY_VIEW} or ${ACCOUNTING_PERMISSIONS.EXPENSES_MANAGE}.`,
+      );
+    }
+    this.assertCommercialData(access);
+  }
+
+  private async findPlacementOptions(
+    query: AccountingPlacementOptionsQuery,
+    actorUserId: string,
+    access: AccountingAccess,
+  ): Promise<AccountingPlacementOptionsResponse> {
     await this.assertMissionScope(query.recruitmentMissionId, actorUserId, access, this.prisma);
 
     const placements = await this.prisma.missionPlacement.findMany({
@@ -1217,12 +1296,24 @@ export class AccountingService {
       profitabilityView: has(ACCOUNTING_PERMISSIONS.PROFITABILITY_VIEW),
       invoicesView: has(COMMERCIAL_PERMISSIONS.INVOICES_VIEW),
       clientsView: has(CLIENT_PERMISSIONS.CLIENTS_VIEW),
-      missionsView: has(MISSION_PERMISSIONS.MISSIONS_VIEW),
-      missionCandidatesTransfer: has(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
       placementsView: has(MISSION_PERMISSIONS.PLACEMENTS_VIEW),
+      recruitmentFinancialContext: has(COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW),
+      missionScope: resolveFinancialMissionScope({
+        missionsView: has(MISSION_PERMISSIONS.MISSIONS_VIEW),
+        missionCandidatesTransfer: has(MISSION_PERMISSIONS.MISSION_CANDIDATES_TRANSFER),
+        recruitmentFinancialContext: has(COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW),
+      }),
       trainingProgramsView: has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW),
       trainingProgramsViewAll: has(TRAINING_PERMISSIONS.TRAINING_PROGRAMS_VIEW_ALL),
     };
+  }
+
+  /**
+   * Placement authority: the generic `placements:view` recruitment grant, or (D-086)
+   * the bounded financial recruitment context, which never reaches a placement API.
+   */
+  private hasPlacementAuthority(access: AccountingAccess): boolean {
+    return access.placementsView || access.recruitmentFinancialContext;
   }
 
   private assertPermission(granted: boolean, permission: string): void {
@@ -1313,10 +1404,10 @@ export class AccountingService {
     if (!access.clientsView) {
       return NEVER_MATCHES;
     }
-    if (!access.missionsView) {
+    if (access.missionScope === 'NONE') {
       return { recruitmentMissionId: null };
     }
-    if (access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ALL') {
       return {};
     }
     return {
@@ -1353,10 +1444,10 @@ export class AccountingService {
     });
 
     // Mission scope requires client scope as well, mirroring `assertMissionScope`.
-    if (!access.missionsView || !access.clientsView) {
+    if (access.missionScope === 'NONE' || !access.clientsView) {
       clauses.push({ recruitmentMissionId: null, missionPlacementId: null });
     } else {
-      if (!access.missionCandidatesTransfer) {
+      if (access.missionScope === 'ASSIGNED') {
         clauses.push({
           OR: [
             { recruitmentMissionId: null },
@@ -1371,8 +1462,9 @@ export class AccountingService {
         });
       }
       // A placement context is only readable with the authoritative placement
-      // capability, matching the merged placement API and commercial invoice path.
-      if (!access.placementsView) {
+      // capability, matching the merged placement API and commercial invoice path,
+      // or (D-086) the bounded financial recruitment context.
+      if (!this.hasPlacementAuthority(access)) {
         clauses.push({ missionPlacementId: null });
       }
     }
@@ -1403,7 +1495,7 @@ export class AccountingService {
     access: AccountingAccess,
     prisma: PrismaLike,
   ): Promise<void> {
-    if (!access.missionsView) {
+    if (access.missionScope === 'NONE') {
       throw accountingNotFound();
     }
     const mission = await prisma.recruitmentMission.findUnique({
@@ -1414,7 +1506,7 @@ export class AccountingService {
       throw accountingNotFound();
     }
     await this.assertClientScope(mission.clientId, access, prisma);
-    if (access.missionCandidatesTransfer) {
+    if (access.missionScope === 'ALL') {
       return;
     }
     const assignment = await prisma.missionRecruiter.findFirst({
@@ -1445,7 +1537,7 @@ export class AccountingService {
     access: AccountingAccess,
     prisma: PrismaLike,
   ): Promise<{ missionId: string; clientId: string }> {
-    if (!access.placementsView) {
+    if (!this.hasPlacementAuthority(access)) {
       throw accountingNotFound();
     }
     const placement = await prisma.missionPlacement.findUnique({
