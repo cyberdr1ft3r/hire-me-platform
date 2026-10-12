@@ -23,6 +23,7 @@ import {
   cancelTrainingSession,
   correctTrainingAttendance,
   createTrainingEnrollment,
+  createTrainingExternalParticipant,
   createTrainingParticipation,
   createTrainingProgram,
   createTrainingSession,
@@ -35,6 +36,9 @@ import {
   listTrainingEnrollmentOptions,
   listTrainingEnrollments,
   listTrainingEnrollmentUserOptions,
+  listTrainingExternalParticipantOptions,
+  getTrainingProgram,
+  getTrainingSession,
   listTrainingParticipations,
   listTrainingProgramOwnerUserOptions,
   listTrainingPrograms,
@@ -87,6 +91,7 @@ import {
   type TrainingWriteAction,
 } from './training-state.js';
 import type { AttendanceValues } from './TrainingParticipation.js';
+import type { ExternalParticipantCreateValues } from './TrainingEnrollments.js';
 import type { RescheduleValues } from './TrainingSessionDetail.js';
 import { TrainingWorkspace } from './TrainingWorkspace.js';
 
@@ -126,18 +131,22 @@ export function TrainingPanel({
   actorUserId,
   initialProgramId,
   initialSessionId,
+  onSelectionChange,
   permissions,
 }: {
   accessToken: string;
   actorUserId: string;
   initialProgramId?: string | null;
   initialSessionId?: string | null;
+  onSelectionChange?: (programId: string, sessionId: string | null) => void;
   permissions: string[];
 }) {
   const { t } = useI18n();
   const access = resolveTrainingAccess(permissions);
 
   const programRequest = useRef(0);
+  const programIntentRequest = useRef(0);
+  const sessionIntentRequest = useRef(0);
   const sessionRequest = useRef(0);
   const enrollmentRequest = useRef(0);
   const participationRequest = useRef(0);
@@ -227,6 +236,8 @@ export function TrainingPanel({
     setSelectedParticipationId(null);
     setFeedback(null);
     setPending(null);
+    initialProgramIntent.current = initialProgramId ?? null;
+    initialSessionIntent.current = initialSessionId ?? null;
   }
 
   const selectedProgramId = selectedProgram?.id ?? null;
@@ -235,35 +246,11 @@ export function TrainingPanel({
   useEffect(() => {
     initialProgramIntent.current = initialProgramId ?? null;
     initialSessionIntent.current = initialSessionId ?? null;
+    const programId = initialProgramId ?? null;
+    if (programId) {
+      void resolveProgramIntent(programId);
+    }
   }, [initialProgramId, initialSessionId]);
-
-  useEffect(() => {
-    const programId = initialProgramIntent.current;
-    if (!programId || programList.status !== 'ready') {
-      return;
-    }
-    const { items } = programList;
-    const program = items.find((row) => row.id === programId);
-    if (!program) {
-      return;
-    }
-    initialProgramIntent.current = null;
-    selectProgram(program);
-  }, [programList]);
-
-  useEffect(() => {
-    const sessionId = initialSessionIntent.current;
-    if (!sessionId || sessionList.status !== 'ready' || !selectedProgramId) {
-      return;
-    }
-    const { items } = sessionList;
-    const session = items.find((row) => row.id === sessionId);
-    if (!session) {
-      return;
-    }
-    initialSessionIntent.current = null;
-    selectSession(session);
-  }, [sessionList, selectedProgramId]);
 
   useEffect(() => {
     void loadPrograms(programQuery);
@@ -308,6 +295,58 @@ export function TrainingPanel({
       sessionIdentity.current === startedIdentity &&
       (scope === 'workspace' || programGeneration.current === program) &&
       (scope !== 'session' || sessionGeneration.current === sessionGen);
+  }
+
+  async function resolveProgramIntent(programId: string): Promise<void> {
+    const request = ++programIntentRequest.current;
+    const sameSession = captureContext('workspace');
+    const isCurrent = () =>
+      request === programIntentRequest.current &&
+      initialProgramIntent.current === programId &&
+      sameSession();
+    try {
+      const { program } = await getTrainingProgram(sessionToken.current, programId);
+      if (!isCurrent()) {
+        return;
+      }
+      initialProgramIntent.current = null;
+      selectProgram(program, false);
+      const sessionId = initialSessionIntent.current;
+      if (sessionId) {
+        void resolveSessionIntent(program.id, sessionId);
+      }
+    } catch {
+      if (isCurrent()) {
+        initialProgramIntent.current = null;
+        initialSessionIntent.current = null;
+      }
+    }
+  }
+
+  async function resolveSessionIntent(programId: string, sessionId: string): Promise<void> {
+    const request = ++sessionIntentRequest.current;
+    const sameProgram = captureContext('program');
+    const isCurrent = () =>
+      request === sessionIntentRequest.current &&
+      initialSessionIntent.current === sessionId &&
+      selectedProgramRef.current === programId &&
+      sameProgram();
+    try {
+      const { session } = await getTrainingSession(sessionToken.current, programId, sessionId);
+      if (!isCurrent()) {
+        return;
+      }
+      if (session.trainingProgramId !== programId) {
+        initialSessionIntent.current = null;
+        return;
+      }
+      initialSessionIntent.current = null;
+      selectSession(session, false);
+    } catch {
+      if (isCurrent()) {
+        initialSessionIntent.current = null;
+      }
+    }
   }
 
   function beginWrite(action: TrainingWriteAction): number | null {
@@ -547,14 +586,21 @@ export function TrainingPanel({
     setSelectedParticipationId(null);
   }
 
-  function selectProgram(program: TrainingProgramSummary): void {
+  function selectProgram(program: TrainingProgramSummary, updateUrl = true): void {
     programGeneration.current += 1;
     sessionRequest.current += 1;
     enrollmentRequest.current += 1;
+    programIntentRequest.current += 1;
+    sessionIntentRequest.current += 1;
     selectedProgramRef.current = program.id;
     setSelectedProgram(program);
     setProgramFocus((token) => token + 1);
     setFeedback(null);
+    if (updateUrl) {
+      initialProgramIntent.current = null;
+      initialSessionIntent.current = null;
+      onSelectionChange?.(program.id, null);
+    }
     setSessionFilters(EMPTY_SESSION_FILTERS);
     sessionQueryRef.current = FIRST_SESSION_PAGE;
     setSessionQuery(FIRST_SESSION_PAGE);
@@ -566,13 +612,20 @@ export function TrainingPanel({
     clearSession();
   }
 
-  function selectSession(next: TrainingSessionSummary): void {
+  function selectSession(next: TrainingSessionSummary, updateUrl = true): void {
     clearSession();
     selectedSessionRef.current = next.id;
     setSelectedSession(next);
     setParticipationList({ status: access.viewParticipation ? 'loading' : 'idle' });
     setSessionFocus((token) => token + 1);
     setFeedback(null);
+    if (updateUrl) {
+      initialSessionIntent.current = null;
+      const programId = selectedProgramRef.current;
+      if (programId && next.trainingProgramId === programId) {
+        onSelectionChange?.(programId, next.id);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -653,6 +706,19 @@ export function TrainingPanel({
         detail: contact.email,
       }));
     };
+
+  const loadExternalParticipants: LoadTrainingOptions = async (search) => {
+    const programId = selectedProgramRef.current;
+    if (!programId) return [];
+    const response = await listTrainingExternalParticipantOptions(sessionToken.current, programId, {
+      search: search || undefined,
+    });
+    return response.participants.map((participant) => ({
+      id: participant.id,
+      label: participant.displayName,
+      detail: participant.email ?? participant.organization,
+    }));
+  };
 
   const loadEnrollmentOptions: LoadTrainingOptions = async (search) => {
     const programId = selectedProgramRef.current;
@@ -859,8 +925,44 @@ export function TrainingPanel({
   // Enrollment writes
   // ---------------------------------------------------------------------------
 
+  function createExternalParticipant(
+    values: ExternalParticipantCreateValues,
+  ): Promise<TrainingPickerOption | null> {
+    const owner = beginWrite('createExternalParticipant');
+    if (owner === null) return Promise.resolve(null);
+    const isCurrent = captureContext('program');
+    setFeedback(null);
+    return createTrainingExternalParticipant(sessionToken.current, {
+      displayName: values.displayName.trim(),
+      email: values.email.trim() || undefined,
+      phone: values.phone.trim() || undefined,
+      organization: values.organization.trim() || undefined,
+    })
+      .then(({ participant }) => {
+        if (!isCurrent()) return null;
+        setFeedback({
+          tone: 'success',
+          messageKey: 'training.feedback.externalParticipantCreated',
+        });
+        return {
+          id: participant.id,
+          label: participant.displayName,
+          detail: participant.email ?? participant.organization,
+        };
+      })
+      .catch((error) => {
+        if (isCurrent()) {
+          setFeedback({ tone: 'danger', messageKey: trainingFailureKey(error) });
+        }
+        return null;
+      })
+      .finally(() => {
+        endWrite(owner);
+      });
+  }
+
   function createEnrollment(
-    type: Exclude<TrainingParticipantType, 'EXTERNAL'>,
+    type: TrainingParticipantType,
     participant: TrainingPickerOption,
   ): Promise<boolean> {
     const programId = selectedProgramRef.current;
@@ -870,7 +972,9 @@ export function TrainingPanel({
         ? { candidateId: participant.id }
         : type === 'USER'
           ? { userId: participant.id }
-          : { clientContactId: participant.id };
+          : type === 'EXTERNAL'
+            ? { externalTrainingParticipantId: participant.id }
+            : { clientContactId: participant.id };
     return runWrite(
       'createEnrollment',
       'program',
@@ -1106,6 +1210,7 @@ export function TrainingPanel({
         selectedId: selectedEnrollmentId,
         onArchive: archiveEnrollment,
         onCreate: createEnrollment,
+        onCreateExternal: createExternalParticipant,
         onFiltersChange: (filters) => {
           setSelectedEnrollmentId(null);
           applyEnrollmentQuery({ filters, page: 1 });
@@ -1127,6 +1232,7 @@ export function TrainingPanel({
           candidates: loadCandidates,
           clients: loadClients,
           contacts: loadContacts,
+          external: loadExternalParticipants,
           users: loadEnrollmentUsers,
         },
         enrollmentOptions: loadEnrollmentOptions,

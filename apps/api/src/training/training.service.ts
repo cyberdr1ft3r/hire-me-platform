@@ -13,6 +13,14 @@ import type {
   TrainingEnrollmentStatusUpdateRequest,
   TrainingEnrollmentSummary,
   TrainingEnrollmentWithdrawRequest,
+  TrainingExternalParticipantCreateRequest,
+  TrainingExternalParticipantDetailResponse,
+  TrainingExternalParticipantOption,
+  TrainingExternalParticipantOptionQuery,
+  TrainingExternalParticipantOptionsResponse,
+  TrainingExternalParticipantStatusUpdateRequest,
+  TrainingExternalParticipantSummary,
+  TrainingExternalParticipantUpdateRequest,
   TrainingInternalUserOptionQuery,
   TrainingInternalUserOptionsResponse,
   TrainingParticipationCreateRequest,
@@ -56,6 +64,7 @@ import {
   isTerminalSessionStatus,
 } from './training.lifecycle.js';
 import type { RequestContext } from '../auth/auth.types.js';
+import { normalizeEmail } from '../auth/normalize-email.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 import {
   CandidateStatus,
@@ -167,6 +176,249 @@ export class TrainingService {
     const access = await this.resolveAccess(actorUserId);
     await this.findVisibleProgram(programId, actorUserId, access);
     return this.listInternalUserOptions(query);
+  }
+
+  async listExternalParticipantOptions(
+    programId: string,
+    query: TrainingExternalParticipantOptionQuery,
+    actorUserId: string,
+  ): Promise<TrainingExternalParticipantOptionsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    const program = await this.findVisibleProgram(programId, actorUserId, access);
+    this.assertProgramAcceptsOperations(program);
+
+    const participants = await this.prisma.externalTrainingParticipant.findMany({
+      where: {
+        status: ExternalParticipantStatus.ACTIVE,
+        archivedAt: null,
+        ...(query.search
+          ? {
+              OR: [
+                { displayName: { contains: query.search, mode: 'insensitive' } },
+                { email: { contains: query.search, mode: 'insensitive' } },
+                { organization: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        displayName: true,
+        email: true,
+        organization: true,
+      },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: TRAINING_OPTION_LIMIT,
+    });
+
+    return {
+      participants: participants.map((participant) => toExternalParticipantOption(participant)),
+    };
+  }
+
+  async createExternalParticipant(
+    input: TrainingExternalParticipantCreateRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingExternalParticipantDetailResponse> {
+    const participant = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.externalTrainingParticipant
+        .create({
+          data: {
+            displayName: input.displayName,
+            email: input.email?.trim() ?? null,
+            normalizedEmail: input.email ? normalizeEmail(input.email) : null,
+            phone: input.phone?.trim() ?? null,
+            organization: input.organization?.trim() ?? null,
+            notes: input.notes?.trim() ?? null,
+          },
+        })
+        .catch((error: unknown) => {
+          throw this.mapUniqueViolation(
+            error,
+            'TRAINING_EXTERNAL_PARTICIPANT_EMAIL_TAKEN',
+            'An external participant with this email already exists.',
+          );
+        });
+
+      await this.audit.record(
+        'training.external_participant.created',
+        context,
+        {
+          actorUserId,
+          entityType: 'ExternalTrainingParticipant',
+          entityId: created.id,
+          metadataSummary: 'External training participant created.',
+        },
+        transaction,
+      );
+
+      return created;
+    });
+
+    return { participant: toExternalParticipantSummary(participant) };
+  }
+
+  async updateExternalParticipant(
+    participantId: string,
+    input: TrainingExternalParticipantUpdateRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingExternalParticipantDetailResponse> {
+    const participant = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.externalTrainingParticipant.findUnique({
+        where: { id: participantId },
+      });
+      if (!existing) {
+        throw notFound(
+          'TRAINING_EXTERNAL_PARTICIPANT_NOT_FOUND',
+          'The external training participant was not found.',
+        );
+      }
+      if (existing.status === ExternalParticipantStatus.ARCHIVED || existing.archivedAt) {
+        throw conflict(
+          'TRAINING_EXTERNAL_PARTICIPANT_ARCHIVED',
+          'Archived external participants cannot be changed.',
+        );
+      }
+
+      const emailProvided = Object.prototype.hasOwnProperty.call(input, 'email');
+      const updated = await transaction.externalTrainingParticipant
+        .update({
+          where: { id: participantId },
+          data: {
+            ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+            ...(emailProvided
+              ? {
+                  email: input.email?.trim() ?? null,
+                  normalizedEmail: input.email ? normalizeEmail(input.email) : null,
+                }
+              : {}),
+            ...(input.phone !== undefined ? { phone: input.phone?.trim() ?? null } : {}),
+            ...(input.organization !== undefined
+              ? { organization: input.organization?.trim() ?? null }
+              : {}),
+            ...(input.notes !== undefined ? { notes: input.notes?.trim() ?? null } : {}),
+          },
+        })
+        .catch((error: unknown) => {
+          throw this.mapUniqueViolation(
+            error,
+            'TRAINING_EXTERNAL_PARTICIPANT_EMAIL_TAKEN',
+            'An external participant with this email already exists.',
+          );
+        });
+
+      await this.audit.record(
+        'training.external_participant.updated',
+        context,
+        {
+          actorUserId,
+          entityType: 'ExternalTrainingParticipant',
+          entityId: updated.id,
+          metadataSummary: 'External training participant updated.',
+        },
+        transaction,
+      );
+
+      return updated;
+    });
+
+    return { participant: toExternalParticipantSummary(participant) };
+  }
+
+  async updateExternalParticipantStatus(
+    participantId: string,
+    input: TrainingExternalParticipantStatusUpdateRequest,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingExternalParticipantDetailResponse> {
+    const participant = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.externalTrainingParticipant.findUnique({
+        where: { id: participantId },
+      });
+      if (!existing) {
+        throw notFound(
+          'TRAINING_EXTERNAL_PARTICIPANT_NOT_FOUND',
+          'The external training participant was not found.',
+        );
+      }
+      if (existing.status === ExternalParticipantStatus.ARCHIVED || existing.archivedAt) {
+        throw conflict(
+          'TRAINING_EXTERNAL_PARTICIPANT_ARCHIVED',
+          'Archived external participants cannot be changed.',
+        );
+      }
+
+      const updated = await transaction.externalTrainingParticipant.update({
+        where: { id: participantId },
+        data: { status: input.status },
+      });
+
+      await this.audit.record(
+        'training.external_participant.status_changed',
+        context,
+        {
+          actorUserId,
+          entityType: 'ExternalTrainingParticipant',
+          entityId: updated.id,
+          metadataSummary: `External training participant status set to ${updated.status}.`,
+        },
+        transaction,
+      );
+
+      return updated;
+    });
+
+    return { participant: toExternalParticipantSummary(participant) };
+  }
+
+  async archiveExternalParticipant(
+    participantId: string,
+    actorUserId: string,
+    context: RequestContext,
+  ): Promise<TrainingExternalParticipantDetailResponse> {
+    const participant = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.externalTrainingParticipant.findUnique({
+        where: { id: participantId },
+      });
+      if (!existing) {
+        throw notFound(
+          'TRAINING_EXTERNAL_PARTICIPANT_NOT_FOUND',
+          'The external training participant was not found.',
+        );
+      }
+      if (existing.status === ExternalParticipantStatus.ARCHIVED || existing.archivedAt) {
+        throw conflict(
+          'TRAINING_EXTERNAL_PARTICIPANT_ARCHIVED',
+          'This external participant is already archived.',
+        );
+      }
+
+      const updated = await transaction.externalTrainingParticipant.update({
+        where: { id: participantId },
+        data: {
+          status: ExternalParticipantStatus.ARCHIVED,
+          archivedAt: new Date(),
+        },
+      });
+
+      await this.audit.record(
+        'training.external_participant.archived',
+        context,
+        {
+          actorUserId,
+          entityType: 'ExternalTrainingParticipant',
+          entityId: updated.id,
+          metadataSummary: 'External training participant archived without deleting history.',
+        },
+        transaction,
+      );
+
+      return updated;
+    });
+
+    return { participant: toExternalParticipantSummary(participant) };
   }
 
   async listPrograms(
@@ -2569,6 +2821,46 @@ function participantIdentifier(input: TrainingEnrollmentCreateRequest): string {
  */
 function activeParticipantKey(participantType: string, participantId: string): string {
   return `${participantType}:${participantId}`;
+}
+
+function toExternalParticipantOption(participant: {
+  id: string;
+  displayName: string;
+  email: string | null;
+  organization: string | null;
+}): TrainingExternalParticipantOption {
+  return {
+    id: participant.id,
+    displayName: participant.displayName,
+    email: participant.email,
+    organization: participant.organization,
+  };
+}
+
+function toExternalParticipantSummary(participant: {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  organization: string | null;
+  notes: string | null;
+  status: ExternalParticipantStatus;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): TrainingExternalParticipantSummary {
+  return {
+    id: participant.id,
+    displayName: participant.displayName,
+    email: participant.email,
+    phone: participant.phone,
+    organization: participant.organization,
+    notes: participant.notes,
+    status: participant.status,
+    archivedAt: isoOrNull(participant.archivedAt),
+    createdAt: participant.createdAt.toISOString(),
+    updatedAt: participant.updatedAt.toISOString(),
+  };
 }
 
 function normalizeReference(reference: string): string {

@@ -5,7 +5,11 @@ import { PrismaService } from '../persistence/prisma/prisma.service.js';
 import { Prisma } from '../persistence/prisma/generated-client.js';
 
 export type TrainingAuditEntityType =
-  'TrainingProgram' | 'TrainingSession' | 'TrainingEnrollment' | 'TrainingSessionParticipation';
+  | 'TrainingProgram'
+  | 'TrainingSession'
+  | 'TrainingEnrollment'
+  | 'TrainingSessionParticipation'
+  | 'ExternalTrainingParticipant';
 
 type PrismaTransaction = Prisma.TransactionClient;
 
