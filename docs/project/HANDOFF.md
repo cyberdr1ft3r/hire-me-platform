@@ -27,7 +27,7 @@ Last updated: 2026-10-12
 - **R-036 PR B (Issue #176):** review draft PR when exact-head CI passes. **PR C:** scheduler runbook, per-tick AuditLog with null actor, lag/backlog fields, deployed staging evidence; only then close R-036.
 
 1. Security/architecture review of the **Issue #168** draft PR on its exact-head CI; on reviewed merge mark **D-086 Accepted** and R-050 mitigated.
-2. After backend acceptance, open the separate web issue: Commercial/Accounting pickers use the `financial-context` routes when the actor holds `recruitment_financial_context:view` and lacks `missions:view`; keep `/v1/missions` for recruitment roles.
+2. After backend acceptance, open the separate web issue: Commercial/Accounting pickers use the `financial-context` routes whenever the actor holds `recruitment_financial_context:view` (including hybrid actors who also hold `missions:view`); keep `/v1/missions` for recruitment-only roles.
 3. R-051 Training remainder (training expense contexts / profitability for Finance) needs its own decision; not in #168.
 4. Maintainer C2 Barid outreach (#147) remains parallel.
 

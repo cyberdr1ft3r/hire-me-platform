@@ -142,6 +142,7 @@ Proposed: **`recruitment_financial_context:view`** (name tentative), scope type 
   `(missions:view OR recruitment_financial_context:view)` **and** client scope via `clients:view` on `mission.clientId`.
 - For holders of **only** `recruitment_financial_context:view` (no `missions:view`): **omit recruiter-assignment filter** (client-scoped finance visibility).
 - For holders of `missions:view`: keep existing assignment/transfer behavior unchanged.
+- **Superseded by Issue #168 maintainer clarification:** the two bullets above are not a precedence rule. `recruitment_financial_context:view` applies independently of `missions:view` on these financial predicates, so a hybrid actor holding both keeps client-scoped financial visibility without a recruiter assignment; only actors without the financial context keep the assignment/transfer rule.
 
 **Must NOT authorize:**
 
