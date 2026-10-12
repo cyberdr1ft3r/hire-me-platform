@@ -99,7 +99,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 - Task management with ownership, assignees, priority, due dates, status, context links, reminders, and audit history.
 - Notifications, comments, and mentions.
-- R-036 automatic reminder delivery: D-088 Accepted (PR #166). PR A delivery domain implemented for Issue #169 (draft PR, pending review) → PR B one-shot/loop runner → PR C operations/audit + deployed staging evidence. No schema migration.
+- R-036 automatic reminder delivery: D-088 Accepted. PR A merged (#173); Issue #176 PR B standalone runner (draft) → PR C operations/audit + deployed staging evidence. No schema migration.
 
 ## Phase 7 - Documents, reporting, and collaboration
 

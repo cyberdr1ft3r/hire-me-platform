@@ -8,7 +8,7 @@ Last updated: 2026-10-12
 
 - **Messaging V1 preflight:** PR #165, **D-087 Proposed**. Architecture reviewed: internal-only membership scope; FINANCE_MANAGER included; CLIENT_USER grants must be removed; 15-minute auditable edits; 50-member groups; moderation deferred; exclusive late-join history boundary; no purge engine in V1, with retention policy required before broad production rollout.
 
-- **R-036 Task reminder scheduler:** **D-088 Accepted.** Issue #169 PR A (draft) implements the delivery engine `TaskReminderDeliveryService.runDueTick` and makes `process-due` delegate to it under the two-permission gate. No schema migration, no runner, no scheduler deployed. R-036 stays open.
+- **R-036 Task reminder scheduler:** **D-088 Accepted.** PR A merged (#173). **Issue #176 PR B (draft):** `pnpm --filter @hire-me/api reminders:run-due` standalone runner; no systemd/runbook/AuditLog yet. R-036 stays open until PR C.
 
 - **Issue #163** (R-050/R-051): **draft PR #164** — bounded Finance visibility preflight; **D-086 Proposed**; exact-head CI evidence on the PR (not duplicated here).
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
@@ -21,7 +21,7 @@ Last updated: 2026-10-12
 
 - Implement messaging PR A only after PR #165 merges: fail-closed/lossless migration of dormant conversation tables, contracts/access layer, exclusive history boundary, CLIENT_USER grant removal, FINANCE_MANAGER grant addition, and DB constraint/concurrency evidence. No routes in PR A.
 
-- **R-036 PR A (Issue #169):** review and merge the draft PR after exact-head CI passes. Then **PR B**: `apps/api/src/jobs/run-due-reminders.ts` one-shot/loop CLI calling `runDueTick({ trigger: 'scheduler', actorUserId: null })` with a narrow worker environment, SIGTERM handling, JSON summary, exit codes, and a CLI smoke test. **PR C**: scheduler runbook, per-tick AuditLog with null actor, lag fields, and deployed staging evidence; only then close R-036.
+- **R-036 PR B (Issue #176):** review draft PR when exact-head CI passes. **PR C:** scheduler runbook, per-tick AuditLog with null actor, lag/backlog fields, deployed staging evidence; only then close R-036.
 
 1. Review and merge **Issue #163** preflight PR when exact-head CI is green and ChatGPT architecture review passes.
 2. Open/implement follow-up issue for **D-086** (permission + predicates + bounded option endpoints + regression matrix) — **do not** grant `missions:view` to Finance.
