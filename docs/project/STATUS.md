@@ -26,6 +26,13 @@ Status owner: repository maintainer
 - **Migration safety:** application dormancy does not prove DB emptiness. PR A must fail closed or losslessly migrate unexpected existing rows before destructive reshape.
 - **Next:** PR A foundation only (migration/contracts/access/catalog), then API PR B and web PR C.
 
+## D-068 / D-070 production readiness
+
+- **Runbook:** `docs/runbooks/production-readiness-d068-d070.md`. Nothing in the runbook has been executed in production.
+- **D-068:** `RUNBOOK_READY`; upstream proxy/CDN/WAF limits and effective production parser overrides remain unknown. Largest estimated valid body = **6,707,948 bytes**; target path ceiling = at least API `8mb` (**8,388,608 bytes**) so API owns oversize 413 behavior.
+- **D-070:** `RUNBOOK_READY`; production migration not applied. `prisma migrate deploy` applies the full pending set, not one named migration. Prisma v6 PostgreSQL migration files are **not assumed atomic** without explicit transaction SQL, so failed/canceled D-070 deployment must inspect and recover possible partial schema state.
+- **R-055:** no Express `trust proxy`; any fix is blocked on verified production proxy topology and requires a separate spoofing-safe change.
+
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
