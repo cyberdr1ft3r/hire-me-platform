@@ -4,19 +4,19 @@ Last updated: 2026-10-12
 
 ## Current situation
 
-- **Issue #150–#159:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**, **#160**).
-- **Issue #159** (final **#110** child): complete via **PR #160**. Maintainer decision preserved: no seeded production Missions viewer role; permission-derived `readOnly`; canonical `MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS`; complete `MISSIONS_WRITE_PERMISSIONS` (33 mutations, web classification only).
-- **Issue #110:** **complete / closed**. All scoped R-047 Missions V1+ follow-ups are finished; no remaining child work.
-- **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
+- **Issue #163** (R-050/R-051): **preflight in draft PR** — bounded Finance visibility for mission-linked Commercial/Accounting; **D-086 Proposed**; no production/seed/schema changes in #163.
+- **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
+- **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
 ## Next concrete action
 
-1. No further action remains under **#110**.
-2. Continue the existing **#147 Barid C2 provider-engagement** track; do not start provider-specific implementation until the documented evidence blockers are cleared.
+1. Review and merge **Issue #163** preflight PR when exact-head CI is green and ChatGPT architecture review passes.
+2. Open/implement follow-up issue for **D-086** (permission + predicates + bounded option endpoints + regression matrix) — **do not** grant `missions:view` to Finance.
+3. Maintainer C2 Barid outreach (#147) remains parallel.
 
 ## Preserved unrelated follow-ups
 
-- **R-050:** FINANCE_MANAGER mission-scope limits unchanged.
+- **R-050 / R-051:** shared boundary; preflight artifact `docs/design/issue-163-finance-mission-context-preflight.md`.
 - **D-068** production env/proxy verification; **D-070** migration not deployed in production.
 
 ## D-071 catalog guarantees
