@@ -40,7 +40,7 @@ async function grants(client: PrismaClient): Promise<GrantRow[]> {
   return rows
     .map((row) => ({
       id: row.id,
-      role: row.role.name as string,
+      role: row.role.name,
       permission: row.permission.code,
       active: row.archivedAt === null,
     }))
