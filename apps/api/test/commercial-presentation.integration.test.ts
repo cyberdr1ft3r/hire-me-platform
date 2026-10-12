@@ -492,29 +492,44 @@ describe('Issue #127 commercial presentation labels and placement options', () =
 
   it('gives the Finance Manager labelled client-scoped records without recruitment visibility', async () => {
     const client = await createClient('Issue127 Finance Client');
-    const mission = await createMission(client.id, 'Finance Hidden Mission', operatorUserId);
+    const mission = await createMission(client.id, 'Finance Context Mission', operatorUserId);
     const plain = await createChain(client.id, 'FIN-PLAIN');
     const missionLinked = await createChain(client.id, 'FIN-MISSION', mission.id);
 
+    // D-086 / Issue #168: the bounded financial context gives Finance client-scoped
+    // mission-linked Commercial records labelled by mission title only, without any
+    // recruiter assignment and without `missions:view` or generic placement grants.
     const list = InvoiceListResponseSchema.parse(
       await (await get(financeToken, `/v1/commercial/invoices?clientId=${client.id}`)).json(),
     );
-    expect(list.invoices.map((row) => row.reference)).toEqual(['I127-FIN-PLAIN']);
-    expect(list.invoices[0]?.display).toMatchObject({
+    expect(list.invoices.map((row) => row.reference).sort()).toEqual([
+      'I127-FIN-MISSION',
+      'I127-FIN-PLAIN',
+    ]);
+    const plainRow = list.invoices.find((row) => row.reference === 'I127-FIN-PLAIN');
+    expect(plainRow?.display).toMatchObject({
       clientName: 'Issue127 Finance Client',
       missionTitle: null,
       linkedPurchaseOrderReference: 'PO127-FIN-PLAIN',
     });
-    expect(list.invoices[0]?.amounts?.totalCents).toBe(100000);
+    expect(plainRow?.amounts?.totalCents).toBe(100000);
+    const missionRow = list.invoices.find((row) => row.reference === 'I127-FIN-MISSION');
+    expect(missionRow?.display).toMatchObject({
+      clientName: 'Issue127 Finance Client',
+      missionTitle: 'Issue127 Finance Context Mission',
+    });
 
-    const hidden = await get(financeToken, `/v1/commercial/invoices/${missionLinked.invoice.id}`);
-    expect(hidden.status).toBe(404);
-    expect(JSON.stringify(list)).not.toContain('Finance Hidden Mission');
+    const detail = await get(financeToken, `/v1/commercial/invoices/${missionLinked.invoice.id}`);
+    expect(detail.status).toBe(200);
 
     const quotations = QuotationListResponseSchema.parse(
       await (await get(financeToken, `/v1/commercial/quotations?clientId=${client.id}`)).json(),
     );
-    expect(quotations.quotations.map((row) => row.id)).toEqual([plain.quotation.id]);
+    expect(quotations.quotations.map((row) => row.id).sort()).toEqual(
+      [plain.quotation.id, missionLinked.quotation.id].sort(),
+    );
+
+    // The generic recruitment placement source stays closed to Finance.
 
     const options = await placementOptions(financeToken, { clientId: client.id });
     expect(options.status).toBe(403);

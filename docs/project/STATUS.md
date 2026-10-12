@@ -17,6 +17,13 @@ Status owner: repository maintainer
 - Maintainer decisions: recipient inactive/no longer authorized → **CANCELED** with null system actor; transient retry = **5 attempts** with **1/5/15/60 min** backoff; manual global processor server gate = `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior remains unchanged.
 - Preflight found F1 batch rollback/poison-row blocking, F4 time-zone-sensitive raw `NOW()`, F5 overdue starvation, plus attribution/recipient/retry-state issues. Implementation remains PR A → B → C; no unattended deployment before the operations gate.
 
+## Issue #168 — D-086 bounded Finance recruitment context (backend)
+
+- **Draft PR (not merged):** adds `recruitment_financial_context:view` (CLIENT scope) granted to `FINANCE_MANAGER` only (plus `SUPER_ADMIN`'s all-permission grant). No `missions:view`, `placements:view`, `placement_commercial_eligibility:view`, transfer, or candidate/process/interview/evaluation/offer grant.
+- Commercial, Accounting, Documents generated-source scope, Generation, and therefore financial-signing rechecks share one financial mission scope; recruitment actors keep assignment/transfer behaviour. Placement-backed invoicing accepts the bounded context inside the financial path only; confirmation/eligibility/linkage rules unchanged.
+- New bounded option routes: `/v1/commercial/financial-context/{missions,placements}`, `/v1/accounting/financial-context/{missions,placements}` (≤20, no count, no candidate/process/offer/history fields).
+- No schema migration. Web pickers are a separate follow-up issue after backend acceptance. R-051 Training remainder unchanged.
+
 ## Internal messaging V1 preflight
 
 - **PR #165 / D-087 Proposed:** architecture reviewed on 2026-10-12; docs only. Existing dormant Conversation/ConversationMember/Message schema and `messages:view`/`messages:create` permissions are real; no messaging route/service exists yet.

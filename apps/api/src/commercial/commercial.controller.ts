@@ -21,6 +21,8 @@ import {
   CommercialContractUpdateRequestSchema,
   CommercialPlacementOptionsQuerySchema,
   CommercialPlacementOptionsResponseSchema,
+  FinancialMissionContextOptionsQuerySchema,
+  FinancialMissionContextOptionsResponseSchema,
   InvoiceCancelRequestSchema,
   InvoiceCreateRequestSchema,
   InvoiceDetailResponseSchema,
@@ -361,6 +363,44 @@ export class CommercialController {
     }
     return CommercialPlacementOptionsResponseSchema.parse(
       await this.commercial.listPlacementOptions(parsed.data, request.user!.id),
+    );
+  }
+
+  /** D-086 finance-bounded mission context; never routes through `/v1/missions`. */
+  @Get('financial-context/missions')
+  @RequirePermissions(
+    COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+    COMMERCIAL_PERMISSIONS.COMMERCIAL_DATA_ACCESS,
+  )
+  async listFinancialMissionOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = FinancialMissionContextOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_FINANCIAL_MISSION_OPTIONS_QUERY',
+        'Invalid financial mission context options query.',
+      );
+    }
+    return FinancialMissionContextOptionsResponseSchema.parse(
+      await this.commercial.listFinancialMissionOptions(parsed.data, request.user!.id),
+    );
+  }
+
+  /** D-086 finance-bounded invoiceable placement context; no generic placement grant. */
+  @Get('financial-context/placements')
+  @RequirePermissions(
+    COMMERCIAL_PERMISSIONS.RECRUITMENT_FINANCIAL_CONTEXT_VIEW,
+    COMMERCIAL_PERMISSIONS.INVOICES_MANAGE,
+  )
+  async listFinancialPlacementOptions(@Query() query: unknown, @Req() request: RequestWithUser) {
+    const parsed = CommercialPlacementOptionsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_FINANCIAL_PLACEMENT_OPTIONS_QUERY',
+        'Invalid financial placement context options query.',
+      );
+    }
+    return CommercialPlacementOptionsResponseSchema.parse(
+      await this.commercial.listFinancialPlacementOptions(parsed.data, request.user!.id),
     );
   }
 

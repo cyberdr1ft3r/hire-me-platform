@@ -23,6 +23,9 @@ export const FINANCE_MANAGER_PERMISSION_CODES = [
   'expenses:manage',
   'client_balances:view',
   'profitability:view',
+  // D-086 / Issue #168: bounded financial mission/placement context only. Never
+  // `missions:view`, `placements:view`, or `placement_commercial_eligibility:view`.
+  'recruitment_financial_context:view',
   'documents:view',
   'documents:download',
   'documents:generate',

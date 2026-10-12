@@ -214,11 +214,42 @@ Issue #38 implements these route permissions:
 | `invoices:view` | View invoice metadata and lifecycle state. Amounts and lines also require `commercial_data:access`. |
 | `invoices:manage` | Create/update/issue/cancel/archive invoices. Writes also require `commercial_data:access`. |
 
-Commercial record APIs combine the route permission with source-record scope. Every commercial record requires access to its `Client` through `clients:view`; mission-linked records additionally require `missions:view` plus either `mission_candidates:transfer` broad mission oversight or an active `MissionRecruiter` assignment on that mission. Lists apply that scope in the database predicate and hide inaccessible records without existence-sensitive errors. Detail, create, update, lifecycle, and archive paths re-check the same source scope after locking the mutated commercial row or linked source rows.
+Commercial record APIs combine the route permission with source-record scope. Every commercial record requires access to its `Client` through `clients:view`; mission-linked records additionally require `missions:view` plus either `mission_candidates:transfer` broad mission oversight or an active `MissionRecruiter` assignment on that mission, or (D-086) `recruitment_financial_context:view` without `missions:view` (see Implemented Recruitment Financial Context Permission). Lists apply that scope in the database predicate and hide inaccessible records without existence-sensitive errors. Detail, create, update, lifecycle, and archive paths re-check the same source scope after locking the mutated commercial row or linked source rows.
 
-Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources must belong to the same client, business context, and currency, and must be in the required source state. Hidden and nonexistent commercial/source UUIDs return the same generic not-found response. Training contracts cannot attach to recruitment-mission context. Placement-backed invoice creation also requires `placements:view`, `placement_commercial_eligibility:view`, and an eligible confirmed `MissionPlacement`; accepted offers and legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing a locked confirmed placement that is still eligible, not archived, and linked to the requested client and mission.
+Linked quotations, contracts, purchase orders, correction invoices, and placement invoice sources must belong to the same client, business context, and currency, and must be in the required source state. Hidden and nonexistent commercial/source UUIDs return the same generic not-found response. Training contracts cannot attach to recruitment-mission context. Placement-backed invoice creation also requires `placements:view` and `placement_commercial_eligibility:view` (or, D-086, `recruitment_financial_context:view`) and an eligible confirmed `MissionPlacement`; accepted offers and legacy integration metadata do not authorize invoices. Mission state `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing a locked confirmed placement that is still eligible, not archived, and linked to the requested client and mission.
 
 Historical commercial reads are separate from writable source eligibility. Authorized users may continue to read durable quotations, contracts, purchase orders, issued/canceled invoices, and lifecycle history according to the commercial record's historical business scope after a parent client or mission is archived. Creating new upstream quotations, contracts, or purchase orders may still reject archived or terminal source context where the workflow requires a currently writable client or mission.
+
+## Implemented Recruitment Financial Context Permission
+
+Issue #168 implements D-086:
+
+| Permission | Implemented use |
+| --- | --- |
+| `recruitment_financial_context:view` | Read the minimum recruitment mission and placement context that otherwise-authorized Commercial, Accounting, generated-document, and financial-signing workflows need, within client scope. Scope metadata `CLIENT`. It never authorizes Missions, candidate-process, offer, interview, evaluation, or generic placement routes. |
+
+Seed mapping: `FINANCE_MANAGER` (plus `SUPER_ADMIN`, which holds every permission). No other role changed. `FINANCE_MANAGER` still has no `missions:view`, `placements:view`, `placement_commercial_eligibility:view`, `mission_candidates:transfer`, or candidate/process/interview/evaluation/offer permission.
+
+One shared financial mission scope (`apps/api/src/commercial/financial-mission-scope.ts`) is used by the Commercial record scope, the Accounting invoice/expense/mission/placement scope, generated-document source scope (Documents and Generation), and therefore the financial-signing rechecks that call Documents:
+
+- `missions:view` without `mission_candidates:transfer`: unchanged active `MissionRecruiter` assignment rule. `missions:view` takes precedence, so recruitment actors keep their existing behaviour.
+- `missions:view` with `mission_candidates:transfer`, or `recruitment_financial_context:view` without `missions:view`: every mission, still bounded by `clients:view` and the record's client relationship.
+- Neither: mission-linked financial records stay hidden (client-only behaviour).
+
+The same scope drives list/aggregate predicates and detail/write checks. Hidden and nonexistent records keep the existing generic not-found envelopes.
+
+Placement authority: inside the Commercial placement-backed invoice path and Accounting placement contexts only, `recruitment_financial_context:view` is an alternative to the generic placement grants. Invoice creation still requires a locked, existing, `CONFIRMED`, non-archived, `eligibleForInvoicing` placement linked to the requested mission and client, a mission state that allows invoicing, and no existing invoice for that placement. The generic `GET /v1/missions/:missionId/candidates/:processId/placement` route keeps `placements:view` plus mission assignment; an active `MissionRecruiter` row does not open it for Finance.
+
+Bounded option sources (route permission `recruitment_financial_context:view`; each at most 20 rows, deterministic order, no count):
+
+| Route | Additional requirement | Returns |
+| --- | --- | --- |
+| `GET /v1/commercial/financial-context/missions?clientId&search` | `commercial_data:access`, `clients:view`, one Commercial `*:manage` | `{ id, title }` of the client's non-archived, non-terminal missions |
+| `GET /v1/commercial/financial-context/placements?clientId&recruitmentMissionId&search` | `invoices:manage`, `commercial_data:access`, `clients:view` | Invoiceable placements (confirmed, eligible, non-archived, uninvoiced): `id`, `recruitmentMissionId`, `missionTitle`, `integrationStartDate`, `confirmedAt` |
+| `GET /v1/accounting/financial-context/missions?clientId&search` | `commercial_data:access`, `clients:view`, `profitability:view` or `expenses:manage` | `{ id, title }` of the client's non-archived missions |
+| `GET /v1/accounting/financial-context/placements?recruitmentMissionId` | `commercial_data:access`, `profitability:view` or `expenses:manage` | D-081 placement semantics for one mission (non-archived), same fields as above |
+
+None of them returns assignments, requirements, descriptions, salary or commercial mission fields, candidate identity, process, offer, confirmation/correction actors, or placement history. The existing recruitment option sources (`/v1/missions`, `/v1/commercial/placement-options`, `/v1/accounting/placement-options`) are unchanged.
 
 ## Implemented Document Permissions
 
@@ -513,15 +544,16 @@ redacted shell. This prevents indirect amount disclosure through totals.
 Client and mission scope reuses the merged commercial rule: `clients:view` for the
 client, and for mission-linked records `missions:view` plus either
 `mission_candidates:transfer` for broad oversight or an active `MissionRecruiter`
-assignment. Hidden, out-of-scope, and nonexistent accounting identifiers all return the
+assignment, or (D-086) `recruitment_financial_context:view` without `missions:view`. Hidden, out-of-scope, and nonexistent accounting identifiers all return the
 same `ACCOUNTING_RECORD_NOT_FOUND` envelope, so financial records cannot be probed.
 
 Training and placement contexts follow their own authoritative domains rather than client
 scope. A training-linked accounting record obeys the merged training rule: broad oversight
 requires `training_programs:view_all`, otherwise the actor must own the program or train
 one of its sessions, and a client-linked program additionally requires `clients:view`. A
-placement-linked accounting record additionally requires `placements:view`, matching the
-placement API and the merged commercial invoice path, with mission scope still applying on
+placement-linked accounting record additionally requires `placements:view` (or, D-086,
+`recruitment_financial_context:view`), matching the placement API and the merged
+commercial invoice path, with mission scope still applying on
 top. `clients:view` alone is never an alternate path to a record another domain hides.
 
 The same rule is applied as a row-level predicate to accounting lists and aggregates, not

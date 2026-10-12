@@ -672,6 +672,12 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'recruitment_financial_context:view',
+    description:
+      'Read the minimum recruitment mission and placement context required by otherwise-authorized Commercial, Accounting, generated-document, and financial-signing workflows within client scope. Does not authorize Missions, candidate-process, offer, interview, evaluation, or generic placement APIs.',
+    scopeType: PermissionScopeType.CLIENT,
+  },
+  {
     code: 'meetings:view',
     description: 'View meetings organized by or including the authenticated user.',
     scopeType: PermissionScopeType.ASSIGNED,

@@ -475,10 +475,12 @@ describe('Issue #131 accounting presentation labels and placement options', () =
       [assignedInvoice.id]: 'INV131-SCOPE-ASSIGNED',
       [hiddenInvoice.id]: null,
     });
+    // D-086 / Issue #168: Finance resolves mission-linked references through the
+    // client-scoped financial context, without any recruiter assignment.
     expect(await referencesFor(financeToken)).toEqual({
       [plainInvoice.id]: 'INV131-SCOPE-PLAIN',
-      [assignedInvoice.id]: null,
-      [hiddenInvoice.id]: null,
+      [assignedInvoice.id]: 'INV131-SCOPE-ASSIGNED',
+      [hiddenInvoice.id]: 'INV131-SCOPE-HIDDEN',
     });
 
     const limited = await readPayment(limitedToken, payment.id);
@@ -491,9 +493,9 @@ describe('Issue #131 accounting presentation labels and placement options', () =
     ]);
     expect(JSON.stringify(limited)).not.toContain('INV131-');
 
-    const financeBody = JSON.stringify(await readPayment(financeToken, payment.id));
-    expect(financeBody).not.toContain('INV131-SCOPE-HIDDEN');
-    expect(financeBody).not.toContain('Scope Unassigned');
+    const scopedBody = JSON.stringify(await readPayment(scopedToken, payment.id));
+    expect(scopedBody).not.toContain('INV131-SCOPE-HIDDEN');
+    expect(scopedBody).not.toContain('Scope Unassigned');
   });
 
   it('labels overdue receivables by client name', async () => {
@@ -565,11 +567,20 @@ describe('Issue #131 accounting presentation labels and placement options', () =
     const financeList = ExpenseListResponseSchema.parse(
       await (await get(financeToken, `/expenses?clientId=${client.id}`)).json(),
     );
-    expect(financeList.expenses.map((row) => row.reference)).toEqual(['EXP131-CLIENT']);
-    expect(financeList.expenses[0]?.display.clientName).toBe('Issue131 Expense Client');
+    // D-086 / Issue #168: mission and placement contexts are reachable through the
+    // bounded financial context; training contexts still are not (R-051 remainder).
+    expect(financeList.expenses.map((row) => row.reference).sort()).toEqual([
+      'EXP131-CLIENT',
+      'EXP131-MISSION',
+      'EXP131-PLACEMENT',
+    ]);
+    expect(
+      financeList.expenses.find((row) => row.reference === 'EXP131-CLIENT')?.display.clientName,
+    ).toBe('Issue131 Expense Client');
     const financeBody = JSON.stringify(financeList);
-    expect(financeBody).not.toContain('Expense Mission');
+    expect(financeBody).toContain('Expense Mission');
     expect(financeBody).not.toContain('Expense Program');
+    expect(financeBody).not.toMatch(/Hidden Candidate|candidate-\d+@/);
 
     const scopedList = ExpenseListResponseSchema.parse(
       await (await get(scopedToken, `/expenses?clientId=${client.id}`)).json(),
