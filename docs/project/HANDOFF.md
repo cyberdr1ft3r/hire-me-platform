@@ -4,15 +4,15 @@ Last updated: 2026-10-12
 
 ## Current situation
 
-- **Issue #150–#156:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**).
-- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; implementation and authorization correction accepted by maintainer review; no seeded production Missions viewer role; permission-derived `readOnly`; canonical `MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS`; complete `MISSIONS_WRITE_PERMISSIONS` (33 mutations, web classification only). The [PR #160 body](https://github.com/cyberdr1ft3r/hire-me-platform/pull/160) is authoritative for exact-head commit SHA, GitHub Actions run ID, and CI result (not duplicated here to avoid stale pins).
-- **Issue #110:** **open** until maintainer merge of **#159** / PR **#160** and verification; **no remaining scoped V1+ child work** after #159.
+- **Issue #150–#159:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**, **#160**).
+- **Issue #159** (final **#110** child): complete via **PR #160**. Maintainer decision preserved: no seeded production Missions viewer role; permission-derived `readOnly`; canonical `MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS`; complete `MISSIONS_WRITE_PERMISSIONS` (33 mutations, web classification only).
+- **Issue #110:** **complete / closed**. All scoped R-047 Missions V1+ follow-ups are finished; no remaining child work.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
 ## Next concrete action
 
-1. Merge **Issue #159** / PR **#160** when exact-head CI on the PR head is green and final review is complete (maintainer action; agent does not merge).
-2. Maintainer closes **#110** as completed after **#159** merge and verification (agent does not close).
+1. No further action remains under **#110**.
+2. Continue the existing **#147 Barid C2 provider-engagement** track; do not start provider-specific implementation until the documented evidence blockers are cleared.
 
 ## Preserved unrelated follow-ups
 
