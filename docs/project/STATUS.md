@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 Status owner: repository maintainer
 
 ## Issue #132 / signing phases
@@ -14,7 +14,7 @@ Status owner: repository maintainer
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
-**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Issues **#150**–**#156** complete via merged PRs **#151**–**#157**; active child **#159** (Missions read-only persona decision) in draft PR review; parent **#110** remains open until **#159** merge, then ready for maintainer closure. **D-068** / **D-070** unchanged; no production deployment.
+**Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Missions R-047 V1+ follow-ups are complete: **#150**, **#152**, **#154**, **#156**, and final persona decision **#159** merged via PRs **#151**, **#153**, **#155**, **#157**, and **#160**; parent **#110** is closed. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms **third-party signing interface** (PKCS#11/CSP/SDK), provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. OCSP/CRL/trust URLs are now documented for Phase D/E only. **#132** remains **open**.
 **Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed.
 
@@ -70,12 +70,12 @@ Status owner: repository maintainer
 | Issue #102 | Complete | Preflight Training bilingual rollout and option sources | Discovery and review complete; identified bounded option/display capability required before UI rollout; no Training UI or localization change |
 | Issue #103 | Complete | Training-safe identity and enrollment option sources (D-073) | Merged through PR #108 into `main` as `39e8720e45220475de2373a47d1e7dd32b763ce8`; backend/contracts capability only; Training UI remains untouched and English-deferred; no migration and no new permission |
 | Issue #109 | Complete | Stabilize MissionCandidate archival/create race integration test | Merged through PR #149; deterministic PostgreSQL lock-graph barrier; no production application change |
-| Issue #110 | Open (non-blocking) | Complete Missions R-047 post-V1 follow-ups | Parent epic; **#150**–**#156** complete; **#159** active (read-only persona); **no scoped V1+ work remains** after #159 — ready to close after maintainer verification |
+| Issue #110 | Complete | Complete Missions R-047 post-V1 follow-ups | Parent epic closed after final child **#159** merged via PR **#160**; all scoped V1+ follow-ups complete |
 | Issue #150 | Complete | Missions nested pagination and safe client-contact invitation options | Merged via PR **#151** on `main`; nested load-more + client-contact selection |
 | Issue #152 | Complete | Bounded placement confirmation form and commercial eligibility authority | Merged via PR **#153** on `main` as `13a1134`; `placement_commercial_eligibility:update` is implemented and server-enforced; ADMIN has update authority; HR_MANAGER remains confirm-only (false) |
 | Issue #154 | Complete | Add inclusive mission deadline range filters | Merged via PR **#155** on `main`; inclusive UTC deadline range filters in Missions list |
 | Issue #156 | Complete | Align closure UX with lifecycle-valid outcomes | Merged via PR **#157** on `main`; lifecycle-valid closure Select + derived reasons |
-| Issue #159 | In progress | Finalize read-only Missions persona decision and close #110 | Draft PR #160; complete `MISSIONS_WRITE_PERMISSIONS`; no new seeded role; synthetic read bundle for tests/evidence |
+| Issue #159 | Complete | Finalize read-only Missions persona decision and close #110 | Merged via PR **#160** into `main` as `d396d1e`; no new seeded role; permission-derived read-only model with canonical synthetic evidence bundle and complete 33-permission mutation classification |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |
