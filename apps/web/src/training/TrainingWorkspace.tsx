@@ -37,7 +37,11 @@ import { ProgramForm } from './ProgramForm.js';
 import { ProgramList } from './ProgramList.js';
 import { ProgramProfile } from './ProgramProfile.js';
 import type { CertificateActions } from './TrainingCertificateStatus.js';
-import { TrainingEnrollments, type EnrollmentLoaders } from './TrainingEnrollments.js';
+import {
+  TrainingEnrollments,
+  type EnrollmentLoaders,
+  type ExternalParticipantCreateValues,
+} from './TrainingEnrollments.js';
 import { TrainingParticipation, type AttendanceValues } from './TrainingParticipation.js';
 import { TrainingSessionDetail, type RescheduleValues } from './TrainingSessionDetail.js';
 import { TrainingSessions } from './TrainingSessions.js';
@@ -86,10 +90,10 @@ export type EnrollmentPane = {
   list: ListState<TrainingEnrollmentSummary>;
   selectedId: string | null;
   onArchive: (enrollment: TrainingEnrollmentSummary) => void;
-  onCreate: (
-    type: Exclude<TrainingParticipantType, 'EXTERNAL'>,
-    participant: TrainingPickerOption,
-  ) => Promise<boolean>;
+  onCreate: (type: TrainingParticipantType, participant: TrainingPickerOption) => Promise<boolean>;
+  onCreateExternal: (
+    values: ExternalParticipantCreateValues,
+  ) => Promise<TrainingPickerOption | null>;
   onFiltersChange: (values: EnrollmentFilterValues) => void;
   onPage: (page: number) => void;
   onRetry: () => void;
@@ -339,6 +343,7 @@ export function TrainingWorkspace({
               loaders={loaders.enrollment}
               onArchive={enrollments.onArchive}
               onCreate={enrollments.onCreate}
+              onCreateExternal={enrollments.onCreateExternal}
               onFiltersChange={enrollments.onFiltersChange}
               onPage={enrollments.onPage}
               onRetry={enrollments.onRetry}

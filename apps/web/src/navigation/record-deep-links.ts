@@ -50,3 +50,11 @@ export function candidateDeepLink(candidateId: string): string {
 export function missionDeepLink(missionId: string): string {
   return `/missions?mission=${encodeURIComponent(missionId)}`;
 }
+
+export function trainingDeepLink(programId: string, sessionId?: string | null): string {
+  const parameters = new URLSearchParams({ program: programId });
+  if (sessionId) {
+    parameters.set('session', sessionId);
+  }
+  return `/training?${parameters.toString()}`;
+}

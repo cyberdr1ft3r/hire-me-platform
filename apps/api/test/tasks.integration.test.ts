@@ -1734,6 +1734,39 @@ describe('internal task management, reminders, comments, and notifications', () 
       (await prisma.taskReminder.findUniqueOrThrow({ where: { id: dueReminder.id } })).status,
     ).toBe(TaskReminderStatus.FAILED);
 
+    // R-036 / D-088: FAILED is terminal for automatic processing. The manual
+    // retry path is a reschedule, which resets the attempt state.
+    const skipped = await fetch(`${baseUrl}/v1/tasks/reminders/process-due`, {
+      method: 'POST',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ limit: 10 }),
+    });
+    expect(skipped.status).toBe(201);
+    const skippedBody = TaskReminderProcessResponseSchema.parse(await skipped.json());
+    expect(skippedBody.remindersDelivered).toBe(0);
+    expect(skippedBody.overdueNotificationsCreated).toBeGreaterThanOrEqual(1);
+    expect(
+      (await prisma.taskReminder.findUniqueOrThrow({ where: { id: dueReminder.id } })).status,
+    ).toBe(TaskReminderStatus.FAILED);
+    expect(
+      await prisma.notification.count({
+        where: { idempotencyKey: `task-reminder:${dueReminder.id}` },
+      }),
+    ).toBe(0);
+    const rescheduled = await fetch(`${baseUrl}/v1/tasks/${task.id}/reminders/${dueReminder.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(ownerToken),
+      body: JSON.stringify({ remindAt: new Date(Date.now() - 1_000).toISOString() }),
+    });
+    expect(rescheduled.status).toBe(200);
+    const rescheduledRecord = await prisma.taskReminder.findUniqueOrThrow({
+      where: { id: dueReminder.id },
+    });
+    expect(rescheduledRecord.status).toBe(TaskReminderStatus.PENDING);
+    expect(rescheduledRecord.attemptCount).toBe(0);
+    expect(rescheduledRecord.claimedAt).toBeNull();
+    expect(rescheduledRecord.failureReason).toBeNull();
+
     const retried = await fetch(`${baseUrl}/v1/tasks/reminders/process-due`, {
       method: 'POST',
       headers: authHeaders(ownerToken),
@@ -1741,7 +1774,6 @@ describe('internal task management, reminders, comments, and notifications', () 
     });
     const retryBody = TaskReminderProcessResponseSchema.parse(await retried.json());
     expect(retryBody.remindersDelivered).toBe(1);
-    expect(retryBody.overdueNotificationsCreated).toBeGreaterThanOrEqual(1);
     expect(
       await prisma.notification.count({
         where: { idempotencyKey: `task-reminder:${dueReminder.id}` },

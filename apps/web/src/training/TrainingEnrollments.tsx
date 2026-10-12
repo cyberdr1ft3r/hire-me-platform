@@ -38,14 +38,21 @@ import { ParticipantIdentity } from './ParticipantIdentity.js';
 import { TrainingCertificateStatus, type CertificateActions } from './TrainingCertificateStatus.js';
 import { TrainingOptionPicker } from './TrainingOptionPicker.js';
 
-/** EXTERNAL participants have no creation path in V1, so they are never offered here. */
-type CreatableType = Exclude<TrainingParticipantType, 'EXTERNAL'>;
+type CreatableType = TrainingParticipantType;
+
+export type ExternalParticipantCreateValues = {
+  displayName: string;
+  email: string;
+  phone: string;
+  organization: string;
+};
 
 export type EnrollmentLoaders = {
   candidates: LoadTrainingOptions;
   users: LoadTrainingOptions;
   clients: LoadTrainingOptions;
   contacts: (clientId: string) => LoadTrainingOptions;
+  external: LoadTrainingOptions;
 };
 
 function creatableTypes(access: TrainingAccess): CreatableType[] {
@@ -53,6 +60,7 @@ function creatableTypes(access: TrainingAccess): CreatableType[] {
   if (access.enrollCandidates) types.push('CANDIDATE');
   if (access.enrollUsers) types.push('USER');
   if (access.enrollClientContacts) types.push('CLIENT_CONTACT');
+  if (access.enrollExternal) types.push('EXTERNAL');
   return types;
 }
 
@@ -65,6 +73,7 @@ export function TrainingEnrollments({
   loaders,
   onArchive,
   onCreate,
+  onCreateExternal,
   onFiltersChange,
   onPage,
   onRetry,
@@ -85,6 +94,9 @@ export function TrainingEnrollments({
   loaders: EnrollmentLoaders;
   onArchive: (enrollment: TrainingEnrollmentSummary) => void;
   onCreate: (type: CreatableType, participant: TrainingPickerOption) => Promise<boolean>;
+  onCreateExternal: (
+    values: ExternalParticipantCreateValues,
+  ) => Promise<TrainingPickerOption | null>;
   onFiltersChange: (values: EnrollmentFilterValues) => void;
   onPage: (page: number) => void;
   onRetry: () => void;
@@ -115,6 +127,7 @@ export function TrainingEnrollments({
         <EnrollmentCreate
           loaders={loaders}
           onCreate={onCreate}
+          onCreateExternal={onCreateExternal}
           program={program}
           sourceKey={sourceKey}
           types={types}
@@ -310,6 +323,7 @@ export function TrainingEnrollments({
 function EnrollmentCreate({
   loaders,
   onCreate,
+  onCreateExternal,
   program,
   sourceKey,
   types,
@@ -317,6 +331,9 @@ function EnrollmentCreate({
 }: {
   loaders: EnrollmentLoaders;
   onCreate: (type: CreatableType, participant: TrainingPickerOption) => Promise<boolean>;
+  onCreateExternal: (
+    values: ExternalParticipantCreateValues,
+  ) => Promise<TrainingPickerOption | null>;
   program: TrainingProgramSummary;
   sourceKey: string;
   types: CreatableType[];
@@ -327,6 +344,12 @@ function EnrollmentCreate({
   const [type, setType] = useState<CreatableType>(types[0]!);
   const [participant, setParticipant] = useState<TrainingPickerOption | null>(null);
   const [contactClient, setContactClient] = useState<TrainingPickerOption | null>(null);
+  const [externalDraft, setExternalDraft] = useState<ExternalParticipantCreateValues>({
+    displayName: '',
+    email: '',
+    phone: '',
+    organization: '',
+  });
   const activeType = types.includes(type) ? type : types[0]!;
   // A client-linked program only accepts contacts of its own client.
   const contactClientId = program.clientId ?? contactClient?.id ?? null;
@@ -395,6 +418,96 @@ function EnrollmentCreate({
               sourceKey={`${sourceKey}:enroll-user`}
               value={participant}
             />
+          ) : null}
+
+          {activeType === 'EXTERNAL' ? (
+            <>
+              <TrainingOptionPicker
+                hint={t('training.enrollments.externalHint')}
+                label={t('training.enrollments.external')}
+                loadOptions={loaders.external}
+                onChange={setParticipant}
+                required
+                sourceKey={`${sourceKey}:enroll-external`}
+                value={participant}
+              />
+              <details className="training-disclosure training-disclosure--nested">
+                <summary className="training-disclosure__summary">
+                  <span className="training-disclosure__title">
+                    {t('training.enrollments.externalCreateTitle')}
+                  </span>
+                </summary>
+                <div className="training-form__grid">
+                  <TextField
+                    label={t('training.enrollments.externalDisplayName')}
+                    onChange={(event) =>
+                      setExternalDraft((current) => ({
+                        ...current,
+                        displayName: event.currentTarget.value,
+                      }))
+                    }
+                    required
+                    value={externalDraft.displayName}
+                  />
+                  <TextField
+                    autoComplete="email"
+                    label={t('training.enrollments.externalEmail')}
+                    onChange={(event) =>
+                      setExternalDraft((current) => ({
+                        ...current,
+                        email: event.currentTarget.value,
+                      }))
+                    }
+                    type="email"
+                    value={externalDraft.email}
+                  />
+                  <TextField
+                    autoComplete="tel"
+                    label={t('training.enrollments.externalPhone')}
+                    onChange={(event) =>
+                      setExternalDraft((current) => ({
+                        ...current,
+                        phone: event.currentTarget.value,
+                      }))
+                    }
+                    value={externalDraft.phone}
+                  />
+                  <TextField
+                    label={t('training.enrollments.externalOrganization')}
+                    onChange={(event) =>
+                      setExternalDraft((current) => ({
+                        ...current,
+                        organization: event.currentTarget.value,
+                      }))
+                    }
+                    value={externalDraft.organization}
+                  />
+                </div>
+                <p className="training-muted">{t('training.enrollments.externalCreateHint')}</p>
+                <div className="training-form__actions">
+                  <Button
+                    disabled={writesLocked || externalDraft.displayName.trim().length === 0}
+                    onClick={() => {
+                      void onCreateExternal(externalDraft).then((created) => {
+                        if (created) {
+                          setParticipant(created);
+                          setExternalDraft({
+                            displayName: '',
+                            email: '',
+                            phone: '',
+                            organization: '',
+                          });
+                        }
+                      });
+                    }}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t('training.enrollments.externalCreate')}
+                  </Button>
+                </div>
+              </details>
+            </>
           ) : null}
 
           {activeType === 'CLIENT_CONTACT' ? (

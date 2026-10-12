@@ -413,7 +413,7 @@ export class TasksController {
   }
 
   @Post('reminders/process-due')
-  @RequirePermissions(TASK_PERMISSIONS.TASKS_REMINDERS_MANAGE)
+  @RequirePermissions(TASK_PERMISSIONS.TASKS_REMINDERS_MANAGE, TASK_PERMISSIONS.TASKS_VIEW_ALL)
   async processDueReminders(@Body() body: unknown, @Req() request: RequestWithUser) {
     const parsed = TaskReminderProcessRequestSchema.safeParse(body ?? {});
     if (!parsed.success) {

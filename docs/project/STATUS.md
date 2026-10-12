@@ -16,6 +16,7 @@ Status owner: repository maintainer
 - **PR #166 preflight:** D-088 Proposed; architecture reviewed on 2026-10-12. Recommendation: one-shot `reminders:run-due` every minute via systemd timer (cron/platform scheduler equivalent), DB-coordinated with Task-first `SKIP LOCKED`, one transaction per reminder, no Redis/queue, no schema migration.
 - Maintainer decisions: recipient inactive/no longer authorized → **CANCELED** with null system actor; transient retry = **5 attempts** with **1/5/15/60 min** backoff; manual global processor server gate = `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior remains unchanged.
 - Preflight found F1 batch rollback/poison-row blocking, F4 time-zone-sensitive raw `NOW()`, F5 overdue starvation, plus attribution/recipient/retry-state issues. Implementation remains PR A → B → C; no unattended deployment before the operations gate.
+- **Issue #169 PR A (merged #173):** `TaskReminderDeliveryService.runDueTick` on `main`. **Issue #176 PR B (in progress):** standalone `reminders:run-due` CLI (`run-due-reminders.ts`), narrow `loadWorkerEnvironment`, one-shot default, optional `--loop`, JSON tick summary, SIGTERM/SIGINT shutdown, disposable-DB CLI smoke test. **PR C not started:** runbook, per-tick AuditLog, deployed staging evidence. **D-088 Accepted**; no schema migration. R-036 stays open until PR C.
 
 ## Internal messaging V1 preflight
 
@@ -100,6 +101,7 @@ Status owner: repository maintainer
 | Issue #156 | Complete | Align closure UX with lifecycle-valid outcomes | Merged via PR **#157** on `main`; lifecycle-valid closure Select + derived reasons |
 | Issue #159 | Complete | Finalize read-only Missions persona decision and close #110 | Merged via PR **#160** into `main` as `d396d1e`; no new seeded role; permission-derived read-only model with canonical synthetic evidence bundle and complete 33-permission mutation classification |
 | Issue #163 | In progress | Preflight bounded Finance visibility for mission-linked Commercial/Accounting (R-050/R-051) | Draft PR; **D-086 Proposed**; preflight doc only — no seed/backend changes |
+| Issue #176 | In progress | R-036 PR B standalone Task reminder runner | Draft PR; `reminders:run-due` CLI; no schema; PR C (runbook/audit/deploy) remains |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #112 | Complete | Eliminate operator-facing raw IDs across internal workspaces | Closed after maintainer re-audit on current `main`: Clients, Candidates, Missions, Tasks, Documents, Training, Commercial, Accounting, and Admin satisfy the operator-facing rule; remaining IDs are internal route/API/state/option values permitted by the tracker |
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
@@ -688,7 +690,7 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
 3. Open a scoped follow-up for suites that narrow and restore shared seeded roles (grant rows re-inserted, non-critical grant state), if the maintainer agrees.
 4. Continue the bilingual module rollout in its bounded issues (Training #111 next); defer D-DESIGN-01 whole-product UI-DNA v1.1 (Issues #117/#118) until after functional rollout.
-5. R-036 scheduler preflight is PR #166 / D-088 Proposed; after merge, implement bounded PRs A (delivery), B (runner), C (operations/deployed evidence). R-039 unchanged.
+5. R-036: D-088 Accepted; PR A merged (#173); Issue #176 PR B runner in review; PR C (operations/deployed evidence) remains. R-039 unchanged.
 
 ## Status Update Rules
 

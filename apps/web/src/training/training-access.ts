@@ -29,6 +29,8 @@ export type TrainingAccess = {
   /** `GET /v1/training/programs/:id/enrollment-user-options` (D-073). */
   enrollUsers: boolean;
   enrollClientContacts: boolean;
+  /** Training-owned external participants (`external-participant-options`). */
+  enrollExternal: boolean;
   generateCertificate: boolean;
   viewCertificateVersions: boolean;
   downloadCertificate: boolean;
@@ -61,6 +63,7 @@ export function resolveTrainingAccess(permissions: readonly string[]): TrainingA
     enrollCandidates: manageEnrollments && has('candidates:view'),
     enrollUsers: manageEnrollments,
     enrollClientContacts: manageEnrollments && has('clients:view') && has('client_contacts:view'),
+    enrollExternal: manageEnrollments,
     // The API also re-checks enrollment read and participant source visibility.
     generateCertificate: has('documents:generate') && has('training_enrollments:view'),
     viewCertificateVersions: has('documents:view'),

@@ -16,6 +16,7 @@
     "prisma:seed": "dotenv -e ../../.env -- prisma db seed",
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:validate": "dotenv -e ../../.env.example -- prisma validate",
+    "reminders:run-due": "tsx src/jobs/run-due-reminders.ts",
     "start": "dotenv -e ../../.env -- node dist/main.js",
     "verify:generation-assets": "node scripts/verify-generation-assets.mjs",
     "test": "vitest run",
