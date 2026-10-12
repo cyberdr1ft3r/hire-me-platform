@@ -77,6 +77,15 @@ describe('Missions read-only evidence persona (#159)', () => {
     expect(withView.readOnly).toBe(true);
     expect(withView.canUpdatePlacementCommercialEligibility).toBe(false);
   });
+
+  it('treats commercial eligibility update as not read-only', () => {
+    const withUpdate = resolveMissionAccess([
+      'missions:view',
+      'placement_commercial_eligibility:update',
+    ]);
+    expect(withUpdate.readOnly).toBe(false);
+    expect(withUpdate.canUpdatePlacementCommercialEligibility).toBe(true);
+  });
 });
 
 describe('Missions read-only evidence persona in the workspace', () => {

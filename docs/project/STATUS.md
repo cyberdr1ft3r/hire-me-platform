@@ -75,7 +75,7 @@ Status owner: repository maintainer
 | Issue #152 | Complete | Bounded placement confirmation form and commercial eligibility authority | Merged via PR **#153** on `main` as `13a1134`; `placement_commercial_eligibility:update` is implemented and server-enforced; ADMIN has update authority; HR_MANAGER remains confirm-only (false) |
 | Issue #154 | Complete | Add inclusive mission deadline range filters | Merged via PR **#155** on `main`; inclusive UTC deadline range filters in Missions list |
 | Issue #156 | Complete | Align closure UX with lifecycle-valid outcomes | Merged via PR **#157** on `main`; lifecycle-valid closure Select + derived reasons |
-| Issue #159 | In progress | Finalize read-only Missions persona decision and close #110 | Draft PR; no new seeded role; canonical `MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS` for tests/evidence |
+| Issue #159 | In progress | Finalize read-only Missions persona decision and close #110 | Draft PR #160; complete `MISSIONS_WRITE_PERMISSIONS`; no new seeded role; synthetic read bundle for tests/evidence |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #114 | Complete | Fix Missions first-public-opportunity empty state and publish flow | Merged through PR #122 into `main` |
 | Issue #116 | Complete | Stacked master-detail reveal and focus | Merged to `main`; evidence in `docs/audit/issue-116-stacked-master-detail-evidence.md` |

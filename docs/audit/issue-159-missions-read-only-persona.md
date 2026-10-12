@@ -24,7 +24,10 @@ No existing production role is a dedicated read-only Missions business persona.
 ## Web authorization model
 
 - `apps/web/src/missions/mission-access.ts` derives flags from **permission codes only** (no `RoleName` checks in Missions UI).
-- `readOnly === missions:view && no WRITE_PERMISSIONS` where `WRITE_PERMISSIONS` lists mission-area mutation capabilities.
+- `readOnly === missions:view && no Missions mutation permission`, where
+  `MISSIONS_WRITE_PERMISSIONS` in `mission-access.ts` lists the complete current
+  Missions-workspace mutation set (aligned with API `MISSION_PERMISSIONS` writes
+  plus public-opportunity manage/publish).
 - View permissions do not imply write permissions; commercial eligibility remains gated separately by `placement_commercial_eligibility:view` / `:update`.
 
 ## Canonical synthetic bundle (tests / evidence)

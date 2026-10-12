@@ -61,23 +61,34 @@ export interface MissionAccess {
   readOnly: boolean;
 }
 
-const WRITE_PERMISSIONS = [
+/**
+ * Every Missions-workspace mutation permission. Kept in sync with API
+ * `MISSION_PERMISSIONS` write grants plus public-opportunity publish/manage.
+ * Used only to classify `readOnly`; individual UI flags still map 1:1 to codes.
+ */
+export const MISSIONS_WRITE_PERMISSIONS = [
   'missions:create',
   'missions:update',
   'missions:status:manage',
   'missions:closure:manage',
   'missions:archive',
   'mission_assignments:manage',
+  'mission_commercial_data:update',
   'mission_candidates:create',
   'mission_candidates:transition',
   'mission_candidates:transfer',
   'mission_candidates:present',
+  'mission_candidate_notes:manage',
+  'mission_candidates:outcome:manage',
+  'mission_candidates:integration:confirm',
   'interviews:schedule',
   'interviews:reschedule',
   'interviews:complete',
   'interviews:cancel',
   'interviews:archive',
+  'interview_participants:manage',
   'evaluations:create',
+  'evaluations:update',
   'evaluations:finalize',
   'offers:create',
   'offers:update',
@@ -86,6 +97,7 @@ const WRITE_PERMISSIONS = [
   'offers:withdraw',
   'placements:confirm',
   'placements:correct',
+  'placement_commercial_eligibility:update',
   'public_opportunities:manage',
   'public_opportunities:publish',
 ] as const;
@@ -145,6 +157,6 @@ export function resolveMissionAccess(permissions: readonly string[]): MissionAcc
     canViewCandidates: has('candidates:view'),
     canViewClientContacts: has('client_contacts:view'),
 
-    readOnly: canView && !WRITE_PERMISSIONS.some(has),
+    readOnly: canView && !MISSIONS_WRITE_PERMISSIONS.some((permission) => has(permission)),
   };
 }

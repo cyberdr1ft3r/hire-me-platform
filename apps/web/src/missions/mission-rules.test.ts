@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { MissionRequestError } from '../api.js';
-import { resolveMissionAccess } from './mission-access.js';
+import { MISSIONS_WRITE_PERMISSIONS, resolveMissionAccess } from './mission-access.js';
 import { classifyMissionFailure } from './mission-errors.js';
 import { toMissionCreateRequest, toMissionUpdateRequest } from './mission-form.js';
 import {
@@ -41,6 +41,32 @@ describe('resolveMissionAccess', () => {
     expect(access.readOnly).toBe(true);
     expect(access.canCreate).toBe(false);
     expect(access.canConfirmPlacements).toBe(false);
+  });
+
+  it.each([...MISSIONS_WRITE_PERMISSIONS])(
+    'treats missions:view plus %s as not read-only',
+    (mutationPermission) => {
+      const access = resolveMissionAccess(['missions:view', mutationPermission]);
+      expect(access.readOnly).toBe(false);
+    },
+  );
+
+  it('does not treat placement commercial eligibility view as read-only-breaking update', () => {
+    const access = resolveMissionAccess([
+      ...MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS,
+      'placement_commercial_eligibility:view',
+    ]);
+    expect(access.readOnly).toBe(true);
+    expect(access.canUpdatePlacementCommercialEligibility).toBe(false);
+  });
+
+  it('treats placement commercial eligibility update as breaking read-only', () => {
+    const access = resolveMissionAccess([
+      'missions:view',
+      'placement_commercial_eligibility:update',
+    ]);
+    expect(access.readOnly).toBe(false);
+    expect(access.canUpdatePlacementCommercialEligibility).toBe(true);
   });
 
   it('maps each capability to its own backend permission, never a broader one', () => {
