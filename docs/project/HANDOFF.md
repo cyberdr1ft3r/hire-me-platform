@@ -4,7 +4,7 @@ Last updated: 2026-10-12
 
 ## Current situation
 
-- **Issue #163** (R-050/R-051): **preflight in draft PR** — bounded Finance visibility for mission-linked Commercial/Accounting; **D-086 Proposed**; no production/seed/schema changes in #163.
+- **Issue #163** (R-050/R-051): **draft PR #164** — bounded Finance visibility preflight; **D-086 Proposed**; exact-head CI evidence on the PR (not duplicated here).
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
