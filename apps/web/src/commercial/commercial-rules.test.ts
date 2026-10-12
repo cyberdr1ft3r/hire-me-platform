@@ -55,16 +55,39 @@ function missionQuotation() {
 }
 
 describe('resolveCommercialAccess', () => {
-  it('gives the Finance Manager every record type with writes and generation, but no mission or placement source', () => {
+  it('gives the Finance Manager every record type with D-086 mission and placement sources', () => {
     const access = resolveCommercialAccess(FINANCE_MANAGER_PERMISSION_CODES);
     expect(visibleKinds(access)).toEqual(['quotation', 'purchaseOrder', 'invoice', 'contract']);
     expect(Object.values(access.manage).every(Boolean)).toBe(true);
     expect(Object.values(access.generate).every(Boolean)).toBe(true);
     expect(access.amounts).toBe(true);
     expect(access.pickClients).toBe(true);
-    expect(access.pickMissions).toBe(false);
-    expect(access.pickPlacements).toBe(false);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(true);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(true);
     expect(access.readOnly).toBe(false);
+  });
+
+  it('does not enable financial mission sources without recruitment_financial_context:view', () => {
+    const access = resolveCommercialAccess(
+      FINANCE_MANAGER_PERMISSION_CODES.filter(
+        (code) => code !== 'recruitment_financial_context:view',
+      ),
+    );
+    expect(access.pickMissions).toBe(false);
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.pickPlacements).toBe(false);
+    expect(access.financialPlacementSource).toBe(false);
+  });
+
+  it('prefers recruitment mission and placement sources when missions:view is present', () => {
+    const hybrid = [...OPERATOR, 'recruitment_financial_context:view'];
+    const access = resolveCommercialAccess(hybrid);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(false);
   });
 
   it('requires commercial data access for every write and generation', () => {

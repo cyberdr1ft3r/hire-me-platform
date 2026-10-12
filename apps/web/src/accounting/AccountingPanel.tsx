@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import {
+  listAccountingFinancialMissionOptions,
+  listAccountingFinancialPlacementOptions,
   listAccountingPlacementOptions,
   listClients,
   listInvoices,
@@ -97,6 +99,18 @@ export function AccountingPanel({
   const missions =
     (clientId: string | null): LoadOptions =>
     async (search) => {
+      if (access.financialMissionSource) {
+        if (!clientId) return [];
+        const response = await listAccountingFinancialMissionOptions(sessionToken.current, {
+          clientId,
+          search: search || undefined,
+        });
+        return response.options.map((mission) => ({
+          id: mission.id,
+          label: mission.title,
+          detail: null,
+        }));
+      }
       const response = await listMissions({
         accessToken: sessionToken.current,
         // Without transfer the Accounting mission scope is the actor's own active assignments.
@@ -117,9 +131,13 @@ export function AccountingPanel({
   const placements =
     (recruitmentMissionId: string): LoadOptions =>
     async () => {
-      const response = await listAccountingPlacementOptions(sessionToken.current, {
-        recruitmentMissionId,
-      });
+      const response = access.financialPlacementSource
+        ? await listAccountingFinancialPlacementOptions(sessionToken.current, {
+            recruitmentMissionId,
+          })
+        : await listAccountingPlacementOptions(sessionToken.current, {
+            recruitmentMissionId,
+          });
       return response.options.map((option) => ({
         id: option.id,
         label: option.missionTitle,

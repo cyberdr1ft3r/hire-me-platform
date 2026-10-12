@@ -37,7 +37,7 @@ Last updated: 2026-10-12
 ## Issue #168 (D-086 backend) next actions
 
 1. **D-086 backend is accepted** through Issue #168 / PR #175; preserve its financial-context-first union semantics and generic recruitment boundaries.
-2. Continue **Issue #180**: Commercial/Accounting web pickers use the `financial-context` routes whenever the actor holds `recruitment_financial_context:view` (including hybrid actors who also hold `missions:view`); keep `/v1/missions` for recruitment-only roles.
+2. Review **Issue #180** draft PR: Commercial/Accounting web pickers call `financial-context` routes for Finance-only actors; hybrid actors with `missions:view` keep recruitment option sources; Training context unchanged (R-051 remainder).
 3. R-051 Training remainder (training expense contexts / profitability for Finance) needs its own decision; not in #168.
 4. Maintainer C2 Barid outreach (#147) remains parallel.
 

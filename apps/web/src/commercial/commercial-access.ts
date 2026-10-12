@@ -16,12 +16,16 @@ export type CommercialAccess = {
   amounts: boolean;
   /** `GET /v1/clients`; every Commercial read and write also needs `clients:view`. */
   pickClients: boolean;
-  /** `GET /v1/missions`, scoped like the Commercial mission rule. */
+  /** Mission picker visible (recruitment `/v1/missions` or D-086 financial-context missions). */
   pickMissions: boolean;
-  /** Without `mission_candidates:transfer`, mission choices are the actor's own assignments. */
+  /** Without `mission_candidates:transfer`, recruitment mission choices are assignment-scoped. */
   missionsAssignedOnly: boolean;
-  /** `GET /v1/commercial/placement-options` (D-079). */
+  /** Mission options from `GET /v1/commercial/financial-context/missions` (D-086). */
+  financialMissionSource: boolean;
+  /** Placement picker visible (D-079 placement-options or D-086 financial-context placements). */
   pickPlacements: boolean;
+  /** Placement options from `GET /v1/commercial/financial-context/placements` (D-086). */
+  financialPlacementSource: boolean;
   generate: Record<CommercialKind, boolean>;
   viewGeneratedVersions: boolean;
   downloadGeneratedVersions: boolean;
@@ -64,19 +68,27 @@ export function resolveCommercialAccess(permissions: readonly string[]): Commerc
   const view = byKind((kind) => has(VIEW_CODES[kind]));
   const manage = byKind((kind) => amounts && has(MANAGE_CODES[kind]));
   const missionsView = has('missions:view');
+  const financialContext = has('recruitment_financial_context:view');
+  const clientsView = has('clients:view');
+  const placementsRecruitment =
+    manage.invoice &&
+    has('placements:view') &&
+    has('placement_commercial_eligibility:view') &&
+    missionsView &&
+    clientsView;
+  const missionsFinancial = financialContext && clientsView && !missionsView;
+  const placementsFinancial =
+    manage.invoice && financialContext && clientsView && !placementsRecruitment;
   const access = {
     view,
     manage,
     amounts,
-    pickClients: has('clients:view'),
-    pickMissions: missionsView,
+    pickClients: clientsView,
+    pickMissions: missionsView || missionsFinancial,
     missionsAssignedOnly: !has('mission_candidates:transfer'),
-    pickPlacements:
-      manage.invoice &&
-      has('placements:view') &&
-      has('placement_commercial_eligibility:view') &&
-      missionsView &&
-      has('clients:view'),
+    financialMissionSource: missionsFinancial,
+    pickPlacements: placementsRecruitment || placementsFinancial,
+    financialPlacementSource: placementsFinancial,
     // Generation also re-checks commercial data access and source readability.
     generate: byKind((kind) => amounts && has('documents:generate') && view[kind]),
     viewGeneratedVersions: has('documents:view'),

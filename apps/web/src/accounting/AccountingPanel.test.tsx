@@ -7,6 +7,8 @@ import { AccountingPanel } from './AccountingPanel.js';
 import {
   ACTOR_ID,
   CLIENT_ID,
+  MISSION_ID,
+  PLACEMENT_ID,
   FIXTURE_IDS,
   INVOICE_ID,
   jsonResponse,
@@ -97,6 +99,52 @@ function standardApi(
         });
       case '/v1/clients':
         return jsonResponse(page('clients', [syntheticClient]));
+      case '/v1/missions':
+        return jsonResponse({
+          missions: [
+            {
+              id: MISSION_ID,
+              clientId: CLIENT_ID,
+              clientName: 'Synthetic Client',
+              title: 'Synthetic Data Engineer',
+              description: null,
+              requirements: null,
+              state: 'CANDIDATE_SOURCING',
+              priority: 'NORMAL',
+              numberOfPositions: 1,
+              filledPlacementCount: 0,
+              location: null,
+              workArrangement: null,
+              engagementType: null,
+              targetStartDate: null,
+              applicationDeadline: null,
+              commercial: null,
+              closureReason: null,
+              closedAt: null,
+              archivedAt: null,
+              createdAt: syntheticClient.createdAt,
+              updatedAt: syntheticClient.updatedAt,
+            },
+          ],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        });
+      case `${base}/placement-options`:
+      case `${base}/financial-context/placements`:
+        return jsonResponse({
+          options: [
+            {
+              id: PLACEMENT_ID,
+              recruitmentMissionId: MISSION_ID,
+              missionTitle: 'Synthetic Data Engineer',
+              integrationStartDate: '2026-10-01T00:00:00.000Z',
+              confirmedAt: '2026-09-01T00:00:00.000Z',
+            },
+          ],
+        });
+      case `${base}/financial-context/missions`:
+        return jsonResponse({
+          options: [{ id: MISSION_ID, title: 'Synthetic Data Engineer' }],
+        });
       default:
         return undefined;
     }
@@ -117,6 +165,19 @@ async function openArea(label: string): Promise<void> {
   await waitFor(() =>
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'true'),
   );
+}
+
+async function chooseOption(scope: HTMLElement, label: RegExp | string, optionText: RegExp) {
+  const select = within(scope).getByRole<HTMLSelectElement>('combobox', { name: label });
+  const option = await waitFor(() => {
+    const match = [...select.options].find((item) => optionText.test(item.textContent ?? ''));
+    if (!match)
+      throw new Error(
+        `No option ${optionText} among ${[...select.options].map((item) => item.textContent).join(' | ')}`,
+      );
+    return match;
+  });
+  fireEvent.change(select, { target: { value: option.value } });
 }
 
 function expectNoRawIds(): void {
@@ -194,22 +255,28 @@ describe('AccountingPanel: presentation and localization', () => {
 });
 
 describe('AccountingPanel: personas and permissions', () => {
-  it('gives the seeded Finance Manager every area without mission or placement sources', async () => {
+  it('gives the Finance Manager D-086 expense mission and placement pickers', async () => {
     const calls = standardApi();
     render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
 
     expect(await screen.findByRole('table', { name: 'Payments' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Record payment' })).toBeVisible();
     await openArea('Expenses');
     fireEvent.click(screen.getByRole('button', { name: 'Record expense' }));
-    expect(
-      within(screen.getByRole('form', { name: 'Record expense' })).queryByRole('combobox', {
-        name: 'Recruitment mission',
-      }),
-    ).toBeNull();
+    const form = screen.getByRole('form', { name: 'Record expense' });
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(0),
+    );
+    await chooseOption(form, /^Recruitment mission/, /Synthetic Data Engineer/);
+    await chooseOption(form, /^Placement/, /Synthetic Data Engineer/);
     expect(callsTo(calls, '/v1/missions')).toHaveLength(0);
     expect(callsTo(calls, `${base}/placement-options`)).toHaveLength(0);
-    expectNoRawIds();
+    expect(callsTo(calls, `${base}/financial-context/placements`).length).toBeGreaterThan(0);
+    const text = document.body.textContent ?? '';
+    for (const id of FIXTURE_IDS) {
+      expect(text).not.toContain(id);
+    }
+    expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   });
 
   it('keeps a read-only account free of every write control', async () => {
