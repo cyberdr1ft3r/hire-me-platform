@@ -128,7 +128,16 @@ export function createMockPkcs11TokenClient(options: {
           publicExponentHex: keyObject.privateKey.e.toString(16),
         },
         publicKeyObjectMatched: false,
-        privateKeyProtection: { sensitive: false, extractable: true },
+        certificateObjectOnToken: false,
+        privateKeyAttributes: {
+          token: false,
+          private: false,
+          sensitive: false,
+          extractable: true,
+          local: false,
+          alwaysSensitive: false,
+          neverExtractable: false,
+        },
         privateKeyHandle: keyObject.privateKey,
       };
     },

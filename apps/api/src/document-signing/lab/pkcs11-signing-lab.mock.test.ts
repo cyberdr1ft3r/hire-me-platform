@@ -63,7 +63,7 @@ describe('PKCS#11 lab failure matrix (mock token, not SoftHSM evidence)', () => 
     ).toThrow(expect.objectContaining({ code: 'PKCS11_CERT_KEY_MISMATCH' }) as Error);
   });
 
-  it('rejects wrong trust anchor under Phase B validation', async () => {
+  it('rejects wrong trust anchor under Phase B validation (mock signer)', async () => {
     const { client, reference } = provisionedClient();
     const lab = new Pkcs11SigningLab(client);
     const sourcePdf = await createMinimalLabSourcePdf('mock-trust');

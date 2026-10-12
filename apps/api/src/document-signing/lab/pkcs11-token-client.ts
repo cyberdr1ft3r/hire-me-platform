@@ -10,6 +10,7 @@ import { resolvePkcs11ModulePathForLab } from './pkcs11-module-path.js';
 import type {
   LabCredentialKind,
   LabTokenCredentialReference,
+  LabTokenPrivateKeyAttributes,
   LabTokenResolvedCredential,
   Pkcs11TokenClient,
 } from './pkcs11-token-client.types.js';
@@ -214,9 +215,14 @@ function resolveCredentialFromToken(
     },
     'PKCS11_CERT_NOT_FOUND',
   );
-  const certificateAttrs = readAttributes(certificateObject, { id: null, value: null }) as {
+  const certificateAttrs = readAttributes(certificateObject, {
+    id: null,
+    value: null,
+    token: null,
+  }) as {
     id: Buffer;
     value: Buffer;
+    token: boolean;
   };
   const certificateDer = Buffer.from(certificateAttrs.value);
   const certificate = parseCertificateDer(certificateDer);
@@ -233,15 +239,18 @@ function resolveCredentialFromToken(
     id: null,
     modulus: null,
     publicExponent: null,
+    token: null,
+    private: null,
     sensitive: null,
     extractable: null,
+    local: null,
+    alwaysSensitive: null,
+    neverExtractable: null,
   }) as {
     id: Buffer;
     modulus: Buffer;
     publicExponent: Buffer;
-    sensitive: boolean;
-    extractable: boolean;
-  };
+  } & LabTokenPrivateKeyAttributes;
 
   const objectId = Buffer.from(certificateAttrs.id);
   if (objectId.length === 0 || !objectId.equals(Buffer.from(keyAttrs.id))) {
@@ -277,9 +286,15 @@ function resolveCredentialFromToken(
     certificateFingerprintSha256: createHash('sha256').update(certificateDer).digest('hex'),
     tokenPublicKey,
     publicKeyObjectMatched,
-    privateKeyProtection: {
+    certificateObjectOnToken: certificateAttrs.token,
+    privateKeyAttributes: {
+      token: keyAttrs.token,
+      private: keyAttrs.private,
       sensitive: keyAttrs.sensitive,
       extractable: keyAttrs.extractable,
+      local: keyAttrs.local,
+      alwaysSensitive: keyAttrs.alwaysSensitive,
+      neverExtractable: keyAttrs.neverExtractable,
     },
     privateKeyHandle: privateKeyObject.toType<graphene.PrivateKey>(),
   };

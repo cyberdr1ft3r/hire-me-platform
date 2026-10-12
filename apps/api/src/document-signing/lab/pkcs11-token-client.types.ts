@@ -14,6 +14,16 @@ export type LabTokenPublicKey = {
   publicExponentHex: string;
 };
 
+export type LabTokenPrivateKeyAttributes = {
+  token: boolean;
+  private: boolean;
+  sensitive: boolean;
+  extractable: boolean;
+  local: boolean;
+  alwaysSensitive: boolean;
+  neverExtractable: boolean;
+};
+
 /**
  * Credential resolved from token objects: one `CKO_CERTIFICATE` (`CKC_X_509`) found by
  * `CKA_LABEL`, and one `CKO_PRIVATE_KEY` found by `CKA_LABEL` whose `CKA_ID` and RSA public
@@ -28,7 +38,9 @@ export type LabTokenResolvedCredential = LabTokenCredentialReference & {
   certificateFingerprintSha256: string;
   tokenPublicKey: LabTokenPublicKey;
   publicKeyObjectMatched: boolean;
-  privateKeyProtection: { sensitive: boolean; extractable: boolean };
+  certificateObjectOnToken: boolean;
+  /** Read back from the token object (CKA_TOKEN, CKA_PRIVATE, CKA_SENSITIVE, ...). */
+  privateKeyAttributes: LabTokenPrivateKeyAttributes;
   /** Opaque token-side handle; never private key material. */
   privateKeyHandle: unknown;
 };

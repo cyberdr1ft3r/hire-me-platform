@@ -147,7 +147,16 @@ describe.runIf(labAvailable)('PKCS#11 SoftHSM signing lab (Issue #183)', () => {
     expect(resolved.privateKeyLabel).toBe('hireme-lab-discovery-key');
     expect(resolved.objectIdHex).toMatch(/^[0-9a-f]{32}$/);
     expect(resolved.publicKeyObjectMatched).toBe(true);
-    expect(resolved.privateKeyProtection).toEqual({ sensitive: true, extractable: false });
+    expect(resolved.certificateObjectOnToken).toBe(true);
+    expect(resolved.privateKeyAttributes).toEqual({
+      token: true,
+      private: true,
+      sensitive: true,
+      extractable: false,
+      local: true,
+      alwaysSensitive: true,
+      neverExtractable: true,
+    });
     expect(resolved.subjectCommonName).toBe(LAB_PERSON_SIGNER_CN);
 
     const tokenCert = forge.pki.certificateFromAsn1(
@@ -222,7 +231,35 @@ describe.runIf(labAvailable)('PKCS#11 SoftHSM signing lab (Issue #183)', () => {
       trustAnchorPems: [proof.credential.trustAnchorPem],
       trustStoreVersion: 'pkcs11-lab-test-trust-v1',
     });
-    expect(outcome.overallResult).not.toBe('VALID');
+    expect(outcome.overallResult).toBe('INVALID');
+    expect(outcome.reasonCode).toBe('PREPARED_ARTIFACT_BYTE_MISMATCH');
+  });
+
+  it('rejects a token-signed PDF under an unrelated synthetic test trust anchor', async () => {
+    const sourcePdf = await createMinimalLabSourcePdf('wrong-trust');
+    const proof = await new Pkcs11SigningLab(tokenClient).provePreparedPdfSigning({
+      sourcePdf,
+      credential: provision('wrong-trust-signer'),
+    });
+    expect(proof.validation.overallResult).toBe('VALID');
+    const decoy = tokenClient.resolveLabCredential(provision('wrong-trust-decoy'));
+    expect(decoy.subjectCommonName).toBe(proof.credential.subjectCommonName);
+    expect(decoy.certificateFingerprintSha256).not.toBe(
+      proof.credential.certificateFingerprintSha256,
+    );
+
+    const outcome = await new PdfSignatureValidatorService().validateSignedPdf({
+      preparedArtifactPdf: proof.preparedPdf,
+      signedPdf: proof.signedPdf,
+      expectedCredentialFingerprintSha256: proof.credential.certificateFingerprintSha256,
+      trustAnchorPems: [decoy.trustAnchorPem],
+      trustStoreVersion: 'pkcs11-lab-wrong-trust-v1',
+    });
+    expect(outcome.cmsCryptoResult).toBe('VALID');
+    expect(outcome.sourceBindingResult).toBe('VALID');
+    expect(outcome.chainTrustResult).toBe('UNTRUSTED');
+    expect(outcome.overallResult).toBe('INVALID');
+    expect(outcome.reasonCode).toBe('CERTIFICATE_CHAIN_UNTRUSTED');
   });
 
   it('fails prepared-artifact binding for a different source PDF', async () => {
