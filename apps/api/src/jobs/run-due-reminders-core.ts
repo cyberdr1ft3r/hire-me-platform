@@ -7,13 +7,10 @@ import {
   formatTaskReminderTickSummaryLine,
 } from './run-due-reminders-summary.js';
 import type { RunDueRemindersConfig } from './run-due-reminders-args.js';
+import { defaultSleep, type SleepFn } from './run-due-reminders-sleep.js';
 
-export type SleepFn = (milliseconds: number) => Promise<void>;
-
-export const defaultSleep: SleepFn = (milliseconds) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
+export type { SleepFn } from './run-due-reminders-sleep.js';
+export { createAbortableSleep, defaultSleep } from './run-due-reminders-sleep.js';
 
 export type RunDueRemindersCoreDeps = {
   delivery: TaskReminderDeliveryService;
@@ -22,6 +19,7 @@ export type RunDueRemindersCoreDeps = {
   writeLine?: (line: string) => void;
   createRunId?: () => string;
   shouldAbort?: () => boolean;
+  abortSignal?: AbortSignal;
 };
 
 /**
@@ -64,6 +62,6 @@ export async function runDueRemindersLoop(deps: RunDueRemindersCoreDeps): Promis
     if (shouldAbort()) {
       break;
     }
-    await sleep(intervalMs);
+    await sleep(intervalMs, deps.abortSignal);
   }
 }

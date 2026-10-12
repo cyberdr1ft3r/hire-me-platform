@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TaskReminderTickResult } from '../tasks/task-reminder-delivery.service.js';
-import { runDueRemindersLoop, runSchedulerTick } from './run-due-reminders-core.js';
+import {
+  createAbortableSleep,
+  runDueRemindersLoop,
+  runSchedulerTick,
+} from './run-due-reminders-core.js';
 
 const emptyResult = (): TaskReminderTickResult => ({
   trigger: 'scheduler',
@@ -72,5 +76,39 @@ describe('runDueRemindersLoop', () => {
     expect(runDueTick).toHaveBeenCalledTimes(1);
     expect(sleep).toHaveBeenCalledTimes(1);
     expect(lines).toHaveLength(1);
+  });
+
+  it('ends inter-tick wait immediately when shutdown aborts the sleep signal', async () => {
+    vi.useFakeTimers();
+    try {
+      const runDueTick = vi.fn(() => Promise.resolve(emptyResult()));
+      const controller = new AbortController();
+      let sleepEntered = false;
+      const baseSleep = createAbortableSleep();
+      const sleep = async (milliseconds: number, signal?: AbortSignal): Promise<void> => {
+        sleepEntered = true;
+        await baseSleep(milliseconds, signal);
+      };
+
+      const loopPromise = runDueRemindersLoop({
+        delivery: { runDueTick } as never,
+        config: { mode: 'loop', limit: 1, overdueLimit: 1, intervalSeconds: 3600 },
+        sleep,
+        abortSignal: controller.signal,
+        shouldAbort: () => controller.signal.aborted,
+      });
+
+      await vi.waitUntil(() => sleepEntered);
+      expect(runDueTick).toHaveBeenCalledTimes(1);
+
+      controller.abort();
+      await loopPromise;
+
+      expect(runDueTick).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(3_600_000);
+      expect(runDueTick).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
