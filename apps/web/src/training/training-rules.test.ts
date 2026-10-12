@@ -54,6 +54,7 @@ describe('Training access', () => {
     expect(resolveTrainingAccess(base)).toMatchObject({
       enrollCandidates: false,
       enrollClientContacts: false,
+      enrollExternal: true,
       enrollUsers: true,
     });
     expect(resolveTrainingAccess([...base, 'candidates:view']).enrollCandidates).toBe(true);
