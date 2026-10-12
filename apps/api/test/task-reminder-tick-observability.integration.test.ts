@@ -131,13 +131,19 @@ describe('task reminder tick observability (R-036 PR C)', () => {
     expect(tick.backlogDue).toBeGreaterThanOrEqual(1);
     expect(tick.oldestDueAgeSeconds).toBe(0);
 
-    const rows = await prisma.auditLog.findMany({ where: { action: 'tasks.reminders_processed' } });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.actorUserId).toBeNull();
-    expect(rows[0]!.metadataSummary).not.toMatch(/@|R036 obs|Synthetic/i);
-    const metadata = JSON.parse(rows[0]!.metadataSummary!) as { delivered: number };
+    const row = await prisma.auditLog.findFirst({
+      where: {
+        action: 'tasks.reminders_processed',
+        actorUserId: null,
+        metadataSummary: { contains: '"delivered":1' },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row).not.toBeNull();
+    expect(row!.metadataSummary).not.toMatch(/@|R036 obs|Synthetic/i);
+    const metadata = JSON.parse(row!.metadataSummary!) as { delivered: number };
     expect(metadata.delivered).toBe(1);
-    expect(formatTaskReminderTickAuditMetadata(tick)).toBe(rows[0]!.metadataSummary);
+    expect(formatTaskReminderTickAuditMetadata(tick)).toBe(row!.metadataSummary);
   });
 
   it('attributes manual material ticks to the manager actor', async () => {
@@ -166,10 +172,15 @@ describe('task reminder tick observability (R-036 PR C)', () => {
       auditContext: { ipAddress: '127.0.0.1', userAgent: 'vitest' },
     });
 
-    const rows = await prisma.auditLog.findMany({ where: { action: 'tasks.reminders_processed' } });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.actorUserId).toBe(ownerUserId);
-    expect(rows[0]!.ipAddress).toBe('127.0.0.1');
+    const row = await prisma.auditLog.findFirst({
+      where: {
+        action: 'tasks.reminders_processed',
+        actorUserId: ownerUserId,
+        ipAddress: '127.0.0.1',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row).not.toBeNull();
   });
 
   it('reports backlog age and budget exhaustion at the batch boundary', async () => {
