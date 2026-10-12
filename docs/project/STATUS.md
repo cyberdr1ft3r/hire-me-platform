@@ -16,6 +16,7 @@ Status owner: repository maintainer
 - **PR #166 preflight:** D-088 Proposed; architecture reviewed on 2026-10-12. Recommendation: one-shot `reminders:run-due` every minute via systemd timer (cron/platform scheduler equivalent), DB-coordinated with Task-first `SKIP LOCKED`, one transaction per reminder, no Redis/queue, no schema migration.
 - Maintainer decisions: recipient inactive/no longer authorized → **CANCELED** with null system actor; transient retry = **5 attempts** with **1/5/15/60 min** backoff; manual global processor server gate = `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior remains unchanged.
 - Preflight found F1 batch rollback/poison-row blocking, F4 time-zone-sensitive raw `NOW()`, F5 overdue starvation, plus attribution/recipient/retry-state issues. Implementation remains PR A → B → C; no unattended deployment before the operations gate.
+- **Issue #169 PR A (draft, pending review):** `TaskReminderDeliveryService.runDueTick({ now, limit, trigger, actorUserId })` with an injected UTC clock. Only eligible `PENDING` rows (`remindAt <= now`, backoff elapsed) in `remindAt, id` order; per reminder one transaction: Task `FOR UPDATE SKIP LOCKED` → reminder lock → re-check → Notification + `SENT` + TaskEvent. Guarded separate failure recorder (fixed codes only; fifth failure → `FAILED` + `REMINDER_FAILED`). Ineligible recipient → `CANCELED`, null actor, no Notification. Overdue notices are per-task, ordered by `dueAt, id`, and skip already-notified pairs. `process-due` requires `tasks:reminders:manage` + `tasks:view_all` and delegates with the manager as actor. Reschedule resets `attemptCount`/`claimedAt`. **D-088 Accepted**; no schema migration. One Issue #31 test now expects `FAILED` to stay `FAILED` until rescheduled (F3).
 
 ## Internal messaging V1 preflight
 
@@ -687,7 +688,7 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
 3. Open a scoped follow-up for suites that narrow and restore shared seeded roles (grant rows re-inserted, non-critical grant state), if the maintainer agrees.
 4. Continue the bilingual module rollout in its bounded issues (Training #111 next); defer D-DESIGN-01 whole-product UI-DNA v1.1 (Issues #117/#118) until after functional rollout.
-5. R-036 scheduler preflight is PR #166 / D-088 Proposed; after merge, implement bounded PRs A (delivery), B (runner), C (operations/deployed evidence). R-039 unchanged.
+5. R-036: D-088 Accepted; PR A (delivery domain, Issue #169) is in review; then PR B (runner) and PR C (operations/deployed evidence). R-039 unchanged.
 
 ## Status Update Rules
 
