@@ -97,6 +97,37 @@ jobs:
       - name: Verify compiled generation assets
         run: pnpm --filter @hire-me/api verify:generation-assets
 
+  signing-pkcs11-lab:
+    name: PKCS#11 SoftHSM signing lab (Issue #183)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SoftHSM2
+        run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y softhsm2 libsofthsm2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Run PKCS#11 SoftHSM lab tests
+        run: pnpm --filter @hire-me/api test:signing-pkcs11-lab
+
   database-lifecycle:
     name: Database migration, seed, and integration tests
     runs-on: ubuntu-latest

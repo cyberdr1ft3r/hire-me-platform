@@ -10,6 +10,7 @@ Status owner: repository maintainer
 - **#143 Phase B (PR #144):** merged on **`main`** — provider-neutral validation + **SIGNED** publication; **D-084 Accepted**. See [Phase B architecture](../design/issue-143-phase-b-architecture.md) and [validation preflight](../design/issue-143-validation-engine-preflight.md).
 - **#145 Phase C (PR #146):** Barid eSign first-party feasibility **accepted**; **D-085 Accepted**. See [feasibility doc](../design/issue-145-barid-esign-feasibility.md).
 - **#147 Phase C2 (in progress):** Barid **provider engagement package** prepared — [C2 doc](../design/issue-147-barid-c2-provider-engagement.md). **C2 state:** `READY_TO_CONTACT_PROVIDER`. **Questionnaire not sent** from automation; fixtures/route proof **blocked**. **Ready for provider implementation: NO**.
+- **#183 PKCS#11 lab (in progress):** development-only SoftHSM lab proves prepared-PDF → PKCS#11 → CMS → Phase B validation with **test-only** trust; see [lab runbook](../design/issue-183-pkcs11-signing-lab.md). **Does not** advance #147 or authorize Barid/production PKCS#11 wiring.
 
 ## R-036 Task reminder scheduler
 

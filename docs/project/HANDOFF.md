@@ -12,6 +12,7 @@ Last updated: 2026-10-12
 
 - **Issue #163** (R-050/R-051): **draft PR #164** — bounded Finance visibility preflight; **D-086 Proposed**; exact-head CI evidence on the PR (not duplicated here).
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
+- **Issue #183:** PKCS#11 SoftHSM lab PR — review draft; confirms generic token path only; **#147 C2 state unchanged**.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
 ## Next concrete action
