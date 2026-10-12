@@ -23,7 +23,7 @@ const emptyResult = (): TaskReminderTickResult => ({
 
 describe('runSchedulerTick', () => {
   it('calls the delivery engine with a null scheduler actor', async () => {
-    const runDueTick = vi.fn(async () => emptyResult());
+    const runDueTick = vi.fn(() => Promise.resolve(emptyResult()));
     const lines: string[] = [];
     await runSchedulerTick({
       delivery: { runDueTick } as never,
@@ -48,18 +48,18 @@ describe('runSchedulerTick', () => {
 
 describe('runDueRemindersLoop', () => {
   it('does not overlap ticks and stops before the next tick when aborted', async () => {
-    const runDueTick = vi.fn(async () => emptyResult());
+    const runDueTick = vi.fn(() => Promise.resolve(emptyResult()));
     let inFlight = false;
-    runDueTick.mockImplementation(async () => {
+    runDueTick.mockImplementation(() => {
       expect(inFlight).toBe(false);
       inFlight = true;
-      await Promise.resolve();
       inFlight = false;
-      return emptyResult();
+      return Promise.resolve(emptyResult());
     });
     let aborted = false;
-    const sleep = vi.fn(async () => {
+    const sleep = vi.fn(() => {
       aborted = true;
+      return Promise.resolve();
     });
     const lines: string[] = [];
     await runDueRemindersLoop({
