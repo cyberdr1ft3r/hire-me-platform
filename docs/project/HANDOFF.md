@@ -10,19 +10,18 @@ Last updated: 2026-10-12
 
 - **Messaging V1:** **D-087 Proposed** (PR #165 preflight).
 
-- **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086 Proposed**).
-- **Issue #168** (D-086 backend): **draft PR #175** — hybrid finance+recruitment scope fix in progress; bounded `recruitment_financial_context:view`, shared financial mission scope, PostgreSQL suite `finance-recruitment-context.integration.test.ts`. No migration.
+- **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
+- **Issue #168** (D-086 backend): **draft PR open, not merged** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration.
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
-- **Issue #182 (R-049):** draft PR implements external Training participant management, EXTERNAL enrollment UI, and Training program/session deep links; review exact-head CI and ChatGPT architecture/security review when green.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
 ## Next concrete action
 
-1. Re-review **Issue #178** draft PR #181 when exact-head CI is green.
+1. Re-review **Issue #178** draft PR #181 (material `failureNotRecorded`, deployment-neutral systemd template/runbook, latest `main` merged) when exact-head CI is green.
 2. On staging: deploy timer + worker, capture sanitized evidence per runbook staging gate, then mark R-036 mitigated/closed.
-3. Security/architecture review of **Issue #168** draft PR #175 after hybrid-scope fix and exact-head CI; on reviewed merge mark **D-086 Accepted** and R-050 mitigated.
-4. After backend acceptance, open the separate web issue for Commercial/Accounting pickers on `financial-context` routes.
-5. Maintainer C2 Barid outreach (#147) remains parallel.
+3. Optional future: dedicated PostgreSQL worker role after query footprint sign-off.
+
+- **Issue #182 (R-049):** draft PR implements external Training participant management, EXTERNAL enrollment UI, and Training program/session deep links; review exact-head CI and ChatGPT architecture/security review when green.
 
 - **D-068 operator inspection:** execute only the runbook's read-only topology/config checks and synthetic honeypot probe matrix under an approved production session; record sanitized evidence.
 - **D-070 production migration:** only after a named release/window, verified backup, exact pending migration list, and prechecks. Migrate DB before deploying a D-070 build; on any failure/cancel, inspect for partial schema before `migrate resolve` or retry.
@@ -33,10 +32,12 @@ Last updated: 2026-10-12
 - Staging evidence checklist in `docs/runbooks/task-reminder-scheduler.md` completed with real (sanitized) proof.
 - No fabricated `systemctl`/journal artifacts in Git.
 
-## Preserved unrelated follow-ups
+## Issue #168 (D-086 backend) next actions
 
-- **R-050 / R-051:** backend mitigation on Issue #168 draft PR #175; R-051 Training remainder open. Preflight artifact `docs/design/issue-163-finance-mission-context-preflight.md`.
-- **D-068** production env/proxy verification; **D-070** migration not deployed in production.
+1. Security/architecture review of the **Issue #168** draft PR on its exact-head CI; on reviewed merge mark **D-086 Accepted** and R-050 mitigated.
+2. After backend acceptance, open the separate web issue: Commercial/Accounting pickers use the `financial-context` routes whenever the actor holds `recruitment_financial_context:view` (including hybrid actors who also hold `missions:view`); keep `/v1/missions` for recruitment-only roles.
+3. R-051 Training remainder (training expense contexts / profitability for Finance) needs its own decision; not in #168.
+4. Maintainer C2 Barid outreach (#147) remains parallel.
 
 ## D-071 catalog guarantees
 

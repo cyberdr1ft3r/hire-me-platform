@@ -21,7 +21,7 @@ Status owner: repository maintainer
 ## Issue #168 — D-086 bounded Finance recruitment context (backend)
 
 - **Draft PR (not merged):** adds `recruitment_financial_context:view` (CLIENT scope) granted to `FINANCE_MANAGER` only (plus `SUPER_ADMIN`'s all-permission grant). No `missions:view`, `placements:view`, `placement_commercial_eligibility:view`, transfer, or candidate/process/interview/evaluation/offer grant.
-- Commercial, Accounting, Documents generated-source scope, Generation, and therefore financial-signing rechecks share one financial mission scope; recruitment actors keep assignment/transfer behaviour. Placement-backed invoicing accepts the bounded context inside the financial path only; confirmation/eligibility/linkage rules unchanged.
+- Commercial, Accounting, Documents generated-source scope, Generation, and therefore financial-signing rechecks share one financial mission scope. The financial context resolves to full client-bounded scope independently of `missions:view` (hybrid Finance + recruitment actors keep it without a recruiter assignment, per maintainer review); recruitment-only actors keep assignment/transfer behaviour, and generic recruitment routes never read this scope. Placement-backed invoicing accepts the bounded context inside the financial path only; confirmation/eligibility/linkage rules unchanged.
 - New bounded option routes: `/v1/commercial/financial-context/{missions,placements}`, `/v1/accounting/financial-context/{missions,placements}` (≤20, no count, no candidate/process/offer/history fields).
 - No schema migration. Web pickers are a separate follow-up issue after backend acceptance. R-051 Training remainder unchanged.
 

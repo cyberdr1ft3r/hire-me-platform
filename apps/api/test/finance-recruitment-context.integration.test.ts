@@ -314,8 +314,6 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
   let recruiterUserId: string;
   let financeToken: string;
   let recruiterToken: string;
-  let hybridUserId: string;
-  let hybridToken: string;
   let clientA: { id: string };
   let clientB: { id: string };
   let missionA: { id: string; title: string };
@@ -361,11 +359,6 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
     await narrowRole(RoleName.EMPLOYEE, recruiterPermissions);
     financeUserId = await createUser(`finance${emailDomain}`, RoleName.FINANCE_MANAGER);
     recruiterUserId = await createUser(`recruiter${emailDomain}`, RoleName.EMPLOYEE);
-    hybridUserId = await createUser(`hybrid${emailDomain}`, RoleName.FINANCE_MANAGER);
-    const employeeRole = await prisma.role.findUniqueOrThrow({
-      where: { name: RoleName.EMPLOYEE },
-    });
-    await prisma.userRole.create({ data: { userId: hybridUserId, roleId: employeeRole.id } });
 
     clientA = await prisma.client.create({
       data: { name: 'Issue168 Client A', normalizedName: 'issue168 client a' },
@@ -401,7 +394,6 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
     permissions = moduleRef.get(PermissionsService);
     financeToken = await login(`finance${emailDomain}`);
     recruiterToken = await login(`recruiter${emailDomain}`);
-    hybridToken = await login(`hybrid${emailDomain}`);
   });
 
   afterAll(async () => {
@@ -950,123 +942,370 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
     expect((await financialContextGrant()).archivedAt).toBeNull();
   });
 
-  it('hybrid finance+recruitment role: financial context stays ALL without assignment; recruitment APIs stay scoped', async () => {
-    const hybridPerms = await permissions.getEffectivePermissionCodes(hybridUserId);
-    expect(hybridPerms).toContain(FINANCIAL_CONTEXT);
-    expect(hybridPerms).toContain('missions:view');
-    expect(hybridPerms).not.toContain('mission_candidates:transfer');
-    expect(hybridPerms).not.toContain('placements:view');
+  /**
+   * Effective permissions are a union across roles. The hybrid actor holds the seeded
+   * FINANCE_MANAGER role plus a second seeded role narrowed to generic recruitment
+   * reads (`missions:view`, `placements:view`), with no `mission_candidates:transfer`
+   * and no recruiter assignment. The twin holds only that second role, so any
+   * difference between them on a generic recruitment route would be a widening.
+   */
+  describe('hybrid Finance + recruitment actor', () => {
+    let teamLeaderSnapshot: RolePermissionSnapshot;
+    let hybridUserId: string;
+    let twinUserId: string;
+    let hybridToken: string;
+    let twinToken: string;
+    let clientH: { id: string };
+    let missionH: { id: string; title: string };
+    let placementH: Awaited<ReturnType<typeof createPlacement>>;
+    let hybridQuotationId: string;
+    let hybridIssuedInvoice: { id: string; reference: string };
 
-    const quotationRef = `${prefix}Q-HYBRID`;
-    const created = await post(hybridToken, '/v1/commercial/quotations', {
-      reference: quotationRef,
-      clientId: clientA.id,
-      recruitmentMissionId: missionA.id,
-      currency: 'MAD',
-      lines: placementFee,
+    beforeAll(async () => {
+      teamLeaderSnapshot = await snapshotRole(RoleName.TEAM_LEADER);
+      await narrowRole(RoleName.TEAM_LEADER, ['missions:view', 'placements:view']);
+      hybridUserId = await createUser(`hybrid${emailDomain}`, RoleName.FINANCE_MANAGER);
+      const teamLeader = await prisma.role.findUniqueOrThrow({
+        where: { name: RoleName.TEAM_LEADER },
+      });
+      await prisma.userRole.create({ data: { userId: hybridUserId, roleId: teamLeader.id } });
+      twinUserId = await createUser(`twin${emailDomain}`, RoleName.TEAM_LEADER);
+
+      clientH = await prisma.client.create({
+        data: { name: 'Issue168 Client Hybrid', normalizedName: 'issue168 client hybrid' },
+      });
+      missionH = await createMission(clientH.id, 'Hybrid Mission');
+      placementH = await createPlacement(missionH.id, recruiterUserId, 'hybrid');
+      hybridIssuedInvoice = await createIssuedInvoice(clientH.id, missionH.id, 'H-I-ACCT');
+
+      hybridToken = await login(`hybrid${emailDomain}`);
+      twinToken = await login(`twin${emailDomain}`);
     });
-    expect(created.status).toBe(201);
-    const quotationId = (created.body as { quotation: { id: string } }).quotation.id;
 
-    const commercialMissionOptions = await api(
-      hybridToken,
-      `/v1/commercial/financial-context/missions?clientId=${clientA.id}&search=Mission%20A`,
-    );
-    expect(commercialMissionOptions.status).toBe(200);
-    expect((commercialMissionOptions.body as { options: { id: string }[] }).options[0]?.id).toBe(
-      missionA.id,
-    );
-
-    const hybridPlacement = await createPlacement(missionA.id, recruiterUserId, 'hybrid-invoice');
-    const commercialPlacements = await api(
-      hybridToken,
-      `/v1/commercial/financial-context/placements?clientId=${clientA.id}`,
-    );
-    expect(commercialPlacements.status).toBe(200);
-    expect(
-      (commercialPlacements.body as { options: { id: string }[] }).options.map((row) => row.id),
-    ).toContain(hybridPlacement.placement.id);
-
-    const accountingMissions = await api(
-      hybridToken,
-      `/v1/accounting/financial-context/missions?clientId=${clientA.id}&search=Mission%20A`,
-    );
-    expect(accountingMissions.status).toBe(200);
-
-    const hybridInvoice = await post(hybridToken, '/v1/commercial/invoices', {
-      reference: `${prefix}I-HYBRID`,
-      clientId: clientA.id,
-      recruitmentMissionId: missionA.id,
-      missionPlacementId: hybridPlacement.placement.id,
-      currency: 'MAD',
-      lines: placementFee,
-    });
-    expect(hybridInvoice.status).toBe(201);
-    const hybridInvoiceId = (hybridInvoice.body as { invoice: { id: string } }).invoice.id;
-    const generated = await post(
-      hybridToken,
-      `/v1/commercial/invoices/${hybridInvoiceId}/generate`,
-      { outputFamily: 'PDF', language: 'fr', idempotencyKey: `issue168-hybrid-${randomUUID()}` },
-    );
-    expect(generated.status).toBe(201);
-    const { documentId, versionId } = (
-      generated.body as { generated: { documentId: string; versionId: string } }
-    ).generated;
-    expect((await api(hybridToken, `/v1/documents/${documentId}`)).status).toBe(200);
-    await expect(
-      documents.assertFinancialSigningVersionAccess(documentId, versionId, hybridUserId),
-    ).resolves.toMatchObject({ version: { id: versionId } });
-
-    const expense = await post(hybridToken, '/v1/accounting/expenses', {
-      reference: `${prefix}EXP-HYBRID`,
-      expenseDate: new Date().toISOString(),
-      category: 'RECRUITMENT_SOURCING',
-      currency: 'MAD',
-      amountCents: 2_000,
-      clientId: clientA.id,
-      recruitmentMissionId: missionA.id,
-      missionPlacementId: hybridPlacement.placement.id,
-    });
-    expect(expense.status).toBe(201);
-    expect(
-      (
-        await api(
-          hybridToken,
-          `/v1/accounting/profitability?context=RECRUITMENT_MISSION&contextId=${missionA.id}`,
-        )
-      ).status,
-    ).toBe(200);
-
-    // Financial mission context works without recruiter assignment (regression for hybrid scope).
-    expect((await api(hybridToken, `/v1/commercial/quotations/${quotationId}`)).status).toBe(200);
-
-    // Generic recruitment APIs stay behind their own grants (not opened by finance context alone).
-    expect((await api(hybridToken, '/v1/missions')).status).toBe(200);
-    const process = eligible.process.id;
-    const recruitmentForbidden = [
-      `/v1/missions/${missionA.id}/candidates`,
-      `/v1/missions/${missionA.id}/candidates/${process}`,
-      `/v1/missions/${missionA.id}/candidates/${process}/placement`,
-      `/v1/missions/${missionA.id}/candidates/${process}/offers`,
-      `/v1/candidates/${eligible.candidate.id}`,
-      `/v1/commercial/placement-options?clientId=${clientA.id}`,
-    ];
-    for (const path of recruitmentForbidden) {
-      const response = await api(hybridToken, path);
-      expect({ path, status: response.status }).toEqual({ path, status: 403 });
-    }
-
-    await prisma.missionRecruiter.create({
-      data: { missionId: missionA.id, userId: hybridUserId, status: 'ACTIVE' },
-    });
-    try {
-      const assignedMissions = await api(hybridToken, '/v1/missions');
-      expect(assignedMissions.status).toBe(200);
-      expect(JSON.stringify(assignedMissions.body)).toContain(missionA.id);
-      expect((await api(hybridToken, `/v1/missions/${missionA.id}`)).status).toBe(200);
-      expect((await api(hybridToken, `/v1/commercial/quotations/${quotationId}`)).status).toBe(200);
-    } finally {
+    afterAll(async () => {
       await prisma.missionRecruiter.deleteMany({ where: { userId: hybridUserId } });
+      await restoreRole(RoleName.TEAM_LEADER, teamLeaderSnapshot);
+    });
+
+    async function missionIds(token: string, clientId: string) {
+      const response = await api(token, `/v1/missions?clientId=${clientId}&pageSize=100`);
+      return {
+        status: response.status,
+        ids: ((response.body as { missions?: { id: string }[] }).missions ?? [])
+          .map((mission) => mission.id)
+          .sort(),
+      };
     }
+
+    it('holds the union of both roles without transfer or a recruiter assignment', async () => {
+      const hybrid = await permissions.getEffectivePermissionCodes(hybridUserId);
+      expect(hybrid).toEqual(
+        expect.arrayContaining([FINANCIAL_CONTEXT, 'missions:view', 'placements:view']),
+      );
+      expect(hybrid).not.toContain('mission_candidates:transfer');
+      const twin = await permissions.getEffectivePermissionCodes(twinUserId);
+      expect(twin).toContain('missions:view');
+      expect(twin).not.toContain(FINANCIAL_CONTEXT);
+      expect(await prisma.missionRecruiter.count({ where: { userId: hybridUserId } })).toBe(0);
+    });
+
+    it('keeps the full financial scope for Commercial mission and placement context', async () => {
+      const missions = await api(
+        hybridToken,
+        `/v1/commercial/financial-context/missions?clientId=${clientH.id}`,
+      );
+      expect(missions.status).toBe(200);
+      expect(missions.body).toEqual({ options: [{ id: missionH.id, title: missionH.title }] });
+      const placements = await api(
+        hybridToken,
+        `/v1/commercial/financial-context/placements?clientId=${clientH.id}`,
+      );
+      expect(placements.status).toBe(200);
+      expect(
+        (placements.body as { options: { id: string }[] }).options.map((option) => option.id),
+      ).toEqual([placementH.placement.id]);
+
+      const created = await post(hybridToken, '/v1/commercial/quotations', {
+        reference: `${prefix}H-Q`,
+        clientId: clientH.id,
+        recruitmentMissionId: missionH.id,
+        currency: 'MAD',
+        lines: placementFee,
+      });
+      expect(created.status).toBe(201);
+      const quotation = (created.body as { quotation: { id: string; display: unknown } }).quotation;
+      hybridQuotationId = quotation.id;
+      expect(quotation.display).toMatchObject({ missionTitle: missionH.title });
+      expect((await api(hybridToken, `/v1/commercial/quotations/${quotation.id}`)).status).toBe(
+        200,
+      );
+      const list = await api(
+        hybridToken,
+        `/v1/commercial/quotations?clientId=${clientH.id}&pageSize=100`,
+      );
+      expect(JSON.stringify(list.body)).toContain(quotation.id);
+
+      const invoice = await post(hybridToken, '/v1/commercial/invoices', {
+        reference: `${prefix}H-I-PLACED`,
+        clientId: clientH.id,
+        recruitmentMissionId: missionH.id,
+        missionPlacementId: placementH.placement.id,
+        currency: 'MAD',
+        lines: placementFee,
+      });
+      expect(invoice.status).toBe(201);
+      const invoiceBody = invoice.body as {
+        invoice: { id: string; display: { missionTitle: string | null; placement: unknown } };
+      };
+      expect(invoiceBody.invoice.display.missionTitle).toBe(missionH.title);
+      expect(invoiceBody.invoice.display.placement).toEqual({
+        integrationStartDate: '2026-09-15T00:00:00.000Z',
+        confirmedAt: placementH.placement.confirmedAt.toISOString(),
+      });
+      expect(JSON.stringify(invoice.body)).not.toContain(placementH.candidate.id);
+      expect(
+        (await api(hybridToken, `/v1/commercial/invoices/${invoiceBody.invoice.id}`)).status,
+      ).toBe(200);
+
+      // The recruitment-only actor (missions:view, unassigned) still sees none of it,
+      // so the hybrid's reach comes from the financial context, not from missions:view.
+      const hidden = await api(recruiterToken, `/v1/commercial/quotations/${quotation.id}`);
+      const nonexistent = await api(recruiterToken, `/v1/commercial/quotations/${randomUUID()}`);
+      expect(hidden.status).toBe(404);
+      expect(hidden.body).toEqual(nonexistent.body);
+    });
+
+    it('keeps the full financial scope for Accounting references, expenses, and profitability', async () => {
+      const payment = await post(hybridToken, '/v1/accounting/payments', {
+        reference: `${prefix}H-PAY`,
+        clientId: clientH.id,
+        receivedDate: new Date().toISOString(),
+        currency: 'MAD',
+        amountCents: 36_000,
+        method: 'BANK_TRANSFER',
+      });
+      expect(payment.status).toBe(201);
+      const paymentId = (payment.body as { payment: { id: string } }).payment.id;
+      const allocation = await post(
+        hybridToken,
+        `/v1/accounting/payments/${paymentId}/allocations`,
+        { invoiceId: hybridIssuedInvoice.id, amountCents: 10_000 },
+      );
+      expect(allocation.status).toBe(201);
+      const paymentDetail = await api(hybridToken, `/v1/accounting/payments/${paymentId}`);
+      const allocations = (
+        paymentDetail.body as {
+          payment: {
+            allocations: { amountCents: number | null; display: { invoiceReference: unknown } }[];
+          };
+        }
+      ).payment.allocations;
+      expect(allocations[0]!.display.invoiceReference).toBe(hybridIssuedInvoice.reference);
+      expect(allocations[0]!.amountCents).toBe(10_000);
+
+      const accountingMissions = await api(
+        hybridToken,
+        `/v1/accounting/financial-context/missions?clientId=${clientH.id}`,
+      );
+      expect(accountingMissions.body).toEqual({
+        options: [{ id: missionH.id, title: missionH.title }],
+      });
+      const financialPlacements = await api(
+        hybridToken,
+        `/v1/accounting/financial-context/placements?recruitmentMissionId=${missionH.id}`,
+      );
+      expect(financialPlacements.status).toBe(200);
+      // The Accounting placement picker is an Accounting path: with `placements:view`
+      // it applies the same financial scope and returns the same bounded options.
+      const accountingPicker = await api(
+        hybridToken,
+        `/v1/accounting/placement-options?recruitmentMissionId=${missionH.id}`,
+      );
+      expect(accountingPicker.status).toBe(200);
+      expect(accountingPicker.body).toEqual(financialPlacements.body);
+      expect(JSON.stringify(accountingPicker.body)).not.toContain(placementH.candidate.id);
+
+      const expense = await post(hybridToken, '/v1/accounting/expenses', {
+        reference: `${prefix}H-EXP`,
+        expenseDate: new Date().toISOString(),
+        category: 'RECRUITMENT_SOURCING',
+        currency: 'MAD',
+        amountCents: 5_000,
+        clientId: clientH.id,
+        recruitmentMissionId: missionH.id,
+        missionPlacementId: placementH.placement.id,
+      });
+      expect(expense.status).toBe(201);
+      const expenseId = (expense.body as { expense: { id: string } }).expense.id;
+      expect((await api(hybridToken, `/v1/accounting/expenses/${expenseId}`)).status).toBe(200);
+      const expenses = await api(hybridToken, '/v1/accounting/expenses?pageSize=100');
+      expect(JSON.stringify(expenses.body)).toContain(expenseId);
+
+      const missionProfit = await api(
+        hybridToken,
+        `/v1/accounting/profitability?context=RECRUITMENT_MISSION&contextId=${missionH.id}`,
+      );
+      expect(missionProfit.status).toBe(200);
+      expect(
+        (
+          missionProfit.body as {
+            profitability: {
+              totalsByCurrency: {
+                currency: string;
+                revenueCents: number;
+                expenseCents: number;
+              }[];
+            };
+          }
+        ).profitability.totalsByCurrency,
+      ).toContainEqual(
+        expect.objectContaining({ currency: 'MAD', revenueCents: 36_000, expenseCents: 5_000 }),
+      );
+      const placementProfit = await api(
+        hybridToken,
+        `/v1/accounting/profitability?context=PLACEMENT&contextId=${placementH.placement.id}`,
+      );
+      expect(placementProfit.status).toBe(200);
+    });
+
+    it('agrees between generated-document list and direct reads for hybrid and Finance-only actors', async () => {
+      const generated = await post(
+        hybridToken,
+        `/v1/commercial/invoices/${hybridIssuedInvoice.id}/generate`,
+        { outputFamily: 'PDF', language: 'fr', idempotencyKey: `issue168-${randomUUID()}` },
+      );
+      expect(generated.status).toBe(201);
+      const { documentId, versionId } = (
+        generated.body as { generated: { documentId: string; versionId: string } }
+      ).generated;
+
+      const actors = [
+        { name: 'hybrid', token: hybridToken, userId: hybridUserId, visible: true },
+        { name: 'finance-only', token: financeToken, userId: financeUserId, visible: true },
+        {
+          name: 'recruitment-only',
+          token: recruiterToken,
+          userId: recruiterUserId,
+          visible: false,
+        },
+      ];
+      for (const actor of actors) {
+        const listed = JSON.stringify(
+          (await api(actor.token, '/v1/documents?pageSize=100')).body,
+        ).includes(documentId);
+        const detail = await api(actor.token, `/v1/documents/${documentId}`);
+        const versions = await api(actor.token, `/v1/documents/${documentId}/versions`);
+        const download = await fetch(
+          `${baseUrl}/v1/documents/${documentId}/versions/${versionId}/download`,
+          { headers: { Authorization: `Bearer ${actor.token}` } },
+        );
+        await download.arrayBuffer();
+        const direct = await documents.hasAuthorizedDocumentAccess(documentId, actor.userId);
+        const expectedStatus = actor.visible ? 200 : 404;
+        expect({
+          actor: actor.name,
+          listed,
+          detail: detail.status,
+          versions: versions.status,
+          download: download.status,
+          direct,
+        }).toEqual({
+          actor: actor.name,
+          listed: actor.visible,
+          detail: expectedStatus,
+          versions: expectedStatus,
+          download: expectedStatus,
+          direct: actor.visible,
+        });
+        if (!actor.visible) {
+          const missing = await api(actor.token, `/v1/documents/${randomUUID()}`);
+          expect(detail.body).toEqual(missing.body);
+        }
+      }
+      await expect(
+        documents.assertFinancialSigningVersionAccess(documentId, versionId, hybridUserId),
+      ).resolves.toMatchObject({ version: { id: versionId } });
+    });
+
+    it('leaves generic Missions and placement APIs on recruitment rules until the actor is assigned', async () => {
+      const process = placementH.process.id;
+      const placementPath = `/v1/missions/${missionH.id}/candidates/${process}/placement`;
+      const permissionGated = [
+        `/v1/missions/${missionH.id}/candidates`,
+        `/v1/missions/${missionH.id}/candidates/${process}`,
+        `/v1/missions/${missionH.id}/candidates/${process}/offers`,
+        `/v1/missions/${missionH.id}/candidates/${process}/interviews`,
+        '/v1/candidates',
+        `/v1/candidates/${placementH.candidate.id}`,
+        `/v1/commercial/placement-options?clientId=${clientH.id}`,
+      ];
+
+      async function assertGenericParity() {
+        // `/v1/missions` is the generic recruitment directory: identical to the twin's.
+        const hybridMissions = await missionIds(hybridToken, clientH.id);
+        expect(hybridMissions).toEqual(await missionIds(twinToken, clientH.id));
+        const hybridDetail = await api(hybridToken, `/v1/missions/${missionH.id}`);
+        const twinDetail = await api(twinToken, `/v1/missions/${missionH.id}`);
+        expect(hybridDetail.status).toBe(twinDetail.status);
+        expect((await api(financeToken, '/v1/missions')).status).toBe(403);
+        for (const path of permissionGated) {
+          const response = await api(hybridToken, path);
+          expect({ path, status: response.status }).toEqual({ path, status: 403 });
+          expect(JSON.stringify(response.body)).not.toContain(placementH.candidate.id);
+        }
+      }
+
+      await assertGenericParity();
+      // Generic placement detail keeps `placements:view` + an active mission assignment.
+      for (const token of [hybridToken, twinToken]) {
+        const response = await api(token, placementPath);
+        expect(response.status).toBe(403);
+        expect(code(response.body)).toBe('MISSION_SCOPE_REQUIRED');
+        expect(JSON.stringify(response.body)).not.toContain(placementH.placement.id);
+      }
+
+      await prisma.missionRecruiter.create({
+        data: { missionId: missionH.id, userId: hybridUserId, status: 'ACTIVE' },
+      });
+      try {
+        // Only the generic behaviour that `placements:view` + assignment grants changes.
+        const assigned = await api(hybridToken, placementPath);
+        expect(assigned.status).toBe(200);
+        expect((assigned.body as { placement: { id: string } }).placement.id).toBe(
+          placementH.placement.id,
+        );
+        expect((await api(twinToken, placementPath)).status).toBe(403);
+        await assertGenericParity();
+
+        // Finance context stays ALL: an unassigned mission of another client remains
+        // reachable through the financial paths, and existing records stay readable.
+        const otherClientMissions = await api(
+          hybridToken,
+          `/v1/commercial/financial-context/missions?clientId=${clientB.id}`,
+        );
+        expect(
+          (otherClientMissions.body as { options: { id: string }[] }).options.map(
+            (option) => option.id,
+          ),
+        ).toContain(missionB.id);
+        const unassigned = await post(hybridToken, '/v1/commercial/quotations', {
+          reference: `${prefix}H-Q-UNASSIGNED`,
+          clientId: clientB.id,
+          recruitmentMissionId: missionB.id,
+          currency: 'MAD',
+          lines: placementFee,
+        });
+        expect(unassigned.status).toBe(201);
+        const unassignedId = (unassigned.body as { quotation: { id: string } }).quotation.id;
+        expect((await api(hybridToken, `/v1/commercial/quotations/${unassignedId}`)).status).toBe(
+          200,
+        );
+        expect(
+          (await api(hybridToken, `/v1/commercial/quotations/${hybridQuotationId}`)).status,
+        ).toBe(200);
+      } finally {
+        await prisma.missionRecruiter.deleteMany({ where: { userId: hybridUserId } });
+      }
+    });
   });
 });

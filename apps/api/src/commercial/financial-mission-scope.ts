@@ -2,20 +2,18 @@
  * D-086 / Issue #168 mission scope for financial (Commercial, Accounting,
  * generated-document, and financial-signing) predicates only.
  *
+ * - `ALL`: `recruitment_financial_context:view`, independently of any other grant, or
+ *   the recruitment transfer override (`missions:view` + `mission_candidates:transfer`).
+ *   Callers still require `clients:view` and the record/client relationship.
  * - `ASSIGNED`: a recruitment actor (`missions:view`) without
- *   `mission_candidates:transfer` reaches only missions with an active recruiter
- *   assignment, exactly as before.
- * - `ALL`: `recruitment_financial_context:view` (bounded finance authority, still
- *   requires `clients:view` and the record/client relationship), or a recruitment
- *   actor with `mission_candidates:transfer`.
- * - `ASSIGNED`: recruitment actor with `missions:view` only (active recruiter row).
+ *   `mission_candidates:transfer` and without the financial context reaches only
+ *   missions with an active recruiter assignment, exactly as before.
  * - `NONE`: mission-linked financial records stay hidden.
  *
- * On financial paths only, `recruitment_financial_context:view` is independent of
- * `missions:view` so hybrid finance+recruitment roles do not lose client-scoped
- * financial visibility when they lack recruiter assignment. Generic Missions,
- * candidate-process, offer, interview, evaluation, and placement routes keep
- * their existing recruitment guards.
+ * Effective permissions are a union, so holding `missions:view` through another role
+ * never narrows the financial context back to recruiter assignment. This scope never
+ * authorizes a Missions, candidate-process, offer, interview, evaluation, or generic
+ * placement route; those keep their own recruitment guards.
  */
 export type FinancialMissionScope = 'NONE' | 'ASSIGNED' | 'ALL';
 
