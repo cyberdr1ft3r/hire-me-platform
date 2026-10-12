@@ -23,6 +23,9 @@ const emptyResult = (): TaskReminderTickResult => ({
   overdueNotificationsCreated: 0,
   overdueSkippedLocked: 0,
   overdueFailed: 0,
+  backlogDue: 0,
+  oldestDueAgeSeconds: 0,
+  budgetExhausted: false,
 });
 
 describe('runSchedulerTick', () => {
