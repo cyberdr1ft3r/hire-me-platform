@@ -12,7 +12,7 @@ Last updated: 2026-10-12
 
 - **Issue #163** (R-050/R-051): **draft PR #164** — bounded Finance visibility preflight; **D-086 Proposed**; exact-head CI evidence on the PR (not duplicated here).
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
-- **Issue #183:** draft **PR #185** — SoftHSM PKCS#11 lab; exact-head CI green (`38274814991`); architecture-only proof; **#147 C2 state unchanged** (`READY_TO_CONTACT_PROVIDER`).
+- **Issue #183:** draft **PR #185** — SoftHSM PKCS#11 lab; maintainer review blockers addressed (runtime smoke PINs, on-token certificate discovery/`CKA_ID` binding, required-mode CI); awaiting exact-head CI and re-review; architecture-only proof; **#147 C2 state unchanged** (`READY_TO_CONTACT_PROVIDER`).
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
 ## Next concrete action
