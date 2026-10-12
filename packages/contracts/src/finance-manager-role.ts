@@ -30,6 +30,9 @@ export const FINANCE_MANAGER_PERMISSION_CODES = [
   'financial_documents:sign',
   'financial_documents:seal',
   'financial_documents:view_signature_audit',
+  // D-087 / Issue #171: an internal collaboration role, so it may use messaging.
+  'messages:view',
+  'messages:create',
 ] as const;
 
 export type FinanceManagerPermissionCode = (typeof FINANCE_MANAGER_PERMISSION_CODES)[number];

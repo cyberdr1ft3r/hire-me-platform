@@ -537,6 +537,14 @@ enum MessageStatus {
   ARCHIVED @map("archived")
 }
 
+/// Issue #171 / D-087: membership lifecycle. A member who leaves or is removed
+/// loses all read access; re-adding reactivates the same row.
+enum ConversationMemberStatus {
+  ACTIVE  @map("active")
+  LEFT    @map("left")
+  REMOVED @map("removed")
+}
+
 enum QuotationStatus {
   DRAFT    @map("draft")
   ISSUED   @map("issued")
@@ -677,7 +685,12 @@ model User {
   authoredNotifications               Notification[]                 @relation("NotificationActor")
   archivedNotifications               Notification[]                 @relation("NotificationArchiver")
   authoredMessages                    Message[]                      @relation("MessageAuthor")
+  archivedMessages                    Message[]                      @relation("MessageArchiver")
+  editedMessageRevisions              MessageRevision[]              @relation("MessageRevisionEditor")
   conversationMemberships             ConversationMember[]
+  removedConversationMemberships      ConversationMember[]           @relation("ConversationMemberRemover")
+  createdConversations                Conversation[]                 @relation("ConversationCreator")
+  archivedConversations               Conversation[]                 @relation("ConversationArchiver")
   trainingEnrollments                 TrainingEnrollment[]           @relation("UserTrainingEnrollment")
   trainingEnrollmentsCreated          TrainingEnrollment[]           @relation("TrainingEnrollmentCreator")
   trainingParticipationsRecorded      TrainingSessionParticipation[] @relation("TrainingParticipationRecorder")
@@ -2495,63 +2508,110 @@ model Notification {
   @@index([archivedAt])
 }
 
+/// Issue #171 / D-087 internal messaging. Shape rules that a single row can
+/// prove are CHECK constraints in migration `20261012170000_messaging_foundation`:
+/// PRIVATE has no title and a canonical `directKey` ("<lowerUuid>:<higherUuid>");
+/// GROUP has a trimmed 1-120 character title and no `directKey`; only a GROUP can
+/// be archived, and archival names its actor. Cross-row invariants (exactly two
+/// PRIVATE members, 3-50 GROUP members at creation, at most 50 active) are
+/// enforced transactionally under the Conversation row lock (MessagingAccessService).
 model Conversation {
-  id                String             @id @default(uuid()) @db.Uuid
-  type              ConversationType
-  title             String?
-  relatedEntityType String?
-  relatedEntityId   String?            @db.Uuid
-  status            ConversationStatus @default(ACTIVE)
-  archivedAt        DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                  String             @id @default(uuid()) @db.Uuid
+  type                ConversationType
+  title               String?
+  directKey           String?            @unique
+  createdByUserId     String             @db.Uuid
+  status              ConversationStatus @default(ACTIVE)
+  archivedAt          DateTime?
+  archivedByUserId    String?            @db.Uuid
+  lastMessageSequence BigInt             @default(0)
+  lastMessageAt       DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
-  members  ConversationMember[]
-  messages Message[]
+  createdBy  User                 @relation("ConversationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  archivedBy User?                @relation("ConversationArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
+  members    ConversationMember[]
+  messages   Message[]
 
   @@index([type])
-  @@index([status])
-  @@index([relatedEntityType, relatedEntityId])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@index([createdByUserId])
+  @@index([archivedByUserId])
 }
 
+/// One row per (conversation, user). `historyAfterSequence` is an EXCLUSIVE
+/// boundary: the member may read only messages with `sequence > historyAfterSequence`.
 model ConversationMember {
-  id             String                 @id @default(uuid()) @db.Uuid
-  conversationId String                 @db.Uuid
-  userId         String                 @db.Uuid
-  role           ConversationMemberRole @default(MEMBER)
-  joinedAt       DateTime               @default(now())
-  muted          Boolean                @default(false)
-  active         Boolean                @default(true)
-  archivedAt     DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id                   String                   @id @default(uuid()) @db.Uuid
+  conversationId       String                   @db.Uuid
+  userId               String                   @db.Uuid
+  role                 ConversationMemberRole   @default(MEMBER)
+  status               ConversationMemberStatus @default(ACTIVE)
+  joinedAt             DateTime                 @default(now())
+  leftAt               DateTime?
+  removedByUserId      String?                  @db.Uuid
+  historyAfterSequence BigInt                   @default(0)
+  lastReadSequence     BigInt                   @default(0)
+  hiddenAt             DateTime?
+  muted                Boolean                  @default(false)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  removedBy    User?        @relation("ConversationMemberRemover", fields: [removedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([conversationId, userId])
-  @@index([userId])
-  @@index([active])
+  @@index([userId, status])
+  @@index([conversationId, status])
+  @@index([removedByUserId])
 }
 
+/// Per-conversation ordered message. `sequence` is allocated under the
+/// Conversation row lock; `clientMessageId` makes a retried send idempotent.
 model Message {
-  id             String        @id @default(uuid()) @db.Uuid
-  conversationId String        @db.Uuid
-  authorUserId   String        @db.Uuid
-  body           String
-  status         MessageStatus @default(ACTIVE)
-  editedAt       DateTime?
-  archivedAt     DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id               String        @id @default(uuid()) @db.Uuid
+  conversationId   String        @db.Uuid
+  authorUserId     String        @db.Uuid
+  sequence         BigInt
+  clientMessageId  String        @db.Uuid
+  body             String
+  status           MessageStatus @default(ACTIVE)
+  editedAt         DateTime?
+  editCount        Int           @default(0)
+  archivedAt       DateTime?
+  archivedByUserId String?       @db.Uuid
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
-  author       User         @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  author       User              @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  archivedBy   User?             @relation("MessageArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
   documents    Document[]
+  revisions    MessageRevision[]
 
-  @@index([conversationId])
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, authorUserId, clientMessageId])
   @@index([authorUserId])
-  @@index([status])
+  @@index([archivedByUserId])
+}
+
+/// Append-only edit history (D-087). A database trigger rejects UPDATE and
+/// DELETE; there is no API for it in V1.
+model MessageRevision {
+  id             String   @id @default(uuid()) @db.Uuid
+  messageId      String   @db.Uuid
+  revisionNumber Int
+  previousBody   String
+  editedByUserId String   @db.Uuid
+  editedAt       DateTime @default(now())
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Restrict)
+  editedBy User    @relation("MessageRevisionEditor", fields: [editedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([messageId, revisionNumber])
+  @@index([editedByUserId])
 }
 
 model AuditLog {
