@@ -10,7 +10,7 @@ Scope: **preflight / authorization architecture only** (no production code, seed
 
 **Do not** fix this by granting `missions:view` (Option A): that opens the full Missions API/workspace and still would not remove the **recruiter-assignment** filter without also granting `mission_candidates:transfer`.
 
-**Recommended (Option B + D):** add one bounded permission (proposed code **`recruitment_financial_context:view`**, CLIENT scope) that participates **only** in Commercial/Accounting/document signing **financial predicates** and **purpose-built option endpoints**, plus grant Finance the existing **`placements:view`** and **`placement_commercial_eligibility:view`** codes needed for placement-backed invoice rules (these do **not** unlock the Missions workspace). Keep **`GET /v1/missions`** behind `missions:view`.
+**Recommended (Option B + D):** add one bounded permission (proposed code **`recruitment_financial_context:view`**, CLIENT scope) that participates **only** in Commercial/Accounting/generated-document financial predicates and **purpose-built finance context endpoints**. Do **not** grant Finance the generic recruitment permissions **`placements:view`** or **`placement_commercial_eligibility:view`**: the finance capability must authorize only the minimum placement context needed inside financial workflows, while the generic placement API keeps its existing recruitment authorization. Keep **`GET /v1/missions`** behind `missions:view`.
 
 ---
 
@@ -151,7 +151,7 @@ Proposed: **`recruitment_financial_context:view`** (name tentative), scope type 
 
 **FINANCE_MANAGER:** should receive this permission in a **future implementation** issue (not #163).
 
-Also grant **`placements:view`** + **`placement_commercial_eligibility:view`** to FM (or document equivalent narrow placement read used only inside financial endpoints) — required by existing placement invoice validation; does not grant Missions workspace.
+Do **not** grant FM the generic **`placements:view`** or **`placement_commercial_eligibility:view`** permissions. Instead, the follow-up implementation should introduce a finance-only placement-context check under **`recruitment_financial_context:view`** for Commercial/Accounting paths that need a placement. The authoritative invoice path must still enforce confirmed status, client/mission linkage, and `eligibleForInvoicing`, but Finance does not need the generic recruitment placement-detail capability. If a human-visible eligibility state is later required, expose only the minimum bounded financial DTO rather than the full placement record.
 
 ### C — Derive from existing Commercial/Accounting authority alone
 
@@ -170,7 +170,7 @@ Also grant **`placements:view`** + **`placement_commercial_eligibility:view`** t
   `GET /v1/accounting/mission-context-options?clientId=&search=`  
   requiring `clients:view`, `commercial_data:access`, relevant module view, and **`recruitment_financial_context:view`** (not `missions:view`).
 - Return at most **20** `{ id, title }` (optional stable reference if exists), **no count**, client filter mandatory.
-- Reuse placement-options handlers with updated mission-scope helper (same eligibility rules, no candidate fields).
+- Use purpose-built finance placement-context options (or a finance-specific authorization branch inside the Commercial/Accounting option handlers) under `recruitment_financial_context:view`; do not make the generic recruitment placement-detail API reachable. Preserve the same eligibility rules and return no candidate/process fields.
 
 ---
 
@@ -208,7 +208,7 @@ Also grant **`placements:view`** + **`placement_commercial_eligibility:view`** t
 
 ## Future implementation split (suggested)
 
-1. **Permission + seed (D-071):** add `recruitment_financial_context:view`; grant FM + `placements:view` + `placement_commercial_eligibility:view`; ADMIN unchanged unless product wants parity.
+1. **Permission + seed (D-071):** add `recruitment_financial_context:view` and grant it to FM. Do **not** grant generic `placements:view` or `placement_commercial_eligibility:view` to FM. ADMIN unchanged unless product wants parity.
 2. **Commercial predicates + placement-options + mission-context-options endpoint.**
 3. **Accounting predicates + placement-options + mission-context-options endpoint.**
 4. **Documents `assertGeneratedSourceScope` alignment.**
@@ -230,6 +230,7 @@ Also grant **`placements:view`** + **`placement_commercial_eligibility:view`** t
 9. Revoke `recruitment_financial_context:view` → mission-linked rows disappear; refs null.
 10. ADMIN/HR_MANAGER regression on assignment-scoped recruitment paths.
 11. D-071 catalog gate after seed change.
+12. FINANCE_MANAGER with an active mission assignment still cannot call the generic mission-candidate placement-detail route without the existing `placements:view` permission; the new finance-context permission never becomes a recruitment-placement read capability.
 
 ---
 
@@ -238,7 +239,7 @@ Also grant **`placements:view`** + **`placement_commercial_eligibility:view`** t
 | Question | Answer |
 | --- | --- |
 | New permission required | **YES** (`recruitment_financial_context:view` proposed) |
-| FINANCE_MANAGER grant change | **YES** (financial context + placement view + eligibility view proposed) |
+| FINANCE_MANAGER grant change | **YES** (bounded financial context only; no generic placement read/eligibility grants) |
 | ADMIN/HR_MANAGER grant change | **NO** (unless product chooses optional grant for parity) |
 | Schema/migration | **NO** (permission catalog additive only) |
 | Production code in #163 | **NO** |
