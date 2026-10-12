@@ -35,7 +35,7 @@ Never commit credentials or production URLs to Git.
 
 1. Deploy API and worker from the **same release** (shared Prisma client and schema).
 2. Run **`pnpm --filter @hire-me/api prisma:migrate deploy`** (or your release equivalent) **before** the first worker tick of the new version.
-3. Ensure PostgreSQL is reachable (`After=network-online.target postgresql.service` in systemd).
+3. Ensure PostgreSQL is reachable through `DATABASE_URL`. The template orders only on `network-online.target` (`Wants=` + `After=`) because there is no fixed deployment topology: remote or managed PostgreSQL works with no extra unit dependency, and the runner exits non-zero if the database is unreachable. Hosts that run PostgreSQL **locally** may add `After=` / `Requires=` for their **actual** database unit name (for example `postgresql@16-main.service`); do not add a dependency on a unit the host does not have.
 4. Prefer database `TimeZone=UTC` at the server level; eligibility uses injected UTC instants, not session `NOW()`.
 
 ## Preferred: systemd one-shot + timer
@@ -51,7 +51,9 @@ Adjust paths on the host:
 | `Type=` | `oneshot` |
 | `ExecStart=` | `node /opt/hire-me/apps/api/dist/jobs/run-due-reminders.js --once` |
 | `TimeoutStartSec=` | `55` (tick must finish within ~one minute cadence) |
-| `EnvironmentFile=` | `/etc/hire-me/reminders.env` |
+| `EnvironmentFile=` | `/etc/hire-me/reminders.env` — **required** (no `-` prefix), so a missing file fails the unit start visibly |
+| `After=` / `Wants=` | `network-online.target` only; add a local DB unit only if the host has one |
+| `OnFailure=` | Commented out in the template; enable only with an alert unit the host actually provides |
 | Timer `OnCalendar=` | `*-*-* *:*:00` |
 | Timer `AccuracySec=` | `1s` |
 
@@ -61,6 +63,7 @@ Install (operator commands; paths may differ):
 sudo cp hire-me-reminders.service.example /etc/systemd/system/hire-me-reminders.service
 sudo cp hire-me-reminders.timer.example /etc/systemd/system/hire-me-reminders.timer
 # Edit ExecStart, User, WorkingDirectory, EnvironmentFile for the host.
+# Create /etc/hire-me/reminders.env (0600) first; the unit refuses to start without it.
 sudo systemctl daemon-reload
 sudo systemctl enable --now hire-me-reminders.timer
 ```
@@ -73,14 +76,27 @@ systemctl list-timers hire-me-reminders.timer
 journalctl -u hire-me-reminders.service -n 20 --no-pager
 ```
 
-Manual one-shot diagnostic on the host:
+Manual one-shot diagnostic on the host (preferred: run the installed unit, so the same user, working directory, and `EnvironmentFile` apply):
 
 ```bash
-sudo -u hire-me env $(grep -v '^#' /etc/hire-me/reminders.env | xargs) \
-  node /opt/hire-me/apps/api/dist/jobs/run-due-reminders.js --once
+sudo systemctl start hire-me-reminders.service   # blocks until the oneshot finishes
+systemctl show hire-me-reminders.service -p Result -p ExecMainStatus
+journalctl -u hire-me-reminders.service -n 20 --no-pager
 ```
 
-Expected: exit **0**, one stdout JSON line `event":"task_reminders.tick"`, counts only (no task titles, emails, or connection strings).
+If the unit is not installed yet, run the CLI as a transient unit; systemd reads the environment file itself, so no values pass through shell expansion or process arguments:
+
+```bash
+sudo systemd-run --wait --pipe --quiet \
+  --uid=hire-me --gid=hire-me \
+  --working-directory=/opt/hire-me/apps/api \
+  --property=EnvironmentFile=/etc/hire-me/reminders.env \
+  /usr/bin/node /opt/hire-me/apps/api/dist/jobs/run-due-reminders.js --once
+```
+
+Do not `cat`, `grep`, or `env`-print the environment file while diagnosing; it holds the database credential.
+
+Expected: exit **0** (`Result=success`, `ExecMainStatus=0`), one JSON line `event":"task_reminders.tick"`, counts only (no task titles, emails, or connection strings).
 
 ### Missed ticks and catch-up
 
@@ -95,7 +111,7 @@ sudo systemctl stop hire-me-reminders.service   # if a run is in flight; wait fo
 
 Revert the deployment artifact to the previous release, run `migrate deploy` if needed, re-enable the timer. Manual manager diagnostic (`POST /v1/tasks/reminders/process-due`) remains available for break-glass batches.
 
-Wire **`OnFailure=`** to your existing alert unit when the **process exits non-zero** (bootstrap/DB failure). Per-reminder transient failures recorded in the database do **not** fail the one-shot exit code.
+**`OnFailure=`** (in `[Unit]`) is **optional** and commented out in the template: this repository does not provide an alert unit. If the host has one, uncomment it with that unit's real name so a **non-zero exit** (bootstrap/DB failure) triggers it; otherwise alert on the failed unit state through your existing monitoring. Per-reminder transient failures recorded in the database do **not** fail the one-shot exit code.
 
 ## Cron fallback
 
