@@ -3163,10 +3163,7 @@ export async function listTrainingExternalParticipantOptions(
   const parsed = TrainingExternalParticipantOptionQuerySchema.parse(query);
   const response = await trainingRequest(
     accessToken,
-    trainingOptionQueryPath(
-      `/programs/${programId}/external-participant-options`,
-      parsed.search,
-    ),
+    trainingOptionQueryPath(`/programs/${programId}/external-participant-options`, parsed.search),
     {},
     apiBaseUrl,
   );

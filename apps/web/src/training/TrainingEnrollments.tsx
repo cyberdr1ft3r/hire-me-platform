@@ -94,7 +94,9 @@ export function TrainingEnrollments({
   loaders: EnrollmentLoaders;
   onArchive: (enrollment: TrainingEnrollmentSummary) => void;
   onCreate: (type: CreatableType, participant: TrainingPickerOption) => Promise<boolean>;
-  onCreateExternal: (values: ExternalParticipantCreateValues) => Promise<TrainingPickerOption | null>;
+  onCreateExternal: (
+    values: ExternalParticipantCreateValues,
+  ) => Promise<TrainingPickerOption | null>;
   onFiltersChange: (values: EnrollmentFilterValues) => void;
   onPage: (page: number) => void;
   onRetry: () => void;
@@ -329,7 +331,9 @@ function EnrollmentCreate({
 }: {
   loaders: EnrollmentLoaders;
   onCreate: (type: CreatableType, participant: TrainingPickerOption) => Promise<boolean>;
-  onCreateExternal: (values: ExternalParticipantCreateValues) => Promise<TrainingPickerOption | null>;
+  onCreateExternal: (
+    values: ExternalParticipantCreateValues,
+  ) => Promise<TrainingPickerOption | null>;
   program: TrainingProgramSummary;
   sourceKey: string;
   types: CreatableType[];

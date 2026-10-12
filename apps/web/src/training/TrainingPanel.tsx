@@ -710,11 +710,9 @@ export function TrainingPanel({
   const loadExternalParticipants: LoadTrainingOptions = async (search) => {
     const programId = selectedProgramRef.current;
     if (!programId) return [];
-    const response = await listTrainingExternalParticipantOptions(
-      sessionToken.current,
-      programId,
-      { search: search || undefined },
-    );
+    const response = await listTrainingExternalParticipantOptions(sessionToken.current, programId, {
+      search: search || undefined,
+    });
     return response.participants.map((participant) => ({
       id: participant.id,
       label: participant.displayName,
@@ -942,7 +940,10 @@ export function TrainingPanel({
     })
       .then(({ participant }) => {
         if (!isCurrent()) return null;
-        setFeedback({ tone: 'success', messageKey: 'training.feedback.externalParticipantCreated' });
+        setFeedback({
+          tone: 'success',
+          messageKey: 'training.feedback.externalParticipantCreated',
+        });
         return {
           id: participant.id,
           label: participant.displayName,

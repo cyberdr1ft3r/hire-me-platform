@@ -2665,13 +2665,15 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     });
     expect(enrolled.status).toBe(201);
 
-    expect(await prisma.user.count({ where: { displayName: 'Issue182 External Learner' } })).toBe(0);
-    expect(await prisma.candidate.count({ where: { displayName: 'Issue182 External Learner' } })).toBe(
+    expect(await prisma.user.count({ where: { displayName: 'Issue182 External Learner' } })).toBe(
       0,
     );
-    expect(await prisma.clientContact.count({ where: { displayName: 'Issue182 External Learner' } })).toBe(
-      0,
-    );
+    expect(
+      await prisma.candidate.count({ where: { displayName: 'Issue182 External Learner' } }),
+    ).toBe(0);
+    expect(
+      await prisma.clientContact.count({ where: { displayName: 'Issue182 External Learner' } }),
+    ).toBe(0);
   });
 
   it('denies external participant management without enrollment manage authority', async () => {
@@ -2680,13 +2682,16 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     await activateProgram(programId);
 
     expect(
-      (await api(sourceReadOnlyToken, '/external-participants', {
-        method: 'POST',
-        body: { displayName: 'Issue182 Denied External' },
-      })).status,
+      (
+        await api(sourceReadOnlyToken, '/external-participants', {
+          method: 'POST',
+          body: { displayName: 'Issue182 Denied External' },
+        })
+      ).status,
     ).toBe(403);
     expect(
-      (await api(sourceReadOnlyToken, `/programs/${programId}/external-participant-options`)).status,
+      (await api(sourceReadOnlyToken, `/programs/${programId}/external-participant-options`))
+        .status,
     ).toBe(403);
   });
 
@@ -2788,9 +2793,9 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     expect(rejected.status).toBe(409);
 
     const listed = await api(operatorToken, `/programs/${programId}/enrollments`);
-    const row = (listed.body as { enrollments: { id: string; participantDisplay: { displayName: string } }[] }).enrollments.find(
-      (item) => item.id === enrollmentId,
-    );
+    const row = (
+      listed.body as { enrollments: { id: string; participantDisplay: { displayName: string } }[] }
+    ).enrollments.find((item) => item.id === enrollmentId);
     expect(row?.participantDisplay.displayName).toBe('Issue182 Historical External');
   });
 });
