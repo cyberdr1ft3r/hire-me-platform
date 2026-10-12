@@ -1,0 +1,14 @@
+# Example systemd timer — template only, not deployed from this repository.
+
+[Unit]
+Description=Run Hire Me task reminder delivery every minute
+Documentation=file:///opt/hire-me/docs/runbooks/task-reminder-scheduler.md
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=true
+Unit=hire-me-reminders.service
+
+[Install]
+WantedBy=timers.target

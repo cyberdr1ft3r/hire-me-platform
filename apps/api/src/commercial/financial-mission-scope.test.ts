@@ -9,7 +9,7 @@ describe('resolveFinancialMissionScope (D-086)', () => {
     [false, false, true, 'ALL'],
     [false, true, true, 'ALL'],
     [true, false, false, 'ASSIGNED'],
-    [true, false, true, 'ASSIGNED'],
+    [true, false, true, 'ALL'],
     [true, true, false, 'ALL'],
     [true, true, true, 'ALL'],
   ] as const)(

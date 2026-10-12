@@ -133,6 +133,65 @@ export const TrainingEnrollmentOptionsResponseSchema = z.object({
   enrollments: z.array(TrainingEnrollmentOptionSchema).max(TRAINING_OPTION_LIMIT),
 });
 
+export const TrainingExternalParticipantStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']);
+
+export const TrainingExternalParticipantOptionQuerySchema = z.object({
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+/** Safe fields for enrollment selection only; no notes or phone. */
+export const TrainingExternalParticipantOptionSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string().nullable(),
+  organization: z.string().nullable(),
+});
+
+export const TrainingExternalParticipantOptionsResponseSchema = z.object({
+  participants: z.array(TrainingExternalParticipantOptionSchema).max(TRAINING_OPTION_LIMIT),
+});
+
+export const TrainingExternalParticipantSummarySchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  organization: z.string().nullable(),
+  notes: z.string().nullable(),
+  status: TrainingExternalParticipantStatusSchema,
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const TrainingExternalParticipantDetailResponseSchema = z.object({
+  participant: TrainingExternalParticipantSummarySchema,
+});
+
+export const TrainingExternalParticipantCreateRequestSchema = z.object({
+  displayName: z.string().trim().min(1).max(180),
+  email: z.string().trim().email().max(320).optional(),
+  phone: z.string().trim().min(1).max(40).optional(),
+  organization: z.string().trim().min(1).max(160).optional(),
+  notes: z.string().trim().min(1).max(2000).optional(),
+});
+
+export const TrainingExternalParticipantUpdateRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(180).optional(),
+    email: z.string().trim().email().max(320).nullable().optional(),
+    phone: z.string().trim().min(1).max(40).nullable().optional(),
+    organization: z.string().trim().min(1).max(160).nullable().optional(),
+    notes: z.string().trim().min(1).max(2000).nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required.',
+  });
+
+export const TrainingExternalParticipantStatusUpdateRequestSchema = z.object({
+  status: TrainingExternalParticipantStatusSchema.exclude(['ARCHIVED']),
+});
+
 /**
  * `clientId` is null when the program has no client context, and also when the
  * acting user is not authorized to read client context. A training identifier
@@ -529,6 +588,33 @@ export type TrainingEnrollmentOptionQuery = z.infer<typeof TrainingEnrollmentOpt
 export type TrainingEnrollmentOption = z.infer<typeof TrainingEnrollmentOptionSchema>;
 export type TrainingEnrollmentOptionsResponse = z.infer<
   typeof TrainingEnrollmentOptionsResponseSchema
+>;
+export type TrainingExternalParticipantStatus = z.infer<
+  typeof TrainingExternalParticipantStatusSchema
+>;
+export type TrainingExternalParticipantOptionQuery = z.infer<
+  typeof TrainingExternalParticipantOptionQuerySchema
+>;
+export type TrainingExternalParticipantOption = z.infer<
+  typeof TrainingExternalParticipantOptionSchema
+>;
+export type TrainingExternalParticipantOptionsResponse = z.infer<
+  typeof TrainingExternalParticipantOptionsResponseSchema
+>;
+export type TrainingExternalParticipantSummary = z.infer<
+  typeof TrainingExternalParticipantSummarySchema
+>;
+export type TrainingExternalParticipantDetailResponse = z.infer<
+  typeof TrainingExternalParticipantDetailResponseSchema
+>;
+export type TrainingExternalParticipantCreateRequest = z.infer<
+  typeof TrainingExternalParticipantCreateRequestSchema
+>;
+export type TrainingExternalParticipantUpdateRequest = z.infer<
+  typeof TrainingExternalParticipantUpdateRequestSchema
+>;
+export type TrainingExternalParticipantStatusUpdateRequest = z.infer<
+  typeof TrainingExternalParticipantStatusUpdateRequestSchema
 >;
 export type TrainingParticipationEnrollmentDisplay = z.infer<
   typeof TrainingParticipationEnrollmentDisplaySchema

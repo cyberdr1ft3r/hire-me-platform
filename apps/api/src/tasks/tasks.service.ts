@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   NotificationDetailResponse,
@@ -31,8 +29,10 @@ import type {
 import { TASK_USER_OPTION_LIMIT } from '@hire-me/contracts';
 
 import { TaskAuditService } from './task-audit.service.js';
+import { TaskReminderDeliveryService } from './task-reminder-delivery.service.js';
 import {
   buildVisibleTaskWhere,
+  resolveTaskAccessInTransaction,
   taskAccessFromPermissions,
   type TaskAccess,
 } from './task-visibility.js';
@@ -158,6 +158,8 @@ export class TasksService {
     @Inject(DocumentsService) private readonly documents: DocumentsService,
     @Inject(PermissionsService) private readonly permissions: PermissionsService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(TaskReminderDeliveryService)
+    private readonly reminderDelivery: TaskReminderDeliveryService,
   ) {}
 
   async listTasks(actorUserId: string, query: TaskListQuery): Promise<TaskListResponse> {
@@ -1227,6 +1229,11 @@ export class TasksService {
           canceledAt: null,
           canceledByUserId: null,
           failureReason: null,
+          // Manual retry path (R-036 / D-088): a rescheduled reminder starts with
+          // a fresh attempt budget and no backoff.
+          attemptCount: 0,
+          claimedAt: null,
+          processingToken: null,
         },
         include: { recipient: true },
       });
@@ -1297,86 +1304,37 @@ export class TasksService {
     return { reminder: this.toTaskReminder(updated) };
   }
 
+  /**
+   * Manual global delivery (`POST /v1/tasks/reminders/process-due`). It processes
+   * every due reminder in the system, so it requires both `tasks:reminders:manage`
+   * and `tasks:view_all`, and it runs the same per-reminder delivery engine as the
+   * scheduler with the authorized manager as actor.
+   */
   async processDueReminders(
     input: TaskReminderProcessRequest,
     actorUserId: string,
+    context: RequestContext,
   ): Promise<TaskReminderProcessResponse> {
-    return this.prisma.$transaction(async (tx) => {
-      const dueRows = await tx.$queryRaw<{ id: string; taskId: string }[]>`
-        SELECT "id"
-             , "taskId"
-        FROM "TaskReminder"
-        WHERE "status" IN ('pending', 'failed')
-          AND "remindAt" <= NOW()
-          AND "archivedAt" IS NULL
-        ORDER BY "remindAt" ASC
-        LIMIT ${input.limit}
-      `;
-      let remindersDelivered = 0;
-      const remindersFailed = 0;
-      for (const row of dueRows) {
-        await this.lockTask(tx, row.taskId);
-        const reminder = await this.lockTaskReminder(tx, row.taskId, row.id);
-        if (
-          !reminderRescheduleSourceStatuses.has(reminder.status) ||
-          reminder.remindAt > new Date() ||
-          reminder.archivedAt
-        ) {
-          continue;
-        }
-        if (terminalStatuses.has(reminder.task.status) || reminder.task.archivedAt) {
-          await tx.taskReminder.update({
-            where: { id: reminder.id },
-            data: {
-              status: TaskReminderStatus.CANCELED,
-              canceledAt: new Date(),
-              canceledByUserId: actorUserId,
-            },
-          });
-          continue;
-        }
-        const token = randomUUID();
-        await tx.taskReminder.update({
-          where: { id: reminder.id },
-          data: {
-            status: TaskReminderStatus.PROCESSING,
-            processingToken: token,
-            claimedAt: new Date(),
-            attemptCount: { increment: 1 },
-          },
-        });
-        await this.createNotification(tx, {
-          idempotencyKey: `task-reminder:${reminder.id}`,
-          recipientUserId: reminder.recipientUserId,
-          actorUserId: reminder.creatorUserId,
-          type: 'tasks.reminder.due',
-          title: 'Task reminder',
-          bodySummary: 'A task reminder is due.',
-          taskId: reminder.taskId,
-          recruitmentMissionId: reminder.task.recruitmentMissionId,
-          missionCandidateId: reminder.task.missionCandidateId,
-        });
-        await tx.taskReminder.update({
-          where: { id: reminder.id },
-          data: {
-            status: TaskReminderStatus.SENT,
-            deliveredAt: new Date(),
-            processingToken: null,
-            failureReason: null,
-          },
-        });
-        await this.createTaskEvent(tx, {
-          taskId: reminder.taskId,
-          actorUserId,
-          action: TaskEventAction.REMINDER_DELIVERED,
-          safeSummary: 'Task reminder delivered.',
-        });
-        remindersDelivered += 1;
-      }
-
-      const overdueNotificationsCreated = await this.processOverdueTasks(tx, actorUserId);
-      return { remindersDelivered, remindersFailed, overdueNotificationsCreated };
+    const access = await this.resolveAccess(actorUserId);
+    this.assertAccess(
+      access.remindersManage && access.viewAll,
+      'TASKS_REMINDERS_PROCESS_REQUIRED',
+      'Global reminder processing requires reminder management and all-task visibility.',
+    );
+    const tick = await this.reminderDelivery.runDueTick({
+      limit: input.limit,
+      trigger: 'manual',
+      actorUserId,
+      auditContext: {
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      },
     });
+    return {
+      remindersDelivered: tick.delivered,
+      remindersFailed: tick.failedTransient + tick.movedToFailed + tick.failureNotRecorded,
+      overdueNotificationsCreated: tick.overdueNotificationsCreated,
+    };
   }
 
   async listNotifications(
@@ -1596,61 +1554,6 @@ export class TasksService {
         canceledByUserId: actorUserId,
       },
     });
-  }
-
-  private async processOverdueTasks(tx: PrismaTransaction, actorUserId: string): Promise<number> {
-    const tasks = await tx.task.findMany({
-      where: {
-        dueAt: { lt: new Date() },
-        status: {
-          in: [TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.WAITING, TaskStatus.BLOCKED],
-        },
-        archivedAt: null,
-      },
-      include: {
-        assignments: { where: { status: TaskAssignmentStatus.ACTIVE, archivedAt: null } },
-      },
-      take: 100,
-    });
-    let created = 0;
-    for (const task of tasks) {
-      const recipientIds = [
-        ...new Set(
-          [task.ownerUserId, ...task.assignments.map((assignment) => assignment.userId)].filter(
-            Boolean,
-          ),
-        ),
-      ] as string[];
-      let taskNotificationsCreated = 0;
-      for (const recipientUserId of recipientIds) {
-        const idempotencyKey = `task-overdue:${task.id}:${recipientUserId}`;
-        const existed = await tx.notification.count({ where: { idempotencyKey } });
-        await this.createNotification(tx, {
-          idempotencyKey,
-          recipientUserId,
-          actorUserId,
-          type: 'tasks.overdue',
-          title: 'Task overdue',
-          bodySummary: 'A task is overdue.',
-          taskId: task.id,
-          recruitmentMissionId: task.recruitmentMissionId,
-          missionCandidateId: task.missionCandidateId,
-        });
-        if (existed === 0) {
-          created += 1;
-          taskNotificationsCreated += 1;
-        }
-      }
-      if (taskNotificationsCreated > 0) {
-        await this.createTaskEvent(tx, {
-          taskId: task.id,
-          actorUserId,
-          action: TaskEventAction.OVERDUE_NOTIFICATION_SENT,
-          safeSummary: 'Task overdue notification processed.',
-        });
-      }
-    }
-    return created;
   }
 
   private async normalizeAndAuthorizeContext(
@@ -2232,32 +2135,7 @@ export class TasksService {
     tx: PrismaTransaction,
     userId: string,
   ): Promise<TaskAccess> {
-    const userRoles = await tx.userRole.findMany({
-      where: {
-        userId,
-        archivedAt: null,
-        role: { status: 'ACTIVE' },
-      },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              where: {
-                archivedAt: null,
-                permission: { status: 'ACTIVE' },
-              },
-              include: { permission: true },
-            },
-          },
-        },
-      },
-    });
-    const permissions = new Set(
-      userRoles.flatMap((userRole) =>
-        userRole.role.permissions.map((rolePermission) => rolePermission.permission.code),
-      ),
-    );
-    return this.accessFromPermissions(permissions);
+    return resolveTaskAccessInTransaction(tx, userId);
   }
 
   private accessFromPermissions(permissions: ReadonlySet<string>): TaskAccess {

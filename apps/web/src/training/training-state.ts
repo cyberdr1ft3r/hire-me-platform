@@ -249,6 +249,7 @@ export type TrainingWriteAction =
   | 'rescheduleSession'
   | 'cancelSession'
   | 'archiveSession'
+  | 'createExternalParticipant'
   | 'createEnrollment'
   | 'enrollmentStatus'
   | 'withdrawEnrollment'
@@ -463,6 +464,9 @@ const CODE_MESSAGES: Record<string, MessageKey> = {
   TRAINING_CLIENT_CONTEXT_INVALID: 'training.feedback.failure.clientInvalid',
   TRAINING_CLIENT_SCOPE_REQUIRED: 'training.feedback.failure.scope',
   TRAINING_ENROLLMENT_ALREADY_ACTIVE: 'training.feedback.failure.alreadyEnrolled',
+  TRAINING_EXTERNAL_PARTICIPANT_ARCHIVED: 'training.feedback.failure.participantIneligible',
+  TRAINING_EXTERNAL_PARTICIPANT_EMAIL_TAKEN: 'training.feedback.failure.externalEmailTaken',
+  TRAINING_EXTERNAL_PARTICIPANT_NOT_FOUND: 'training.feedback.failure.participantIneligible',
   TRAINING_ENROLLMENT_ARCHIVE_BLOCKED: 'training.feedback.failure.lifecycle',
   TRAINING_ENROLLMENT_NOT_ACTIVE: 'training.feedback.failure.enrollmentNotActive',
   TRAINING_ENROLLMENT_NOT_MUTABLE: 'training.feedback.failure.lifecycle',

@@ -232,9 +232,10 @@ Seed mapping: `FINANCE_MANAGER` (plus `SUPER_ADMIN`, which holds every permissio
 
 One shared financial mission scope (`apps/api/src/commercial/financial-mission-scope.ts`) is used by the Commercial record scope, the Accounting invoice/expense/mission/placement scope, generated-document source scope (Documents and Generation), and therefore the financial-signing rechecks that call Documents:
 
-- `missions:view` without `mission_candidates:transfer`: unchanged active `MissionRecruiter` assignment rule. `missions:view` takes precedence, so recruitment actors keep their existing behaviour.
-- `missions:view` with `mission_candidates:transfer`, or `recruitment_financial_context:view` without `missions:view`: every mission, still bounded by `clients:view` and the record's client relationship.
-- Neither: mission-linked financial records stay hidden (client-only behaviour).
+- `recruitment_financial_context:view`: every mission within financial predicates, still bounded by `clients:view` and the record's client relationship (independent of `missions:view` and recruiter assignment).
+- `missions:view` without `mission_candidates:transfer` and without the finance capability: unchanged active `MissionRecruiter` assignment rule.
+- `missions:view` with `mission_candidates:transfer`: every mission within financial predicates, still client-bounded.
+- None of the above: mission-linked financial records stay hidden (client-only behaviour).
 
 The same scope drives list/aggregate predicates and detail/write checks. Hidden and nonexistent records keep the existing generic not-found envelopes.
 

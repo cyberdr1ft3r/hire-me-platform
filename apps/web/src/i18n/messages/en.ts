@@ -807,8 +807,8 @@ export const enMessages = {
     },
     diagnostics: {
       description:
-        'Reminder delivery runs in batches. No automatic scheduler is configured yet, so a manager can start delivery here.',
-      title: 'Reminder delivery',
+        'The delivery engine and standalone runner are available in the application, but automatic scheduling is configured separately on each environment. Use this control to run one manual batch for diagnostics; production delivery normally comes from the host scheduler when it is deployed.',
+      title: 'Reminder delivery (manual diagnostic)',
     },
     feedback: {
       archived: 'Task archived.',
