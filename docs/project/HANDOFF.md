@@ -14,7 +14,7 @@ Last updated: 2026-10-12
 
 ## Next concrete action
 
-1. Review **Issue #178** draft PR when exact-head CI is green.
+1. Re-review **Issue #178** draft PR #181 (material `failureNotRecorded`, deployment-neutral systemd template/runbook, latest `main` merged) when exact-head CI is green.
 2. On staging: deploy timer + worker, capture sanitized evidence per runbook staging gate, then mark R-036 mitigated/closed.
 3. Optional future: dedicated PostgreSQL worker role after query footprint sign-off.
 
