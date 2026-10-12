@@ -11,6 +11,12 @@ Status owner: repository maintainer
 - **#145 Phase C (PR #146):** Barid eSign first-party feasibility **accepted**; **D-085 Accepted**. See [feasibility doc](../design/issue-145-barid-esign-feasibility.md).
 - **#147 Phase C2 (in progress):** Barid **provider engagement package** prepared — [C2 doc](../design/issue-147-barid-c2-provider-engagement.md). **C2 state:** `READY_TO_CONTACT_PROVIDER`. **Questionnaire not sent** from automation; fixtures/route proof **blocked**. **Ready for provider implementation: NO**.
 
+## R-036 Task reminder scheduler
+
+- **PR #166 preflight:** D-088 Proposed; architecture reviewed on 2026-10-12. Recommendation: one-shot `reminders:run-due` every minute via systemd timer (cron/platform scheduler equivalent), DB-coordinated with Task-first `SKIP LOCKED`, one transaction per reminder, no Redis/queue, no schema migration.
+- Maintainer decisions: recipient inactive/no longer authorized → **CANCELED** with null system actor; transient retry = **5 attempts** with **1/5/15/60 min** backoff; manual global processor server gate = `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior remains unchanged.
+- Preflight found F1 batch rollback/poison-row blocking, F4 time-zone-sensitive raw `NOW()`, F5 overdue starvation, plus attribution/recipient/retry-state issues. Implementation remains PR A → B → C; no unattended deployment before the operations gate.
+
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
@@ -665,7 +671,7 @@ Hardening in the same pass: the shared-lock helper no longer takes a table name 
 2. Verify production environment overrides and upstream proxy/CDN body limits for D-068 before claiming production 5 MB availability.
 3. Open a scoped follow-up for suites that narrow and restore shared seeded roles (grant rows re-inserted, non-critical grant state), if the maintainer agrees.
 4. Continue the bilingual module rollout in its bounded issues (Training #111 next); defer D-DESIGN-01 whole-product UI-DNA v1.1 (Issues #117/#118) until after functional rollout.
-5. Open a separate scheduler issue for Task reminder delivery (R-036). R-039 unchanged.
+5. R-036 scheduler preflight is PR #166 / D-088 Proposed; after merge, implement bounded PRs A (delivery), B (runner), C (operations/deployed evidence). R-039 unchanged.
 
 ## Status Update Rules
 
