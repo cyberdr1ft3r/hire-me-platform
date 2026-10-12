@@ -4,37 +4,29 @@ Last updated: 2026-10-12
 
 ## Current situation
 
-- **D-068 / D-070:** production-readiness runbook is `RUNBOOK_READY`; no production inspection/migration has run. D-070 recovery explicitly handles possible partial Prisma v6 PostgreSQL migration application; do not assume a canceled migration rolled back both ALTER statements.
+- **R-036 Task reminder scheduler:** PR A (#173) and PR B (#177) merged on `main`. **Issue #178 PR C (draft):** operations runbook, AuditLog + lag observability, example systemd templates, UI diagnostic wording. **Staging evidence: BLOCKED / NOT EXECUTED** — see `docs/runbooks/task-reminder-scheduler-staging-evidence.md`. Do **not** close R-036 until staging checklist is satisfied on a real host.
 
-- **Messaging V1:** preflight PR #165 merged (**D-087 Proposed**); PR A foundation implemented under Issue #171 (draft PR, pending review). Parent #170 open. Architecture reviewed: internal-only membership scope; FINANCE_MANAGER included; CLIENT_USER grants must be removed; 15-minute auditable edits; 50-member groups; moderation deferred; exclusive late-join history boundary; no purge engine in V1, with retention policy required before broad production rollout.
+- **D-068 / D-070:** runbook `RUNBOOK_READY`; no production execution.
 
-- **R-036 Task reminder scheduler:** **D-088 Accepted.** PR A merged (#173). **Issue #176 PR B (draft):** `pnpm --filter @hire-me/api reminders:run-due` standalone runner; no systemd/runbook/AuditLog yet. R-036 stays open until PR C.
+- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A (draft #174):** foundation implemented; migration `20261012170000_messaging_foundation` is now one explicit `BEGIN;`…`COMMIT;` transaction (maintainer blocker addressed). No routes/UI.
 
-- **Issue #163** (R-050/R-051): **draft PR #164** — bounded Finance visibility preflight; **D-086 Proposed**; exact-head CI evidence on the PR (not duplicated here).
-- **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
-- **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
+- **Issue #163:** draft PR #164 Finance visibility preflight (**D-086 Proposed**).
 
 ## Next concrete action
 
+1. Re-review **Issue #178** draft PR #181 (material `failureNotRecorded`, deployment-neutral systemd template/runbook, latest `main` merged) when exact-head CI is green.
+2. On staging: deploy timer + worker, capture sanitized evidence per runbook staging gate, then mark R-036 mitigated/closed.
+3. Optional future: dedicated PostgreSQL worker role after query footprint sign-off.
+
 - **Issue #182 (R-049):** draft PR implements external Training participant management, EXTERNAL enrollment UI, and Training program/session deep links; review exact-head CI and ChatGPT architecture/security review when green.
+
+- **Issue #171 (Messaging PR A):** re-review draft PR #174 (explicit migration transaction, fail-closed legacy gate) when exact-head CI is green. After merge: PR B routes using the access helpers, Conversation-lock-first. Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; on any non-zero count or failure of this migration follow `docs/runbooks/messaging-legacy-rows.md`.
 
 - **D-068 operator inspection:** execute only the runbook's read-only topology/config checks and synthetic honeypot probe matrix under an approved production session; record sanitized evidence.
 - **D-070 production migration:** only after a named release/window, verified backup, exact pending migration list, and prechecks. Migrate DB before deploying a D-070 build; on any failure/cancel, inspect for partial schema before `migrate resolve` or retry.
 
-- **Messaging PR A (Issue #171):** draft PR open, not merged. Re-review migration `20261012170000_messaging_foundation` (now one explicit `BEGIN;`…`COMMIT;` transaction per the maintainer blocker; fail-closed legacy gate, CHECKs, append-only `MessageRevision`, grant reconciliation), `MessagingAccessService`, and contracts. After merge: open PR B (routes `/v1/messages/*`, picker, send/read/edit/withdraw, audit, stated rate-limit scope) using the access helpers, and keep every write Conversation-lock-first. Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; if any count is non-zero follow `docs/runbooks/messaging-legacy-rows.md`.
+## Completion conditions for R-036 close
 
-- **R-036 PR B (Issue #176):** review draft PR when exact-head CI passes. **PR C:** scheduler runbook, per-tick AuditLog with null actor, lag/backlog fields, deployed staging evidence; only then close R-036.
-
-1. Review and merge **Issue #163** preflight PR when exact-head CI is green and ChatGPT architecture review passes.
-2. Open/implement follow-up issue for **D-086** (permission + predicates + bounded option endpoints + regression matrix) — **do not** grant `missions:view` to Finance.
-3. Maintainer C2 Barid outreach (#147) remains parallel.
-
-## Preserved unrelated follow-ups
-
-- **R-050 / R-051:** shared boundary; preflight artifact `docs/design/issue-163-finance-mission-context-preflight.md`.
-- **D-068** production env/proxy verification; **D-070** migration not deployed in production.
-
-## D-071 catalog guarantees
-
-- `ensurePermissionForTest()` reuses seeded ACTIVE permissions; never reactivate non-ACTIVE seeded permissions.
-- After both integration passes: zero seeded Permission/RolePermission drift; provision with `C.UTF-8` collation.
+- PR C merged and reviewed.
+- Staging evidence checklist in `docs/runbooks/task-reminder-scheduler.md` completed with real (sanitized) proof.
+- No fabricated `systemctl`/journal artifacts in Git.

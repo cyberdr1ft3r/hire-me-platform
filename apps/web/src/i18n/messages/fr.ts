@@ -824,8 +824,8 @@ export const frMessages: Messages = {
     },
     diagnostics: {
       description:
-        'Les rappels sont envoyés par lots. Aucun planificateur automatique n’est encore configuré : un responsable peut lancer l’envoi ici.',
-      title: 'Envoi des rappels',
+        'Le moteur d’envoi et l’exécuteur autonome existent dans l’application, mais la planification automatique se configure séparément sur chaque environnement. Ce contrôle lance un lot manuel de diagnostic ; en production, l’envoi provient en principe du planificateur hôte une fois déployé.',
+      title: 'Envoi des rappels (diagnostic manuel)',
     },
     feedback: {
       archived: 'Tâche archivée.',
