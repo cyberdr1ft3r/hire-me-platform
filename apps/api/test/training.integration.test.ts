@@ -2700,10 +2700,11 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     const programId = String(program.id);
     await activateProgram(programId);
 
+    const searchToken = randomUUID().slice(0, 8);
     const alphaEmail = `alpha-${randomUUID()}@training.test`;
     const active = await prisma.externalTrainingParticipant.create({
       data: {
-        displayName: 'Issue182 Alpha External',
+        displayName: `Issue182 External ${searchToken}`,
         email: alphaEmail,
         normalizedEmail: alphaEmail.toLowerCase(),
         organization: 'Alpha Org',
@@ -2714,7 +2715,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
     });
     await prisma.externalTrainingParticipant.create({
       data: {
-        displayName: 'Issue182 Archived External',
+        displayName: `Issue182 Archived External ${searchToken}`,
         status: ExternalParticipantStatus.ARCHIVED,
         archivedAt: new Date(),
       },
@@ -2722,7 +2723,7 @@ describe('training operations foundation', { timeout: 30_000 }, () => {
 
     const options = await api(
       operatorToken,
-      `/programs/${programId}/external-participant-options?search=Alpha`,
+      `/programs/${programId}/external-participant-options?search=${encodeURIComponent(searchToken)}`,
     );
     expect(options.status).toBe(200);
     const body = options.body as {
