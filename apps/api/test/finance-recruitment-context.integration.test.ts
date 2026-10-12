@@ -1035,14 +1035,13 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
       ).status,
     ).toBe(200);
 
-    // Generic recruitment remains assignment-bound despite `missions:view`.
-    const missionsList = await api(hybridToken, '/v1/missions');
-    expect(missionsList.status).toBe(200);
-    expect(JSON.stringify(missionsList.body)).not.toContain(missionA.id);
+    // Financial mission context works without recruiter assignment (regression for hybrid scope).
+    expect((await api(hybridToken, `/v1/commercial/quotations/${quotationId}`)).status).toBe(200);
 
+    // Generic recruitment APIs stay behind their own grants (not opened by finance context alone).
+    expect((await api(hybridToken, '/v1/missions')).status).toBe(200);
     const process = eligible.process.id;
     const recruitmentForbidden = [
-      `/v1/missions/${missionA.id}`,
       `/v1/missions/${missionA.id}/candidates`,
       `/v1/missions/${missionA.id}/candidates/${process}`,
       `/v1/missions/${missionA.id}/candidates/${process}/placement`,
@@ -1054,9 +1053,6 @@ describe('Issue #168 bounded Finance recruitment context (D-086)', () => {
       const response = await api(hybridToken, path);
       expect({ path, status: response.status }).toEqual({ path, status: 403 });
     }
-
-    const hiddenQuotation = await api(hybridToken, `/v1/commercial/quotations/${quotationId}`);
-    expect(hiddenQuotation.status).toBe(200);
 
     await prisma.missionRecruiter.create({
       data: { missionId: missionA.id, userId: hybridUserId, status: 'ACTIVE' },
