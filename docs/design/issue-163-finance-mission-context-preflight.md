@@ -109,7 +109,7 @@ Finance **does** need (for authorized financial workflows):
 | Client identity | Yes | Already via `clients:view` |
 | `missionPlacementId` | Yes | Placement-backed invoice and expenses |
 | Integration / confirmed dates | Yes | Placement display (already in D-079/D-081 shapes) |
-| Commercial eligibility flag | Yes | Placement invoice rules (server-enforced) |
+| Commercial eligibility | Server-enforced, not required as a raw field | Finance may select only finance-authorized eligible placement context; the server remains authoritative |
 | Invoice/commercial references | Yes | Already on commercial rows with `*:view` |
 | Financial amounts | Yes | `commercial_data:access` |
 
@@ -194,7 +194,8 @@ Do **not** grant FM the generic **`placements:view`** or **`placement_commercial
 | Mission salary / HR fields | Do not use Missions API; bounded fields whitelist in option/summary DTOs |
 | Cross-client access | Every predicate keeps `mission.clientId` + `clients:view` / record `clientId` match |
 | Archived/terminal missions | Reuse existing terminal checks on **writes**; reads on historical financial records may still show title for issued invoices (product rule to confirm in implementation) |
-| Placement eligibility bypass | Keep server checks on `CONFIRMED`, `eligibleForInvoicing`, invoice uniqueness |
+| Placement eligibility bypass | Keep server checks on `CONFIRMED`, `eligibleForInvoicing`, invoice uniqueness; no generic eligibility read permission is granted to Finance |
+| Generic placement-detail widening | Keep `placements:view` out of FINANCE_MANAGER; finance-context permission must never satisfy the mission-candidate placement-detail route |
 | Stale authorization | Future tests: revoke permission → immediate loss of scope |
 | 403/404 side channels | Keep unified **404** envelopes on commercial/accounting scope denials |
 | Accounting aggregate leakage | `visibleInvoiceScope` / `visibleExpenseScope` must stay aligned with detail paths (already design intent) |
