@@ -1,7 +1,8 @@
 /**
  * Required-mode SoftHSM PKCS#11 lab runner for the dedicated CI job (Issue #183).
  *
- * Fails closed when the SoftHSM CLI or PKCS#11 module is unavailable, when any lab test
+ * Fails closed when the SoftHSM CLI, the native PKCS#11 binding, or the PKCS#11 module is
+ * unavailable, when any lab test
  * fails, or when the real SoftHSM suite did not execute. Normal `pnpm test` stays skippable.
  */
 import { spawnSync } from 'node:child_process';
@@ -31,6 +32,16 @@ function resolveModulePath() {
 const cli = spawnSync('softhsm2-util', ['--version'], { encoding: 'utf8' });
 if (cli.error || cli.status !== 0) fail('SOFTHSM_CLI_MISSING');
 const softhsmVersion = /^\d+\.\d+\.\d+$/.test(cli.stdout.trim()) ? cli.stdout.trim() : 'unknown';
+
+try {
+  // graphene-pk11 loads the pkcs11js native addon at import time.
+  const graphene = await import('graphene-pk11');
+  if (typeof (graphene.default ?? graphene).Module?.load !== 'function') {
+    fail('NATIVE_BINDING_UNAVAILABLE');
+  }
+} catch {
+  fail('NATIVE_BINDING_UNAVAILABLE');
+}
 
 if (!resolveModulePath()) fail('MODULE_UNAVAILABLE');
 
