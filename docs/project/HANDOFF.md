@@ -5,7 +5,7 @@ Last updated: 2026-10-11
 ## Current situation
 
 - **Issue #150–#156:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**).
-- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR open**; no new seeded production role; canonical synthetic permission bundle documented and tested.
+- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; exact-head CI run **38186137726** green on `1300945`; no new seeded production role; canonical synthetic permission bundle documented and tested.
 - **Issue #110:** **open** until maintainer final review/merge of **#159**; **no remaining scoped V1+ child work** after #159.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
