@@ -48,6 +48,19 @@ describe('isMaterialTaskReminderTick', () => {
     expect(isMaterialTaskReminderTick(baseTick({ overdueNotificationsCreated: 1 }))).toBe(true);
     expect(isMaterialTaskReminderTick(baseTick({ failedTransient: 1 }))).toBe(true);
   });
+
+  it('treats an unrecorded delivery failure as material on its own', () => {
+    expect(
+      isMaterialTaskReminderTick(baseTick({ candidates: 1, failureNotRecorded: 1, backlogDue: 1 })),
+    ).toBe(true);
+  });
+
+  it.each(['skippedLocked', 'skippedStale', 'overdueSkippedLocked'] as const)(
+    'treats %s alone as non-material',
+    (counter) => {
+      expect(isMaterialTaskReminderTick(baseTick({ [counter]: 1 }))).toBe(false);
+    },
+  );
 });
 
 describe('audit metadata', () => {

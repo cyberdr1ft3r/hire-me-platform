@@ -4,15 +4,23 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { PasswordService } from '../src/auth/password.service.js';
 import {
+  Prisma,
   PrismaClient,
   RoleName,
   TaskEventAction,
+  TaskReminderStatus,
   UserStatus,
 } from '../src/persistence/prisma/generated-client.js';
 import type { PrismaService } from '../src/persistence/prisma/prisma.service.js';
 import type { TaskReminderClock } from '../src/tasks/task-reminder-clock.js';
-import { TaskReminderDeliveryService } from '../src/tasks/task-reminder-delivery.service.js';
-import { formatTaskReminderTickAuditMetadata } from '../src/tasks/task-reminder-tick-observability.js';
+import {
+  TaskReminderDeliveryService,
+  type TaskReminderFailureOutcome,
+} from '../src/tasks/task-reminder-delivery.service.js';
+import {
+  formatTaskReminderTickAuditMetadata,
+  type TaskReminderTickAuditMetadata,
+} from '../src/tasks/task-reminder-tick-observability.js';
 
 const prisma = new PrismaClient();
 const passwords = new PasswordService();
@@ -30,6 +38,22 @@ class FixedClock implements TaskReminderClock {
 function service(now = BASE_NOW) {
   const clock = new FixedClock(now);
   return new TaskReminderDeliveryService(prisma as unknown as PrismaService, clock);
+}
+
+/** Delivery fails transiently and the guarded failure recorder fails too. */
+class UnrecordedFailureService extends TaskReminderDeliveryService {
+  protected override beforeDeliveryWrite(): Promise<void> {
+    return Promise.reject(
+      new Prisma.PrismaClientKnownRequestError('Synthetic transient fault', {
+        code: 'P2034',
+        clientVersion: 'test',
+      }),
+    );
+  }
+
+  protected override recordAttemptFailure(): Promise<TaskReminderFailureOutcome> {
+    return Promise.reject(new Error('Synthetic recorder fault'));
+  }
 }
 
 async function createUser(local: string, roleName: RoleName): Promise<string> {
@@ -144,6 +168,56 @@ describe('task reminder tick observability (R-036 PR C)', () => {
     const metadata = JSON.parse(row!.metadataSummary!) as { delivered: number };
     expect(metadata.delivered).toBe(1);
     expect(formatTaskReminderTickAuditMetadata(tick)).toBe(row!.metadataSummary);
+  });
+
+  it('writes a tick AuditLog when the only abnormal outcome is an unrecorded failure', async () => {
+    const task = await prisma.task.create({
+      data: {
+        title: 'R036 obs unrecorded',
+        ownerUserId,
+        createdByUserId: ownerUserId,
+      },
+    });
+    const reminder = await prisma.taskReminder.create({
+      data: {
+        taskId: task.id,
+        recipientUserId,
+        creatorUserId: ownerUserId,
+        remindAt: BASE_NOW,
+        idempotencyKey: `obs-unrecorded:${randomUUID()}`,
+      },
+    });
+
+    const tick = await new UnrecordedFailureService(
+      prisma as unknown as PrismaService,
+      new FixedClock(BASE_NOW),
+    ).runDueTick({ now: BASE_NOW, limit: 10, trigger: 'scheduler', actorUserId: null });
+    expect(tick).toMatchObject({
+      failureNotRecorded: 1,
+      delivered: 0,
+      canceledTaskClosed: 0,
+      canceledRecipientIneligible: 0,
+      failedTransient: 0,
+      movedToFailed: 0,
+      overdueNotificationsCreated: 0,
+      overdueFailed: 0,
+    });
+
+    const stored = await prisma.taskReminder.findUniqueOrThrow({ where: { id: reminder.id } });
+    expect(stored.status).toBe(TaskReminderStatus.PENDING);
+    expect(stored.attemptCount).toBe(0);
+
+    const rows = await prisma.auditLog.findMany({
+      where: {
+        action: 'tasks.reminders_processed',
+        actorUserId: null,
+        metadataSummary: formatTaskReminderTickAuditMetadata(tick),
+      },
+    });
+    expect(rows).toHaveLength(1);
+    const metadata = JSON.parse(rows[0]!.metadataSummary!) as TaskReminderTickAuditMetadata;
+    expect(metadata.failureNotRecorded).toBe(1);
+    expect(rows[0]!.metadataSummary).not.toMatch(/@|R036 obs|Synthetic/i);
   });
 
   it('attributes manual material ticks to the manager actor', async () => {

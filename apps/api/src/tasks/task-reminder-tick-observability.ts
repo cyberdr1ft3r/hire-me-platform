@@ -23,7 +23,9 @@ export type TaskReminderTickAuditMetadata = {
 };
 
 /**
- * A tick is material when it changed reminder, notification, or overdue state.
+ * A tick is material when it changed reminder, notification, or overdue state,
+ * or when a delivery failure could not be recorded (the reminder stays PENDING
+ * without its attempt, so the tick row is the only persistent trace).
  * Pure skips and idle scans write no AuditLog row (D-088 / R-036 PR C).
  */
 export function isMaterialTaskReminderTick(result: TaskReminderTickResult): boolean {
@@ -33,6 +35,7 @@ export function isMaterialTaskReminderTick(result: TaskReminderTickResult): bool
     result.canceledRecipientIneligible > 0 ||
     result.failedTransient > 0 ||
     result.movedToFailed > 0 ||
+    result.failureNotRecorded > 0 ||
     result.overdueNotificationsCreated > 0 ||
     result.overdueFailed > 0
   );

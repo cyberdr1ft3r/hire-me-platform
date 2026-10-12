@@ -127,7 +127,7 @@ Each completed tick emits one line including delivery counts and lag fields:
 
 ### AuditLog
 
-Action **`tasks.reminders_processed`**, one row per **material** tick (delivery, cancellation, failure recording, or overdue notification side effects). **Idle** ticks (only skips / no state change) write **no** row.
+Action **`tasks.reminders_processed`**, one row per **material** tick (delivery, cancellation, failure recording, overdue notification side effects, or `failureNotRecorded > 0` — a delivery failure whose recorder also failed, leaving the reminder `PENDING` without its attempt). **Idle** ticks (only `skippedLocked` / `skippedStale` / `overdueSkippedLocked`, or no state change) write **no** row.
 
 - Scheduler: `actorUserId` **null** (system).
 - Manual diagnostic: manager user id + request IP/user-agent when available.
