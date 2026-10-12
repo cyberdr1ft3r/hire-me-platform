@@ -269,7 +269,7 @@ the second half. `SENT` is terminal (reschedule and cancel refuse it), so a remi
   Prisma and Task delivery providers, and a narrow `loadWorkerEnvironment` (`DATABASE_URL`, `NODE_ENV`, worker knobs).
   It does **not** need `AUTH_ACCESS_TOKEN_SECRET`, the refresh pepper, CORS, or storage settings.
   A dedicated PostgreSQL worker role is deferred until the exact query footprint is implemented and tested. It cannot be limited to only Task/Notification/AuditLog: recipient visibility checks require read access to RBAC/user, task-assignment, and task-context relations. Any future role should grant the minimum reads needed for authorization plus writes only to reminder/notification/event/audit state.
-- Authorization semantics are preserved: recipient eligibility is re-checked at delivery (F7/Q1). The notification still
+- Authorization semantics are preserved: recipient eligibility is re-checked at delivery (F7; maintainer decision in section 14). The notification still
   carries only a generic title and body and the task's linked IDs, and opening it goes through the normal task read.
 
 ## 10. Observability
@@ -337,7 +337,7 @@ transaction), not timing.
 
 | PR | Content | Schema | Notes |
 | --- | --- | --- | --- |
-| **A** — delivery domain | Extract `TaskReminderDeliveryService` (`runDueTick`), `Clock`, per-reminder transactions, `SKIP LOCKED`, bounded backoff, failure recording, recipient re-check (Q1), overdue pagination (F5), null system actor, reschedule resets the attempt fields (F9). `process-due` delegates to it. Tests 1–11 and the time-zone and starvation regressions. | NO | No web change, no contract change. |
+| **A** — delivery domain | Extract `TaskReminderDeliveryService` (`runDueTick`), `Clock`, per-reminder transactions, `SKIP LOCKED`, bounded backoff, failure recording, recipient eligibility re-check/cancellation, overdue pagination (F5), null system actor, reschedule resets the attempt fields (F9). `process-due` delegates to it. Tests 1–11 and the time-zone and starvation regressions. | NO | No web change, no contract change. |
 | **B** — runner | `apps/api/src/jobs/run-due-reminders.ts` (application context, `loadWorkerEnvironment`, `--once` default, `--loop`, SIGTERM handling, JSON summary, exit codes) and the `reminders:run-due` script. CLI smoke test. | NO | No new dependency. |
 | **C** — operations | Runbook `docs/runbooks/task-reminder-scheduler.md` (systemd units, cron fallback, alert rule, DB `timezone` advice, dedicated DB role), per-tick AuditLog row, including the small audit-helper change required to support a null system actor safely, lag fields, and an update to the manager diagnostic copy ("scheduler configured" stays deployment-dependent; no UI behavior change). Closes R-036 once a scheduler is running in staging. | NO | Docs plus small API changes |
 
