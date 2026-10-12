@@ -11,7 +11,7 @@ Last updated: 2026-10-12
 - **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A (draft #174):** foundation implemented; migration `20261012170000_messaging_foundation` is now one explicit `BEGIN;`…`COMMIT;` transaction (maintainer blocker addressed). No routes/UI.
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
-- **Issue #168** (D-086 backend): **draft PR open, not merged** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration.
+- **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. Web follow-up: Issue #180.
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
@@ -36,8 +36,8 @@ Last updated: 2026-10-12
 
 ## Issue #168 (D-086 backend) next actions
 
-1. Security/architecture review of the **Issue #168** draft PR on its exact-head CI; on reviewed merge mark **D-086 Accepted** and R-050 mitigated.
-2. After backend acceptance, open the separate web issue: Commercial/Accounting pickers use the `financial-context` routes whenever the actor holds `recruitment_financial_context:view` (including hybrid actors who also hold `missions:view`); keep `/v1/missions` for recruitment-only roles.
+1. **D-086 backend is accepted** through Issue #168 / PR #175; preserve its financial-context-first union semantics and generic recruitment boundaries.
+2. Continue **Issue #180**: Commercial/Accounting web pickers use the `financial-context` routes whenever the actor holds `recruitment_financial_context:view` (including hybrid actors who also hold `missions:view`); keep `/v1/missions` for recruitment-only roles.
 3. R-051 Training remainder (training expense contexts / profitability for Finance) needs its own decision; not in #168.
 4. Maintainer C2 Barid outreach (#147) remains parallel.
 

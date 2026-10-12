@@ -20,10 +20,10 @@ Status owner: repository maintainer
 
 ## Issue #168 — D-086 bounded Finance recruitment context (backend)
 
-- **Draft PR (not merged):** adds `recruitment_financial_context:view` (CLIENT scope) granted to `FINANCE_MANAGER` only (plus `SUPER_ADMIN`'s all-permission grant). No `missions:view`, `placements:view`, `placement_commercial_eligibility:view`, transfer, or candidate/process/interview/evaluation/offer grant.
+- **Accepted backend (Issue #168 / PR #175):** adds `recruitment_financial_context:view` (CLIENT scope) granted to `FINANCE_MANAGER` only (plus `SUPER_ADMIN`'s all-permission grant). No `missions:view`, `placements:view`, `placement_commercial_eligibility:view`, transfer, or candidate/process/interview/evaluation/offer grant.
 - Commercial, Accounting, Documents generated-source scope, Generation, and therefore financial-signing rechecks share one financial mission scope. The financial context resolves to full client-bounded scope independently of `missions:view` (hybrid Finance + recruitment actors keep it without a recruiter assignment, per maintainer review); recruitment-only actors keep assignment/transfer behaviour, and generic recruitment routes never read this scope. Placement-backed invoicing accepts the bounded context inside the financial path only; confirmation/eligibility/linkage rules unchanged.
 - New bounded option routes: `/v1/commercial/financial-context/{missions,placements}`, `/v1/accounting/financial-context/{missions,placements}` (≤20, no count, no candidate/process/offer/history fields).
-- No schema migration. Web pickers are a separate follow-up issue after backend acceptance. R-051 Training remainder unchanged.
+- No schema migration. Backend architecture/security review and exact-head D-071 gate passed. Web completion is tracked separately in Issue #180. R-051 Training remainder unchanged.
 
 ## Internal messaging V1 preflight
 
@@ -47,7 +47,7 @@ Status owner: repository maintainer
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
 **Health:** **#141/#143** merged (**D-083**, **D-084 Accepted**). Missions R-047 V1+ follow-ups are complete: **#150**, **#152**, **#154**, **#156**, and final persona decision **#159** merged via PRs **#151**, **#153**, **#155**, **#157**, and **#160**; parent **#110** is closed. **D-068** / **D-070** unchanged; no production deployment.
 **Current blocker:** **Provider implementation blocked** until Barid confirms **third-party signing interface** (PKCS#11/CSP/SDK), provides **test token or sanitized signed PDF fixtures**, and proves **prepared-artifact compatibility** with Phase B validation. OCSP/CRL/trust URLs are now documented for Phase D/E only. **#132** remains **open**.
-**Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed. **R-050/R-051:** Issue **#163** preflight (draft PR) defines bounded Finance mission context (**D-086 Proposed**); implementation is a separate follow-up.
+**Next executable development task:** Maintainer sends C2 package ([French cover + questionnaire](../design/issue-147-barid-c2-provider-engagement.md)) to **ServiceClient@poste.ma** / **080 200 60 60**; transition C2 to `WAITING_ON_PROVIDER`. On fixture receipt, execute compatibility test plan. Do **not** implement PKCS#11/bridge until confirmed. **R-050/R-051:** **D-086 Accepted** through Issue #168 / PR #175 backend review; Issue #180 is the Finance Commercial/Accounting web-picker follow-up. R-051 Training context remains separate.
 
 ## Active work
 
@@ -107,7 +107,7 @@ Status owner: repository maintainer
 | Issue #154 | Complete | Add inclusive mission deadline range filters | Merged via PR **#155** on `main`; inclusive UTC deadline range filters in Missions list |
 | Issue #156 | Complete | Align closure UX with lifecycle-valid outcomes | Merged via PR **#157** on `main`; lifecycle-valid closure Select + derived reasons |
 | Issue #159 | Complete | Finalize read-only Missions persona decision and close #110 | Merged via PR **#160** into `main` as `d396d1e`; no new seeded role; permission-derived read-only model with canonical synthetic evidence bundle and complete 33-permission mutation classification |
-| Issue #163 | In progress | Preflight bounded Finance visibility for mission-linked Commercial/Accounting (R-050/R-051) | Draft PR; **D-086 Proposed**; preflight doc only — no seed/backend changes |
+| Issue #163 | Complete | Preflight bounded Finance visibility for mission-linked Commercial/Accounting (R-050/R-051) | Merged via PR #164; D-086 subsequently implemented/reviewed through Issue #168 / PR #175 |
 | Issue #176 | In progress | R-036 PR B standalone Task reminder runner | Draft PR; `reminders:run-due` CLI; no schema; PR C (runbook/audit/deploy) remains |
 | Issue #111 | Complete | Bilingual responsive Training workspace | Merged through PR #123 into `main` as `008b3b4ac50449cc64aa72c01bd6bb1647aeaedf` (D-076): bilingual `apps/web/src/training/`, D-073 option sources, read-only owner/client/trainer display names; `training` leaves `deferredEnglishRoutes`. No migration, no new permission. Limits in R-049 |
 | Issue #112 | Complete | Eliminate operator-facing raw IDs across internal workspaces | Closed after maintainer re-audit on current `main`: Clients, Candidates, Missions, Tasks, Documents, Training, Commercial, Accounting, and Admin satisfy the operator-facing rule; remaining IDs are internal route/API/state/option values permitted by the tracker |
