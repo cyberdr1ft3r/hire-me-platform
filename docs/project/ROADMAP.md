@@ -110,7 +110,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 - Still future generation work requiring its own issues: candidate summaries, interview reports, generic HR templates, an arbitrary template editor, e-signature, delivery by email or WhatsApp, Excel generation, payment receipts, accounting exports, payroll documents, and OCR or AI extraction.
 - Issue #36 / merged PR #43 adds the first authenticated internal recruitment reporting layer: scoped KPI summary, pipeline/status distributions, bounded trends, mission/client/recruiter breakdowns, bounded drilldowns, and safe CSV export, all record-scope enforced and computed from existing data with no schema change. Accounting/revenue, training, and task-productivity analytics remain out of scope.
 - Customizable dashboard indicators, reports, and exports (broader dashboards beyond Issue #36 recruitment reporting).
-- Private messages and discussion groups.
+- Private messages and discussion groups. Messaging V1 preflight: D-087 Proposed in PR #165; sequence A (safe dormant-schema migration + catalog/access foundation) → B (API) → C (bilingual web) → separately approved optional extras (mentions/context/attachments/realtime/moderation).
 - Protected document access and sharing.
 
 ## Phase 7a - HireMe UI/UX v1
