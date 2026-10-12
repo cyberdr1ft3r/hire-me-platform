@@ -21,10 +21,19 @@ No lossless mapping has been reviewed for those rows, so the migration **fails c
 | Database state | What `prisma migrate deploy` does |
 | --- | --- |
 | All four counts are 0 (every database created by this repository) | Locks the messaging tables, checks the counts, reshapes the tables, adds the constraints and the `MessageRevision` table, and reconciles the `CLIENT_USER` / `FINANCE_MANAGER` messaging grants. The migration is recorded as applied. |
-| Any count is non-zero | Raises `HIREME_MESSAGING_LEGACY_ROWS` with the four counts **before any DDL**. Prisma runs the migration file as one transaction, so nothing is changed: every legacy row, column, index, and grant stays exactly as it was. Prisma records the migration as **failed**, and later migrations do not run until it is resolved. |
+| Any count is non-zero | Raises `HIREME_MESSAGING_LEGACY_ROWS` with the four counts **before any DDL**. The migration is one explicit transaction, so nothing is changed: every legacy row, column, type, index, constraint, and grant stays exactly as it was. Prisma records the migration as **failed** (no applied step), and later migrations do not run until it is resolved. |
 
-The table locks are taken before the check (`ACCESS EXCLUSIVE` on the three messaging tables, `SHARE` on `Document`),
-so no row can appear between the check and the reshape.
+The migration file is one explicit PostgreSQL transaction: `BEGIN;` before the table locks and `COMMIT;` after the
+final grant reconciliation. The table locks are its first statements (`ACCESS EXCLUSIVE` on the three messaging tables,
+`SHARE` on `Document`), the check runs next, and the locks are held until `COMMIT`, so no row can appear between the
+check and the reshape, and the reshape, the new schema, and the grant changes commit together or not at all.
+
+**What `prisma migrate deploy` prints on refusal.** Prisma (v6) tries to save the error into `_prisma_migrations` on
+the same connection while the explicit transaction is still open and aborted, so it prints
+`current transaction is aborted, commands ignored until end of transaction block` for this migration instead of the
+gate text, and the `logs` column stays empty. The transaction is rolled back when Prisma's connection closes. The
+PostgreSQL server log keeps the `HIREME_MESSAGING_LEGACY_ROWS` error with the counts, and the read-only diagnostic below
+reports the same counts. Treat any failure of this migration as a possible gate refusal and run the diagnostic.
 
 ## Operator procedure when the gate refuses
 
@@ -55,7 +64,13 @@ so no row can appear between the check and the reshape.
 
 `apps/api/test/messaging-migration.integration.test.ts` applies every earlier migration to an isolated schema, then:
 
+- It checks that the file's first statement is `BEGIN`, its last is `COMMIT`, nothing between them ends or splits
+  the transaction, and the locks and the gate come before any change.
 - With zero legacy rows, it applies the migration and checks the reshaped tables and the grant reconciliation.
-- With a legacy conversation, membership, and message present, it proves the deploy fails with
-  `HIREME_MESSAGING_LEGACY_ROWS`, every legacy row and column survives byte-for-byte, and the migration is recorded as
-  failed, not applied.
+- With a legacy conversation, membership, and message present, it proves the deploy fails, every legacy row, column,
+  type, index, constraint, trigger, and grant survives exactly, the migration is recorded as failed with no applied
+  step, and no session still holds a lock. Running the same file through `prisma db execute` shows the
+  `HIREME_MESSAGING_LEGACY_ROWS` text and counts.
+- With an uncommitted legacy row held by a concurrent writer, the deploy queues on its first lock and then refuses.
+- With the deploy paused at the grant step, it still holds every table lock, its reshape is invisible to other
+  sessions, and a legacy-shape write waits and then fails once the reshape commits.

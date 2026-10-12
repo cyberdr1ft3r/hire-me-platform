@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
@@ -46,6 +46,29 @@ export function runNodeCaptured(
   return { status: result.status ?? 1, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
 }
 
+/**
+ * Like `runNodeCaptured`, but does not block the event loop, so a test can observe
+ * the child's database session (for example, while it waits on a lock).
+ */
+export function runNodeCapturedAsync(
+  script: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+): Promise<{ status: number; output: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...args], {
+      cwd: API_ROOT,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => (output += chunk));
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => (output += chunk));
+    child.on('error', reject);
+    child.on('close', (status) => resolve({ status: status ?? 1, output }));
+  });
+}
+
 export function runPrisma(args: string[], env: NodeJS.ProcessEnv): void {
   const status = runNode(PRISMA_CLI, [...args, '--schema', PRISMA_SCHEMA], env);
   if (status !== 0) {
@@ -60,6 +83,14 @@ export function runPrismaCaptured(
   schemaPath: string = PRISMA_SCHEMA,
 ): { status: number; output: string } {
   return runNodeCaptured(PRISMA_CLI, [...args, '--schema', schemaPath], env);
+}
+
+export function runPrismaCapturedAsync(
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  schemaPath: string = PRISMA_SCHEMA,
+): Promise<{ status: number; output: string }> {
+  return runNodeCapturedAsync(PRISMA_CLI, [...args, '--schema', schemaPath], env);
 }
 
 export function runTsx(script: string, env: NodeJS.ProcessEnv): void {

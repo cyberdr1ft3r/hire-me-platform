@@ -13,11 +13,22 @@
 -- "clientMessageId") that have no truthful value for a legacy row. No lossless
 -- mapping has been reviewed, so the migration refuses to run if ANY legacy
 -- messaging row exists. It takes table locks first, so no row can be
--- inserted between the check and the reshape, and it raises before any DDL. Prisma
--- runs this file as one transaction, so a refusal changes nothing; the migration is
--- recorded as failed and the operator follows docs/runbooks/messaging-legacy-rows.md.
--- The read-only diagnostic apps/api/diagnostics/messaging-legacy-rows.sql reports
--- the same counts without changing anything.
+-- inserted between the check and the reshape, and it raises before any DDL.
+--
+-- The whole body is one explicit transaction (BEGIN here, COMMIT after the grant
+-- reconciliation), so the locks, the gate, the reshape, the new schema, and the
+-- grant changes commit together or not at all; the migration does not depend on
+-- how the executor batches statements. Nothing in it may end or split that
+-- transaction (no COMMIT/ROLLBACK, CREATE INDEX CONCURRENTLY, or ALTER TYPE ...
+-- ADD VALUE). On refusal the transaction is left aborted and is rolled back when
+-- Prisma's connection closes, so `prisma migrate deploy` reports "current
+-- transaction is aborted" instead of the gate text (the PostgreSQL server log keeps
+-- it). The migration is recorded as failed and the operator follows
+-- docs/runbooks/messaging-legacy-rows.md. The read-only diagnostic
+-- apps/api/diagnostics/messaging-legacy-rows.sql reports the same counts without
+-- changing anything.
+
+BEGIN;
 
 LOCK TABLE "Conversation", "ConversationMember", "Message" IN ACCESS EXCLUSIVE MODE;
 -- SHARE blocks concurrent Document writes (so no message attachment can appear)
@@ -228,3 +239,5 @@ CROSS JOIN "Permission" AS permission_row
 WHERE role_row."name" = 'finance_manager'
   AND permission_row."code" IN ('messages:view', 'messages:create')
 ON CONFLICT ("roleId", "permissionId") DO NOTHING;
+
+COMMIT;

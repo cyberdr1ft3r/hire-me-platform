@@ -1,7 +1,12 @@
 import { cpSync, copyFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { PRISMA_SCHEMA, runPrisma, runPrismaCaptured } from './child-commands.js';
+import {
+  PRISMA_SCHEMA,
+  runPrisma,
+  runPrismaCaptured,
+  runPrismaCapturedAsync,
+} from './child-commands.js';
 import {
   API_ROOT,
   RECEIPT_DIRECTORY,
@@ -39,6 +44,13 @@ export interface IsolatedSchema {
    * can assert that a migration refuses. Meaningful after `throughMigration`.
    */
   deployRemaining(): { status: number; output: string };
+  /** `deployRemaining` without blocking the event loop, for lock-ordering tests. */
+  deployRemainingAsync(): Promise<{ status: number; output: string }>;
+  /**
+   * Runs one SQL file through `prisma db execute` against this schema, which
+   * reports the script's own error instead of Prisma's migration bookkeeping.
+   */
+  executeFile(path: string): { status: number; output: string };
   /** Disconnects the client, then drops the schema. Safe to call once, in `finally`. */
   dispose(): Promise<void>;
 }
@@ -160,6 +172,10 @@ ${partial.output}`);
 
   const deployRemaining = () =>
     runPrismaCaptured(['migrate', 'deploy'], childEnvironment(schemaUrl));
+  const deployRemainingAsync = () =>
+    runPrismaCapturedAsync(['migrate', 'deploy'], childEnvironment(schemaUrl));
+  const executeFile = (path: string) =>
+    runPrismaCaptured(['db', 'execute', '--file', path], childEnvironment(schemaUrl));
 
-  return { client, schema, schemaUrl, deployRemaining, dispose };
+  return { client, schema, schemaUrl, deployRemaining, deployRemainingAsync, executeFile, dispose };
 }
