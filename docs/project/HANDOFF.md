@@ -1,11 +1,11 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 ## Current situation
 
 - **Issue #150–#156:** **complete** on `main` (PRs **#151**, **#153**, **#155**, **#157**).
-- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; exact-head CI run **38188348772** green on `3203c6a`; `MISSIONS_WRITE_PERMISSIONS` completeness fix; no new seeded production role.
+- **Issue #159** (final **#110** child): Missions read-only persona decision — **draft PR #160**; implementation and authorization correction accepted by maintainer review; complete `MISSIONS_WRITE_PERMISSIONS` (33 mutations); no new seeded production role. The [PR #160 body](https://github.com/cyberdr1ft3r/hire-me-platform/pull/160) is authoritative for the final head SHA, fresh exact-head CI run, and CI result.
 - **Issue #110:** **open** until maintainer final review/merge of **#159**; **no remaining scoped V1+ child work** after #159.
 - **Issue #145 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 
