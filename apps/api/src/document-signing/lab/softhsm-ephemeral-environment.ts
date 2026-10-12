@@ -40,7 +40,7 @@ export function createEphemeralSofthsmEnvironment(tokenLabel: string): SofthsmEp
   } catch {
     restoreSofthsmConf(previousSofthsmConf);
     rmSync(rootDir, { recursive: true, force: true });
-    throw mapNativePkcs11Failure('PKCS11_TOKEN_NOT_FOUND');
+    throw mapNativePkcs11Failure('PKCS11_TOKEN_INIT_FAILED');
   }
 
   return { rootDir, configPath, tokenLabel, userPin, soPin, previousSofthsmConf };
