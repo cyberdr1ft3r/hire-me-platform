@@ -21,6 +21,8 @@
     "verify:generation-assets": "node scripts/verify-generation-assets.mjs",
     "test": "vitest run",
     "test:signing-pkcs11-lab": "vitest run src/document-signing/lab",
+    "test:signing-pkcs11-lab:required": "node scripts/pkcs11-lab-required.mjs",
+    "pkcs11:lab-smoke": "node scripts/pkcs11-lab-smoke.mjs",
     "test:db": "tsx test/support/test-db-cli.ts run",
     "test:db:provision": "tsx test/support/test-db-cli.ts provision",
     "test:db:check-catalog": "tsx test/support/test-db-cli.ts check-catalog",

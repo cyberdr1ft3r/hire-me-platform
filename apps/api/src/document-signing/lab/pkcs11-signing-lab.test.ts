@@ -38,6 +38,8 @@ function softhsmCliAvailable(): boolean {
 }
 
 const labAvailable = isPkcs11LabRuntimeAvailable() && softhsmCliAvailable();
+/** Dedicated CI lab mode: an unavailable SoftHSM runtime is a failure, not a skip. */
+const labRequired = process.env.PKCS11_LAB_REQUIRED === '1';
 
 function captureLabError(fn: () => unknown): Pkcs11LabError {
   try {
@@ -386,8 +388,11 @@ describe.runIf(labAvailable)('PKCS#11 SoftHSM signing lab (Issue #183)', () => {
   });
 });
 
-describe.runIf(!labAvailable)('PKCS#11 SoftHSM signing lab — skipped', () => {
-  it('records skip when SoftHSM/module unavailable', () => {
-    expect(labAvailable).toBe(false);
+describe.runIf(!labAvailable)('PKCS#11 SoftHSM signing lab — unavailable', () => {
+  it('skips only when PKCS11_LAB_REQUIRED is not set', () => {
+    expect(
+      labRequired,
+      'PKCS11_LAB_REQUIRED=1 but the SoftHSM CLI or PKCS#11 module is unavailable',
+    ).toBe(false);
   });
 });

@@ -125,8 +125,15 @@ jobs:
       - name: Generate Prisma client
         run: pnpm prisma:generate
 
-      - name: Run PKCS#11 SoftHSM lab tests
-        run: pnpm --filter @hire-me/api test:signing-pkcs11-lab
+      - name: Run PKCS#11 SoftHSM smoke (required)
+        env:
+          HIREME_PKCS11_LAB_MODULE_PATH: /usr/lib/softhsm/libsofthsm2.so
+        run: pnpm --filter @hire-me/api pkcs11:lab-smoke
+
+      - name: Run PKCS#11 SoftHSM lab tests (required mode, fails closed)
+        env:
+          HIREME_PKCS11_LAB_MODULE_PATH: /usr/lib/softhsm/libsofthsm2.so
+        run: pnpm --filter @hire-me/api test:signing-pkcs11-lab:required
 
   database-lifecycle:
     name: Database migration, seed, and integration tests
