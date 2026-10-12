@@ -423,7 +423,7 @@ export class TasksController {
       );
     }
     return TaskReminderProcessResponseSchema.parse(
-      await this.tasks.processDueReminders(parsed.data, request.user!.id),
+      await this.tasks.processDueReminders(parsed.data, request.user!.id, this.getContext(request)),
     );
   }
 

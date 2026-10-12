@@ -20,6 +20,9 @@ export type TaskReminderTickSummary = {
   overdueNotificationsCreated: number;
   overdueSkippedLocked: number;
   overdueFailed: number;
+  backlogDue: number;
+  oldestDueAgeSeconds: number;
+  budgetExhausted: boolean;
 };
 
 export function buildTaskReminderTickSummary(input: {
@@ -52,6 +55,9 @@ export function buildTaskReminderTickSummary(input: {
     overdueNotificationsCreated: result.overdueNotificationsCreated,
     overdueSkippedLocked: result.overdueSkippedLocked,
     overdueFailed: result.overdueFailed,
+    backlogDue: result.backlogDue,
+    oldestDueAgeSeconds: result.oldestDueAgeSeconds,
+    budgetExhausted: result.budgetExhausted,
   };
 }
 

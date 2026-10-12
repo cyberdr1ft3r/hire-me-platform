@@ -1313,6 +1313,7 @@ export class TasksService {
   async processDueReminders(
     input: TaskReminderProcessRequest,
     actorUserId: string,
+    context: RequestContext,
   ): Promise<TaskReminderProcessResponse> {
     const access = await this.resolveAccess(actorUserId);
     this.assertAccess(
@@ -1324,6 +1325,10 @@ export class TasksService {
       limit: input.limit,
       trigger: 'manual',
       actorUserId,
+      auditContext: {
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      },
     });
     return {
       remindersDelivered: tick.delivered,
