@@ -17,6 +17,15 @@ Status owner: repository maintainer
 - Maintainer decisions: recipient inactive/no longer authorized → **CANCELED** with null system actor; transient retry = **5 attempts** with **1/5/15/60 min** backoff; manual global processor server gate = `tasks:reminders:manage` + `tasks:view_all`; clearing `dueAt` behavior remains unchanged.
 - Preflight found F1 batch rollback/poison-row blocking, F4 time-zone-sensitive raw `NOW()`, F5 overdue starvation, plus attribution/recipient/retry-state issues. Implementation remains PR A → B → C; no unattended deployment before the operations gate.
 
+## Internal messaging V1 preflight
+
+- **PR #165 / D-087 Proposed:** architecture reviewed on 2026-10-12; docs only. Existing dormant Conversation/ConversationMember/Message schema and `messages:view`/`messages:create` permissions are real; no messaging route/service exists yet.
+- **Catalog decision:** remove both messaging grants from `CLIENT_USER`; add both to `FINANCE_MANAGER`; every messaging call still requires `userType = INTERNAL`.
+- **V1:** one canonical 1:1 conversation per pair; named ad-hoc groups up to 50 active members; plain text; sequence ordering; exclusive late-join history boundary; monotonic read cursor; polling; no Notification rows, context links, attachments, global admin reader, or moderation capability.
+- **Edit/retention:** 15-minute author edits with immutable revisions; withdrawal tombstones; no hard delete; no automated purge in V1. Broad production rollout requires an approved/documented retention policy.
+- **Migration safety:** application dormancy does not prove DB emptiness. PR A must fail closed or losslessly migrate unexpected existing rows before destructive reshape.
+- **Next:** PR A foundation only (migration/contracts/access/catalog), then API PR B and web PR C.
+
 ## Overall state
 
 **Phase:** Application-wide bilingual UX/layout rollout; electronic signature **Phase A + B on `main`**; **#147 C2** (Barid fixtures + prepared-artifact proof) is the active signing gate.
