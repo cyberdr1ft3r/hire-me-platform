@@ -149,8 +149,8 @@ export function TaskNotifications({
 /**
  * Manual reminder delivery, kept out of the everyday action hierarchy.
  *
- * Delivery is a worker responsibility, but no background scheduler exists yet,
- * so the existing processor endpoint remains the only trigger. It is shown only
+ * Automatic delivery is a host-scheduler responsibility once operations enable it.
+ * The processor endpoint remains a manual diagnostic trigger. It is shown only
  * to managers who both manage reminders and oversee all tasks, collapsed, and
  * described as the diagnostic it is.
  */
