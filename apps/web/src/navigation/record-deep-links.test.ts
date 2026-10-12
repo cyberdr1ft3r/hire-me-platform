@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { candidateDeepLink, missionDeepLink, recordNavigationIntent } from './record-deep-links.js';
+import {
+  candidateDeepLink,
+  missionDeepLink,
+  recordNavigationIntent,
+  trainingDeepLink,
+} from './record-deep-links.js';
 
 const CANDIDATE_ID = '11111111-1111-4111-8111-111111111111';
 const MISSION_ID = '22222222-2222-4222-8222-222222222222';
@@ -113,5 +118,9 @@ describe('record deep-link contract', () => {
   it('generates language-neutral record URLs containing IDs only', () => {
     expect(candidateDeepLink(CANDIDATE_ID)).toBe(`/candidates?candidate=${CANDIDATE_ID}`);
     expect(missionDeepLink(MISSION_ID)).toBe(`/missions?mission=${MISSION_ID}`);
+    expect(trainingDeepLink(PROGRAM_ID)).toBe(`/training?program=${PROGRAM_ID}`);
+    expect(trainingDeepLink(PROGRAM_ID, SESSION_ID)).toBe(
+      `/training?program=${PROGRAM_ID}&session=${SESSION_ID}`,
+    );
   });
 });
