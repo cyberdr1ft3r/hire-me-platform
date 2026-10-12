@@ -19,11 +19,11 @@ describe('runDueRemindersMain', () => {
       env: { ...VALID_ENV },
       createApplicationContext: (): Promise<NestApplicationContextLike> =>
         Promise.resolve({
-        get: <T>(token: unknown): T => {
-          expect(token).toBe(TaskReminderDeliveryService);
-          return { runDueTick } as T;
-        },
-        close,
+          get: <T>(token: unknown): T => {
+            expect(token).toBe(TaskReminderDeliveryService);
+            return { runDueTick } as T;
+          },
+          close,
         }),
     });
 

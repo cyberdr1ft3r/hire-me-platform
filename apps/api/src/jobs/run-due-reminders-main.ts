@@ -35,7 +35,13 @@ export async function runDueRemindersMain(
   deps: RunDueRemindersMainDeps,
 ): Promise<RunDueRemindersMainResult> {
   const chunks: string[] = [];
-  const writeStdout = deps.writeStdout ?? ((chunk) => chunks.push(chunk));
+  const writeStdout =
+    deps.writeStdout ??
+    ((chunk) => {
+      const line = chunk.endsWith('\n') ? chunk : `${chunk}\n`;
+      process.stdout.write(line);
+      chunks.push(line);
+    });
   let exitCode = 0;
 
   const emitFatal = (code: string): void => {
