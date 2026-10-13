@@ -12,6 +12,7 @@ Last updated: 2026-10-12
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
 - **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. Web follow-up: Issue #180.
+- **Issue #183:** draft **PR #185** — SoftHSM PKCS#11 lab; maintainer review blockers addressed (runtime smoke PINs, on-token certificate discovery/`CKA_ID` binding, required-mode CI); awaiting final merge review; architecture-only proof. **#147 C2 state unchanged** (`READY_TO_CONTACT_PROVIDER`); **Ready for provider implementation: NO**.
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
 
