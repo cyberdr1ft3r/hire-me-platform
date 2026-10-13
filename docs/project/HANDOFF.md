@@ -8,7 +8,7 @@ Last updated: 2026-10-13
 
 - **D-068 / D-070:** runbook `RUNBOOK_READY`; no production execution.
 
-- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B merged (#187).** **Issue #188 hide API merged (#192).** **Issue #189 PR C (draft):** bilingual `/messages` workspace, AppShell unread badge (`GET /v1/messages/unread-summary`, visible-tab 60s poll), preview-free list rows, PRIVATE hide wired to real endpoint, polling-only sync. No migration, no seed/catalog change.
+- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B merged (#187).** **Issue #188 hide API merged (#192).** **Issue #189 PR C (draft PR #193):** bilingual `/messages` workspace, AppShell unread badge, preview-free list rows, PRIVATE hide, polling-only sync, filter-aware list reconciliation on poll refresh. Branch includes `main` `7f92fd5` (retention runbook #191). No migration, no seed/catalog change. **Next:** exact-head CI on reconciliation commit; ChatGPT final merge review.
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
 - **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. **Issue #180 / PR #186 completes the reviewed Commercial/Accounting web pickers, including hybrid actors; R-050 is fully product-mitigated for that path.**
