@@ -24,13 +24,14 @@ import { listConversations } from './messages-api.js';
 import { resolveMessagingAccess } from './messaging-access.js';
 import {
   appendPage,
+  applyConversationRowToList,
   conversationName,
   formatUnreadBadge,
   isSameLocalDay,
   LIST_POLL_MS,
-  mergeFirstPage,
   MESSAGES_SIDE_BY_SIDE_MIN_REM,
   MESSAGING_UNREAD_COUNT_CAP,
+  reconcileConversationListAfterFirstPageRefresh,
   summaryFromDetail,
 } from './messaging-state.js';
 import { NewDirectPane, NewGroupPane } from './NewConversation.js';
@@ -177,7 +178,11 @@ function MessagesWorkspace({
         setList((current) =>
           current.status === 'ready'
             ? {
-                conversations: mergeFirstPage(current.conversations, page.conversations),
+                conversations: reconcileConversationListAfterFirstPageRefresh(
+                  current.conversations,
+                  page.conversations,
+                  filter,
+                ),
                 nextCursor: pagesLoaded.current === 1 ? page.nextCursor : current.nextCursor,
                 status: 'ready',
               }
@@ -228,19 +233,19 @@ function MessagesWorkspace({
     }
   }
 
-  const updateRow = useCallback((summary: ConversationSummary) => {
-    setList((current) =>
-      current.status === 'ready' &&
-      current.conversations.some((conversation) => conversation.id === summary.id)
-        ? {
-            ...current,
-            conversations: current.conversations.map((conversation) =>
-              conversation.id === summary.id ? summary : conversation,
-            ),
-          }
-        : current,
-    );
-  }, []);
+  const updateRow = useCallback(
+    (summary: ConversationSummary) => {
+      setList((current) =>
+        current.status === 'ready'
+          ? {
+              ...current,
+              conversations: applyConversationRowToList(current.conversations, summary, filter),
+            }
+          : current,
+      );
+    },
+    [filter],
+  );
 
   const removeRow = useCallback((conversationId: string) => {
     setList((current) =>

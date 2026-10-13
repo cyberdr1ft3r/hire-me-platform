@@ -759,6 +759,80 @@ describe('Messages workspace', () => {
     expect(wideRow).toHaveAttribute('aria-current', 'true');
   });
 
+  it('removes a read conversation from the Unread filter', async () => {
+    createFakeMessaging();
+    render(<Workspace />);
+    await openRow(/Nadia Peer/);
+    await screen.findByText('Private body that must never be previewed');
+    await act(() => setDocumentVisibility('visible'));
+    await waitFor(() =>
+      expect(
+        within(listRegion()).getByRole('button', { name: /Nadia Peer/ }),
+      ).not.toHaveTextContent('unread'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unread' }));
+    expect(within(listRegion()).queryByRole('button', { name: /Nadia Peer/ })).toBeNull();
+  });
+
+  it('removes an archived group from All and lists it only under Archived', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    createFakeMessaging();
+    render(<Workspace />);
+    await openRow(/circle/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive group' }));
+    expect(await screen.findByText('Group archived.')).toBeVisible();
+    await waitFor(() =>
+      expect(within(listRegion()).queryByRole('button', { name: /circle/ })).toBeNull(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    expect(
+      await within(listRegion()).findByRole('button', { name: /Synthetic sourcing circle/ }),
+    ).toHaveTextContent('Archived');
+  });
+
+  it('keeps hide and leave rows removed after a polled list refresh', async () => {
+    const fake = createFakeMessaging();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<Workspace />);
+
+    await openRow(/Nadia Peer/);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(
+      await screen.findByText('Conversation hidden. It comes back when a new message arrives.'),
+    ).toBeVisible();
+    await pollNow();
+    expect(within(listRegion()).queryByRole('button', { name: /Nadia Peer/ })).toBeNull();
+
+    const group = fake.conversations.get(GROUP_ID);
+    const mine = group?.members.find((entry) => entry.user.id === ACTOR_ID);
+    if (mine) mine.role = 'MEMBER';
+    await openRow(/circle/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave group' }));
+    expect(await screen.findByText('You left the group.')).toBeVisible();
+    await pollNow();
+    expect(within(listRegion()).queryByRole('button', { name: /circle/ })).toBeNull();
+  });
+
+  it('deduplicates keyset-loaded rows after a polled first-page refresh', async () => {
+    const fake = createFakeMessaging();
+    fake.setPageSize(1);
+    render(<Workspace />);
+    await within(listRegion()).findByRole('button', { name: /Nadia Peer|circle/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Load more conversations' }));
+    await waitFor(() => expect(within(listRegion()).getAllByRole('listitem')).toHaveLength(2));
+
+    await pollNow();
+    const ids = within(listRegion())
+      .getAllByRole('listitem')
+      .map((item) => item.textContent ?? '');
+    expect(ids).toHaveLength(new Set(ids).size);
+    expect(within(listRegion()).getAllByRole('listitem')).toHaveLength(2);
+  });
+
   it('shows empty and error states with a retry', async () => {
     let failList = true;
     const fake = createFakeMessaging({

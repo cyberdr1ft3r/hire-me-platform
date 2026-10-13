@@ -8,6 +8,7 @@ import {
   MESSAGE_MAX_EDITS,
   MESSAGING_UNREAD_COUNT_CAP,
   type ConversationDetail,
+  type ConversationListFilter,
   type ConversationSummary,
   type MessageView,
 } from '@hire-me/contracts';
@@ -131,17 +132,62 @@ export function mergeMessages(
   return [...byId.values()].sort((left, right) => left.sequence - right.sequence);
 }
 
+/** Whether a summary still belongs on the list for the active server-side filter. */
+export function conversationMatchesListFilter(
+  summary: ConversationSummary,
+  filter: ConversationListFilter,
+): boolean {
+  switch (filter) {
+    case 'archived':
+      return summary.status === 'ARCHIVED';
+    case 'unread':
+      return summary.unreadCount > 0;
+    case 'all':
+    default:
+      return summary.status === 'ACTIVE';
+  }
+}
+
 /**
- * A refreshed first page replaces its own rows; rows only present in pages
- * loaded later keep their place below it, minus anything the first page now
- * holds.
+ * Reconcile after an authoritative first-page refresh while keeping later keyset
+ * pages. The refreshed first page wins for its ids; tail rows are kept only when
+ * their id is absent from that page and the client already knows they still
+ * match the active filter (read/archive/hide/leave updates drop rows first).
  */
+export function reconcileConversationListAfterFirstPageRefresh(
+  current: readonly ConversationSummary[],
+  firstPage: readonly ConversationSummary[],
+  filter: ConversationListFilter,
+): ConversationSummary[] {
+  const freshIds = new Set(firstPage.map((conversation) => conversation.id));
+  const tail = current.filter(
+    (conversation) =>
+      !freshIds.has(conversation.id) && conversationMatchesListFilter(conversation, filter),
+  );
+  return [...firstPage, ...tail];
+}
+
+/** @deprecated Use reconcileConversationListAfterFirstPageRefresh with a filter. */
 export function mergeFirstPage(
   current: readonly ConversationSummary[],
   firstPage: readonly ConversationSummary[],
 ): ConversationSummary[] {
-  const fresh = new Set(firstPage.map((conversation) => conversation.id));
-  return [...firstPage, ...current.filter((conversation) => !fresh.has(conversation.id))];
+  return reconcileConversationListAfterFirstPageRefresh(current, firstPage, 'all');
+}
+
+/** Apply a fresher row summary, or drop the row when it no longer matches the filter. */
+export function applyConversationRowToList(
+  current: readonly ConversationSummary[],
+  summary: ConversationSummary,
+  filter: ConversationListFilter,
+): ConversationSummary[] {
+  if (!current.some((conversation) => conversation.id === summary.id)) {
+    return [...current];
+  }
+  if (!conversationMatchesListFilter(summary, filter)) {
+    return current.filter((conversation) => conversation.id !== summary.id);
+  }
+  return current.map((conversation) => (conversation.id === summary.id ? summary : conversation));
 }
 
 export function appendPage(

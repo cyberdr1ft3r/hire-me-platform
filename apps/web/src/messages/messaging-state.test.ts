@@ -1,4 +1,4 @@
-import type { ConversationSummary } from '@hire-me/contracts';
+import type { ConversationListFilter, ConversationSummary } from '@hire-me/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { DICTIONARIES } from '../i18n/messages/index.js';
@@ -6,23 +6,29 @@ import { MessagingRequestError } from './messages-api.js';
 import { resolveMessagingAccess } from './messaging-access.js';
 import {
   appendPage,
+  applyConversationRowToList,
   canEditMessage,
   canWithdrawMessage,
   composerReadOnlyReason,
+  conversationMatchesListFilter,
   formatUnreadBadge,
   groupMessagesByDay,
   groupTitleProblem,
-  mergeFirstPage,
   mergeMessages,
   messageBodyProblem,
   messagingFailureKey,
   newClientMessageId,
   readOnlyReasonFromError,
+  reconcileConversationListAfterFirstPageRefresh,
   relativeDay,
 } from './messaging-state.js';
 import { ACTOR_ID, DIRECT_ID, PEER_ID, syntheticMessage } from './messages-test-data.js';
 
-function row(id: string, title = id): ConversationSummary {
+function row(
+  id: string,
+  title = id,
+  overrides: Partial<ConversationSummary> = {},
+): ConversationSummary {
   return {
     activeMemberCount: 3,
     counterpart: null,
@@ -36,7 +42,16 @@ function row(id: string, title = id): ConversationSummary {
     title,
     type: 'GROUP',
     unreadCount: 0,
+    ...overrides,
   };
+}
+
+function reconcile(
+  current: ConversationSummary[],
+  firstPage: ConversationSummary[],
+  filter: ConversationListFilter,
+): ConversationSummary[] {
+  return reconcileConversationListAfterFirstPageRefresh(current, firstPage, filter);
 }
 
 function keys(node: unknown, prefix = ''): string[] {
@@ -111,12 +126,58 @@ describe('messaging state helpers', () => {
     expect(mergeMessages([first, second], [withdrawn])[1]).toEqual(withdrawn);
   });
 
+  it('matches list filters like the conversation list API', () => {
+    expect(conversationMatchesListFilter(row('a'), 'all')).toBe(true);
+    expect(conversationMatchesListFilter(row('a', 'a', { status: 'ARCHIVED' }), 'all')).toBe(false);
+    expect(conversationMatchesListFilter(row('a', 'a', { unreadCount: 2 }), 'unread')).toBe(true);
+    expect(conversationMatchesListFilter(row('a'), 'unread')).toBe(false);
+    expect(conversationMatchesListFilter(row('a', 'a', { status: 'ARCHIVED' }), 'archived')).toBe(
+      true,
+    );
+  });
+
+  it('drops a read conversation from Unread when the row is updated', () => {
+    const unread = row('direct', 'Peer', { type: 'PRIVATE', unreadCount: 3 });
+    const read = { ...unread, unreadCount: 0, lastReadSequence: 5 };
+    expect(applyConversationRowToList([unread], read, 'unread').map((entry) => entry.id)).toEqual(
+      [],
+    );
+  });
+
+  it('drops an archived group from All when the row is updated', () => {
+    const active = row('group', 'Team');
+    const archived = { ...active, status: 'ARCHIVED' as const };
+    expect(applyConversationRowToList([active], archived, 'all').map((entry) => entry.id)).toEqual(
+      [],
+    );
+  });
+
+  it('reconciles the authoritative first page and drops tail rows that no longer match the filter', () => {
+    const readTail = row('b', 'b', { unreadCount: 0 });
+    const stillUnread = row('c', 'c', { unreadCount: 1 });
+    expect(
+      reconcile(
+        [row('a', 'a', { unreadCount: 2 }), readTail, stillUnread],
+        [row('a', 'a', { unreadCount: 2 }), row('d', 'd', { unreadCount: 4 })],
+        'unread',
+      ).map((entry) => entry.id),
+    ).toEqual(['a', 'd', 'c']);
+    expect(reconcile([readTail], [], 'unread')).toEqual([]);
+  });
+
   it('refreshes the first list page in place and appends keyset pages without duplicates', () => {
-    expect(mergeFirstPage([row('a'), row('b'), row('c')], [row('c', 'C'), row('a')])).toEqual([
+    expect(reconcile([row('a'), row('b'), row('c')], [row('c', 'C'), row('a')], 'all')).toEqual([
       row('c', 'C'),
       row('a'),
       row('b'),
     ]);
+    const loaded = reconcile(
+      appendPage([row('a'), row('b')], [row('c'), row('d')]),
+      [row('a'), row('b')],
+      'all',
+    );
+    expect(loaded.map((entry) => entry.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(new Set(loaded.map((entry) => entry.id)).size).toBe(4);
     expect(appendPage([row('a')], [row('a'), row('b')]).map((entry) => entry.id)).toEqual([
       'a',
       'b',
