@@ -4,6 +4,15 @@ Last updated: 2026-10-13
 
 ## Current situation
 
+- **UI refinement demonstration:** isolated branch `fix/ui-refinement-demo-20261013`
+  on main `283c18a` (PR #193 merged). Review the small frontend commits and
+  [verification/screenshot evidence](../audit/ui-refinement-20261013.md). Web 889
+  and contracts 70 tests pass; static checks and build pass. Complete exact-head
+  CI and human review before merging. The local Windows native PKCS#11 limitation
+  is documented. No backend/schema/source authorization or production changes.
+  Earlier historical draft references below are not an open-PR inventory; the
+  repository's open-PR list was empty when this sprint began.
+
 - **R-036 Task reminder scheduler:** PR A (#173) and PR B (#177) merged on `main`. **Issue #178 PR C (draft):** operations runbook, AuditLog + lag observability, example systemd templates, UI diagnostic wording. **Staging evidence: BLOCKED / NOT EXECUTED** — see `docs/runbooks/task-reminder-scheduler-staging-evidence.md`. Do **not** close R-036 until staging checklist is satisfied on a real host.
 
 - **D-068 / D-070:** runbook `RUNBOOK_READY`; no production execution.

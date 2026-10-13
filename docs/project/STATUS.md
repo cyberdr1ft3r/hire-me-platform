@@ -3,6 +3,20 @@
 Last updated: 2026-10-13
 Status owner: repository maintainer
 
+## UI refinement demonstration — 2026-10-13
+
+- Focused frontend branch `fix/ui-refinement-demo-20261013` starts from main
+  `283c18a` (Messages PR #193 merged); open-PR inventory was empty at inspection.
+- Component hover precedence, reachable desktop splits, Messages density/composer,
+  sidebar spacing, Administration grouping, Agenda hierarchy and MissionPicker
+  reuse are implemented in small commits. No backend/schema/auth-source changes.
+- Web 889 and contracts 70 tests passed; lint, format, style/contrast, architecture,
+  typecheck and build passed. Before/after synthetic EN/FR screenshots cover ten
+  screens at 1440px and 390px. Native PKCS#11 cannot load in the local Windows
+  environment; exact-head Linux CI and human review remain merge gates.
+- See [review evidence and remaining issues](../audit/ui-refinement-20261013.md).
+  No merge/deployment; unrelated operational gates below are unchanged.
+
 ## Issue #132 / signing phases
 
 - **#132 preflight (PR #134):** merged. Parent design doc remains authoritative; Issue #132 **open** until later phases land.
