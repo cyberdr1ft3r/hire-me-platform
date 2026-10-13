@@ -149,7 +149,6 @@ export class MessagingController {
         this.actor(request),
         uuid(id),
         parse(MessageSendRequestSchema, body),
-        context(request),
       ),
     );
   }

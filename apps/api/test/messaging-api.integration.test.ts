@@ -1270,7 +1270,6 @@ describe('messaging API (Issue #179)', { timeout: 120_000 }, () => {
         new Set([
           'messages.group.created',
           'messages.group.renamed',
-          'messages.message.sent',
           'messages.message.edited',
           'messages.message.withdrawn',
           'messages.group.owner_promoted',

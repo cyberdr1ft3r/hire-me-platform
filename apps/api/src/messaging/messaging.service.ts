@@ -577,7 +577,6 @@ export class MessagingService {
     actorUserId: string,
     conversationId: string,
     input: MessageSendRequest,
-    context: RequestContext,
   ): Promise<MessageSendResponse> {
     const actor = await this.internalActor(actorUserId);
     this.limiter.consume('message-write', actor);
@@ -638,17 +637,6 @@ export class MessagingService {
       await tx.conversationMember.update({
         where: { id: membership.id },
         data: { lastReadSequence: sequence },
-      });
-      await this.audit(tx, context, {
-        action: 'messages.message.sent',
-        actorUserId: actor,
-        entityType: 'Message',
-        entityId: message.id,
-        metadata: {
-          conversationId: conversation.id,
-          messageId: message.id,
-          sequence: Number(sequence),
-        },
       });
       return { message: toMessageView(message, actor), replayed: false };
     }, TRANSACTION_OPTIONS);
