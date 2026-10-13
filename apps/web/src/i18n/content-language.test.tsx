@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App.js';
@@ -176,6 +176,7 @@ describe('Task workspace inside a French shell', () => {
     // The shell itself is translated.
     expect(await screen.findByRole('link', { name: 'Tâches' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    fireEvent.click(screen.getByLabelText('Compte et session'));
     expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
 

@@ -20,6 +20,7 @@ const syntheticUser: AuthenticatedUser = {
 };
 
 afterEach(() => {
+  window.localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -57,6 +58,43 @@ function ShellHarness() {
 }
 
 describe('AppShell', () => {
+  it('collapses the context, persists the choice and opens a different authorized domain', () => {
+    mockMobileNavigation(false);
+    const { unmount } = render(<ShellHarness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse contextual menu' }));
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Expand contextual menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    unmount();
+    render(<ShellHarness />);
+    expect(screen.getByRole('button', { name: 'Expand contextual menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Recruitment' }));
+    expect(screen.getByRole('link', { name: 'Missions' })).toHaveAttribute('href', '/missions');
+    expect(screen.queryByRole('link', { name: 'Tasks' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Overview' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+  });
+
+  it('keeps modified links native and closes the account popover with Escape', () => {
+    mockMobileNavigation(false);
+    render(<ShellHarness />);
+    fireEvent.click(screen.getByRole('link', { name: 'Tasks' }), { ctrlKey: true });
+    expect(screen.getByRole('heading', { name: 'Overview content' })).toBeVisible();
+    const account = screen.getByLabelText('Account and session');
+    fireEvent.click(account);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    fireEvent.keyDown(account, { key: 'Escape' });
+    expect(account).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Sign out' })).not.toBeVisible();
+  });
+
   it('renders permission-aware semantic navigation and an active destination', () => {
     mockMobileNavigation(false);
     render(<ShellHarness />);
@@ -66,6 +104,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Tasks' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
     expect(screen.getByText('API healthy')).toBeVisible();
+    fireEvent.click(screen.getByLabelText('Account and session'));
     expect(screen.getByText('operator@example.test')).toBeVisible();
   });
 
@@ -100,6 +139,10 @@ describe('AppShell', () => {
       </I18nProvider>,
     );
 
+    expect(
+      screen.getByRole('button', { name: 'Communication · 3 unread conversations' }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Communication/ }));
     const messages = screen.getByRole('link', { name: /Messages/ });
     expect(messages).toHaveAccessibleName('Messages 3 unread conversations');
     expect(messages).toHaveAttribute('href', '/messages');
