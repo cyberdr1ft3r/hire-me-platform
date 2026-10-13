@@ -1519,7 +1519,7 @@ export class CandidateRequestError extends Error {
 
 const STABLE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,79}$/;
 
-async function readStableErrorCode(response: Response): Promise<string | null> {
+export async function readStableErrorCode(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.json();
     if (typeof body !== 'object' || body === null || !('error' in body)) {

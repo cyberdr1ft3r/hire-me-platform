@@ -29,4 +29,23 @@ describe('internal navigation', () => {
     ]);
     expect(groups.every((group) => group.items.length > 0)).toBe(true);
   });
+
+  it('shows Messages only for messages:view, whatever else the user holds', () => {
+    expect(pathToRoute('/messages')).toBe('messages');
+    expect(routeToPath('messages')).toBe('/messages');
+    expect(canAccessInternalRoute('messages', ['messages:view'])).toBe(true);
+    expect(canAccessInternalRoute('messages', ['messages:create'])).toBe(false);
+    expect(
+      canAccessInternalRoute('messages', ['invoices:view', 'expenses:view', 'users:manage']),
+    ).toBe(false);
+    const workspace = visibleInternalNavigation(['messages:view']).flatMap((group) =>
+      group.items.map((item) => item.route),
+    );
+    expect(workspace).toEqual(['home', 'agenda', 'messages']);
+    expect(
+      visibleInternalNavigation(['tasks:view']).some((group) =>
+        group.items.some((item) => item.route === 'messages'),
+      ),
+    ).toBe(false);
+  });
 });

@@ -3,6 +3,7 @@ import type { Messages } from './en.js';
 import { accountingFr } from './accounting.fr.js';
 import { commercialFr } from './commercial.fr.js';
 import { documentsFr } from './documents.fr.js';
+import { messagingFr } from './messaging.fr.js';
 import { missionsFr } from './missions.fr.js';
 import { trainingFr } from './training.fr.js';
 
@@ -70,6 +71,7 @@ export const frMessages: Messages = {
       clients: 'Clients',
       commercial: 'Commercial',
       documents: 'Documents',
+      messages: 'Messages',
       missions: 'Missions',
       overview: 'Vue d’ensemble',
       reporting: 'Rapports',
@@ -702,6 +704,7 @@ export const frMessages: Messages = {
   accounting: accountingFr,
   commercial: commercialFr,
   documents: documentsFr,
+  messages: messagingFr,
   missions: missionsFr,
   training: trainingFr,
   task: {

@@ -5,6 +5,7 @@ export type InternalRoute =
   | 'admin'
   | 'agenda'
   | 'meetings'
+  | 'messages'
   | 'clients'
   | 'candidates'
   | 'missions'
@@ -54,6 +55,12 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
         labelKey: 'navigation.destinations.agenda',
         path: '/agenda',
         route: 'agenda',
+      },
+      {
+        labelKey: 'navigation.destinations.messages',
+        path: '/messages',
+        permissions: ['messages:view'],
+        route: 'messages',
       },
     ],
   },
