@@ -95,6 +95,7 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
+    fireEvent.click(await screen.findByLabelText('Account and session'));
     expect(await screen.findByText('Development Administrator')).toBeVisible();
     expect(localStorageSpy).not.toHaveBeenCalled();
 
@@ -650,6 +651,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Administration' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /administration/i }));
 
     expect(await screen.findByRole('heading', { name: /administration/i })).toBeVisible();
@@ -800,6 +808,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Operations' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /clients/i }));
 
     expect(await screen.findByRole('heading', { name: /clients/i })).toBeVisible();
@@ -930,6 +945,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Recruitment' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
     expect(await screen.findByRole('heading', { level: 1, name: /candidates/i })).toBeVisible();
@@ -1253,6 +1275,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Operations' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
@@ -1519,6 +1548,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Operations' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Training' })).toBeVisible();
@@ -1560,6 +1596,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Operations' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
     expect(await screen.findByText('New training program')).toBeVisible();
@@ -1598,6 +1641,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Recruitment' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
     expect(
@@ -1618,6 +1668,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Recruitment' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
     const heading = await screen.findByRole('heading', {
@@ -1638,6 +1695,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('full-report@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Recruitment' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
     const exportButton = await screen.findByRole('button', { name: /export csv/i });
@@ -1655,6 +1719,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('navigation-report@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Recruitment' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
     fireEvent.click(
       await screen.findByRole('link', { name: 'Open candidate Deep Link Candidate' }),
@@ -1678,6 +1749,7 @@ describe('App', () => {
     ).toBeVisible();
     expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
     expect(window.location.pathname).toBe('/');
     expect(window.location.search).toBe('');
@@ -1744,6 +1816,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-reader@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Commercial' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
     expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
@@ -1774,6 +1853,13 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-operator@example.test');
+    fireEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+        'button',
+        { name: 'Commercial' },
+      ),
+    );
+
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
     expect(await screen.findByRole('button', { name: 'Record payment' })).toBeVisible();
@@ -2345,6 +2431,13 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  fireEvent.click(
+    within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+      'button',
+      { name: 'Commercial' },
+    ),
+  );
+
   fireEvent.click(await screen.findByRole('link', { name: /commercial/i }));
 }
 
@@ -2581,6 +2674,13 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  fireEvent.click(
+    within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
+      'button',
+      { name: 'Recruitment' },
+    ),
+  );
+
   fireEvent.click(await screen.findByRole('link', { name: /missions/i }));
   fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
 }

@@ -150,6 +150,10 @@
   --layout-card-min: 16rem;
   --layout-dialog-max: 36rem;
   --layout-sidebar-width: 15.5rem;
+  /* Proposed AppShell v1.2: rail plus independently collapsible context. */
+  --layout-navigation-rail-width: 4rem;
+  --layout-navigation-context-width: 11rem;
+  --layout-navigation-drawer-width: 20rem;
   --layout-shell-topbar-height: 3.5rem;
   --size-swatch: 2.5rem;
 }

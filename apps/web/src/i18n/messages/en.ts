@@ -87,6 +87,11 @@ export const enMessages = {
       label: 'Language',
     },
     navigation: {
+      communication: 'Communication',
+      domainRegion: 'Workspace navigation',
+      collapse: 'Collapse contextual menu',
+      expand: 'Expand contextual menu',
+      contextHint: 'Choose a workspace from the icon rail.',
       close: 'Close',
       closeNavigation: 'Close navigation',
       dismissNavigation: 'Dismiss navigation',
@@ -98,6 +103,7 @@ export const enMessages = {
       skipToMain: 'Skip to main content',
     },
     session: {
+      account: 'Account and session',
       refreshProfile: 'Refresh profile',
       signOut: 'Sign out',
     },

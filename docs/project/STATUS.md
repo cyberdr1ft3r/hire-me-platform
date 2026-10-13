@@ -3,6 +3,17 @@
 Last updated: 2026-10-13
 Status owner: repository maintainer
 
+## AppShell v1.2 navigation follow-up
+
+- Isolated branch `feat/appshell-v1-2`, stacked on #194 at `ffc7fa2`; main base
+  `283c18a`. Only #194 was open when overlap was checked.
+- Implements the requested 64px rail, 176px collapsible context, 56px utility
+  header, persisted display preference and mobile drawer. Existing authorized
+  route registry is reused without backend or permission changes.
+- [Navigation addendum](../design/HIREME_UI_DNA_v1.2-navigation-proposed.md) remains
+  proposed. Review synthetic EN/FR evidence and exact-head CI, then obtain human
+  visual approval. Do not merge/deploy automatically; #194 remains untouched.
+
 ## UI refinement demonstration — 2026-10-13
 
 - Focused frontend branch `fix/ui-refinement-demo-20261013` starts from main
