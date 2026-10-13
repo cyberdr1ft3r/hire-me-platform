@@ -52,7 +52,6 @@ export const messagingEn = {
     loading: 'Loading conversations…',
     memberCount: plural({ one: '{count} member', other: '{count} members' }),
     noActivity: 'No messages yet',
-    region: 'Conversations',
     title: 'Conversations',
     unreadCount: plural({ one: '{count} unread message', other: '{count} unread messages' }),
     unreadMany: 'More than 99 unread messages',
@@ -109,7 +108,6 @@ export const messagingEn = {
     title: 'New message',
   },
   newGroup: {
-    add: 'Add',
     historyNotice:
       'People added after the group is created only see messages sent after they join.',
     maxMembers: 'A group can have at most {max} members, including you.',
@@ -126,7 +124,6 @@ export const messagingEn = {
     title: 'New group',
   },
   details: {
-    add: 'Add',
     addSubmit: 'Add to group',
     addTitle: 'Add members',
     archive: 'Archive group',

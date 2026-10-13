@@ -52,7 +52,6 @@ export const messagingFr: Messages['messages'] = {
       other: '{count} membres',
     }),
     noActivity: 'Aucun message pour le moment',
-    region: 'Conversations',
     title: 'Conversations',
     unreadCount: plural({
       many: '{count} de messages non lus',
@@ -117,7 +116,6 @@ export const messagingFr: Messages['messages'] = {
     title: 'Nouveau message',
   },
   newGroup: {
-    add: 'Ajouter',
     historyNotice:
       'Les personnes ajoutées après la création du groupe ne voient que les messages envoyés après leur arrivée.',
     maxMembers: 'Un groupe compte au plus {max} membres, vous compris.',
@@ -139,7 +137,6 @@ export const messagingFr: Messages['messages'] = {
     title: 'Nouveau groupe',
   },
   details: {
-    add: 'Ajouter',
     addSubmit: 'Ajouter au groupe',
     addTitle: 'Ajouter des membres',
     archive: 'Archiver le groupe',
