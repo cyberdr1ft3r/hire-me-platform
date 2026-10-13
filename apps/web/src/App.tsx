@@ -50,6 +50,7 @@ import { formatAdminRoleName } from './admin/role-labels.js';
 import { AgendaPanel } from './agenda/index.js';
 import { MeetingsPanel } from './meetings/index.js';
 import { TasksPanel } from './tasks/index.js';
+import { formatUnreadBadge, MessagesPanel, useMessagingUnreadSummary } from './messages/index.js';
 import {
   PublicOpportunitiesPanel,
   PublicOpportunityDetailPanel,
@@ -84,6 +85,11 @@ function AppRoutes() {
     search: window.location.search,
   }));
   const route = location.route;
+  const unreadMessages = useMessagingUnreadSummary({
+    accessToken,
+    enabled: user?.permissions.includes('messages:view') ?? false,
+    principal: user ? `${user.id} ${user.permissions.join(' ')}` : '',
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -322,6 +328,16 @@ function AppRoutes() {
       case 'documents':
         routeContent = <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />;
         break;
+      case 'messages':
+        routeContent = (
+          <MessagesPanel
+            accessToken={accessToken}
+            actorUserId={user.id}
+            onUnreadChanged={unreadMessages.refresh}
+            permissions={user.permissions}
+          />
+        );
+        break;
       case 'training':
         routeContent = (
           <TrainingPanel
@@ -382,6 +398,16 @@ function AppRoutes() {
     <AppShell
       apiState={apiState}
       currentRoute={route}
+      navigationBadges={
+        unreadMessages.count
+          ? {
+              messages: {
+                display: formatUnreadBadge(unreadMessages.count),
+                label: t('messages.unreadBadge', { count: unreadMessages.count }),
+              },
+            }
+          : undefined
+      }
       onLogout={handleLogout}
       onNavigate={navigate}
       onRefreshUser={handleRefreshUser}

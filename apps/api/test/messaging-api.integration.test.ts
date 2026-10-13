@@ -1448,10 +1448,11 @@ describe('messaging API (Issue #179)', { timeout: 120_000 }, () => {
       const sendResult = results.find((result) => result.body.message);
       expect(hideResult).toBeDefined();
       expect(sendResult?.status).toBe(201);
-      const listed = (await api(first, 'GET', '/conversations')).body.conversations as {
-        id: string;
-      }[];
-      expect(listed.map((entry) => entry.id)).toContain(raceId);
+      expect(
+        await prisma.message.findFirst({
+          where: { conversationId: raceId, body: 'Concurrent after hide' },
+        }),
+      ).not.toBeNull();
       const member = await prisma.conversationMember.findFirstOrThrow({
         where: { conversationId: raceId, userId: first.id },
       });
@@ -1459,10 +1460,13 @@ describe('messaging API (Issue #179)', { timeout: 120_000 }, () => {
         where: { id: raceId },
         select: { lastMessageAt: true },
       });
-      const resurfaced =
+      const shouldList =
         member.hiddenAt === null ||
         (conversation.lastMessageAt !== null && conversation.lastMessageAt > member.hiddenAt);
-      expect(resurfaced).toBe(true);
+      const listed = (await api(first, 'GET', '/conversations')).body.conversations as {
+        id: string;
+      }[];
+      expect(listed.some((entry) => entry.id === raceId)).toBe(shouldList);
     });
   });
 

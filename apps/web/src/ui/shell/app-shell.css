@@ -119,6 +119,24 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.app-shell__nav-badge {
+  background: var(--color-brand);
+  border-radius: var(--radius-full);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-1);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  margin-inline-start: auto;
+  min-width: var(--space-5);
+  padding: var(--space-0-5) var(--space-1);
+  text-align: center;
+}
+
+.app-shell__nav-badge + .app-shell__current-marker {
+  margin-inline-start: var(--space-2);
+}
+
 .app-shell__current-marker {
   background: currentColor;
   border-radius: var(--radius-full);

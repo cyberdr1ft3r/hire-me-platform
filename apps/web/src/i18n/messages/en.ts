@@ -2,6 +2,7 @@ import { plural, type WidenMessages } from '../message.js';
 import { accountingEn } from './accounting.en.js';
 import { commercialEn } from './commercial.en.js';
 import { documentsEn } from './documents.en.js';
+import { messagingEn } from './messaging.en.js';
 import { missionsEn } from './missions.en.js';
 import { trainingEn } from './training.en.js';
 
@@ -57,6 +58,7 @@ export const enMessages = {
       clients: 'Clients',
       commercial: 'Commercial',
       documents: 'Documents',
+      messages: 'Messages',
       missions: 'Missions',
       overview: 'Overview',
       reporting: 'Reporting',
@@ -691,6 +693,7 @@ export const enMessages = {
   accounting: accountingEn,
   commercial: commercialEn,
   documents: documentsEn,
+  messages: messagingEn,
   missions: missionsEn,
   training: trainingEn,
   task: {

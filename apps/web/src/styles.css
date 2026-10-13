@@ -9,6 +9,7 @@
 @import './candidates/candidate.css';
 @import './clients/client.css';
 @import './documents/document.css';
+@import './messages/messages.css';
 @import './missions/mission.css';
 @import './training/training.css';
 @import './commercial/commercial.css';

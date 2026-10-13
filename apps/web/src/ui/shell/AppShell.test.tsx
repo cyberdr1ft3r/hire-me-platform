@@ -82,6 +82,35 @@ describe('AppShell', () => {
     expect(screen.getByRole('main')).toHaveFocus();
   });
 
+  it('renders a navigation badge with a visual count and an accessible label', () => {
+    mockMobileNavigation(false);
+    render(
+      <I18nProvider initialLocale="en">
+        <AppShell
+          apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
+          currentRoute="home"
+          navigationBadges={{ messages: { display: '3', label: '3 unread conversations' } }}
+          onLogout={() => undefined}
+          onNavigate={() => undefined}
+          onRefreshUser={() => undefined}
+          user={{ ...syntheticUser, permissions: ['messages:view'] }}
+        >
+          <h1>Overview content</h1>
+        </AppShell>
+      </I18nProvider>,
+    );
+
+    const messages = screen.getByRole('link', { name: /Messages/ });
+    expect(messages).toHaveAccessibleName('Messages 3 unread conversations');
+    expect(messages).toHaveAttribute('href', '/messages');
+  });
+
+  it('hides Messages without messages:view', () => {
+    mockMobileNavigation(false);
+    render(<ShellHarness />);
+    expect(screen.queryByRole('link', { name: /Messages/ })).not.toBeInTheDocument();
+  });
+
   it('provides a skip target', () => {
     mockMobileNavigation(false);
     render(<ShellHarness />);

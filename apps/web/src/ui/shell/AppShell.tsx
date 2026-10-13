@@ -22,10 +22,17 @@ export type ShellApiState =
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
 
+/** A count shown on one destination; `label` is its full localized accessible text. */
+export interface NavigationBadge {
+  display: string;
+  label: string;
+}
+
 interface AppShellProps {
   apiState: ShellApiState;
   children: ReactNode;
   currentRoute: InternalRoute;
+  navigationBadges?: Partial<Record<InternalRoute, NavigationBadge>>;
   onLogout: () => void | Promise<void>;
   onNavigate: (route: InternalRoute) => void;
   onRefreshUser: () => void | Promise<void>;
@@ -44,6 +51,7 @@ export function AppShell({
   apiState,
   children,
   currentRoute,
+  navigationBadges,
   onLogout,
   onNavigate,
   onRefreshUser,
@@ -208,20 +216,29 @@ export function AppShell({
             <section className="app-shell__nav-group" key={group.id}>
               <h2>{t(group.labelKey)}</h2>
               <ul>
-                {group.items.map((item) => (
-                  <li key={item.route}>
-                    <a
-                      aria-current={item.route === currentRoute ? 'page' : undefined}
-                      href={item.path}
-                      onClick={(event) => handleDestination(event, item.route)}
-                    >
-                      <span>{t(item.labelKey)}</span>
-                      {item.route === currentRoute ? (
-                        <span aria-hidden="true" className="app-shell__current-marker" />
-                      ) : null}
-                    </a>
-                  </li>
-                ))}
+                {group.items.map((item) => {
+                  const badge = navigationBadges?.[item.route];
+                  return (
+                    <li key={item.route}>
+                      <a
+                        aria-current={item.route === currentRoute ? 'page' : undefined}
+                        href={item.path}
+                        onClick={(event) => handleDestination(event, item.route)}
+                      >
+                        <span>{t(item.labelKey)}</span>
+                        {badge ? (
+                          <span className="app-shell__nav-badge">
+                            <span aria-hidden="true">{badge.display}</span>
+                            <span className="sr-only">{badge.label}</span>
+                          </span>
+                        ) : null}
+                        {item.route === currentRoute ? (
+                          <span aria-hidden="true" className="app-shell__current-marker" />
+                        ) : null}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ))}
