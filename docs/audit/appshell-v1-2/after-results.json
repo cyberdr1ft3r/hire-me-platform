@@ -1,0 +1,594 @@
+[
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 1440,
+    "expanded": {
+      "panel": 1136,
+      "content": 1200,
+      "main": 1200,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 1312,
+      "content": 1376,
+      "main": 1376,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 1024,
+    "expanded": {
+      "panel": 720,
+      "content": 784,
+      "main": 784,
+      "overflow": false
+    },
+    "errors": [],
+    "collapsed": {
+      "panel": 896,
+      "content": 960,
+      "main": 960,
+      "overflow": false
+    },
+    "gain": 176
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 768,
+    "expanded": {
+      "panel": 736,
+      "content": 768,
+      "main": 768,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 390,
+    "expanded": {
+      "panel": 358,
+      "content": 390,
+      "main": 390,
+      "overflow": false
+    },
+    "errors": [],
+    "drawerFooter": {
+      "bottom": 883.5625,
+      "height": 900
+    },
+    "focusWrap": true,
+    "focusRestored": true
+  }
+]

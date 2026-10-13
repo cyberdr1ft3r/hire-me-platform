@@ -4,6 +4,13 @@ Last updated: 2026-10-13
 
 ## Current situation
 
+- **Next: review AppShell v1.2** on `feat/appshell-v1-2`, stacked on #194 head
+  `ffc7fa2`. See the [proposed navigation addendum](../design/HIREME_UI_DNA_v1.2-navigation-proposed.md).
+  Completion requires exact-head CI, 1440/1024/768/390 EN/FR screenshots with real
+  panel-width gain on collapse, keyboard/RBAC/history checks and human visual
+  review. Keep the follow-up draft; merge #194 first or explicitly rebase after
+  its disposition. No automatic merge/deploy or backend changes.
+
 - **UI refinement demonstration:** isolated branch `fix/ui-refinement-demo-20261013`
   on main `283c18a` (PR #193 merged). Review the small frontend commits and
   [verification/screenshot evidence](../audit/ui-refinement-20261013.md). Web 889

@@ -1,0 +1,466 @@
+[
+  {
+    "locale": "en",
+    "width": 1440,
+    "railTargets": [
+      {
+        "label": "Overview",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Recruitment",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Commercial",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Operations",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Communication",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Administration",
+        "height": 44,
+        "width": 44
+      }
+    ],
+    "accountRestored": true,
+    "shortRail": {
+      "bottom": 340,
+      "height": 390
+    }
+  },
+  {
+    "locale": "en",
+    "width": 1024,
+    "railTargets": [
+      {
+        "label": "Overview",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Recruitment",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Commercial",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Operations",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Communication",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Administration",
+        "height": 44,
+        "width": 44
+      }
+    ],
+    "accountRestored": true,
+    "shortRail": {
+      "bottom": 340,
+      "height": 390
+    }
+  },
+  {
+    "locale": "en",
+    "width": 768,
+    "targets": [
+      {
+        "height": 44,
+        "width": 50
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 85
+      },
+      {
+        "height": 44,
+        "width": 110.34375
+      },
+      {
+        "height": 44,
+        "width": 71.328125
+      }
+    ],
+    "focusRestored": true
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "targets": [
+      {
+        "height": 44,
+        "width": 50
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 85
+      },
+      {
+        "height": 44,
+        "width": 110.34375
+      },
+      {
+        "height": 44,
+        "width": 71.328125
+      }
+    ],
+    "focusRestored": true
+  },
+  {
+    "locale": "fr",
+    "width": 1440,
+    "railTargets": [
+      {
+        "label": "Vue d’ensemble",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Recrutement",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Commercial",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Opérations",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Communication",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Administration",
+        "height": 44,
+        "width": 44
+      }
+    ],
+    "accountRestored": true,
+    "shortRail": {
+      "bottom": 340,
+      "height": 390
+    }
+  },
+  {
+    "locale": "fr",
+    "width": 1024,
+    "railTargets": [
+      {
+        "label": "Vue d’ensemble",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Recrutement",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Commercial",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Opérations",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Communication",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "label": "Administration",
+        "height": 44,
+        "width": 44
+      }
+    ],
+    "accountRestored": true,
+    "shortRail": {
+      "bottom": 340,
+      "height": 390
+    }
+  },
+  {
+    "locale": "fr",
+    "width": 768,
+    "targets": [
+      {
+        "height": 44,
+        "width": 50
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 85
+      },
+      {
+        "height": 44,
+        "width": 133.046875
+      },
+      {
+        "height": 44,
+        "width": 115.6875
+      }
+    ],
+    "focusRestored": true
+  },
+  {
+    "locale": "fr",
+    "width": 390,
+    "targets": [
+      {
+        "height": 44,
+        "width": 50
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 287
+      },
+      {
+        "height": 44,
+        "width": 85
+      },
+      {
+        "height": 44,
+        "width": 133.046875
+      },
+      {
+        "height": 44,
+        "width": 115.6875
+      }
+    ],
+    "focusRestored": true
+  }
+]
