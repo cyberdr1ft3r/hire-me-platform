@@ -1,4 +1,11 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage, TextArea } from '../ui/index.js';
@@ -70,6 +77,29 @@ export function MessageComposer({
 }) {
   const { t } = useI18n();
   const coarse = useCoarsePointer();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const resize = () => {
+      input.style.height = 'auto';
+      // Include the border box; CSS bounds growth and keeps long drafts scrollable.
+      input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+    };
+    resize();
+    if (typeof ResizeObserver === 'undefined') return;
+    // Observe width changes without feeding textarea height changes back into the observer.
+    const parent = input.parentElement;
+    let width = parent?.clientWidth;
+    const widthObserver = new ResizeObserver(() => {
+      if (parent && parent.clientWidth !== width) {
+        width = parent.clientWidth;
+        resize();
+      }
+    });
+    if (parent) widthObserver.observe(parent);
+    return () => widthObserver.disconnect();
+  }, [draft]);
   const problem = messageBodyProblem(draft);
   const length = draft.trim().length;
   const baseHint = coarse ? t('messages.composer.hintTouch') : t('messages.composer.hintDesktop');
@@ -98,6 +128,7 @@ export function MessageComposer({
   return (
     <form className="messages-composer" onSubmit={submit}>
       <TextArea
+        ref={inputRef}
         error={
           problem === 'tooLong'
             ? t('messages.composer.tooLong', { max: MESSAGE_BODY_MAX_LENGTH })

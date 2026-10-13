@@ -2,6 +2,7 @@ import {
   useId,
   type InputHTMLAttributes,
   type ReactNode,
+  type Ref,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
@@ -68,6 +69,7 @@ export function TextField({ error, hint, id, label, required, ...props }: TextFi
 }
 
 export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> {
+  ref?: Ref<HTMLTextAreaElement>;
   error?: string;
   hint?: string;
   id?: string;

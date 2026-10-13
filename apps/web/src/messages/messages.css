@@ -10,6 +10,10 @@
   min-width: 0;
 }
 
+.messages-panel > .ui-page-header {
+  margin-bottom: 0;
+}
+
 .messages-layout {
   align-items: start;
   display: grid;
@@ -25,7 +29,7 @@
 
 @container messages (min-width: 48rem) {
   .messages-layout {
-    grid-template-columns: minmax(16rem, 2fr) minmax(0, 3fr);
+    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
   }
 
   .messages-layout[data-view] .messages-list,
@@ -53,6 +57,8 @@
 }
 
 .messages-list__header {
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding-bottom: var(--space-4);
   display: grid;
   gap: var(--space-3);
 }
@@ -115,6 +121,12 @@
 
 .messages-row:hover {
   background: var(--color-table-hover);
+  border-color: var(--color-border);
+}
+
+.messages-row:active {
+  background: var(--color-brand-subtle-hover);
+  border-color: var(--color-border-strong);
 }
 
 .messages-row:focus-visible {
@@ -227,6 +239,7 @@
 /* Message log */
 
 .messages-log {
+  background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-medium);
   display: grid;
@@ -272,6 +285,8 @@
 }
 
 .messages-day__label {
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding-bottom: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-1);
   font-weight: var(--font-weight-semibold);
@@ -318,6 +333,8 @@
 }
 
 .messages-message__body {
+  color: var(--color-text);
+  font-size: var(--font-size-3);
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -346,6 +363,7 @@
 
 /* The composer stays reachable above an on-screen keyboard. */
 .messages-conversation__composer {
+  border-top: var(--border-width) solid var(--color-border);
   background: var(--color-canvas);
   bottom: 0;
   padding-block: var(--space-2);
@@ -359,6 +377,13 @@
 
 .messages-composer__actions {
   justify-content: flex-end;
+}
+
+.messages-composer textarea.ui-field__control {
+  min-height: var(--space-16);
+  max-height: calc(var(--space-16) * 3);
+  overflow-y: auto;
+  resize: none;
 }
 
 /* Forms and group details */
