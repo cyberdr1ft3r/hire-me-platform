@@ -26,4 +26,19 @@ describe('Finance Manager navigation (Issue #125)', () => {
     expect(canAccessInternalRoute('missions', permissions)).toBe(false);
     expect(canAccessInternalRoute('candidates', permissions)).toBe(false);
   });
+
+  it('never widens Missions or Candidates navigation through the D-086 financial context', () => {
+    const routesFor = (codes: readonly string[]) =>
+      visibleInternalNavigation(codes).flatMap((group) => group.items.map((item) => item.route));
+    const withoutContext = permissions.filter(
+      (code) => code !== 'recruitment_financial_context:view',
+    );
+    expect(routesFor(permissions)).toEqual(routesFor(withoutContext));
+    expect(routesFor(['recruitment_financial_context:view'])).toEqual(routesFor([]));
+
+    const hybrid = [...permissions, 'missions:view'];
+    expect(canAccessInternalRoute('missions', hybrid)).toBe(true);
+    expect(canAccessInternalRoute('candidates', hybrid)).toBe(false);
+    expect(routesFor(hybrid)).toEqual(routesFor([...withoutContext, 'missions:view']));
+  });
 });

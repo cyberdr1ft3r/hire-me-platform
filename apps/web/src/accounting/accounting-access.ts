@@ -69,12 +69,13 @@ export function resolveAccountingAccess(permissions: readonly string[]): Account
   const missionsView = has('missions:view');
   const financialContext = has('recruitment_financial_context:view');
   const missionsRecruitment = clients && missionsView;
-  const missionsFinancial = clients && financialContext && !missionsView;
+  // D-086: the financial context selects the Finance source on its own, for
+  // hybrid actors who also hold `missions:view` or `placements:view` too.
+  const missionsFinancial = clients && financialContext && amounts;
   const pickMissions = missionsRecruitment || missionsFinancial;
   const placementsRecruitment =
     missionsRecruitment && has('placements:view') && (profitability || expensesManage);
-  const placementsFinancial =
-    clients && financialContext && (profitability || expensesManage) && !placementsRecruitment;
+  const placementsFinancial = clients && financialContext && (profitability || expensesManage);
   const pickPlacements = placementsRecruitment || placementsFinancial;
 
   const profitabilityContexts: ProfitabilityContext[] = [];

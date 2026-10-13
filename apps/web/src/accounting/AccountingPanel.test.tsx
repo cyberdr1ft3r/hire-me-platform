@@ -279,6 +279,49 @@ describe('AccountingPanel: personas and permissions', () => {
     expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   });
 
+  it('keeps the D-086 Finance sources for a hybrid actor who also holds missions:view', async () => {
+    const calls = standardApi();
+    render(
+      <Panel
+        permissions={[...FINANCE_MANAGER_PERMISSION_CODES, 'missions:view', 'placements:view']}
+      />,
+    );
+
+    await screen.findByRole('table', { name: 'Payments' });
+    await openArea('Expenses');
+    fireEvent.click(screen.getByRole('button', { name: 'Record expense' }));
+    const form = screen.getByRole('form', { name: 'Record expense' });
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(0),
+    );
+    expect(callsTo(calls, `${base}/financial-context/missions`)[0]?.search.get('clientId')).toBe(
+      CLIENT_ID,
+    );
+    await chooseOption(form, /^Recruitment mission/, /Synthetic Data Engineer/);
+    await chooseOption(form, /^Placement/, /Synthetic Data Engineer/);
+    expect(callsTo(calls, `${base}/financial-context/placements`).length).toBeGreaterThan(0);
+    expect(callsTo(calls, '/v1/missions')).toHaveLength(0);
+    expect(callsTo(calls, `${base}/placement-options`)).toHaveLength(0);
+  });
+
+  it('keeps the generic D-081 sources for a recruitment-only actor', async () => {
+    const calls = standardApi();
+    render(<Panel permissions={OPERATOR} />);
+
+    await screen.findByRole('table', { name: 'Payments' });
+    await openArea('Expenses');
+    fireEvent.click(screen.getByRole('button', { name: 'Record expense' }));
+    const form = screen.getByRole('form', { name: 'Record expense' });
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    await waitFor(() => expect(callsTo(calls, '/v1/missions').length).toBeGreaterThan(0));
+    await chooseOption(form, /^Recruitment mission/, /Synthetic Data Engineer/);
+    await chooseOption(form, /^Placement/, /Synthetic Data Engineer/);
+    expect(callsTo(calls, `${base}/placement-options`).length).toBeGreaterThan(0);
+    expect(callsTo(calls, `${base}/financial-context/missions`)).toHaveLength(0);
+    expect(callsTo(calls, `${base}/financial-context/placements`)).toHaveLength(0);
+  });
+
   it('keeps a read-only account free of every write control', async () => {
     standardApi();
     render(<Panel permissions={READ_ONLY} />);

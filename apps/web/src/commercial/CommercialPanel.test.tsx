@@ -335,15 +335,56 @@ describe('CommercialPanel: personas and permissions', () => {
     expectNoRawIds();
   });
 
-  it('keeps recruitment option sources for a hybrid actor with missions:view', async () => {
+  it('keeps the D-086 Finance sources for a hybrid actor who also holds missions:view', async () => {
     const calls = standardApi();
-    render(<Panel permissions={[...OPERATOR, 'recruitment_financial_context:view']} />);
+    render(
+      <Panel
+        permissions={[
+          ...FINANCE_MANAGER_PERMISSION_CODES,
+          'missions:view',
+          'placements:view',
+          'placement_commercial_eligibility:view',
+        ]}
+      />,
+    );
+    await screen.findByRole('table', { name: 'Quotations' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    const quotationForm = createForm();
+    await chooseOption(quotationForm, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(0),
+    );
+    expect(callsTo(calls, `${base}/financial-context/missions`)[0]?.search.get('clientId')).toBe(
+      CLIENT_ID,
+    );
+    await chooseOption(quotationForm, /^Recruitment mission/, /Synthetic Data Engineer/);
+
+    fireEvent.click(within(quotationForm).getByRole('button', { name: 'Cancel' }));
+    await openKind('Invoices');
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+    const invoiceForm = createForm();
+    await chooseOption(invoiceForm, /^Client/, /Synthetic Client/);
+    await chooseOption(
+      invoiceForm,
+      'Placement',
+      /Synthetic Data Engineer · confirmed 1 Sept 2026 · starts 1 Oct 2026/,
+    );
+    expect(callsTo(calls, `${base}/financial-context/placements`).length).toBeGreaterThan(0);
+    expect(callsTo(calls, '/v1/missions')).toHaveLength(0);
+    expect(callsTo(calls, `${base}/placement-options`)).toHaveLength(0);
+  });
+
+  it('keeps the generic D-079 sources for a recruitment-only actor', async () => {
+    const calls = standardApi();
+    render(<Panel permissions={OPERATOR} />);
     await screen.findByRole('table', { name: 'Quotations' });
 
     fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
     await chooseOption(createForm(), /^Client/, /Synthetic Client/);
     await waitFor(() => expect(callsTo(calls, '/v1/missions')).toHaveLength(1));
     expect(callsTo(calls, `${base}/financial-context/missions`)).toHaveLength(0);
+    expect(callsTo(calls, `${base}/financial-context/placements`)).toHaveLength(0);
   });
 
   it('keeps a read-only account free of every write and generation control', async () => {

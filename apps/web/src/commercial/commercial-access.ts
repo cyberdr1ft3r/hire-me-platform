@@ -76,9 +76,10 @@ export function resolveCommercialAccess(permissions: readonly string[]): Commerc
     has('placement_commercial_eligibility:view') &&
     missionsView &&
     clientsView;
-  const missionsFinancial = financialContext && clientsView && !missionsView;
-  const placementsFinancial =
-    manage.invoice && financialContext && clientsView && !placementsRecruitment;
+  // D-086: the financial context selects the Finance source on its own, for
+  // hybrid actors who also hold `missions:view` or generic placement grants too.
+  const missionsFinancial = financialContext && clientsView && amounts;
+  const placementsFinancial = financialContext && clientsView && manage.invoice;
   const access = {
     view,
     manage,
