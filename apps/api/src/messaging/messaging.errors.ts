@@ -1,4 +1,11 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
 
 import type { MessagingErrorCode } from '@hire-me/contracts';
 
@@ -11,6 +18,25 @@ type ErrorBody = {
 
 function body(code: MessagingErrorCode, message: string): ErrorBody {
   return { error: { code, message } };
+}
+
+export function messagingBadRequest(
+  code: MessagingErrorCode,
+  message: string,
+): BadRequestException {
+  return new BadRequestException(body(code, message));
+}
+
+export function invalidMessagingRequest(): BadRequestException {
+  return messagingBadRequest('INVALID_MESSAGING_REQUEST', 'Invalid messaging request.');
+}
+
+/** Abuse mitigation only: never decides whether an actor may see or change a record. */
+export function messagingRateLimited(): HttpException {
+  return new HttpException(
+    body('MESSAGING_RATE_LIMITED', 'Too many messaging requests. Try again shortly.'),
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
 }
 
 export function messagingConflict(code: MessagingErrorCode, message: string): ConflictException {

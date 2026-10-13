@@ -8,7 +8,7 @@ Last updated: 2026-10-12
 
 - **D-068 / D-070:** runbook `RUNBOOK_READY`; no production execution.
 
-- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A (draft #174):** foundation implemented; migration `20261012170000_messaging_foundation` is now one explicit `BEGIN;`…`COMMIT;` transaction (maintainer blocker addressed). No routes/UI.
+- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B (draft):** `/v1/messages` API, picker, PRIVATE/GROUP lifecycle, send/read/edit/withdraw, metadata-only audit, in-process abuse limits; route-level suite `apps/api/test/messaging-api.integration.test.ts`. No migration, no UI.
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
 - **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. Web follow-up: Issue #180.
@@ -24,7 +24,7 @@ Last updated: 2026-10-12
 
 - **Issue #182 (R-049):** draft PR implements external Training participant management, EXTERNAL enrollment UI, and Training program/session deep links; review exact-head CI and ChatGPT architecture/security review when green.
 
-- **Issue #171 (Messaging PR A):** re-review draft PR #174 (explicit migration transaction, fail-closed legacy gate) when exact-head CI is green. After merge: PR B routes using the access helpers, Conversation-lock-first. Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; on any non-zero count or failure of this migration follow `docs/runbooks/messaging-legacy-rows.md`.
+- **Issue #179 (Messaging PR B):** architecture/security review of the draft PR when exact-head CI is green. Review points: sends are audited (Issue #179 lists "message sent"; preflight §9 said not); archived groups also refuse leave; the picker needs both messaging permissions. After merge: web PR C (Messages workspace, unread badge via `GET /v1/messages/unread-summary`). Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; on any non-zero count follow `docs/runbooks/messaging-legacy-rows.md`. Broad rollout still needs an approved retention policy.
 
 - **D-068 operator inspection:** execute only the runbook's read-only topology/config checks and synthetic honeypot probe matrix under an approved production session; record sanitized evidence.
 - **D-070 production migration:** only after a named release/window, verified backup, exact pending migration list, and prechecks. Migrate DB before deploying a D-070 build; on any failure/cancel, inspect for partial schema before `migrate resolve` or retry.
