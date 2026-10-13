@@ -100,6 +100,11 @@ export const frMessages: Messages = {
       label: 'Langue',
     },
     navigation: {
+      communication: 'Communication',
+      domainRegion: 'Navigation des espaces',
+      collapse: 'Réduire le menu contextuel',
+      expand: 'Développer le menu contextuel',
+      contextHint: 'Choisissez un espace dans la barre d’icônes.',
       close: 'Fermer',
       closeNavigation: 'Fermer la navigation',
       dismissNavigation: 'Masquer le panneau de navigation',
@@ -111,6 +116,7 @@ export const frMessages: Messages = {
       skipToMain: 'Aller au contenu principal',
     },
     session: {
+      account: 'Compte et session',
       refreshProfile: 'Actualiser le profil',
       signOut: 'Se déconnecter',
     },
