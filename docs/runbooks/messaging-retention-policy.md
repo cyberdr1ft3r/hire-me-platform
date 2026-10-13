@@ -70,21 +70,34 @@ Hire Me messaging V1 is **internal-only** (`userType = INTERNAL`), organization-
 
 ### 4.2 Proposed default
 
-**Proposed default retention: 36 months (3 years)** after the conversation’s **`lastMessageAt` timestamp (UTC).**
+**Proposed default retention: 36 months (3 years)** of **conversation inactivity**, measured from the conversation retention anchor (UTC):
+
+```text
+retentionAnchorAt = COALESCE(lastMessageAt, createdAt)
+```
 
 - **Rationale (operational, not legal):** Balances auditability and dispute reconstruction for internal business chat against storage and privacy exposure; aligns in order-of-magnitude with common internal “business communications” archive practice without claiming a specific legal minimum.
-- **Purge unit:** When implemented, delete **entire conversations** (and all messages, revisions, and membership rows for that conversation) that have been inactive for ≥ the retention period, subject to §6 holds and §12 approval.
-- **Inactive definition for eligibility:** `lastMessageAt` older than retention cutoff and conversation not under legal/incident hold.
+- **Purge unit:** When implemented, delete **entire conversations** (and all messages, revisions, and membership rows for that conversation) whose `retentionAnchorAt` is older than the retention cutoff, subject to §6 holds and §12 approval.
+- **Inactive definition for eligibility:** `retentionAnchorAt` before the cutoff and conversation not under legal/incident hold.
+- **Zero-message conversations:** `lastMessageAt` is nullable (e.g. a PRIVATE thread opened but never messaged, or a direct pair with only hide/metadata activity). **`COALESCE(lastMessageAt, createdAt)`** ensures those rows still become purge-eligible after the retention period unless held — they must not remain outside eligibility forever.
 
 **Status: Proposed — maintainer approval required.** Do not mark D-087 retention Accepted until the maintainer records approval (§12).
+
+### 4.2.1 Long-lived active threads (intentional tradeoff)
+
+Retention is keyed to **conversation inactivity**, **not** individual message age. If participants keep sending messages, `lastMessageAt` (and thus `retentionAnchorAt`) stays recent, and the **whole conversation—including messages much older than 36 months—remains stored** until the thread goes inactive for the full retention period.
+
+- This is an **intentional tradeoff** of the conversation-level model: simpler purge semantics and no partial history corruption, versus allowing very old messages to persist inside an still-active thread.
+- **Do not** describe this policy as “each message is deleted 36 months after it was sent.”
+- Maintainer and **legal/compliance** must explicitly accept this tradeoff when approving §4.2 (§12 checklist).
 
 ### 4.3 Reasonable alternatives (for maintainer choice)
 
 | Option | Period | Tradeoff |
 | --- | --- | --- |
-| **A (proposed default)** | **36 months** after `lastMessageAt` | Moderate archive; lower long-term exposure than multi-year defaults. |
-| **B (shorter)** | **24 months** after `lastMessageAt` | Less storage and exposure; shorter internal audit trail for chat-only disputes. |
-| **C (longer)** | **84 months (7 years)** after `lastMessageAt` | Longer internal audit trail; may align with some organizations’ **general** business-record habits — **not** asserted as legally required for chat. |
+| **A (proposed default)** | **36 months** after `COALESCE(lastMessageAt, createdAt)` | Moderate archive; long-lived active threads may retain messages older than 36 months (§4.2.1). |
+| **B (shorter)** | **24 months** after `COALESCE(lastMessageAt, createdAt)` | Less storage and exposure; same long-lived-thread behavior as §4.2.1. |
+| **C (longer)** | **84 months (7 years)** after `COALESCE(lastMessageAt, createdAt)` | Longer inactivity window before purge; **not** asserted as legally required for chat. |
 | **D (message-level)** | **36 months** after each `Message.createdAt` | Finer-grained deletion within a thread; **higher implementation risk** (partial history, sequence gaps, member visibility anomalies). **Not recommended** unless legal/compliance explicitly requires it and purge design is reviewed separately. |
 
 If the maintainer selects an alternative, record the chosen option, anchor field, and effective date in project memory **after** approval (not in this draft alone).
@@ -125,7 +138,8 @@ V1 has **no hold flag in the database**. Until schema support exists (future iss
 
 - **Hold register** (ticket system or restricted ops document): conversation UUID(s), reason category (incident / legal / regulatory), **opened** date, **expected review** date, approver (legal/compliance function), linked ticket id.
 - **Effect:** Approved future purge job **must skip** any conversation id on the active hold register.
-- **Access:** Placing a hold does **not** grant `messages:view` to anyone who lacks membership. Investigators with a legitimate need to read content must use **export (§7)** under legal/compliance direction, or obtain **membership** through normal HR/process means — not a super-admin backdoor.
+- **Access:** Placing a hold does **not** grant `messages:view` to anyone who lacks membership. **Historical investigation and compliance access to message content is export-only (§7):** approved conversation-scoped export or controlled break-glass under legal/compliance direction — **not** a super-admin backdoor.
+- **Do not add investigators as conversation members for historical access.** PRIVATE direct membership is **immutable** (Issue #188 / #192); adding someone changes collaboration state and does **not** grant retroactive history. GROUP late join uses an exclusive `historyAfterSequence` boundary (`sequence > historyAfterSequence` only), so a new member **cannot** read pre-join history even if added for an investigation.
 
 ### 6.3 Release
 
@@ -146,7 +160,7 @@ Legal/compliance owner clears the hold when the matter closes; platform operatio
 | Rule | Detail |
 | --- | --- |
 | **No global reader** | Export tooling must **not** add a route or role that lists/reads all messages. |
-| **Membership-equivalent access** | Exports must be **scoped to explicit conversation id(s)** on the hold/export register. Actors performing export must either (a) already be members with `messages:view` for those conversations, or (b) use a **future, purpose-limited** export capability (e.g. dedicated break-glass permission with mandatory audit) approved in a separate security review — **not** `SUPER_ADMIN` by default. |
+| **Conversation-scoped export only** | Exports must target **explicit conversation id(s)** on the hold/export register. **Compliance, legal, or incident investigation** that needs content the requester did not already see through normal membership must use **controlled break-glass export** (§7.3) under legal/compliance approval — not membership changes, not a global reader, and **not** `SUPER_ADMIN` by default. A member with existing access may export only what their membership already authorizes (same API scope); that is not a substitute for break-glass when history outside their window is required. |
 | **Purpose limitation** | Each export records: requester (function), approver (legal/compliance), conversation ids, sequence range if partial, export date, storage location of artifact, destruction date for the export copy. |
 | **Integrity** | Export artifact should include conversation metadata, messages (including withdrawn bodies if legally required — withdrawn still stored in DB), revisions for edited messages, and member list **without** exposing unrelated conversations. Prefer read-only, timestamped, checksum-logged files stored under confidential-backup controls. |
 | **Audit** | Log export events in platform audit (metadata only, no bodies in audit rows if consistent with D-087). |
@@ -176,6 +190,7 @@ A future purge implementation **must not** ship until:
 7. **AuditLog:** Decide at implementation whether messaging audit rows are deleted with the conversation or retained under a separate audit retention policy; document the choice in the purge issue and get legal/compliance input.
 8. **Dry run:** First production cycles should support count/preview mode before destructive delete.
 9. **No new read APIs:** Purge workers use service-role DB access; they do not expose message content to operators via UI unless under export procedure.
+10. **Eligibility timestamp:** Select conversations where `COALESCE(lastMessageAt, createdAt)` is before the retention cutoff (and not on hold).
 
 ---
 
@@ -224,7 +239,7 @@ Before claiming **broad production rollout** of messaging (D-087 retention gate,
 
 | # | Gate | Owner | Done |
 | --- | --- | --- | --- |
-| 1 | **Retention period** chosen from §4 and recorded (default 36m or approved alternative) | Maintainer + legal/compliance | ☐ |
+| 1 | **Retention period** chosen from §4 and recorded (default 36m inactivity after `COALESCE(lastMessageAt, createdAt)` or approved alternative); **long-lived active thread tradeoff (§4.2.1)** explicitly accepted | Maintainer + legal/compliance | ☐ |
 | 2 | **Operational owner** and **legal/compliance escalation** contacts recorded | Maintainer | ☐ |
 | 3 | **Hold procedure** (§6) approved; hold register location defined | Legal/compliance + platform ops | ☐ |
 | 4 | **Export procedure** (§7) approved; no global reader introduced | Legal/compliance + security review | ☐ |
