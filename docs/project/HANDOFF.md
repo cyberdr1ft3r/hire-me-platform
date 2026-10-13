@@ -8,7 +8,7 @@ Last updated: 2026-10-13
 
 - **D-068 / D-070:** runbook `RUNBOOK_READY`; no production execution.
 
-- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B (draft):** `/v1/messages` API, picker, PRIVATE/GROUP lifecycle, send/read/edit/withdraw, metadata-only audit, in-process abuse limits; route-level suite `apps/api/test/messaging-api.integration.test.ts`. No migration, no UI.
+- **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B merged (#187).** **Issue #188 hide API merged (#192).** **Issue #189 PR C (draft):** bilingual `/messages` workspace, AppShell unread badge (`GET /v1/messages/unread-summary`, visible-tab 60s poll), preview-free list rows, PRIVATE hide wired to real endpoint, polling-only sync. No migration, no seed/catalog change.
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
 - **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. **Issue #180 / PR #186 completes the reviewed Commercial/Accounting web pickers, including hybrid actors; R-050 is fully product-mitigated for that path.**
@@ -24,8 +24,8 @@ Last updated: 2026-10-13
 
 - **Issue #182 (R-049):** draft PR implements external Training participant management, EXTERNAL enrollment UI, and Training program/session deep links; review exact-head CI and ChatGPT architecture/security review when green.
 
-- **Issue #188 (Messaging hide API):** draft PR implements `POST /v1/messages/conversations/:id/hide` (PRIVATE only, `messages:view`, list/unread hiddenAt semantics). Review exact-head CI and ChatGPT architecture/security review when green.
-- **Messaging PR B:** merged on `main`. After #188: web PR C (Messages workspace, unread badge via `GET /v1/messages/unread-summary`). Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; on any non-zero count follow `docs/runbooks/messaging-legacy-rows.md`. Broad rollout still needs an approved retention policy.
+- **Issue #189 (Messaging PR C):** draft PR on `cursor/messaging-pr-c-web-f554`; review exact-head CI and ChatGPT architecture/security review when green. **Known limitation:** conversation list rows omit last-message preview until a safe API field exists (preflight §6 deferred).
+- Before any production deploy, run `apps/api/diagnostics/messaging-legacy-rows.sql`; on any non-zero count follow `docs/runbooks/messaging-legacy-rows.md`. Broad rollout still needs an approved retention policy.
 
 - **D-068 operator inspection:** execute only the runbook's read-only topology/config checks and synthetic honeypot probe matrix under an approved production session; record sanitized evidence.
 - **D-070 production migration:** only after a named release/window, verified backup, exact pending migration list, and prechecks. Migrate DB before deploying a D-070 build; on any failure/cancel, inspect for partial schema before `migrate resolve` or retry.
