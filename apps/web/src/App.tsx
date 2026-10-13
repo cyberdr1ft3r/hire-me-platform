@@ -35,6 +35,9 @@ import {
   type InternalRoute,
 } from './navigation/internal-navigation.js';
 import { recordNavigationIntent } from './navigation/record-deep-links.js';
+import { Button, PageHeader, TextField, StatusBadge } from './ui/index.js';
+import { PermissionGroups } from './admin/PermissionGroups.js';
+import { adminStatusTone } from './admin/role-labels.js';
 import { AppShell } from './ui/shell/AppShell.js';
 import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
@@ -548,13 +551,15 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
 
   return (
     <section className="admin-panel" aria-label="Administration">
+      <PageHeader title="Administration" />
       <div className="admin-grid">
         <section aria-label="User administration">
-          <h2>Administration</h2>
+          <h2>Users</h2>
           <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
             <label>
               Search
               <input
+                className="ui-field__control"
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
                 name="search"
@@ -563,6 +568,7 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
             <label>
               Status
               <select
+                className="ui-field__control"
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.currentTarget.value)}
                 name="status"
@@ -573,36 +579,48 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
                 <option value="ARCHIVED">Archived</option>
               </select>
             </label>
-            <button type="submit">Search users</button>
+            <Button variant="secondary" type="submit">
+              Search users
+            </Button>
           </form>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Roles</th>
-                <th>Sessions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((adminUser) => (
-                <tr key={adminUser.id}>
-                  <td>
-                    <button type="button" onClick={() => void selectUser(adminUser.id)}>
-                      {adminUser.displayName}
-                    </button>
-                  </td>
-                  <td>{adminUser.status}</td>
-                  <td>
-                    {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
-                      'None'}
-                  </td>
-                  <td>{adminUser.activeSessionCount}</td>
+          <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Roles</th>
+                  <th>Sessions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((adminUser) => (
+                  <tr key={adminUser.id}>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={() => void selectUser(adminUser.id)}
+                      >
+                        {adminUser.displayName}
+                      </Button>
+                    </td>
+                    <td>
+                      <StatusBadge tone={adminStatusTone(adminUser.status)}>
+                        {adminUser.status}
+                      </StatusBadge>
+                    </td>
+                    <td>
+                      {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
+                        'None'}
+                    </td>
+                    <td>{adminUser.activeSessionCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <form
             className="stacked-form"
@@ -610,17 +628,23 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
             onSubmit={(event) => void handleCreate(event)}
           >
             <h3>Create internal user</h3>
-            <input name="displayName" placeholder="Display name" required />
-            <input name="email" type="email" placeholder="Email" required />
-            <input name="locale" placeholder="Locale" defaultValue="en" required />
-            <input
+            <TextField
+              label="Display name"
+              name="displayName"
+              placeholder="Display name"
+              required
+            />
+            <TextField label="Email" name="email" type="email" placeholder="Email" required />
+            <TextField label="Locale" name="locale" defaultValue="en" required />
+            <TextField
+              label="Initial password"
               name="initialPassword"
               type="password"
               placeholder="Initial password"
               autoComplete="new-password"
               required
             />
-            <button type="submit">Create user</button>
+            <Button type="submit">Create user</Button>
           </form>
         </section>
 
@@ -629,27 +653,43 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
             <>
               <h2>{selectedUser.displayName}</h2>
               <p>{selectedUser.email}</p>
-              <p>Status: {selectedUser.status}</p>
+              <StatusBadge tone={adminStatusTone(selectedUser.status)}>
+                {selectedUser.status}
+              </StatusBadge>
               <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
-                <input
+                <TextField
                   name="displayName"
-                  aria-label="Display name"
+                  label="Display name"
                   defaultValue={selectedUser.displayName}
                 />
-                <input name="locale" aria-label="Locale" defaultValue={selectedUser.locale} />
-                <button type="submit">Update profile</button>
+                <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
+                <Button variant="secondary" type="submit">
+                  Update profile
+                </Button>
               </form>
 
               <div className="action-row">
-                <button type="button" onClick={() => void changeStatus('ACTIVE')}>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('ACTIVE')}
+                >
                   Reactivate
-                </button>
-                <button type="button" onClick={() => void changeStatus('SUSPENDED')}>
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('SUSPENDED')}
+                >
                   Suspend
-                </button>
-                <button type="button" onClick={() => void changeStatus('ARCHIVED')}>
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('ARCHIVED')}
+                >
                   Archive
-                </button>
+                </Button>
               </div>
 
               <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
@@ -663,37 +703,47 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
                     ))}
                   </select>
                 </label>
-                <button type="submit">Assign role</button>
+                <Button variant="secondary" type="submit">
+                  Assign role
+                </Button>
               </form>
 
               <ul>
                 {selectedUser.roles.map((roleName) => (
                   <li key={roleName}>
                     {formatAdminRoleName(t, roleName)}{' '}
-                    <button type="button" onClick={() => void removeRole(roleName)}>
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => void removeRole(roleName)}
+                    >
                       Remove
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
 
               <h3>Active sessions</h3>
-              <button type="button" onClick={() => void revokeAllSessions()}>
+              <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
                 Revoke all sessions
-              </button>
+              </Button>
               <ul>
                 {selectedUser.sessions.map((session) => (
                   <li key={session.id}>
                     {session.createdAt}{' '}
-                    <button type="button" onClick={() => void revokeOneSession(session.id)}>
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => void revokeOneSession(session.id)}
+                    >
                       Revoke
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
 
               <h3>Effective permissions</h3>
-              <p>{selectedUser.effectivePermissions.join(', ') || 'None'}</p>
+              <PermissionGroups codes={selectedUser.effectivePermissions} />
             </>
           ) : (
             <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
@@ -704,7 +754,7 @@ function AdminPanel({ accessToken }: { accessToken: string }) {
 
       <section aria-label="Permission catalog">
         <h2>Permission catalog</h2>
-        <p>{permissions.map((permission) => permission.code).join(', ')}</p>
+        <PermissionGroups codes={permissions.map((permission) => permission.code)} />
       </section>
     </section>
   );

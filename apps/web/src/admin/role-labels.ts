@@ -1,3 +1,4 @@
+import type { StatusTone } from '../ui/index.js';
 import type { AdminRoleName } from '@hire-me/contracts';
 
 import type { Translator } from '../i18n/translate.js';
@@ -24,4 +25,10 @@ export function formatAdminRoleName(t: Translator, roleName: string): string {
     return roleName;
   }
   return t(`admin.roleNames.${roleName}`);
+}
+
+export function adminStatusTone(status: string): StatusTone {
+  if (status === 'ACTIVE') return 'success';
+  if (status === 'SUSPENDED') return 'warning';
+  return 'neutral';
 }
