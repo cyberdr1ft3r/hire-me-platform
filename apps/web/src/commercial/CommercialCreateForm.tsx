@@ -220,13 +220,15 @@ export function CommercialCreateForm({
                   <CommercialOptionPicker
                     emptyLabel={t('commercial.form.noMission')}
                     hint={
-                      access.missionsAssignedOnly
-                        ? t('commercial.form.missionAssignedHint')
-                        : t('commercial.form.missionHint')
+                      access.financialMissionSource
+                        ? t('commercial.form.missionHint')
+                        : access.missionsAssignedOnly
+                          ? t('commercial.form.missionAssignedHint')
+                          : t('commercial.form.missionHint')
                     }
                     label={t('commercial.form.mission')}
                     loadOptions={loaders.missions(clientId)}
-                    onChange={(mission) => update({ mission })}
+                    onChange={(mission) => update({ mission, placement: null })}
                     sourceKey={`${sessionKey}:${kind}:missions:${clientId}`}
                     value={values.mission}
                   />

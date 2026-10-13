@@ -22,6 +22,8 @@ import {
   CommercialContractStatusActionRequestSchema,
   CommercialPlacementOptionsQuerySchema,
   CommercialPlacementOptionsResponseSchema,
+  FinancialMissionContextOptionsQuerySchema,
+  FinancialMissionContextOptionsResponseSchema,
   CandidateDetailResponseSchema,
   DocumentContextOptionsResponseSchema,
   DocumentDetailResponseSchema,
@@ -134,6 +136,8 @@ import {
   type CommercialContractStatusActionRequest,
   type CommercialPlacementOptionsQuery,
   type CommercialPlacementOptionsResponse,
+  type FinancialMissionContextOptionsQuery,
+  type FinancialMissionContextOptionsResponse,
   type CandidateCreateRequest,
   type DocumentContextOptionKind,
   type DocumentContextOptionsResponse,
@@ -1011,6 +1015,38 @@ export async function listCommercialPlacementOptions(
   const response = await commercialRequest(
     accessToken,
     queryPath('/placement-options', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return CommercialPlacementOptionsResponseSchema.parse(await response.json());
+}
+
+/** D-086 finance-bounded mission context for Commercial (never `/v1/missions`). */
+export async function listCommercialFinancialMissionOptions(
+  accessToken: string,
+  query: FinancialMissionContextOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<FinancialMissionContextOptionsResponse> {
+  const parsed = FinancialMissionContextOptionsQuerySchema.parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/financial-context/missions', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return FinancialMissionContextOptionsResponseSchema.parse(await response.json());
+}
+
+/** D-086 finance-bounded invoiceable placement context for Commercial. */
+export async function listCommercialFinancialPlacementOptions(
+  accessToken: string,
+  query: CommercialPlacementOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CommercialPlacementOptionsResponse> {
+  const parsed = CommercialPlacementOptionsQuerySchema.parse(query);
+  const response = await commercialRequest(
+    accessToken,
+    queryPath('/financial-context/placements', parsed),
     {},
     apiBaseUrl,
   );
@@ -4135,6 +4171,38 @@ export async function listAccountingPlacementOptions(
   const response = await accountingRequest(
     accessToken,
     queryPath('/placement-options', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return AccountingPlacementOptionsResponseSchema.parse(await response.json());
+}
+
+/** D-086 finance-bounded mission context for Accounting (never `/v1/missions`). */
+export async function listAccountingFinancialMissionOptions(
+  accessToken: string,
+  query: FinancialMissionContextOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<FinancialMissionContextOptionsResponse> {
+  const parsed = FinancialMissionContextOptionsQuerySchema.parse(query);
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/financial-context/missions', parsed),
+    {},
+    apiBaseUrl,
+  );
+  return FinancialMissionContextOptionsResponseSchema.parse(await response.json());
+}
+
+/** D-086 finance-bounded placement context for Accounting. */
+export async function listAccountingFinancialPlacementOptions(
+  accessToken: string,
+  query: AccountingPlacementOptionsQuery,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<AccountingPlacementOptionsResponse> {
+  const parsed = AccountingPlacementOptionsQuerySchema.parse(query);
+  const response = await accountingRequest(
+    accessToken,
+    queryPath('/financial-context/placements', parsed),
     {},
     apiBaseUrl,
   );

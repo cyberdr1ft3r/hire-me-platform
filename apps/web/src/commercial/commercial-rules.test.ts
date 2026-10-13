@@ -55,16 +55,72 @@ function missionQuotation() {
 }
 
 describe('resolveCommercialAccess', () => {
-  it('gives the Finance Manager every record type with writes and generation, but no mission or placement source', () => {
+  it('gives the Finance Manager every record type with D-086 mission and placement sources', () => {
     const access = resolveCommercialAccess(FINANCE_MANAGER_PERMISSION_CODES);
     expect(visibleKinds(access)).toEqual(['quotation', 'purchaseOrder', 'invoice', 'contract']);
     expect(Object.values(access.manage).every(Boolean)).toBe(true);
     expect(Object.values(access.generate).every(Boolean)).toBe(true);
     expect(access.amounts).toBe(true);
     expect(access.pickClients).toBe(true);
-    expect(access.pickMissions).toBe(false);
-    expect(access.pickPlacements).toBe(false);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(true);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(true);
     expect(access.readOnly).toBe(false);
+  });
+
+  it('does not enable financial mission sources without recruitment_financial_context:view', () => {
+    const access = resolveCommercialAccess(
+      FINANCE_MANAGER_PERMISSION_CODES.filter(
+        (code) => code !== 'recruitment_financial_context:view',
+      ),
+    );
+    expect(access.pickMissions).toBe(false);
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.pickPlacements).toBe(false);
+    expect(access.financialPlacementSource).toBe(false);
+  });
+
+  it('keeps the D-086 Finance sources for hybrid actors who also hold missions:view', () => {
+    const hybrid = [
+      ...FINANCE_MANAGER_PERMISSION_CODES,
+      'missions:view',
+      'placements:view',
+      'placement_commercial_eligibility:view',
+    ];
+    const access = resolveCommercialAccess(hybrid);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(true);
+    expect(access.missionsAssignedOnly).toBe(true);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(true);
+    const operatorHybrid = resolveCommercialAccess([
+      ...OPERATOR,
+      'recruitment_financial_context:view',
+    ]);
+    expect(operatorHybrid.financialMissionSource).toBe(true);
+    expect(operatorHybrid.financialPlacementSource).toBe(true);
+  });
+
+  it('keeps the generic D-079 sources for recruitment-only actors', () => {
+    const access = resolveCommercialAccess(OPERATOR);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(false);
+  });
+
+  it('needs Commercial data and invoice capability for the Finance sources', () => {
+    const withoutData = resolveCommercialAccess(
+      FINANCE_MANAGER_PERMISSION_CODES.filter((code) => code !== 'commercial_data:access'),
+    );
+    expect(withoutData.financialMissionSource).toBe(false);
+    expect(withoutData.financialPlacementSource).toBe(false);
+    const withoutInvoices = resolveCommercialAccess(
+      FINANCE_MANAGER_PERMISSION_CODES.filter((code) => code !== 'invoices:manage'),
+    );
+    expect(withoutInvoices.financialMissionSource).toBe(true);
+    expect(withoutInvoices.financialPlacementSource).toBe(false);
   });
 
   it('requires commercial data access for every write and generation', () => {

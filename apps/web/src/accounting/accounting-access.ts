@@ -30,12 +30,16 @@ export type AccountingAccess = {
   balances: boolean;
   profitability: boolean;
   profitabilityContexts: ProfitabilityContext[];
-  /** `GET /v1/missions`, scoped like the Accounting mission rule. */
+  /** Mission picker visible (recruitment `/v1/missions` or D-086 financial-context missions). */
   pickMissions: boolean;
-  /** Without `mission_candidates:transfer`, mission choices are the actor's own assignments. */
+  /** Without `mission_candidates:transfer`, recruitment mission choices are assignment-scoped. */
   missionsAssignedOnly: boolean;
-  /** `GET /v1/accounting/placement-options` (D-081). */
+  /** Mission options from `GET /v1/accounting/financial-context/missions` (D-086). */
+  financialMissionSource: boolean;
+  /** Placement picker visible (D-081 placement-options or D-086 financial-context placements). */
   pickPlacements: boolean;
+  /** Placement options from `GET /v1/accounting/financial-context/placements` (D-086). */
+  financialPlacementSource: boolean;
   /** `GET /v1/training/programs`, which applies the Accounting training mirror. */
   pickTrainingPrograms: boolean;
   readOnly: boolean;
@@ -62,9 +66,17 @@ export function resolveAccountingAccess(permissions: readonly string[]): Account
   const paymentsManage = amounts && has('payments:manage');
   const expensesManage = amounts && has('expenses:manage');
   const profitability = amounts && has('profitability:view');
-  const pickMissions = clients && has('missions:view');
-  const pickPlacements =
-    pickMissions && has('placements:view') && (profitability || expensesManage);
+  const missionsView = has('missions:view');
+  const financialContext = has('recruitment_financial_context:view');
+  const missionsRecruitment = clients && missionsView;
+  // D-086: the financial context selects the Finance source on its own, for
+  // hybrid actors who also hold `missions:view` or `placements:view` too.
+  const missionsFinancial = clients && financialContext && amounts;
+  const pickMissions = missionsRecruitment || missionsFinancial;
+  const placementsRecruitment =
+    missionsRecruitment && has('placements:view') && (profitability || expensesManage);
+  const placementsFinancial = clients && financialContext && (profitability || expensesManage);
+  const pickPlacements = placementsRecruitment || placementsFinancial;
 
   const profitabilityContexts: ProfitabilityContext[] = [];
   if (clients) profitabilityContexts.push('CLIENT');
@@ -94,7 +106,9 @@ export function resolveAccountingAccess(permissions: readonly string[]): Account
     profitabilityContexts,
     pickMissions,
     missionsAssignedOnly: !has('mission_candidates:transfer'),
+    financialMissionSource: missionsFinancial,
     pickPlacements,
+    financialPlacementSource: placementsFinancial,
     pickTrainingPrograms: has('training_programs:view'),
   };
   const readOnly = !(

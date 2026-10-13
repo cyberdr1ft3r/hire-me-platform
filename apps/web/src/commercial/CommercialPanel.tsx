@@ -10,6 +10,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   downloadDocumentVersion,
   listClients,
+  listCommercialFinancialMissionOptions,
+  listCommercialFinancialPlacementOptions,
   listCommercialPlacementOptions,
   listDocumentVersions,
   listMissions,
@@ -331,6 +333,22 @@ export function CommercialPanel({
   const loadMissions =
     (clientId: string): LoadCommercialOptions =>
     async (search) => {
+      if (access.financialMissionSource) {
+        const response = await listCommercialFinancialMissionOptions(sessionToken.current, {
+          clientId,
+          search: search || undefined,
+        });
+        return response.options.map((mission) => ({
+          id: mission.id,
+          label: mission.title,
+          detail: null,
+          context: {
+            currency: null,
+            missionTitle: mission.title,
+            recruitmentMissionId: mission.id,
+          },
+        }));
+      }
       const response = await listMissions({
         accessToken: sessionToken.current,
         // Without transfer the Commercial mission scope is the actor's own active assignments.
@@ -371,11 +389,17 @@ export function CommercialPanel({
   const loadPlacements =
     (clientId: string, recruitmentMissionId: string | null): LoadCommercialOptions =>
     async (search) => {
-      const response = await listCommercialPlacementOptions(sessionToken.current, {
-        clientId,
-        ...(recruitmentMissionId ? { recruitmentMissionId } : {}),
-        ...(search ? { search } : {}),
-      });
+      const response = access.financialPlacementSource
+        ? await listCommercialFinancialPlacementOptions(sessionToken.current, {
+            clientId,
+            ...(recruitmentMissionId ? { recruitmentMissionId } : {}),
+            ...(search ? { search } : {}),
+          })
+        : await listCommercialPlacementOptions(sessionToken.current, {
+            clientId,
+            ...(recruitmentMissionId ? { recruitmentMissionId } : {}),
+            ...(search ? { search } : {}),
+          });
       return response.options.map((option) => ({
         id: option.id,
         label: option.missionTitle,

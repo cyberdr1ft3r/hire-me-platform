@@ -137,6 +137,7 @@ function standardApi(
       case `${paths.invoice}/${INVOICE_ID}`:
         return jsonResponse({ invoice });
       case `${base}/placement-options`:
+      case `${base}/financial-context/placements`:
         return jsonResponse({
           options: [
             {
@@ -147,6 +148,10 @@ function standardApi(
               confirmedAt: '2026-09-01T00:00:00.000Z',
             },
           ],
+        });
+      case `${base}/financial-context/missions`:
+        return jsonResponse({
+          options: [{ id: MISSION_ID, title: 'Synthetic Data Engineer' }],
         });
       case '/v1/clients':
         return jsonResponse(page('clients', [syntheticClient]));
@@ -296,30 +301,90 @@ describe('CommercialPanel: presentation and localization', () => {
 });
 
 describe('CommercialPanel: personas and permissions', () => {
-  it('gives the seeded Finance Manager every record type without mission or placement sources', async () => {
+  it('gives the Finance Manager D-086 mission and placement sources without recruitment APIs', async () => {
     const calls = standardApi();
     render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
 
     expect(await screen.findByRole('table', { name: 'Quotations' })).toBeVisible();
-    expect(screen.getByText('Records without a mission')).toBeVisible();
+    expect(screen.queryByText('Records without a mission')).toBeNull();
     expect(screen.queryByText('Read-only access')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
-    await chooseOption(createForm(), /^Client/, /Synthetic Client/);
-    expect(
-      within(createForm()).queryByRole('combobox', { name: /Recruitment mission/ }),
-    ).toBeNull();
+    const quotationForm = createForm();
+    await chooseOption(quotationForm, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(0),
+    );
+    await chooseOption(quotationForm, /^Recruitment mission/, /Synthetic Data Engineer/);
 
-    fireEvent.click(within(createForm()).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(quotationForm).getByRole('button', { name: 'Cancel' }));
     await openKind('Invoices');
     fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
-    await chooseOption(createForm(), /^Client/, /Synthetic Client/);
-    expect(within(createForm()).getByRole('combobox', { name: 'Quotation' })).toBeVisible();
-    expect(within(createForm()).getByRole('combobox', { name: 'Purchase order' })).toBeVisible();
-    expect(within(createForm()).queryByRole('combobox', { name: 'Placement' })).toBeNull();
+    const invoiceForm = createForm();
+    await chooseOption(invoiceForm, /^Client/, /Synthetic Client/);
+    expect(within(invoiceForm).getByRole('combobox', { name: 'Quotation' })).toBeVisible();
+    expect(within(invoiceForm).getByRole('combobox', { name: 'Purchase order' })).toBeVisible();
+    await chooseOption(
+      invoiceForm,
+      'Placement',
+      /Synthetic Data Engineer · confirmed 1 Sept 2026 · starts 1 Oct 2026/,
+    );
     expect(callsTo(calls, '/v1/missions')).toHaveLength(0);
     expect(callsTo(calls, `${base}/placement-options`)).toHaveLength(0);
+    expect(callsTo(calls, `${base}/financial-context/placements`).length).toBeGreaterThan(0);
     expectNoRawIds();
+  });
+
+  it('keeps the D-086 Finance sources for a hybrid actor who also holds missions:view', async () => {
+    const calls = standardApi();
+    render(
+      <Panel
+        permissions={[
+          ...FINANCE_MANAGER_PERMISSION_CODES,
+          'missions:view',
+          'placements:view',
+          'placement_commercial_eligibility:view',
+        ]}
+      />,
+    );
+    await screen.findByRole('table', { name: 'Quotations' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    const quotationForm = createForm();
+    await chooseOption(quotationForm, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(0),
+    );
+    expect(callsTo(calls, `${base}/financial-context/missions`)[0]?.search.get('clientId')).toBe(
+      CLIENT_ID,
+    );
+    await chooseOption(quotationForm, /^Recruitment mission/, /Synthetic Data Engineer/);
+
+    fireEvent.click(within(quotationForm).getByRole('button', { name: 'Cancel' }));
+    await openKind('Invoices');
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+    const invoiceForm = createForm();
+    await chooseOption(invoiceForm, /^Client/, /Synthetic Client/);
+    await chooseOption(
+      invoiceForm,
+      'Placement',
+      /Synthetic Data Engineer · confirmed 1 Sept 2026 · starts 1 Oct 2026/,
+    );
+    expect(callsTo(calls, `${base}/financial-context/placements`).length).toBeGreaterThan(0);
+    expect(callsTo(calls, '/v1/missions')).toHaveLength(0);
+    expect(callsTo(calls, `${base}/placement-options`)).toHaveLength(0);
+  });
+
+  it('keeps the generic D-079 sources for a recruitment-only actor', async () => {
+    const calls = standardApi();
+    render(<Panel permissions={OPERATOR} />);
+    await screen.findByRole('table', { name: 'Quotations' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    await chooseOption(createForm(), /^Client/, /Synthetic Client/);
+    await waitFor(() => expect(callsTo(calls, '/v1/missions')).toHaveLength(1));
+    expect(callsTo(calls, `${base}/financial-context/missions`)).toHaveLength(0);
+    expect(callsTo(calls, `${base}/financial-context/placements`)).toHaveLength(0);
   });
 
   it('keeps a read-only account free of every write and generation control', async () => {
@@ -900,6 +965,77 @@ describe('CommercialPanel: document generation', () => {
     expect(clicks[0]?.isConnected).toBe(false);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-generated-document');
     expectNoRawIds();
+  });
+});
+
+describe('CommercialPanel: finance context (D-086)', () => {
+  const CLIENT_B_ID = '2c2c2c2c-2c2c-42c2-82c2-2c2c2c2c2c2c';
+  const MISSION_B_ID = '2d2d2d2d-2d2d-42d2-82d2-2d2d2d2d2d2d';
+
+  it('never commits mission options from a previous client after the client changes', async () => {
+    const lateMissions = deferred<Response>();
+    const calls = standardApi((call) => {
+      if (call.method !== 'GET') return undefined;
+      if (call.path === '/v1/clients') {
+        return jsonResponse(
+          page('clients', [
+            syntheticClient,
+            { ...syntheticClient, id: CLIENT_B_ID, name: 'Other Client', city: 'Other City' },
+          ]),
+        );
+      }
+      if (call.path === `${base}/financial-context/missions`) {
+        if (call.search.get('clientId') === CLIENT_ID) return lateMissions.promise;
+        if (call.search.get('clientId') === CLIENT_B_ID) {
+          return jsonResponse({
+            options: [{ id: MISSION_B_ID, title: 'Mission for client B' }],
+          });
+        }
+      }
+      return undefined;
+    });
+    render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    const form = createForm();
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    await chooseOption(form, /^Client/, /Other Client/);
+    await waitFor(() =>
+      expect(callsTo(calls, `${base}/financial-context/missions`).length).toBeGreaterThan(1),
+    );
+    await act(async () => {
+      lateMissions.resolve(
+        jsonResponse({ options: [{ id: MISSION_ID, title: 'Stale mission for client A' }] }),
+      );
+      await lateMissions.promise;
+    });
+    const missionSelect = within(form).getByRole<HTMLSelectElement>('combobox', {
+      name: /Recruitment mission/,
+    });
+    expect(
+      [...missionSelect.options].some((item) => /Stale mission/.test(item.textContent ?? '')),
+    ).toBe(false);
+    expect(
+      [...missionSelect.options].some((item) =>
+        /Mission for client B/.test(item.textContent ?? ''),
+      ),
+    ).toBe(true);
+  });
+
+  it('surfaces a safe error when financial mission options return 403', async () => {
+    standardApi((call) =>
+      call.method === 'GET' && call.path === `${base}/financial-context/missions`
+        ? errorResponse(403, 'FORBIDDEN')
+        : undefined,
+    );
+    render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    const form = createForm();
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    await waitFor(() =>
+      expect(within(form).getByText('Options could not be loaded')).toBeVisible(),
+    );
   });
 });
 

@@ -14,7 +14,7 @@ import {
 import { LIMITED, OPERATOR, READ_ONLY } from './accounting-test-data.js';
 
 describe('resolveAccountingAccess', () => {
-  it('gives the Finance Manager every area with writes but no mission, placement, or training pickers', () => {
+  it('gives the Finance Manager every area with D-086 mission and placement pickers', () => {
     const access = resolveAccountingAccess(FINANCE_MANAGER_PERMISSION_CODES);
     expect(visibleAreas(access)).toEqual(['payments', 'expenses', 'balances', 'profitability']);
     expect(access.amounts).toBe(true);
@@ -24,11 +24,45 @@ describe('resolveAccountingAccess', () => {
     expect(access.expenses.record).toBe(true);
     expect(access.balances).toBe(true);
     expect(access.profitability).toBe(true);
-    expect(access.profitabilityContexts).toEqual(['CLIENT']);
-    expect(access.pickMissions).toBe(false);
-    expect(access.pickPlacements).toBe(false);
+    expect(access.profitabilityContexts).toEqual(['CLIENT', 'RECRUITMENT_MISSION', 'PLACEMENT']);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(true);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(true);
     expect(access.pickTrainingPrograms).toBe(false);
     expect(access.readOnly).toBe(false);
+  });
+
+  it('keeps the D-086 Finance sources for hybrid actors who also hold missions:view', () => {
+    const hybrid = [...FINANCE_MANAGER_PERMISSION_CODES, 'missions:view', 'placements:view'];
+    const access = resolveAccountingAccess(hybrid);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(true);
+    expect(access.missionsAssignedOnly).toBe(true);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(true);
+    const operatorHybrid = resolveAccountingAccess([
+      ...OPERATOR,
+      'recruitment_financial_context:view',
+    ]);
+    expect(operatorHybrid.financialMissionSource).toBe(true);
+    expect(operatorHybrid.financialPlacementSource).toBe(true);
+  });
+
+  it('keeps the generic D-081 sources for recruitment-only actors', () => {
+    const access = resolveAccountingAccess(OPERATOR);
+    expect(access.pickMissions).toBe(true);
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.pickPlacements).toBe(true);
+    expect(access.financialPlacementSource).toBe(false);
+  });
+
+  it('needs Commercial data access for the Finance sources', () => {
+    const access = resolveAccountingAccess(
+      FINANCE_MANAGER_PERMISSION_CODES.filter((code) => code !== 'commercial_data:access'),
+    );
+    expect(access.financialMissionSource).toBe(false);
+    expect(access.financialPlacementSource).toBe(false);
   });
 
   it('requires commercial data access for amounts, balances, profitability, and writes', () => {
