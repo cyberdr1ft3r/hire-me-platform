@@ -1285,6 +1285,187 @@ describe('messaging API (Issue #179)', { timeout: 120_000 }, () => {
     });
   });
 
+  describe('PRIVATE hide (Issue #188)', () => {
+    async function hide(actor: Actor, conversationId: string): Promise<ApiResult> {
+      return api(actor, 'POST', `/conversations/${conversationId}/hide`);
+    }
+
+    it('lets an active member hide a PRIVATE conversation and touches only their membership', async () => {
+      const first = await createActor('hide-a');
+      const second = await createActor('hide-b');
+      const directId = await openDirect(first, second.id);
+      await sendOk(first, directId, 'Before hide');
+      const before = await prisma.conversationMember.findMany({
+        where: { conversationId: directId },
+        orderBy: { userId: 'asc' },
+      });
+      expect((await hide(first, directId)).status).toBe(201);
+      expect((await hide(first, directId)).body).toEqual({ hidden: true });
+      const after = await prisma.conversationMember.findMany({
+        where: { conversationId: directId },
+        orderBy: { userId: 'asc' },
+      });
+      expect(after.find((member) => member.userId === first.id)!.hiddenAt).not.toBeNull();
+      expect(after.find((member) => member.userId === second.id)!.hiddenAt).toBeNull();
+      expect(before.map((member) => [member.status, member.role])).toEqual(
+        after.map((member) => [member.status, member.role]),
+      );
+      const conversation = await prisma.conversation.findUniqueOrThrow({ where: { id: directId } });
+      expect(conversation.status).toBe('ACTIVE');
+      expect(conversation.archivedAt).toBeNull();
+      expect(await prisma.message.count({ where: { conversationId: directId } })).toBe(1);
+    });
+
+    it('omits a hidden conversation from the caller list and unread summary while the peer is unaffected', async () => {
+      const first = await createActor('list-hide-a');
+      const second = await createActor('list-hide-b');
+      const directId = await openDirect(first, second.id);
+      await sendOk(second, directId, 'Unread for first');
+      expect((await hide(first, directId)).status).toBe(201);
+      const firstList = (await api(first, 'GET', '/conversations')).body.conversations as {
+        id: string;
+      }[];
+      expect(firstList.map((entry) => entry.id)).not.toContain(directId);
+      expect((await api(first, 'GET', '/unread-summary')).body).toEqual({
+        unreadConversationCount: 0,
+      });
+      const secondList = (await api(second, 'GET', '/conversations')).body.conversations as {
+        id: string;
+      }[];
+      expect(secondList.map((entry) => entry.id)).toContain(directId);
+      expect((await api(second, 'GET', '/unread-summary')).body).toEqual({
+        unreadConversationCount: 1,
+      });
+      expect((await api(first, 'GET', `/conversations/${directId}`)).status).toBe(200);
+    });
+
+    it('refuses GROUP hide without side effects', async () => {
+      const owner = await createActor('group-hide-owner');
+      const peer = await createActor('group-hide-peer');
+      const third = await createUser('group-hide-third');
+      const groupId = await createGroup(owner, [peer.id, third.id]);
+      await sendOk(owner, groupId, 'Group message');
+      const before = await prisma.conversationMember.findMany({
+        where: { conversationId: groupId },
+      });
+      const result = await hide(owner, groupId);
+      expect([result.status, code(result)]).toEqual([409, 'CONVERSATION_HIDE_NOT_SUPPORTED']);
+      const after = await prisma.conversationMember.findMany({
+        where: { conversationId: groupId },
+      });
+      expect(after.map((member) => [member.userId, member.hiddenAt])).toEqual(
+        before.map((member) => [member.userId, member.hiddenAt]),
+      );
+    });
+
+    it('uses one not-found envelope for missing, foreign, LEFT, and REMOVED membership', async () => {
+      const owner = await createActor('hide-env-owner');
+      const peer = await createActor('hide-env-peer');
+      const stranger = await createActor('hide-env-stranger');
+      const directId = await openDirect(owner, peer.id);
+      await sendOk(owner, directId, 'Seed');
+      const missing = await hide(stranger, randomUUID());
+      expect(missing).toEqual({
+        status: 404,
+        body: { error: { code: 'CONVERSATION_NOT_FOUND', message: 'Conversation was not found.' } },
+      });
+      expect(await hide(stranger, directId)).toEqual(missing);
+      const third = await createActor('hide-left-third');
+      const groupId = await createGroup(owner, [peer.id, third.id]);
+      await sendOk(owner, groupId, 'Before leave');
+      await api(peer, 'POST', `/groups/${groupId}/leave`);
+      expect(await hide(peer, groupId)).toEqual(missing);
+      await api(owner, 'POST', `/groups/${groupId}/members/${third.id}/remove`);
+      expect(await hide(third, groupId)).toEqual(missing);
+    });
+
+    it('resurfaces after a newer incoming or outgoing message and restores unread rules', async () => {
+      const first = await createActor('resurface-a');
+      const second = await createActor('resurface-b');
+      const directId = await openDirect(first, second.id);
+      await sendOk(first, directId, 'Read baseline');
+      await api(first, 'POST', `/conversations/${directId}/read`, { upToSequence: 1 });
+      expect((await hide(first, directId)).status).toBe(201);
+      expect(
+        ((await api(first, 'GET', '/conversations')).body.conversations as { id: string }[]).map(
+          (entry) => entry.id,
+        ),
+      ).not.toContain(directId);
+
+      clockOffsetMs = 5_000;
+      await sendOk(second, directId, 'Incoming after hide');
+      clockOffsetMs = 0;
+      const afterIncoming = (await api(first, 'GET', '/conversations')).body.conversations as {
+        id: string;
+        unreadCount: number;
+      }[];
+      expect(afterIncoming.map((entry) => entry.id)).toContain(directId);
+      expect(afterIncoming.find((entry) => entry.id === directId)!.unreadCount).toBe(1);
+      expect((await api(first, 'GET', '/unread-summary')).body).toEqual({
+        unreadConversationCount: 1,
+      });
+      expect(
+        await prisma.conversationMember.findFirstOrThrow({
+          where: { conversationId: directId, userId: first.id },
+          select: { hiddenAt: true },
+        }),
+      ).toEqual({ hiddenAt: null });
+
+      expect((await hide(first, directId)).status).toBe(201);
+      clockOffsetMs = 10_000;
+      await sendOk(first, directId, 'Outgoing after hide');
+      clockOffsetMs = 0;
+      expect(
+        ((await api(first, 'GET', '/conversations')).body.conversations as { id: string }[]).map(
+          (entry) => entry.id,
+        ),
+      ).toContain(directId);
+      expect((await api(first, 'GET', '/unread-summary')).body).toEqual({
+        unreadConversationCount: 0,
+      });
+    });
+
+    it('requires only messages:view and keeps hide/send concurrency safe', async () => {
+      const owner = await createActor('hide-perm-owner');
+      const viewer = await createActor('hide-perm-viewer', { role: RoleName.MANAGER });
+      const directId = await openDirect(owner, viewer.id);
+      await sendOk(owner, directId, 'Visible');
+      expect((await hide(viewer, directId)).status).toBe(201);
+
+      const first = await createActor('race-hide-a');
+      const second = await createActor('race-hide-b');
+      const raceId = await openDirect(first, second.id);
+      await sendOk(first, raceId, 'Start');
+      const access = app.get(MessagingAccessService);
+      const { results } = await raceBehindHeldLock(
+        (tx) => access.lockConversationForActiveMember(tx, first.id, raceId),
+        2,
+        () => [hide(first, raceId), send(second, raceId, 'Concurrent after hide')],
+      );
+      const hideResult = results.find(
+        (result) => result.status === 201 && result.body.hidden === true,
+      );
+      const sendResult = results.find((result) => result.body.message);
+      expect(hideResult).toBeDefined();
+      expect(sendResult?.status).toBe(201);
+      const listed = (await api(first, 'GET', '/conversations')).body.conversations as {
+        id: string;
+      }[];
+      expect(listed.map((entry) => entry.id)).toContain(raceId);
+      const member = await prisma.conversationMember.findFirstOrThrow({
+        where: { conversationId: raceId, userId: first.id },
+      });
+      const conversation = await prisma.conversation.findUniqueOrThrow({
+        where: { id: raceId },
+        select: { lastMessageAt: true },
+      });
+      const resurfaced =
+        member.hiddenAt === null ||
+        (conversation.lastMessageAt !== null && conversation.lastMessageAt > member.hiddenAt);
+      expect(resurfaced).toBe(true);
+    });
+  });
+
   describe('conversation list', () => {
     it('pages active memberships by last activity with an opaque cursor', async () => {
       const actor = await createActor('lister');
