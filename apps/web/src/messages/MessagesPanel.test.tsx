@@ -730,10 +730,42 @@ describe('Messages workspace', () => {
     expect(fake.calls.length).toBe(before);
   });
 
+  it('anchors the composer after the scrolling log inside the thread pane', async () => {
+    createFakeMessaging();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+    render(<Workspace />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Messages' }).closest('header'),
+    ).toHaveClass('ui-page-header--compact');
+    fireEvent.click(await within(listRegion()).findByRole('button', { name: /Nadia Peer/ }));
+    const log = await screen.findByRole('log', { name: 'Message history' });
+    const thread = log.parentElement as HTMLElement;
+    const children = Array.from(thread.children).filter(
+      (child) => !child.classList.contains('sr-only'),
+    );
+    expect(children.indexOf(log)).toBeGreaterThan(0);
+    expect(children.at(-1)).toContainElement(screen.getByRole('textbox', { name: 'Message' }));
+    expect(thread.closest('[data-pane="detail"]')).not.toBeNull();
+    // Side by side, the page keeps its description.
+    expect(screen.getByText(/Private conversations/)).toBeVisible();
+  });
+
+  it('gives a stacked thread the page description space and restores it on the inbox', async () => {
+    createFakeMessaging();
+    render(<Workspace />);
+    expect(screen.getByText(/Private conversations/)).toBeVisible();
+    fireEvent.click(await within(listRegion()).findByRole('button', { name: /Nadia Peer/ }));
+    await screen.findByRole('log', { name: 'Message history' });
+    expect(screen.queryByText(/Private conversations/)).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Messages' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to conversations' }));
+    expect(screen.getByText(/Private conversations/)).toBeVisible();
+  });
+
   it('shows one pane at a time when narrow and both side by side when wide', async () => {
     createFakeMessaging();
     const { container, unmount } = render(<Workspace />);
-    const layout = container.querySelector('.messages-layout');
+    const layout = container.querySelector('.ui-workspace__layout');
     expect(layout).toHaveAttribute('data-view', 'list');
 
     const row = await within(listRegion()).findByRole('button', { name: /Nadia Peer/ });

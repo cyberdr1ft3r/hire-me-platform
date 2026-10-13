@@ -17,6 +17,9 @@ import {
   PageHeader,
   Skeleton,
   StatusBadge,
+  WorkspacePane,
+  WorkspaceSurface,
+  WorkspaceToolbar,
 } from '../ui/index.js';
 import { ConversationPane } from './ConversationPane.js';
 import { GroupDetails } from './GroupDetails.js';
@@ -307,9 +310,14 @@ function MessagesWorkspace({
     mode.kind === 'conversation' || mode.kind === 'details' ? mode.conversation.id : null;
 
   return (
-    <section aria-label={t('messages.region')} className="messages-panel">
+    <section aria-label={t('messages.region')} className="messages-panel ui-workspace-page">
       <PageHeader
-        description={t('messages.header.description')}
+        compact
+        // A phone showing one thread gives its height to the conversation; the
+        // description stays on the inbox view and on side-by-side layouts.
+        description={
+          stacked && mobileView === 'detail' ? undefined : t('messages.header.description')
+        }
         eyebrow={t('messages.header.eyebrow')}
         primaryAction={
           access.create ? (
@@ -339,13 +347,19 @@ function MessagesWorkspace({
           </p>
         </InlineMessage>
       ) : null}
-      <div className="messages-workspace" ref={containerRef}>
-        <div className="messages-layout" data-view={mobileView}>
-          <section aria-labelledby="messages-list-title" className="messages-list">
-            <div className="messages-list__header">
-              <h2 id="messages-list-title" ref={listHeadingRef} tabIndex={-1}>
-                {t('messages.list.title')}
-              </h2>
+      <WorkspaceSurface className="messages-workspace" ref={containerRef} view={mobileView}>
+        <WorkspacePane
+          aria-labelledby="messages-list-title"
+          className="messages-list"
+          kind="list"
+          toolbar={
+            <WorkspaceToolbar
+              heading={
+                <h2 id="messages-list-title" ref={listHeadingRef} tabIndex={-1}>
+                  {t('messages.list.title')}
+                </h2>
+              }
+            >
               <div
                 aria-label={t('messages.filters.label')}
                 className="messages-filters"
@@ -363,83 +377,84 @@ function MessagesWorkspace({
                   </Button>
                 ))}
               </div>
+            </WorkspaceToolbar>
+          }
+        >
+          <ConversationList
+            filter={filter}
+            list={list}
+            loadingMore={loadingMore}
+            moreFailed={moreFailed}
+            onLoadMore={() => void loadMore()}
+            onRetry={() => setReloadKey((key) => key + 1)}
+            onSelect={selectConversation}
+            rowRefs={rowRefs}
+            selectedId={selectedId}
+          />
+        </WorkspacePane>
+        <WorkspacePane as="div" className="messages-detail" kind="detail">
+          {mode.kind === 'empty' ? (
+            <div className="messages-detail__empty">
+              <EmptyState title={t('messages.conversation.selectPromptTitle')}>
+                {t('messages.conversation.selectPrompt')}
+              </EmptyState>
             </div>
-            <ConversationList
-              filter={filter}
-              list={list}
-              loadingMore={loadingMore}
-              moreFailed={moreFailed}
-              onLoadMore={() => void loadMore()}
-              onRetry={() => setReloadKey((key) => key + 1)}
-              onSelect={selectConversation}
-              rowRefs={rowRefs}
-              selectedId={selectedId}
+          ) : null}
+          {mode.kind === 'conversation' ? (
+            <ConversationPane
+              accessToken={accessToken}
+              actorUserId={actorUserId}
+              canCreate={access.create}
+              headingRef={headingRef}
+              initial={mode.conversation}
+              key={mode.conversation.id}
+              onBack={backToList}
+              onChanged={updateRow}
+              onHidden={(id) => closeConversation(id, 'hidden')}
+              onOpenDetails={(detail) => setMode({ conversation: detail, kind: 'details' })}
+              onRead={handleRead}
+              onSent={handleSent}
+              paneVisible={paneVisible}
             />
-          </section>
-          <div className="messages-detail">
-            {mode.kind === 'empty' ? (
-              <div className="messages-detail__empty">
-                <EmptyState title={t('messages.conversation.selectPromptTitle')}>
-                  {t('messages.conversation.selectPrompt')}
-                </EmptyState>
-              </div>
-            ) : null}
-            {mode.kind === 'conversation' ? (
-              <ConversationPane
-                accessToken={accessToken}
-                actorUserId={actorUserId}
-                canCreate={access.create}
-                headingRef={headingRef}
-                initial={mode.conversation}
-                key={mode.conversation.id}
-                onBack={backToList}
-                onChanged={updateRow}
-                onHidden={(id) => closeConversation(id, 'hidden')}
-                onOpenDetails={(detail) => setMode({ conversation: detail, kind: 'details' })}
-                onRead={handleRead}
-                onSent={handleSent}
-                paneVisible={paneVisible}
-              />
-            ) : null}
-            {mode.kind === 'details' ? (
-              <GroupDetails
-                accessToken={accessToken}
-                actorUserId={actorUserId}
-                canCreate={access.create}
-                headingRef={headingRef}
-                initial={mode.conversation}
-                key={mode.conversation.id}
-                onBack={() => setMode({ conversation: mode.conversation, kind: 'conversation' })}
-                onChanged={(detail) => {
-                  updateRow(summaryFromDetail(detail));
-                  setMode((current) =>
-                    current.kind === 'details' && current.conversation.id === detail.id
-                      ? { conversation: detail, kind: 'details' }
-                      : current,
-                  );
-                }}
-                onLeft={(id) => closeConversation(id, 'left')}
-              />
-            ) : null}
-            {mode.kind === 'new-direct' && access.create ? (
-              <NewDirectPane
-                accessToken={accessToken}
-                headingRef={headingRef}
-                onBack={backToList}
-                onOpened={opened}
-              />
-            ) : null}
-            {mode.kind === 'new-group' && access.create ? (
-              <NewGroupPane
-                accessToken={accessToken}
-                headingRef={headingRef}
-                onBack={backToList}
-                onCreated={opened}
-              />
-            ) : null}
-          </div>
-        </div>
-      </div>
+          ) : null}
+          {mode.kind === 'details' ? (
+            <GroupDetails
+              accessToken={accessToken}
+              actorUserId={actorUserId}
+              canCreate={access.create}
+              headingRef={headingRef}
+              initial={mode.conversation}
+              key={mode.conversation.id}
+              onBack={() => setMode({ conversation: mode.conversation, kind: 'conversation' })}
+              onChanged={(detail) => {
+                updateRow(summaryFromDetail(detail));
+                setMode((current) =>
+                  current.kind === 'details' && current.conversation.id === detail.id
+                    ? { conversation: detail, kind: 'details' }
+                    : current,
+                );
+              }}
+              onLeft={(id) => closeConversation(id, 'left')}
+            />
+          ) : null}
+          {mode.kind === 'new-direct' && access.create ? (
+            <NewDirectPane
+              accessToken={accessToken}
+              headingRef={headingRef}
+              onBack={backToList}
+              onOpened={opened}
+            />
+          ) : null}
+          {mode.kind === 'new-group' && access.create ? (
+            <NewGroupPane
+              accessToken={accessToken}
+              headingRef={headingRef}
+              onBack={backToList}
+              onCreated={opened}
+            />
+          ) : null}
+        </WorkspacePane>
+      </WorkspaceSurface>
     </section>
   );
 }

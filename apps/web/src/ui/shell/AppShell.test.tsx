@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { useState } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShellPreview } from '../../app-shell-preview/AppShellPreview.js';
@@ -16,7 +16,7 @@ const syntheticUser: AuthenticatedUser = {
   id: '00000000-0000-4000-8000-000000000052',
   displayName: 'Synthetic Operator',
   email: 'operator@example.test',
-  permissions: ['tasks:view', 'missions:view'],
+  permissions: ['tasks:view', 'missions:view', 'candidates:view'],
 };
 
 afterEach(() => {
@@ -139,11 +139,11 @@ describe('AppShell', () => {
       </I18nProvider>,
     );
 
-    expect(
-      screen.getByRole('button', { name: 'Communication · 3 unread conversations' }),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: /Communication/ }));
-    const messages = screen.getByRole('link', { name: /Messages/ });
+    // Communication has one destination, so its rail control is the Messages link itself.
+    const rail = screen.getByRole('link', { name: 'Communication · 3 unread conversations' });
+    expect(rail).toHaveAttribute('href', '/messages');
+    fireEvent.click(rail);
+    const messages = screen.getByRole('link', { name: /^Messages/ });
     expect(messages).toHaveAccessibleName('Messages 3 unread conversations');
     expect(messages).toHaveAttribute('href', '/messages');
   });
@@ -235,5 +235,79 @@ describe('AppShell', () => {
       /\.app-shell__navigation\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s,
     );
     expect(shellCss).toMatch(/\.app-shell__session\s*\{[^}]*flex:\s*0 0 auto;/s);
+  });
+});
+
+describe('AppShell single-destination domains and workspace layout', () => {
+  const communicationUser: AuthenticatedUser = {
+    ...syntheticUser,
+    permissions: ['tasks:view', 'messages:view', 'users:view'],
+  };
+
+  function RoutedShell() {
+    const [route, setRoute] = useState<InternalRoute>('home');
+    return (
+      <I18nProvider initialLocale="en">
+        <AppShell
+          apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
+          currentRoute={route}
+          onLogout={() => undefined}
+          onNavigate={setRoute}
+          onRefreshUser={() => undefined}
+          user={communicationUser}
+        >
+          <h1>{`Route ${route}`}</h1>
+        </AppShell>
+      </I18nProvider>
+    );
+  }
+
+  const rail = () => screen.getByRole('navigation', { name: 'Workspace navigation' });
+  const context = () => screen.getByRole('navigation', { name: 'Primary navigation' });
+
+  it('navigates straight to Messages and never shows Administration as its context', () => {
+    mockMobileNavigation(false);
+    const { container } = render(<RoutedShell />);
+    expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'flow');
+
+    fireEvent.click(within(rail()).getByRole('link', { name: 'Communication' }));
+    expect(screen.getByRole('heading', { name: 'Route messages' })).toBeVisible();
+    expect(within(rail()).getByRole('link', { name: 'Communication' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(context()).getByRole('link', { name: 'Messages' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(context()).queryByRole('link', { name: 'Administration' })).toBeNull();
+    expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'fill');
+
+    fireEvent.click(within(rail()).getByRole('link', { name: 'Administration' }));
+    expect(screen.getByRole('heading', { name: 'Route admin' })).toBeVisible();
+    expect(within(context()).queryByRole('link', { name: 'Messages' })).toBeNull();
+    expect(within(rail()).getByRole('link', { name: 'Communication' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'flow');
+  });
+
+  it('keeps modified clicks on a single-destination rail link native', () => {
+    mockMobileNavigation(false);
+    render(<RoutedShell />);
+    fireEvent.click(within(rail()).getByRole('link', { name: 'Communication' }), {
+      ctrlKey: true,
+    });
+    expect(screen.getByRole('heading', { name: 'Route home' })).toBeVisible();
+  });
+
+  it('keeps a multi-destination domain as a disclosure that does not change the route', () => {
+    mockMobileNavigation(false);
+    render(<RoutedShell />);
+    expect(within(rail()).getByRole('button', { name: 'Overview' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('heading', { name: 'Route home' })).toBeVisible();
   });
 });

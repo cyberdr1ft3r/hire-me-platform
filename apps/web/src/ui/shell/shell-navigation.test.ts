@@ -6,6 +6,7 @@ import {
   readNavigationExpanded,
   saveNavigationExpanded,
   visibleShellDomains,
+  workspaceLayoutForRoute,
 } from './shell-navigation.js';
 
 afterEach(() => {
@@ -54,4 +55,19 @@ describe('Shell navigation projection', () => {
     expect(readNavigationExpanded()).toBe(true);
     expect(() => saveNavigationExpanded(false)).not.toThrow();
   });
+});
+
+describe('Workspace layout per route', () => {
+  it('fills the viewport for Messages on every width and for Candidates beside the desktop rail', () => {
+    expect(workspaceLayoutForRoute('messages', false)).toBe('fill');
+    expect(workspaceLayoutForRoute('messages', true)).toBe('fill');
+    expect(workspaceLayoutForRoute('candidates', false)).toBe('fill');
+    expect(workspaceLayoutForRoute('candidates', true)).toBe('flow');
+  });
+  it.each(['home', 'tasks', 'missions', 'commercial', 'accounting', 'documents', 'admin'] as const)(
+    'keeps document flow for %s',
+    (route) => {
+      expect(workspaceLayoutForRoute(route, false)).toBe('flow');
+    },
+  );
 });

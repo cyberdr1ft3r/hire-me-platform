@@ -56,6 +56,20 @@ export function domainForRoute(route: InternalRoute): ShellDomainId {
   return domainRoutes.find((domain) => domain.routes.includes(route))?.id ?? 'overview';
 }
 
+export type WorkspaceLayout = 'flow' | 'fill';
+/**
+ * Routes whose workspace fills the viewport below the header, with each pane owning
+ * its own scrolling (Workspace Surface v1.0). Every other route keeps document flow.
+ * Messages always fills: a thread keeps its composer in view on every width.
+ * Directory workspaces fill only beside the persistent navigation; on the mobile
+ * shell their panes stack, so ordinary page scrolling is the better owner.
+ */
+const alwaysFillRoutes: ReadonlySet<InternalRoute> = new Set<InternalRoute>(['messages']);
+const desktopFillRoutes: ReadonlySet<InternalRoute> = new Set<InternalRoute>(['candidates']);
+export function workspaceLayoutForRoute(route: InternalRoute, mobile: boolean): WorkspaceLayout {
+  return alwaysFillRoutes.has(route) || (!mobile && desktopFillRoutes.has(route)) ? 'fill' : 'flow';
+}
+
 export const NAVIGATION_PREFERENCE_KEY = 'hireme.navigation.expanded';
 export function readNavigationExpanded(): boolean {
   try {

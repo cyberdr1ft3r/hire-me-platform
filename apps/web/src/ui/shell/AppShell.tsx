@@ -15,6 +15,7 @@ import { ShellIcon } from './ShellIcon.js';
 import {
   domainForRoute,
   readNavigationExpanded,
+  workspaceLayoutForRoute,
   saveNavigationExpanded,
   visibleShellDomains,
   type ShellDomain,
@@ -39,6 +40,17 @@ interface AppShellProps {
   user: AuthenticatedUser;
 }
 const mobileNavigationQuery = '(max-width: 56.25rem)';
+/** Plain primary clicks navigate in-app; modified clicks keep native link behavior. */
+function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return !(
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  );
+}
 function isMobileNavigation(): boolean {
   return (
     typeof window.matchMedia === 'function' && window.matchMedia(mobileNavigationQuery).matches
@@ -94,6 +106,8 @@ export function AppShell({
       previousRouteRef.current = currentRoute;
       setSelectedDomain(domainForRoute(currentRoute));
       setNavigationOpen(false);
+      // Fill-layout routes scroll inside main; never carry an old offset across routes.
+      if (mainRef.current) mainRef.current.scrollTop = 0;
       mainRef.current?.focus({ preventScroll: true });
     }
   }, [currentRoute]);
@@ -147,15 +161,7 @@ export function AppShell({
     }
   }
   function handleDestination(event: MouseEvent<HTMLAnchorElement>, route: InternalRoute): void {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    )
-      return;
+    if (!isPlainClick(event)) return;
     event.preventDefault();
     if (mobile) {
       closeNavigation(false);
@@ -228,6 +234,7 @@ export function AppShell({
       className="app-shell"
       data-density="internal-compact"
       data-expanded={expanded ? 'true' : 'false'}
+      data-layout={workspaceLayoutForRoute(currentRoute, mobile)}
     >
       <a className="app-shell__skip-link" href="#main-content">
         {t('shell.navigation.skipToMain')}
@@ -249,29 +256,56 @@ export function AppShell({
               const badge = domain.items
                 .map((item) => navigationBadges?.[item.route])
                 .find(Boolean);
+              const label = t(domain.labelKey) + (badge ? ` · ${badge.label}` : '');
+              const icon = (
+                <>
+                  <ShellIcon name={domain.id} />
+                  {badge ? (
+                    <span className="app-shell__rail-badge" aria-hidden="true">
+                      {badge.display}
+                    </span>
+                  ) : null}
+                </>
+              );
+              const onlyDestination = domain.items.length === 1 ? domain.items[0] : undefined;
               return (
                 <div className="app-shell__rail-item" key={domain.id}>
-                  <button
-                    className="app-shell__rail-button"
-                    type="button"
-                    aria-label={t(domain.labelKey) + (badge ? ` · ${badge.label}` : '')}
-                    aria-controls="app-context-navigation"
-                    aria-expanded={expanded && context?.id === domain.id}
-                    aria-current={activeDomain === domain.id ? 'true' : undefined}
-                    onFocus={() => setTooltipDismissed(false)}
-                    onMouseEnter={() => setTooltipDismissed(false)}
-                    onClick={() => {
-                      setSelectedDomain(domain.id);
-                      setPanelExpanded(true);
-                    }}
-                  >
-                    <ShellIcon name={domain.id} />
-                    {badge ? (
-                      <span className="app-shell__rail-badge" aria-hidden="true">
-                        {badge.display}
-                      </span>
-                    ) : null}
-                  </button>
+                  {onlyDestination ? (
+                    // A one-destination domain has nothing to reveal: its rail control is
+                    // that destination's link, so it can never leave a stale context open.
+                    <a
+                      aria-current={onlyDestination.route === currentRoute ? 'page' : undefined}
+                      aria-label={label}
+                      className="app-shell__rail-button"
+                      href={onlyDestination.path}
+                      onClick={(event) => {
+                        if (!isPlainClick(event)) return;
+                        setSelectedDomain(domain.id);
+                        handleDestination(event, onlyDestination.route);
+                      }}
+                      onFocus={() => setTooltipDismissed(false)}
+                      onMouseEnter={() => setTooltipDismissed(false)}
+                    >
+                      {icon}
+                    </a>
+                  ) : (
+                    <button
+                      className="app-shell__rail-button"
+                      type="button"
+                      aria-label={label}
+                      aria-controls="app-context-navigation"
+                      aria-expanded={expanded && context?.id === domain.id}
+                      aria-current={activeDomain === domain.id ? 'true' : undefined}
+                      onFocus={() => setTooltipDismissed(false)}
+                      onMouseEnter={() => setTooltipDismissed(false)}
+                      onClick={() => {
+                        setSelectedDomain(domain.id);
+                        setPanelExpanded(true);
+                      }}
+                    >
+                      {icon}
+                    </button>
+                  )}
                   <span className="app-shell__tooltip" role="tooltip">
                     {t(domain.labelKey)}
                   </span>

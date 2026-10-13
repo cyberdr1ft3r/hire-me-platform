@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App.js';
@@ -152,11 +152,16 @@ describe('switching language in the shell', () => {
     for (const [domain, labels] of [
       ['Recrutement', ['Candidats', 'Rapports']],
       ['Commercial', ['Comptabilité']],
-      ['Administration', ['Administration']],
     ] as const) {
       fireEvent.click(screen.getByRole('button', { name: domain }));
       for (const label of labels) expect(screen.getByRole('link', { name: label })).toBeVisible();
     }
+    // A one-destination domain is a direct, translated rail link.
+    expect(
+      within(screen.getByRole('navigation', { name: 'Navigation des espaces' })).getByRole('link', {
+        name: 'Administration',
+      }),
+    ).toHaveAttribute('href', '/admin');
     fireEvent.click(screen.getByLabelText('Compte et session'));
     expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Actualiser le profil' })).toBeVisible();
