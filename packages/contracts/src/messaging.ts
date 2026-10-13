@@ -91,6 +91,7 @@ export const MESSAGING_ERROR_CODES = [
   'GROUP_MEMBER_COUNT_INVALID',
   'CONVERSATION_MEMBER_NOT_FOUND',
   'PRIVATE_CONVERSATION_IMMUTABLE',
+  'CONVERSATION_HIDE_NOT_SUPPORTED',
   'INVALID_MESSAGING_REQUEST',
 ] as const;
 export type MessagingErrorCode = (typeof MESSAGING_ERROR_CODES)[number];
@@ -231,6 +232,9 @@ export const GroupAddMembersRequestSchema = z
 /** After leaving, the group is no longer visible to the actor at all. */
 export const GroupLeaveResponseSchema = z.object({ left: z.literal(true) }).strict();
 
+/** Per-member hide of a PRIVATE conversation (Issue #188, D-087). */
+export const ConversationHideResponseSchema = z.object({ hidden: z.literal(true) }).strict();
+
 export const UnreadSummaryResponseSchema = z
   .object({ unreadConversationCount: z.number().int().min(0) })
   .strict();
@@ -314,6 +318,7 @@ export type GroupCreateRequest = z.infer<typeof GroupCreateRequestSchema>;
 export type GroupRenameRequest = z.infer<typeof GroupRenameRequestSchema>;
 export type GroupAddMembersRequest = z.infer<typeof GroupAddMembersRequestSchema>;
 export type GroupLeaveResponse = z.infer<typeof GroupLeaveResponseSchema>;
+export type ConversationHideResponse = z.infer<typeof ConversationHideResponseSchema>;
 export type UnreadSummaryResponse = z.infer<typeof UnreadSummaryResponseSchema>;
 export type MessageListQuery = z.infer<typeof MessageListQuerySchema>;
 export type MessageSendRequest = z.infer<typeof MessageSendRequestSchema>;

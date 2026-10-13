@@ -17,6 +17,7 @@ import {
   type DirectConversationResponse,
   type GroupAddMembersRequest,
   type GroupCreateRequest,
+  type ConversationHideResponse,
   type GroupLeaveResponse,
   type GroupRenameRequest,
   type MessageDetailResponse,
@@ -203,6 +204,7 @@ export class MessagingService {
       JOIN "ConversationMember" m ON m."conversationId" = c."id"
       WHERE m."userId" = ${actor}::uuid
         AND m."status" = 'active'
+        AND (m."hiddenAt" IS NULL OR c."lastMessageAt" > m."hiddenAt")
         AND NOT (c."type" = 'private' AND c."lastMessageSequence" = 0 AND c."createdByUserId" <> ${actor}::uuid)
         AND ${filter}
         ${after}
@@ -248,9 +250,37 @@ export class MessagingService {
       JOIN "Conversation" c ON c."id" = m."conversationId"
       WHERE m."userId" = ${actor}::uuid
         AND m."status" = 'active'
+        AND (m."hiddenAt" IS NULL OR c."lastMessageAt" > m."hiddenAt")
         AND c."lastMessageSequence" > GREATEST(m."lastReadSequence", m."historyAfterSequence")
     `;
     return { unreadConversationCount: row?.count ?? 0 };
+  }
+
+  async hidePrivateConversation(
+    actorUserId: string,
+    conversationId: string,
+  ): Promise<ConversationHideResponse> {
+    const actor = await this.internalActor(actorUserId);
+    await this.prisma.$transaction(async (tx) => {
+      const { conversation, membership } = await this.access.lockConversationForActiveMember(
+        tx,
+        actor,
+        conversationId,
+      );
+      if (conversation.type !== ConversationType.PRIVATE) {
+        throw messagingConflict(
+          'CONVERSATION_HIDE_NOT_SUPPORTED',
+          'Only direct conversations can be hidden.',
+        );
+      }
+      this.assertActive(conversation);
+      const now = this.clock.now();
+      await tx.conversationMember.update({
+        where: { id: membership.id },
+        data: { hiddenAt: now },
+      });
+    }, TRANSACTION_OPTIONS);
+    return { hidden: true };
   }
 
   // --- PRIVATE ---------------------------------------------------------------
@@ -632,6 +662,15 @@ export class MessagingService {
       await tx.conversation.update({
         where: { id: conversation.id },
         data: { lastMessageSequence: sequence, lastMessageAt: now },
+      });
+      // A newer message resurfaces hidden conversations for every active member.
+      await tx.conversationMember.updateMany({
+        where: {
+          conversationId: conversation.id,
+          status: ConversationMemberStatus.ACTIVE,
+          hiddenAt: { not: null },
+        },
+        data: { hiddenAt: null },
       });
       // The sender has seen everything up to their own message.
       await tx.conversationMember.update({
