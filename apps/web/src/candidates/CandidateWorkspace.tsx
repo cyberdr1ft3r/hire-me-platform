@@ -2,7 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM } from '../layout/index.js';
-import { Button, PageHeader } from '../ui/index.js';
+import {
+  Button,
+  PageHeader,
+  WorkspacePane,
+  WorkspaceSurface,
+  WorkspaceToolbar,
+} from '../ui/index.js';
 import type { CandidateAccess } from './candidate-access.js';
 import {
   hasActiveCandidateFilters,
@@ -101,6 +107,7 @@ export function CandidateWorkspace({
   const headerRef = useRef<HTMLDivElement>(null);
   const layoutContainerRef = useRef<HTMLDivElement>(null);
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
+  const detailBodyRef = useRef<HTMLDivElement>(null);
   // Set by a page change: once the new page has settled, focus moves to the list heading.
   const focusListAfterPage = useRef(false);
   const [creating, setCreating] = useState(false);
@@ -119,6 +126,11 @@ export function CandidateWorkspace({
     restoreCreateFocus.current = true;
     setCreating(false);
   }
+
+  // In the fill layout the record pane scrolls on its own: a new record opens at its top.
+  useEffect(() => {
+    if (detailBodyRef.current) detailBodyRef.current.scrollTop = 0;
+  }, [selectedId]);
 
   // Focus is restored after the commit, once the trigger is rendered enabled again.
   useEffect(() => {
@@ -149,9 +161,10 @@ export function CandidateWorkspace({
   }
 
   return (
-    <div className="candidates" ref={layoutContainerRef}>
+    <div className="candidates ui-workspace-page" ref={layoutContainerRef}>
       <div ref={headerRef}>
         <PageHeader
+          compact
           description={t('candidate.header.description')}
           eyebrow={t('candidate.header.eyebrow')}
           primaryAction={
@@ -184,24 +197,35 @@ export function CandidateWorkspace({
         </div>
       ) : null}
 
-      <div className="candidates__workspace">
-        <section aria-labelledby={listHeadingId} className="candidates__list-pane">
-          <h2
-            className="candidates__pane-title"
-            id={listHeadingId}
-            ref={listHeadingRef}
-            tabIndex={-1}
-          >
-            {t('candidate.list.title')}
-          </h2>
-          <CandidateFilters
-            busy={list.status === 'loading'}
-            onChange={onFiltersChange}
-            onReset={onResetFilters}
-            onSubmit={onSearch}
-            showReset={hasActiveCandidateFilters(appliedFilters)}
-            values={filters}
-          />
+      <WorkspaceSurface className="candidates__workspace" split="wide">
+        <WorkspacePane
+          aria-labelledby={listHeadingId}
+          className="candidates__list-pane"
+          kind="list"
+          toolbar={
+            <WorkspaceToolbar
+              heading={
+                <h2
+                  className="candidates__pane-title"
+                  id={listHeadingId}
+                  ref={listHeadingRef}
+                  tabIndex={-1}
+                >
+                  {t('candidate.list.title')}
+                </h2>
+              }
+            >
+              <CandidateFilters
+                busy={list.status === 'loading'}
+                onChange={onFiltersChange}
+                onReset={onResetFilters}
+                onSubmit={onSearch}
+                showReset={hasActiveCandidateFilters(appliedFilters)}
+                values={filters}
+              />
+            </WorkspaceToolbar>
+          }
+        >
           <CandidateList
             filtered={hasActiveCandidateFilters(appliedFilters)}
             list={list}
@@ -211,8 +235,13 @@ export function CandidateWorkspace({
             onSelect={onSelect}
             selectedId={selectedId}
           />
-        </section>
-        <div className="candidates__detail-pane">
+        </WorkspacePane>
+        <WorkspacePane
+          as="div"
+          bodyRef={detailBodyRef}
+          className="candidates__detail-pane"
+          kind="detail"
+        >
           <CandidateDetailView
             access={access}
             detail={detail}
@@ -230,8 +259,8 @@ export function CandidateWorkspace({
             onUpdateSensitive={onUpdateSensitive}
             pending={pending}
           />
-        </div>
-      </div>
+        </WorkspacePane>
+      </WorkspaceSurface>
     </div>
   );
 }
