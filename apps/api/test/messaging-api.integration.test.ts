@@ -1320,7 +1320,7 @@ describe('messaging API (Issue #179)', { timeout: 120_000 }, () => {
       const first = await createActor('list-hide-a');
       const second = await createActor('list-hide-b');
       const directId = await openDirect(first, second.id);
-      await sendOk(second, directId, 'Unread for first');
+      await sendOk(first, directId, 'Unread for second');
       expect((await hide(first, directId)).status).toBe(201);
       const firstList = (await api(first, 'GET', '/conversations')).body.conversations as {
         id: string;
