@@ -1,7 +1,19 @@
 # Project Status
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 Status owner: repository maintainer
+
+## Workspace Surface v1.0 and Messages layout
+
+- Branch `feat/workspace-surface-v1` from #194 head `25f8190` (AppShell v1.2 merged
+  into it); draft PR targets `fix/ui-refinement-demo-20261013`, not `main`.
+- Fixes the Messages double scroll/hidden composer at its root (shell gave pages no
+  definite height; log guessed `60dvh`). Adds shared Workspace primitives and a
+  route-level fill layout; migrates Messages and Candidates. Single-destination rail
+  domains now navigate directly, so Messages never shows Administration as context.
+- [Proposed addendum](../design/HIREME_UI_DNA_v1.3-workspace-surface-proposed.md) and
+  [evidence](../audit/workspace-surface-v1.md). Frontend only; no backend, permission
+  or schema change. Remaining modules follow the addendum's migration order.
 
 ## AppShell v1.2 navigation follow-up
 

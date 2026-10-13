@@ -23,7 +23,9 @@ Administration, control and module layout improvements remain intact.
   the existing independent reading-measure tokens.
 - Rail buttons reveal the authorized contextual destinations. They do not change
   the current route until a destination is chosen. The current domain remains
-  visibly marked even when another domain's menu is being inspected. Destination
+  visibly marked even when another domain's menu is being inspected. A domain with exactly
+  one authorized destination has nothing to reveal: its rail control is that
+  destination's link (see the [Workspace Surface addendum](./HIREME_UI_DNA_v1.3-workspace-surface-proposed.md#navigation-v12-refinement)). Destination
   anchors keep their existing URLs and modified-click browser behavior.
 - Below the existing 900px boundary, navigation is a single scrollable overlay
   drawer. It includes all authorized destinations, language, health and session

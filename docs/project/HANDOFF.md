@@ -1,8 +1,14 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 ## Current situation
+
+- **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
+  `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
+  review of the Messages/Candidates before/after evidence and a real-device check of
+  the Messages composer with a mobile keyboard (R-056). Then migrate Commercial and
+  Accounting per the addendum's order, one PR each. No merge/deploy automatically.
 
 - **Next: review AppShell v1.2** on `feat/appshell-v1-2`, stacked on #194 head
   `ffc7fa2`. See the [proposed navigation addendum](../design/HIREME_UI_DNA_v1.2-navigation-proposed.md).
