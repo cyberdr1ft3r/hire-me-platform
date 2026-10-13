@@ -7,6 +7,7 @@ import {
   MessageListResponseSchema,
   MessageSendResponseSchema,
   MessagingUserOptionsResponseSchema,
+  ConversationHideResponseSchema,
   ReadCursorResponseSchema,
   UnreadSummaryResponseSchema,
   type ConversationDetailResponse,
@@ -205,9 +206,10 @@ export async function markConversationRead(
 }
 
 export async function hideConversation(accessToken: string, conversationId: string): Promise<void> {
-  await messagingRequest(accessToken, `/conversations/${segment(conversationId)}/hide`, {
+  const response = await messagingRequest(accessToken, `/conversations/${segment(conversationId)}/hide`, {
     method: 'POST',
   });
+  ConversationHideResponseSchema.parse(await response.json());
 }
 
 export async function renameGroup(
