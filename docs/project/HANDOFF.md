@@ -11,7 +11,7 @@ Last updated: 2026-10-12
 - **Messaging V1:** **D-087 Proposed** (PR #165 preflight). **Issue #171 PR A merged (#174).** **Issue #179 PR B (draft):** `/v1/messages` API, picker, PRIVATE/GROUP lifecycle, send/read/edit/withdraw, metadata-only audit, in-process abuse limits; route-level suite `apps/api/test/messaging-api.integration.test.ts`. No migration, no UI.
 
 - **Issue #163** (R-050/R-051): preflight merged via PR #164 (**D-086**).
-- **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. Web follow-up: Issue #180.
+- **Issue #168** (D-086 backend): **Accepted; implemented/reviewed in PR #175** — `recruitment_financial_context:view` for `FINANCE_MANAGER`, shared financial mission scope across Commercial/Accounting/Documents/Generation/signing rechecks, bounded `financial-context` option routes, PostgreSQL security suite `apps/api/test/finance-recruitment-context.integration.test.ts`. No migration. **Issue #180 / PR #186 completes the reviewed Commercial/Accounting web pickers, including hybrid actors; R-050 is fully product-mitigated for that path.**
 - **Issue #183:** draft **PR #185** — SoftHSM PKCS#11 lab; maintainer review blockers addressed (runtime smoke PINs, on-token certificate discovery/`CKA_ID` binding, required-mode CI); awaiting final merge review; architecture-only proof. **#147 C2 state unchanged** (`READY_TO_CONTACT_PROVIDER`); **Ready for provider implementation: NO**.
 - **Issue #132 / #147:** Barid signing track unchanged; **Ready for provider implementation: NO**.
 - **Missions #110 epic:** closed on `main` after **#159** / PR **#160**.
@@ -37,9 +37,9 @@ Last updated: 2026-10-12
 
 ## Issue #168 (D-086 backend) next actions
 
-1. **D-086 backend is accepted** through Issue #168 / PR #175; preserve its financial-context-first union semantics and generic recruitment boundaries.
-2. Review **Issue #180** draft PR: Commercial/Accounting web pickers call `financial-context` routes whenever `recruitment_financial_context:view` and the Commercial/Accounting capability are held, hybrid actors with `missions:view` included; recruitment-only actors keep `/v1/missions` and D-079/D-081 placement-options; navigation is not widened; Training context unchanged (R-051 remainder).
-3. R-051 Training remainder (training expense contexts / profitability for Finance) needs its own decision; not in #168.
+1. **D-086 backend + web path are accepted** through Issue #168 / PR #175 and Issue #180 / PR #186; preserve financial-context-first union semantics, dedicated Finance picker sources, and generic recruitment boundaries.
+2. R-050 is fully product-mitigated for the reviewed Commercial mission/placement invoicing path.
+3. R-051 remains partially open: Training expense contexts / profitability for Finance still need their own decision; not in #168/#180.
 4. Maintainer C2 Barid outreach (#147) remains parallel.
 
 ## D-071 catalog guarantees
