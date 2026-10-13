@@ -764,7 +764,7 @@ describe('Messages workspace', () => {
     render(<Workspace />);
     await openRow(/Nadia Peer/);
     await screen.findByText('Private body that must never be previewed');
-    await act(() => setDocumentVisibility('visible'));
+    act(() => setDocumentVisibility('visible'));
     await waitFor(() =>
       expect(
         within(listRegion()).getByRole('button', { name: /Nadia Peer/ }),
