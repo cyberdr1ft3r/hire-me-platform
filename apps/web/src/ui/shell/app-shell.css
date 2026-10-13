@@ -28,6 +28,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   inset-block-start: 0;
   overflow: hidden;
   padding: var(--space-4) var(--space-3);
@@ -35,6 +36,7 @@
 }
 
 .app-shell__brand {
+  flex-shrink: 0;
   align-items: center;
   display: flex;
   gap: var(--space-3);
@@ -71,11 +73,15 @@
 }
 
 .app-shell__navigation {
+  align-content: start;
   display: grid;
   flex: 1 1 auto;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-height: 0;
   overflow-y: auto;
+  padding: var(--space-2);
+  margin: calc(-1 * var(--space-2));
+  scrollbar-gutter: stable;
 }
 
 .app-shell__nav-group h2 {
@@ -138,6 +144,7 @@
 }
 
 .app-shell__current-marker {
+  flex-shrink: 0;
   background: currentColor;
   border-radius: var(--radius-full);
   height: var(--space-2);
@@ -147,9 +154,9 @@
 .app-shell__session {
   border-block-start: var(--border-width) solid var(--color-border);
   display: grid;
-  gap: var(--space-3);
-  margin-top: auto;
-  padding: var(--space-4) var(--space-2) 0;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-2) 0;
   flex: 0 0 auto;
 }
 
@@ -272,6 +279,7 @@
 }
 
 .ui-page-header__copy {
+  min-width: 0;
   max-width: var(--layout-reading-max);
 }
 
@@ -305,6 +313,7 @@
 }
 
 .ui-page-header__actions {
+  min-width: 0;
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -418,4 +427,9 @@
   .ui-page-header__actions > * {
     min-height: var(--hit-target-min);
   }
+}
+
+/* Grid workspaces already provide the section gap; do not count it twice. */
+:where(.training, .commercial, .accounting, .documents, .missions) > .ui-page-header {
+  margin-bottom: 0;
 }

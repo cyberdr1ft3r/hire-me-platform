@@ -9,6 +9,7 @@
   gap: var(--space-2);
   justify-content: center;
   line-height: var(--line-height-tight);
+  padding-block: var(--space-1);
   padding-inline: var(--space-3);
   white-space: nowrap;
   transition:
@@ -129,6 +130,7 @@
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-small);
   color: var(--color-text);
+  font-size: var(--font-size-3);
   min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
   transition:
@@ -141,6 +143,7 @@
 input.ui-field__control,
 select.ui-field__control {
   line-height: var(--line-height-tight);
+  padding-block: var(--space-control);
 }
 
 .ui-field__control:hover:not(:disabled) {
@@ -298,6 +301,7 @@ select.ui-field__control:disabled {
 }
 
 .ui-status__dot {
+  flex-shrink: 0;
   background: currentColor;
   border-radius: var(--radius-full);
   height: var(--space-2);
@@ -409,4 +413,13 @@ select.ui-field__control:disabled {
   font-size: var(--font-size-3);
   margin-bottom: var(--space-4);
   max-width: min(var(--layout-reading-max), var(--layout-reading-measure));
+}
+
+/* Touch actions keep the approved 44px hit area, including compact variants. */
+@media (max-width: 47.999rem), (pointer: coarse) {
+  .ui-button,
+  input.ui-field__control,
+  select.ui-field__control {
+    min-height: var(--hit-target-min);
+  }
 }

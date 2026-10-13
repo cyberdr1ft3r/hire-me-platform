@@ -13,7 +13,8 @@
   min-width: 0;
 }
 
-@container documents (min-width: 72rem) {
+/* Fits the shell content area at 1440px; nested tables already reflow to rows. */
+@container documents (min-width: 60rem) {
   .documents__workspace {
     gap: var(--space-6);
     grid-template-columns: minmax(0, 3fr) minmax(22rem, 2fr);
