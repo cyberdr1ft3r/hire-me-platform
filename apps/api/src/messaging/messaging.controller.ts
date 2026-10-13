@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ConversationDetailResponseSchema,
+  ConversationHideResponseSchema,
   ConversationListQuerySchema,
   ConversationListResponseSchema,
   DirectConversationRequestSchema,
@@ -198,6 +199,14 @@ export class MessagingController {
         uuid(messageId),
         context(request),
       ),
+    );
+  }
+
+  @Post('conversations/:conversationId/hide')
+  @RequirePermissions(VIEW)
+  async hideConversation(@Param('conversationId') id: string, @Req() request: RequestWithUser) {
+    return ConversationHideResponseSchema.parse(
+      await this.messaging.hidePrivateConversation(this.actor(request), uuid(id)),
     );
   }
 
