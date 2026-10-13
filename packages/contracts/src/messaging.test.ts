@@ -11,6 +11,13 @@ import {
   MESSAGE_MAX_EDITS,
   MESSAGING_PERMISSION_CODES,
   MessageBodySchema,
+  MessageListQuerySchema,
+  MessageViewSchema,
+  MessagingUserOptionSchema,
+  MessagingUserOptionsQuerySchema,
+  MessagingUserOptionsResponseSchema,
+  ReadCursorRequestSchema,
+  GroupCreateRequestSchema,
 } from './messaging.js';
 
 describe('messaging contracts (Issue #171 / D-087)', () => {
@@ -54,5 +61,83 @@ describe('messaging contracts (Issue #171 / D-087)', () => {
     expect(ClientMessageIdSchema.safeParse('0b6f2a3e-8c1d-4c55-9a77-1f2e3d4c5b6a').success).toBe(
       true,
     );
+  });
+
+  describe('PR B HTTP contracts (Issue #179)', () => {
+    const uuid = '0b6f2a3e-8c1d-4c55-9a77-1f2e3d4c5b6a';
+
+    it('bounds the participant picker query and never accepts paging or limits', () => {
+      expect(MessagingUserOptionsQuerySchema.safeParse({ search: 'a' }).success).toBe(false);
+      expect(MessagingUserOptionsQuerySchema.safeParse({ search: ' ab ' }).success).toBe(true);
+      expect(MessagingUserOptionsQuerySchema.safeParse({ search: 'a'.repeat(121) }).success).toBe(
+        false,
+      );
+      expect(MessagingUserOptionsQuerySchema.safeParse({ search: 'ab', limit: '50' }).success).toBe(
+        false,
+      );
+      expect(
+        MessagingUserOptionsQuerySchema.safeParse({ search: 'ab', purpose: 'group-add' }).success,
+      ).toBe(false);
+      expect(
+        MessagingUserOptionsQuerySchema.safeParse({
+          search: 'ab',
+          purpose: 'direct',
+          conversationId: uuid,
+        }).success,
+      ).toBe(false);
+    });
+
+    it('returns only id, displayName, and email for at most 20 people', () => {
+      expect(
+        MessagingUserOptionSchema.safeParse({ id: uuid, displayName: 'A', email: 'a@x', role: 'X' })
+          .success,
+      ).toBe(false);
+      const users = Array.from({ length: 21 }, () => ({ id: uuid, displayName: 'A', email: 'a' }));
+      expect(MessagingUserOptionsResponseSchema.safeParse({ users }).success).toBe(false);
+      expect(
+        MessagingUserOptionsResponseSchema.safeParse({ users: users.slice(0, 20), total: 20 })
+          .success,
+      ).toBe(false);
+    });
+
+    it('requires 2-49 other founding members', () => {
+      const ids = (count: number) => Array.from({ length: count }, () => uuid);
+      expect(
+        GroupCreateRequestSchema.safeParse({ title: 'T', memberUserIds: ids(1) }).success,
+      ).toBe(false);
+      expect(
+        GroupCreateRequestSchema.safeParse({ title: 'T', memberUserIds: ids(2) }).success,
+      ).toBe(true);
+      expect(
+        GroupCreateRequestSchema.safeParse({ title: 'T', memberUserIds: ids(50) }).success,
+      ).toBe(false);
+    });
+
+    it('bounds message keyset pages and read cursors', () => {
+      expect(MessageListQuerySchema.parse({})).toEqual({ limit: 30 });
+      expect(MessageListQuerySchema.safeParse({ limit: '51' }).success).toBe(false);
+      expect(MessageListQuerySchema.safeParse({ before: '3', after: '1' }).success).toBe(false);
+      expect(ReadCursorRequestSchema.safeParse({ upToSequence: -1 }).success).toBe(false);
+      expect(ReadCursorRequestSchema.safeParse({ upToSequence: 1.5 }).success).toBe(false);
+    });
+
+    it('represents a withdrawn message with a null body', () => {
+      const view = {
+        id: uuid,
+        conversationId: uuid,
+        sequence: 1,
+        author: { id: uuid, displayName: 'A', inactive: false },
+        body: null,
+        status: 'ARCHIVED',
+        withdrawn: true,
+        editCount: 0,
+        editedAt: null,
+        withdrawnAt: '2026-10-12T10:00:00.000Z',
+        createdAt: '2026-10-12T09:59:00.000Z',
+        clientMessageId: null,
+      };
+      expect(MessageViewSchema.safeParse(view).success).toBe(true);
+      expect(MessageViewSchema.safeParse({ ...view, previousBody: 'x' }).success).toBe(false);
+    });
   });
 });
