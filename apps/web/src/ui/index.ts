@@ -9,3 +9,12 @@ export {
   type BoundedPickerOption,
   type LoadBoundedOptions,
 } from './BoundedCombobox.js';
+export {
+  WORKSPACE_SPLIT_MIN_REM,
+  WorkspacePane,
+  WorkspaceSection,
+  WorkspaceSurface,
+  WorkspaceToolbar,
+  type WorkspaceSplit,
+  type WorkspaceView,
+} from './Workspace.js';

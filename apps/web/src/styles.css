@@ -5,6 +5,7 @@
 @import './styles/utilities.css';
 @import './ui/bounded-combobox.css';
 @import './ui/shell/app-shell.css';
+@import './ui/workspace.css';
 @import './reporting/reporting.css';
 @import './candidates/candidate.css';
 @import './clients/client.css';

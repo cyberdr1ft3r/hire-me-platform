@@ -1,0 +1,236 @@
+/*
+ * Workspace Surface v1.0 (see ui/Workspace.tsx).
+ *
+ * One continuous surface carries a list pane and a record pane. The surface is
+ * the only bordered region; panes are split by one divider, and toolbars and
+ * sections use rules and whitespace instead of nested cards. Focus rings are
+ * inherited from the foundation and never removed here.
+ */
+
+.ui-workspace {
+  container: workspace / inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-workspace__layout {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: grid;
+  flex: 1 0 auto;
+  min-width: 0;
+}
+
+.ui-workspace__pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Stacked: the list reads first and a single rule separates it from the record. */
+.ui-workspace__pane[data-pane='list'] {
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.ui-workspace__pane-body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+/* One pane at a time: the hidden pane is not rendered visually or to AT. */
+.ui-workspace__layout[data-view='list'] > [data-pane='detail'],
+.ui-workspace__layout[data-view='detail'] > [data-pane='list'] {
+  display: none;
+}
+
+.ui-workspace__layout[data-view] > .ui-workspace__pane {
+  border-block-end: 0;
+}
+
+.ui-workspace__toolbar {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  flex: 0 0 auto;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.ui-workspace__toolbar-row,
+.ui-workspace__section-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: space-between;
+}
+
+.ui-workspace__toolbar-heading {
+  min-width: 0;
+}
+
+.ui-workspace__toolbar-heading :where(h2, h3),
+.ui-workspace__section-header :where(h2, h3) {
+  font-size: var(--font-size-5);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-workspace__toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-workspace__toolbar-controls {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ui-workspace__section {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+.ui-workspace__section:first-child {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+@container workspace (min-width: 48rem) {
+  .ui-workspace[data-split='standard'] > .ui-workspace__layout {
+    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+  }
+
+  .ui-workspace[data-split='standard'] > .ui-workspace__layout > .ui-workspace__pane {
+    display: flex;
+  }
+
+  .ui-workspace[data-split='standard'] > .ui-workspace__layout > [data-pane='list'] {
+    border-block-end: 0;
+    border-inline-end: var(--border-width) solid var(--color-border);
+  }
+}
+
+@container workspace (min-width: 60rem) {
+  .ui-workspace[data-split='wide'] > .ui-workspace__layout {
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  }
+
+  .ui-workspace[data-split='wide'] > .ui-workspace__layout > .ui-workspace__pane {
+    display: flex;
+  }
+
+  .ui-workspace[data-split='wide'] > .ui-workspace__layout > [data-pane='list'] {
+    border-block-end: 0;
+    border-inline-end: var(--border-width) solid var(--color-border);
+  }
+}
+
+/*
+ * Fill layout. The shell gives `fill` routes a definite height (app-shell.css);
+ * the page passes it down and every pane body becomes its own scroll owner. A
+ * minimum surface height protects short or zoomed viewports: if the page cannot
+ * fit, the shell's main region scrolls instead of clipping anything.
+ */
+@media (min-height: 30rem) {
+  .app-shell[data-layout='fill'] .ui-workspace-page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .app-shell[data-layout='fill'] .ui-workspace {
+    flex: 1 1 auto;
+    min-height: var(--layout-workspace-fill-min);
+  }
+
+  .app-shell[data-layout='fill'] .ui-workspace__layout {
+    flex: 1 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  /* Fill only applies while one pane is shown, or while panes are side by side. */
+  .app-shell[data-layout='fill'] .ui-workspace__layout:not([data-view]) {
+    flex: 1 0 auto;
+    grid-template-rows: none;
+  }
+
+  .app-shell[data-layout='fill'] .ui-workspace__pane-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .app-shell[data-layout='fill'] .ui-workspace__layout:not([data-view]) .ui-workspace__pane-body {
+    overflow-y: visible;
+  }
+
+  @container workspace (min-width: 48rem) {
+    .app-shell[data-layout='fill'] .ui-workspace[data-split='standard'] > .ui-workspace__layout {
+      flex: 1 1 auto;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .app-shell[data-layout='fill']
+      .ui-workspace[data-split='standard']
+      > .ui-workspace__layout
+      .ui-workspace__pane-body {
+      overflow-y: auto;
+    }
+  }
+
+  @container workspace (min-width: 60rem) {
+    .app-shell[data-layout='fill'] .ui-workspace[data-split='wide'] > .ui-workspace__layout {
+      flex: 1 1 auto;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .app-shell[data-layout='fill']
+      .ui-workspace[data-split='wide']
+      > .ui-workspace__layout
+      .ui-workspace__pane-body {
+      overflow-y: auto;
+    }
+  }
+}
+
+/* Compact page header for workspaces whose content needs the viewport height. */
+.ui-page-header--compact {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.ui-page-header--compact .ui-page-header__eyebrow {
+  margin-bottom: var(--space-1);
+}
+
+.ui-page-header--compact h1 {
+  font-size: var(--font-size-6);
+  margin-bottom: var(--space-1);
+}
+
+.ui-page-header--compact .ui-page-header__description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+@media (max-width: 56.25rem) {
+  .ui-workspace__pane-body,
+  .ui-workspace__toolbar {
+    padding: var(--space-3);
+  }
+}
