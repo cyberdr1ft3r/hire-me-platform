@@ -651,14 +651,13 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Administration' },
-      ),
-    );
-
-    fireEvent.click(await screen.findByRole('link', { name: /administration/i }));
+    // A one-destination domain's rail control is that destination's link.
+    await openRailDomain('Administration');
+    expect(
+      within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('link', {
+        name: 'Administration',
+      }),
+    ).toHaveAttribute('aria-current', 'page');
 
     expect(await screen.findByRole('heading', { name: /administration/i })).toBeVisible();
     expect(await screen.findByText('users:view')).toBeVisible();
@@ -808,12 +807,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Operations' },
-      ),
-    );
+    await openRailDomain('Operations');
 
     fireEvent.click(await screen.findByRole('link', { name: /clients/i }));
 
@@ -945,12 +939,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Recruitment' },
-      ),
-    );
+    await openRailDomain('Recruitment');
 
     fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
@@ -1275,12 +1264,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Operations' },
-      ),
-    );
+    await openRailDomain('Operations');
 
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
@@ -1548,12 +1532,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Operations' },
-      ),
-    );
+    await openRailDomain('Operations');
 
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
@@ -1596,12 +1575,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Operations' },
-      ),
-    );
+    await openRailDomain('Operations');
 
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
@@ -1641,12 +1615,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Recruitment' },
-      ),
-    );
+    await openRailDomain('Recruitment');
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1668,12 +1637,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Recruitment' },
-      ),
-    );
+    await openRailDomain('Recruitment');
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1695,12 +1659,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('full-report@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Recruitment' },
-      ),
-    );
+    await openRailDomain('Recruitment');
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1719,12 +1678,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('navigation-report@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Recruitment' },
-      ),
-    );
+    await openRailDomain('Recruitment');
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
     fireEvent.click(
@@ -1816,12 +1770,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-reader@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Commercial' },
-      ),
-    );
+    await openRailDomain('Commercial');
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
@@ -1853,12 +1802,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-operator@example.test');
-    fireEvent.click(
-      within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-        'button',
-        { name: 'Commercial' },
-      ),
-    );
+    await openRailDomain('Commercial');
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
@@ -2416,6 +2360,14 @@ function mockCommercialWorkspace(permissions: string[]) {
   return fetchMock;
 }
 
+/** Opens a rail domain: a button reveals several destinations; a link is the only one. */
+async function openRailDomain(name: string): Promise<void> {
+  const rail = await screen.findByRole('navigation', { name: 'Workspace navigation' });
+  const control =
+    within(rail).queryByRole('button', { name }) ?? within(rail).getByRole('link', { name });
+  fireEvent.click(control);
+}
+
 async function openCommercialQuotation(displayName: string): Promise<void> {
   await openCommercialWorkspace(displayName);
   fireEvent.click(await screen.findByRole('button', { name: 'Q38-WEB' }));
@@ -2431,14 +2383,14 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  await openRailDomain('Commercial');
+
   fireEvent.click(
-    within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-      'button',
-      { name: 'Commercial' },
+    within(await screen.findByRole('navigation', { name: 'Primary navigation' })).getByRole(
+      'link',
+      { name: /commercial/i },
     ),
   );
-
-  fireEvent.click(await screen.findByRole('link', { name: /commercial/i }));
 }
 
 function mockMissionWorkspace(
@@ -2674,14 +2626,14 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
+  await openRailDomain('Recruitment');
+
   fireEvent.click(
-    within(await screen.findByRole('navigation', { name: 'Workspace navigation' })).getByRole(
-      'button',
-      { name: 'Recruitment' },
+    within(await screen.findByRole('navigation', { name: 'Primary navigation' })).getByRole(
+      'link',
+      { name: /missions/i },
     ),
   );
-
-  fireEvent.click(await screen.findByRole('link', { name: /missions/i }));
   fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
 }
 

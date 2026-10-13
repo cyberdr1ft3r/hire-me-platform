@@ -74,6 +74,8 @@
   color: var(--color-text-inverse);
   border-radius: var(--radius-medium);
   position: relative;
+  /* Single-destination domains render this control as a link. */
+  text-decoration: none;
 }
 .app-shell__rail-button:hover,
 .app-shell__rail-button[aria-current] {
@@ -381,6 +383,39 @@
 }
 .app-shell__scrim {
   display: none;
+}
+/*
+ * Fill layout (Workspace Surface v1.0). The workspace column is exactly one
+ * viewport high and main is its only overflow owner, so a definite height flows
+ * down through min-height: 0 flex children to the page's panes. Short or zoomed
+ * viewports keep ordinary document flow instead of squeezing the workspace.
+ */
+@media (min-height: 30rem) {
+  .app-shell[data-layout='fill'] {
+    min-height: 100dvh;
+  }
+  .app-shell[data-layout='fill'] .app-shell__workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  .app-shell[data-layout='fill'] .app-shell__utility-bar {
+    flex: 0 0 auto;
+  }
+  .app-shell[data-layout='fill'] .app-shell__main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .app-shell[data-layout='fill'] .app-shell__content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding-block: var(--space-6);
+  }
 }
 .app-shell__mobile-session {
   display: grid;
