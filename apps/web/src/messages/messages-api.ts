@@ -206,9 +206,13 @@ export async function markConversationRead(
 }
 
 export async function hideConversation(accessToken: string, conversationId: string): Promise<void> {
-  const response = await messagingRequest(accessToken, `/conversations/${segment(conversationId)}/hide`, {
-    method: 'POST',
-  });
+  const response = await messagingRequest(
+    accessToken,
+    `/conversations/${segment(conversationId)}/hide`,
+    {
+      method: 'POST',
+    },
+  );
   ConversationHideResponseSchema.parse(await response.json());
 }
 
