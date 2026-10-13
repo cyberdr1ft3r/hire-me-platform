@@ -376,6 +376,11 @@ describe('Missions option sources and raw identifiers', () => {
     await openProcess('Alex Candidate');
     await screen.findByText('Alpha contract');
     await showMissionDetailTab('team');
+    fireEvent.focus(
+      within(screen.getByRole('region', { name: 'Mission team' })).getByRole('combobox', {
+        name: /Team member/,
+      }),
+    );
     await screen.findByRole('option', { name: /Option Person/ });
 
     const controls = [
@@ -496,8 +501,18 @@ describe('Missions context ownership', () => {
     await selectMission('Mission Alpha');
     await showMissionDetailTab('team');
     await screen.findByRole('region', { name: 'Mission team' });
+    fireEvent.focus(
+      within(screen.getByRole('region', { name: 'Mission team' })).getByRole('combobox', {
+        name: /Team member/,
+      }),
+    );
     await selectMission('Mission Beta');
     await showMissionDetailTab('team');
+    fireEvent.focus(
+      within(screen.getByRole('region', { name: 'Mission team' })).getByRole('combobox', {
+        name: /Team member/,
+      }),
+    );
     expect(await screen.findByRole('option', { name: /Beta Option/ })).toBeInTheDocument();
 
     await act(async () => {

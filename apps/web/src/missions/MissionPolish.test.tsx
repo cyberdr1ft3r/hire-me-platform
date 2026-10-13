@@ -14,7 +14,7 @@ function renderIn(locale: Locale, node: ReactNode) {
 }
 
 describe('Missions polish', () => {
-  it('words the picker search label the same way in English and French', () => {
+  it('uses one labeled combobox in English and French', () => {
     const loadOptions = vi.fn().mockResolvedValue([]);
     const picker = (
       <MissionPicker
@@ -27,10 +27,10 @@ describe('Missions polish', () => {
       />
     );
     const { unmount } = renderIn('en', picker);
-    expect(screen.getByLabelText('Search: Client')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Client' })).toBeTruthy();
     unmount();
     renderIn('fr', picker);
-    expect(screen.getByLabelText(/^Rechercher\s:\sClient$/)).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Client' })).toBeTruthy();
   });
 
   it('keeps each salary bound on one line so a range wraps only between bounds', () => {
