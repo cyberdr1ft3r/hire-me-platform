@@ -82,6 +82,34 @@ and keep the draft; success closes it and the module selects the new record.
 Applied to Missions and Clients; module fields, pickers, validation, requests
 and permissions are unchanged.
 
+## Entity workspace: directory, preview, record (Issue #204, proposed)
+
+Applied to Candidates first; Missions and Clients follow in their own PRs once the
+three states are signed off.
+
+- **Directory.** With nothing previewed the surface holds one pane (`view="list"`),
+  so the table uses the full width; there is no empty record pane. Search sits in
+  the toolbar; secondary filters open on demand behind a `Filters` disclosure in
+  the same form (one apply, page 1). The order is the server's; a sort control
+  appears only where the list API offers one. Columns give way through container
+  queries, and below 30rem rows read as name, title, status.
+- **Quick preview.** `split="preview"` puts a compact 18–24rem pane beside the
+  directory from a 44rem container; narrower, it stacks after the list. It is not
+  modal and not a tab: it renders from the row the list already returned (no
+  read, no timer), takes focus on open, and Escape or Close returns focus to the
+  row. Restricted areas and write actions never appear in it.
+- **Focused record.** `Open full profile` pushes the record's deep link
+  (`?candidate=<id>`), so Back returns to the directory with its page and filters
+  (no list re-read); a direct link or reload opens the record. The record keeps
+  every existing form and action, adds section tabs only for sections the platform
+  can read (here Documents and Tasks, through their own list APIs and view
+  permissions, loaded once on first open), and keeps the profile mounted so a tab
+  switch never drops input.
+- **Unsaved input.** A record form that received input asks before Back/Forward,
+  shell links and the record's Back action (`requestNavigation`), and the browser
+  prompts on reload. Blockers stack, so a creation drawer opened over a record
+  hands the decision back when it closes.
+
 ## Migration order (proposed)
 
 1. **Commercial** — table list + record; tabs already consistent. Move filters

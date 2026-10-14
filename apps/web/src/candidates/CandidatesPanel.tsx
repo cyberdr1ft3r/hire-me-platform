@@ -4,6 +4,7 @@ import type {
   CandidateEducationUpdateRequest,
   CandidateLanguageUpdateRequest,
   CandidateSkillUpdateRequest,
+  CandidateSummary,
   CandidateUpdateRequest,
   CandidateWorkExperienceUpdateRequest,
 } from '@hire-me/contracts';
@@ -22,6 +23,8 @@ import {
   createCandidateWorkExperience,
   getCandidate,
   listCandidates,
+  listDocuments,
+  listTasks,
   updateCandidate,
   updateCandidateEducation,
   updateCandidateLanguage,
@@ -30,6 +33,7 @@ import {
   updateCandidateWorkExperience,
 } from '../api.js';
 import { useI18n } from '../i18n/index.js';
+import { requestNavigation } from '../navigation/navigation-guard.js';
 import { resolveCandidateAccess } from './candidate-access.js';
 import { classifyCandidateFailure, type CandidateFailure } from './candidate-errors.js';
 import { candidateRecordLabel } from './candidate-format.js';
@@ -41,6 +45,7 @@ import {
 } from './candidate-sensitive.js';
 import {
   CANDIDATE_LIST_PAGE_SIZE,
+  CANDIDATE_RELATED_PAGE_SIZE,
   EMPTY_CANDIDATE_FILTERS,
   FIRST_CANDIDATE_PAGE,
   candidatePageCount,
@@ -62,7 +67,11 @@ import {
   type CandidateSensitiveUpdate,
 } from './candidate-state.js';
 import { bumpStackedDetailRevealToken } from '../layout/index.js';
+import type { CandidateRelatedLoaders } from './CandidateFocusedRecord.js';
 import { CandidateWorkspace } from './CandidateWorkspace.js';
+
+/** The owning modules' own view permissions; the server re-checks both. */
+const RELATED_PERMISSIONS = { documents: 'documents:view', tasks: 'tasks:view' } as const;
 
 /** An optional field: trimmed, or omitted when empty, exactly as before. */
 function optional(value: string): string | undefined {
@@ -260,14 +269,24 @@ function failureOutcome(failure: CandidateFailure): CandidateFormOutcome {
  */
 export function CandidatesPanel({
   accessToken,
-  initialCandidateId = null,
-  onSelectionChange,
+  onCloseRecord,
+  onNavigatePath,
+  onOpenRecord,
   permissions,
+  recordCandidateId,
 }: {
   accessToken: string;
-  initialCandidateId?: string | null;
-  onSelectionChange?: (candidateId: string) => void;
+  /** The record was left for the directory; the URL owner records that. */
+  onCloseRecord?: () => void;
+  onNavigatePath?: (path: string) => void;
+  /** A candidate was opened as the focused record; the URL owner records that. */
+  onOpenRecord?: (candidateId: string) => void;
   permissions: string[];
+  /**
+   * The record named by the URL (`/candidates?candidate=<id>`), or null for the
+   * directory. Omitted, the panel keeps the record state on its own.
+   */
+  recordCandidateId?: string | null;
 }) {
   const { t } = useI18n();
   const access = useMemo(() => resolveCandidateAccess(permissions), [permissions]);
@@ -276,7 +295,10 @@ export function CandidatesPanel({
   const [appliedQuery, setAppliedQuery] = useState<CandidateListQuery>(FIRST_CANDIDATE_PAGE);
   const [list, setList] = useState<CandidateListState>({ status: 'loading' });
   const [detail, setDetail] = useState<CandidateDetailState>({ status: 'idle' });
+  // The candidate open as the focused record; every write belongs to it.
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The directory row shown in the quick preview. Presentation only: no read, no write.
+  const [previewCandidate, setPreviewCandidate] = useState<CandidateSummary | null>(null);
   const [pending, setPending] = useState<CandidatePendingAction | null>(null);
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
   const [detailRevealToken, setDetailRevealToken] = useState(0);
@@ -308,7 +330,6 @@ export function CandidatesPanel({
    * never start while the first is still in flight.
    */
   const writeInFlight = useRef(false);
-  const initialCandidateIntent = useRef(initialCandidateId);
 
   /*
    * The latest committed list query (filters and page) and the current session token.
@@ -356,6 +377,7 @@ export function CandidatesPanel({
     setAppliedQuery(firstPage);
     setList({ status: 'loading' });
     setSelectedId(null);
+    setPreviewCandidate(null);
     setDetail({ status: 'idle' });
     setFeedback(null);
   }
@@ -448,29 +470,37 @@ export function CandidatesPanel({
     // `loadList` reads only `accessToken`, which is listed here.
   }, [accessToken, appliedQuery]);
 
+  /*
+   * The URL owns which record is open when the panel runs inside the app: a deep
+   * link opens it, Back or Forward opens or leaves it. Unsaved input was already
+   * protected by the navigation guard before the URL changed.
+   */
   useEffect(() => {
-    const candidateId = initialCandidateIntent.current;
-    if (candidateId) {
-      select(candidateId);
-      setDetailRevealToken(bumpStackedDetailRevealToken);
-      void loadDetail(candidateId, false, true);
+    if (recordCandidateId === undefined || recordCandidateId === selectedRef.current) {
+      return;
     }
-  }, []);
+    if (recordCandidateId) {
+      enterRecord(recordCandidateId);
+    } else {
+      exitRecord();
+    }
+  }, [recordCandidateId]);
 
-  // A new session, or leaving the workspace, ends every candidate context.
+  /*
+   * A new session, or leaving the workspace, ends every candidate context. The open
+   * record is forgotten too, so a remount (Strict Mode replays effects) reads the
+   * URL's record again instead of keeping a read whose result was just invalidated.
+   */
   useEffect(
     () => () => {
       detailRequest.current += 1;
       contextGeneration.current += 1;
+      selectedRef.current = null;
     },
     [accessToken],
   );
 
-  async function loadDetail(
-    candidateId: string,
-    quiet = false,
-    resolvesInitialIntent = false,
-  ): Promise<void> {
+  async function loadDetail(candidateId: string, quiet = false): Promise<void> {
     const request = ++detailRequest.current;
     if (!quiet) {
       setDetail({ candidateId, status: 'loading' });
@@ -479,16 +509,10 @@ export function CandidatesPanel({
       const response = await getCandidate(accessToken, candidateId);
       if (request === detailRequest.current && selectedRef.current === candidateId) {
         setDetail({ candidate: response.candidate, status: 'ready' });
-        if (resolvesInitialIntent) {
-          initialCandidateIntent.current = null;
-        }
       }
     } catch {
       if (request === detailRequest.current && selectedRef.current === candidateId && !quiet) {
         setDetail({ candidateId, status: 'error' });
-        if (resolvesInitialIntent) {
-          initialCandidateIntent.current = null;
-        }
       }
     }
   }
@@ -512,12 +536,38 @@ export function CandidatesPanel({
     setFeedback(null);
   }
 
-  function handleSelect(candidateId: string): void {
-    initialCandidateIntent.current = null;
+  /** Opens a candidate as the focused record: one read of the full record. */
+  function enterRecord(candidateId: string): void {
     select(candidateId);
+    setPreviewCandidate(null);
     setDetailRevealToken(bumpStackedDetailRevealToken);
-    onSelectionChange?.(candidateId);
     void loadDetail(candidateId);
+  }
+
+  /**
+   * Back to the directory. The list, filters and page are kept, so nothing is
+   * re-read. A write still in flight completes on the server and keeps the write
+   * lock until it settles; its record-scoped result is no longer shown.
+   */
+  function exitRecord(): void {
+    detailRequest.current += 1;
+    contextGeneration.current += 1;
+    selectedRef.current = null;
+    setSelectedId(null);
+    setDetail({ status: 'idle' });
+    setFeedback(null);
+  }
+
+  function handleOpenRecord(candidateId: string): void {
+    enterRecord(candidateId);
+    onOpenRecord?.(candidateId);
+  }
+
+  function handleCloseRecord(): void {
+    requestNavigation(() => {
+      exitRecord();
+      onCloseRecord?.();
+    });
   }
 
   // New filters always start from the first page.
@@ -576,10 +626,13 @@ export function CandidatesPanel({
     try {
       const created = await createCandidate(accessToken, toCandidateCreateRequest(values));
       if (isCurrent()) {
+        // The new candidate opens as the focused record, with its creation confirmed.
         select(created.candidate.id);
+        setPreviewCandidate(null);
         setDetailRevealToken(bumpStackedDetailRevealToken);
         commitDetail(created.candidate, () => true);
         setFeedback({ kind: 'created', tone: 'success' });
+        onOpenRecord?.(created.candidate.id);
       }
       refreshListAfterWrite(accessToken);
       return { ok: true };
@@ -928,6 +981,43 @@ export function CandidatesPanel({
     return true;
   }
 
+  /*
+   * The record's related sections read one bounded page through the owning
+   * module's existing list and its candidate filter, only when the section is
+   * first opened. Without that module's view permission the section is absent.
+   */
+  const canViewDocuments = permissions.includes(RELATED_PERMISSIONS.documents);
+  const canViewTasks = permissions.includes(RELATED_PERMISSIONS.tasks);
+  const relatedLoaders = useMemo<CandidateRelatedLoaders>(() => {
+    if (!selectedId) {
+      return { documents: null, tasks: null };
+    }
+    const candidateId = selectedId;
+    return {
+      documents: canViewDocuments
+        ? async () => {
+            const response = await listDocuments({
+              accessToken,
+              candidateId,
+              page: 1,
+              pageSize: CANDIDATE_RELATED_PAGE_SIZE,
+            });
+            return { items: response.documents, total: response.pagination.total };
+          }
+        : null,
+      tasks: canViewTasks
+        ? async () => {
+            const response = await listTasks(accessToken, {
+              candidateId,
+              page: 1,
+              pageSize: CANDIDATE_RELATED_PAGE_SIZE,
+            });
+            return { items: response.tasks, total: response.pageInfo.total };
+          }
+        : null,
+    };
+  }, [accessToken, canViewDocuments, canViewTasks, selectedId]);
+
   return (
     <CandidateWorkspace
       access={access}
@@ -941,20 +1031,26 @@ export function CandidatesPanel({
       onArchive={() => void handleArchive()}
       onArchiveRecord={handleArchiveRecord}
       onChangeStatus={(status) => void handleChangeStatus(status)}
+      onClosePreview={() => setPreviewCandidate(null)}
+      onCloseRecord={handleCloseRecord}
       onCreate={handleCreate}
       onFiltersChange={setFilters}
+      onNavigatePath={onNavigatePath}
+      onOpenRecord={handleOpenRecord}
       onPage={handlePage}
+      onPreview={setPreviewCandidate}
       onResetFilters={handleResetFilters}
       onRetryDetail={handleRetryDetail}
       onRetryList={handleRetryList}
       onSearch={handleSearch}
-      onSelect={handleSelect}
       onUpdate={handleUpdate}
       onUpdateRecord={handleUpdateRecord}
       onUpdateSensitive={handleUpdateSensitive}
       detailRevealToken={detailRevealToken}
       pending={pending}
-      selectedId={selectedId}
+      previewCandidate={previewCandidate}
+      recordCandidateId={selectedId}
+      relatedLoaders={relatedLoaders}
     />
   );
 }

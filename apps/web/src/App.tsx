@@ -40,8 +40,9 @@ import {
   initializeHistoryIndex,
   pushHistoryPath,
   replaceHistoryPath,
+  requestNavigation,
 } from './navigation/navigation-guard.js';
-import { recordNavigationIntent } from './navigation/record-deep-links.js';
+import { candidateDeepLink, recordNavigationIntent } from './navigation/record-deep-links.js';
 import { Button, PageHeader, TextField, StatusBadge } from './ui/index.js';
 import { PermissionGroups } from './admin/PermissionGroups.js';
 import { adminStatusTone } from './admin/role-labels.js';
@@ -214,20 +215,28 @@ function AppRoutes() {
     }
     setAccessToken(null);
     setUser(null);
-    navigate('home');
+    // Signing out ends the session; nothing on screen is kept, so nothing asks.
+    goToRoute('home');
   }
 
-  function navigate(nextRoute: InternalRoute): void {
+  function goToRoute(nextRoute: InternalRoute): void {
     const path = routeToPath(nextRoute);
     pushHistoryPath(path);
     setLocation({ route: nextRoute, search: '' });
   }
 
+  // In-app navigation asks first when the screen holds unsaved input (navigation-guard.ts).
+  function navigate(nextRoute: InternalRoute): void {
+    requestNavigation(() => goToRoute(nextRoute));
+  }
+
   function navigateToPath(path: string): void {
-    pushHistoryPath(path);
-    setLocation({
-      route: pathToRoute(new URL(path, window.location.origin).pathname),
-      search: new URL(path, window.location.origin).search,
+    requestNavigation(() => {
+      pushHistoryPath(path);
+      setLocation({
+        route: pathToRoute(new URL(path, window.location.origin).pathname),
+        search: new URL(path, window.location.origin).search,
+      });
     });
   }
 
@@ -314,11 +323,12 @@ function AppRoutes() {
         routeContent = (
           <CandidatesPanel
             accessToken={accessToken}
-            initialCandidateId={recordIntent.candidateId}
-            onSelectionChange={(candidateId) =>
-              replaceRecordIntent(`/candidates?candidate=${encodeURIComponent(candidateId)}`)
-            }
+            // Opening a record is a history entry, so Back returns to the directory.
+            onCloseRecord={() => navigateToPath('/candidates')}
+            onNavigatePath={navigateToPath}
+            onOpenRecord={(candidateId) => navigateToPath(candidateDeepLink(candidateId))}
             permissions={user.permissions}
+            recordCandidateId={recordIntent.candidateId}
           />
         );
         break;

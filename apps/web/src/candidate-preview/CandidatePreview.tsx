@@ -211,7 +211,9 @@ function CandidatePreviewContent() {
     page: 1,
   });
   const [feedback, setFeedback] = useState<CandidateFeedback | null>(null);
+  // The review surface opens on the first candidate's focused record, as before.
   const [selectedId, setSelectedId] = useState<string | null>(PREVIEW_CANDIDATES[0]?.id ?? null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [detailRevealToken, setDetailRevealToken] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
 
@@ -302,8 +304,19 @@ function CandidatePreviewContent() {
           return Promise.resolve(true);
         }}
         onChangeStatus={() => undefined}
+        onClosePreview={() => setPreviewId(null)}
+        onCloseRecord={() => {
+          setSelectedId(null);
+          setFeedback(null);
+        }}
         onCreate={() => ACCEPTED}
         onFiltersChange={setFilters}
+        onOpenRecord={(id) => {
+          setPreviewId(null);
+          setSelectedId(id);
+          setDetailRevealToken(bumpStackedDetailRevealToken);
+          setFeedback(null);
+        }}
         onPage={(page) => setQuery((current) => ({ ...current, page }))}
         onResetFilters={() => {
           setFilters({ ...EMPTY_CANDIDATE_FILTERS });
@@ -312,11 +325,7 @@ function CandidatePreviewContent() {
         onRetryDetail={() => undefined}
         onRetryList={() => undefined}
         onSearch={() => setQuery({ filters: { ...filters }, page: 1 })}
-        onSelect={(id) => {
-          setSelectedId(id);
-          setDetailRevealToken(bumpStackedDetailRevealToken);
-          setFeedback(null);
-        }}
+        onPreview={(candidate) => setPreviewId(candidate.id)}
         onUpdate={() => ACCEPTED}
         onUpdateRecord={(update) => {
           updateSelected((record) => applyUpdate(record, update));
@@ -343,7 +352,8 @@ function CandidatePreviewContent() {
         }}
         detailRevealToken={detailRevealToken}
         pending={null}
-        selectedId={selectedId}
+        previewCandidate={list.candidates.find((candidate) => candidate.id === previewId) ?? null}
+        recordCandidateId={selected ? selectedId : null}
       />
     </AppShell>
   );

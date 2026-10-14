@@ -284,9 +284,22 @@ function renderPanel(permissions: readonly string[], locale: Locale = 'en') {
   );
 }
 
+/** Opens a directory row in the quick preview, then the candidate's focused record. */
 async function selectCandidate(name = 'Synthetic Candidate') {
   fireEvent.click(await screen.findByRole('button', { name }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: /^(Open full profile|Ouvrir le profil complet)$/ }),
+  );
   return screen.findByRole('heading', { level: 2, name });
+}
+
+/** From an open record: back to the directory, then open another row's record. */
+async function openRecordFromDirectory(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: /Back to candidates|Retour aux candidats/ }));
+  fireEvent.click(await screen.findByRole('button', { name }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: /^(Open full profile|Ouvrir le profil complet)$/ }),
+  );
 }
 
 const candidateCalls = (calls: RecordedCall[]) => calls.filter((call) => call.url.startsWith(API));
@@ -324,7 +337,7 @@ describe('Candidate reads', () => {
         <I18nProvider>
           <CandidatesPanel
             accessToken={TOKEN}
-            initialCandidateId={SECOND_CANDIDATE_ID}
+            recordCandidateId={SECOND_CANDIDATE_ID}
             permissions={[P.view]}
           />
         </I18nProvider>
@@ -347,7 +360,7 @@ describe('Candidate reads', () => {
       <I18nProvider>
         <CandidatesPanel
           accessToken={TOKEN}
-          initialCandidateId={SECOND_CANDIDATE_ID}
+          recordCandidateId={SECOND_CANDIDATE_ID}
           permissions={[P.view]}
         />
       </I18nProvider>,
@@ -359,7 +372,7 @@ describe('Candidate reads', () => {
     expect(calls.some((call) => call.url === `${API}/${SECOND_CANDIDATE_ID}`)).toBe(true);
   });
 
-  it('lets manual selection supersede the one-shot deep-link intent and replace its URL owner', async () => {
+  it('lets a record opened from the directory supersede a slow deep-linked read', async () => {
     let resolveInitial: ((response: Response) => void) | undefined;
     const initialRead = new Promise<Response>((resolve) => {
       resolveInitial = resolve;
@@ -367,23 +380,28 @@ describe('Candidate reads', () => {
     stubCandidateApi([P.view], (call) =>
       call.url === `${API}/${CANDIDATE_ID}` ? initialRead : undefined,
     );
-    const onSelectionChange = vi.fn();
+    const onCloseRecord = vi.fn();
+    const onOpenRecord = vi.fn();
     render(
       <I18nProvider>
         <CandidatesPanel
           accessToken={TOKEN}
-          initialCandidateId={CANDIDATE_ID}
-          onSelectionChange={onSelectionChange}
+          onCloseRecord={onCloseRecord}
+          onOpenRecord={onOpenRecord}
           permissions={[P.view]}
+          recordCandidateId={CANDIDATE_ID}
         />
       </I18nProvider>,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: /Back to candidates/ }));
+    expect(onCloseRecord).toHaveBeenCalledTimes(1);
     fireEvent.click(await screen.findByRole('button', { name: 'Second Candidate' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open full profile' }));
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Second Candidate' }),
     ).toBeVisible();
-    expect(onSelectionChange).toHaveBeenCalledWith(SECOND_CANDIDATE_ID);
+    expect(onOpenRecord).toHaveBeenCalledWith(SECOND_CANDIDATE_ID);
 
     resolveInitial?.(jsonResponse({ candidate: syntheticCandidate() }));
     await act(async () => Promise.resolve());
@@ -400,7 +418,7 @@ describe('Candidate reads', () => {
       <I18nProvider>
         <CandidatesPanel
           accessToken={TOKEN}
-          initialCandidateId={CANDIDATE_ID}
+          recordCandidateId={CANDIDATE_ID}
           permissions={[P.view]}
         />
       </I18nProvider>,
@@ -497,7 +515,7 @@ describe('Candidate mutations keep their exact API behavior', () => {
       target: { value: ' created.candidate@example.test ' },
     });
     fireEvent.change(within(form).getByLabelText('City'), { target: { value: 'Paris' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create candidate' }));
 
     expect(await screen.findByText('Candidate created.')).toBeVisible();
     const post = candidateCalls(calls).find((call) => call.method === 'POST');
@@ -641,7 +659,7 @@ describe('Candidate conflict and validation feedback', () => {
     fireEvent.change(within(form).getByLabelText('Email'), {
       target: { value: 'candidate@example.test' },
     });
-    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create candidate' }));
 
     expect(
       await within(form).findByText('A candidate with this email already exists.'),
@@ -762,8 +780,9 @@ const isSecondCandidateDetail = (call: RecordedCall) =>
   call.method === 'GET' && call.url === `${API}/${SECOND_CANDIDATE_ID}`;
 
 /** Moves the selection to the second candidate and waits until its record is on screen. */
+/** Leaves the record for the directory, then opens the second candidate's record. */
 async function moveToSecondCandidate() {
-  fireEvent.click(screen.getByRole('button', { name: 'Second Candidate' }));
+  await openRecordFromDirectory('Second Candidate');
   return screen.findByRole('heading', { level: 2, name: 'Second Candidate' });
 }
 
@@ -913,12 +932,8 @@ describe('Candidate writes never overlap', () => {
     renderPanel(ORDINARY_PERMISSIONS);
     await selectCandidate();
 
-    // Forms that were opened while nothing was pending.
-    fireEvent.click(screen.getByRole('button', { name: 'New candidate' }));
-    const createForm = screen.getByRole('form', { name: 'New candidate' });
-    fireEvent.change(within(createForm).getByLabelText(/^Full name/), {
-      target: { value: 'Overlapping Candidate' },
-    });
+    // Forms that were opened while nothing was pending. (Creation is a modal drawer, so it
+    // is never open beside the record's forms; its opener is checked below.)
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     const editForm = screen.getByRole('form', { name: 'Edit profile' });
     fireEvent.click(screen.getByRole('button', { name: 'Add skill' }));
@@ -933,7 +948,6 @@ describe('Candidate writes never overlap', () => {
 
     // No second write can start from any entry point.
     expect(screen.getByRole('button', { name: 'New candidate' })).toBeDisabled();
-    expect(within(createForm).getByRole('button', { name: 'Create candidate' })).toBeDisabled();
     expect(within(editForm).getByRole('button', { name: 'Save changes' })).toBeDisabled();
     expect(within(skillForm).getByRole('button', { name: 'Add skill' })).toBeDisabled();
     for (const name of ['Move to talent pool', 'Archive candidate']) {
@@ -944,7 +958,6 @@ describe('Candidate writes never overlap', () => {
     }
 
     // Even implicit submission from a text field is refused while the write runs.
-    fireEvent.submit(createForm);
     fireEvent.submit(editForm);
     fireEvent.submit(skillForm);
     fireEvent.click(screen.getByRole('button', { name: 'Move to talent pool' }));
@@ -975,7 +988,7 @@ describe('Candidate writes never overlap', () => {
     const name = within(form).getByLabelText(/^Full name/);
     expect(name).toHaveFocus();
     fireEvent.change(name, { target: { value: 'Created Candidate' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create candidate' }));
     await waitFor(() => expect(writeCalls(calls)).toHaveLength(1));
 
     // While the create is in flight, no other write may begin.
@@ -1021,7 +1034,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
       return call.url.endsWith('/status') ? status.promise : undefined;
     });
     renderPanel(ORDINARY_PERMISSIONS);
-    const list = await screen.findByRole('region', { name: 'Candidate list' });
+    const list = await screen.findByRole('region', { name: 'Candidate directory' });
     await within(list).findByRole('button', { name: 'Second Candidate' });
 
     // Filter A is applied, and candidate A is selected from its results.
@@ -1036,29 +1049,34 @@ describe('Post-write list refreshes follow the current filters and session', () 
     fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
 
-    // Filter B is applied and its list resolves while the write is still pending.
+    // Back in the directory, Filter B is applied and resolves while the write is pending.
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    const directory = await screen.findByRole('region', { name: 'Candidate directory' });
     holdLists = true;
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Second' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search candidates' }));
     await waitFor(() => expect(heldLists).toHaveLength(1));
     expect(searchOf(heldLists[0]!.call)).toBe('Second');
     heldLists[0]!.release();
-    expect(await within(list).findByRole('button', { name: 'Second Candidate' })).toBeVisible();
-    expect(within(list).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
+    expect(
+      await within(directory).findByRole('button', { name: 'Second Candidate' }),
+    ).toBeVisible();
+    expect(within(directory).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
 
-    // The old write resolves. Its list refresh must use Filter B, never Filter A.
+    // The old write resolves. Its list refresh must use Filter B, never Filter A; its
+    // record-scoped feedback is not shown, because that record is no longer open.
     status.release(jsonResponse({ candidate: syntheticCandidate({ status: 'INACTIVE' }) }));
-    expect(await screen.findByText('Candidate status changed to Inactive.')).toBeVisible();
     await waitFor(() => expect(heldLists).toHaveLength(2));
     expect(searchOf(heldLists[1]!.call)).toBe('Second');
     heldLists[1]!.release();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Move to talent pool' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'New candidate' })).toBeEnabled(),
     );
+    expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
 
     // The visible rows and the controls still describe Filter B.
-    expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
-    expect(within(list).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
+    expect(within(directory).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
+    expect(within(directory).queryByRole('button', { name: 'Synthetic Candidate' })).toBeNull();
     expect(screen.getByLabelText('Search')).toHaveValue('Second');
     // Filter A was requested exactly once: when the user applied it.
     expect(calls.filter(isListCall).map(searchOf)).toEqual([null, 'Synthetic', 'Second', 'Second']);
@@ -1104,12 +1122,12 @@ describe('Post-write list refreshes follow the current filters and session', () 
     expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
     expect(afterSessionB.filter(isListCall)).toHaveLength(1);
     // The session-B list stands, and the stale session-A result stays suppressed.
-    const list = screen.getByRole('region', { name: 'Candidate list' });
+    const list = screen.getByRole('region', { name: 'Candidate directory' });
     expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
     expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
     // Issue #69 review: session A's selected record is not carried into session B.
     expect(screen.queryByRole('button', { name: 'Mark inactive' })).toBeNull();
-    expect(screen.getByText('No candidate selected')).toBeVisible();
+    expect(screen.getByRole('table', { name: 'Candidate directory' })).toBeVisible();
   });
 });
 
@@ -1188,7 +1206,7 @@ describe('Candidate list pages and source filter', () => {
     expect(screen.queryByRole('button', { name: 'Candidate 01' })).toBeNull();
     // Focus continues from the top of the new page.
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Candidate list' })).toHaveFocus(),
+      expect(screen.getByRole('heading', { name: 'Candidate directory' })).toHaveFocus(),
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
@@ -1320,6 +1338,7 @@ describe('Candidate list pages and source filter', () => {
     // Archiving the only active candidate on page 2 leaves that page empty.
     fireEvent.click(screen.getByRole('button', { name: 'Archive candidate' }));
     expect(await screen.findByText('Candidate archived.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(await screen.findByText('Page 1 of 1')).toBeVisible();
     expect(screen.getByText('1–20 of 20')).toBeVisible();
     const pagesRead = calls.filter(isListCall).map((call) => listParameters(call).page);
@@ -1337,7 +1356,8 @@ describe('Candidate list pages and source filter', () => {
         <LocaleSwitch />
       </I18nProvider>,
     );
-    fireEvent.change(await screen.findByLabelText('Source'), {
+    fireEvent.click(await screen.findByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Source'), {
       target: { value: 'publicApplication' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Search candidates' }));
@@ -1349,6 +1369,10 @@ describe('Candidate list pages and source filter', () => {
     expect(await screen.findByText('Page 1 sur 1')).toBeVisible();
     expect(screen.getByText(/1 à 15 sur 15/u)).toBeVisible();
     expect(screen.getByLabelText('Source')).toHaveValue('publicApplication');
+    expect(screen.getByRole('button', { name: 'Filtres (1)' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
     expect(
       within(screen.getByLabelText('Source')).getByRole('option', { name: 'Candidature en ligne' }),
     ).toBeInTheDocument();
@@ -2469,7 +2493,9 @@ function expectNoPrincipalAWorkspace({ atSwitch = false } = {}) {
   expect(document.body.textContent).not.toMatch(
     /54,000|Granted|Expired|candidate@example\.test|Salary expectation|Consent status/,
   );
-  expect(screen.getByText('No candidate selected')).toBeVisible();
+  // The new principal starts in the directory (possibly still loading), with no record open.
+  expect(screen.getByRole('region', { name: 'Candidate directory' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Back to candidates/ })).toBeNull();
 }
 
 const candidateTokensAfter = (calls: RecordedCall[], index: number) =>
@@ -2506,7 +2532,7 @@ describe('Candidate workspace session boundary', () => {
     expect(screen.getByLabelText('Search')).toHaveValue('');
 
     // Principal B loads its own list, and only with its own token.
-    const list = screen.getByRole('region', { name: 'Candidate list' });
+    const list = screen.getByRole('region', { name: 'Candidate directory' });
     await within(list).findByRole('button', { name: 'Nadia Example' });
     expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
 
@@ -2579,7 +2605,7 @@ describe('Candidate workspace session boundary', () => {
     await selectCandidate('Omar Example');
     // Principal A opens Nadia; that read stays unresolved.
     holdRead = true;
-    fireEvent.click(screen.getByRole('button', { name: 'Nadia Example' }));
+    await openRecordFromDirectory('Nadia Example');
     await waitFor(() => expect(candidateAReads(calls)).toHaveLength(1));
     holdRead = false;
     const switchedAt = calls.length;
@@ -2602,7 +2628,7 @@ describe('Candidate workspace session boundary', () => {
     });
 
     expectNoPrincipalAWorkspace();
-    await within(screen.getByRole('region', { name: 'Candidate list' })).findByRole('button', {
+    await within(screen.getByRole('region', { name: 'Candidate directory' })).findByRole('button', {
       name: 'Nadia Example',
     });
     expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
@@ -2644,5 +2670,275 @@ describe('Candidate workspace session boundary', () => {
     expect(
       within(restrictedSection()).getByRole('button', { name: 'Edit compensation' }),
     ).toBeEnabled();
+  });
+});
+
+/* --- Issue #204: Entity Workspace v2.0 (directory, quick preview, focused record) --- */
+
+const DOCUMENTS_API = 'http://127.0.0.1:3000/v1/documents';
+const TASKS_API = 'http://127.0.0.1:3000/v1/tasks';
+
+function relatedHandler(options: { documentsFail?: boolean } = {}): Handler {
+  return (call) => {
+    if (call.url.startsWith(`${DOCUMENTS_API}?`)) {
+      return options.documentsFail
+        ? jsonResponse({ code: 'INTERNAL', message: 'hidden failure' }, 500)
+        : jsonResponse({ documents: [], pagination: { page: 1, pageSize: 20, total: 0 } });
+    }
+    if (call.url.startsWith(`${TASKS_API}?`)) {
+      return jsonResponse({
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 20, total: 0 },
+        tasks: [],
+      });
+    }
+    return undefined;
+  };
+}
+
+const listCalls = (calls: RecordedCall[]) =>
+  calls.filter((call) => call.method === 'GET' && call.url.startsWith(`${API}?`));
+const detailCalls = (calls: RecordedCall[], id = CANDIDATE_ID) =>
+  calls.filter((call) => call.method === 'GET' && call.url === `${API}/${id}`);
+
+describe('Candidates v2.0: directory and quick preview', () => {
+  it('opens a preview from the row list data alone, with no request and no restricted data', async () => {
+    const { calls } = stubCandidateApi(FULL_PERMISSIONS);
+    renderPanel(FULL_PERMISSIONS);
+    const row = await screen.findByRole('button', { name: 'Synthetic Candidate' });
+    const before = calls.length;
+
+    fireEvent.click(row);
+
+    const preview = screen.getByRole('region', { name: 'Synthetic Candidate' });
+    expect(within(preview).getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(row).toHaveAttribute('aria-current', 'true');
+    expect(within(preview).getByRole('button', { name: 'Open full profile' })).toBeVisible();
+    // Nothing is read for a preview, and compensation and consent never appear in it.
+    expect(calls.length).toBe(before);
+    expect(preview.textContent).not.toMatch(/54,000|EUR|Granted|Consent|Salary|Restricted/);
+    // The directory stays usable beside it.
+    expect(screen.getByRole('button', { name: 'Second Candidate' })).toBeEnabled();
+  });
+
+  it('closes the preview with Escape or Close, keeps the page, and returns focus to the row', async () => {
+    const { calls } = stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    const row = await screen.findByRole('button', { name: 'Synthetic Candidate' });
+    const listsBefore = listCalls(calls).length;
+
+    fireEvent.click(row);
+    fireEvent.keyDown(screen.getByRole('region', { name: 'Synthetic Candidate' }), {
+      key: 'Escape',
+    });
+    expect(screen.queryByRole('region', { name: 'Synthetic Candidate' })).toBeNull();
+    await waitFor(() => expect(row).toHaveFocus());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Second Candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Second Candidate' })).toHaveFocus(),
+    );
+    expect(listCalls(calls)).toHaveLength(listsBefore);
+  });
+
+  it('moves the preview to another row without reading either candidate', async () => {
+    const { calls } = stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Synthetic Candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Second Candidate' }));
+
+    expect(screen.getByRole('region', { name: 'Second Candidate' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Synthetic Candidate' })).toBeNull();
+    expect(calls.filter((call) => call.url.startsWith(`${API}/`))).toHaveLength(0);
+  });
+});
+
+describe('Candidates v2.0: focused record', () => {
+  it('reads the record once on open and returns to the same directory without re-reading it', async () => {
+    const { calls } = stubCandidateApi([P.view]);
+    const onOpenRecord = vi.fn();
+    const onCloseRecord = vi.fn();
+    render(
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          onCloseRecord={onCloseRecord}
+          onOpenRecord={onOpenRecord}
+          permissions={[P.view]}
+        />
+      </I18nProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Synthetic Candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open full profile' }));
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Synthetic Candidate' });
+    expect(heading).toHaveFocus();
+    expect(onOpenRecord).toHaveBeenCalledWith(CANDIDATE_ID);
+    expect(detailCalls(calls)).toHaveLength(1);
+    // The directory is not on screen behind the record.
+    expect(screen.queryByRole('table', { name: 'Candidate directory' })).toBeNull();
+    const listsBefore = listCalls(calls).length;
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+
+    expect(onCloseRecord).toHaveBeenCalledTimes(1);
+    const row = await screen.findByRole('button', { name: 'Synthetic Candidate' });
+    await waitFor(() => expect(row).toHaveFocus());
+    expect(listCalls(calls)).toHaveLength(listsBefore);
+    expect(detailCalls(calls)).toHaveLength(1);
+  });
+
+  it('follows the URL owner: a record id opens the record, null returns to the directory', async () => {
+    const { calls } = stubCandidateApi([P.view]);
+    const panel = (recordCandidateId: string | null) => (
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          permissions={[P.view]}
+          recordCandidateId={recordCandidateId}
+        />
+      </I18nProvider>
+    );
+    const view = render(panel(null));
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+
+    view.rerender(panel(SECOND_CANDIDATE_ID));
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Second Candidate' }),
+    ).toBeVisible();
+
+    view.rerender(panel(null));
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(detailCalls(calls, SECOND_CANDIDATE_ID)).toHaveLength(1);
+  });
+
+  it('offers related sections only with their module permission and reads each once, on demand', async () => {
+    const { calls } = stubCandidateApi([P.view, 'documents:view', 'tasks:view'], relatedHandler());
+    renderPanel([P.view, 'documents:view', 'tasks:view']);
+    await selectCandidate();
+    const related = () =>
+      calls.filter((call) => call.url.startsWith(DOCUMENTS_API) || call.url.startsWith(TASKS_API));
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
+    // Nothing related is read before its section is opened.
+    expect(related()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect(await screen.findByRole('heading', { name: 'No documents' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
+    expect(await screen.findByRole('heading', { name: 'No tasks' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+
+    expect(related().map((call) => new URL(call.url).pathname)).toEqual([
+      '/v1/documents',
+      '/v1/tasks',
+    ]);
+    for (const call of related()) {
+      const query = new URL(call.url).searchParams;
+      expect(query.get('candidateId')).toBe(CANDIDATE_ID);
+      expect(query.get('pageSize')).toBe('20');
+    }
+    cleanup();
+
+    // Without either module permission there are no sections and no tabs at all.
+    stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    await selectCandidate();
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+
+  it('shows a safe related-section failure with a retry', async () => {
+    stubCandidateApi([P.view, 'documents:view'], relatedHandler({ documentsFail: true }));
+    renderPanel([P.view, 'documents:view']);
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unable to load this candidate’s documents.',
+    );
+    expect(screen.queryByText('hidden failure')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+  });
+
+  it('moves between section tabs with the arrow keys', async () => {
+    stubCandidateApi([P.view, 'documents:view', 'tasks:view'], relatedHandler());
+    renderPanel([P.view, 'documents:view', 'tasks:view']);
+    await selectCandidate();
+    const profile = screen.getByRole('tab', { name: 'Profile' });
+
+    fireEvent.keyDown(profile, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Documents' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Documents' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Documents' }), { key: 'End' });
+    expect(screen.getByRole('tab', { name: 'Tasks' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Tasks' }), { key: 'ArrowRight' });
+    expect(profile).toHaveFocus();
+    expect(profile).toHaveAttribute('tabindex', '0');
+  });
+});
+
+describe('Candidates v2.0: unsaved input in the focused record', () => {
+  it('asks before leaving a record with unsaved input, and keeps it when the user stays', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    stubCandidateApi(ORDINARY_PERMISSIONS);
+    const onCloseRecord = vi.fn();
+    render(
+      <I18nProvider>
+        <CandidatesPanel
+          accessToken={TOKEN}
+          onCloseRecord={onCloseRecord}
+          permissions={[...ORDINARY_PERMISSIONS]}
+        />
+      </I18nProvider>,
+    );
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const form = screen.getByRole('form', { name: 'Edit profile' });
+    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Lyon' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(confirm).toHaveBeenCalledWith(
+      'This candidate has unsaved changes. Leave and discard them?',
+    );
+    expect(onCloseRecord).not.toHaveBeenCalled();
+    expect(within(form).getByLabelText('City')).toHaveValue('Lyon');
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(onCloseRecord).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+  });
+
+  it('leaves without asking when no form holds input, or after the input was cancelled', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+    // An open but untouched form loses nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const form = screen.getByRole('form', { name: 'Edit profile' });
+    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Lyon' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('keeps an open form when switching section tabs', async () => {
+    stubCandidateApi([...ORDINARY_PERMISSIONS, 'tasks:view'], relatedHandler());
+    renderPanel([...ORDINARY_PERMISSIONS, 'tasks:view']);
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    fireEvent.input(screen.getByLabelText('City'), { target: { value: 'Lyon' } });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
+    await screen.findByRole('heading', { name: 'No tasks' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+
+    expect(screen.getByLabelText('City')).toHaveValue('Lyon');
   });
 });

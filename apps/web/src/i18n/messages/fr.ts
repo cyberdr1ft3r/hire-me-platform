@@ -377,6 +377,13 @@ export const frMessages: Messages = {
         'Seul le nom est obligatoire. Les autres informations peuvent être complétées plus tard.',
       title: 'Nouveau candidat',
     },
+    directory: {
+      columns: {
+        candidate: 'Candidat',
+      },
+      order: 'Plus récents d’abord',
+      title: 'Répertoire des candidats',
+    },
     education: {
       add: 'Ajouter une formation',
       dateHint: 'Telle qu’enregistrée, par exemple 2014',
@@ -481,6 +488,8 @@ export const frMessages: Messages = {
       sourceTextHint: 'Telle qu’elle figure sur le profil, sans tenir compte des majuscules',
       status: 'Statut',
       submit: 'Rechercher',
+      toggle: 'Filtres',
+      toggleActive: 'Filtres ({count})',
     },
     header: {
       description: 'Gérez les profils candidats et les informations de recrutement.',
@@ -519,6 +528,11 @@ export const frMessages: Messages = {
       title: 'Liste des candidats',
       updated: 'Mis à jour le {date}',
     },
+    preview: {
+      close: 'Fermer l’aperçu',
+      eyebrow: 'Aperçu rapide',
+      openRecord: 'Ouvrir le profil complet',
+    },
     profile: {
       archived: 'Archivé le {date}',
       archivedLabel: 'Archivé le',
@@ -531,6 +545,37 @@ export const frMessages: Messages = {
       sourceTitle: 'Source et fiche',
       updated: 'Mis à jour le {date}',
       updatedLabel: 'Dernière mise à jour',
+    },
+    record: {
+      back: 'Retour aux candidats',
+      discardPrompt:
+        'Ce candidat a des modifications non enregistrées. Quitter et les abandonner ?',
+      documents: {
+        empty: 'Les documents rattachés à ce candidat apparaissent ici.',
+        emptyTitle: 'Aucun document',
+        error: 'Impossible de charger les documents de ce candidat.',
+        loading: 'Chargement des documents…',
+        open: 'Ouvrir Documents',
+      },
+      navigation: 'Navigation de la fiche candidat',
+      related: {
+        errorTitle: 'Section indisponible',
+        partial: '{shown} affichés sur {total}',
+      },
+      sections: {
+        documents: 'Documents',
+        label: 'Sections de la fiche candidat',
+        profile: 'Profil',
+        tasks: 'Tâches',
+      },
+      tasks: {
+        due: 'Échéance {date}',
+        empty: 'Les tâches liées à ce candidat apparaissent ici.',
+        emptyTitle: 'Aucune tâche',
+        error: 'Impossible de charger les tâches de ce candidat.',
+        loading: 'Chargement des tâches…',
+        noDue: 'Sans échéance',
+      },
     },
     records: {
       archive: 'Archiver',

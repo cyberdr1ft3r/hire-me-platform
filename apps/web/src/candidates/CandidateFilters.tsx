@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Select, TextField } from '../ui/index.js';
@@ -7,11 +7,22 @@ import {
   candidateSourceModeLabelKey,
   candidateStatusLabelKey,
 } from './candidate-labels.js';
-import { CANDIDATE_SOURCE_MODES, type CandidateFilterValues } from './candidate-state.js';
+import {
+  CANDIDATE_SOURCE_MODES,
+  candidateSourceQuery,
+  type CandidateFilterValues,
+} from './candidate-state.js';
+
+/** How many of the on-demand filters (status, source) the given values set. */
+export function advancedFilterCount(values: CandidateFilterValues): number {
+  return (values.status ? 1 : 0) + (candidateSourceQuery(values) !== undefined ? 1 : 0);
+}
 
 /**
- * One compact toolbar over the server-side candidate list: free-text search,
- * lifecycle status, and source. Applying it always returns to the first page.
+ * One compact toolbar over the server-side candidate list: free-text search in
+ * line, and lifecycle status and source behind an on-demand Filters disclosure.
+ * Both live in one form, so applying always sends the same combined query and
+ * returns to the first page, exactly as before.
  *
  * Option values are stored values, never labels. The source filter offers the
  * one source the platform records by itself (a public application) and,
@@ -19,6 +30,7 @@ import { CANDIDATE_SOURCE_MODES, type CandidateFilterValues } from './candidate-
  * match a source exactly as it was recorded. No source category is invented.
  */
 export function CandidateFilters({
+  appliedValues,
   busy,
   onChange,
   onReset,
@@ -26,6 +38,8 @@ export function CandidateFilters({
   showReset,
   values,
 }: {
+  /** The filters the list on screen was loaded with; the toggle counts these. */
+  appliedValues: CandidateFilterValues;
   busy: boolean;
   onChange: (values: CandidateFilterValues) => void;
   onReset: () => void;
@@ -34,6 +48,10 @@ export function CandidateFilters({
   values: CandidateFilterValues;
 }) {
   const { t } = useI18n();
+  const advancedId = useId();
+  const appliedAdvanced = advancedFilterCount(appliedValues);
+  // Applied on-demand filters stay visible, so what narrows the list is never hidden.
+  const [expanded, setExpanded] = useState(appliedAdvanced > 0);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -47,17 +65,41 @@ export function CandidateFilters({
       onSubmit={handleSubmit}
       role="search"
     >
-      <div className="candidate-filters__controls">
-        <TextField
-          autoComplete="off"
-          hint={t('candidate.filters.searchHint')}
-          label={t('candidate.filters.search')}
-          maxLength={120}
-          name="search"
-          onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
-          type="search"
-          value={values.search}
-        />
+      <div className="candidate-filters__bar">
+        <div className="candidate-filters__search">
+          <TextField
+            autoComplete="off"
+            hint={t('candidate.filters.searchHint')}
+            label={t('candidate.filters.search')}
+            maxLength={120}
+            name="search"
+            onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
+            type="search"
+            value={values.search}
+          />
+        </div>
+        <div className="candidate-filters__actions">
+          <Button disabled={busy} type="submit">
+            {t('candidate.filters.submit')}
+          </Button>
+          <Button
+            aria-controls={advancedId}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+            variant="secondary"
+          >
+            {appliedAdvanced > 0
+              ? t('candidate.filters.toggleActive', { count: appliedAdvanced })
+              : t('candidate.filters.toggle')}
+          </Button>
+          {showReset ? (
+            <Button disabled={busy} onClick={onReset} variant="quiet">
+              {t('candidate.filters.reset')}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <div className="candidate-filters__advanced" hidden={!expanded} id={advancedId}>
         <Select
           label={t('candidate.filters.status')}
           name="status"
@@ -108,16 +150,6 @@ export function CandidateFilters({
             onChange={(event) => onChange({ ...values, sourceText: event.currentTarget.value })}
             value={values.sourceText}
           />
-        ) : null}
-      </div>
-      <div className="candidate-filters__actions">
-        <Button disabled={busy} type="submit">
-          {t('candidate.filters.submit')}
-        </Button>
-        {showReset ? (
-          <Button disabled={busy} onClick={onReset} variant="secondary">
-            {t('candidate.filters.reset')}
-          </Button>
         ) : null}
       </div>
     </form>

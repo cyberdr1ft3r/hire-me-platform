@@ -958,7 +958,8 @@ describe('App', () => {
     fireEvent.change(within(createForm).getByLabelText(/email/i), {
       target: { value: 'created.candidate@example.test' },
     });
-    fireEvent.click(within(createForm).getByRole('button', { name: /create candidate/i }));
+    // The submit action sits in the creation drawer's footer (#201 pattern).
+    fireEvent.click(screen.getByRole('button', { name: /create candidate/i }));
 
     expect(await screen.findByText('Candidate created.')).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -1725,14 +1726,45 @@ describe('App', () => {
     window.history.pushState({}, '', '/candidates?candidate=not-a-uuid&unknown=value');
     render(<App />);
     await loginAs('malformed-candidate@example.test');
+    // A malformed intent opens nothing: the directory shows, with no record.
     expect(
-      await screen.findByText(
-        'Select a candidate to review their profile, lifecycle, and structured records.',
-      ),
+      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
     ).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Back to candidates/ })).toBeNull();
     expect(
       fetchMock.mock.calls.filter(([input]) => requestUrl(input).includes('not-a-uuid')),
     ).toHaveLength(0);
+  });
+
+  it('moves between the candidate directory and a focused record with Back and Forward', async () => {
+    mockReportingSession(['candidates:view']);
+    const deepLink = '?candidate=55555555-5555-4555-8555-555555555555';
+    window.history.pushState({}, '', `/candidates${deepLink}`);
+    render(<App />);
+    await loginAs('candidate-history@example.test');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+    ).toBeVisible();
+
+    // The record's own Back action is a history entry to the directory.
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(window.location.pathname).toBe('/candidates');
+    expect(window.location.search).toBe('');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
+    ).toBeVisible();
+
+    act(() => window.history.back());
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+    ).toBeVisible();
+    expect(window.location.search).toBe(deepLink);
+
+    act(() => window.history.forward());
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Deep Link Candidate' })).toBeNull();
   });
 
   it('resolves a direct Mission URL through the existing scoped mission read', async () => {

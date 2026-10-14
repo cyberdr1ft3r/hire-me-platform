@@ -57,13 +57,17 @@ function renderWorkspace(
     onRetryDetail: vi.fn(),
     onRetryList: vi.fn(),
     onSearch: vi.fn(),
-    onSelect: vi.fn(),
+    onCloseRecord: vi.fn(),
+    onClosePreview: vi.fn(),
+    onOpenRecord: vi.fn(),
+    onPreview: vi.fn(),
     onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
     onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
     detailRevealToken: 0,
     pending: null,
-    selectedId: shaped.id,
+    previewCandidate: null,
+    recordCandidateId: shaped.id,
     ...overrides,
   };
   render(
@@ -244,12 +248,21 @@ describe('Candidate sensitive-data boundaries', () => {
     ).toEqual(['Manage consent']);
   });
 
-  it('never shows compensation or consent in the candidate list, whatever the access', () => {
-    renderWorkspace(FULL_PERMISSIONS, { detail: { status: 'idle' }, selectedId: null });
+  it('never shows compensation or consent in the directory or the preview, whatever the access', () => {
+    const shaped = asServerWouldReturn(syntheticCandidate(), FULL_PERMISSIONS);
+    renderWorkspace(FULL_PERMISSIONS, {
+      detail: { status: 'idle' },
+      previewCandidate: shaped,
+      recordCandidateId: null,
+    });
 
-    const list = screen.getByRole('region', { name: 'Candidate list' });
+    const list = screen.getByRole('region', { name: 'Candidate directory' });
     expect(within(list).getByText('Synthetic Candidate')).toBeVisible();
     expect(list.textContent).not.toMatch(/54,000|EUR|€|Granted|Consent|Salary/);
+    // The row carries both areas for this actor, yet the preview shows neither.
+    expect(shaped.compensation).not.toBeNull();
+    const preview = screen.getByRole('region', { name: 'Synthetic Candidate' });
+    expect(preview.textContent).not.toMatch(/54,000|EUR|€|Granted|Consent|Salary|Restricted/);
   });
 
   it('keeps compensation and consent fields out of the profile edit form', () => {
@@ -345,7 +358,12 @@ describe('Candidate workspace localization', () => {
   });
 
   it('renders the whole workspace in French, including domain values', () => {
-    renderWorkspace(FULL_PERMISSIONS, {}, { locale: 'fr' });
+    const empty = () => Promise.resolve({ items: [], total: 0 });
+    renderWorkspace(
+      FULL_PERMISSIONS,
+      { relatedLoaders: { documents: empty, tasks: empty } },
+      { locale: 'fr' },
+    );
 
     expect(screen.getByRole('heading', { level: 1, name: 'Candidats' })).toBeVisible();
     expect(screen.getByText('Recrutement')).toBeVisible();
@@ -356,12 +374,30 @@ describe('Candidate workspace localization', () => {
     expect(screen.getByRole('heading', { name: 'Informations restreintes' })).toBeVisible();
     expect(screen.getByText('Accordé')).toBeVisible();
     expect(screen.getByText(/54\s000,00/u)).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Vivier de talents' })).toHaveValue('TALENT_POOL');
+    expect(screen.getByRole('button', { name: /Retour aux candidats/ })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Profil' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByText('Candidates')).toBeNull();
+    cleanup();
+
+    // The directory in French, with the preview of one row.
+    const shaped = asServerWouldReturn(syntheticCandidate(), FULL_PERMISSIONS);
+    renderWorkspace(
+      FULL_PERMISSIONS,
+      { previewCandidate: shaped, recordCandidateId: null },
+      { locale: 'fr' },
+    );
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Répertoire des candidats' }),
+    ).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Candidat' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Ouvrir le profil complet' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Fermer l’aperçu' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtres' }));
+    expect(screen.getByRole('option', { name: 'Vivier de talents' })).toHaveValue('TALENT_POOL');
   });
 
   it('keeps language-neutral values in the status filter options', () => {
-    renderWorkspace([P.view], {}, { locale: 'fr' });
+    renderWorkspace([P.view], { recordCandidateId: null }, { locale: 'fr' });
     const options = Array.from(
       screen.getByLabelText('Statut').querySelectorAll('option'),
       (option) => option.value,
@@ -374,7 +410,7 @@ describe('Candidate workspace states', () => {
   const ready = (list: CandidateListState, detail: CandidateDetailState = { status: 'idle' }) => ({
     detail,
     list,
-    selectedId: null,
+    recordCandidateId: null,
   });
 
   it('shows a loading state that never claims an empty list', () => {
@@ -465,9 +501,13 @@ describe('Candidate workspace states', () => {
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
   });
 
-  it('shows no-selection, detail loading, and detail failure distinctly', () => {
-    renderWorkspace([P.view], { detail: { status: 'idle' }, selectedId: null });
-    expect(screen.getByRole('heading', { name: 'No candidate selected' })).toBeVisible();
+  it('shows the full-width directory with no record, then record loading and failure distinctly', () => {
+    renderWorkspace([P.view], { detail: { status: 'idle' }, recordCandidateId: null });
+    // No permanently empty record pane: the directory is the only pane.
+    expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
+    expect(document.querySelector('.ui-workspace__layout')).toHaveAttribute('data-view', 'list');
+    expect(screen.getByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'No candidate selected' })).toBeNull();
     cleanup();
 
     renderWorkspace([P.view], { detail: { candidateId: 'x', status: 'loading' } });
@@ -480,12 +520,14 @@ describe('Candidate workspace states', () => {
     expect(props.onRetryDetail).toHaveBeenCalledTimes(1);
   });
 
-  it('marks the selected candidate with aria-current', () => {
-    renderWorkspace([P.view]);
-    expect(screen.getByRole('button', { name: 'Synthetic Candidate' })).toHaveAttribute(
-      'aria-current',
-      'true',
+  it('marks the previewed candidate with aria-current', () => {
+    const shaped = asServerWouldReturn(syntheticCandidate(), [P.view]);
+    renderWorkspace([P.view], { previewCandidate: shaped, recordCandidateId: null });
+    const row = within(screen.getByRole('table', { name: 'Candidate directory' })).getByRole(
+      'button',
+      { name: 'Synthetic Candidate' },
     );
+    expect(row).toHaveAttribute('aria-current', 'true');
   });
 
   it('announces success and failure feedback in the active language', () => {
@@ -523,7 +565,7 @@ describe('Candidate forms', () => {
     expect(name).toHaveFocus();
     fireEvent.change(name, { target: { value: '   ' } });
     fireEvent.change(within(form).getByLabelText('Email'), { target: { value: 'not-an-email' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create candidate' }));
 
     expect(await within(form).findByText('This field is required.')).toBeVisible();
     expect(name).toHaveAttribute('aria-invalid', 'true');
@@ -547,7 +589,7 @@ describe('Candidate forms', () => {
     fireEvent.change(within(form).getByLabelText('Email'), {
       target: { value: 'existing@example.test' },
     });
-    fireEvent.click(within(form).getByRole('button', { name: 'Create candidate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create candidate' }));
 
     await waitFor(() => expect(props.onCreate).toHaveBeenCalledTimes(1));
     const email = within(form).getByLabelText('Email');
@@ -587,7 +629,12 @@ describe('Candidate forms', () => {
 
 describe('Candidate source filter and labels', () => {
   it('offers only the platform source and an exact recorded source, with neutral values', () => {
-    const props = renderWorkspace([P.view]);
+    const props = renderWorkspace([P.view], { recordCandidateId: null });
+    // Status and source are on demand, behind the Filters disclosure.
+    const toggle = screen.getByRole('button', { name: 'Filters' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const source = screen.getByLabelText('Source');
     expect(
       Array.from(source.querySelectorAll('option'), (option) => [option.value, option.textContent]),
@@ -606,7 +653,10 @@ describe('Candidate source filter and labels', () => {
 
     renderWorkspace(
       [P.view],
-      { filters: { ...EMPTY_CANDIDATE_FILTERS, sourceMode: 'recorded', sourceText: 'LinkedIn' } },
+      {
+        filters: { ...EMPTY_CANDIDATE_FILTERS, sourceMode: 'recorded', sourceText: 'LinkedIn' },
+        recordCandidateId: null,
+      },
       { locale: 'fr' },
     );
     expect(
@@ -639,13 +689,13 @@ describe('Candidate source filter and labels', () => {
           status: 'ready',
           total: 2,
         },
+        recordCandidateId: null,
       },
       { candidate: fromApplication },
     );
-    expect(screen.getAllByText('Public application').length).toBeGreaterThanOrEqual(2);
-    const rows = within(screen.getByRole('region', { name: 'Candidate list' })).getAllByRole(
-      'listitem',
-    );
+    const rows = within(screen.getByRole('table', { name: 'Candidate directory' }))
+      .getAllByRole('row')
+      .slice(1);
     expect(within(rows[0]!).getByText('Public application')).toBeVisible();
     expect(within(rows[1]!).getByText('LinkedIn')).toBeVisible();
     expect(document.body.textContent).not.toContain('public_application');
@@ -932,7 +982,7 @@ describe('Stacked master-detail reveal', () => {
       detail: { candidate: shaped, status: 'ready' },
       detailRevealToken: 0,
       list: { candidates: [shaped], page: 1, pageSize: 20, status: 'ready', total: 1 },
-      selectedId: shaped.id,
+      recordCandidateId: shaped.id,
     });
     forceStackedLayout('.candidates');
     cleanup();
@@ -972,12 +1022,16 @@ describe('Stacked master-detail reveal', () => {
       onRetryDetail: vi.fn(),
       onRetryList: vi.fn(),
       onSearch: vi.fn(),
-      onSelect: vi.fn(),
+      onCloseRecord: vi.fn(),
+      onClosePreview: vi.fn(),
+      onOpenRecord: vi.fn(),
+      onPreview: vi.fn(),
       onUpdate: vi.fn(() => Promise.resolve({ ok: true as const })),
       onUpdateRecord: vi.fn(() => Promise.resolve({ ok: true as const })),
       onUpdateSensitive: vi.fn(() => Promise.resolve({ ok: true as const })),
       pending: null,
-      selectedId: shaped.id,
+      previewCandidate: null,
+      recordCandidateId: shaped.id,
     };
     const { rerender } = render(
       <I18nProvider initialLocale="en">
@@ -997,11 +1051,17 @@ describe('Stacked master-detail reveal', () => {
 });
 
 describe('Workspace Surface', () => {
-  it('places the directory and the record in one surface with the filters in the list toolbar', () => {
-    renderWorkspace([P.view]);
-    const list = screen.getByRole('region', { name: 'Candidate list' });
+  it('places the directory and the preview in one surface with the filters in the list toolbar', () => {
+    const shaped = asServerWouldReturn(syntheticCandidate(), [P.view]);
+    renderWorkspace([P.view], { previewCandidate: shaped, recordCandidateId: null });
+    const list = screen.getByRole('region', { name: 'Candidate directory' });
     expect(list).toHaveAttribute('data-pane', 'list');
-    expect(list.closest('.ui-workspace')).toHaveAttribute('data-split', 'wide');
+    expect(list.closest('.ui-workspace')).toHaveAttribute('data-split', 'preview');
+    // With a preview open both panes show, so the layout is not one-pane mode.
+    expect(list.parentElement).not.toHaveAttribute('data-view');
+    expect(document.querySelector('[data-pane="detail"]')).toContainElement(
+      screen.getByRole('region', { name: 'Synthetic Candidate' }),
+    );
     const toolbar = list.querySelector('.ui-workspace__toolbar');
     expect(toolbar).toContainElement(screen.getByRole('search'));
     expect(
@@ -1009,7 +1069,7 @@ describe('Workspace Surface', () => {
     ).toHaveClass('ui-page-header--compact');
   });
 
-  it('opens a newly selected record at the top of its own scrolling pane', () => {
+  it('moves focus to the heading of a newly opened record', () => {
     const first = asServerWouldReturn(syntheticCandidate(), [P.view]);
     const second = {
       ...first,
@@ -1017,33 +1077,27 @@ describe('Workspace Surface', () => {
       id: '00000000-0000-4000-8000-0000000000c2',
     };
     const props = renderWorkspace([P.view], {
+      detailRevealToken: 1,
       list: { candidates: [first, second], page: 1, pageSize: 20, status: 'ready', total: 2 },
-      selectedId: first.id,
+      recordCandidateId: first.id,
     });
+    expect(screen.getByRole('heading', { level: 2, name: 'Synthetic Candidate' })).toHaveFocus();
     cleanup();
     const { rerender } = render(
       <I18nProvider initialLocale="en">
         <CandidateWorkspace {...props} />
       </I18nProvider>,
     );
-    const pane = document.querySelector<HTMLElement>(
-      '[data-pane="detail"] > .ui-workspace__pane-body',
-    );
-    const resets: number[] = [];
-    Object.defineProperty(pane, 'scrollTop', {
-      configurable: true,
-      get: () => 400,
-      set: (value: number) => resets.push(value),
-    });
     rerender(
       <I18nProvider initialLocale="en">
         <CandidateWorkspace
           {...props}
           detail={{ candidate: second, status: 'ready' }}
-          selectedId={second.id}
+          detailRevealToken={2}
+          recordCandidateId={second.id}
         />
       </I18nProvider>,
     );
-    expect(resets).toEqual([0]);
+    expect(screen.getByRole('heading', { level: 2, name: 'Second Synthetic' })).toHaveFocus();
   });
 });

@@ -1,5 +1,5 @@
 import type { CandidateDetail } from '@hire-me/contracts';
-import { useId, useRef, useState, type RefObject } from 'react';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { useStackedMasterDetailReveal } from '../layout/index.js';
@@ -30,6 +30,7 @@ import { CandidateExperience } from './CandidateExperience.js';
 import { CandidateLanguages } from './CandidateLanguages.js';
 import { CandidateProfile } from './CandidateProfile.js';
 import { CandidateProfileForm } from './CandidateProfileForm.js';
+import { CandidateRecordTabs, type CandidateRecordTab } from './CandidateRecordTabs.js';
 import { CandidateSensitiveData } from './CandidateSensitiveData.js';
 import { CandidateSkills } from './CandidateSkills.js';
 
@@ -49,6 +50,12 @@ export interface CandidateDetailViewProps {
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
   onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
+  /**
+   * Further sections of the focused record (documents, tasks). When present the
+   * existing profile content becomes the first tab; it stays mounted while another
+   * tab is shown, so an open form never loses its input.
+   */
+  sections?: readonly CandidateRecordTab[];
 }
 
 /**
@@ -109,6 +116,7 @@ function CandidateRecord({
   onUpdateRecord,
   onUpdateSensitive,
   pending,
+  sections,
   sideBySideMinRem,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
@@ -150,6 +158,63 @@ function CandidateRecord({
     onUpdate: onUpdateRecord,
     pending,
   };
+
+  const profile: ReactNode = (
+    <>
+      {canEdit && editing ? (
+        <CandidateProfileForm
+          busy={busy}
+          candidate={candidate}
+          onCancel={closeEditor}
+          onSaved={closeEditor}
+          onSubmit={onUpdate}
+          submitting={pending === 'update'}
+        />
+      ) : (
+        <CandidateProfile candidate={candidate} />
+      )}
+
+      {showRecords ? (
+        <>
+          <div className="candidate-detail__pair">
+            <CandidateSkills
+              {...recordProps}
+              records={candidate.skills}
+              submitting={pending === 'skill'}
+            />
+            <CandidateLanguages
+              {...recordProps}
+              records={candidate.languages}
+              submitting={pending === 'language'}
+            />
+          </div>
+          <CandidateExperience
+            {...recordProps}
+            records={candidate.workExperiences}
+            submitting={pending === 'experience'}
+          />
+          <CandidateEducation
+            {...recordProps}
+            records={candidate.education}
+            submitting={pending === 'education'}
+          />
+        </>
+      ) : (
+        <section className="candidate-section" aria-label={t('candidate.records.unavailableTitle')}>
+          <p className="candidate-section__empty">{t('candidate.records.unavailable')}</p>
+        </section>
+      )}
+
+      <CandidateSensitiveData
+        access={access}
+        archived={archived}
+        busy={busy}
+        candidate={candidate}
+        onUpdate={onUpdateSensitive}
+        pending={pending}
+      />
+    </>
+  );
 
   function closeEditor(): void {
     setEditing(false);
@@ -219,58 +284,11 @@ function CandidateRecord({
         </InlineMessage>
       ) : null}
 
-      {canEdit && editing ? (
-        <CandidateProfileForm
-          busy={busy}
-          candidate={candidate}
-          onCancel={closeEditor}
-          onSaved={closeEditor}
-          onSubmit={onUpdate}
-          submitting={pending === 'update'}
-        />
+      {sections && sections.length > 0 ? (
+        <CandidateRecordTabs profile={profile} sections={sections} />
       ) : (
-        <CandidateProfile candidate={candidate} />
+        profile
       )}
-
-      {showRecords ? (
-        <>
-          <div className="candidate-detail__pair">
-            <CandidateSkills
-              {...recordProps}
-              records={candidate.skills}
-              submitting={pending === 'skill'}
-            />
-            <CandidateLanguages
-              {...recordProps}
-              records={candidate.languages}
-              submitting={pending === 'language'}
-            />
-          </div>
-          <CandidateExperience
-            {...recordProps}
-            records={candidate.workExperiences}
-            submitting={pending === 'experience'}
-          />
-          <CandidateEducation
-            {...recordProps}
-            records={candidate.education}
-            submitting={pending === 'education'}
-          />
-        </>
-      ) : (
-        <section className="candidate-section" aria-label={t('candidate.records.unavailableTitle')}>
-          <p className="candidate-section__empty">{t('candidate.records.unavailable')}</p>
-        </section>
-      )}
-
-      <CandidateSensitiveData
-        access={access}
-        archived={archived}
-        busy={busy}
-        candidate={candidate}
-        onUpdate={onUpdateSensitive}
-        pending={pending}
-      />
     </article>
   );
 }
