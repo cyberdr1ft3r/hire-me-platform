@@ -73,6 +73,7 @@ import {
   MissionRequestError,
 } from '../api.js';
 import { useI18n, type MessageKey, type PlainMessageKey } from '../i18n/index.js';
+import { requestNavigation } from '../navigation/navigation-guard.js';
 import type { AssignmentCreateValues } from './MissionAssignments.js';
 import type { ProcessLinkValues } from './MissionCandidatePipeline.js';
 import type { InterviewAction } from './MissionInterviews.js';
@@ -220,19 +221,27 @@ export function MissionsPanel({
   accessToken,
   actorUserId,
   initialInterviewId,
-  initialMissionId,
   initialProcessId,
-  onSelectionChange,
+  onCloseRecord,
+  onOpenRecord,
   permissions,
+  recordMissionId,
 }: {
   accessToken: string;
   /** The signed-in user, for the "Assigned to me" filter only. */
   actorUserId: string;
   initialInterviewId?: string | null;
-  initialMissionId: string | null;
   initialProcessId?: string | null;
-  onSelectionChange: (missionId: string) => void;
+  /** The record was left for the directory; the URL owner records that. */
+  onCloseRecord?: () => void;
+  /** A mission was opened as the focused record; the URL owner records that. */
+  onOpenRecord?: (missionId: string) => void;
   permissions: string[];
+  /**
+   * The mission named by the URL (`/missions?mission=<id>`), or null for the
+   * directory. Omitted, the panel keeps the record state on its own.
+   */
+  recordMissionId?: string | null;
 }) {
   const { t } = useI18n();
   const access = resolveMissionAccess(permissions);
@@ -250,7 +259,7 @@ export function MissionsPanel({
   const clientContactSearchRef = useRef('');
   const processPageRef = useRef(1);
   const appliedQueryRef = useRef<MissionListQuery>(FIRST_MISSION_PAGE);
-  const initialIntent = useRef(initialMissionId);
+  const initialIntent = useRef(recordMissionId ?? null);
   const initialProcessIntent = useRef(initialProcessId ?? null);
   const initialInterviewIntent = useRef(initialInterviewId ?? null);
   const initialDetailSection = defaultMissionDetailSectionForIntent({
@@ -265,7 +274,10 @@ export function MissionsPanel({
   const [filters, setFilters] = useState(EMPTY_MISSION_FILTERS);
   const [appliedQuery, setAppliedQuery] = useState(FIRST_MISSION_PAGE);
   const [list, setList] = useState<MissionListState>({ status: 'loading' });
+  // The mission open as the focused record; every mission-scoped read and write belongs to it.
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
+  // The directory row shown in the quick preview. Presentation only: no read, no write.
+  const [previewMission, setPreviewMission] = useState<MissionSummary | null>(null);
   const [detail, setDetail] = useState<MissionDetailState>({ status: 'idle' });
   const [editValues, setEditValues] = useState<MissionProfileValues | null>(null);
 
@@ -361,6 +373,7 @@ export function MissionsPanel({
     setAppliedQuery(appliedQueryRef.current);
     setList({ status: 'loading' });
     setSelectedMissionId(null);
+    setPreviewMission(null);
     setDetail({ status: 'idle' });
     setEditValues(null);
     resetMissionSections();
@@ -375,17 +388,34 @@ export function MissionsPanel({
     };
   }, [accessToken, actorUserId, principal, appliedQuery]);
 
+  /*
+   * The URL owns which mission record is open when the panel runs inside the app: a
+   * deep link opens it, Back or Forward opens or leaves it. Unsaved input was already
+   * protected by the navigation guard before the URL changed.
+   */
   useEffect(() => {
-    const missionId = initialIntent.current;
-    if (missionId) {
-      selectMission(missionId, false);
+    if (recordMissionId === undefined || recordMissionId === selectedMissionRef.current) {
+      return;
     }
-    return () => {
+    if (recordMissionId) {
+      selectMission(recordMissionId, false);
+    } else {
+      exitMission();
+    }
+  }, [recordMissionId]);
+
+  /*
+   * Leaving the workspace ends every mission context. The open record is forgotten
+   * too, so a remount (Strict Mode replays effects) reads the URL's mission again.
+   */
+  useEffect(
+    () => () => {
       contextGeneration.current += 1;
       invalidate(SECTION_NAMES);
       selectedMissionRef.current = null;
-    };
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     const processId = initialProcessIntent.current;
@@ -666,6 +696,7 @@ export function MissionsPanel({
     setMissionDetailRevealToken(bumpStackedDetailRevealToken);
     setProcessDetailRevealToken(0);
     setSelectedMissionId(missionId);
+    setPreviewMission(null);
     setDetail({ status: 'loading' });
     setEditValues(null);
     resetMissionSections();
@@ -673,9 +704,40 @@ export function MissionsPanel({
     setDetailSection('overview');
     if (updateUrl) {
       initialIntent.current = null;
-      onSelectionChange(missionId);
+      onOpenRecord?.(missionId);
     }
     void loadMissionContext(missionId, false);
+  }
+
+  /**
+   * Back to the directory. The list, filters and page are kept, so nothing is
+   * re-read. A write still in flight completes on the server and keeps the write
+   * lock until it settles; its mission-scoped result is no longer shown.
+   */
+  function exitMission(): void {
+    contextGeneration.current += 1;
+    processGeneration.current += 1;
+    interviewGeneration.current += 1;
+    invalidate(SECTION_NAMES);
+    selectedMissionRef.current = null;
+    activeProcessRef.current = null;
+    activeInterviewRef.current = null;
+    initialIntent.current = null;
+    initialProcessIntent.current = null;
+    initialInterviewIntent.current = null;
+    setSelectedMissionId(null);
+    setDetail({ status: 'idle' });
+    setEditValues(null);
+    resetMissionSections();
+    setFeedback(null);
+    setDetailSection('overview');
+  }
+
+  function handleCloseRecord(): void {
+    requestNavigation(() => {
+      exitMission();
+      onCloseRecord?.();
+    });
   }
 
   function commitMission(mission: MissionSummary, resetEdit: boolean): void {
@@ -2321,9 +2383,13 @@ export function MissionsPanel({
           applyQuery(FIRST_MISSION_PAGE);
         },
         onRetry: () => void loadList(appliedQueryRef.current),
+        onClosePreview: () => setPreviewMission(null),
+        onPreview: setPreviewMission,
         onSelect: (missionId) => selectMission(missionId),
+        previewMission,
         selectedId: selectedMissionId,
       }}
+      onCloseRecord={handleCloseRecord}
       detailSection={detailSection}
       missionDetailRevealToken={missionDetailRevealToken}
       onDetailSectionChange={setDetailSection}

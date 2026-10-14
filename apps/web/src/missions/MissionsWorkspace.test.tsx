@@ -29,7 +29,7 @@ import {
   type RecordedCall,
 } from './mission-test-data.js';
 import { MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS } from './mission-test-personas.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
@@ -158,16 +158,18 @@ function LocaleToggle() {
 function Workspace({
   accessToken = 'token-a',
   initialInterviewId = null,
-  initialMissionId = null,
+  recordMissionId = null,
   initialProcessId = null,
-  onSelectionChange = () => undefined,
+  onCloseRecord,
+  onOpenRecord = () => undefined,
   permissions,
 }: {
   accessToken?: string;
   initialInterviewId?: string | null;
-  initialMissionId?: string | null;
+  recordMissionId?: string | null;
   initialProcessId?: string | null;
-  onSelectionChange?: (missionId: string) => void;
+  onCloseRecord?: () => void;
+  onOpenRecord?: (missionId: string) => void;
   permissions: string[];
 }) {
   return (
@@ -177,9 +179,10 @@ function Workspace({
         accessToken={accessToken}
         actorUserId={ACTOR_ID}
         initialInterviewId={initialInterviewId}
-        initialMissionId={initialMissionId}
+        recordMissionId={recordMissionId}
         initialProcessId={initialProcessId}
-        onSelectionChange={onSelectionChange}
+        onCloseRecord={onCloseRecord}
+        onOpenRecord={onOpenRecord}
         permissions={permissions}
       />
     </>
@@ -206,7 +209,7 @@ function renderWorkspace(
 }
 
 async function selectMission(title: string): Promise<void> {
-  fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${title}`) }));
+  await openMissionRecord(new RegExp(`^${title}`));
 }
 
 async function showPipelineTab(locale: 'en' | 'fr' = 'en'): Promise<void> {
@@ -273,7 +276,7 @@ describe('Missions detail navigation (#118)', () => {
   it('opens the Pipeline tab and process detail for a process deep link', async () => {
     serve(world());
     renderWorkspace({
-      initialMissionId: MISSION_A_ID,
+      recordMissionId: MISSION_A_ID,
       initialProcessId: processA.id,
       permissions: MANAGE,
     });
@@ -304,7 +307,7 @@ describe('Missions workspace localization and structure', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Missions' })).toBeVisible();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Missions de recrutement' }),
+      screen.getByRole('heading', { level: 2, name: 'Répertoire des missions' }),
     ).toBeVisible();
     expect(screen.getByRole('search', { name: 'Recherche de missions' })).toBeVisible();
     expect(await screen.findByText('2 missions')).toBeVisible();
@@ -317,6 +320,12 @@ describe('Missions workspace localization and structure', () => {
     const calls = serve(world());
     renderWorkspace({ permissions: MANAGE });
 
+    // An unapplied search typed in the directory stays while a record is open.
+    const search = within(await screen.findByRole('search', { name: 'Mission search' })).getByRole(
+      'searchbox',
+      { name: 'Search' },
+    );
+    fireEvent.change(search, { target: { value: 'unapplied draft' } });
     await selectMission('Mission Alpha');
     await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit mission' }));
@@ -327,27 +336,14 @@ describe('Missions workspace localization and structure', () => {
     fireEvent.change(title, { target: { value: 'Typed but unsaved title' } });
     await openProcess('Alex Candidate');
     await screen.findByText('Alpha contract');
-    const search = within(screen.getByRole('search', { name: 'Mission search' })).getByRole(
-      'searchbox',
-      { name: 'Search' },
-    );
-    fireEvent.change(search, { target: { value: 'unapplied draft' } });
     await flush();
     const before = calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle locale' }));
 
-    expect(
-      await screen.findByRole('heading', { level: 2, name: 'Missions de recrutement' }),
-    ).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Mission Alpha' })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' })).toBeVisible();
     expect(screen.getByRole('region', { name: 'Alex Candidate' })).toBeVisible();
     expect(screen.getByText('Alpha contract')).toBeVisible();
-    expect(
-      within(screen.getByRole('search', { name: 'Recherche de missions' })).getByRole('searchbox', {
-        name: 'Rechercher',
-      }),
-    ).toHaveValue('unapplied draft');
     await showMissionDetailTab('overview', 'fr');
     expect(
       within(screen.getByRole('form', { name: 'Modifier la mission' })).getByRole('textbox', {
@@ -355,6 +351,20 @@ describe('Missions workspace localization and structure', () => {
       }),
     ).toHaveValue('Typed but unsaved title');
     await flush();
+    expect(calls.length).toBe(before);
+
+    // Leaving with the unsaved title asks first; the directory keeps the typed search.
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: /Retour aux missions/ }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Répertoire des missions' }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole('search', { name: 'Recherche de missions' })).getByRole('searchbox', {
+        name: 'Rechercher',
+      }),
+    ).toHaveValue('unapplied draft');
     expect(calls.length).toBe(before);
   });
 });
@@ -409,6 +419,8 @@ describe('Missions option sources and raw identifiers', () => {
     renderWorkspace({ permissions: VIEW });
 
     const filters = await screen.findByRole('search', { name: 'Mission search' });
+    // Status, priority, client, deadlines and Assigned to me are behind Filters.
+    fireEvent.click(within(filters).getByRole('button', { name: 'Filters' }));
     fireEvent.click(within(filters).getByRole('checkbox', { name: 'Assigned to me' }));
     fireEvent.click(within(filters).getByRole('button', { name: 'Apply filters' }));
 
@@ -652,14 +664,12 @@ describe('Missions writes', () => {
 
   it('reports the selection so the deep link follows the chosen mission', async () => {
     serve(world());
-    const onSelectionChange = vi.fn<(missionId: string) => void>();
-    renderWorkspace({ onSelectionChange, permissions: VIEW });
+    const onOpenRecord = vi.fn<(missionId: string) => void>();
+    renderWorkspace({ onOpenRecord, permissions: VIEW });
 
     await selectMission('Mission Beta');
-    expect(onSelectionChange).toHaveBeenCalledWith(MISSION_B_ID);
-    expect(screen.getByRole('button', { name: /^Mission Beta/ }).getAttribute('aria-current')).toBe(
-      'true',
-    );
+    expect(onOpenRecord).toHaveBeenCalledWith(MISSION_B_ID);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Mission Beta' })).toBeVisible();
   });
 });
 
@@ -975,7 +985,7 @@ describe('Stacked master-detail reveal', () => {
   it('opens a process from the candidate name control and focuses it on stacked layouts', async () => {
     serve(world());
     renderWorkspace({ permissions: VIEW });
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await showMissionDetailTab('pipeline');
     const pipelineRegion = await screen.findByRole('region', { name: 'Candidate pipeline' });
     forceStackedMissionsLayout();
@@ -1064,10 +1074,8 @@ describe('Mission creation drawer (Issue #196)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(posts).toBe(1);
     expect(await screen.findByText('Mission created.')).toBeVisible();
-    expect(await screen.findByRole('button', { name: /^Drawer Mission/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
+    // The new mission opens as the focused record.
+    expect(await screen.findByRole('heading', { level: 2, name: 'Drawer Mission' })).toBeVisible();
   });
 
   it('keeps the drawer, the draft and the directory selection when creation fails', async () => {
@@ -1081,10 +1089,8 @@ describe('Mission creation drawer (Issue #196)', () => {
     fireEvent.keyDown(drawer, { key: 'Escape' });
     fireEvent.click(within(drawer).getByRole('button', { name: 'Discard changes' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('button', { name: /^Mission Beta/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
+    // The record that was open before stays open.
+    expect(screen.getByRole('heading', { level: 2, name: 'Mission Beta' })).toBeVisible();
   });
 
   it('never offers creation without missions:create', async () => {
@@ -1092,5 +1098,139 @@ describe('Mission creation drawer (Issue #196)', () => {
     renderWorkspace({ permissions: [...VIEW, 'clients:view'] });
     await screen.findByRole('heading', { level: 1, name: 'Missions' });
     expect(screen.queryByRole('button', { name: 'New mission' })).toBeNull();
+  });
+});
+
+describe('Missions v2.0: directory, quick preview and focused record (Issue #204)', () => {
+  const missionReads = (calls: RecordedCall[]) =>
+    calls.filter((call) => call.method === 'GET' && /^\/v1\/missions\/[^/]+/.test(call.path));
+  const listReads = (calls: RecordedCall[]) =>
+    calls.filter((call) => call.method === 'GET' && call.path === '/v1/missions');
+
+  it('shows a full-width directory and previews a row with no request and no commercial terms', async () => {
+    const commercialAlpha = syntheticMission(MISSION_A_ID, 'Mission Alpha', {
+      commercial: {
+        commercialSummary: 'Confidential margin note',
+        salaryCurrency: 'EUR',
+        salaryMaxCents: 9_900_000,
+        salaryMinCents: 8_800_000,
+      },
+      location: 'Lyon',
+    });
+    const calls = serve(world({ missions: [commercialAlpha, missionB] }));
+    renderWorkspace({ permissions: MANAGE });
+    const row = await screen.findByRole('button', { name: /^Mission Alpha/ });
+    expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
+    expect(screen.getByRole('table', { name: 'Mission directory' })).toBeVisible();
+    const before = calls.length;
+
+    row.focus();
+    fireEvent.click(row);
+
+    const preview = screen.getByRole('region', { name: 'Mission Alpha' });
+    expect(within(preview).getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(row).toHaveAttribute('aria-current', 'true');
+    expect(within(preview).getByText('Lyon')).toBeVisible();
+    expect(preview.textContent).not.toMatch(/Confidential|88,000|99,000|EUR|Commercial/);
+    expect(calls.length).toBe(before);
+    expect(missionReads(calls)).toHaveLength(0);
+
+    fireEvent.keyDown(preview, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Mission Alpha' })).toBeNull();
+    await waitFor(() => expect(row).toHaveFocus());
+  });
+
+  it('reads the mission only when its record opens and returns to the same page without re-reading', async () => {
+    const calls = serve(world());
+    const onCloseRecord = vi.fn();
+    const onOpenRecord = vi.fn();
+    renderWorkspace({ onCloseRecord, onOpenRecord, permissions: VIEW });
+    fireEvent.click(await screen.findByRole('button', { name: /^Mission Alpha/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open full record' }));
+
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(onOpenRecord).toHaveBeenCalledWith(MISSION_A_ID);
+    expect(screen.queryByRole('table', { name: 'Mission directory' })).toBeNull();
+    await waitFor(() =>
+      expect(calls.some((call) => call.path.endsWith(`/${MISSION_A_ID}/candidates`))).toBe(true),
+    );
+    const listsBefore = listReads(calls).length;
+    expect(calls.filter((call) => call.path === `/v1/missions/${MISSION_A_ID}`)).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to missions/ }));
+    expect(onCloseRecord).toHaveBeenCalledTimes(1);
+    const row = await screen.findByRole('button', { name: /^Mission Alpha/ });
+    await waitFor(() => expect(row).toHaveFocus());
+    expect(listReads(calls)).toHaveLength(listsBefore);
+  });
+
+  it('opens the preview as a bottom sheet on a narrow workspace', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return new DOMRect(0, 0, this.classList.contains('missions') ? 358 : 0, 0);
+    });
+    const calls = serve(world());
+    renderWorkspace({ permissions: VIEW });
+    const row = await screen.findByRole('button', { name: /^Mission Beta/ });
+    const before = calls.length;
+    row.focus();
+    fireEvent.click(row);
+
+    const sheet = screen.getByRole('dialog', { name: 'Mission Beta' });
+    expect(sheet.closest('.ui-drawer')).toHaveAttribute('data-placement', 'bottom');
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
+    expect(calls.length).toBe(before);
+
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(row).toHaveFocus());
+
+    fireEvent.click(row);
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Open full record' }),
+    );
+    expect(await screen.findByRole('heading', { level: 2, name: 'Mission Beta' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('asks before leaving unsaved mission edits; a saved form leaves quietly, a failed save asks', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    let failSave = false;
+    serve(world(), (call) =>
+      call.method === 'PATCH' && call.path === `/v1/missions/${MISSION_A_ID}`
+        ? failSave
+          ? jsonResponse({ code: 'VALIDATION_FAILED', message: 'Rejected' }, 400)
+          : jsonResponse({ mission: { ...missionA, title: 'Mission Alpha renamed' } })
+        : undefined,
+    );
+    renderWorkspace({ permissions: MANAGE });
+    await selectMission('Mission Alpha');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit mission' }));
+    const form = await screen.findByRole('form', { name: 'Edit mission' });
+    const title = within(form).getByRole('textbox', { name: 'Title' });
+
+    // Unsaved: Back asks and, when declined, keeps the input.
+    fireEvent.change(title, { target: { value: 'Mission Alpha renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: /Back to missions/ }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(title).toHaveValue('Mission Alpha renamed');
+
+    // A failed save keeps the input at risk: leaving still asks.
+    failSave = true;
+    fireEvent.submit(form);
+    expect(await screen.findByRole('alert')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Back to missions/ }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+
+    // A successful save: leaving no longer asks.
+    failSave = false;
+    fireEvent.submit(form);
+    expect(await screen.findByText('Mission updated.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Back to missions/ }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('table', { name: 'Mission directory' })).toBeVisible();
   });
 });

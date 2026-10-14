@@ -14,7 +14,7 @@ import {
   syntheticMission,
   syntheticProcess,
 } from './mission-test-data.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 describe('Missions read-only evidence persona (#159)', () => {
   const access = resolveMissionAccess(MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS);
@@ -130,14 +130,14 @@ describe('Missions read-only evidence persona in the workspace', () => {
         <MissionsPanel
           accessToken="token"
           actorUserId={ACTOR_ID}
-          initialMissionId={null}
-          onSelectionChange={() => undefined}
+          recordMissionId={null}
+          onOpenRecord={() => undefined}
           permissions={[...MISSIONS_READ_ONLY_EVIDENCE_PERMISSIONS]}
         />
       </I18nProvider>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     expect(await screen.findByText('Read-only access')).toBeVisible();
     expect(screen.queryByText('New mission')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Save mission' })).toBeNull();

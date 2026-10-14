@@ -4,15 +4,15 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: review the Issue #204 Candidates Workspace v2.0 draft PR** from
-  `feat/issue-204-candidates-workspace-v2` into `main` (`14fc745`). Directory → quick
-  preview → focused record; [evidence](../audit/issue-204-candidates-workspace-v2.md).
-  Desktop directory and preview are approved in principle; the mobile sheet, record
-  hierarchy, compact toolbar and `More actions` menu were added after the 14 Oct
-  review. Completion requires human visual sign-off of those refinements (desktop and
-  390px) and exact-head CI. Missions and Clients follow in
-  separate PRs only after sign-off. An Applications section needs a new cross-mission
-  read (backend decision). No merge/deploy automatically.
+- **Next: visual review of the Issue #204 Missions Workspace v2.0 draft PR** from
+  `feat/issue-204-missions-workspace-v2` into `main` (`e2ff257`). Directory → quick
+  preview (side pane or mobile sheet) → focused mission record, following the merged
+  Candidates pattern; [evidence](../audit/issue-204-missions-workspace-v2.md).
+  Completion requires human visual sign-off (desktop and 390px) and exact-head CI.
+  Clients follows in its own PR only after sign-off. No merge/deploy automatically.
+
+- **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
+  candidate stay deferred (needs a cross-mission backend read).
 
 - **Merged:** PR #203 (Issue #202 Scope A, shared request core) into the integration
   branch, and #194 (integration) into `main` at `14fc745`. Still to decide: the

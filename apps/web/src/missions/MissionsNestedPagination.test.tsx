@@ -20,7 +20,7 @@ import {
   syntheticMission,
   syntheticProcess,
 } from './mission-test-data.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 const VIEW = [
   'missions:view',
@@ -118,8 +118,8 @@ function renderPanel(
       <MissionsPanel
         accessToken="token"
         actorUserId={ACTOR_ID}
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={permissions}
         {...panelOverrides}
       />
@@ -129,7 +129,7 @@ function renderPanel(
 
 async function selectMissionAlpha(): Promise<void> {
   await screen.findByRole('button', { name: /Mission Alpha/ });
-  fireEvent.click(screen.getByRole('button', { name: /Mission Alpha/ }));
+  await openMissionRecord(/Mission Alpha/);
 }
 
 async function openAlexProcess(): Promise<void> {
@@ -330,7 +330,7 @@ describe('Missions nested pagination', () => {
 
     renderPanel();
     await selectMissionAlpha();
-    fireEvent.click(screen.getByRole('button', { name: /Mission Beta/ }));
+    await openMissionRecord(/Mission Beta/);
     await screen.findByText('Beta Only');
     await act(async () => {
       late.resolve(
@@ -406,7 +406,7 @@ describe('Missions nested pagination', () => {
     );
     await screen.findByText(/Organizer 21/);
 
-    fireEvent.click(screen.getByRole('button', { name: /Mission Beta/ }));
+    await openMissionRecord(/Mission Beta/);
     await showMissionDetailTab('pipeline');
     fireEvent.click(await screen.findByRole('button', { name: /Open the process for Bea/i }));
     await screen.findByText(/Organizer 1/);

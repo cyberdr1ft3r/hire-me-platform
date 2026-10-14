@@ -6,3 +6,4 @@ export {
   readRootFontSizePx,
   useStackedMasterDetailReveal,
 } from './stacked-master-detail.js';
+export { useNarrowContainer } from './use-narrow-container.js';

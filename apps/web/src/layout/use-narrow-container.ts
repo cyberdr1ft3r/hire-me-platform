@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
 
-import { readRootFontSizePx } from '../layout/index.js';
+import { readRootFontSizePx } from './stacked-master-detail.js';
 
 /**
  * Whether the element is narrower than `minRem`, following resizes (window, the

@@ -32,7 +32,7 @@ import { CandidateDirectory } from './CandidateDirectory.js';
 import { CandidateFilters } from './CandidateFilters.js';
 import { CandidateFocusedRecord, type CandidateRelatedLoaders } from './CandidateFocusedRecord.js';
 import { CandidateQuickPreview } from './CandidateQuickPreview.js';
-import { useNarrowContainer } from './use-narrow-container.js';
+import { useNarrowContainer } from '../layout/index.js';
 
 const NO_RELATED: CandidateRelatedLoaders = { documents: null, tasks: null };
 

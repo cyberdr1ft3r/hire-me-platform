@@ -28,8 +28,8 @@ function panel(locale: 'en' | 'fr' = 'en', accessToken = 'token-a') {
       <MissionsPanel
         accessToken={accessToken}
         actorUserId={ACTOR_ID}
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={['missions:view']}
       />
     </I18nProvider>

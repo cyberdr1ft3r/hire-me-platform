@@ -3,7 +3,24 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
-## Issue #204 — Candidates Workspace v2.0 (draft PR)
+## Issue #204 — Missions Workspace v2.0 (draft PR)
+
+- Branch `feat/issue-204-missions-workspace-v2` from `main` `e2ff257` (#205 merged).
+  Frontend only; no API, contract, schema or permission change.
+- Missions follow the Candidates pattern: a full-width directory table (search in the
+  toolbar; status, priority, client, deadline range and "assigned to me" on demand), a
+  quick preview built from the list row (no request; side pane from a 44rem workspace,
+  bottom sheet below), and a focused record at `/missions?mission=<id>` that keeps the
+  existing Overview/Team/Pipeline/Public sections, forms, lifecycle and process deep
+  links. A row click no longer reads the mission, team, pipeline and public data; those
+  load when the record opens.
+- Shared: the record leave guard and narrow-width hook moved to `navigation/` and
+  `layout/` (Candidates only changed imports); the guard gained `clearOnSubmit` and a
+  failure signal for forms that stay open after saving, and ignores search forms; the
+  shared drawer cannot be closed while its own create is submitting (Codex P2 on #205).
+  [Evidence](../audit/issue-204-missions-workspace-v2.md). Human sign-off pending.
+
+## Issue #204 — Candidates Workspace v2.0 (merged, PR #205 `e2ff257`)
 
 - Branch `feat/issue-204-candidates-workspace-v2` from `main` `14fc745`. Frontend only;
   no API, contract, schema or permission change.

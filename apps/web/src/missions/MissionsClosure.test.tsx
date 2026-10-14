@@ -14,6 +14,7 @@ import {
   mockMissionApi,
   syntheticMission,
 } from './mission-test-data.js';
+import { openMissionRecord } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 
@@ -250,19 +251,19 @@ describe('Mission closure lifecycle UX', () => {
         <MissionsPanel
           accessToken="token"
           actorUserId={ACTOR_ID}
-          initialMissionId={null}
-          onSelectionChange={() => undefined}
+          recordMissionId={null}
+          onOpenRecord={() => undefined}
           permissions={['missions:view', 'missions:closure:manage', 'mission_assignments:view']}
         />
       </I18nProvider>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     const alphaForm = await screen.findByRole('form', { name: /Close mission/i });
     fireEvent.change(within(alphaForm).getByRole('combobox', { name: /Closure outcome/i }), {
       target: { value: 'DEADLINE_EXPIRED_WITHOUT_RENEWAL' },
     });
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Beta/ }));
+    await openMissionRecord(/Mission Beta/);
     const betaForm = await screen.findByRole('form', { name: /Close mission/i });
     expect(within(betaForm).getByRole('combobox')).toHaveValue('CANCELED');
     fireEvent.click(within(betaForm).getByRole('button', { name: /^Close mission$/i }));

@@ -1,0 +1,153 @@
+{
+  "state": "after",
+  "cpuThrottle": 4,
+  "date": "2026-10-14T21:55:59.067Z",
+  "cold": {
+    "firstRowMs": {
+      "n": 5,
+      "median": 1990,
+      "p95": 2260,
+      "min": 1570,
+      "max": 2428
+    },
+    "requests": {
+      "n": 5,
+      "median": 5,
+      "p95": 5,
+      "min": 5,
+      "max": 5
+    },
+    "blockingMs": {
+      "n": 5,
+      "median": 1174,
+      "p95": 1481,
+      "min": 894,
+      "max": 1536
+    },
+    "sampleRequests": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/missions",
+      "GET /v1/messages/unread-summary"
+    ]
+  },
+  "rowActivation": {
+    "ms": {
+      "n": 20,
+      "median": 207,
+      "p95": 371,
+      "min": 158,
+      "max": 751
+    },
+    "requestsPerActivation": {
+      "n": 20,
+      "median": 0,
+      "p95": 0,
+      "min": 0,
+      "max": 0
+    },
+    "sample": []
+  },
+  "focusedRecord": {
+    "openMs": {
+      "n": 10,
+      "median": 1381,
+      "p95": 1637,
+      "min": 1291,
+      "max": 1819
+    },
+    "openRequests": {
+      "n": 10,
+      "median": 5,
+      "p95": 5,
+      "min": 5,
+      "max": 5
+    },
+    "backMs": {
+      "n": 10,
+      "median": 187,
+      "p95": 266,
+      "min": 170,
+      "max": 542
+    },
+    "backRequests": {
+      "n": 10,
+      "median": 0,
+      "p95": 0,
+      "min": 0,
+      "max": 0
+    },
+    "sampleOpen": [
+      "GET /v1/missions/:id",
+      "GET /v1/missions/:id/assignments",
+      "GET /v1/missions/:id/candidates",
+      "GET /v1/missions/:id/public-opportunity",
+      "GET /v1/missions/:id/public-opportunity/applications"
+    ]
+  },
+  "deepLink": {
+    "recordMs": {
+      "n": 3,
+      "median": 2018,
+      "p95": 2018,
+      "min": 1787,
+      "max": 2344
+    },
+    "requests": {
+      "n": 3,
+      "median": 10,
+      "p95": 10,
+      "min": 10,
+      "max": 10
+    },
+    "sample": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/missions",
+      "GET /v1/missions/:id",
+      "GET /v1/messages/unread-summary",
+      "GET /v1/missions/:id/assignments",
+      "GET /v1/missions/:id/candidates",
+      "GET /v1/missions/:id/public-opportunity",
+      "GET /v1/missions/:id/public-opportunity/applications"
+    ]
+  },
+  "memory": [
+    {
+      "cycle": 0,
+      "heapMB": 17.16,
+      "nodes": 913,
+      "listeners": 218
+    },
+    {
+      "cycle": 10,
+      "heapMB": 18.11,
+      "nodes": 8243,
+      "listeners": 588
+    },
+    {
+      "cycle": 20,
+      "heapMB": 18.79,
+      "nodes": 15570,
+      "listeners": 958
+    },
+    {
+      "cycle": 30,
+      "heapMB": 19.51,
+      "nodes": 22900,
+      "listeners": 1328
+    },
+    {
+      "cycle": 40,
+      "heapMB": 20.21,
+      "nodes": 30227,
+      "listeners": 1698
+    }
+  ],
+  "idle65s": [
+    "GET /v1/notifications",
+    "GET /v1/messages/unread-summary"
+  ]
+}
