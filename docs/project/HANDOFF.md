@@ -4,11 +4,19 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: review the Issue #196 creation drawers** (draft PR from
-  `feat/issue-196-creation-drawers` into `fix/ui-refinement-demo-20261013`). Requires
-  exact-head CI and human review of the EN/FR drawer evidence; reconcile STATUS/HANDOFF
-  wording with #199 if both land. Do not close #196: Notification Center (#199) and the
-  utility bar/wordmark scope remain. No merge/deploy automatically.
+- **Next: review the Issue #196 creation drawers** (draft PR #201 from
+  `feat/issue-196-creation-drawers` into `fix/ui-refinement-demo-20261013`). Integration
+  head `542bbf0` (#199 merged) is merged into the branch with both memory sections kept.
+  Requires exact-head CI and human review of the EN/FR drawer evidence. Do not close
+  #196: the utility bar/wordmark scope remains. No merge/deploy automatically.
+
+- **Merged: Issue #196 Notification Center Phase 1** (PR #199, merge `542bbf0`). The
+  compact AppShell popover merges the existing notification and unread-conversation DTOs,
+  keeps independent source read state and deep-links through the membership-scoped
+  Messages read. See [the architecture audit](../design/notification-center-phase-1.md).
+  Remaining: physical mobile and screen-reader acceptance. Utility Bar, Notes and
+  branding stay outside it.
+
 - **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
   `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
   review of the Messages/Candidates before/after evidence and a real-device check of

@@ -6,12 +6,29 @@ Status owner: repository maintainer
 ## Issue #196 — Missions and Clients creation drawers
 
 - Branch `feat/issue-196-creation-drawers` from integration branch
-  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged; #199 open in parallel).
+  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged); integration `542bbf0` (#199 merged) merged in.
 - Header `New mission` / `New client` actions open the existing creation flows in a
   shared right-side `CreationDrawer`; bottom-of-directory creation removed. Same
   fields, pickers, requests and permissions. Client creation success now remains
   visible (it was cleared by the selection it triggered). Issue #196 stays open.
 - [Evidence](../audit/issue-196-creation-drawers.md). Frontend only.
+
+## Issue #196 — compact Notification Center Phase 1 (merged, PR #199 `542bbf0`)
+
+- Dedicated branch `feat/issue-196-notification-center` is based on #194 integration
+  head `bd46f59` after AppShell v1.2 and Workspace Surface v1.0 merged into that
+  branch. Merged into `fix/ui-refinement-demo-20261013` through PR #199.
+- The AppShell bell combines existing own task notifications with unread PRIVATE and
+  GROUP conversation summaries. It reuses `/v1/notifications`,
+  `/v1/messages/unread-summary`, and `/v1/messages/conversations?filter=unread`; no
+  endpoint, schema, real-time transport, or message-created Notification row was
+  added. Each source keeps independent read state.
+- Exact message links use `/messages?conversation=<uuid>` and the existing
+  membership-scoped detail read. Synthetic EN/FR evidence covers 1440, 1024, 768
+  and 390px without document overflow. See
+  [the architecture note](../design/notification-center-phase-1.md) and
+  [visual evidence](../audit/notification-center-phase-1.md). Physical mobile and
+  screen-reader acceptance remain.
 
 ## Workspace Surface v1.0 and Messages layout
 
