@@ -49,6 +49,11 @@ export const enMessages = {
       listLabel: 'Suggestions for {field}',
       loading: 'Loading options…',
     },
+    drawer: {
+      discard: 'Discard changes',
+      discardPrompt: 'You have unsaved changes. Discard them?',
+      keepEditing: 'Keep editing',
+    },
   },
   navigation: {
     destinations: {
@@ -541,6 +546,7 @@ export const enMessages = {
       archiveContact: 'Archive contact',
       createClient: 'Create client',
       createContact: 'Create contact',
+      newClient: 'New client',
       region: 'Client actions',
       saveClient: 'Save client',
       saveContact: 'Save contact',
