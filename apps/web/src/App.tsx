@@ -42,7 +42,11 @@ import {
   replaceHistoryPath,
   requestNavigation,
 } from './navigation/navigation-guard.js';
-import { candidateDeepLink, recordNavigationIntent } from './navigation/record-deep-links.js';
+import {
+  candidateDeepLink,
+  missionDeepLink,
+  recordNavigationIntent,
+} from './navigation/record-deep-links.js';
 import { Button, PageHeader, TextField, StatusBadge } from './ui/index.js';
 import { PermissionGroups } from './admin/PermissionGroups.js';
 import { adminStatusTone } from './admin/role-labels.js';
@@ -338,12 +342,12 @@ function AppRoutes() {
             accessToken={accessToken}
             actorUserId={user.id}
             initialInterviewId={recordIntent.interviewId}
-            initialMissionId={recordIntent.missionId}
             initialProcessId={recordIntent.processId}
-            onSelectionChange={(missionId) =>
-              replaceRecordIntent(`/missions?mission=${encodeURIComponent(missionId)}`)
-            }
+            // Opening a record is a history entry, so Back returns to the directory.
+            onCloseRecord={() => navigateToPath('/missions')}
+            onOpenRecord={(missionId) => navigateToPath(missionDeepLink(missionId))}
             permissions={user.permissions}
+            recordMissionId={recordIntent.missionId}
           />
         );
         break;

@@ -3,19 +3,29 @@ import type {
   MissionCandidateSummary,
   MissionLifecycleState,
   MissionPlacement,
+  MissionSummary,
 } from '@hire-me/contracts';
 
-import { useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { MISSION_SIDE_BY_SIDE_MIN_REM, useStackedMasterDetailReveal } from '../layout/index.js';
+import {
+  MISSION_SIDE_BY_SIDE_MIN_REM,
+  useNarrowContainer,
+  useStackedMasterDetailReveal,
+} from '../layout/index.js';
+import { useRecordLeaveGuard } from '../navigation/use-record-leave-guard.js';
 import {
   Button,
+  EmptyState,
   InlineMessage,
   PageHeader,
   Skeleton,
   StatusBadge,
-  EmptyState,
+  WORKSPACE_SPLIT_MIN_REM,
+  WorkspacePane,
+  WorkspaceSurface,
+  WorkspaceToolbar,
 } from '../ui/index.js';
 import { MissionDetailNav } from './MissionDetailNav.js';
 import { MissionAssignments, type MissionAssignmentsModel } from './MissionAssignments.js';
@@ -25,12 +35,13 @@ import { MissionEvaluations, type MissionEvaluationsModel } from './MissionEvalu
 import { MissionFilters } from './MissionFilters.js';
 import { MissionInterviews, type MissionInterviewsModel } from './MissionInterviews.js';
 import { MissionLifecycle, type MissionClosureValues } from './MissionLifecycle.js';
-import { MissionList } from './MissionList.js';
+import { MissionDirectory } from './MissionDirectory.js';
 import { MissionOffers, type MissionOffersModel } from './MissionOffers.js';
 import type { LoadPickerOptions } from './MissionPicker.js';
 import { MissionPlacements } from './MissionPlacements.js';
 import { MissionProcess, type MissionProcessModel } from './MissionProcess.js';
 import { MissionProfile, type MissionProfileModel } from './MissionProfile.js';
+import { MissionQuickPreview } from './MissionQuickPreview.js';
 import {
   MissionPublicApplications,
   MissionPublicOpportunity,
@@ -73,7 +84,13 @@ export interface MissionListModel {
   onPage: (page: number) => void;
   onResetFilters: () => void;
   onRetry: () => void;
+  onClosePreview: () => void;
+  onPreview: (mission: MissionSummary) => void;
+  /** Opens a mission as the focused record. */
   onSelect: (missionId: string) => void;
+  /** The directory row shown in the quick preview, as the list returned it. */
+  previewMission: MissionSummary | null;
+  /** The mission open as the focused record, or null for the directory. */
   selectedId: string | null;
 }
 
@@ -141,6 +158,13 @@ function FeedbackMessage({ feedback }: { feedback: MissionFeedback }) {
   );
 }
 
+/**
+ * The Missions workspace presentation (Entity Workspace v2.0, Issue #204): a
+ * full-width directory, a quick preview of one row (side pane, or a bottom sheet on
+ * narrow workspaces), and the focused mission record, which replaces the directory.
+ * The directory's list, filters and page are the container's state, so returning
+ * from a record shows the same page without a new request.
+ */
 export function MissionsWorkspace({
   access,
   create,
@@ -149,6 +173,7 @@ export function MissionsWorkspace({
   list,
   detailSection,
   missionDetailRevealToken,
+  onCloseRecord,
   onDetailSectionChange,
   processDetailRevealToken,
   sessionKey,
@@ -161,6 +186,8 @@ export function MissionsWorkspace({
   feedback: MissionFeedback | null;
   list: MissionListModel;
   missionDetailRevealToken: number;
+  /** Leaves the focused record for the directory (asks first if input would be lost). */
+  onCloseRecord: () => void;
   onDetailSectionChange: (section: MissionDetailSection) => void;
   processDetailRevealToken: number;
   /** Names the option sources of this session, so pickers reload after a session change. */
@@ -168,15 +195,57 @@ export function MissionsWorkspace({
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const layoutContainerRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const directoryRef = useRef<HTMLDivElement>(null);
+  const listHeadingId = useId();
+  const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const filtered = hasActiveMissionFilters(list.appliedFilters);
   // Creation happens in a drawer over the directory, so list selection, filters and
-  // scroll position are untouched until a created mission is selected.
+  // scroll position are untouched until a created mission is opened.
   const [creating, setCreating] = useState(false);
+  const recordOpen = list.selectedId !== null;
+  // Too narrow for the side preview: the preview opens as a bottom sheet instead.
+  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const preview = list.previewMission;
+  const sidePreview = preview && !narrow ? preview : null;
+  // The row to focus once the directory is back on screen (closing a preview or a record).
+  const focusRowAfterRender = useRef<string | null>(null);
+  const lastRecordId = useRef<string | null>(null);
+  if (list.selectedId) {
+    lastRecordId.current = list.selectedId;
+  }
+
+  // Leaving a record returns focus to its row when that row is on the page, else the heading.
+  useEffect(() => {
+    if (recordOpen || !lastRecordId.current) return;
+    focusRowAfterRender.current = lastRecordId.current;
+    lastRecordId.current = null;
+  }, [recordOpen]);
+
+  useEffect(() => {
+    const id = focusRowAfterRender.current;
+    if (!id || recordOpen) return;
+    focusRowAfterRender.current = null;
+    const row = directoryRef.current?.querySelector<HTMLButtonElement>(
+      `button[data-mission-id="${CSS.escape(id)}"]`,
+    );
+    (row ?? listHeadingRef.current)?.focus();
+  });
+
+  function closePreview(): void {
+    if (preview) focusRowAfterRender.current = preview.id;
+    list.onClosePreview();
+  }
 
   return (
-    <section aria-label={t('missions.region')} className="missions" ref={layoutContainerRef}>
+    <section
+      aria-label={t('missions.region')}
+      className="missions ui-workspace-page"
+      data-view={recordOpen ? 'record' : 'directory'}
+      ref={rootRef}
+    >
       <PageHeader
+        compact
         description={t('missions.header.description')}
         eyebrow={t('missions.header.eyebrow')}
         primaryAction={
@@ -201,40 +270,20 @@ export function MissionsWorkspace({
       ) : null}
       {feedback ? <FeedbackMessage feedback={feedback} /> : null}
 
-      <div className="missions__workspace">
-        <div className="missions__list-pane">
-          <h2 className="missions__pane-title">{t('missions.list.title')}</h2>
-          <MissionFilters
-            busy={list.list.status === 'loading'}
-            loadClientOptions={list.loadClientFilterOptions}
-            onChange={list.onFiltersChange}
-            onReset={list.onResetFilters}
-            onSubmit={list.onApplyFilters}
-            showReset={filtered || hasActiveMissionFilters(list.filters)}
-            sourceKey={sessionKey}
-            values={list.filters}
-          />
-          <MissionList
-            filtered={filtered}
-            list={list.list}
-            onPage={list.onPage}
-            onReset={list.onResetFilters}
-            onRetry={list.onRetry}
-            onSelect={list.onSelect}
-            selectedId={list.selectedId}
-          />
-        </div>
-        <div
-          aria-label={t('missions.detail.region')}
-          className="missions__detail-pane"
-          role="region"
+      {recordOpen ? (
+        <MissionFocusedRecord
+          feedback={feedback}
+          onBack={onCloseRecord}
+          writesLocked={writesLocked}
         >
           <MissionDetailPane
             access={access}
             activeSection={detailSection}
             key={list.selectedId ?? 'none'}
-            layoutContainerRef={layoutContainerRef}
+            layoutContainerRef={rootRef}
             missionDetailRevealToken={missionDetailRevealToken}
+            // The record is the whole workspace, so its heading always takes focus on open.
+            missionSideBySideMinRem={Number.POSITIVE_INFINITY}
             model={detail}
             onSectionChange={onDetailSectionChange}
             processDetailRevealToken={processDetailRevealToken}
@@ -242,8 +291,79 @@ export function MissionsWorkspace({
             sideBySideMinRem={MISSION_SIDE_BY_SIDE_MIN_REM}
             writesLocked={writesLocked}
           />
-        </div>
-      </div>
+        </MissionFocusedRecord>
+      ) : (
+        <WorkspaceSurface
+          className="missions__workspace"
+          ref={directoryRef}
+          split="preview"
+          view={sidePreview ? undefined : 'list'}
+        >
+          <WorkspacePane
+            aria-labelledby={listHeadingId}
+            className="missions__list-pane"
+            kind="list"
+            toolbar={
+              <WorkspaceToolbar
+                heading={
+                  <h2
+                    className="missions__pane-title"
+                    id={listHeadingId}
+                    ref={listHeadingRef}
+                    tabIndex={-1}
+                  >
+                    {t('missions.directory.title')}
+                  </h2>
+                }
+              >
+                <MissionFilters
+                  appliedValues={list.appliedFilters}
+                  busy={list.list.status === 'loading'}
+                  loadClientOptions={list.loadClientFilterOptions}
+                  onChange={list.onFiltersChange}
+                  onReset={list.onResetFilters}
+                  onSubmit={list.onApplyFilters}
+                  showReset={filtered || hasActiveMissionFilters(list.filters)}
+                  sourceKey={sessionKey}
+                  values={list.filters}
+                />
+              </WorkspaceToolbar>
+            }
+          >
+            <MissionDirectory
+              filtered={filtered}
+              list={list.list}
+              onPage={list.onPage}
+              onPreview={list.onPreview}
+              onReset={list.onResetFilters}
+              onRetry={list.onRetry}
+              previewId={preview?.id ?? null}
+              tableLabelId={listHeadingId}
+            />
+          </WorkspacePane>
+          {sidePreview ? (
+            <WorkspacePane as="div" className="missions__preview-pane" kind="detail">
+              <MissionQuickPreview
+                key={sidePreview.id}
+                mission={sidePreview}
+                onClose={closePreview}
+                onOpenRecord={() => list.onSelect(sidePreview.id)}
+              />
+            </WorkspacePane>
+          ) : null}
+        </WorkspaceSurface>
+      )}
+
+      {!recordOpen && preview && narrow ? (
+        <MissionQuickPreview
+          key={preview.id}
+          mission={preview}
+          onClose={closePreview}
+          onOpenRecord={() => list.onSelect(preview.id)}
+          presentation="sheet"
+        />
+      ) : null}
+
       {access.canCreate && creating ? (
         <MissionCreateDrawer
           failure={
@@ -260,11 +380,48 @@ export function MissionsWorkspace({
   );
 }
 
+/**
+ * The focused mission record: the existing mission detail (profile, lifecycle, team,
+ * pipeline with its process, interviews, offers and placement, public opportunity)
+ * with a way back to the directory. Mission forms stay on screen after a save, so a
+ * submitted form counts as saved unless its write fails.
+ */
+function MissionFocusedRecord({
+  children,
+  feedback,
+  onBack,
+  writesLocked,
+}: {
+  children: ReactNode;
+  feedback: MissionFeedback | null;
+  onBack: () => void;
+  writesLocked: boolean;
+}) {
+  const { t } = useI18n();
+  const containerRef = useRef<HTMLDivElement>(null);
+  useRecordLeaveGuard(containerRef, t('missions.record.discardPrompt'), writesLocked, {
+    clearOnSubmit: true,
+    failureSignal: feedback?.tone === 'danger' ? feedback : null,
+  });
+
+  return (
+    <div className="mission-record" ref={containerRef}>
+      <nav aria-label={t('missions.record.navigation')} className="mission-record__nav">
+        <Button className="mission-record__back" onClick={onBack} size="compact" variant="quiet">
+          <span aria-hidden="true">←</span> {t('missions.record.back')}
+        </Button>
+      </nav>
+      {children}
+    </div>
+  );
+}
+
 function MissionDetailPane({
   access,
   activeSection,
   layoutContainerRef,
   missionDetailRevealToken,
+  missionSideBySideMinRem = MISSION_SIDE_BY_SIDE_MIN_REM,
   model,
   onSectionChange,
   processDetailRevealToken,
@@ -276,6 +433,8 @@ function MissionDetailPane({
   activeSection: MissionDetailSection;
   layoutContainerRef: RefObject<HTMLElement | null>;
   missionDetailRevealToken: number;
+  /** Width below which the mission heading takes focus on open (always, in the record). */
+  missionSideBySideMinRem?: number;
   model: MissionDetailModel;
   onSectionChange: (section: MissionDetailSection) => void;
   processDetailRevealToken: number;
@@ -291,7 +450,7 @@ function MissionDetailPane({
     containerRef: layoutContainerRef,
     ready: detail.status === 'ready',
     revealToken: missionDetailRevealToken,
-    sideBySideMinRem,
+    sideBySideMinRem: missionSideBySideMinRem,
     targetRef: missionHeadingRef,
   });
 

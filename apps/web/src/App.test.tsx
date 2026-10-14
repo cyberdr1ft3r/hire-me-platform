@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 
 import { App } from './App.js';
+import { openMissionRecord } from './missions/mission-test-navigation.js';
 
 const syntheticMissionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
@@ -1789,6 +1790,36 @@ describe('App', () => {
     expect(screen.queryByText(syntheticMissionId)).toBeNull();
   });
 
+  it('moves between the mission directory and a focused record with Back and Forward', async () => {
+    mockMissionWorkspace(['missions:view']);
+    const deepLink = `?mission=${syntheticMissionId}`;
+    window.history.pushState({}, '', `/missions${deepLink}`);
+    render(<App />);
+    await loginAs('mission-history@example.test');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Synthetic Mission' }),
+    ).toBeVisible();
+
+    // The record's own Back action is a history entry to the directory.
+    fireEvent.click(screen.getByRole('button', { name: /Back to missions/ }));
+    expect(window.location.pathname).toBe('/missions');
+    expect(window.location.search).toBe('');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Mission directory' }),
+    ).toBeVisible();
+
+    act(() => window.history.back());
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Synthetic Mission' }),
+    ).toBeVisible();
+    expect(window.location.search).toBe(deepLink);
+
+    act(() => window.history.forward());
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Mission directory' }),
+    ).toBeVisible();
+  });
+
   it('hides the accounting workspace without any accounting permission', async () => {
     mockAccountingWorkspace(['records:view']);
 
@@ -2668,7 +2699,7 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
       { name: /missions/i },
     ),
   );
-  fireEvent.click(await screen.findByRole('button', { name: /synthetic mission/i }));
+  await openMissionRecord(/synthetic mission/i);
 }
 
 async function openMissionPipelineTab(): Promise<void> {

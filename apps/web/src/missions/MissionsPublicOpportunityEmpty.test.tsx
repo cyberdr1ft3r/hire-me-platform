@@ -14,7 +14,7 @@ import {
   syntheticPublicOpportunity,
   type RecordedCall,
 } from './mission-test-data.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 
@@ -31,9 +31,9 @@ function Panel({
   ...rest
 }: {
   accessToken?: string;
-  initialMissionId?: string | null;
+  recordMissionId?: string | null;
   locale?: 'en' | 'fr';
-  onSelectionChange?: (missionId: string) => void;
+  onOpenRecord?: (missionId: string) => void;
   permissions: string[];
 }) {
   return (
@@ -41,8 +41,8 @@ function Panel({
       <MissionsPanel
         accessToken="token-a"
         actorUserId={ACTOR_ID}
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={permissions}
         {...rest}
       />
@@ -145,7 +145,7 @@ function servePublic(
 }
 
 async function selectMission(title: string, locale: 'en' | 'fr' = 'en'): Promise<void> {
-  fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${title}`) }));
+  await openMissionRecord(new RegExp(`^${title}`));
   await showMissionDetailTab('public', locale);
 }
 

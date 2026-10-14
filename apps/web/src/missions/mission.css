@@ -1,45 +1,28 @@
+/*
+ * Entity Workspace v2.0 (Issue 204): a full-width directory, a quick preview beside
+ * it (ui/workspace.css, split="preview") or as a bottom sheet on narrow workspaces,
+ * and the focused mission record, which replaces the directory.
+ */
 .missions {
   container: missions / inline-size;
   display: grid;
-  gap: var(--space-6);
-  max-width: var(--layout-content-max);
-  min-width: 0;
-}
-
-/*
- * The list and the selected mission sit side by side only when the workspace
- * itself is wide enough for both; below that the detail follows the list.
- */
-.missions__workspace {
-  align-items: start;
-  display: grid;
-  gap: var(--space-8);
-  min-width: 0;
-}
-
-@container missions (min-width: 64rem) {
-  .missions__workspace {
-    gap: var(--space-6);
-    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
-  }
-
-  .missions__list-pane {
-    border-inline-end: var(--border-width) solid var(--color-border);
-    padding-inline-end: var(--space-6);
-  }
-}
-
-.missions__list-pane,
-.missions__detail-pane {
-  align-content: start;
-  display: grid;
   gap: var(--space-4);
+  max-width: var(--layout-content-max);
   min-width: 0;
 }
 
 .missions__pane-title {
   font-size: var(--font-size-5);
   margin-bottom: 0;
+}
+
+.missions__pane-title:focus {
+  outline: none;
+}
+
+.missions__pane-title:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
 }
 
 .mission-detail__title:focus,
@@ -67,22 +50,72 @@
   overflow-wrap: anywhere;
 }
 
-/* Filters -------------------------------------------------------------- */
+/* Toolbar --------------------------------------------------------------- */
 
+/* The pane toolbar provides the rule beneath the filters; none is drawn twice. */
 .mission-filters {
-  border-block-end: var(--border-width) solid var(--color-border);
   display: grid;
   gap: var(--space-3);
-  padding-block-end: var(--space-4);
 }
 
-.mission-filters__controls {
+.mission-filters__bar {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.mission-filters__search {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+/* The search hint stays the field's accessible description and its placeholder. */
+.mission-filters__search .ui-field__hint {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: var(--border-width);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--border-width);
+}
+
+/* Aligns the buttons with the field control, below its label. */
+.mission-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-1));
+}
+
+.mission-filters__advanced {
+  align-items: start;
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 }
 
-.mission-filters__actions,
+.mission-filters__advanced[hidden] {
+  display: none;
+}
+
+.missions__list-pane > .ui-workspace__toolbar {
+  padding-block: var(--space-3);
+}
+
+@container workspace (min-width: 48rem) {
+  .missions__list-pane > .ui-workspace__toolbar {
+    align-items: start;
+    column-gap: var(--space-5);
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .missions__list-pane > .ui-workspace__toolbar > .ui-workspace__toolbar-row {
+    padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-2));
+  }
+}
+
 .mission-actions {
   display: flex;
   flex-wrap: wrap;
@@ -123,90 +156,319 @@
   min-width: 0;
 }
 
-/* List ------------------------------------------------------------------ */
+/* Directory -------------------------------------------------------------- */
 
-.mission-list {
+.mission-directory {
+  container: mission-directory / inline-size;
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
-.mission-list__count {
+.mission-directory__count {
   color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
   font-size: var(--font-size-2);
+  gap: var(--space-1) var(--space-3);
+  justify-content: space-between;
   margin-bottom: 0;
 }
 
-.mission-list__rows {
-  border-block-start: var(--border-width) solid var(--color-border);
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.mission-directory__order {
+  color: var(--color-text-muted);
 }
 
-.mission-list__row {
+.mission-directory__loading {
+  padding-block: var(--space-4);
+}
+
+.mission-directory__table {
+  border-collapse: collapse;
+  font-size: var(--font-size-2);
+  width: 100%;
+}
+
+.mission-directory__table th,
+.mission-directory__table td {
   border-block-end: var(--border-width) solid var(--color-border);
-  border-inline-start: var(--space-1) solid transparent;
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.mission-directory__table thead th {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.mission-directory__table td {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * One row per mission. The inline-start bar is transparent until previewed, so the
+ * previewed row is a visible shape as well as a fill, never color alone.
+ */
+.mission-directory__row {
+  position: relative;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
-.mission-list__row:hover {
+.mission-directory__row > th {
+  border-inline-start: var(--space-1) solid transparent;
+  font-weight: var(--font-weight-regular);
+}
+
+.mission-directory__row:hover {
   background: var(--color-table-hover);
 }
 
-.mission-list__row--selected {
+.mission-directory__row[data-previewed='true'] {
   background: var(--color-table-selected);
+}
+
+.mission-directory__row[data-previewed='true'] > th {
   border-inline-start-color: var(--color-brand);
 }
 
-.mission-list__select {
-  align-items: start;
+/* The title is the row's real button; its pseudo-element makes the row one target. */
+.mission-directory__open {
   background: transparent;
   border: 0;
   border-radius: 0;
   color: var(--color-text);
-  cursor: pointer;
-  display: grid;
-  font: inherit;
-  gap: var(--space-1);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
   min-height: 0;
-  padding: var(--space-3);
+  padding: 0;
   text-align: start;
-  width: 100%;
 }
 
-.mission-list__select:hover:not(:disabled),
-.mission-list__select:active:not(:disabled) {
+.mission-directory__open:hover:not(:disabled),
+.mission-directory__open:active:not(:disabled) {
   background: transparent;
-  color: var(--color-text);
+  border-color: transparent;
+  color: var(--color-brand-pressed);
 }
 
-.mission-list__select:focus-visible {
+.mission-directory__open::after {
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+.mission-directory__open:focus-visible {
+  outline: none;
+}
+
+.mission-directory__open:focus-visible::after {
   outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: calc(var(--focus-ring-width) * -1);
 }
 
-.mission-list__title {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  overflow-wrap: anywhere;
+/* Columns give way as the directory narrows (preview open, tablet, phone). */
+@container mission-directory (max-width: 56rem) {
+  .mission-directory__table [data-column='location'] {
+    display: none;
+  }
 }
 
-.mission-list__meta {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-2);
+@container mission-directory (max-width: 46rem) {
+  .mission-directory__table [data-column='deadline'],
+  .mission-directory__table [data-column='priority'] {
+    display: none;
+  }
 }
 
-.mission-list__row--selected .mission-list__meta {
-  color: var(--color-text-secondary);
+/* Phone: each row reads as title, client, status, without a header row. */
+@container mission-directory (max-width: 30rem) {
+  .mission-directory__table thead {
+    display: none;
+  }
+
+  .mission-directory__table tbody {
+    display: block;
+  }
+
+  .mission-directory__row {
+    border-block-end: var(--border-width) solid var(--color-border);
+    border-inline-start: var(--space-1) solid transparent;
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
+  }
+
+  .mission-directory__row[data-previewed='true'] {
+    border-inline-start-color: var(--color-brand);
+  }
+
+  .mission-directory__row > th,
+  .mission-directory__row > td {
+    border: 0;
+    padding: 0;
+  }
+
+  .mission-directory__table [data-column='positions'] {
+    display: none;
+  }
 }
 
-.mission-list__badges,
 .mission-badges {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   margin: 0;
+}
+
+/* Quick preview ----------------------------------------------------------- */
+
+.mission-preview {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.mission-preview__header {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.mission-preview__eyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-label);
+  margin-bottom: 0;
+  text-transform: uppercase;
+}
+
+.mission-preview__identity {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mission-preview__identity h2 {
+  font-size: var(--font-size-5);
+  line-height: var(--line-height-tight);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-preview__identity h2:focus {
+  outline: none;
+}
+
+.mission-preview__identity h2:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
+.mission-preview__client {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-preview__facts {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.mission-preview__facts > div {
+  display: grid;
+  gap: var(--space-0-5);
+}
+
+.mission-preview__facts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mission-preview__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mission-preview__facts dd[data-recorded='false'] {
+  color: var(--color-text-muted);
+}
+
+.mission-preview__summary {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.mission-preview__summary h3 {
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+/* A short excerpt; the full description is in the record. */
+.mission-preview__summary p {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.mission-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mission-preview--sheet {
+  justify-items: start;
+}
+
+.mission-preview--sheet .mission-preview__facts {
+  width: 100%;
+}
+
+/* Focused record ---------------------------------------------------------- */
+
+.mission-record {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+
+.mission-record__nav {
+  display: flex;
+  margin-inline-start: calc(var(--space-3) * -1);
+}
+
+.mission-record .mission-detail__title {
+  font-size: var(--font-size-7);
+}
+
+@media (max-width: 56.25rem) {
+  .mission-record {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .mission-record .mission-detail__title {
+    font-size: var(--font-size-6);
+  }
 }
 
 /* Detail ---------------------------------------------------------------- */

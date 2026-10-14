@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
 import { MissionsPanel } from './MissionsPanel.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 
@@ -69,15 +69,15 @@ describe('MissionsPanel request ownership', () => {
     render(
       <Panel
         accessToken="token-a"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={(missionId: string) =>
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={(missionId: string) =>
           window.history.replaceState({}, '', `/missions?mission=${missionId}`)
         }
         permissions={['missions:view', 'mission_assignments:view']}
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Mission B/ }));
+    await openMissionRecord(/^Mission B/);
     expect(window.location.search).toBe(`?mission=${MISSION_B_ID}`);
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission B' })).toBeVisible();
     await showMissionDetailTab('team');
@@ -143,8 +143,8 @@ describe('MissionsPanel request ownership', () => {
     const view = render(
       <Panel
         accessToken="token-a"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={() => undefined}
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={() => undefined}
         permissions={permissions}
       />,
     );
@@ -158,13 +158,13 @@ describe('MissionsPanel request ownership', () => {
     view.rerender(
       <Panel
         accessToken="token-b"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={() => undefined}
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={() => undefined}
         permissions={permissions}
       />,
     );
     expect(screen.queryByRole('heading', { level: 2, name: 'Mission A' })).toBeNull();
-    fireEvent.click(await screen.findByRole('button', { name: /^Mission B/ }));
+    await openMissionRecord(/^Mission B/);
     expect(await screen.findByRole('heading', { level: 2, name: 'Mission B' })).toBeVisible();
 
     await settle(missionAAssignments, assignmentListResponse([]));
@@ -227,8 +227,8 @@ describe('MissionsPanel request ownership', () => {
     const view = render(
       <Panel
         accessToken="same-token"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={() => undefined}
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={() => undefined}
         permissions={fullPermissions}
       />,
     );
@@ -240,8 +240,8 @@ describe('MissionsPanel request ownership', () => {
     view.rerender(
       <Panel
         accessToken="same-token"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={() => undefined}
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={() => undefined}
         permissions={['missions:view']}
       />,
     );
@@ -282,8 +282,8 @@ describe('MissionsPanel request ownership', () => {
     render(
       <Panel
         accessToken="limited-token"
-        initialMissionId={MISSION_A_ID}
-        onSelectionChange={() => undefined}
+        recordMissionId={MISSION_A_ID}
+        onOpenRecord={() => undefined}
         permissions={[
           'missions:view',
           'mission_assignments:view',
@@ -364,13 +364,13 @@ describe('MissionsPanel request ownership', () => {
     render(
       <Panel
         accessToken="staff-token"
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={['missions:view', 'public_opportunities:view', 'public_opportunities:manage']}
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await openMissionRecord(/^Mission A/);
     await showMissionDetailTab('public');
     const certificationEnabled = await screen.findByRole('checkbox', {
       name: 'Certifications enabled',
@@ -463,12 +463,12 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
     render(
       <Panel
         accessToken="staff-token"
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={['missions:view', 'public_opportunities:view', 'public_opportunities:manage']}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await openMissionRecord(/^Mission A/);
     await showMissionDetailTab('public');
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });
@@ -526,12 +526,12 @@ describe('MissionsPanel public opportunity content language (D-070)', () => {
     render(
       <Panel
         accessToken="staff-token"
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={['missions:view', 'public_opportunities:view']}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /^Mission A/ }));
+    await openMissionRecord(/^Mission A/);
     await showMissionDetailTab('public');
 
     const select = await screen.findByRole('combobox', { name: 'Job content language' });

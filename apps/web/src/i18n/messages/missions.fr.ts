@@ -56,6 +56,15 @@ export const missionsFr: Messages['missions'] = {
     searchHint: 'Intitulé, description, prérequis ou nom du client',
     state: 'Statut',
     submit: 'Appliquer les filtres',
+    toggle: 'Filtres',
+    toggleActive: 'Filtres ({count})',
+  },
+  directory: {
+    columns: {
+      mission: 'Mission',
+    },
+    order: 'Plus récentes d’abord',
+    title: 'Répertoire des missions',
   },
   empty: {
     noMatches: 'Aucune mission ne correspond à ces filtres.',
@@ -91,6 +100,18 @@ export const missionsFr: Messages['missions'] = {
     selectPromptTitle: 'Aucune mission sélectionnée',
     terminalNotice: 'Cette mission est clôturée. Ses données sont en lecture seule.',
     terminalNoticeTitle: 'Mission clôturée',
+  },
+  preview: {
+    close: 'Fermer l’aperçu',
+    eyebrow: 'Aperçu rapide',
+    openRecord: 'Ouvrir la fiche complète',
+    updated: 'Dernière mise à jour',
+  },
+  record: {
+    back: 'Retour aux missions',
+    discardPrompt:
+      'Cette mission a des modifications non enregistrées. Quitter et les abandonner ?',
+    navigation: 'Navigation de la fiche mission',
   },
   profile: {
     commercial: {

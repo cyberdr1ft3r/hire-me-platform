@@ -13,7 +13,7 @@ import {
   syntheticOffer,
   syntheticProcess,
 } from './mission-test-data.js';
-import { showMissionDetailTab } from './mission-test-navigation.js';
+import { showMissionDetailTab, openMissionRecord } from './mission-test-navigation.js';
 
 const ACTOR_ID = '12121212-1212-4121-8121-121212121212';
 const PROCESS_A = syntheticProcess(MISSION_A_ID, 'Alex Candidate', { clientVisible: true });
@@ -47,8 +47,8 @@ function renderPanel(
       <MissionsPanel
         accessToken="token"
         actorUserId={ACTOR_ID}
-        initialMissionId={null}
-        onSelectionChange={() => undefined}
+        recordMissionId={null}
+        onOpenRecord={() => undefined}
         permissions={[...permissions]}
         {...overrides}
       />
@@ -119,7 +119,7 @@ describe('Missions placement confirmation form', () => {
 
     renderPanel();
     await screen.findByRole('button', { name: /Mission Alpha/ });
-    fireEvent.click(screen.getByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     await screen.findByRole('form', { name: /Confirm placement/i });
@@ -147,7 +147,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     const form = await screen.findByRole('form', { name: /Confirm placement/i });
@@ -200,7 +200,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     const form = await screen.findByRole('form', { name: /Confirm placement/i });
@@ -254,11 +254,11 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     await screen.findByRole('form', { name: /Confirm placement/i });
-    fireEvent.click(screen.getByRole('button', { name: /Mission Beta/ }));
+    await openMissionRecord(/Mission Beta/);
     expect(screen.queryByRole('form', { name: /Confirm placement/i })).not.toBeInTheDocument();
     expect(confirmCalls).toHaveLength(0);
   });
@@ -284,13 +284,13 @@ describe('Missions placement confirmation form', () => {
         <MissionsPanel
           accessToken="token"
           actorUserId={ACTOR_ID}
-          initialMissionId={null}
-          onSelectionChange={() => undefined}
+          recordMissionId={null}
+          onOpenRecord={() => undefined}
           permissions={[...PLACEMENT_PERMISSIONS]}
         />
       </I18nProvider>,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess('fr');
     fireEvent.click(screen.getByRole('button', { name: /^Confirmer le placement$/i }));
     expect(
@@ -343,7 +343,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel(PLACEMENT_UPDATE_PERMISSIONS);
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     const form = await screen.findByRole('form', { name: /Confirm placement/i });
@@ -403,7 +403,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel(PLACEMENT_PERMISSIONS);
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     const form = await screen.findByRole('form', { name: /Confirm placement/i });
@@ -450,7 +450,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     await screen.findByRole('form', { name: /Confirm placement/i });
@@ -494,7 +494,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     await screen.findByRole('form', { name: /Confirm placement/i });
@@ -530,7 +530,7 @@ describe('Missions placement confirmation form', () => {
     });
 
     renderPanel(permissions);
-    fireEvent.click(await screen.findByRole('button', { name: /Mission Alpha/ }));
+    await openMissionRecord(/Mission Alpha/);
     await openAcceptedOfferProcess();
     fireEvent.click(screen.getByRole('button', { name: /^Confirm placement$/i }));
     const form = await screen.findByRole('form', { name: /Confirm placement/i });

@@ -58,6 +58,15 @@ export const missionsEn = {
     searchHint: 'Title, description, requirements, or client name',
     state: 'Status',
     submit: 'Apply filters',
+    toggle: 'Filters',
+    toggleActive: 'Filters ({count})',
+  },
+  directory: {
+    columns: {
+      mission: 'Mission',
+    },
+    order: 'Newest first',
+    title: 'Mission directory',
   },
   empty: {
     noMatches: 'No missions match these filters.',
@@ -92,6 +101,17 @@ export const missionsEn = {
     selectPromptTitle: 'No mission selected',
     terminalNotice: 'This mission is closed. Its records are read-only.',
     terminalNoticeTitle: 'Closed mission',
+  },
+  preview: {
+    close: 'Close preview',
+    eyebrow: 'Quick preview',
+    openRecord: 'Open full record',
+    updated: 'Last updated',
+  },
+  record: {
+    back: 'Back to missions',
+    discardPrompt: 'This mission has unsaved changes. Leave and discard them?',
+    navigation: 'Mission record navigation',
   },
   profile: {
     commercial: {
