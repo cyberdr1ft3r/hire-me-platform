@@ -11,6 +11,7 @@ import { useI18n } from '../../i18n/index.js';
 import { routeToPath, type InternalRoute } from '../../navigation/internal-navigation.js';
 import { Button } from '../Button.js';
 import { LanguageSelect } from './LanguageSelect.js';
+import { NotificationCenter, type NotificationCenterProps } from './NotificationCenter.js';
 import { ShellIcon } from './ShellIcon.js';
 import {
   domainForRoute,
@@ -34,6 +35,7 @@ interface AppShellProps {
   children: ReactNode;
   currentRoute: InternalRoute;
   navigationBadges?: Partial<Record<InternalRoute, NavigationBadge>>;
+  notificationCenter?: Omit<NotificationCenterProps, 'permissions'>;
   onLogout: () => void | Promise<void>;
   onNavigate: (route: InternalRoute) => void;
   onRefreshUser: () => void | Promise<void>;
@@ -62,6 +64,7 @@ export function AppShell({
   children,
   currentRoute,
   navigationBadges,
+  notificationCenter,
   onLogout,
   onNavigate,
   onRefreshUser,
@@ -395,27 +398,35 @@ export function AppShell({
             <span aria-hidden="true">/</span>
             <span>{currentLabel}</span>
           </div>
-          {!mobile ? (
-            <div className="app-shell__utilities">
-              {health}
-              <LanguageSelect />
-              <details
-                className="app-shell__account"
-                ref={accountRef}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape' && accountRef.current) {
-                    accountRef.current.open = false;
-                    accountRef.current.querySelector('summary')?.focus();
-                  }
-                }}
-              >
-                <summary aria-label={t('shell.session.account')} title={t('shell.session.account')}>
-                  <ShellIcon name="account" />
-                </summary>
-                {session}
-              </details>
-            </div>
-          ) : null}
+          <div className="app-shell__utilities">
+            {notificationCenter ? (
+              <NotificationCenter {...notificationCenter} permissions={user.permissions} />
+            ) : null}
+            {!mobile ? (
+              <>
+                {health}
+                <LanguageSelect />
+                <details
+                  className="app-shell__account"
+                  ref={accountRef}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape' && accountRef.current) {
+                      accountRef.current.open = false;
+                      accountRef.current.querySelector('summary')?.focus();
+                    }
+                  }}
+                >
+                  <summary
+                    aria-label={t('shell.session.account')}
+                    title={t('shell.session.account')}
+                  >
+                    <ShellIcon name="account" />
+                  </summary>
+                  {session}
+                </details>
+              </>
+            ) : null}
+          </div>
         </header>
         <main
           className="app-shell__main"
