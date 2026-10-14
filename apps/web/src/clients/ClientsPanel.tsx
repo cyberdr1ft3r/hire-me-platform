@@ -411,10 +411,11 @@ export function ClientsPanel({
     setAppliedContactQuery(FIRST_CONTACT_PAGE);
   }
 
-  async function handleCreateClient(event: FormEvent<HTMLFormElement>): Promise<void> {
+  /** Resolves true only when the client was created for the current selection context. */
+  async function handleCreateClient(event: FormEvent<HTMLFormElement>): Promise<boolean> {
     event.preventDefault();
     if (!access.canCreateClients || !beginWrite('createClient')) {
-      return;
+      return false;
     }
     const isCurrent = captureSelectionContext();
     const startedSession = sessionToken.current;
@@ -427,13 +428,17 @@ export function ClientsPanel({
       refreshClientListAfterWrite(startedSession);
       if (isCurrent()) {
         setCreateClientValues(EMPTY_CREATE_CLIENT);
-        setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdClient' });
+        // Selecting resets page feedback, so announce the creation after selecting it.
         selectClient(created.client.id);
+        setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdClient' });
+        return true;
       }
+      return false;
     } catch {
       if (isCurrent()) {
         setFeedback({ tone: 'danger', messageKey: 'clients.feedback.failure.createClient' });
       }
+      return false;
     } finally {
       endWrite();
     }
@@ -719,7 +724,7 @@ export function ClientsPanel({
         appliedContactQueryRef.current = next;
         setAppliedContactQuery(next);
       }}
-      onCreateClient={(event) => void handleCreateClient(event)}
+      onCreateClient={handleCreateClient}
       onCreateClientValuesChange={setCreateClientValues}
       onCreateContact={(event) => void handleCreateContact(event)}
       onCreateContactValuesChange={setCreateContactValues}

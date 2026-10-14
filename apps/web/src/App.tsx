@@ -35,6 +35,12 @@ import {
   routeToPath,
   type InternalRoute,
 } from './navigation/internal-navigation.js';
+import {
+  acceptHistoryTraversal,
+  initializeHistoryIndex,
+  pushHistoryPath,
+  replaceHistoryPath,
+} from './navigation/navigation-guard.js';
 import { recordNavigationIntent } from './navigation/record-deep-links.js';
 import { Button, PageHeader, TextField, StatusBadge } from './ui/index.js';
 import { PermissionGroups } from './admin/PermissionGroups.js';
@@ -122,11 +128,15 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
-    const handlePopState = () =>
+    initializeHistoryIndex();
+    const handlePopState = (event: PopStateEvent) => {
+      // A dirty drawer may hold Back/Forward for confirmation (navigation-guard.ts).
+      if (!acceptHistoryTraversal(event.state)) return;
       setLocation({
         route: pathToRoute(window.location.pathname),
         search: window.location.search,
       });
+    };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -209,12 +219,12 @@ function AppRoutes() {
 
   function navigate(nextRoute: InternalRoute): void {
     const path = routeToPath(nextRoute);
-    window.history.pushState({}, '', path);
+    pushHistoryPath(path);
     setLocation({ route: nextRoute, search: '' });
   }
 
   function navigateToPath(path: string): void {
-    window.history.pushState({}, '', path);
+    pushHistoryPath(path);
     setLocation({
       route: pathToRoute(new URL(path, window.location.origin).pathname),
       search: new URL(path, window.location.origin).search,
@@ -222,7 +232,7 @@ function AppRoutes() {
   }
 
   function replaceRecordIntent(path: string): void {
-    window.history.replaceState({}, '', path);
+    replaceHistoryPath(path);
     setLocation({
       route: pathToRoute(new URL(path, window.location.origin).pathname),
       search: new URL(path, window.location.origin).search,
@@ -348,6 +358,7 @@ function AppRoutes() {
           <MessagesPanel
             accessToken={accessToken}
             actorUserId={user.id}
+            initialConversationId={recordIntent.conversationId}
             onUnreadChanged={unreadMessages.refresh}
             permissions={user.permissions}
           />
@@ -413,6 +424,12 @@ function AppRoutes() {
     <AppShell
       apiState={apiState}
       currentRoute={route}
+      notificationCenter={{
+        accessToken,
+        messageUnreadCount: unreadMessages.count,
+        onMessageUnreadChanged: unreadMessages.refresh,
+        onNavigatePath: navigateToPath,
+      }}
       navigationBadges={
         unreadMessages.count
           ? {
