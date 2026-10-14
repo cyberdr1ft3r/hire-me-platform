@@ -84,6 +84,132 @@ afterEach(() => {
 });
 
 describe('NotificationCenter', () => {
+  it('dismisses on a pointer outside while restoring focus to the bell', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [], nextCursor: null });
+      }
+      return json({
+        notifications: [],
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 25, total: 0 },
+      });
+    });
+
+    renderCenter();
+    const bell = await screen.findByRole('button', { name: 'Notifications, 1 unread item' });
+    fireEvent.click(bell);
+    expect(await screen.findByRole('region', { name: 'Notifications' })).toBeVisible();
+
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Notifications' })).toBeNull());
+    await waitFor(() => expect(bell).toHaveFocus());
+  });
+
+  it('dismisses when focus genuinely leaves the boundary without stealing the new focus', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [], nextCursor: null });
+      }
+      return json({
+        notifications: [],
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 25, total: 0 },
+      });
+    });
+
+    render(
+      <>
+        <button type="button">+ New client</button>
+        <I18nProvider initialLocale="en">
+          <NotificationCenter
+            accessToken="token"
+            messageUnreadCount={0}
+            onMessageUnreadChanged={() => undefined}
+            onNavigatePath={vi.fn()}
+            permissions={['notifications:view_own']}
+          />
+        </I18nProvider>
+      </>,
+    );
+    const newClient = screen.getByRole('button', { name: '+ New client' });
+    const bell = await screen.findByRole('button', { name: 'Notifications' });
+    fireEvent.click(bell);
+    const panel = await screen.findByRole('region', { name: 'Notifications' });
+    const heading = screen.getByRole('heading', { name: 'Notifications' });
+
+    // This is the keyboard path: Tab moves to the creation trigger behind the
+    // popover. The transition is outside the boundary and must dismiss it.
+    fireEvent.blur(heading, { relatedTarget: newClient });
+    newClient.focus();
+
+    expect(panel).not.toBeInTheDocument();
+    expect(newClient).toHaveFocus();
+  });
+
+  it('keeps focus transitions inside the popover interactive', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [], nextCursor: null });
+      }
+      return json({
+        notifications: [],
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 25, total: 0 },
+      });
+    });
+
+    renderCenter();
+    const bell = await screen.findByRole('button', { name: 'Notifications, 1 unread item' });
+    fireEvent.click(bell);
+    const panel = await screen.findByRole('region', { name: 'Notifications' });
+    const heading = screen.getByRole('heading', { name: 'Notifications' });
+    fireEvent.blur(heading, { relatedTarget: panel });
+
+    expect(panel).toBeInTheDocument();
+  });
+
+  it('dismisses when a modal drawer takes focus', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [], nextCursor: null });
+      }
+      return json({
+        notifications: [],
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 25, total: 0 },
+      });
+    });
+
+    render(
+      <>
+        <div aria-label="Create client" role="dialog" tabIndex={-1}>
+          Client creation drawer
+        </div>
+        <I18nProvider initialLocale="en">
+          <NotificationCenter
+            accessToken="token"
+            messageUnreadCount={0}
+            onMessageUnreadChanged={() => undefined}
+            onNavigatePath={vi.fn()}
+            permissions={['notifications:view_own']}
+          />
+        </I18nProvider>
+      </>,
+    );
+    const drawer = screen.getByRole('dialog', { name: 'Create client' });
+    const bell = await screen.findByRole('button', { name: 'Notifications' });
+    fireEvent.click(bell);
+    const panel = await screen.findByRole('region', { name: 'Notifications' });
+    fireEvent.blur(screen.getByRole('heading', { name: 'Notifications' }), {
+      relatedTarget: drawer,
+    });
+    drawer.focus();
+
+    expect(panel).not.toBeInTheDocument();
+    expect(drawer).toHaveFocus();
+  });
+
   it('combines authorized activity while keeping mark-all scoped to Notification rows', async () => {
     const calls: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {

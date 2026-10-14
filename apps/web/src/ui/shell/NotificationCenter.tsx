@@ -217,7 +217,18 @@ export function NotificationCenter(props: NotificationCenterProps) {
   if (!canViewNotifications && !canViewMessages) return null;
 
   return (
-    <div className="notification-center" ref={rootRef}>
+    <div
+      className="notification-center"
+      onBlur={(event) => {
+        // Focus may move from the popover to a control behind it (for example a
+        // creation-drawer trigger). Treat that as leaving the interaction
+        // boundary, but keep focus on the new target instead of stealing it
+        // back to the bell. Blurs between descendants remain inside the panel.
+        const nextTarget = event.relatedTarget;
+        if (!nextTarget || !rootRef.current?.contains(nextTarget)) close(false);
+      }}
+      ref={rootRef}
+    >
       <button
         aria-controls="notification-center-panel"
         aria-expanded={open}
