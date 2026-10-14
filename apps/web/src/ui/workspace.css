@@ -138,6 +138,28 @@
 }
 
 /*
+ * Directory with a preview: the list keeps the remaining width and the preview is a
+ * compact column, only while a preview pane exists. Below the split width the
+ * preview stacks after the list.
+ */
+@container workspace (min-width: 44rem) {
+  .ui-workspace[data-split='preview'] > .ui-workspace__layout:has(> [data-pane='detail']) {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+
+  .ui-workspace[data-split='preview'] > .ui-workspace__layout > .ui-workspace__pane {
+    display: flex;
+  }
+
+  .ui-workspace[data-split='preview']
+    > .ui-workspace__layout:has(> [data-pane='detail'])
+    > [data-pane='list'] {
+    border-block-end: 0;
+    border-inline-end: var(--border-width) solid var(--color-border);
+  }
+}
+
+/*
  * Fill layout. The shell gives `fill` routes a definite height (app-shell.css);
  * the page passes it down and every pane body becomes its own scroll owner. A
  * minimum surface height protects short or zoomed viewports: if the page cannot
@@ -186,6 +208,20 @@
 
     .app-shell[data-layout='fill']
       .ui-workspace[data-split='standard']
+      > .ui-workspace__layout
+      .ui-workspace__pane-body {
+      overflow-y: auto;
+    }
+  }
+
+  @container workspace (min-width: 44rem) {
+    .app-shell[data-layout='fill'] .ui-workspace[data-split='preview'] > .ui-workspace__layout {
+      flex: 1 1 auto;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .app-shell[data-layout='fill']
+      .ui-workspace[data-split='preview']
       > .ui-workspace__layout
       .ui-workspace__pane-body {
       overflow-y: auto;
