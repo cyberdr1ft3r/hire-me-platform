@@ -1,0 +1,25 @@
+{
+  "scenario": "poll",
+  "cpuThrottle": 1,
+  "date": "2026-10-14T01:23:03.146Z",
+  "web": "http://localhost:5610",
+  "idle": {
+    "/clients": {
+      "minutes": 3,
+      "total": 3,
+      "perMinute": 1,
+      "byPath": {
+        "/v1/messages/unread-summary": 3
+      }
+    },
+    "/messages": {
+      "minutes": 3,
+      "total": 9,
+      "perMinute": 3,
+      "byPath": {
+        "/v1/messages/conversations": 6,
+        "/v1/messages/unread-summary": 3
+      }
+    }
+  }
+}

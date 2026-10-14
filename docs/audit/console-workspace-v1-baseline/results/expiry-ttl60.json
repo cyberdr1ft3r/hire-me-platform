@@ -1,0 +1,18 @@
+{
+  "scenario": "expiry",
+  "cpuThrottle": 1,
+  "date": "2026-10-14T01:33:45.433Z",
+  "web": "http://localhost:5610",
+  "expiry": {
+    "waitedSeconds": 75,
+    "requests": [
+      "GET /v1/candidates?page=1&pageSize=20"
+    ],
+    "statuses": [
+      401
+    ],
+    "alerts": [
+      "Candidates unavailableUnable to load candidates.Try again"
+    ]
+  }
+}
