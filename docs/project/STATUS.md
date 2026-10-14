@@ -3,6 +3,16 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
+## Issue #196 — Missions and Clients creation drawers
+
+- Branch `feat/issue-196-creation-drawers` from integration branch
+  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged; #199 open in parallel).
+- Header `New mission` / `New client` actions open the existing creation flows in a
+  shared right-side `CreationDrawer`; bottom-of-directory creation removed. Same
+  fields, pickers, requests and permissions. Client creation success now remains
+  visible (it was cleared by the selection it triggered). Issue #196 stays open.
+- [Evidence](../audit/issue-196-creation-drawers.md). Frontend only.
+
 ## Workspace Surface v1.0 and Messages layout
 
 - Branch `feat/workspace-surface-v1` from #194 head `25f8190` (AppShell v1.2 merged

@@ -4,6 +4,11 @@ Last updated: 2026-10-14
 
 ## Current situation
 
+- **Next: review the Issue #196 creation drawers** (draft PR from
+  `feat/issue-196-creation-drawers` into `fix/ui-refinement-demo-20261013`). Requires
+  exact-head CI and human review of the EN/FR drawer evidence; reconcile STATUS/HANDOFF
+  wording with #199 if both land. Do not close #196: Notification Center (#199) and the
+  utility bar/wordmark scope remain. No merge/deploy automatically.
 - **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
   `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
   review of the Messages/Candidates before/after evidence and a real-device check of
