@@ -16,7 +16,8 @@ Status owner: repository maintainer
 - Exact message links use `/messages?conversation=<uuid>` and the existing
   membership-scoped detail read. Synthetic EN/FR evidence covers 1440, 1024, 768
   and 390px without document overflow. See
-  [the architecture note](../design/notification-center-phase-1.md). Human review
+  [the architecture note](../design/notification-center-phase-1.md) and
+  [visual evidence](../audit/notification-center-phase-1.md). Human review
   and exact-head CI remain required; do not merge or deploy automatically.
 
 ## Workspace Surface v1.0 and Messages layout
