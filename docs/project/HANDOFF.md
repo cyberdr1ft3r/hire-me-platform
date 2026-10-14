@@ -4,6 +4,12 @@ Last updated: 2026-10-14
 
 ## Current situation
 
+- **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
+  PR (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
+  maintainer answers to the ADR open questions and clickable interaction evidence.
+  Phase B0 (request core) and B1 (lazy routes) are the first implementation PRs, only
+  after approval. No merge/deploy automatically.
+
 - **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
   `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
   review of the Messages/Candidates before/after evidence and a real-device check of

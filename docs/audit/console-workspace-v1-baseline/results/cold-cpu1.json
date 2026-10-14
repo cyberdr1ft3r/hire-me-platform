@@ -1,0 +1,250 @@
+{
+  "scenario": "cold",
+  "cpuThrottle": 1,
+  "date": "2026-10-14T01:30:28.118Z",
+  "web": "http://localhost:5610",
+  "runs": [
+    {
+      "domContentLoadedMs": 955.1999999880791,
+      "loadMs": 955.5999999940395,
+      "fcpMs": 1148,
+      "loginFormLcpMs": 1148,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 593,
+      "longestTaskMs": 643,
+      "scriptDurationMs": 712.2,
+      "jsHeapAfterLoadMB": 15.59,
+      "loginToShellMs": 206,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 434,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 97,
+        "lcpMs": 224
+      }
+    },
+    {
+      "domContentLoadedMs": 209.09999999403954,
+      "loadMs": 209.2999999821186,
+      "fcpMs": 236,
+      "loginFormLcpMs": 236,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 66,
+      "longestTaskMs": 116,
+      "scriptDurationMs": 119.9,
+      "jsHeapAfterLoadMB": 41.68,
+      "loginToShellMs": 149,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 493,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 90,
+        "lcpMs": 208
+      }
+    },
+    {
+      "domContentLoadedMs": 527.1999999880791,
+      "loadMs": 527.4000000059605,
+      "fcpMs": 572,
+      "loginFormLcpMs": 572,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 281,
+      "longestTaskMs": 331,
+      "scriptDurationMs": 341.1,
+      "jsHeapAfterLoadMB": 66.98,
+      "loginToShellMs": 154,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 404,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 110,
+        "lcpMs": 240
+      }
+    },
+    {
+      "domContentLoadedMs": 233,
+      "loadMs": 233.2000000178814,
+      "fcpMs": 256,
+      "loginFormLcpMs": 256,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 91,
+      "longestTaskMs": 141,
+      "scriptDurationMs": 146.2,
+      "jsHeapAfterLoadMB": 132.27,
+      "loginToShellMs": 148,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 309,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 73,
+        "lcpMs": 192
+      }
+    },
+    {
+      "domContentLoadedMs": 207.09999999403954,
+      "loadMs": 207.19999998807907,
+      "fcpMs": 244,
+      "loginFormLcpMs": 244,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 70,
+      "longestTaskMs": 120,
+      "scriptDurationMs": 124,
+      "jsHeapAfterLoadMB": 15.76,
+      "loginToShellMs": 168,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 340,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 69,
+        "lcpMs": 192
+      }
+    },
+    {
+      "domContentLoadedMs": 202.39999997615814,
+      "loadMs": 202.5,
+      "fcpMs": 228,
+      "loginFormLcpMs": 228,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 67,
+      "longestTaskMs": 117,
+      "scriptDurationMs": 121.5,
+      "jsHeapAfterLoadMB": 15.76,
+      "loginToShellMs": 258,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 822,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/candidates 200",
+          "GET /v1/messages/unread-summary 200"
+        ],
+        "blockingMs": 299,
+        "lcpMs": 468
+      }
+    },
+    {
+      "domContentLoadedMs": 285.40000000596046,
+      "loadMs": 285.5,
+      "fcpMs": 308,
+      "loginFormLcpMs": 308,
+      "transferKB": 314,
+      "decodedKB": 1336,
+      "longTasks": 1,
+      "blockingMs": 103,
+      "longestTaskMs": 153,
+      "scriptDurationMs": 158.2,
+      "jsHeapAfterLoadMB": 15.77,
+      "loginToShellMs": 175,
+      "restored": false,
+      "reloadToCandidatesSettledMs": null,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 429"
+        ],
+        "blockingMs": 75,
+        "lcpMs": 208
+      }
+    }
+  ],
+  "domContentLoadedMs": {
+    "n": 7,
+    "median": 233,
+    "p95": 955.2,
+    "max": 955.2
+  },
+  "fcpMs": {
+    "n": 7,
+    "median": 256,
+    "p95": 1148,
+    "max": 1148
+  },
+  "loginFormLcpMs": {
+    "n": 7,
+    "median": 256,
+    "p95": 1148,
+    "max": 1148
+  },
+  "loadMs": {
+    "n": 7,
+    "median": 233.2,
+    "p95": 955.6,
+    "max": 955.6
+  },
+  "scriptDurationMs": {
+    "n": 7,
+    "median": 146.2,
+    "p95": 712.2,
+    "max": 712.2
+  },
+  "blockingMs": {
+    "n": 7,
+    "median": 91,
+    "p95": 593,
+    "max": 593
+  },
+  "longestTaskMs": {
+    "n": 7,
+    "median": 141,
+    "p95": 643,
+    "max": 643
+  },
+  "loginToShellMs": {
+    "n": 7,
+    "median": 168,
+    "p95": 258,
+    "max": 258
+  },
+  "reloadToCandidatesSettledMs": {
+    "n": 6,
+    "median": 404,
+    "p95": 822,
+    "max": 822
+  },
+  "transferKB": 314,
+  "restorationFailures": [
+    [
+      "GET /health 200",
+      "POST /auth/refresh 429"
+    ]
+  ],
+  "decodedKB": 1336
+}

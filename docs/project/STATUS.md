@@ -3,6 +3,19 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
+## Console Workspace v1.0 preflight (Issue #198)
+
+- Documentation-only draft PR on `docs/issue-198-console-workspace-preflight`, based on
+  integration branch `fix/ui-refinement-demo-20261013` at `bd46f59`; targets that
+  branch. #194 and Notification Center #199 remain open and untouched.
+- [Preflight](../design/console-workspace-v1-preflight.md), [ADR proposal D-089](../design/console-workspace-v1-adr-proposed.md),
+  [interaction matrix](../design/console-workspace-v1-interaction-matrix.md) and
+  [performance baseline](../audit/console-workspace-v1-baseline.md) with reproducible
+  synthetic-data scripts. No application code changed.
+- Key findings: single 303 KB-gzip chunk with no lazy routes; every workspace revisit
+  refetches (no cache); no dirty-form protection; module requests do not refresh
+  expired tokens (R-057). Clickable interaction prototype still outstanding.
+
 ## Workspace Surface v1.0 and Messages layout
 
 - Branch `feat/workspace-surface-v1` from #194 head `25f8190` (AppShell v1.2 merged

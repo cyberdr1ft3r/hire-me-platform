@@ -1,0 +1,44 @@
+{
+  "scenario": "deeplink",
+  "cpuThrottle": 4,
+  "date": "2026-10-14T01:32:59.366Z",
+  "web": "http://localhost:5610",
+  "deeplinks": {
+    "/candidates": {
+      "settledMs": {
+        "n": 5,
+        "median": 2193.5,
+        "p95": 5522.5,
+        "max": 5522.5
+      },
+      "requests": [
+        "GET /health",
+        "POST /auth/refresh",
+        "GET /v1/candidates",
+        "GET /v1/candidates/66af31a5-8f17-44d6-ba44-ed73800a1bb3",
+        "GET /v1/messages/unread-summary"
+      ],
+      "urlPreserved": true
+    },
+    "/missions": {
+      "settledMs": {
+        "n": 5,
+        "median": 3926.7,
+        "p95": 5955.9,
+        "max": 5955.9
+      },
+      "requests": [
+        "GET /health",
+        "POST /auth/refresh",
+        "GET /v1/missions",
+        "GET /v1/missions/fc34a893-7e9a-43ce-ae0b-18c4c9b93109",
+        "GET /v1/messages/unread-summary",
+        "GET /v1/missions/fc34a893-7e9a-43ce-ae0b-18c4c9b93109/assignments",
+        "GET /v1/missions/fc34a893-7e9a-43ce-ae0b-18c4c9b93109/candidates",
+        "GET /v1/missions/fc34a893-7e9a-43ce-ae0b-18c4c9b93109/public-opportunity",
+        "GET /v1/missions/fc34a893-7e9a-43ce-ae0b-18c4c9b93109/public-opportunity/applications"
+      ],
+      "urlPreserved": true
+    }
+  }
+}
