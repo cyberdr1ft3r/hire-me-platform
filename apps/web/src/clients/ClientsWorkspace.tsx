@@ -1,6 +1,6 @@
 import type { ClientContactSummary, ClientStatus } from '@hire-me/contracts';
-import type { FormEvent } from 'react';
-import { useRef } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../layout/index.js';
 import {
   Button,
+  CreationDrawer,
   InlineMessage,
   PageHeader,
   StatusBadge,
@@ -122,7 +123,8 @@ export function ClientsWorkspace({
   onClientPage: (page: number) => void;
   onContactFiltersChange: (values: ContactFilterValues) => void;
   onContactPage: (page: number) => void;
-  onCreateClient: (event: FormEvent<HTMLFormElement>) => void;
+  /** Resolves true once the client exists; the drawer closes only then. */
+  onCreateClient: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
   onCreateClientValuesChange: (values: ClientCreateValues) => void;
   onCreateContact: (event: FormEvent<HTMLFormElement>) => void;
   onCreateContactValuesChange: (values: ContactCreateValues) => void;
@@ -145,6 +147,9 @@ export function ClientsWorkspace({
 }) {
   const { t } = useI18n();
   const layoutContainerRef = useRef<HTMLElement>(null);
+  // Creation happens in a drawer over the directory, so selection, filters and
+  // scroll position are untouched until a created client is selected.
+  const [creatingClient, setCreatingClient] = useState(false);
   const clientHeadingRef = useRef<HTMLHeadingElement>(null);
   const contactHeadingRef = useRef<HTMLHeadingElement>(null);
   const listBusy = clientList.status === 'loading';
@@ -186,6 +191,19 @@ export function ClientsWorkspace({
       <PageHeader
         description={t('clients.header.description')}
         eyebrow={t('clients.header.eyebrow')}
+        primaryAction={
+          // Without client creation authority the action does not exist at all.
+          access.canCreateClients ? (
+            <Button
+              aria-haspopup="dialog"
+              disabled={writesLocked}
+              onClick={() => setCreatingClient(true)}
+            >
+              <span aria-hidden="true">+ </span>
+              {t('clients.actions.newClient')}
+            </Button>
+          ) : undefined
+        }
         title={t('clients.header.title')}
       />
       {access.readOnly ? (
@@ -227,24 +245,6 @@ export function ClientsWorkspace({
             onSelect={onSelectClient}
             selectedId={selectedClientId}
           />
-
-          {access.canCreateClients ? (
-            <form
-              aria-label={t('clients.actions.createClient')}
-              className="client-form"
-              onSubmit={onCreateClient}
-            >
-              <h3 className="clients__pane-title">{t('clients.actions.createClient')}</h3>
-              <ClientCreateFields
-                includeCommercial={access.canSeeCommercial}
-                onChange={onCreateClientValuesChange}
-                values={createClientValues}
-              />
-              <Button disabled={writesLocked} type="submit" variant="primary">
-                {t('clients.actions.createClient')}
-              </Button>
-            </form>
-          ) : null}
         </div>
 
         <div className="clients__detail-pane">
@@ -456,7 +456,100 @@ export function ClientsWorkspace({
           ) : null}
         </div>
       </div>
+      {access.canCreateClients && creatingClient ? (
+        <ClientCreateDrawer
+          failure={
+            feedback && feedback.tone !== 'success' ? (
+              <InlineMessage announce title={t('common.actions.retry')} tone="danger">
+                <p className="client-message__text">{formatClientFeedback(t, feedback)}</p>
+              </InlineMessage>
+            ) : null
+          }
+          includeCommercial={access.canSeeCommercial}
+          onChange={onCreateClientValuesChange}
+          onClose={() => setCreatingClient(false)}
+          onCreate={onCreateClient}
+          values={createClientValues}
+          writesLocked={writesLocked}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function blankClient(values: ClientCreateValues): ClientCreateValues {
+  return Object.fromEntries(Object.keys(values).map((key) => [key, ''])) as ClientCreateValues;
+}
+
+/**
+ * The existing client creation fields and request in a right-side drawer. The
+ * draft lives in the panel as before; discarding clears it, and only a confirmed
+ * create closes the drawer.
+ */
+function ClientCreateDrawer({
+  failure,
+  includeCommercial,
+  onChange,
+  onClose,
+  onCreate,
+  values,
+  writesLocked,
+}: {
+  failure: ReactNode;
+  includeCommercial: boolean;
+  onChange: (values: ClientCreateValues) => void;
+  onClose: () => void;
+  onCreate: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
+  values: ClientCreateValues;
+  writesLocked: boolean;
+}) {
+  const { t } = useI18n();
+  const formId = useId();
+  const [submitting, setSubmitting] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const dirty = Object.values(values).some((value) => value.trim() !== '');
+
+  function discard(): void {
+    onChange(blankClient(values));
+    onClose();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    if (submitting || writesLocked) {
+      event.preventDefault();
+      return;
+    }
+    setAttempted(true);
+    setSubmitting(true);
+    const created = await onCreate(event);
+    setSubmitting(false);
+    if (created) onClose();
+  }
+
+  return (
+    <CreationDrawer
+      dirty={dirty}
+      error={attempted && !submitting ? failure : null}
+      formId={formId}
+      onClose={discard}
+      submitDisabled={writesLocked}
+      submitLabel={t('clients.actions.createClient')}
+      submitting={submitting}
+      title={t('clients.actions.newClient')}
+    >
+      <form
+        aria-label={t('clients.actions.createClient')}
+        className="client-form"
+        id={formId}
+        onSubmit={(event) => void handleSubmit(event)}
+      >
+        <ClientCreateFields
+          includeCommercial={includeCommercial}
+          onChange={onChange}
+          values={values}
+        />
+      </form>
+    </CreationDrawer>
   );
 }
 

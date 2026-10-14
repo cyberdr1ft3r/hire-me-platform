@@ -5,15 +5,22 @@ import type {
   MissionPlacement,
 } from '@hire-me/contracts';
 
-import { useRef, type RefObject } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { MISSION_SIDE_BY_SIDE_MIN_REM, useStackedMasterDetailReveal } from '../layout/index.js';
-import { InlineMessage, PageHeader, Skeleton, StatusBadge, EmptyState } from '../ui/index.js';
+import {
+  Button,
+  InlineMessage,
+  PageHeader,
+  Skeleton,
+  StatusBadge,
+  EmptyState,
+} from '../ui/index.js';
 import { MissionDetailNav } from './MissionDetailNav.js';
 import { MissionAssignments, type MissionAssignmentsModel } from './MissionAssignments.js';
 import { MissionCandidatePipeline, type MissionPipelineModel } from './MissionCandidatePipeline.js';
-import { MissionCreateForm } from './MissionCreateForm.js';
+import { MissionCreateDrawer } from './MissionCreateForm.js';
 import { MissionEvaluations, type MissionEvaluationsModel } from './MissionEvaluations.js';
 import { MissionFilters } from './MissionFilters.js';
 import { MissionInterviews, type MissionInterviewsModel } from './MissionInterviews.js';
@@ -163,12 +170,28 @@ export function MissionsWorkspace({
   const { t } = useI18n();
   const layoutContainerRef = useRef<HTMLElement>(null);
   const filtered = hasActiveMissionFilters(list.appliedFilters);
+  // Creation happens in a drawer over the directory, so list selection, filters and
+  // scroll position are untouched until a created mission is selected.
+  const [creating, setCreating] = useState(false);
 
   return (
     <section aria-label={t('missions.region')} className="missions" ref={layoutContainerRef}>
       <PageHeader
         description={t('missions.header.description')}
         eyebrow={t('missions.header.eyebrow')}
+        primaryAction={
+          // Without mission creation authority the action does not exist at all.
+          access.canCreate ? (
+            <Button
+              aria-haspopup="dialog"
+              disabled={writesLocked}
+              onClick={() => setCreating(true)}
+            >
+              <span aria-hidden="true">+ </span>
+              {t('missions.create.title')}
+            </Button>
+          ) : undefined
+        }
         title={t('missions.header.title')}
       />
       {access.readOnly ? (
@@ -200,14 +223,6 @@ export function MissionsWorkspace({
             onSelect={list.onSelect}
             selectedId={list.selectedId}
           />
-          {access.canCreate ? (
-            <MissionCreateForm
-              loadClientOptions={create.loadClientOptions}
-              onCreate={create.onCreate}
-              sourceKey={sessionKey}
-              writesLocked={writesLocked}
-            />
-          ) : null}
         </div>
         <div
           aria-label={t('missions.detail.region')}
@@ -229,6 +244,18 @@ export function MissionsWorkspace({
           />
         </div>
       </div>
+      {access.canCreate && creating ? (
+        <MissionCreateDrawer
+          failure={
+            feedback && feedback.tone !== 'success' ? <FeedbackMessage feedback={feedback} /> : null
+          }
+          loadClientOptions={create.loadClientOptions}
+          onClose={() => setCreating(false)}
+          onCreate={create.onCreate}
+          sourceKey={sessionKey}
+          writesLocked={writesLocked}
+        />
+      ) : null}
     </section>
   );
 }

@@ -1,0 +1,137 @@
+/*
+ * Right-side modal drawer (ui/Drawer.tsx). A temporary elevated layer, so it is
+ * the one place this pattern uses --shadow-overlay. Header and footer are pinned;
+ * only the body scrolls. On narrow viewports it becomes a full-screen sheet.
+ */
+
+.ui-drawer {
+  inset: 0;
+  position: fixed;
+  z-index: 20;
+}
+
+.ui-drawer__scrim {
+  background: var(--color-overlay-scrim);
+  inset: 0;
+  position: absolute;
+}
+
+.ui-drawer__panel {
+  animation: ui-drawer-enter var(--motion-overlay) var(--ease-enter);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+  display: flex;
+  flex-direction: column;
+  inset-block: 0;
+  inset-inline-end: 0;
+  max-height: 100dvh;
+  position: absolute;
+  width: min(var(--layout-dialog-max), 100%);
+}
+
+@keyframes ui-drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--space-6));
+  }
+}
+
+.ui-drawer__header {
+  align-items: flex-start;
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  padding-block-start: max(var(--space-4), env(safe-area-inset-top));
+}
+
+.ui-drawer__heading {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The title may take initial focus; it is not interactive, so no ring is drawn. */
+.ui-drawer__title:focus {
+  outline: none;
+}
+
+.ui-drawer__heading h2 {
+  font-size: var(--font-size-5);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-drawer__description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin: 0;
+}
+
+.ui-drawer__close {
+  flex: 0 0 auto;
+  min-height: var(--hit-target-min);
+  min-width: var(--hit-target-min);
+}
+
+.ui-drawer__body {
+  align-content: start;
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5) var(--space-6);
+}
+
+/* The header already separates the body; module forms drop their own top rule here. */
+.ui-drawer__body > form {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+.ui-drawer__footer {
+  background: var(--color-surface);
+  border-block-start: var(--border-width) solid var(--color-border);
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-6);
+  padding-block-end: max(var(--space-3), env(safe-area-inset-bottom));
+}
+
+.ui-drawer__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.ui-drawer__discard {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ui-drawer__discard-text {
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  .ui-drawer__panel {
+    width: 100%;
+  }
+
+  .ui-drawer__header,
+  .ui-drawer__body,
+  .ui-drawer__footer {
+    padding-inline: var(--space-4);
+  }
+
+  .ui-drawer__actions > .ui-button {
+    flex: 1 1 auto;
+    min-height: var(--hit-target-min);
+  }
+}

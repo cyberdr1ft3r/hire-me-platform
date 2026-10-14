@@ -62,6 +62,11 @@ export const frMessages: Messages = {
       listLabel: 'Suggestions pour {field}',
       loading: 'Chargement des options…',
     },
+    drawer: {
+      discard: 'Abandonner les modifications',
+      discardPrompt: 'Des modifications ne sont pas enregistrées. Les abandonner ?',
+      keepEditing: 'Continuer la saisie',
+    },
   },
   navigation: {
     destinations: {
@@ -585,6 +590,7 @@ export const frMessages: Messages = {
       archiveContact: 'Archiver le contact',
       createClient: 'Créer le client',
       createContact: 'Créer le contact',
+      newClient: 'Nouveau client',
       region: 'Actions client',
       saveClient: 'Enregistrer le client',
       saveContact: 'Enregistrer le contact',
