@@ -122,12 +122,71 @@ Raw: [before](issue-204-candidates-workspace-v2/results/perf-before.json),
 - The URL carries only the candidate UUID, as before. Nothing is written to web
   storage. A session switch still discards the previous principal's record and list.
 
+## Refinement after the 14 Oct product review
+
+The desktop directory and side preview were approved in principle. Changes on top of
+`6cdbed9`, frontend only, Candidates plus two shared UI adjustments:
+
+| Area | Change |
+| --- | --- |
+| Mobile preview (P0) | Below a 44rem Candidates workspace (phones, 200% zoom) the preview opens at once as a bottom sheet: the shared `Drawer` with a new `placement="bottom"` (full width, height capped to the dynamic viewport, rounded top, safe areas). Modal: Tab kept inside, Escape/Close/scrim close it, focus returns to the row, the app behind is inert, the directory keeps page, filters and scroll position. Same content as the desktop pane (built from the list row, no request). The desktop side pane is unchanged; the choice follows the measured workspace width (`use-narrow-container.ts`), so 768px tablets with the overlay navigation (≈46rem) keep the side pane. |
+| Directory toolbar | Pane heading and search on one row from a 48rem workspace; the search hint is the placeholder and stays the accessible description. Same form, same filters disclosure, same query. 148px → 81px tall at 1440. |
+| Record actions | Edit profile is the primary button. Mark active/inactive, Move to talent pool and Archive candidate are in a `More actions` menu button (WAI-ARIA menu: Enter/Space/ArrowDown/ArrowUp to open, arrows/Home/End, Escape returns focus, Tab or outside click closes). Archive is set apart by a rule and its wording. Each item runs the same handler with the same confirmation and permission as before; while a write runs the button shows progress and cannot open. |
+| Record hierarchy | Larger candidate name in the focused record, status and update time beside it, actions aligned with the identity. |
+| Tasks and Documents | A count line and a link to the owning module above the list; each task shows its title (link to the task), priority, status badge and due wording from the Tasks module's own labels and tones (`Overdue` in words plus danger color, `Due today`, `Due <date>`, `No due date`). Empty states keep the explanation and offer the module link. Still one bounded read per section, on first open. |
+
+Screenshots (synthetic data, production build):
+
+| Desktop directory (compact toolbar) | Desktop quick preview |
+| --- | --- |
+| ![](issue-204-candidates-workspace-v2/refined-en-directory-1440x900.png) | ![](issue-204-candidates-workspace-v2/refined-en-preview-1440x900.png) |
+| **Focused record + More actions** | **Focused Tasks section** |
+| ![](issue-204-candidates-workspace-v2/refined-en-record-menu-1440x900.png) | ![](issue-204-candidates-workspace-v2/refined-en-record-tasks-1440x900.png) |
+| **Mobile sheet 390×844** | **Mobile sheet 390×500 (short / keyboard)** |
+| ![](issue-204-candidates-workspace-v2/refined-en-sheet-390x844.png) | ![](issue-204-candidates-workspace-v2/refined-en-sheet-390x500.png) |
+
+Also: sheet at 720×450 (1440 at 200% zoom), FR sheet, FR record and Tasks, Tasks at
+390, and the previous toolbar (`refined-before-toolbar-en-1440.png`).
+
+Verification:
+
+- Browser: 166/166 checks, EN and FR, at 1440×900, 1024×768, 768×1024, 390×844,
+  390×500 and 720×450 ([results](issue-204-candidates-workspace-v2/results/refined-browser-checks.json),
+  [script](issue-204-candidates-workspace-v2/tools/evidence-refine.mjs)): no horizontal
+  overflow; side pane from 44rem, sheet below; sheet visible at once with actions inside
+  the viewport, title focused, app inert, Tab kept inside, content fits or scrolls in
+  its own body; Escape and footer Close close it with focus back on the row and the
+  list scroll position unchanged; Open full profile from the sheet; record heading
+  focused; Edit profile primary; More actions opens by keyboard on its first item
+  inside the viewport and Escape returns focus; Tasks shows 4 linked tasks with the
+  overdue and due-today wording; Back/Forward, reload, unsaved-input prompt; no page
+  errors.
+- vitest: 4 new tests (menu keyboard pattern and contents, three mobile-sheet tests);
+  existing tests now reach lifecycle and archive actions through the menu.
+
+Performance against the PR head build (`6cdbed9`), same harness:
+
+| | PR head | Refined |
+| --- | --- | --- |
+| JS | 1,258.15 kB (311.64 gzip) | 1,262.47 kB (312.87 gzip), +0.3% |
+| CSS | 151.58 kB (19.61 gzip) | 155.13 kB (20.04 gzip) |
+| Requests: cold, deep link, preview, open record, back | 5, 6, 0, 1, 0 | 5, 6, 0, 1, 0 |
+| Row → preview (median / p95) | 175 / 429 ms | 251 / 366 ms |
+| Open full profile (median / p95) | 939 / 1,425 ms | 975 / 1,204 ms |
+| Idle 65 s | 2 shell polls | 2 shell polls |
+| DOM nodes / heap after 40 cycles | 15,991 / 18.59 MB | 15,973 / 18.61 MB |
+
+Interaction timings move within run-to-run noise; cold loads stay inconclusive on this
+machine (interleaved medians 3.5 s and 1.2 s for the PR head, 1.5 s and 1.4 s refined),
+so no speed claim is made. Raw: [PR head](issue-204-candidates-workspace-v2/results/refined-perf-pr-head.json),
+[refined](issue-204-candidates-workspace-v2/results/refined-perf-new.json).
+
 ## Remaining limitations
 
-- Human visual and interaction sign-off of the three states (Issue #204 stage A).
-- At 390 px the preview stacks below the page of rows; focus moves to it and back,
-  but a reviewer may prefer it above the list or as a sheet.
-- No Applications section (backend gap above) and no sort (API).
+- Human visual sign-off of the refinements (desktop and 390px sheet).
+- No Applications section (deferred by product decision; needs a cross-mission backend
+  read) and no sort (API).
 - Unsaved-input protection covers the focused record and the creation drawer, not
   the directory's typed but unapplied search.
-- Chromium only; no screen-reader or physical-device pass.
+- Chromium only; no screen-reader or physical-device pass (the on-screen keyboard was
+  approximated with a 390×500 viewport; there are no inputs in the sheet).

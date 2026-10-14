@@ -7,8 +7,10 @@ Last updated: 2026-10-14
 - **Next: review the Issue #204 Candidates Workspace v2.0 draft PR** from
   `feat/issue-204-candidates-workspace-v2` into `main` (`14fc745`). Directory → quick
   preview → focused record; [evidence](../audit/issue-204-candidates-workspace-v2.md).
-  Completion requires human visual/interaction sign-off of the three states, a decision
-  on the 390px preview placement, and exact-head CI. Missions and Clients follow in
+  Desktop directory and preview are approved in principle; the mobile sheet, record
+  hierarchy, compact toolbar and `More actions` menu were added after the 14 Oct
+  review. Completion requires human visual sign-off of those refinements (desktop and
+  390px) and exact-head CI. Missions and Clients follow in
   separate PRs only after sign-off. An Applications section needs a new cross-mission
   read (backend decision). No merge/deploy automatically.
 

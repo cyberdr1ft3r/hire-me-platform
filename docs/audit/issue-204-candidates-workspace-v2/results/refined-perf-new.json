@@ -1,0 +1,145 @@
+{
+  "state": "after",
+  "cpuThrottle": 4,
+  "date": "2026-10-14T20:48:54.104Z",
+  "cold": {
+    "firstRowMs": {
+      "n": 5,
+      "median": 2095,
+      "p95": 2659,
+      "min": 1301,
+      "max": 2791
+    },
+    "requests": {
+      "n": 5,
+      "median": 5,
+      "p95": 5,
+      "min": 5,
+      "max": 5
+    },
+    "blockingMs": {
+      "n": 5,
+      "median": 1350,
+      "p95": 1783,
+      "min": 641,
+      "max": 1921
+    },
+    "sampleRequests": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/candidates",
+      "GET /v1/messages/unread-summary"
+    ]
+  },
+  "rowActivation": {
+    "ms": {
+      "n": 20,
+      "median": 251,
+      "p95": 366,
+      "min": 185,
+      "max": 491
+    },
+    "requestsPerActivation": {
+      "n": 20,
+      "median": 0,
+      "p95": 0,
+      "min": 0,
+      "max": 0
+    },
+    "sample": []
+  },
+  "focusedRecord": {
+    "openMs": {
+      "n": 10,
+      "median": 975,
+      "p95": 1204,
+      "min": 879,
+      "max": 1341
+    },
+    "openRequests": {
+      "n": 10,
+      "median": 1,
+      "p95": 1,
+      "min": 1,
+      "max": 1
+    },
+    "backMs": {
+      "n": 10,
+      "median": 214,
+      "p95": 312,
+      "min": 187,
+      "max": 438
+    },
+    "backRequests": {
+      "n": 10,
+      "median": 0,
+      "p95": 0,
+      "min": 0,
+      "max": 0
+    },
+    "sampleOpen": [
+      "GET /v1/candidates/:id"
+    ]
+  },
+  "deepLink": {
+    "recordMs": {
+      "n": 3,
+      "median": 2312,
+      "p95": 2312,
+      "min": 1536,
+      "max": 2363
+    },
+    "requests": {
+      "n": 3,
+      "median": 6,
+      "p95": 6,
+      "min": 6,
+      "max": 6
+    },
+    "sample": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/candidates",
+      "GET /v1/candidates/:id",
+      "GET /v1/messages/unread-summary"
+    ]
+  },
+  "memory": [
+    {
+      "cycle": 0,
+      "heapMB": 16.67,
+      "nodes": 659,
+      "listeners": 214
+    },
+    {
+      "cycle": 10,
+      "heapMB": 17.38,
+      "nodes": 4489,
+      "listeners": 424
+    },
+    {
+      "cycle": 20,
+      "heapMB": 17.79,
+      "nodes": 8316,
+      "listeners": 634
+    },
+    {
+      "cycle": 30,
+      "heapMB": 18.2,
+      "nodes": 12146,
+      "listeners": 844
+    },
+    {
+      "cycle": 40,
+      "heapMB": 18.61,
+      "nodes": 15973,
+      "listeners": 1054
+    }
+  ],
+  "idle65s": [
+    "GET /v1/notifications",
+    "GET /v1/messages/unread-summary"
+  ]
+}

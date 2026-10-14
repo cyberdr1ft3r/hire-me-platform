@@ -13,6 +13,12 @@ Status owner: repository maintainer
   new-session deep links. The record keeps every existing form and action and adds
   Documents and Tasks sections through their own list APIs and view permissions.
   Record forms with input ask before leaving; creation moved to the shared drawer.
+- Refinement after the 14 Oct product review: below a 44rem workspace (phones, 200%
+  zoom) the preview is a bottom sheet (shared drawer, `placement="bottom"`); the
+  directory toolbar is one row; the record makes Edit profile primary with lifecycle
+  and archive in an accessible `More actions` menu; Tasks/Documents show counts,
+  module links, and task status, priority and overdue wording. Applications stay
+  deferred (no backend work).
 - Shared changes: Workspace `split="preview"`, navigation guard blocker stack,
   `requestNavigation` for shell/notification links, and a fix for a lost Back after a
   synchronous confirmation.

@@ -1,0 +1,832 @@
+[
+  {
+    "name": "en 1440: directory toolbar height",
+    "ok": true,
+    "detail": "81px"
+  },
+  {
+    "name": "en 1440x900: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: preview is a side pane (workspace 71.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 1440x900: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: preview is a side pane (workspace 45.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 1024x768: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: preview is a side pane (workspace 46.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 768x1024: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: preview is a bottom sheet (workspace 22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":224,\"bottom\":844,\"vh\":844,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "en 390x844: sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":224,\"bottom\":844,\"vh\":844,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true,\"fits\":true}"
+  },
+  {
+    "name": "en 390x844: Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"Close\",\"label\":null}"
+  },
+  {
+    "name": "en 390x844: Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "en 390x844: footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 390x844: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): preview is a bottom sheet (workspace 22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":60,\"bottom\":500,\"vh\":500,\"footerVisible\":true,\"bodyScrollable\":true,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":60,\"bottom\":500,\"vh\":500,\"footerVisible\":true,\"bodyScrollable\":true,\"titleFocused\":true,\"rootInert\":true,\"fits\":false}"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"✕\",\"label\":\"Close\"}"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): preview is a bottom sheet (workspace 43.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":21,\"bottom\":450,\"vh\":450,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":21,\"bottom\":450,\"vh\":450,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true,\"fits\":true}"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"Close\",\"label\":null}"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Mark inactive\",\"Move to talent pool\",\"Archive candidate\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: Tasks lists the linked tasks with status, priority and due wording",
+    "ok": true,
+    "detail": "{\"rows\":4,\"overdue\":[\"Overdue · 12 Oct 2026\"],\"today\":1,\"count\":\"4 tasks\"}"
+  },
+  {
+    "name": "en 1440x900: Tasks section has no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: Tasks lists the linked tasks with status, priority and due wording",
+    "ok": true,
+    "detail": "{\"rows\":4,\"overdue\":[\"Overdue · 12 Oct 2026\"],\"today\":1,\"count\":\"4 tasks\"}"
+  },
+  {
+    "name": "en 390x844: Tasks section has no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: browser Back returns to the directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: browser Forward reopens the record",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: reload keeps the record (deep link)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: Back with unsaved input asks and stays",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: accepting leaves for the directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: no page errors",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440: directory toolbar height",
+    "ok": true,
+    "detail": "81px"
+  },
+  {
+    "name": "fr 1440x900: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: preview is a side pane (workspace 71.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 1440x900: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: preview is a side pane (workspace 45.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 1024x768: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: preview is a side pane (workspace 46.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: pane takes focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: Escape closes the pane, focus back on the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 768x1024: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: preview is a bottom sheet (workspace 22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":224,\"bottom\":844,\"vh\":844,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "fr 390x844: sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":224,\"bottom\":844,\"vh\":844,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true,\"fits\":true}"
+  },
+  {
+    "name": "fr 390x844: Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"Fermer\",\"label\":null}"
+  },
+  {
+    "name": "fr 390x844: Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "fr 390x844: footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 390x844: Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): preview is a bottom sheet (workspace 22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":60,\"bottom\":500,\"vh\":500,\"footerVisible\":true,\"bodyScrollable\":true,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":60,\"bottom\":500,\"vh\":500,\"footerVisible\":true,\"bodyScrollable\":true,\"titleFocused\":true,\"rootInert\":true,\"fits\":false}"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"✕\",\"label\":\"Fermer\"}"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): preview is a bottom sheet (workspace 43.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): sheet visible at once, actions not clipped",
+    "ok": true,
+    "detail": "{\"top\":21,\"bottom\":450,\"vh\":450,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true}"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): sheet takes focus on its title, app behind is inert",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): sheet content fits or its body scrolls on its own",
+    "ok": true,
+    "detail": "{\"top\":21,\"bottom\":450,\"vh\":450,\"footerVisible\":true,\"bodyScrollable\":false,\"titleFocused\":true,\"rootInert\":true,\"fits\":true}"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): Tab stays inside the sheet",
+    "ok": true,
+    "detail": "{\"tag\":\"BUTTON\",\"text\":\"Fermer\",\"label\":null}"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): Escape closes, focus back on the row, list scroll kept",
+    "ok": true,
+    "detail": "{\"open\":false,\"y\":260,\"focusRow\":true} before=260"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): footer Close closes the sheet",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): record has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): Edit profile is the primary record action",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): More actions menu opens on its first item, inside the viewport",
+    "ok": true,
+    "detail": "{\"items\":[\"Marquer comme inactif\",\"Placer dans le vivier\",\"Archiver le candidat\"],\"focused\":\"menuitem\",\"inView\":true}"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): Escape closes the menu, focus back on its button",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: Tasks lists the linked tasks with status, priority and due wording",
+    "ok": true,
+    "detail": "{\"rows\":4,\"overdue\":[\"En retard · 12 oct. 2026\"],\"today\":1,\"count\":\"4 tâches\"}"
+  },
+  {
+    "name": "fr 1440x900: Tasks section has no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: Tasks lists the linked tasks with status, priority and due wording",
+    "ok": true,
+    "detail": "{\"rows\":4,\"overdue\":[\"En retard · 12 oct. 2026\"],\"today\":1,\"count\":\"4 tâches\"}"
+  },
+  {
+    "name": "fr 390x844: Tasks section has no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: browser Back returns to the directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: browser Forward reopens the record",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: reload keeps the record (deep link)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: Back with unsaved input asks and stays",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: accepting leaves for the directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: no page errors",
+    "ok": true,
+    "detail": ""
+  }
+]
