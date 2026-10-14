@@ -1,6 +1,6 @@
 import type { ClientContactSummary, ClientStatus, ClientSummary } from '@hire-me/contracts';
 import type { FormEvent } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   archiveClient,
@@ -10,11 +10,13 @@ import {
   getClient,
   listClientContacts,
   listClients,
+  listMissions,
   updateClient,
   updateClientContact,
   updateClientContactStatus,
   updateClientStatus,
 } from '../api.js';
+import { requestNavigation } from '../navigation/navigation-guard.js';
 import { useI18n } from '../i18n/index.js';
 import { resolveClientAccess } from './client-access.js';
 import {
@@ -47,7 +49,10 @@ import {
   type ContactListState,
 } from './client-state.js';
 import { bumpStackedDetailRevealToken } from '../layout/index.js';
+import type { ClientMissionsLoad } from './ClientRelatedMissions.js';
 import { ClientsWorkspace } from './ClientsWorkspace.js';
+
+const MISSION_LIST_PAGE_SIZE = 20;
 
 const EMPTY_CREATE_CLIENT: ClientCreateValues = {
   name: '',
@@ -68,10 +73,19 @@ const EMPTY_CREATE_CONTACT: ContactCreateValues = {
 
 export function ClientsPanel({
   accessToken,
+  onCloseRecord,
+  onNavigatePath,
+  onOpenRecord,
   permissions,
+  recordClientId,
 }: {
   accessToken: string;
+  onCloseRecord?: () => void;
+  onNavigatePath?: (path: string) => void;
+  onOpenRecord?: (clientId: string) => void;
   permissions: string[];
+  /** The client named by the URL (`/clients?client=<id>`), or null for the directory. */
+  recordClientId?: string | null;
 }) {
   const { t } = useI18n();
   const access = resolveClientAccess(permissions);
@@ -99,6 +113,7 @@ export function ClientsPanel({
   const [appliedClientQuery, setAppliedClientQuery] = useState(FIRST_CLIENT_PAGE);
   const [clientList, setClientList] = useState<ClientListState>({ status: 'loading' });
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [previewClient, setPreviewClient] = useState<ClientSummary | null>(null);
   const [clientDetail, setClientDetail] = useState<ClientDetailState>({ status: 'idle' });
   const [editClientValues, setEditClientValues] = useState<ClientProfileValues | null>(null);
   const [createClientValues, setCreateClientValues] = useState(EMPTY_CREATE_CLIENT);
@@ -131,6 +146,7 @@ export function ClientsPanel({
     setAppliedClientQuery(firstClientPage);
     setClientList({ status: 'loading' });
     setSelectedClientId(null);
+    setPreviewClient(null);
     setClientDetail({ status: 'idle' });
     setEditClientValues(null);
     setCreateClientValues(EMPTY_CREATE_CLIENT);
@@ -149,6 +165,17 @@ export function ClientsPanel({
       listRequest.current += 1;
     };
   }, [accessToken, appliedClientQuery]);
+
+  useEffect(() => {
+    if (recordClientId === undefined || recordClientId === selectedClientRef.current) {
+      return;
+    }
+    if (recordClientId) {
+      enterRecord(recordClientId, false);
+    } else {
+      exitRecord();
+    }
+  }, [recordClientId]);
 
   useEffect(() => {
     if (!selectedClientId || !access.canViewContacts) {
@@ -268,6 +295,11 @@ export function ClientsPanel({
       ) {
         void loadClientDetail(selectedClientRef.current, true);
       }
+      // Preview row may need refreshing after a write; list data is authoritative for preview.
+      setPreviewClient((current) => {
+        if (!current) return null;
+        return response.clients.find((client) => client.id === current.id) ?? current;
+      });
     } catch {
       if (request === listRequest.current && !quiet) {
         setClientList({ status: 'error' });
@@ -356,7 +388,7 @@ export function ClientsPanel({
     }
   }
 
-  function selectClient(clientId: string): void {
+  function enterRecord(clientId: string, updateUrl = true): void {
     contextGeneration.current += 1;
     contactContextGeneration.current += 1;
     contactRequest.current += 1;
@@ -366,14 +398,63 @@ export function ClientsPanel({
     setClientDetailRevealToken(bumpStackedDetailRevealToken);
     setContactDetailRevealToken(0);
     setSelectedClientId(clientId);
+    setPreviewClient(null);
+    setClientDetail({ status: 'loading' });
+    setEditClientValues(null);
     setSelectedContact(null);
     setEditContactValues(null);
     setContactFilters(EMPTY_CONTACT_FILTERS);
     appliedContactQueryRef.current = FIRST_CONTACT_PAGE;
     setAppliedContactQuery(FIRST_CONTACT_PAGE);
     setFeedback(null);
+    if (updateUrl) {
+      onOpenRecord?.(clientId);
+    }
     void loadClientDetail(clientId);
   }
+
+  function exitRecord(): void {
+    contextGeneration.current += 1;
+    contactContextGeneration.current += 1;
+    contactRequest.current += 1;
+    detailRequest.current += 1;
+    selectedClientRef.current = null;
+    selectedContactRef.current = null;
+    setSelectedClientId(null);
+    setClientDetail({ status: 'idle' });
+    setEditClientValues(null);
+    setSelectedContact(null);
+    setEditContactValues(null);
+    setFeedback(null);
+  }
+
+  function handleCloseRecord(): void {
+    requestNavigation(() => {
+      exitRecord();
+      onCloseRecord?.();
+    });
+  }
+
+  function handleOpenRecord(clientId: string): void {
+    enterRecord(clientId);
+  }
+
+  const canViewMissions = permissions.includes('missions:view');
+  const loadMissions: ClientMissionsLoad | null = useMemo(() => {
+    if (!canViewMissions || !selectedClientId) {
+      return null;
+    }
+    const clientId = selectedClientId;
+    return async () => {
+      const response = await listMissions({
+        accessToken,
+        clientId,
+        page: 1,
+        pageSize: MISSION_LIST_PAGE_SIZE,
+      });
+      return { missions: response.missions, total: response.pagination.total };
+    };
+  }, [accessToken, canViewMissions, selectedClientId]);
 
   function selectContact(contactId: string): void {
     if (contactList.status !== 'ready') {
@@ -429,7 +510,7 @@ export function ClientsPanel({
       if (isCurrent()) {
         setCreateClientValues(EMPTY_CREATE_CLIENT);
         // Selecting resets page feedback, so announce the creation after selecting it.
-        selectClient(created.client.id);
+        enterRecord(created.client.id);
         setFeedback({ tone: 'success', messageKey: 'clients.feedback.createdClient' });
         return true;
       }
@@ -706,6 +787,7 @@ export function ClientsPanel({
       editClientValues={editClientValues}
       editContactValues={editContactValues}
       feedback={feedback}
+      loadMissions={loadMissions}
       onApplyClientFilters={applyClientFilters}
       onApplyContactFilters={applyContactFilters}
       onArchiveClient={() => void handleArchiveClient()}
@@ -718,6 +800,8 @@ export function ClientsPanel({
         appliedClientQueryRef.current = next;
         setAppliedClientQuery(next);
       }}
+      onClosePreview={() => setPreviewClient(null)}
+      onCloseRecord={handleCloseRecord}
       onContactFiltersChange={setContactFilters}
       onContactPage={(page) => {
         const next = { ...appliedContactQuery, page };
@@ -730,6 +814,9 @@ export function ClientsPanel({
       onCreateContactValuesChange={setCreateContactValues}
       onEditClientValuesChange={setEditClientValues}
       onEditContactValuesChange={setEditContactValues}
+      onNavigatePath={onNavigatePath}
+      onOpenRecord={handleOpenRecord}
+      onPreview={setPreviewClient}
       onResetClientFilters={resetClientFilters}
       onResetContactFilters={resetContactFilters}
       onRetryClientDetail={() => {
@@ -747,9 +834,9 @@ export function ClientsPanel({
       onSaveContact={(event) => void handleSaveContact(event)}
       clientDetailRevealToken={clientDetailRevealToken}
       contactDetailRevealToken={contactDetailRevealToken}
-      onSelectClient={selectClient}
       onSelectContact={selectContact}
-      selectedClientId={selectedClientId}
+      previewClient={previewClient}
+      recordClientId={selectedClientId}
       selectedContact={selectedContact}
       writesLocked={pending !== null}
     />

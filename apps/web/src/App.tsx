@@ -44,6 +44,7 @@ import {
 } from './navigation/navigation-guard.js';
 import {
   candidateDeepLink,
+  clientDeepLink,
   missionDeepLink,
   recordNavigationIntent,
 } from './navigation/record-deep-links.js';
@@ -321,7 +322,16 @@ function AppRoutes() {
         routeContent = <AdminPanel accessToken={accessToken} />;
         break;
       case 'clients':
-        routeContent = <ClientsPanel accessToken={accessToken} permissions={user.permissions} />;
+        routeContent = (
+          <ClientsPanel
+            accessToken={accessToken}
+            onCloseRecord={() => navigateToPath('/clients')}
+            onNavigatePath={navigateToPath}
+            onOpenRecord={(clientId) => navigateToPath(clientDeepLink(clientId))}
+            permissions={user.permissions}
+            recordClientId={recordIntent.clientId}
+          />
+        );
         break;
       case 'candidates':
         routeContent = (

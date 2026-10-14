@@ -684,8 +684,17 @@ export const enMessages = {
       status: 'Status',
       website: 'Website',
     },
+    directory: {
+      columns: {
+        client: 'Client',
+        updated: 'Updated',
+      },
+      title: 'Client directory',
+    },
     filters: {
       anyStatus: 'Any status',
+      filtersActive: plural({ one: '{count} filter', other: '{count} filters' }),
+      filtersToggle: 'Filters',
       industry: 'Industry',
       industryHint: 'Exact industry match',
       region: 'Client search',
@@ -694,6 +703,32 @@ export const enMessages = {
       searchHint: 'Name, industry, city, or country',
       status: 'Status',
       submit: 'Apply filters',
+    },
+    preview: {
+      close: 'Close preview',
+      eyebrow: 'Quick preview',
+      openRecord: 'Open full record',
+      updated: 'Last updated',
+    },
+    record: {
+      back: 'Back to clients',
+      discardPrompt: 'This client has unsaved changes. Leave and discard them?',
+      navigation: 'Client record navigation',
+      missions: {
+        count: plural({ one: '{count} mission', other: '{count} missions' }),
+        empty: 'No recruitment missions are linked to this client yet.',
+        emptyTitle: 'No missions',
+        error: 'Unable to load missions for this client.',
+        errorTitle: 'Missions unavailable',
+        loading: 'Loading missions…',
+        more: 'Only the first page is shown here. Open Missions for the full directory.',
+        title: 'Linked missions',
+      },
+      sections: {
+        label: 'Client record sections',
+        missions: 'Missions',
+        overview: 'Overview',
+      },
     },
     contactFilters: {
       anyStatus: 'Any status',

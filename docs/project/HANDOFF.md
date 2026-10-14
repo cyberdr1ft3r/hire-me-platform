@@ -4,12 +4,13 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: visual review of the Issue #204 Missions Workspace v2.0 draft PR** from
-  `feat/issue-204-missions-workspace-v2` into `main` (`e2ff257`). Directory → quick
-  preview (side pane or mobile sheet) → focused mission record, following the merged
-  Candidates pattern; [evidence](../audit/issue-204-missions-workspace-v2.md).
-  Completion requires human visual sign-off (desktop and 390px) and exact-head CI.
-  Clients follows in its own PR only after sign-off. No merge/deploy automatically.
+- **Next: review Issue #204 Clients Workspace v2.0** on
+  `cursor/issue-204-clients-workspace-v2-cf71` into `main` (`4890f9b`). Directory →
+  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md).
+  Completion requires exact-head CI and human visual sign-off. No merge/deploy automatically.
+
+- **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
+  [evidence](../audit/issue-204-missions-workspace-v2.md).
 
 - **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
   candidate stay deferred (needs a cross-mission backend read).
