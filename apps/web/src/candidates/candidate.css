@@ -10,40 +10,15 @@
 .candidates {
   container: candidates / inline-size;
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
   max-width: var(--layout-content-max);
 }
 
 /*
- * The list and the selected record sit side by side only when the content area
- * itself is wide enough for both. A container query rather than a viewport
- * breakpoint, because the persistent sidebar changes the space available.
+ * The directory and the record share one Workspace Surface (ui/workspace.css,
+ * split="wide"). They sit side by side only when the surface container is at
+ * least 60rem wide (CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM); otherwise they stack.
  */
-.candidates__workspace {
-  align-items: start;
-  display: grid;
-  gap: var(--space-8);
-}
-
-@container candidates (min-width: 60rem) {
-  .candidates__workspace {
-    gap: var(--space-6);
-    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
-  }
-
-  .candidates__list-pane {
-    border-inline-end: var(--border-width) solid var(--color-border);
-    padding-inline-end: var(--space-6);
-  }
-}
-
-.candidates__list-pane,
-.candidates__detail-pane {
-  align-content: start;
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
 
 .candidates__pane-title {
   font-size: var(--font-size-5);
@@ -52,17 +27,21 @@
 
 /* --- Filters ----------------------------------------------------------- */
 
+/* The pane toolbar provides the rule beneath the filters; none is drawn twice. */
 .candidate-filters {
-  border-block-end: var(--border-width) solid var(--color-border);
   display: grid;
   gap: var(--space-3);
-  padding-block-end: var(--space-4);
 }
 
+/* Search spans the row; the two selects pair up inside the narrow list pane. */
 .candidate-filters__controls {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+}
+
+.candidate-filters__controls > :first-child {
+  grid-column: 1 / -1;
 }
 
 .candidate-filters__actions {

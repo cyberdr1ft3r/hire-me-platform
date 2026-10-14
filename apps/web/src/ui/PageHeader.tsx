@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
 export interface PageHeaderProps {
+  /** Tighter rhythm for fill-layout workspaces that need the viewport height. */
+  compact?: boolean;
   description?: ReactNode;
   eyebrow?: ReactNode;
   metadata?: ReactNode;
@@ -10,6 +12,7 @@ export interface PageHeaderProps {
 }
 
 export function PageHeader({
+  compact = false,
   description,
   eyebrow,
   metadata,
@@ -18,7 +21,7 @@ export function PageHeader({
   title,
 }: PageHeaderProps) {
   return (
-    <header className="ui-page-header">
+    <header className={compact ? 'ui-page-header ui-page-header--compact' : 'ui-page-header'}>
       <div className="ui-page-header__copy">
         {eyebrow ? <p className="ui-page-header__eyebrow">{eyebrow}</p> : null}
         <h1>{title}</h1>

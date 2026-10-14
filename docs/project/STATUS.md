@@ -1,7 +1,98 @@
 # Project Status
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 Status owner: repository maintainer
+
+## Issue #202 Scope A — shared authenticated request core (PR #203)
+
+- Branch `fix/issue-202-web-auth-request-core` targets `fix/ui-refinement-demo-20261013`;
+  integration `a19647c` (#199, #201, #200 merged) is merged in. Frontend only; refresh
+  limiter and proxy trust (Scope B, R-055) untouched.
+- Real-API expiry acceptance (60 s TTL, natural expiry, throwaway DB) passed: one
+  refresh per tab for concurrent 401s with replay, transient 503 keeps the session,
+  revocation and missing cookie sign out once, reload restores with one refresh, and a
+  sign-out with a dirty creation drawer leaves no inert app.
+  [Evidence](../audit/issue-202-auth-expiry-acceptance.md). Cross-tab refresh is a known
+  limitation (R-059, [note](../design/auth-cross-tab-refresh-limitation.md)).
+
+## Console Workspace v1.0 preflight (Issue #198)
+
+- Documentation-only draft PR on `docs/issue-198-console-workspace-preflight`, based on
+  integration branch `fix/ui-refinement-demo-20261013` at `bd46f59`; targets that
+  branch. Reconciled with integration `c625018` after #199 and #201 merged; #194 stays
+  open. Measurements remain those of `bd46f59`.
+- [Preflight](../design/console-workspace-v1-preflight.md), [ADR proposal D-089](../design/console-workspace-v1-adr-proposed.md),
+  [interaction matrix](../design/console-workspace-v1-interaction-matrix.md) and
+  [performance baseline](../audit/console-workspace-v1-baseline.md) with reproducible
+  synthetic-data scripts. No application code changed.
+- Key findings: single 303 KB-gzip chunk with no lazy routes; every workspace revisit
+  refetches (no cache); no dirty-form protection outside the #201 creation drawers;
+  module requests do not refresh expired tokens (R-057). Clickable interaction prototype still outstanding.
+
+## Issue #196 — Missions and Clients creation drawers (merged, PR #201 `c625018`)
+
+- Branch `feat/issue-196-creation-drawers` from integration branch
+  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged); integration `542bbf0` (#199
+  merged) merged in, then merged into the integration branch through PR #201.
+- Header `New mission` / `New client` actions open the existing creation flows in a
+  shared right-side `CreationDrawer`; bottom-of-directory creation removed. Same
+  fields, pickers, requests and permissions. Client creation success now remains
+  visible (it was cleared by the selection it triggered). Issue #196 stays open.
+- [Evidence](../audit/issue-196-creation-drawers.md). Frontend only.
+
+## Issue #196 — compact Notification Center Phase 1 (merged, PR #199 `542bbf0`)
+
+- Dedicated branch `feat/issue-196-notification-center` is based on #194 integration
+  head `bd46f59` after AppShell v1.2 and Workspace Surface v1.0 merged into that
+  branch. Merged into `fix/ui-refinement-demo-20261013` through PR #199.
+- The AppShell bell combines existing own task notifications with unread PRIVATE and
+  GROUP conversation summaries. It reuses `/v1/notifications`,
+  `/v1/messages/unread-summary`, and `/v1/messages/conversations?filter=unread`; no
+  endpoint, schema, real-time transport, or message-created Notification row was
+  added. Each source keeps independent read state.
+- Exact message links use `/messages?conversation=<uuid>` and the existing
+  membership-scoped detail read. Synthetic EN/FR evidence covers 1440, 1024, 768
+  and 390px without document overflow. See
+  [the architecture note](../design/notification-center-phase-1.md) and
+  [visual evidence](../audit/notification-center-phase-1.md). Physical mobile and
+  screen-reader acceptance remain.
+
+## Workspace Surface v1.0 and Messages layout
+
+- Branch `feat/workspace-surface-v1` from #194 head `25f8190` (AppShell v1.2 merged
+  into it); draft PR targets `fix/ui-refinement-demo-20261013`, not `main`.
+- Fixes the Messages double scroll/hidden composer at its root (shell gave pages no
+  definite height; log guessed `60dvh`). Adds shared Workspace primitives and a
+  route-level fill layout; migrates Messages and Candidates. Single-destination rail
+  domains now navigate directly, so Messages never shows Administration as context.
+- [Proposed addendum](../design/HIREME_UI_DNA_v1.3-workspace-surface-proposed.md) and
+  [evidence](../audit/workspace-surface-v1.md). Frontend only; no backend, permission
+  or schema change. Remaining modules follow the addendum's migration order.
+
+## AppShell v1.2 navigation follow-up
+
+- Isolated branch `feat/appshell-v1-2`, stacked on #194 at `ffc7fa2`; main base
+  `283c18a`. Only #194 was open when overlap was checked.
+- Implements the requested 64px rail, 176px collapsible context, 56px utility
+  header, persisted display preference and mobile drawer. Existing authorized
+  route registry is reused without backend or permission changes.
+- [Navigation addendum](../design/HIREME_UI_DNA_v1.2-navigation-proposed.md) remains
+  proposed. Review synthetic EN/FR evidence and exact-head CI, then obtain human
+  visual approval. Do not merge/deploy automatically; #194 remains untouched.
+
+## UI refinement demonstration — 2026-10-13
+
+- Focused frontend branch `fix/ui-refinement-demo-20261013` starts from main
+  `283c18a` (Messages PR #193 merged); open-PR inventory was empty at inspection.
+- Component hover precedence, reachable desktop splits, Messages density/composer,
+  sidebar spacing, Administration grouping, Agenda hierarchy and MissionPicker
+  reuse are implemented in small commits. No backend/schema/auth-source changes.
+- Web 889 and contracts 70 tests passed; lint, format, style/contrast, architecture,
+  typecheck and build passed. Before/after synthetic EN/FR screenshots cover ten
+  screens at 1440px and 390px. Native PKCS#11 cannot load in the local Windows
+  environment; exact-head Linux CI and human review remain merge gates.
+- See [review evidence and remaining issues](../audit/ui-refinement-20261013.md).
+  No merge/deployment; unrelated operational gates below are unchanged.
 
 ## Issue #132 / signing phases
 

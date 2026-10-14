@@ -1,67 +1,27 @@
+/*
+ * Messages on Workspace Surface v1.0 (ui/workspace.css): the inbox and the
+ * thread share one surface split by a single divider. In the shell's fill
+ * layout the thread is a column: header, then the log as the only scroller,
+ * then the composer anchored to the bottom of the pane.
+ */
 .messages-panel {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
   max-width: var(--layout-content-max);
   min-width: 0;
 }
 
-.messages-workspace {
-  container: messages / inline-size;
-  min-width: 0;
-}
-
-.messages-layout {
-  align-items: start;
-  display: grid;
-  gap: var(--space-6);
-  min-width: 0;
-}
-
-/* Stacked: one pane at a time; the detail pane takes the full width. */
-.messages-layout[data-view='list'] .messages-detail,
-.messages-layout[data-view='detail'] .messages-list {
-  display: none;
-}
-
-@container messages (min-width: 48rem) {
-  .messages-layout {
-    grid-template-columns: minmax(16rem, 2fr) minmax(0, 3fr);
-  }
-
-  .messages-layout[data-view] .messages-list,
-  .messages-layout[data-view] .messages-detail {
-    display: grid;
-  }
-
-  .messages-list {
-    border-inline-end: var(--border-width) solid var(--color-border);
-    padding-inline-end: var(--space-6);
-  }
-
+@container workspace (min-width: 48rem) {
   .messages-pane__back {
     display: none;
   }
 }
 
-.messages-list,
-.messages-detail,
 .messages-pane {
   align-content: start;
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-}
-
-.messages-list__header {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.messages-list__header h2,
-.messages-pane__heading h2 {
-  font-size: var(--font-size-5);
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .messages-filters {
@@ -86,11 +46,11 @@
   font-size: var(--font-size-1);
 }
 
-/* Conversation rows */
+/* Conversation rows: ruled, with the same selected shape as the Candidates list. */
 
 .messages-rows {
+  border-block-start: var(--border-width) solid var(--color-border);
   display: grid;
-  gap: var(--space-1);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -98,9 +58,11 @@
 
 .messages-row {
   align-items: center;
-  background: var(--color-surface);
-  border: var(--border-width) solid transparent;
-  border-radius: var(--radius-medium);
+  background: transparent;
+  border: 0;
+  border-block-end: var(--border-width) solid var(--color-border);
+  border-inline-start: var(--space-1) solid transparent;
+  border-radius: 0;
   color: var(--color-text);
   cursor: pointer;
   display: flex;
@@ -108,23 +70,30 @@
   gap: var(--space-3);
   justify-content: space-between;
   min-height: var(--hit-target-min);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
   text-align: start;
+  transition: background-color var(--motion-fast) var(--ease-standard);
   width: 100%;
 }
 
 .messages-row:hover {
   background: var(--color-table-hover);
+  border-color: var(--color-border);
+  border-inline-start-color: transparent;
+}
+
+.messages-row:active {
+  background: var(--color-brand-subtle-hover);
 }
 
 .messages-row:focus-visible {
   outline: var(--focus-ring-width) solid var(--color-focus);
-  outline-offset: var(--focus-ring-width);
+  outline-offset: calc(-1 * var(--focus-ring-width));
 }
 
 .messages-row[aria-current='true'] {
   background: var(--color-table-selected);
-  border-color: var(--color-border-strong);
+  border-inline-start-color: var(--color-brand);
 }
 
 .messages-row__main,
@@ -226,18 +195,18 @@
 
 /* Message log */
 
+/* The log sits directly on the surface; it is the thread's only scroller. */
 .messages-log {
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-medium);
   display: grid;
   align-content: start;
   gap: var(--space-4);
+  /* Document-flow fallback (short or zoomed viewports); fill layout replaces it. */
   max-height: min(60vh, 40rem);
   max-height: min(60dvh, 40rem);
   min-height: 12rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-3);
+  padding-block: var(--space-2);
 }
 
 .messages-log:focus-visible {
@@ -272,6 +241,8 @@
 }
 
 .messages-day__label {
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding-bottom: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-1);
   font-weight: var(--font-weight-semibold);
@@ -318,6 +289,8 @@
 }
 
 .messages-message__body {
+  color: var(--color-text);
+  font-size: var(--font-size-3);
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -344,12 +317,35 @@
   gap: var(--space-2);
 }
 
-/* The composer stays reachable above an on-screen keyboard. */
+/* Keep growing drafts in flow so they cannot cover the end of the message log. */
 .messages-conversation__composer {
-  background: var(--color-canvas);
-  bottom: 0;
-  padding-block: var(--space-2);
-  position: sticky;
+  border-top: var(--border-width) solid var(--color-border);
+  padding-block-start: var(--space-3);
+}
+
+/* Fill layout: header, flexible log and anchored composer share the pane height. */
+@media (min-height: 30rem) {
+  .app-shell[data-layout='fill'] .messages-detail > .ui-workspace__pane-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-shell[data-layout='fill'] .messages-conversation {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .app-shell[data-layout='fill'] .messages-conversation > * {
+    flex: 0 0 auto;
+  }
+
+  .app-shell[data-layout='fill'] .messages-conversation > .messages-log {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: calc(var(--space-16) * 2);
+  }
 }
 
 .messages-composer {
@@ -359,6 +355,13 @@
 
 .messages-composer__actions {
   justify-content: flex-end;
+}
+
+.messages-composer textarea.ui-field__control {
+  min-height: var(--space-16);
+  max-height: calc(var(--space-16) * 3);
+  overflow-y: auto;
+  resize: none;
 }
 
 /* Forms and group details */

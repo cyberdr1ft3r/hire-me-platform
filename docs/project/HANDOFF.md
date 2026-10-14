@@ -1,8 +1,56 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 ## Current situation
+
+- **Next: review PR #203** (Issue #202 Scope A, shared authenticated request core) into
+  `fix/ui-refinement-demo-20261013`. Real-API expiry acceptance passed
+  ([evidence](../audit/issue-202-auth-expiry-acceptance.md)). Then decide the cross-tab
+  follow-up (R-059) and Scope B (refresh limiter keying, proxy hops, R-055) as separate
+  issues. No deploy; #194 stays unmerged into `main`.
+
+- **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
+  PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
+  maintainer answers to the ADR open questions and clickable interaction evidence.
+  Phase B0 (request core) and B1 (lazy routes) are the first implementation PRs, only
+  after approval. No merge/deploy automatically.
+  Integration `c625018` (#199 and #201 merged) is merged into the branch; the
+  preflight records what those changes alter in the baseline findings.
+
+- **Merged: Issue #196 creation drawers** (PR #201, merge `c625018`, after integrating
+  `542bbf0` with both memory sections kept). Remaining: human review of the EN/FR
+  drawer evidence and real-device mobile keyboard check (R-056). Do not close #196:
+  the utility bar/wordmark scope remains.
+
+- **Merged: Issue #196 Notification Center Phase 1** (PR #199, merge `542bbf0`). The
+  compact AppShell popover merges the existing notification and unread-conversation DTOs,
+  keeps independent source read state and deep-links through the membership-scoped
+  Messages read. See [the architecture audit](../design/notification-center-phase-1.md).
+  Remaining: physical mobile and screen-reader acceptance. Utility Bar, Notes and
+  branding stay outside it.
+
+- **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
+  `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
+  review of the Messages/Candidates before/after evidence and a real-device check of
+  the Messages composer with a mobile keyboard (R-056). Then migrate Commercial and
+  Accounting per the addendum's order, one PR each. No merge/deploy automatically.
+
+- **Next: review AppShell v1.2** on `feat/appshell-v1-2`, stacked on #194 head
+  `ffc7fa2`. See the [proposed navigation addendum](../design/HIREME_UI_DNA_v1.2-navigation-proposed.md).
+  Completion requires exact-head CI, 1440/1024/768/390 EN/FR screenshots with real
+  panel-width gain on collapse, keyboard/RBAC/history checks and human visual
+  review. Keep the follow-up draft; merge #194 first or explicitly rebase after
+  its disposition. No automatic merge/deploy or backend changes.
+
+- **UI refinement demonstration:** isolated branch `fix/ui-refinement-demo-20261013`
+  on main `283c18a` (PR #193 merged). Review the small frontend commits and
+  [verification/screenshot evidence](../audit/ui-refinement-20261013.md). Web 889
+  and contracts 70 tests pass; static checks and build pass. Complete exact-head
+  CI and human review before merging. The local Windows native PKCS#11 limitation
+  is documented. No backend/schema/source authorization or production changes.
+  Earlier historical draft references below are not an open-PR inventory; the
+  repository's open-PR list was empty when this sprint began.
 
 - **R-036 Task reminder scheduler:** PR A (#173) and PR B (#177) merged on `main`. **Issue #178 PR C (draft):** operations runbook, AuditLog + lag observability, example systemd templates, UI diagnostic wording. **Staging evidence: BLOCKED / NOT EXECUTED** — see `docs/runbooks/task-reminder-scheduler-staging-evidence.md`. Do **not** close R-036 until staging checklist is satisfied on a real host.
 

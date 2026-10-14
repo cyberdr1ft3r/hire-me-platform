@@ -111,13 +111,14 @@ a:hover {
   align-items: stretch;
   display: grid;
   max-width: var(--layout-content-max);
-  overflow-x: auto;
+  min-width: 0;
+  container: administration / inline-size;
 }
 
 .admin-grid {
   display: grid;
   gap: var(--space-6);
-  grid-template-columns: minmax(0, 1.4fr) minmax(var(--layout-card-min), 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .action-row,
@@ -139,8 +140,9 @@ textarea {
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-small);
   color: var(--color-text);
-  min-height: var(--control-height-standard);
-  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-3);
+  min-height: var(--control-height);
+  padding: var(--space-control) var(--space-3);
 }
 
 textarea {
@@ -155,16 +157,17 @@ button {
   color: var(--color-text-inverse);
   cursor: pointer;
   font-weight: var(--font-weight-semibold);
-  min-height: var(--control-height-standard);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-control) var(--space-3);
 }
 
-button:hover:not(:disabled) {
+/* Keep legacy button states below component classes, but above the base button rule. */
+button:where(:hover:not(:disabled)) {
   background: var(--color-brand-hover);
   border-color: var(--color-brand-hover);
 }
 
-button:active:not(:disabled) {
+button:where(:active:not(:disabled)) {
   background: var(--color-brand-pressed);
   border-color: var(--color-brand-pressed);
 }
@@ -245,5 +248,80 @@ th {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@container administration (min-width: 56rem) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+.admin-grid > section {
+  min-width: 0;
+}
+.admin-grid > section + section {
+  border-inline-start: var(--border-width) solid var(--color-border);
+  padding-inline-start: var(--space-4);
+}
+.admin-panel > section {
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-6);
+}
+.admin-panel .ui-page-header {
+  margin-bottom: var(--space-2);
+}
+.admin-panel h2 {
+  font-size: var(--font-size-5);
+  margin-bottom: var(--space-4);
+}
+.admin-panel h3 {
+  margin-top: var(--space-4);
+}
+.admin-panel .stacked-form {
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-4);
+}
+.admin-panel .stacked-form > button {
+  justify-self: start;
+}
+.admin-panel .action-row {
+  margin-block: var(--space-4);
+}
+.admin-table-scroll {
+  overflow-x: auto;
+}
+.admin-permissions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+.admin-permissions section {
+  min-width: 0;
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-3);
+}
+.admin-permissions h3 {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+.admin-permissions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.admin-permissions li {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  overflow-wrap: anywhere;
+}
+@container administration (max-width: 55.999rem) {
+  .admin-grid > section + section {
+    border-inline-start: 0;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-inline-start: 0;
+    padding-top: var(--space-4);
   }
 }

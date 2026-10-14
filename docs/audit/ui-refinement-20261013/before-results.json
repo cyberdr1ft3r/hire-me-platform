@@ -1,0 +1,290 @@
+[
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "hover": {
+      "background": "rgb(12, 77, 93)",
+      "color": "rgb(19, 37, 40)"
+    }
+  },
+  {
+    "screen": "agenda",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "training",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "accounting",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "documents",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "missions",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "clients",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "messages",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "agenda",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "training",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "commercial",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "accounting",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "documents",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "missions",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "candidates",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "clients",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "hover": {
+      "background": "rgb(12, 77, 93)",
+      "color": "rgb(19, 37, 40)"
+    }
+  },
+  {
+    "screen": "agenda",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "training",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "accounting",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "documents",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "missions",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "clients",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "messages",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "agenda",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "training",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "commercial",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "accounting",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "documents",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "missions",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "candidates",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "clients",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "admin",
+    "locale": "en",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "screen": "admin",
+    "locale": "fr",
+    "width": 390,
+    "overflow": false,
+    "errors": []
+  }
+]

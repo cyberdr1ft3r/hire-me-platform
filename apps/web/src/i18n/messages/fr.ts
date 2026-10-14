@@ -62,6 +62,11 @@ export const frMessages: Messages = {
       listLabel: 'Suggestions pour {field}',
       loading: 'Chargement des options…',
     },
+    drawer: {
+      discard: 'Abandonner les modifications',
+      discardPrompt: 'Des modifications ne sont pas enregistrées. Les abandonner ?',
+      keepEditing: 'Continuer la saisie',
+    },
   },
   navigation: {
     destinations: {
@@ -100,6 +105,11 @@ export const frMessages: Messages = {
       label: 'Langue',
     },
     navigation: {
+      communication: 'Communication',
+      domainRegion: 'Navigation des espaces',
+      collapse: 'Réduire le menu contextuel',
+      expand: 'Développer le menu contextuel',
+      contextHint: 'Choisissez un espace dans la barre d’icônes.',
       close: 'Fermer',
       closeNavigation: 'Fermer la navigation',
       dismissNavigation: 'Masquer le panneau de navigation',
@@ -111,9 +121,44 @@ export const frMessages: Messages = {
       skipToMain: 'Aller au contenu principal',
     },
     session: {
+      account: 'Compte et session',
       refreshProfile: 'Actualiser le profil',
       signOut: 'Se déconnecter',
     },
+  },
+  notificationCenter: {
+    actionError: 'La mise à jour de la notification n’a pas abouti. Réessayez.',
+    bell: 'Notifications',
+    bellUnread: plural({
+      many: 'Notifications, {count} éléments non lus',
+      one: 'Notifications, {count} élément non lu',
+      other: 'Notifications, {count} éléments non lus',
+    }),
+    empty: 'Vous êtes à jour.',
+    error: 'Une partie de l’activité récente n’a pas pu être chargée.',
+    filters: {
+      all: 'Toutes',
+      label: 'Filtres des notifications',
+      unread: 'Non lues',
+    },
+    loading: 'Chargement de l’activité récente…',
+    markAllNotificationsRead: 'Marquer les notifications comme lues',
+    markRead: 'Marquer comme lue',
+    messageSummary: plural({
+      many: '{count} messages non lus',
+      one: '{count} message non lu',
+      other: '{count} messages non lus',
+    }),
+    sources: {
+      messages: 'Messages',
+      notifications: 'Notification',
+    },
+    summary: plural({
+      many: '{count} éléments non lus',
+      one: '{count} élément non lu',
+      other: '{count} éléments non lus',
+    }),
+    title: 'Notifications',
   },
   overview: {
     description:
@@ -545,6 +590,7 @@ export const frMessages: Messages = {
       archiveContact: 'Archiver le contact',
       createClient: 'Créer le client',
       createContact: 'Créer le contact',
+      newClient: 'Nouveau client',
       region: 'Actions client',
       saveClient: 'Enregistrer le client',
       saveContact: 'Enregistrer le contact',

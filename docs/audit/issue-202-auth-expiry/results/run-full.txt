@@ -1,0 +1,26 @@
+PASS no API traffic while hidden (nothing refreshed before the burst)
+PASS A: expired token produced 401s on concurrent module requests 2 401s: /v1/messages/unread-summary, /v1/notifications
+PASS A: exactly one POST /auth/refresh in this tab refresh statuses: 201
+PASS A: refresh succeeded 201
+PASS A: every 401 request was replayed once and succeeded
+PASS A: no 401 after the refresh
+PASS A: not logged out, Clients rendered
+PASS B: reload restores session without login
+PASS B: reload uses exactly one refresh 201
+PASS no API traffic while hidden (nothing refreshed before the burst)
+PASS C: transient refresh 503 does not sign out refresh statuses: 503,201
+FAIL C: one refresh attempt for the burst (no retry storm)
+FAIL C: next request refreshes and recovers
+PASS D: out-of-band refresh rotated the token 201 cookies=hire_me_refresh
+PASS no API traffic while hidden (nothing refreshed before the burst)
+PASS D: revoked refresh → exactly one refresh attempt 401
+PASS D: user returned to sign-in
+PASS D: no further refresh/module calls after sign-out
+PASS D: reload after revocation stays signed out (no restore) 401
+PASS A–D: no page errors
+PASS E: missing refresh cookie → exactly one refresh, then sign-in 401
+PASS E: sign-out with a dirty drawer leaves no drawer and no inert app
+PASS E: can sign in again afterwards
+PASS no API traffic while hidden (nothing refreshed before the burst)  |
+F (observation): {"tab1Refresh":[201],"tab2Refresh":[401],"tab1SignedOut":false,"tab2SignedOut":true}
+22/24 passed

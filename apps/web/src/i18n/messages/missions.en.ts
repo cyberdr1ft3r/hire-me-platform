@@ -481,6 +481,7 @@ export const missionsEn = {
     title: 'Public applications',
   },
   picker: {
+    clear: 'Clear selection',
     choose: 'Choose…',
     error: 'Options could not be loaded.',
     loading: 'Loading options…',

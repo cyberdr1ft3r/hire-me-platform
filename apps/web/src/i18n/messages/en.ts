@@ -49,6 +49,11 @@ export const enMessages = {
       listLabel: 'Suggestions for {field}',
       loading: 'Loading options…',
     },
+    drawer: {
+      discard: 'Discard changes',
+      discardPrompt: 'You have unsaved changes. Discard them?',
+      keepEditing: 'Keep editing',
+    },
   },
   navigation: {
     destinations: {
@@ -87,6 +92,11 @@ export const enMessages = {
       label: 'Language',
     },
     navigation: {
+      communication: 'Communication',
+      domainRegion: 'Workspace navigation',
+      collapse: 'Collapse contextual menu',
+      expand: 'Expand contextual menu',
+      contextHint: 'Choose a workspace from the icon rail.',
       close: 'Close',
       closeNavigation: 'Close navigation',
       dismissNavigation: 'Dismiss navigation',
@@ -98,9 +108,35 @@ export const enMessages = {
       skipToMain: 'Skip to main content',
     },
     session: {
+      account: 'Account and session',
       refreshProfile: 'Refresh profile',
       signOut: 'Sign out',
     },
+  },
+  notificationCenter: {
+    actionError: 'That notification update did not complete. Try again.',
+    bell: 'Notifications',
+    bellUnread: plural({
+      one: 'Notifications, {count} unread item',
+      other: 'Notifications, {count} unread items',
+    }),
+    empty: 'You are all caught up.',
+    error: 'Some recent activity could not be loaded.',
+    filters: {
+      all: 'All',
+      label: 'Notification filters',
+      unread: 'Unread',
+    },
+    loading: 'Loading recent activity…',
+    markAllNotificationsRead: 'Mark notifications read',
+    markRead: 'Mark as read',
+    messageSummary: plural({ one: '{count} unread message', other: '{count} unread messages' }),
+    sources: {
+      messages: 'Messages',
+      notifications: 'Notification',
+    },
+    summary: plural({ one: '{count} unread item', other: '{count} unread items' }),
+    title: 'Notifications',
   },
   overview: {
     description:
@@ -535,6 +571,7 @@ export const enMessages = {
       archiveContact: 'Archive contact',
       createClient: 'Create client',
       createContact: 'Create contact',
+      newClient: 'New client',
       region: 'Client actions',
       saveClient: 'Save client',
       saveContact: 'Save contact',

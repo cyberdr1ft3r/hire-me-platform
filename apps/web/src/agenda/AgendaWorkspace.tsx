@@ -66,7 +66,7 @@ export function AgendaWorkspace({
             </option>
           ))}
         </Select>
-        <Button type="button" onClick={onRefresh} disabled={pending}>
+        <Button variant="secondary" type="button" onClick={onRefresh} disabled={pending}>
           {t('agenda.refresh')}
         </Button>
       </div>
@@ -90,7 +90,7 @@ export function AgendaWorkspace({
                 return (
                   <div key={item.id} className="agenda-item-row">
                     <div>
-                      <div>
+                      <div className="agenda-item-title">
                         {item.overdue ? (
                           <span className="agenda-item-overdue">{t('agenda.overdue')}</span>
                         ) : null}
@@ -101,7 +101,12 @@ export function AgendaWorkspace({
                         {when ? ` · ${formatDateTime(when)}` : null}
                       </div>
                     </div>
-                    <Button type="button" onClick={() => onOpenItem(item)}>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      type="button"
+                      onClick={() => onOpenItem(item)}
+                    >
                       {t('agenda.open')}
                     </Button>
                   </div>

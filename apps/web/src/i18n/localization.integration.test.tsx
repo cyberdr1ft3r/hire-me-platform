@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App.js';
@@ -148,9 +148,21 @@ describe('switching language in the shell', () => {
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
 
     expect(await screen.findByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
-    for (const label of ['Tâches', 'Candidats', 'Rapports', 'Comptabilité', 'Administration']) {
-      expect(screen.getByRole('link', { name: label })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Tâches' })).toBeVisible();
+    for (const [domain, labels] of [
+      ['Recrutement', ['Candidats', 'Rapports']],
+      ['Commercial', ['Comptabilité']],
+    ] as const) {
+      fireEvent.click(screen.getByRole('button', { name: domain }));
+      for (const label of labels) expect(screen.getByRole('link', { name: label })).toBeVisible();
     }
+    // A one-destination domain is a direct, translated rail link.
+    expect(
+      within(screen.getByRole('navigation', { name: 'Navigation des espaces' })).getByRole('link', {
+        name: 'Administration',
+      }),
+    ).toHaveAttribute('href', '/admin');
+    fireEvent.click(screen.getByLabelText('Compte et session'));
     expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Actualiser le profil' })).toBeVisible();
     expect(screen.getByText('API opérationnelle')).toBeVisible();
@@ -171,6 +183,7 @@ describe('switching language in the shell', () => {
     fireEvent.change(languageSelect(), { target: { value: 'en' } });
 
     expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    fireEvent.click(screen.getByLabelText('Account and session'));
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
     expect(document.documentElement.lang).toBe('en');
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en');
@@ -229,6 +242,7 @@ describe('switching language in the shell', () => {
 
     await screen.findByRole('link', { name: 'Overview' });
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
+    fireEvent.click(screen.getByLabelText('Compte et session'));
     fireEvent.click(await screen.findByRole('button', { name: 'Se déconnecter' }));
 
     expect(await screen.findByRole('form', { name: 'Connexion' })).toBeVisible();

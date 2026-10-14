@@ -67,6 +67,31 @@ function useEndVisible(
 }
 
 /**
+ * In the fill layout the log's height follows its neighbours (a growing draft,
+ * a notice, a narrower header). A reader who was at the newest message stays
+ * there when the log is resized, instead of the end slipping under the composer.
+ */
+function useKeepEndOnResize(
+  logRef: RefObject<HTMLElement | null>,
+  stickToEnd: RefObject<boolean>,
+  active: boolean,
+): void {
+  useEffect(() => {
+    const log = logRef.current;
+    if (!active || !log || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (stickToEnd.current) {
+        log.scrollTop = log.scrollHeight;
+      }
+    });
+    observer.observe(log);
+    return () => observer.disconnect();
+  }, [active, logRef, stickToEnd]);
+}
+
+/**
  * One conversation, keyed by its id by the caller: switching conversation or
  * session remounts it, and every late response is dropped through `alive`.
  */
@@ -139,6 +164,7 @@ export function ConversationPane({
   const endVisible = useEndVisible(logRef, endRef, loadState === 'ready');
   const stickToEnd = useRef(true);
   stickToEnd.current = endVisible;
+  useKeepEndOnResize(logRef, stickToEnd, loadState === 'ready');
 
   const applyDetail = useCallback(
     (incoming: ConversationDetail) => {

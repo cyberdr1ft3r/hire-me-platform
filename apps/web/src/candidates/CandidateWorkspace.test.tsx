@@ -995,3 +995,55 @@ describe('Stacked master-detail reveal', () => {
     expect(document.activeElement).toBe(heading);
   });
 });
+
+describe('Workspace Surface', () => {
+  it('places the directory and the record in one surface with the filters in the list toolbar', () => {
+    renderWorkspace([P.view]);
+    const list = screen.getByRole('region', { name: 'Candidate list' });
+    expect(list).toHaveAttribute('data-pane', 'list');
+    expect(list.closest('.ui-workspace')).toHaveAttribute('data-split', 'wide');
+    const toolbar = list.querySelector('.ui-workspace__toolbar');
+    expect(toolbar).toContainElement(screen.getByRole('search'));
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Candidates' }).closest('header'),
+    ).toHaveClass('ui-page-header--compact');
+  });
+
+  it('opens a newly selected record at the top of its own scrolling pane', () => {
+    const first = asServerWouldReturn(syntheticCandidate(), [P.view]);
+    const second = {
+      ...first,
+      displayName: 'Second Synthetic',
+      id: '00000000-0000-4000-8000-0000000000c2',
+    };
+    const props = renderWorkspace([P.view], {
+      list: { candidates: [first, second], page: 1, pageSize: 20, status: 'ready', total: 2 },
+      selectedId: first.id,
+    });
+    cleanup();
+    const { rerender } = render(
+      <I18nProvider initialLocale="en">
+        <CandidateWorkspace {...props} />
+      </I18nProvider>,
+    );
+    const pane = document.querySelector<HTMLElement>(
+      '[data-pane="detail"] > .ui-workspace__pane-body',
+    );
+    const resets: number[] = [];
+    Object.defineProperty(pane, 'scrollTop', {
+      configurable: true,
+      get: () => 400,
+      set: (value: number) => resets.push(value),
+    });
+    rerender(
+      <I18nProvider initialLocale="en">
+        <CandidateWorkspace
+          {...props}
+          detail={{ candidate: second, status: 'ready' }}
+          selectedId={second.id}
+        />
+      </I18nProvider>,
+    );
+    expect(resets).toEqual([0]);
+  });
+});

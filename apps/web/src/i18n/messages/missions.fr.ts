@@ -491,6 +491,7 @@ export const missionsFr: Messages['missions'] = {
     title: 'Candidatures publiques',
   },
   picker: {
+    clear: 'Effacer la sélection',
     choose: 'Choisir…',
     error: 'Les options n’ont pas pu être chargées.',
     loading: 'Chargement des options…',
