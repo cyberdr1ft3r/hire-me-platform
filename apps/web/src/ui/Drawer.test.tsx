@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
+import {
+  acceptHistoryTraversal,
+  initializeHistoryIndex,
+  pushHistoryPath,
+  resetNavigationGuardForTests,
+} from '../navigation/navigation-guard.js';
 import { CreationDrawer } from './Drawer.js';
 
 afterEach(() => {
@@ -143,5 +149,86 @@ describe('CreationDrawer', () => {
     expect(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }),
     ).toBeDisabled();
+  });
+
+  describe('browser navigation while open', () => {
+    const backTo = (index: number) => acceptHistoryTraversal({ hiremeHistoryIndex: index });
+
+    function prepareHistory() {
+      resetNavigationGuardForTests();
+      window.history.replaceState(null, '', '/');
+      initializeHistoryIndex();
+      pushHistoryPath('/clients');
+      return vi.spyOn(window.history, 'go').mockImplementation(() => undefined);
+    }
+
+    it('holds Back with unsaved input, keeps the draft and returns focus to the field', async () => {
+      const go = prepareHistory();
+      render(<Harness />);
+      const dialog = open();
+      const field = within(dialog).getByRole('textbox', { name: 'Record name' });
+      fireEvent.change(field, { target: { value: 'Draft' } });
+      field.focus();
+
+      let applied = true;
+      act(() => {
+        applied = backTo(0);
+      });
+      expect(applied).toBe(false);
+      expect(go).toHaveBeenLastCalledWith(1);
+      expect(within(dialog).getByText('You have unsaved changes. Discard them?')).toBeVisible();
+      const keep = within(dialog).getByRole('button', { name: 'Keep editing' });
+      expect(keep).toHaveFocus();
+
+      fireEvent.click(keep);
+      expect(field).toHaveValue('Draft');
+      await waitFor(() => expect(field).toHaveFocus());
+      go.mockRestore();
+    });
+
+    it('completes the held navigation after Discard changes and closes the drawer', () => {
+      const go = prepareHistory();
+      render(<Harness />);
+      const dialog = open();
+      fireEvent.change(within(dialog).getByRole('textbox', { name: 'Record name' }), {
+        target: { value: 'Draft' },
+      });
+      act(() => {
+        backTo(0);
+      });
+      backTo(1); // the browser's return trip is swallowed
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(go).toHaveBeenLastCalledWith(-1);
+      expect(backTo(0)).toBe(true);
+      go.mockRestore();
+    });
+
+    it('does not hold navigation for a clean drawer', () => {
+      const go = prepareHistory();
+      render(<Harness />);
+      open();
+      expect(backTo(0)).toBe(true);
+      expect(go).not.toHaveBeenCalled();
+      go.mockRestore();
+    });
+
+    it('asks the browser to confirm reload or close only while input is unsaved', () => {
+      render(<Harness />);
+      const dialog = open();
+      const unload = () => {
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      expect(unload()).toBe(false);
+      fireEvent.change(within(dialog).getByRole('textbox', { name: 'Record name' }), {
+        target: { value: 'Draft' },
+      });
+      expect(unload()).toBe(true);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
+      expect(unload()).toBe(false);
+    });
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { createPortal } from 'react-dom';
 
 import { useI18n } from '../i18n/index.js';
+import { blockNavigation } from '../navigation/navigation-guard.js';
 import { Button } from './Button.js';
 
 const FOCUSABLE =
@@ -33,7 +34,9 @@ export interface DrawerProps {
  * body, pinned footer. It renders into `document.body`, makes the application
  * behind it inert, keeps Tab inside, closes on Escape, the close button or the
  * scrim, and returns focus to the control that opened it. Closing with unsaved
- * input asks first, inside the drawer, instead of losing the draft silently.
+ * input asks first, inside the drawer, instead of losing the draft silently; so do
+ * browser Back/Forward (through the router's navigation guard) and reload or tab
+ * close (the browser's own prompt).
  * Mount it only while open; unmounting is closing.
  */
 export function Drawer({
@@ -50,6 +53,10 @@ export function Drawer({
   const descriptionId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // A held Back/Forward, completed only if the user discards.
+  const pendingLeave = useRef<(() => void) | null>(null);
+  // Where focus was when the question appeared; Keep editing returns it there.
+  const returnFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -78,9 +85,64 @@ export function Drawer({
       panelRef.current?.querySelector<HTMLElement>('[data-drawer-keep-editing]')?.focus();
   }, [confirmingDiscard]);
 
+  useEffect(() => {
+    if (!dirty) return;
+    const release = blockNavigation({
+      confirmLeave: (proceed) => {
+        pendingLeave.current = proceed;
+        askToDiscard();
+      },
+    });
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Older engines show their prompt only when returnValue is set.
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => {
+      release();
+      window.removeEventListener('beforeunload', warnBeforeUnload);
+    };
+  }, [dirty]);
+
+  function askToDiscard(): void {
+    // Never remember the question's own buttons: a repeated Back arrives while it shows.
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      panelRef.current?.contains(active) &&
+      !active.closest('.ui-drawer__discard')
+    )
+      returnFocus.current = active;
+    setConfirmingDiscard(true);
+  }
+
+  function keepEditing(): void {
+    pendingLeave.current = null;
+    setConfirmingDiscard(false);
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    // The question replaced the footer; put focus back where the user was editing.
+    requestAnimationFrame(() => {
+      if (target?.isConnected) target.focus();
+      else
+        panelRef.current
+          ?.querySelector('.ui-drawer__body')
+          ?.querySelector<HTMLElement>(FOCUSABLE)
+          ?.focus();
+    });
+  }
+
+  function discard(): void {
+    const leave = pendingLeave.current;
+    pendingLeave.current = null;
+    onClose();
+    leave?.();
+  }
+
   function requestClose(): void {
     if (dirty && !confirmingDiscard) {
-      setConfirmingDiscard(true);
+      askToDiscard();
       return;
     }
     onClose();
@@ -92,7 +154,7 @@ export function Drawer({
       if (event.defaultPrevented) return;
       event.preventDefault();
       if (confirmingDiscard) {
-        setConfirmingDiscard(false);
+        keepEditing();
         return;
       }
       requestClose();
@@ -157,14 +219,10 @@ export function Drawer({
                 {t('ui.drawer.discardPrompt')}
               </p>
               <div className="ui-drawer__actions">
-                <Button
-                  data-drawer-keep-editing=""
-                  onClick={() => setConfirmingDiscard(false)}
-                  variant="secondary"
-                >
+                <Button data-drawer-keep-editing="" onClick={keepEditing} variant="secondary">
                   {t('ui.drawer.keepEditing')}
                 </Button>
-                <Button onClick={onClose} variant="danger">
+                <Button onClick={discard} variant="danger">
                   {t('ui.drawer.discard')}
                 </Button>
               </div>
