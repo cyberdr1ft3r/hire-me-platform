@@ -1,0 +1,482 @@
+[
+  {
+    "name": "en 1440x900: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":1102,\"surfaceWidth\":1136}"
+  },
+  {
+    "name": "en 1440x900: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: preview beside the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "en 1440x900: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "en 1440x900: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":686,\"surfaceWidth\":720}"
+  },
+  {
+    "name": "en 1024x768: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: preview beside the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "en 1024x768: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "en 1024x768: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":710,\"surfaceWidth\":736}"
+  },
+  {
+    "name": "en 768x1024: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: preview stacked with the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "en 768x1024: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "en 768x1024: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":332,\"surfaceWidth\":358}"
+  },
+  {
+    "name": "en 390x844: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: preview stacked with the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":false,\"previewWidth\":356}"
+  },
+  {
+    "name": "en 390x844: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "en 390x844: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: keyboard reaches Open full profile (Tab) and Close (Shift+Tab) from the preview heading",
+    "ok": true,
+    "detail": "Open full profile | Close preview"
+  },
+  {
+    "name": "en: browser Back returns to the directory",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates"
+  },
+  {
+    "name": "en: browser Forward reopens the record",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=bad4f2f2-c3b2-434a-972c-edb6a6ffbe77"
+  },
+  {
+    "name": "en: reload keeps the focused record (deep link)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: Back with unsaved input asks and stays when dismissed",
+    "ok": true,
+    "detail": "This candidate has unsaved changes. Leave and discard them?"
+  },
+  {
+    "name": "en: accepting leaves for the directory",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates"
+  },
+  {
+    "name": "en: deep link opens the record in a new browser session after sign-in",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: no page errors",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":1102,\"surfaceWidth\":1136}"
+  },
+  {
+    "name": "fr 1440x900: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: preview beside the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "fr 1440x900: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "fr 1440x900: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":686,\"surfaceWidth\":720}"
+  },
+  {
+    "name": "fr 1024x768: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: preview beside the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "fr 1024x768: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "fr 1024x768: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":710,\"surfaceWidth\":736}"
+  },
+  {
+    "name": "fr 768x1024: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: preview stacked with the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":true,\"previewWidth\":384}"
+  },
+  {
+    "name": "fr 768x1024: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "fr 768x1024: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: full-width directory, no empty record pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\",\"tableWidth\":332,\"surfaceWidth\":358}"
+  },
+  {
+    "name": "fr 390x844: directory has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: preview opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: preview has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: preview stacked with the directory",
+    "ok": true,
+    "detail": "{\"sideBySide\":false,\"previewWidth\":356}"
+  },
+  {
+    "name": "fr 390x844: Escape closes the preview and returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: record opens with focus on its heading",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: record URL is the candidate deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=c6aaa162-9723-44e3-97dd-deeb578c2f47"
+  },
+  {
+    "name": "fr 390x844: record has no horizontal page overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: Back to candidates returns focus to the row",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: keyboard reaches Open full profile (Tab) and Close (Shift+Tab) from the preview heading",
+    "ok": true,
+    "detail": "Ouvrir le profil complet | Fermer l’aperçu"
+  },
+  {
+    "name": "fr: browser Back returns to the directory",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates"
+  },
+  {
+    "name": "fr: browser Forward reopens the record",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates?candidate=bad4f2f2-c3b2-434a-972c-edb6a6ffbe77"
+  },
+  {
+    "name": "fr: reload keeps the focused record (deep link)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: Back with unsaved input asks and stays when dismissed",
+    "ok": true,
+    "detail": "Ce candidat a des modifications non enregistrées. Quitter et les abandonner ?"
+  },
+  {
+    "name": "fr: accepting leaves for the directory",
+    "ok": true,
+    "detail": "http://127.0.0.1:5910/candidates"
+  },
+  {
+    "name": "fr: deep link opens the record in a new browser session after sign-in",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: no page errors",
+    "ok": true,
+    "detail": ""
+  }
+]

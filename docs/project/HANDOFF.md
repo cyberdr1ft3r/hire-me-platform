@@ -4,11 +4,18 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: review PR #203** (Issue #202 Scope A, shared authenticated request core) into
-  `fix/ui-refinement-demo-20261013`. Real-API expiry acceptance passed
-  ([evidence](../audit/issue-202-auth-expiry-acceptance.md)). Then decide the cross-tab
-  follow-up (R-059) and Scope B (refresh limiter keying, proxy hops, R-055) as separate
-  issues. No deploy; #194 stays unmerged into `main`.
+- **Next: review the Issue #204 Candidates Workspace v2.0 draft PR** from
+  `feat/issue-204-candidates-workspace-v2` into `main` (`14fc745`). Directory → quick
+  preview → focused record; [evidence](../audit/issue-204-candidates-workspace-v2.md).
+  Completion requires human visual/interaction sign-off of the three states, a decision
+  on the 390px preview placement, and exact-head CI. Missions and Clients follow in
+  separate PRs only after sign-off. An Applications section needs a new cross-mission
+  read (backend decision). No merge/deploy automatically.
+
+- **Merged:** PR #203 (Issue #202 Scope A, shared request core) into the integration
+  branch, and #194 (integration) into `main` at `14fc745`. Still to decide: the
+  cross-tab refresh follow-up (R-059) and Scope B (refresh limiter keying, proxy hops,
+  R-055), as separate issues.
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
