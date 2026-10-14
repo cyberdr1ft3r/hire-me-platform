@@ -13,7 +13,7 @@ import {
   assignAdminRole,
   createAdminUser,
   fetchHealthStatus,
-  fetchMeWithRefresh,
+  fetchMe,
   getAdminUser,
   listAdminPermissions,
   listAdminRoles,
@@ -25,8 +25,9 @@ import {
   revokeAllAdminSessions,
   updateAdminUser,
   updateAdminUserStatus,
-  refresh,
+  restoreSession,
 } from './api.js';
+import { subscribeAuthSession } from './auth/authenticated-request.js';
 import {
   canAccessInternalRoute,
   isDeferredEnglishRoute,
@@ -133,24 +134,36 @@ function AppRoutes() {
   useEffect(() => {
     let isMounted = true;
 
-    refresh()
-      .then((auth) => {
-        if (isMounted) {
-          setAccessToken(auth.accessToken);
-          setUser(auth.user);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setAccessToken(null);
-          setUser(null);
-        }
-      });
+    // A missing or failed restore leaves the signed-out state alone, so it can
+    // never clear a session the user started by signing in meanwhile.
+    void restoreSession().then((auth) => {
+      if (isMounted && auth) {
+        setAccessToken(auth.accessToken);
+        setUser(auth.user);
+      }
+    });
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // `accessToken` stays the token the session started with: the request core
+  // sends the latest rotated token, so a background refresh does not re-run
+  // every effect keyed on it. A refresh may still change the user's
+  // permissions, and a terminal refresh failure signs out exactly once.
+  useEffect(
+    () =>
+      subscribeAuthSession((event) => {
+        if (event.type === 'ended') {
+          setAccessToken(null);
+          setUser(null);
+          return;
+        }
+        setUser((current) => (sameUser(current, event.user) ? current : event.user));
+      }),
+    [],
+  );
 
   async function handleLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -177,12 +190,11 @@ function AppRoutes() {
     }
 
     try {
-      const { accessToken: nextAccessToken, me } = await fetchMeWithRefresh(accessToken);
-      setAccessToken(nextAccessToken);
-      setUser(me.user);
+      const { user: nextUser } = await fetchMe(accessToken);
+      setUser((current) => (sameUser(current, nextUser) ? current : nextUser));
     } catch {
-      setAccessToken(null);
-      setUser(null);
+      // A terminal refresh failure already signed out through the session
+      // subscription; any other failure keeps the current session.
     }
   }
 
@@ -419,6 +431,10 @@ function AppRoutes() {
       {routeContent}
     </AppShell>
   );
+}
+
+function sameUser(current: AuthenticatedUser | null, next: AuthenticatedUser): boolean {
+  return current !== null && JSON.stringify(current) === JSON.stringify(next);
 }
 
 function AdminPanel({ accessToken }: { accessToken: string }) {

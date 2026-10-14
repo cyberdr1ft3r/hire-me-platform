@@ -25,6 +25,7 @@ import {
 } from '@hire-me/contracts';
 
 import { getApiBaseUrl, readStableErrorCode } from '../api.js';
+import { authenticatedFetch } from '../auth/authenticated-request.js';
 
 /**
  * A failed messaging request, carrying the HTTP status and the API's stable
@@ -48,16 +49,22 @@ async function messagingRequest(
   path: string,
   init: { body?: unknown; method?: 'GET' | 'PATCH' | 'POST' } = {},
 ): Promise<Response> {
-  const headers = new Headers({ Authorization: `Bearer ${accessToken}` });
+  const headers = new Headers();
   if (init.body !== undefined) {
     headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(`${getApiBaseUrl()}/v1/messages${path}`, {
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    credentials: 'include',
-    headers,
-    method: init.method ?? 'GET',
-  });
+  const apiBaseUrl = getApiBaseUrl();
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/messages${path}`,
+    {
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      credentials: 'include',
+      headers,
+      method: init.method ?? 'GET',
+    },
+  );
   if (!response.ok) {
     throw new MessagingRequestError(response.status, await readStableErrorCode(response));
   }

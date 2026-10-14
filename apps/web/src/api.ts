@@ -348,6 +348,13 @@ import {
   type DocumentGenerationResponse,
 } from '@hire-me/contracts';
 
+import {
+  authenticatedFetch,
+  logoutAuthSession,
+  restoreAuthSession,
+  startAuthSession,
+} from './auth/authenticated-request.js';
+
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
 
 export function getApiBaseUrl(): string {
@@ -384,34 +391,24 @@ export async function login(
     throw new Error('Authentication failed');
   }
 
-  return AuthResponseSchema.parse(await response.json());
+  const auth = AuthResponseSchema.parse(await response.json());
+  startAuthSession(auth);
+  return auth;
 }
 
-export async function refresh(apiBaseUrl = getApiBaseUrl()): Promise<AuthResponse> {
-  const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error('Refresh failed');
-  }
-
-  return AuthResponseSchema.parse(await response.json());
+/**
+ * Restores the signed-in session from the refresh cookie, or returns null when
+ * there is none. Concurrent callers share one refresh request.
+ */
+export async function restoreSession(apiBaseUrl = getApiBaseUrl()): Promise<AuthResponse | null> {
+  return restoreAuthSession(apiBaseUrl);
 }
 
 export async function fetchMe(
   accessToken: string,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<MeResponse> {
-  const response = await fetch(`${apiBaseUrl}/auth/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (response.status === 401) {
-    const refreshed = await refresh(apiBaseUrl);
-    return fetchMe(refreshed.accessToken, apiBaseUrl);
-  }
+  const response = await authenticatedFetch(accessToken, apiBaseUrl, `${apiBaseUrl}/auth/me`);
 
   if (!response.ok) {
     throw new Error('Current user request failed');
@@ -420,38 +417,8 @@ export async function fetchMe(
   return MeResponseSchema.parse(await response.json());
 }
 
-export async function fetchMeWithRefresh(
-  accessToken: string,
-  apiBaseUrl = getApiBaseUrl(),
-): Promise<{ accessToken: string; me: MeResponse }> {
-  const response = await fetch(`${apiBaseUrl}/auth/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (response.status === 401) {
-    const refreshed = await refresh(apiBaseUrl);
-    return {
-      accessToken: refreshed.accessToken,
-      me: { user: refreshed.user },
-    };
-  }
-
-  if (!response.ok) {
-    throw new Error('Current user request failed');
-  }
-
-  return {
-    accessToken,
-    me: MeResponseSchema.parse(await response.json()),
-  };
-}
-
 export async function logout(accessToken: string, apiBaseUrl = getApiBaseUrl()): Promise<void> {
-  await fetch(`${apiBaseUrl}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  await logoutAuthSession(accessToken, apiBaseUrl);
 }
 
 type AdminListUsersOptions = {
@@ -470,16 +437,20 @@ async function adminRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/admin${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/admin${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Administration request failed with status ${response.status}`);
@@ -689,16 +660,20 @@ async function clientRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/clients${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/clients${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Client CRM request failed with status ${response.status}`);
@@ -924,16 +899,20 @@ async function commercialRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/commercial${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/commercial${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new CommercialRequestError(response.status, await readStableErrorCode(response));
@@ -1333,16 +1312,20 @@ async function documentRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/documents${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/documents${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new DocumentRequestError(response.status, await readStableErrorCode(response));
@@ -1542,16 +1525,20 @@ async function candidateRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/candidates${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/candidates${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new CandidateRequestError(response.status, await readStableErrorCode(response));
@@ -1883,16 +1870,20 @@ async function missionRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/missions${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/missions${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new MissionRequestError(response.status, await readStableErrorCode(response));
@@ -2687,16 +2678,20 @@ async function taskRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/tasks${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/tasks${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Task request failed with status ${response.status}`);
@@ -2712,13 +2707,17 @@ async function notificationRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
 
-  const response = await fetch(`${apiBaseUrl}/v1/notifications${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/notifications${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Notification request failed with status ${response.status}`);
@@ -3090,16 +3089,20 @@ async function trainingRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/training${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/training${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new TrainingRequestError(response.status, await readStableErrorCode(response));
@@ -3737,10 +3740,14 @@ async function reportingRequest(
   path: string,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
-  const response = await fetch(`${apiBaseUrl}/v1/reporting/recruitment${path}`, {
-    credentials: 'include',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/reporting/recruitment${path}`,
+    {
+      credentials: 'include',
+    },
+  );
   if (!response.ok) {
     throw new Error(`Reporting request failed with status ${response.status}`);
   }
@@ -3854,16 +3861,20 @@ async function accountingRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiBaseUrl}/v1/accounting${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/accounting${path}`,
+    {
+      ...init,
+      credentials: 'include',
+      headers,
+    },
+  );
 
   if (!response.ok) {
     throw new AccountingRequestError(response.status, await readStableErrorCode(response));
@@ -4220,10 +4231,9 @@ async function generationRequest(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<DocumentGenerationResponse> {
   const headers = new Headers();
-  headers.set('Authorization', `Bearer ${accessToken}`);
   headers.set('Content-Type', 'application/json');
 
-  const response = await fetch(`${apiBaseUrl}/v1${path}`, {
+  const response = await authenticatedFetch(accessToken, apiBaseUrl, `${apiBaseUrl}/v1${path}`, {
     method: 'POST',
     credentials: 'include',
     headers,
@@ -4318,9 +4328,11 @@ export async function listAgenda(
   if (parsed.view) parameters.set('view', parsed.view);
   if (parsed.sources?.length) parameters.set('sources', parsed.sources.join(','));
   const suffix = parameters.toString();
-  const response = await fetch(`${apiBaseUrl}/v1/agenda${suffix ? `?${suffix}` : ''}`, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/agenda${suffix ? `?${suffix}` : ''}`,
+  );
   if (!response.ok) {
     throw new Error(`Agenda request failed (${response.status}).`);
   }
@@ -4332,9 +4344,11 @@ export async function getMeeting(
   meetingId: string,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<MeetingDetailResponse> {
-  const response = await fetch(`${apiBaseUrl}/v1/meetings/${meetingId}`, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    apiBaseUrl,
+    `${apiBaseUrl}/v1/meetings/${meetingId}`,
+  );
   if (!response.ok) {
     throw new Error(`Meeting request failed (${response.status}).`);
   }
