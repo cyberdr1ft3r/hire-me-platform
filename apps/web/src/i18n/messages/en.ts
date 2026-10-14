@@ -108,6 +108,31 @@ export const enMessages = {
       signOut: 'Sign out',
     },
   },
+  notificationCenter: {
+    actionError: 'That notification update did not complete. Try again.',
+    bell: 'Notifications',
+    bellUnread: plural({
+      one: 'Notifications, {count} unread item',
+      other: 'Notifications, {count} unread items',
+    }),
+    empty: 'You are all caught up.',
+    error: 'Some recent activity could not be loaded.',
+    filters: {
+      all: 'All',
+      label: 'Notification filters',
+      unread: 'Unread',
+    },
+    loading: 'Loading recent activity…',
+    markAllNotificationsRead: 'Mark notifications read',
+    markRead: 'Mark as read',
+    messageSummary: plural({ one: '{count} unread message', other: '{count} unread messages' }),
+    sources: {
+      messages: 'Messages',
+      notifications: 'Notification',
+    },
+    summary: plural({ one: '{count} unread item', other: '{count} unread items' }),
+    title: 'Notifications',
+  },
   overview: {
     description:
       'Move between recruitment, operations, and business work from one consistent workspace.',

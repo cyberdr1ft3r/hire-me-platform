@@ -121,6 +121,40 @@ export const frMessages: Messages = {
       signOut: 'Se déconnecter',
     },
   },
+  notificationCenter: {
+    actionError: 'La mise à jour de la notification n’a pas abouti. Réessayez.',
+    bell: 'Notifications',
+    bellUnread: plural({
+      many: 'Notifications, {count} éléments non lus',
+      one: 'Notifications, {count} élément non lu',
+      other: 'Notifications, {count} éléments non lus',
+    }),
+    empty: 'Vous êtes à jour.',
+    error: 'Une partie de l’activité récente n’a pas pu être chargée.',
+    filters: {
+      all: 'Toutes',
+      label: 'Filtres des notifications',
+      unread: 'Non lues',
+    },
+    loading: 'Chargement de l’activité récente…',
+    markAllNotificationsRead: 'Marquer les notifications comme lues',
+    markRead: 'Marquer comme lue',
+    messageSummary: plural({
+      many: '{count} messages non lus',
+      one: '{count} message non lu',
+      other: '{count} messages non lus',
+    }),
+    sources: {
+      messages: 'Messages',
+      notifications: 'Notification',
+    },
+    summary: plural({
+      many: '{count} éléments non lus',
+      one: '{count} élément non lu',
+      other: '{count} éléments non lus',
+    }),
+    title: 'Notifications',
+  },
   overview: {
     description:
       'Naviguez entre le recrutement, les opérations et la gestion commerciale depuis un espace de travail unique et cohérent.',

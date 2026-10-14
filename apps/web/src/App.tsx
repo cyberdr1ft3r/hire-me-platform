@@ -336,6 +336,7 @@ function AppRoutes() {
           <MessagesPanel
             accessToken={accessToken}
             actorUserId={user.id}
+            initialConversationId={recordIntent.conversationId}
             onUnreadChanged={unreadMessages.refresh}
             permissions={user.permissions}
           />
@@ -401,6 +402,12 @@ function AppRoutes() {
     <AppShell
       apiState={apiState}
       currentRoute={route}
+      notificationCenter={{
+        accessToken,
+        messageUnreadCount: unreadMessages.count,
+        onMessageUnreadChanged: unreadMessages.refresh,
+        onNavigatePath: navigateToPath,
+      }}
       navigationBadges={
         unreadMessages.count
           ? {

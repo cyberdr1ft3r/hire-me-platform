@@ -23,7 +23,7 @@ import {
 } from '../ui/index.js';
 import { ConversationPane } from './ConversationPane.js';
 import { GroupDetails } from './GroupDetails.js';
-import { listConversations } from './messages-api.js';
+import { getConversation, listConversations } from './messages-api.js';
 import { resolveMessagingAccess } from './messaging-access.js';
 import {
   appendPage,
@@ -80,11 +80,13 @@ function useStackedLayout(containerRef: RefObject<HTMLElement | null>): boolean 
 export function MessagesPanel({
   accessToken,
   actorUserId,
+  initialConversationId,
   onUnreadChanged,
   permissions,
 }: {
   accessToken: string;
   actorUserId: string;
+  initialConversationId?: string | null;
   onUnreadChanged: () => void;
   permissions: readonly string[];
 }) {
@@ -93,6 +95,7 @@ export function MessagesPanel({
     <MessagesWorkspace
       accessToken={accessToken}
       actorUserId={actorUserId}
+      initialConversationId={initialConversationId}
       key={sessionKey}
       onUnreadChanged={onUnreadChanged}
       permissions={permissions}
@@ -103,11 +106,13 @@ export function MessagesPanel({
 function MessagesWorkspace({
   accessToken,
   actorUserId,
+  initialConversationId,
   onUnreadChanged,
   permissions,
 }: {
   accessToken: string;
   actorUserId: string;
+  initialConversationId?: string | null;
   onUnreadChanged: () => void;
   permissions: readonly string[];
 }) {
@@ -133,6 +138,7 @@ function MessagesWorkspace({
   const listGeneration = useRef(0);
   const pagesLoaded = useRef(0);
   const refreshing = useRef(false);
+  const openedIntent = useRef<string | null>(null);
 
   useStackedMasterDetailReveal({
     containerRef,
@@ -202,6 +208,25 @@ function MessagesWorkspace({
     enabled: list.status === 'ready',
     resetKey: filter,
   });
+
+  useEffect(() => {
+    if (!initialConversationId || openedIntent.current === initialConversationId) return;
+    openedIntent.current = initialConversationId;
+    getConversation(accessToken, initialConversationId).then(
+      ({ conversation }) => {
+        if (!alive.current || openedIntent.current !== initialConversationId) return;
+        returnFocusTo.current = conversation.id;
+        setNotice(null);
+        setMode({ conversation, kind: 'conversation' });
+        setMobileView('detail');
+        setRevealToken((token) => token + 1);
+      },
+      () => {
+        // The scoped API deliberately gives the same result for missing,
+        // removed and foreign conversations. Keep the safe inbox visible.
+      },
+    );
+  }, [accessToken, alive, initialConversationId]);
 
   async function loadMore(): Promise<void> {
     if (list.status !== 'ready' || !list.nextCursor || loadingMore) {
