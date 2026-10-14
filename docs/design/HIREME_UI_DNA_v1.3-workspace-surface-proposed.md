@@ -71,6 +71,11 @@ Create footer that submits the body form by `form` id. Width
 safe-area padding. It renders into `document.body`, marks the application
 inert, traps Tab, closes on Escape, close or scrim, and returns focus to its
 opener. Closing with input asks inside the footer (keep editing / discard).
+Browser Back/Forward with input asks the same question: the router writes a
+position into each history entry, so `navigation/navigation-guard.ts` returns the
+browser to the drawer's entry and replays the traversal only after Discard,
+without adding entries. Reload or tab close uses the browser's own prompt while
+input is unsaved.
 Submitting shows progress and cannot repeat; failures appear inside the drawer
 and keep the draft; success closes it and the module selects the new record.
 `initialFocus="title"` is for forms whose first control opens a popup on focus.
