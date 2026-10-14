@@ -7,7 +7,7 @@ import type { CandidateRelatedPage } from './candidate-state.js';
 import { CandidateDetailView, type CandidateDetailViewProps } from './CandidateDetailView.js';
 import type { CandidateRecordTab } from './CandidateRecordTabs.js';
 import { CandidateRelatedDocuments, CandidateRelatedTasks } from './CandidateRelated.js';
-import { useRecordLeaveGuard } from './use-record-leave-guard.js';
+import { useRecordLeaveGuard } from '../navigation/use-record-leave-guard.js';
 
 /**
  * Loaders for the record's related sections, bound by the container to the open

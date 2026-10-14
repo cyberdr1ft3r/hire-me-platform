@@ -151,6 +151,28 @@ describe('CreationDrawer', () => {
     ).toBeDisabled();
   });
 
+  it('cannot be closed while its own write is in flight', () => {
+    const { rerender } = render(<Harness />);
+    const dialog = open();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Record name' }), {
+      target: { value: 'Draft' },
+    });
+    rerender(<Harness submitting />);
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const close = within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' });
+    expect(close).toBeDisabled();
+    fireEvent.click(document.querySelector('.ui-drawer__scrim')!);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // No discard question either: nothing is being discarded while the write runs.
+    expect(screen.queryByText('You have unsaved changes. Discard them?')).toBeNull();
+
+    rerender(<Harness />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.getByText('You have unsaved changes. Discard them?')).toBeVisible();
+  });
+
   describe('browser navigation while open', () => {
     const backTo = (index: number) => acceptHistoryTraversal({ hiremeHistoryIndex: index });
 

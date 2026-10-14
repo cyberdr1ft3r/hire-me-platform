@@ -10,6 +10,11 @@ const FOCUSABLE =
 
 export interface DrawerProps {
   children: ReactNode;
+  /**
+   * True while the drawer's own write is in flight: Escape, the close button and the
+   * scrim do nothing, so the drawer cannot appear cancelled while the request goes on.
+   */
+  closeDisabled?: boolean;
   /** True while the form holds input that closing would discard. */
   dirty?: boolean;
   /** Short purpose line under the title. */
@@ -47,6 +52,7 @@ export interface DrawerProps {
  */
 export function Drawer({
   children,
+  closeDisabled = false,
   description,
   dirty = false,
   footer,
@@ -148,6 +154,7 @@ export function Drawer({
   }
 
   function requestClose(): void {
+    if (closeDisabled) return;
     if (dirty && !confirmingDiscard) {
       askToDiscard();
       return;
@@ -211,6 +218,7 @@ export function Drawer({
           <Button
             aria-label={t('common.actions.close')}
             className="ui-drawer__close"
+            disabled={closeDisabled}
             onClick={requestClose}
             size="compact"
             variant="quiet"
@@ -280,6 +288,7 @@ export function CreationDrawer({
   const { t } = useI18n();
   return (
     <Drawer
+      closeDisabled={submitting}
       description={description}
       dirty={dirty && !submitting}
       footer={(requestClose) => (
