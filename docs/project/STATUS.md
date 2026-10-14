@@ -3,10 +3,25 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
-## Issue #196 — Missions and Clients creation drawers
+## Console Workspace v1.0 preflight (Issue #198)
+
+- Documentation-only draft PR on `docs/issue-198-console-workspace-preflight`, based on
+  integration branch `fix/ui-refinement-demo-20261013` at `bd46f59`; targets that
+  branch. Reconciled with integration `c625018` after #199 and #201 merged; #194 stays
+  open. Measurements remain those of `bd46f59`.
+- [Preflight](../design/console-workspace-v1-preflight.md), [ADR proposal D-089](../design/console-workspace-v1-adr-proposed.md),
+  [interaction matrix](../design/console-workspace-v1-interaction-matrix.md) and
+  [performance baseline](../audit/console-workspace-v1-baseline.md) with reproducible
+  synthetic-data scripts. No application code changed.
+- Key findings: single 303 KB-gzip chunk with no lazy routes; every workspace revisit
+  refetches (no cache); no dirty-form protection outside the #201 creation drawers;
+  module requests do not refresh expired tokens (R-057). Clickable interaction prototype still outstanding.
+
+## Issue #196 — Missions and Clients creation drawers (merged, PR #201 `c625018`)
 
 - Branch `feat/issue-196-creation-drawers` from integration branch
-  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged); integration `542bbf0` (#199 merged) merged in.
+  `fix/ui-refinement-demo-20261013` `bd46f59` (#197 merged); integration `542bbf0` (#199
+  merged) merged in, then merged into the integration branch through PR #201.
 - Header `New mission` / `New client` actions open the existing creation flows in a
   shared right-side `CreationDrawer`; bottom-of-directory creation removed. Same
   fields, pickers, requests and permissions. Client creation success now remains

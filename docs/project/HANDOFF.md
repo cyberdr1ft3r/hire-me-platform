@@ -4,11 +4,18 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: review the Issue #196 creation drawers** (draft PR #201 from
-  `feat/issue-196-creation-drawers` into `fix/ui-refinement-demo-20261013`). Integration
-  head `542bbf0` (#199 merged) is merged into the branch with both memory sections kept.
-  Requires exact-head CI and human review of the EN/FR drawer evidence. Do not close
-  #196: the utility bar/wordmark scope remains. No merge/deploy automatically.
+- **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
+  PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
+  maintainer answers to the ADR open questions and clickable interaction evidence.
+  Phase B0 (request core) and B1 (lazy routes) are the first implementation PRs, only
+  after approval. No merge/deploy automatically.
+  Integration `c625018` (#199 and #201 merged) is merged into the branch; the
+  preflight records what those changes alter in the baseline findings.
+
+- **Merged: Issue #196 creation drawers** (PR #201, merge `c625018`, after integrating
+  `542bbf0` with both memory sections kept). Remaining: human review of the EN/FR
+  drawer evidence and real-device mobile keyboard check (R-056). Do not close #196:
+  the utility bar/wordmark scope remains.
 
 - **Merged: Issue #196 Notification Center Phase 1** (PR #199, merge `542bbf0`). The
   compact AppShell popover merges the existing notification and unread-conversation DTOs,
