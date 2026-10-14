@@ -1,5 +1,5 @@
 import type { CandidateDetail } from '@hire-me/contracts';
-import { useId, useRef, useState, type RefObject } from 'react';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { useStackedMasterDetailReveal } from '../layout/index.js';
@@ -25,11 +25,13 @@ import type {
   CandidateRecordUpdate,
   CandidateSensitiveUpdate,
 } from './candidate-state.js';
+import { CandidateActionMenu, type CandidateMenuAction } from './CandidateActionMenu.js';
 import { CandidateEducation } from './CandidateEducation.js';
 import { CandidateExperience } from './CandidateExperience.js';
 import { CandidateLanguages } from './CandidateLanguages.js';
 import { CandidateProfile } from './CandidateProfile.js';
 import { CandidateProfileForm } from './CandidateProfileForm.js';
+import { CandidateRecordTabs, type CandidateRecordTab } from './CandidateRecordTabs.js';
 import { CandidateSensitiveData } from './CandidateSensitiveData.js';
 import { CandidateSkills } from './CandidateSkills.js';
 
@@ -49,6 +51,12 @@ export interface CandidateDetailViewProps {
   onUpdateRecord: (update: CandidateRecordUpdate) => Promise<CandidateFormOutcome>;
   onUpdateSensitive: (update: CandidateSensitiveUpdate) => Promise<CandidateFormOutcome>;
   pending: CandidatePendingAction | null;
+  /**
+   * Further sections of the focused record (documents, tasks). When present the
+   * existing profile content becomes the first tab; it stays mounted while another
+   * tab is shown, so an open form never loses its input.
+   */
+  sections?: readonly CandidateRecordTab[];
 }
 
 /**
@@ -109,6 +117,7 @@ function CandidateRecord({
   onUpdateRecord,
   onUpdateSensitive,
   pending,
+  sections,
   sideBySideMinRem,
 }: CandidateDetailViewProps & { candidate: CandidateDetail }) {
   const { formatDateTime, t } = useI18n();
@@ -151,74 +160,8 @@ function CandidateRecord({
     pending,
   };
 
-  function closeEditor(): void {
-    setEditing(false);
-    window.setTimeout(() => headingRef.current?.focus(), 0);
-  }
-
-  return (
-    <article aria-labelledby={nameId} className="candidate-detail">
-      <header className="candidate-detail__identity">
-        <div className="candidate-detail__heading">
-          <h2 id={nameId} ref={headingRef} tabIndex={-1}>
-            {candidate.displayName}
-          </h2>
-          <p className="candidate-detail__headline">
-            {headline.length > 0 ? headline.join(' · ') : t('candidate.profile.noHeadline')}
-          </p>
-          <div className="candidate-detail__meta">
-            <StatusBadge tone={candidateStatusTone(candidate.status)}>
-              {t(candidateStatusLabelKey(candidate.status))}
-            </StatusBadge>
-            <span>
-              {t('candidate.profile.updated', { date: formatDateTime(candidate.updatedAt) })}
-            </span>
-          </div>
-        </div>
-        {canEdit || lifecycleTargets.length > 0 || canArchive ? (
-          <div
-            aria-label={t('candidate.actions.region')}
-            className="candidate-actions"
-            role="group"
-          >
-            {canEdit && !editing ? (
-              <Button disabled={busy} onClick={() => setEditing(true)} variant="secondary">
-                {t('candidate.actions.edit')}
-              </Button>
-            ) : null}
-            {lifecycleTargets.map((status) => (
-              <Button
-                disabled={busy}
-                key={status}
-                onClick={() => onChangeStatus(status)}
-                variant="secondary"
-              >
-                {t(lifecycleActionLabelKey(status))}
-              </Button>
-            ))}
-            {canArchive ? (
-              <Button
-                disabled={busy}
-                loading={pending === 'archive'}
-                loadingLabel={t('common.status.working')}
-                onClick={onArchive}
-                variant="danger"
-              >
-                {t('candidate.lifecycle.archive')}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </header>
-
-      {feedback ? <CandidateFeedbackMessage feedback={feedback} /> : null}
-
-      {archived ? (
-        <InlineMessage title={t('domain.candidateStatus.ARCHIVED')} tone="info">
-          {t('candidate.lifecycle.archivedNotice')}
-        </InlineMessage>
-      ) : null}
-
+  const profile: ReactNode = (
+    <>
       {canEdit && editing ? (
         <CandidateProfileForm
           busy={busy}
@@ -271,6 +214,90 @@ function CandidateRecord({
         onUpdate={onUpdateSensitive}
         pending={pending}
       />
+    </>
+  );
+
+  // Lifecycle changes and archival, each with its own permission and confirmation as before.
+  const menuActions: CandidateMenuAction[] = [
+    ...lifecycleTargets.map((status) => ({
+      key: status,
+      label: t(lifecycleActionLabelKey(status)),
+      onSelect: () => onChangeStatus(status),
+    })),
+    ...(canArchive
+      ? [
+          {
+            danger: true,
+            key: 'archive',
+            label: t('candidate.lifecycle.archive'),
+            onSelect: onArchive,
+          },
+        ]
+      : []),
+  ];
+
+  function closeEditor(): void {
+    setEditing(false);
+    window.setTimeout(() => headingRef.current?.focus(), 0);
+  }
+
+  return (
+    <article aria-labelledby={nameId} className="candidate-detail">
+      <header className="candidate-detail__identity">
+        <div className="candidate-detail__heading">
+          <h2 id={nameId} ref={headingRef} tabIndex={-1}>
+            {candidate.displayName}
+          </h2>
+          <p className="candidate-detail__headline">
+            {headline.length > 0 ? headline.join(' · ') : t('candidate.profile.noHeadline')}
+          </p>
+          <div className="candidate-detail__meta">
+            <StatusBadge tone={candidateStatusTone(candidate.status)}>
+              {t(candidateStatusLabelKey(candidate.status))}
+            </StatusBadge>
+            <span>
+              {t('candidate.profile.updated', { date: formatDateTime(candidate.updatedAt) })}
+            </span>
+          </div>
+        </div>
+        {canEdit || menuActions.length > 0 ? (
+          <div
+            aria-label={t('candidate.actions.region')}
+            className="candidate-actions"
+            role="group"
+          >
+            {/* Editing is the primary record action; the rest are infrequent or destructive. */}
+            {canEdit && !editing ? (
+              <Button disabled={busy} onClick={() => setEditing(true)}>
+                {t('candidate.actions.edit')}
+              </Button>
+            ) : null}
+            {menuActions.length > 0 ? (
+              <CandidateActionMenu
+                actions={menuActions}
+                disabled={busy}
+                label={t('candidate.actions.more')}
+                loading={pending === 'archive' || pending === 'status'}
+                loadingLabel={t('common.status.working')}
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </header>
+
+      {feedback ? <CandidateFeedbackMessage feedback={feedback} /> : null}
+
+      {archived ? (
+        <InlineMessage title={t('domain.candidateStatus.ARCHIVED')} tone="info">
+          {t('candidate.lifecycle.archivedNotice')}
+        </InlineMessage>
+      ) : null}
+
+      {sections && sections.length > 0 ? (
+        <CandidateRecordTabs profile={profile} sections={sections} />
+      ) : (
+        profile
+      )}
     </article>
   );
 }

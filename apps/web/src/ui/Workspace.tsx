@@ -10,11 +10,16 @@ import type { HTMLAttributes, ReactNode, Ref } from 'react';
  * owns its own vertical scrolling (see `ui/workspace.css`).
  */
 
-export type WorkspaceSplit = 'standard' | 'wide';
+/**
+ * `standard` and `wide` pair a narrow list with a wide record. `preview` is the
+ * reverse: the directory keeps the width and a compact preview pane sits beside it.
+ */
+export type WorkspaceSplit = 'preview' | 'standard' | 'wide';
 export type WorkspaceView = 'list' | 'detail';
 
 /** Container widths at which the panes sit side by side; mirrored in workspace.css. */
 export const WORKSPACE_SPLIT_MIN_REM: Record<WorkspaceSplit, number> = {
+  preview: 44,
   standard: 48,
   wide: 60,
 };

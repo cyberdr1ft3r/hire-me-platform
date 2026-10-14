@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, TextField } from '../ui/index.js';
+import { CreationDrawer, TextField } from '../ui/index.js';
 import { CANDIDATE_FIELD_LIMITS, useCandidateForm } from './candidate-form.js';
 import type { CandidateCreateValues, CandidateFormOutcome } from './candidate-state.js';
 import { CandidateFormFeedback } from './CandidateFormFeedback.js';
@@ -17,57 +17,54 @@ const CREATE_FIELDS = [
 ] as const;
 
 /**
- * Candidate creation, with exactly the seven fields the workspace has always
- * offered. Only the name is required, as the contract requires.
+ * Candidate creation in the shared creation drawer (#201), with exactly the seven
+ * fields the workspace has always offered. Only the name is required, as the
+ * contract requires. Closing with input asks before discarding it.
  *
  * It is rendered only for actors holding `candidates:create`; the container
  * decides that, never this form.
  */
-export function CandidateCreateForm({
+export function CandidateCreateDrawer({
   busy,
-  onCancel,
-  onCreated,
+  onClose,
   onSubmit,
   submitting,
 }: {
   /** The workspace's single write lock: true while any Candidate write is in flight. */
   busy: boolean;
-  onCancel: () => void;
-  onCreated: () => void;
+  onClose: () => void;
   onSubmit: (values: CandidateCreateValues) => Promise<CandidateFormOutcome>;
   /** True while this form's own create request is the write in flight. */
   submitting: boolean;
 }) {
   const { t } = useI18n();
-  const headingId = useId();
-  const formRef = useRef<HTMLFormElement>(null);
+  const formId = useId();
+  const [dirty, setDirty] = useState(false);
   const form = useCandidateForm(
     { email: ['email'], fields: CREATE_FIELDS, required: ['displayName'] },
     (values) => onSubmit(values),
-    onCreated,
+    onClose,
     busy,
   );
 
-  // Opening the form moves focus to its first field, so keyboard users land in it.
-  useEffect(() => {
-    const first = formRef.current?.elements.namedItem('displayName');
-    if (first instanceof HTMLElement) {
-      first.focus();
-    }
-  }, []);
-
   return (
-    <section aria-labelledby={headingId} className="candidate-create">
-      <div className="candidate-section__head">
-        <h2 id={headingId}>{t('candidate.create.title')}</h2>
-        <p className="candidate-section__description">{t('candidate.create.description')}</p>
-      </div>
+    <CreationDrawer
+      description={t('candidate.create.description')}
+      dirty={dirty}
+      formId={formId}
+      onClose={onClose}
+      submitDisabled={busy}
+      submitLabel={t('candidate.actions.create')}
+      submitting={submitting}
+      title={t('candidate.create.title')}
+    >
       <form
-        aria-labelledby={headingId}
+        aria-label={t('candidate.create.title')}
         className="candidate-form"
+        id={formId}
         noValidate
+        onInput={() => setDirty(true)}
         onSubmit={form.handleSubmit}
-        ref={formRef}
       >
         <div className="candidate-form__fields">
           <TextField
@@ -115,20 +112,7 @@ export function CandidateCreateForm({
           />
         </div>
         <CandidateFormFeedback failure={form.failure} hasFieldErrors={form.hasFieldErrors} />
-        <div className="candidate-form__actions">
-          <Button
-            disabled={busy}
-            loading={submitting}
-            loadingLabel={t('common.status.working')}
-            type="submit"
-          >
-            {t('candidate.actions.create')}
-          </Button>
-          <Button disabled={submitting} onClick={onCancel} variant="secondary">
-            {t('candidate.actions.cancel')}
-          </Button>
-        </div>
       </form>
-    </section>
+    </CreationDrawer>
   );
 }

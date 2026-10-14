@@ -26,6 +26,12 @@ export interface DrawerProps {
    */
   initialFocus?: 'field' | 'title';
   onClose: () => void;
+  /**
+   * `side` (default) is the right-side drawer. `bottom` is a sheet anchored to the
+   * bottom of the viewport for narrow screens: the same modal behaviour, a height
+   * capped below the full viewport so the page it belongs to stays visible above it.
+   */
+  placement?: 'bottom' | 'side';
   title: ReactNode;
 }
 
@@ -46,6 +52,7 @@ export function Drawer({
   footer,
   initialFocus = 'field',
   onClose,
+  placement = 'side',
   title,
 }: DrawerProps) {
   const { t } = useI18n();
@@ -179,7 +186,7 @@ export function Drawer({
   }
 
   return createPortal(
-    <div className="ui-drawer">
+    <div className="ui-drawer" data-placement={placement}>
       <div aria-hidden="true" className="ui-drawer__scrim" onClick={requestClose} />
       <section
         aria-describedby={description ? descriptionId : undefined}

@@ -1,0 +1,114 @@
+{
+  "state": "before",
+  "cpuThrottle": 4,
+  "date": "2026-10-14T15:32:54.136Z",
+  "cold": {
+    "firstRowMs": {
+      "n": 5,
+      "median": 1670,
+      "p95": 1892,
+      "min": 1573,
+      "max": 1903
+    },
+    "requests": {
+      "n": 5,
+      "median": 5,
+      "p95": 5,
+      "min": 5,
+      "max": 5
+    },
+    "blockingMs": {
+      "n": 5,
+      "median": 993,
+      "p95": 1168,
+      "min": 736,
+      "max": 1207
+    },
+    "sampleRequests": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/candidates",
+      "GET /v1/messages/unread-summary"
+    ]
+  },
+  "rowActivation": {
+    "ms": {
+      "n": 20,
+      "median": 749,
+      "p95": 845,
+      "min": 656,
+      "max": 860
+    },
+    "requestsPerActivation": {
+      "n": 20,
+      "median": 1,
+      "p95": 1,
+      "min": 1,
+      "max": 1
+    },
+    "sample": [
+      "GET /v1/candidates/:id"
+    ]
+  },
+  "deepLink": {
+    "recordMs": {
+      "n": 3,
+      "median": 1949,
+      "p95": 1949,
+      "min": 1691,
+      "max": 2305
+    },
+    "requests": {
+      "n": 3,
+      "median": 6,
+      "p95": 6,
+      "min": 6,
+      "max": 6
+    },
+    "sample": [
+      "GET /health",
+      "POST /auth/refresh",
+      "GET /v1/notifications",
+      "GET /v1/candidates",
+      "GET /v1/candidates/:id",
+      "GET /v1/messages/unread-summary"
+    ]
+  },
+  "memory": [
+    {
+      "cycle": 0,
+      "heapMB": 16.48,
+      "nodes": 602,
+      "listeners": 213
+    },
+    {
+      "cycle": 10,
+      "heapMB": 16.99,
+      "nodes": 2315,
+      "listeners": 313
+    },
+    {
+      "cycle": 20,
+      "heapMB": 17.19,
+      "nodes": 4033,
+      "listeners": 413
+    },
+    {
+      "cycle": 30,
+      "heapMB": 17.39,
+      "nodes": 5733,
+      "listeners": 513
+    },
+    {
+      "cycle": 40,
+      "heapMB": 17.59,
+      "nodes": 7433,
+      "listeners": 613
+    }
+  ],
+  "idle65s": [
+    "GET /v1/notifications",
+    "GET /v1/messages/unread-summary"
+  ]
+}

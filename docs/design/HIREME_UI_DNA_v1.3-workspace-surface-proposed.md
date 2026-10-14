@@ -82,6 +82,45 @@ and keep the draft; success closes it and the module selects the new record.
 Applied to Missions and Clients; module fields, pickers, validation, requests
 and permissions are unchanged.
 
+## Entity workspace: directory, preview, record (Issue #204, proposed)
+
+Applied to Candidates first; Missions and Clients follow in their own PRs once the
+three states are signed off.
+
+- **Directory.** With nothing previewed the surface holds one pane (`view="list"`),
+  so the table uses the full width; there is no empty record pane. Search sits in
+  the toolbar; secondary filters open on demand behind a `Filters` disclosure in
+  the same form (one apply, page 1). The order is the server's; a sort control
+  appears only where the list API offers one. Columns give way through container
+  queries, and below 30rem rows read as name, title, status. From 48rem the pane
+  heading and the search share one toolbar row; the search hint is the field's
+  placeholder and accessible description rather than a row of its own.
+- **Quick preview.** `split="preview"` puts a compact 18–24rem pane beside the
+  directory from a 44rem workspace. It is not modal and not a tab: it renders from
+  the row the list already returned (no read, no timer), takes focus on open, and
+  Escape or Close returns focus to the row. Below 44rem (phones, 200% zoom) the same
+  content opens at once in the shared drawer as a bottom sheet
+  (`Drawer placement="bottom"`): modal, Tab kept inside, Escape/Close/scrim return
+  focus to the row, a scrolling body under a pinned header, and Close and Open full
+  profile pinned in the footer within the dynamic viewport height. The directory
+  behind it keeps its page, filters and scroll position. Restricted areas and write
+  actions never appear in either.
+- **Focused record.** `Open full profile` pushes the record's deep link
+  (`?candidate=<id>`), so Back returns to the directory with its page and filters
+  (no list re-read); a direct link or reload opens the record. The record keeps
+  every existing form and action, adds section tabs only for sections the platform
+  can read (here Documents and Tasks, through their own list APIs and view
+  permissions, loaded once on first open), and keeps the profile mounted so a tab
+  switch never drops input. Edit profile is the primary record action; lifecycle
+  changes and archival sit in a `More actions` menu button (WAI-ARIA menu pattern)
+  with their existing permissions and confirmations, archival set apart as the
+  destructive item. Related lists say how many there are, link to the owning
+  module, and reuse that module's labels (task status, priority, overdue/today).
+- **Unsaved input.** A record form that received input asks before Back/Forward,
+  shell links and the record's Back action (`requestNavigation`), and the browser
+  prompts on reload. Blockers stack, so a creation drawer opened over a record
+  hands the decision back when it closes.
+
 ## Migration order (proposed)
 
 1. **Commercial** — table list + record; tabs already consistent. Move filters

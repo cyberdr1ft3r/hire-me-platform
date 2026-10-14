@@ -3,6 +3,29 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
+## Issue #204 — Candidates Workspace v2.0 (draft PR)
+
+- Branch `feat/issue-204-candidates-workspace-v2` from `main` `14fc745`. Frontend only;
+  no API, contract, schema or permission change.
+- The Candidates module is a full-width directory (search in the toolbar, status and
+  source on demand), a non-modal quick preview built from the list row (no request),
+  and a focused record at `/candidates?candidate=<id>` with Back/Forward, reload and
+  new-session deep links. The record keeps every existing form and action and adds
+  Documents and Tasks sections through their own list APIs and view permissions.
+  Record forms with input ask before leaving; creation moved to the shared drawer.
+- Refinement after the 14 Oct product review: below a 44rem workspace (phones, 200%
+  zoom) the preview is a bottom sheet (shared drawer, `placement="bottom"`); the
+  directory toolbar is one row; the record makes Edit profile primary with lifecycle
+  and archive in an accessible `More actions` menu; Tasks/Documents show counts,
+  module links, and task status, priority and overdue wording. Applications stay
+  deferred (no backend work).
+- Shared changes: Workspace `split="preview"`, navigation guard blocker stack,
+  `requestNavigation` for shell/notification links, and a fix for a lost Back after a
+  synchronous confirmation.
+- Figma items without domain support (pipeline statuses, experience, owner, sort,
+  Applications, Activity) are documented, not invented.
+  [Evidence](../audit/issue-204-candidates-workspace-v2.md). Human sign-off pending.
+
 ## Issue #202 Scope A — shared authenticated request core (PR #203)
 
 - Branch `fix/issue-202-web-auth-request-core` targets `fix/ui-refinement-demo-20261013`;

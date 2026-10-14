@@ -98,6 +98,18 @@ export function candidatePageCount(total: number, pageSize: number): number {
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
+/**
+ * The first, bounded page of a related list in the focused record (documents,
+ * tasks). Its total tells the reader when more exist in the owning module.
+ */
+export interface CandidateRelatedPage<Item> {
+  items: Item[];
+  total: number;
+}
+
+/** The size of that first page; the owning module pages further. */
+export const CANDIDATE_RELATED_PAGE_SIZE = 20;
+
 export type CandidateDetailState =
   | { status: 'idle' }
   | { candidateId: string; status: 'error' }

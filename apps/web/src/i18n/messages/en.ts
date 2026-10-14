@@ -333,6 +333,7 @@ export const enMessages = {
       cancel: 'Cancel',
       create: 'Create candidate',
       edit: 'Edit profile',
+      more: 'More actions',
       newCandidate: 'New candidate',
       region: 'Candidate actions',
       save: 'Save changes',
@@ -360,6 +361,13 @@ export const enMessages = {
     create: {
       description: 'Only the name is required. Other details can be completed later.',
       title: 'New candidate',
+    },
+    directory: {
+      columns: {
+        candidate: 'Candidate',
+      },
+      order: 'Newest first',
+      title: 'Candidate directory',
     },
     education: {
       add: 'Add education',
@@ -464,6 +472,8 @@ export const enMessages = {
       sourceTextHint: 'Exactly as recorded on the profile; letter case is ignored',
       status: 'Status',
       submit: 'Search candidates',
+      toggle: 'Filters',
+      toggleActive: 'Filters ({count})',
     },
     header: {
       description: 'Manage candidate profiles and recruitment information.',
@@ -501,6 +511,11 @@ export const enMessages = {
       title: 'Candidate list',
       updated: 'Updated {date}',
     },
+    preview: {
+      close: 'Close preview',
+      eyebrow: 'Quick preview',
+      openRecord: 'Open full profile',
+    },
     profile: {
       archived: 'Archived {date}',
       archivedLabel: 'Archived',
@@ -513,6 +528,41 @@ export const enMessages = {
       sourceTitle: 'Source and record',
       updated: 'Updated {date}',
       updatedLabel: 'Last updated',
+    },
+    record: {
+      back: 'Back to candidates',
+      discardPrompt: 'This candidate has unsaved changes. Leave and discard them?',
+      documents: {
+        count: plural({ one: '{count} document', other: '{count} documents' }),
+        empty: 'Documents attached to this candidate appear here.',
+        emptyTitle: 'No documents',
+        error: 'Unable to load this candidate’s documents.',
+        loading: 'Loading documents…',
+        open: 'Open Documents',
+      },
+      navigation: 'Candidate record navigation',
+      related: {
+        errorTitle: 'Section unavailable',
+        partial: 'Showing {shown} of {total}',
+      },
+      sections: {
+        documents: 'Documents',
+        label: 'Candidate record sections',
+        profile: 'Profile',
+        tasks: 'Tasks',
+      },
+      tasks: {
+        count: plural({ one: '{count} task', other: '{count} tasks' }),
+        due: 'Due {date}',
+        empty: 'Tasks linked to this candidate appear here.',
+        emptyTitle: 'No tasks',
+        error: 'Unable to load this candidate’s tasks.',
+        loading: 'Loading tasks…',
+        noDue: 'No due date',
+        open: 'Open Tasks',
+        overdue: 'Overdue',
+        today: 'Due today',
+      },
     },
     records: {
       archive: 'Archive',

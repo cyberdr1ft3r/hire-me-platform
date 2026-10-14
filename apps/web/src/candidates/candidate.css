@@ -15,9 +15,10 @@
 }
 
 /*
- * The directory and the record share one Workspace Surface (ui/workspace.css,
- * split="wide"). They sit side by side only when the surface container is at
- * least 60rem wide (CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM); otherwise they stack.
+ * Entity Workspace v2.0 (Issue 204): a full-width directory, a non-modal quick
+ * preview beside it (ui/workspace.css, split="preview"), and the focused record,
+ * which replaces the directory. The preview stacks after the directory when the
+ * surface is narrower than 60rem.
  */
 
 .candidates__pane-title {
@@ -25,7 +26,16 @@
   margin-bottom: 0;
 }
 
-/* --- Filters ----------------------------------------------------------- */
+.candidates__pane-title:focus {
+  outline: none;
+}
+
+.candidates__pane-title:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
+/* --- Toolbar ----------------------------------------------------------- */
 
 /* The pane toolbar provides the rule beneath the filters; none is drawn twice. */
 .candidate-filters {
@@ -33,80 +43,150 @@
   gap: var(--space-3);
 }
 
-/* Search spans the row; the two selects pair up inside the narrow list pane. */
-.candidate-filters__controls {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+/* Search and its actions share one row; the actions wrap under it when narrow. */
+.candidate-filters__bar {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
 }
 
-.candidate-filters__controls > :first-child {
-  grid-column: 1 / -1;
+.candidate-filters__search {
+  flex: 1 1 18rem;
+  min-width: 0;
 }
 
+/* Aligns the buttons with the field control, below its label. */
 .candidate-filters__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-1));
 }
 
-/* --- List -------------------------------------------------------------- */
-
-.candidate-list {
+.candidate-filters__advanced {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 }
 
-.candidate-list__count {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2);
-  margin-bottom: 0;
-}
-
-.candidate-list__rows {
-  border-block-start: var(--border-width) solid var(--color-border);
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.candidate-filters__advanced[hidden] {
+  display: none;
 }
 
 /*
- * One row per candidate. The inline-start bar is transparent until selected,
- * so selection is a visible shape as well as a fill, never color alone.
+ * Compact toolbar. The search hint stays the field's accessible description and its
+ * placeholder, but takes no row of its own. From 48rem the pane heading and the
+ * search share one row, aligned with the search control below its label.
  */
-.candidate-list__row {
-  border-block-end: var(--border-width) solid var(--color-border);
-  border-inline-start: var(--space-1) solid transparent;
+.candidate-filters__search .ui-field__hint {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: var(--border-width);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--border-width);
+}
+
+.candidates__list-pane > .ui-workspace__toolbar {
+  padding-block: var(--space-3);
+}
+
+@container workspace (min-width: 48rem) {
+  .candidates__list-pane > .ui-workspace__toolbar {
+    align-items: start;
+    column-gap: var(--space-5);
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .candidates__list-pane > .ui-workspace__toolbar > .ui-workspace__toolbar-row {
+    padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-2));
+  }
+}
+
+/* --- Directory --------------------------------------------------------- */
+
+.candidate-directory {
+  container: candidate-directory / inline-size;
   display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.candidate-directory__count {
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-1) var(--space-3);
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.candidate-directory__order {
+  color: var(--color-text-muted);
+}
+
+.candidate-directory__table {
+  border-collapse: collapse;
+  font-size: var(--font-size-2);
+  table-layout: auto;
+  width: 100%;
+}
+
+.candidate-directory__table th,
+.candidate-directory__table td {
+  border-block-end: var(--border-width) solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.candidate-directory__table thead th {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.candidate-directory__table td {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * One row per candidate. The inline-start bar is transparent until previewed, so
+ * the previewed row is a visible shape as well as a fill, never color alone.
+ */
+.candidate-directory__row {
   position: relative;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
-.candidate-list__row:hover {
+.candidate-directory__row > th {
+  border-inline-start: var(--space-1) solid transparent;
+  font-weight: var(--font-weight-regular);
+}
+
+.candidate-directory__row:hover {
   background: var(--color-table-hover);
 }
 
-.candidate-list__row[data-selected='true'] {
+.candidate-directory__row[data-previewed='true'] {
   background: var(--color-table-selected);
+}
+
+.candidate-directory__row[data-previewed='true'] > th {
   border-inline-start-color: var(--color-brand);
 }
 
-.candidate-list__primary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: space-between;
-}
-
 /*
- * The name is the row's real button. Its pseudo-element stretches over the
- * whole row so the row is one pointer target, while the accessible name stays
- * the candidate's name alone.
+ * The name is the row's real button. Its pseudo-element stretches over the whole
+ * row so the row is one pointer target, while the accessible name stays the
+ * candidate's name alone.
  */
-.candidate-list__select {
+.candidate-directory__open {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -119,43 +199,75 @@
   text-align: start;
 }
 
-.candidate-list__select:hover:not(:disabled),
-.candidate-list__select:active:not(:disabled) {
+.candidate-directory__open:hover:not(:disabled),
+.candidate-directory__open:active:not(:disabled) {
   background: transparent;
   border-color: transparent;
   color: var(--color-brand-pressed);
 }
 
-.candidate-list__select::after {
+.candidate-directory__open::after {
   content: '';
   inset: 0;
   position: absolute;
 }
 
 /* The focus ring moves to the stretched row outline, an equally visible replacement. */
-.candidate-list__select:focus-visible {
+.candidate-directory__open:focus-visible {
   outline: none;
 }
 
-.candidate-list__select:focus-visible::after {
+.candidate-directory__open:focus-visible::after {
   outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: calc(var(--focus-ring-width) * -1);
 }
 
-.candidate-list__headline {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2);
-  margin-bottom: 0;
-  overflow-wrap: anywhere;
+/* Columns give way as the directory narrows (preview open, tablet, phone). */
+@container candidate-directory (max-width: 52rem) {
+  .candidate-directory__table [data-column='source'] {
+    display: none;
+  }
 }
 
-.candidate-list__meta {
-  color: var(--color-text-muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--font-size-1);
-  gap: var(--space-1) var(--space-3);
-  margin-bottom: 0;
+@container candidate-directory (max-width: 42rem) {
+  .candidate-directory__table [data-column='updated'],
+  .candidate-directory__table [data-column='location'] {
+    display: none;
+  }
+}
+
+/* Phone: each row reads as name, then title, then status, without a header row. */
+@container candidate-directory (max-width: 30rem) {
+  .candidate-directory__table thead {
+    display: none;
+  }
+
+  .candidate-directory__table tbody,
+  .candidate-directory__row {
+    display: block;
+  }
+
+  .candidate-directory__row {
+    border-block-end: var(--border-width) solid var(--color-border);
+    border-inline-start: var(--space-1) solid transparent;
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
+  }
+
+  .candidate-directory__row[data-previewed='true'] {
+    border-inline-start-color: var(--color-brand);
+  }
+
+  .candidate-directory__row > th,
+  .candidate-directory__row > td {
+    border: 0;
+    padding: 0;
+  }
+
+  .candidate-directory__row > [data-column='title'] {
+    display: block;
+  }
 }
 
 /* Server pages of the list: where the reader is, then previous and next. */
@@ -183,33 +295,334 @@
   gap: var(--space-2);
 }
 
-.candidates__pane-title:focus {
+.candidate-directory__loading,
+.candidate-detail__loading,
+.candidate-related__loading {
+  padding-block: var(--space-4);
+}
+
+/* --- Quick preview ----------------------------------------------------- */
+
+.candidate-preview {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.candidate-preview__header {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.candidate-preview__eyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-label);
+  margin-bottom: 0;
+  text-transform: uppercase;
+}
+
+.candidate-preview__identity {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.candidate-preview__identity h2 {
+  font-size: var(--font-size-5);
+  line-height: var(--line-height-tight);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-preview__identity h2:focus {
   outline: none;
 }
 
-.candidates__pane-title:focus-visible {
+.candidate-preview__identity h2:focus-visible {
   outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: var(--space-0-5);
 }
 
-.candidate-list__loading,
-.candidate-detail__loading {
-  padding-block: var(--space-4);
+.candidate-preview__headline {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
 }
 
-/* --- Create ------------------------------------------------------------ */
+/* The preview column is narrow: facts read as label above value. */
+.candidate-preview__facts {
+  grid-template-columns: minmax(0, 1fr);
+}
 
-/* One functional region between rules, not a card. */
-.candidate-create {
-  border-block: var(--border-width) solid var(--color-border);
+.candidate-preview__summary {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.candidate-preview__summary h3 {
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+/* A short excerpt; the full summary is in the record. */
+.candidate-preview__summary p {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.candidate-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* --- Focused record ---------------------------------------------------- */
+
+.candidate-record {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
   display: grid;
   gap: var(--space-4);
-  padding-block: var(--space-5);
+  min-width: 0;
+  padding: var(--space-4) var(--space-6) var(--space-6);
 }
 
-.candidate-create h2 {
-  font-size: var(--font-size-5);
+.candidate-record__nav {
+  display: flex;
+  margin-inline-start: calc(var(--space-3) * -1);
+}
+
+/* In the focused record the identity is the page's subject: a larger name, status beside it. */
+.candidate-record .candidate-detail__heading h2 {
+  font-size: var(--font-size-7);
+}
+
+.candidate-record .candidate-detail__identity {
+  align-items: center;
+}
+
+/* --- Overflow menu ------------------------------------------------------ */
+
+.candidate-menu {
+  position: relative;
+}
+
+.candidate-menu__chevron {
+  margin-inline-start: var(--space-2);
+}
+
+/* A temporary popup layer, like the notification popover: the popover shadow. */
+.candidate-menu__list {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-popover);
+  display: grid;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  min-width: 14rem;
+  padding: var(--space-1);
+  position: absolute;
+  z-index: 6;
+}
+
+.candidate-menu__item {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-medium);
+  min-height: var(--hit-target-min);
+  padding: 0 var(--space-3);
+  text-align: start;
+}
+
+.candidate-menu__item:hover:not(:disabled),
+.candidate-menu__item:focus-visible {
+  background: var(--color-table-hover);
+  border-color: transparent;
+  color: var(--color-text);
+}
+
+.candidate-menu__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+/* The destructive action is set apart by a rule and its wording, not color alone. */
+.candidate-menu__item[data-danger='true'] {
+  border-block-start: var(--border-width) solid var(--color-border);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  color: var(--color-danger);
+  margin-block-start: var(--space-1);
+}
+
+/* Section tabs: a single rule under the tab row, the selected tab marked by a bar. */
+.candidate-record-tabs {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.candidate-record-tabs__list {
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.candidate-record-tabs__tab {
+  background: transparent;
+  border: 0;
+  border-block-end: var(--space-0-5) solid transparent;
+  border-radius: 0;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+  margin-block-end: calc(var(--border-width) * -1);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+}
+
+.candidate-record-tabs__tab:hover:not(:disabled) {
+  background: var(--color-table-hover);
+  border-color: transparent;
+  color: var(--color-text);
+}
+
+.candidate-record-tabs__tab[aria-selected='true'] {
+  border-block-end-color: var(--color-brand);
+  color: var(--color-text);
+}
+
+.candidate-record-tabs__panel {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.candidate-record-tabs__panel[hidden] {
+  display: none;
+}
+
+.candidate-related {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.candidate-related__summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+}
+
+.candidate-related__count {
+  color: var(--color-text-secondary);
   margin-bottom: 0;
+}
+
+.candidate-related__rows {
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each related item: what it is on the start side, its state on the end side. */
+.candidate-related__row {
+  align-items: center;
+  border-block-end: var(--border-width) solid var(--color-border);
+  display: grid;
+  font-size: var(--font-size-2);
+  gap: var(--space-2) var(--space-4);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--space-3) var(--space-1);
+}
+
+.candidate-related__main {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.candidate-related__title {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.candidate-related__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-1);
+}
+
+.candidate-related__aside {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: flex-end;
+}
+
+.candidate-related__due {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Overdue is said in words as well as shown in the danger color. */
+.candidate-related__due[data-due='overdue'] {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.candidate-related__partial {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+  margin-bottom: 0;
+}
+
+@container candidate-detail (max-width: 36rem) {
+  .candidate-related__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .candidate-related__aside {
+    justify-content: flex-start;
+  }
+}
+
+/* The sheet shows the same preview content with the drawer's own title and actions. */
+.candidate-preview--sheet {
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.candidate-preview--sheet .candidate-preview__facts {
+  width: 100%;
+}
+
+@media (max-width: 56.25rem) {
+  .candidate-record {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .candidate-record .candidate-detail__heading h2 {
+    font-size: var(--font-size-6);
+  }
 }
 
 /* --- Record ------------------------------------------------------------ */

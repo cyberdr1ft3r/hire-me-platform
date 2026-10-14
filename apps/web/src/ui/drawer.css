@@ -119,6 +119,35 @@
   margin: 0;
 }
 
+/*
+ * Bottom sheet (placement="bottom"): full width, anchored to the bottom, and no taller
+ * than most of the dynamic viewport, so a short screen or browser zoom still shows the header,
+ * a scrolling body and the pinned actions. The on-screen keyboard shrinks `dvh`, so
+ * the sheet follows it instead of hiding its footer.
+ */
+.ui-drawer[data-placement='bottom'] .ui-drawer__panel {
+  animation-name: ui-drawer-sheet-enter;
+  border-start-end-radius: var(--radius-large);
+  border-start-start-radius: var(--radius-large);
+  inset-block-start: auto;
+  inset-inline: 0;
+  max-height: min(88dvh, 100dvh - var(--space-8));
+  width: 100%;
+}
+
+@keyframes ui-drawer-sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-6));
+  }
+}
+
+@media (max-height: 30rem) {
+  .ui-drawer[data-placement='bottom'] .ui-drawer__panel {
+    max-height: 100dvh;
+  }
+}
+
 @media (max-width: 40rem) {
   .ui-drawer__panel {
     width: 100%;

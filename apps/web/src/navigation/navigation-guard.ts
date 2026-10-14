@@ -8,7 +8,12 @@
  * with `history.go(delta)`. No entries are added or duplicated, so history length and
  * order stay what the user built and nobody is trapped on a page.
  *
- * Only one blocker exists at a time: the open modal drawer owns the whole screen.
+ * In-app links (shell navigation, notification items, record actions) ask through
+ * `requestNavigation` before they move, so the same question covers them.
+ *
+ * Blockers stack: the most recently registered one decides. A focused record with an
+ * open edit form registers one, and a creation drawer opened on top registers its
+ * own; closing the drawer hands the decision back to the record.
  */
 
 const INDEX_KEY = 'hiremeHistoryIndex';
@@ -19,11 +24,22 @@ export interface NavigationBlocker {
    * releases this blocker and completes the original navigation.
    */
   confirmLeave: (proceed: () => void) => void;
+  /**
+   * Whether leaving needs a question right now. Omitted means always: an open
+   * modal drawer asks only when dirty, and decides that inside `confirmLeave`.
+   */
+  shouldBlock?: () => boolean;
 }
 
-let blocker: NavigationBlocker | null = null;
+let blockers: NavigationBlocker[] = [];
 let currentIndex = 0;
 let restoring = false;
+/*
+ * A confirmation can arrive before the browser's return trip has landed (a native
+ * `confirm()` answers synchronously). Two traversals started in the same task can be
+ * merged by the browser, so the confirmed replay waits for the return trip.
+ */
+let pendingReplay: number | null = null;
 
 function indexOf(state: unknown): number | null {
   if (typeof state !== 'object' || state === null) return null;
@@ -35,12 +51,36 @@ function withIndex(index: number): Record<string, unknown> {
   return { [INDEX_KEY]: index };
 }
 
-/** Registers the active blocker; the returned function releases only that blocker. */
+function release(blocker: NavigationBlocker): void {
+  blockers = blockers.filter((entry) => entry !== blocker);
+}
+
+/** The blocker that decides now, if it wants to ask. */
+function activeBlocker(): NavigationBlocker | null {
+  const top = blockers[blockers.length - 1] ?? null;
+  return top && (top.shouldBlock?.() ?? true) ? top : null;
+}
+
+/** Registers a blocker; the returned function releases only that blocker. */
 export function blockNavigation(next: NavigationBlocker): () => void {
-  blocker = next;
-  return () => {
-    if (blocker === next) blocker = null;
-  };
+  blockers = [...blockers, next];
+  return () => release(next);
+}
+
+/**
+ * Runs an in-app navigation, asking the active blocker first. `proceed` runs at
+ * once when nothing would be lost, and only after confirmation otherwise.
+ */
+export function requestNavigation(proceed: () => void): void {
+  const held = activeBlocker();
+  if (!held) {
+    proceed();
+    return;
+  }
+  held.confirmLeave(() => {
+    release(held);
+    proceed();
+  });
 }
 
 /**
@@ -77,28 +117,38 @@ export function acceptHistoryTraversal(state: unknown): boolean {
   if (restoring) {
     restoring = false;
     if (target !== null) currentIndex = target;
+    if (pendingReplay !== null) {
+      const replay = pendingReplay;
+      pendingReplay = null;
+      window.history.go(replay);
+    }
     return false;
   }
   const delta = target === null ? 0 : target - currentIndex;
+  const held = activeBlocker();
   // Unindexed entries (written outside the router) cannot be undone exactly; let
   // them through rather than guess a direction.
-  if (!blocker || target === null || delta === 0) {
+  if (!held || target === null || delta === 0) {
     if (target !== null) currentIndex = target;
     return true;
   }
-  const held = blocker;
   restoring = true;
   window.history.go(-delta);
   held.confirmLeave(() => {
-    if (blocker === held) blocker = null;
-    window.history.go(delta);
+    release(held);
+    if (restoring) {
+      pendingReplay = delta;
+    } else {
+      window.history.go(delta);
+    }
   });
   return false;
 }
 
 /** Test seam: restores module state between tests. */
 export function resetNavigationGuardForTests(): void {
-  blocker = null;
+  blockers = [];
   currentIndex = 0;
   restoring = false;
+  pendingReplay = null;
 }

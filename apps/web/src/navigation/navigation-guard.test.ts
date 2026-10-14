@@ -6,6 +6,7 @@ import {
   initializeHistoryIndex,
   pushHistoryPath,
   replaceHistoryPath,
+  requestNavigation,
   resetNavigationGuardForTests,
 } from './navigation-guard.js';
 
@@ -106,5 +107,63 @@ describe('navigation guard', () => {
     releaseFirst();
     expect(acceptHistoryTraversal(at(0))).toBe(false);
     expect(second).toHaveBeenCalledTimes(1);
+  });
+  it('replays a synchronously confirmed Back only after the return trip has landed', () => {
+    pushHistoryPath('/candidates?candidate=1');
+    // A native confirm() answers inside the popstate handler, before the browser returns.
+    blockNavigation({ confirmLeave: (proceed) => proceed() });
+
+    expect(acceptHistoryTraversal(at(0))).toBe(false);
+    expect(go).toHaveBeenCalledTimes(1);
+    expect(go).toHaveBeenLastCalledWith(1);
+    // The return trip lands; only now is the confirmed traversal replayed.
+    expect(acceptHistoryTraversal(at(1))).toBe(false);
+    expect(go).toHaveBeenCalledTimes(2);
+    expect(go).toHaveBeenLastCalledWith(-1);
+    expect(acceptHistoryTraversal(at(0))).toBe(true);
+  });
+
+  it('lets a traversal through while the active blocker has nothing to protect', () => {
+    pushHistoryPath('/candidates?candidate=1');
+    const confirmLeave = vi.fn();
+    blockNavigation({ confirmLeave, shouldBlock: () => false });
+    expect(acceptHistoryTraversal(at(0))).toBe(true);
+    expect(confirmLeave).not.toHaveBeenCalled();
+    expect(go).not.toHaveBeenCalled();
+  });
+
+  it('hands the decision back to the earlier blocker when a later one is released', () => {
+    pushHistoryPath('/candidates?candidate=1');
+    const record = vi.fn();
+    blockNavigation({ confirmLeave: record });
+    const releaseDrawer = blockNavigation({ confirmLeave: vi.fn() });
+    releaseDrawer();
+    expect(acceptHistoryTraversal(at(0))).toBe(false);
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks before an in-app navigation and releases the blocker once confirmed', () => {
+    let confirm: (() => void) | undefined;
+    blockNavigation({
+      confirmLeave: (proceed) => {
+        confirm = proceed;
+      },
+    });
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    expect(navigate).not.toHaveBeenCalled();
+    confirm?.();
+    expect(navigate).toHaveBeenCalledTimes(1);
+    // Released: the next navigation does not ask again.
+    const next = vi.fn();
+    requestNavigation(next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates in-app at once when no blocker wants to ask', () => {
+    blockNavigation({ confirmLeave: vi.fn(), shouldBlock: () => false });
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    expect(navigate).toHaveBeenCalledTimes(1);
   });
 });

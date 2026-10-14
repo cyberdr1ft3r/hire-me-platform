@@ -101,6 +101,8 @@ describe('dictionary contract', () => {
       'accounting.balances.overdueCount',
       'accounting.expenses.count',
       'accounting.payments.count',
+      'candidate.record.documents.count',
+      'candidate.record.tasks.count',
       'commercial.list.count',
       'common.counts.candidates',
       'common.counts.clients',
