@@ -3,6 +3,18 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
+## Issue #202 Scope A — shared authenticated request core (PR #203)
+
+- Branch `fix/issue-202-web-auth-request-core` targets `fix/ui-refinement-demo-20261013`;
+  integration `a19647c` (#199, #201, #200 merged) is merged in. Frontend only; refresh
+  limiter and proxy trust (Scope B, R-055) untouched.
+- Real-API expiry acceptance (60 s TTL, natural expiry, throwaway DB) passed: one
+  refresh per tab for concurrent 401s with replay, transient 503 keeps the session,
+  revocation and missing cookie sign out once, reload restores with one refresh, and a
+  sign-out with a dirty creation drawer leaves no inert app.
+  [Evidence](../audit/issue-202-auth-expiry-acceptance.md). Cross-tab refresh is a known
+  limitation (R-059, [note](../design/auth-cross-tab-refresh-limitation.md)).
+
 ## Console Workspace v1.0 preflight (Issue #198)
 
 - Documentation-only draft PR on `docs/issue-198-console-workspace-preflight`, based on

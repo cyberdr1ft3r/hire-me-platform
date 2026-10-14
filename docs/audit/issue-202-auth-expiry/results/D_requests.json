@@ -1,0 +1,116 @@
+[
+  {
+    "at": 423,
+    "method": "GET",
+    "path": "/v1/messages/unread-summary",
+    "status": 401
+  },
+  {
+    "at": 423,
+    "method": "GET",
+    "path": "/v1/notifications?page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/notifications?status=UNREAD&page=1&pageSize=1",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/messages/conversations?filter=unread",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/tasks?status=OPEN&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/tasks?status=IN_PROGRESS&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/tasks?status=WAITING&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/tasks?status=BLOCKED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 424,
+    "method": "GET",
+    "path": "/v1/tasks?status=COMPLETED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 425,
+    "method": "GET",
+    "path": "/v1/notifications?status=UNREAD&page=1&pageSize=1",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/notifications?page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/tasks?status=IN_PROGRESS&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/tasks?status=OPEN&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/tasks?status=WAITING&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/tasks?status=BLOCKED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 426,
+    "method": "GET",
+    "path": "/v1/tasks?status=COMPLETED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 427,
+    "method": "GET",
+    "path": "/v1/notifications?status=UNREAD&page=1&pageSize=1",
+    "status": 401
+  },
+  {
+    "at": 427,
+    "method": "GET",
+    "path": "/v1/notifications?page=1&pageSize=25",
+    "status": 401
+  },
+  {
+    "at": 457,
+    "method": "POST",
+    "path": "/auth/refresh",
+    "status": 401
+  }
+]
