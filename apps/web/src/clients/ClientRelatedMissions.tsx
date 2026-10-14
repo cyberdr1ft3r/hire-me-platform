@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react';
 import { missionDeepLink } from '../navigation/record-deep-links.js';
 import { useI18n } from '../i18n/index.js';
 import { EmptyState, InlineMessage, Skeleton, StatusBadge } from '../ui/index.js';
-import {
-  missionStateLabelKey,
-  missionStateTone,
-} from '../missions/mission-labels.js';
+import { missionStateLabelKey, missionStateTone } from '../missions/mission-labels.js';
 
 export type ClientMissionsLoad = () => Promise<{
   missions: MissionSummary[];
@@ -27,7 +24,9 @@ export function ClientRelatedMissions({
 }) {
   const { t } = useI18n();
   const [state, setState] = useState<
-    { status: 'loading' } | { status: 'error' } | { status: 'ready'; missions: MissionSummary[]; total: number }
+    | { status: 'loading' }
+    | { status: 'error' }
+    | { status: 'ready'; missions: MissionSummary[]; total: number }
   >({ status: 'loading' });
 
   useEffect(() => {

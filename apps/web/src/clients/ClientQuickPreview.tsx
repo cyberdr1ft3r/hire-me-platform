@@ -5,11 +5,7 @@ import { useI18n } from '../i18n/index.js';
 import { Button, Drawer, StatusBadge } from '../ui/index.js';
 import { clientStatusLabelKey, clientStatusTone } from './client-labels.js';
 
-function formatLocation(
-  city: string | null,
-  country: string | null,
-  notRecorded: string,
-): string {
+function formatLocation(city: string | null, country: string | null, notRecorded: string): string {
   const parts = [city, country].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : notRecorded;
 }
@@ -63,7 +59,12 @@ export function ClientQuickPreview({
   }
 
   return (
-    <PreviewPane client={client} location={location} onClose={onClose} onOpenRecord={onOpenRecord} />
+    <PreviewPane
+      client={client}
+      location={location}
+      onClose={onClose}
+      onOpenRecord={onOpenRecord}
+    />
   );
 }
 

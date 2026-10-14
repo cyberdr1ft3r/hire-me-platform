@@ -16,19 +16,52 @@ interaction model from Candidates (#205) and Missions (#206).
 | `ClientFilters.tsx` | Compact toolbar: search inline; status and industry in Filters disclosure. |
 | `App.tsx` / `record-deep-links.ts` | `clientDeepLink`, `recordIntent.clientId`. |
 
-## Build size (exact PR head, local `pnpm --filter @hire-me/web build`)
+## Screenshots (synthetic data, production build, Chrome headless)
+
+| Directory (1440) | Quick preview (1440) |
+| --- | --- |
+| ![](issue-204-clients-workspace-v2/en-directory-1440x900.png) | ![](issue-204-clients-workspace-v2/en-preview-1440x900.png) |
+
+| Focused record | Contacts | Related missions |
+| --- | --- | --- |
+| ![](issue-204-clients-workspace-v2/en-record-1440x900.png) | ![](issue-204-clients-workspace-v2/en-record-contacts-1440x900.png) | ![](issue-204-clients-workspace-v2/en-record-missions-1440x900.png) |
+
+| Mobile sheet (390×844) | FR directory (1440) | FR preview (1440) |
+| --- | --- | --- |
+| ![](issue-204-clients-workspace-v2/en-sheet-390x844.png) | ![](issue-204-clients-workspace-v2/fr-directory-1440x900.png) | ![](issue-204-clients-workspace-v2/fr-preview-1440x900.png) |
+
+Additional viewport captures live under `issue-204-clients-workspace-v2/results/`.
+
+## Build size (local `pnpm --filter @hire-me/web build`, PR validation head)
 
 | Asset | Gzip |
 | --- | --- |
-| `index-*.js` | 318.24 KB |
+| `index-*.js` | 410.03 KB |
 | `index-*.css` | 20.76 KB |
 
-No lazy route split (same as pre-change Clients on this bundle).
+Same single-bundle shape as pre-change Clients (no new lazy route). JS gzip reflects current monolith size on this branch, not a Clients-only delta.
 
-## Validation (local)
+## Browser validation (Chrome, production `vite preview`, local API, synthetic fixtures)
 
-- `pnpm exec turbo run lint typecheck test --filter=@hire-me/web` (after plural-path pin update)
-- `ClientsPanel.test.tsx`: preview does not call `GET /v1/clients/:id`; record flow via Open full record; back navigation with leave guard
+Harness: `docs/audit/issue-204-clients-workspace-v2/tools/evidence-clients.mjs`  
+Results: `issue-204-clients-workspace-v2/results/browser-checks.json` — **104/104** checks passed (EN + FR).
+
+Viewports: 1440×900, 1024×768, 768×1024, 390×844, 390×500, 720×450 (200% zoom).
+
+Verified:
+
+- Full-width directory only until preview/record; no horizontal overflow.
+- Preview from list row: **zero** `GET /v1/clients/:id` (network listener).
+- Side preview ≥44rem workspace; bottom sheet below; Escape + scroll preservation on sheet sizes.
+- Open full record → `/clients?client=<uuid>`; browser Back/Forward; unsaved-form guard on Back.
+- Contacts and Missions tabs on focused record; missions list renders when tab opened.
+- No page errors in either locale.
+
+## Unit / integration (local)
+
+- `pnpm check:architecture` — pass (CSS comment uses `Issue 204` without `#` hex false positive).
+- `pnpm format:check`, `pnpm exec turbo run lint typecheck test --filter=@hire-me/web` — pass (1010 tests).
+- `ClientsPanel.test.tsx`: preview without detail GET; record flow; back + leave guard.
 
 ## Security
 
@@ -40,3 +73,4 @@ No lazy route split (same as pre-change Clients on this bundle).
 
 - Missions tab shows the first page only; no new cross-module aggregate APIs.
 - Figma-only fields without list/record data remain omitted.
+- Full missions performance harness (`measure-missions.mjs` equivalent) not re-run for Clients; behavioral regression covered by preview GET accounting and existing panel tests.

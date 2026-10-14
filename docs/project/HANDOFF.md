@@ -4,10 +4,11 @@ Last updated: 2026-10-14
 
 ## Current situation
 
-- **Next: review Issue #204 Clients Workspace v2.0** on
+- **Next: human review Issue #204 Clients Workspace v2.0** — draft PR #207 on
   `cursor/issue-204-clients-workspace-v2-cf71` into `main` (`4890f9b`). Directory →
-  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md).
-  Completion requires exact-head CI and human visual sign-off. No merge/deploy automatically.
+  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md)
+  includes EN/FR screenshots and 104/104 browser checks. Confirm exact-head CI green,
+  then visual sign-off. No merge/deploy automatically.
 
 - **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
   [evidence](../audit/issue-204-missions-workspace-v2.md).

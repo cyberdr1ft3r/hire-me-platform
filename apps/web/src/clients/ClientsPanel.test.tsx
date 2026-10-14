@@ -659,9 +659,9 @@ describe('Quick preview', () => {
     renderPanel();
     fireEvent.click(await screen.findByRole('button', { name: /Acme Corp/ }));
     await screen.findByRole('heading', { level: 2, name: 'Acme Corp' });
-    expect(calls.filter((call) => call.method === 'GET' && call.url.includes('/v1/clients/'))).toHaveLength(
-      0,
-    );
+    expect(
+      calls.filter((call) => call.method === 'GET' && call.url.includes('/v1/clients/')),
+    ).toHaveLength(0);
   });
 });
 

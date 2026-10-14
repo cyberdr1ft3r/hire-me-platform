@@ -6,11 +6,7 @@ import { Button, EmptyState, InlineMessage, Skeleton, StatusBadge } from '../ui/
 import { clientStatusLabelKey, clientStatusTone } from './client-labels.js';
 import type { ClientListState } from './client-state.js';
 
-function formatLocation(
-  city: string | null,
-  country: string | null,
-  notRecorded: string,
-): string {
+function formatLocation(city: string | null, country: string | null, notRecorded: string): string {
   const parts = [city, country].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : notRecorded;
 }

@@ -19,7 +19,12 @@ import {
 } from './client-labels.js';
 import { ClientRelatedMissions, type ClientMissionsLoad } from './ClientRelatedMissions.js';
 import { ClientRecordTabs, type ClientRecordTab } from './ClientRecordTabs.js';
-import type { ClientDetailState, ClientFeedback, ContactListState, ContactFilterValues } from './client-state.js';
+import type {
+  ClientDetailState,
+  ClientFeedback,
+  ContactListState,
+  ContactFilterValues,
+} from './client-state.js';
 import { ContactFilters } from './ContactFilters.js';
 import { ContactList } from './ContactList.js';
 
@@ -154,123 +159,116 @@ export function ClientFocusedRecord({
   const sections: ClientRecordTab[] = [];
   if (access.canViewContacts) {
     sections.push({
-        id: 'contacts',
-        label: t('clients.contacts.listTitle'),
-        render: () => (
-          <section aria-label={t('clients.contacts.listTitle')} className="client-contacts">
-            <ContactFilters
-              busy={contactList.status === 'loading'}
-              onChange={onContactFiltersChange}
-              onReset={onResetContactFilters}
-              onSubmit={onApplyContactFilters}
-              showReset={filteredContacts}
-              values={contactFilters}
-            />
-            <ContactList
-              filtered={filteredContacts}
-              list={contactList}
-              onPage={onContactPage}
-              onReset={onResetContactFilters}
-              onRetry={onRetryContactList}
-              onSelect={onSelectContact}
-              selectedId={selectedContact?.id ?? null}
-            />
-            {access.canCreateContacts && !archivedClient ? (
-              <form
-                aria-label={t('clients.contacts.createTitle')}
-                className="client-form"
-                onSubmit={onCreateContact}
+      id: 'contacts',
+      label: t('clients.contacts.listTitle'),
+      render: () => (
+        <section aria-label={t('clients.contacts.listTitle')} className="client-contacts">
+          <ContactFilters
+            busy={contactList.status === 'loading'}
+            onChange={onContactFiltersChange}
+            onReset={onResetContactFilters}
+            onSubmit={onApplyContactFilters}
+            showReset={filteredContacts}
+            values={contactFilters}
+          />
+          <ContactList
+            filtered={filteredContacts}
+            list={contactList}
+            onPage={onContactPage}
+            onReset={onResetContactFilters}
+            onRetry={onRetryContactList}
+            onSelect={onSelectContact}
+            selectedId={selectedContact?.id ?? null}
+          />
+          {access.canCreateContacts && !archivedClient ? (
+            <form
+              aria-label={t('clients.contacts.createTitle')}
+              className="client-form"
+              onSubmit={onCreateContact}
+            >
+              <h4 className="clients__pane-title">{t('clients.contacts.createTitle')}</h4>
+              {renderContactFields({
+                onChange: onCreateContactValuesChange,
+                values: createContactValues,
+              })}
+              <Button disabled={writesLocked} type="submit" variant="primary">
+                {t('clients.actions.createContact')}
+              </Button>
+            </form>
+          ) : null}
+          {selectedContact && editContactValues ? (
+            <form
+              aria-label={t('clients.contacts.editTitle')}
+              className="client-form"
+              onSubmit={onSaveContact}
+            >
+              <h4
+                className="clients__pane-title client-detail__title"
+                key={contactDetailRevealToken}
+                ref={contactHeadingRef}
+                tabIndex={-1}
               >
-                <h4 className="clients__pane-title">{t('clients.contacts.createTitle')}</h4>
-                {renderContactFields({
-                  onChange: onCreateContactValuesChange,
-                  values: createContactValues,
-                })}
-                <Button disabled={writesLocked} type="submit" variant="primary">
-                  {t('clients.actions.createContact')}
-                </Button>
-              </form>
-            ) : null}
-            {selectedContact && editContactValues ? (
-              <form
-                aria-label={t('clients.contacts.editTitle')}
-                className="client-form"
-                onSubmit={onSaveContact}
+                {selectedContact.displayName}
+              </h4>
+              {archivedContact ? (
+                <InlineMessage title={t('clients.lifecycle.contactArchivedNotice')} tone="warning">
+                  {t('clients.lifecycle.contactArchivedNotice')}
+                </InlineMessage>
+              ) : null}
+              <StatusBadge tone={contactStatusTone(selectedContact.status)}>
+                {t(contactStatusLabelKey(selectedContact.status))}
+              </StatusBadge>
+              {renderContactFields({
+                disabled: !access.canUpdateContacts || archivedContact,
+                onChange: onEditContactValuesChange,
+                values: editContactValues,
+              })}
+              <Button
+                disabled={writesLocked || !access.canUpdateContacts || archivedContact}
+                type="submit"
+                variant="primary"
               >
-                <h4
-                  className="clients__pane-title client-detail__title"
-                  key={contactDetailRevealToken}
-                  ref={contactHeadingRef}
-                  tabIndex={-1}
-                >
-                  {selectedContact.displayName}
-                </h4>
-                {archivedContact ? (
-                  <InlineMessage
-                    title={t('clients.lifecycle.contactArchivedNotice')}
-                    tone="warning"
-                  >
-                    {t('clients.lifecycle.contactArchivedNotice')}
-                  </InlineMessage>
-                ) : null}
-                <StatusBadge tone={contactStatusTone(selectedContact.status)}>
-                  {t(contactStatusLabelKey(selectedContact.status))}
-                </StatusBadge>
-                {renderContactFields({
-                  disabled: !access.canUpdateContacts || archivedContact,
-                  onChange: onEditContactValuesChange,
-                  values: editContactValues,
-                })}
-                <Button
-                  disabled={writesLocked || !access.canUpdateContacts || archivedContact}
-                  type="submit"
-                  variant="primary"
-                >
-                  {t('clients.actions.saveContact')}
-                </Button>
-                <div className="client-lifecycle__actions">
-                  {selectedContact.status !== 'ACTIVE' ? (
-                    <Button
-                      disabled={
-                        writesLocked || !access.canManageContactStatus || archivedContact
-                      }
-                      onClick={() => onChangeContactStatus('ACTIVE')}
-                      size="compact"
-                      type="button"
-                      variant="secondary"
-                    >
-                      {t('clients.lifecycle.contactMoveTo.ACTIVE')}
-                    </Button>
-                  ) : null}
-                  {selectedContact.status !== 'INACTIVE' ? (
-                    <Button
-                      disabled={
-                        writesLocked || !access.canManageContactStatus || archivedContact
-                      }
-                      onClick={() => onChangeContactStatus('INACTIVE')}
-                      size="compact"
-                      type="button"
-                      variant="secondary"
-                    >
-                      {t('clients.lifecycle.contactMoveTo.INACTIVE')}
-                    </Button>
-                  ) : null}
+                {t('clients.actions.saveContact')}
+              </Button>
+              <div className="client-lifecycle__actions">
+                {selectedContact.status !== 'ACTIVE' ? (
                   <Button
-                    disabled={writesLocked || !access.canArchiveContacts || archivedContact}
-                    onClick={onArchiveContact}
+                    disabled={writesLocked || !access.canManageContactStatus || archivedContact}
+                    onClick={() => onChangeContactStatus('ACTIVE')}
                     size="compact"
                     type="button"
-                    variant="danger"
+                    variant="secondary"
                   >
-                    {t('clients.actions.archiveContact')}
+                    {t('clients.lifecycle.contactMoveTo.ACTIVE')}
                   </Button>
-                </div>
-              </form>
-            ) : (
-              <p>{t('clients.contacts.selectPrompt')}</p>
-            )}
-          </section>
-        ),
+                ) : null}
+                {selectedContact.status !== 'INACTIVE' ? (
+                  <Button
+                    disabled={writesLocked || !access.canManageContactStatus || archivedContact}
+                    onClick={() => onChangeContactStatus('INACTIVE')}
+                    size="compact"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t('clients.lifecycle.contactMoveTo.INACTIVE')}
+                  </Button>
+                ) : null}
+                <Button
+                  disabled={writesLocked || !access.canArchiveContacts || archivedContact}
+                  onClick={onArchiveContact}
+                  size="compact"
+                  type="button"
+                  variant="danger"
+                >
+                  {t('clients.actions.archiveContact')}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <p>{t('clients.contacts.selectPrompt')}</p>
+          )}
+        </section>
+      ),
     });
   }
   if (loadMissions) {

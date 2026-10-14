@@ -3,11 +3,12 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
-## Issue #204 — Clients Workspace v2.0 (in progress)
+## Issue #204 — Clients Workspace v2.0 (draft PR #207, validation complete)
 
 - Branch `cursor/issue-204-clients-workspace-v2-cf71` from `main` `4890f9b` (#206 merged).
   Frontend only; Entity Workspace v2.0 directory → preview → focused record for Clients.
-  [Evidence](../audit/issue-204-clients-workspace-v2.md). Draft PR pending CI.
+  CI architecture fix (CSS comment `#204` → `Issue 204`); Playwright EN/FR evidence 104/104.
+  [Evidence](../audit/issue-204-clients-workspace-v2.md). Draft PR #207 awaiting exact-head CI green and human sign-off.
 
 ## Issue #204 — Missions Workspace v2.0 (merged, PR #206 `4890f9b`)
 

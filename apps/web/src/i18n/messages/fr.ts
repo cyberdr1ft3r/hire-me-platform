@@ -733,7 +733,8 @@ export const frMessages: Messages = {
     },
     record: {
       back: 'Retour aux clients',
-      discardPrompt: 'Ce client comporte des modifications non enregistrées. Quitter et les abandonner ?',
+      discardPrompt:
+        'Ce client comporte des modifications non enregistrées. Quitter et les abandonner ?',
       navigation: 'Navigation fiche client',
       missions: {
         count: plural({ one: '{count} mission', other: '{count} missions' }),

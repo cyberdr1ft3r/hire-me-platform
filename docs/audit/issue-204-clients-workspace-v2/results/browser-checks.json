@@ -1,0 +1,522 @@
+[
+  {
+    "name": "en 1440x900: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 1440x900: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1440x900: preview is a side pane (71.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 1440x900: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1440x900: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 1024x768: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 1024x768: preview is a side pane (45.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 1024x768: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 1024x768: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 768x1024: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 768x1024: preview is a side pane (46.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 768x1024: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 768x1024: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 390x844: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x844: preview is a bottom sheet (22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 390x844: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x844: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): preview is a bottom sheet (22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 390x500 (short / keyboard open): back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): preview is a bottom sheet (43.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en 720x450 (1440 at 200% zoom): back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: browser Back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: browser Forward reopens record",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: unsaved Back asks and stays",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "en: no page errors",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 1440x900: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1440x900: preview is a side pane (71.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 1440x900: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1440x900: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 1024x768: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 1024x768: preview is a side pane (45.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 1024x768: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 1024x768: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 768x1024: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 768x1024: preview is a side pane (46.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 768x1024: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 768x1024: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 390x844: directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x844: preview is a bottom sheet (22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 390x844: contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x844: back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): preview is a bottom sheet (22.4rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 390x500 (short / keyboard open): back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): one full-width directory pane",
+    "ok": true,
+    "detail": "{\"panes\":1,\"view\":\"list\"}"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): directory has no horizontal overflow",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): preview does not GET client detail",
+    "ok": true,
+    "detail": "0"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): preview is a bottom sheet (43.0rem)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): record URL is client deep link",
+    "ok": true,
+    "detail": "http://127.0.0.1:5173/clients?client=2f4fe8cc-f46c-493d-b246-d2817e2829d0"
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): contacts tab shows contact search",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): missions tab loads linked missions",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr 720x450 (1440 at 200% zoom): back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: browser Back returns to directory",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: browser Forward reopens record",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: unsaved Back asks and stays",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "fr: no page errors",
+    "ok": true,
+    "detail": ""
+  }
+]

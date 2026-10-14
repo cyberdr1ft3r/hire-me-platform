@@ -85,11 +85,7 @@ export function ClientFilters({
           </Button>
         </div>
       </div>
-      <div
-        className="client-filters__advanced"
-        hidden={!advancedOpen}
-        id={filtersId}
-      >
+      <div className="client-filters__advanced" hidden={!advancedOpen} id={filtersId}>
         <Select
           label={t('clients.filters.status')}
           name="status"
