@@ -1,0 +1,13 @@
+{
+  "note": "Interleaved cold loads of /missions, 7 runs each, CPU 4x, production builds served alternately on one port. firstRow = performance.now() when the first row button exists.",
+  "runs": [
+    {"build": "after", "firstRowMedian": 1676, "blockingMedian": 978, "firstRow": [2189,1204,1676,1958,1333,1227,1789]},
+    {"build": "before", "firstRowMedian": 1659, "blockingMedian": 826, "firstRow": [1999,1197,1710,2026,1267,1659,1036]},
+    {"build": "after", "firstRowMedian": 1726, "blockingMedian": 1018, "firstRow": [3362,1726,2771,2425,1519,1557,1556]},
+    {"build": "before", "firstRowMedian": 2003, "blockingMedian": 1202, "firstRow": [2857,1726,2717,2003,1883,1915,2352]}
+  ],
+  "isolatedDom": {
+    "before": {"start": 815, "after20Selections": 1403},
+    "after": {"start": 957, "after20Previews": 976, "after20RecordOpenClose": 1524}
+  }
+}

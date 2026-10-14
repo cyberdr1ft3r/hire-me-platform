@@ -84,8 +84,9 @@ and permissions are unchanged.
 
 ## Entity workspace: directory, preview, record (Issue #204, proposed)
 
-Applied to Candidates first; Missions and Clients follow in their own PRs once the
-three states are signed off.
+Applied to Candidates (#205) and Missions (draft, Issue #204 stage D); Clients follows
+in its own PR. Missions keeps its own record sections (Overview, Team, Pipeline,
+Public) as the record's tabs. Each module moves only after the previous one is signed off.
 
 - **Directory.** With nothing previewed the surface holds one pane (`view="list"`),
   so the table uses the full width; there is no empty record pane. Search sits in
