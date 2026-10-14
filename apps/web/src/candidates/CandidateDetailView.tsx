@@ -25,6 +25,7 @@ import type {
   CandidateRecordUpdate,
   CandidateSensitiveUpdate,
 } from './candidate-state.js';
+import { CandidateActionMenu, type CandidateMenuAction } from './CandidateActionMenu.js';
 import { CandidateEducation } from './CandidateEducation.js';
 import { CandidateExperience } from './CandidateExperience.js';
 import { CandidateLanguages } from './CandidateLanguages.js';
@@ -216,6 +217,25 @@ function CandidateRecord({
     </>
   );
 
+  // Lifecycle changes and archival, each with its own permission and confirmation as before.
+  const menuActions: CandidateMenuAction[] = [
+    ...lifecycleTargets.map((status) => ({
+      key: status,
+      label: t(lifecycleActionLabelKey(status)),
+      onSelect: () => onChangeStatus(status),
+    })),
+    ...(canArchive
+      ? [
+          {
+            danger: true,
+            key: 'archive',
+            label: t('candidate.lifecycle.archive'),
+            onSelect: onArchive,
+          },
+        ]
+      : []),
+  ];
+
   function closeEditor(): void {
     setEditing(false);
     window.setTimeout(() => headingRef.current?.focus(), 0);
@@ -240,37 +260,26 @@ function CandidateRecord({
             </span>
           </div>
         </div>
-        {canEdit || lifecycleTargets.length > 0 || canArchive ? (
+        {canEdit || menuActions.length > 0 ? (
           <div
             aria-label={t('candidate.actions.region')}
             className="candidate-actions"
             role="group"
           >
+            {/* Editing is the primary record action; the rest are infrequent or destructive. */}
             {canEdit && !editing ? (
-              <Button disabled={busy} onClick={() => setEditing(true)} variant="secondary">
+              <Button disabled={busy} onClick={() => setEditing(true)}>
                 {t('candidate.actions.edit')}
               </Button>
             ) : null}
-            {lifecycleTargets.map((status) => (
-              <Button
+            {menuActions.length > 0 ? (
+              <CandidateActionMenu
+                actions={menuActions}
                 disabled={busy}
-                key={status}
-                onClick={() => onChangeStatus(status)}
-                variant="secondary"
-              >
-                {t(lifecycleActionLabelKey(status))}
-              </Button>
-            ))}
-            {canArchive ? (
-              <Button
-                disabled={busy}
-                loading={pending === 'archive'}
+                label={t('candidate.actions.more')}
+                loading={pending === 'archive' || pending === 'status'}
                 loadingLabel={t('common.status.working')}
-                onClick={onArchive}
-                variant="danger"
-              >
-                {t('candidate.lifecycle.archive')}
-              </Button>
+              />
             ) : null}
           </div>
         ) : null}

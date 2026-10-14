@@ -74,6 +74,37 @@
   display: none;
 }
 
+/*
+ * Compact toolbar. The search hint stays the field's accessible description and its
+ * placeholder, but takes no row of its own. From 48rem the pane heading and the
+ * search share one row, aligned with the search control below its label.
+ */
+.candidate-filters__search .ui-field__hint {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: var(--border-width);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--border-width);
+}
+
+.candidates__list-pane > .ui-workspace__toolbar {
+  padding-block: var(--space-3);
+}
+
+@container workspace (min-width: 48rem) {
+  .candidates__list-pane > .ui-workspace__toolbar {
+    align-items: start;
+    column-gap: var(--space-5);
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .candidates__list-pane > .ui-workspace__toolbar > .ui-workspace__toolbar-row {
+    padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-2));
+  }
+}
+
 /* --- Directory --------------------------------------------------------- */
 
 .candidate-directory {
@@ -365,11 +396,78 @@
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-6) var(--space-6);
 }
 
 .candidate-record__nav {
   display: flex;
+  margin-inline-start: calc(var(--space-3) * -1);
+}
+
+/* In the focused record the identity is the page's subject: a larger name, status beside it. */
+.candidate-record .candidate-detail__heading h2 {
+  font-size: var(--font-size-7);
+}
+
+.candidate-record .candidate-detail__identity {
+  align-items: center;
+}
+
+/* --- Overflow menu ------------------------------------------------------ */
+
+.candidate-menu {
+  position: relative;
+}
+
+.candidate-menu__chevron {
+  margin-inline-start: var(--space-2);
+}
+
+/* A temporary popup layer, like the notification popover: the popover shadow. */
+.candidate-menu__list {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-popover);
+  display: grid;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  min-width: 14rem;
+  padding: var(--space-1);
+  position: absolute;
+  z-index: 6;
+}
+
+.candidate-menu__item {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-medium);
+  min-height: var(--hit-target-min);
+  padding: 0 var(--space-3);
+  text-align: start;
+}
+
+.candidate-menu__item:hover:not(:disabled),
+.candidate-menu__item:focus-visible {
+  background: var(--color-table-hover);
+  border-color: transparent;
+  color: var(--color-text);
+}
+
+.candidate-menu__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+/* The destructive action is set apart by a rule and its wording, not color alone. */
+.candidate-menu__item[data-danger='true'] {
+  border-block-start: var(--border-width) solid var(--color-border);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  color: var(--color-danger);
+  margin-block-start: var(--space-1);
 }
 
 /* Section tabs: a single rule under the tab row, the selected tab marked by a bar. */
@@ -424,6 +522,20 @@
   gap: var(--space-3);
 }
 
+.candidate-related__summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+}
+
+.candidate-related__count {
+  color: var(--color-text-secondary);
+  margin-bottom: 0;
+}
+
 .candidate-related__rows {
   border-block-start: var(--border-width) solid var(--color-border);
   list-style: none;
@@ -431,33 +543,85 @@
   padding: 0;
 }
 
+/* Each related item: what it is on the start side, its state on the end side. */
 .candidate-related__row {
+  align-items: center;
   border-block-end: var(--border-width) solid var(--color-border);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--font-size-2);
-  gap: var(--space-1) var(--space-4);
-  justify-content: space-between;
-  padding: var(--space-3) 0;
-}
-
-.candidate-related__row > span {
-  color: var(--color-text-secondary);
-}
-
-.candidate-related__footer {
-  color: var(--color-text-secondary);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font-size: var(--font-size-2);
   gap: var(--space-2) var(--space-4);
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--space-3) var(--space-1);
+}
+
+.candidate-related__main {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.candidate-related__title {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.candidate-related__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-1);
+}
+
+.candidate-related__aside {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: flex-end;
+}
+
+.candidate-related__due {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Overdue is said in words as well as shown in the danger color. */
+.candidate-related__due[data-due='overdue'] {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.candidate-related__partial {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
   margin-bottom: 0;
+}
+
+@container candidate-detail (max-width: 36rem) {
+  .candidate-related__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .candidate-related__aside {
+    justify-content: flex-start;
+  }
+}
+
+/* The sheet shows the same preview content with the drawer's own title and actions. */
+.candidate-preview--sheet {
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.candidate-preview--sheet .candidate-preview__facts {
+  width: 100%;
 }
 
 @media (max-width: 56.25rem) {
   .candidate-record {
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .candidate-record .candidate-detail__heading h2 {
+    font-size: var(--font-size-6);
   }
 }
 

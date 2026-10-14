@@ -304,6 +304,24 @@ async function openRecordFromDirectory(name: string) {
 
 const candidateCalls = (calls: RecordedCall[]) => calls.filter((call) => call.url.startsWith(API));
 
+/** The record's overflow menu button (its label shows progress while its action runs). */
+function moreActions() {
+  return screen.getByRole('button', {
+    name: /^(More actions|Plus d’actions|Working…|Traitement en cours…)$/,
+  });
+}
+
+/** A lifecycle or archive action, opening the record's overflow menu when needed. */
+function recordAction(name: string) {
+  // Record-row actions (Edit French, Archive Sourcing…) are still plain buttons.
+  const button = screen.queryByRole('button', { name });
+  if (button) return button;
+  const open = screen.queryByRole('menuitem', { name });
+  if (open) return open;
+  fireEvent.click(moreActions());
+  return screen.getByRole('menuitem', { name });
+}
+
 beforeEach(() => {
   window.localStorage.clear();
 });
@@ -570,7 +588,7 @@ describe('Candidate mutations keep their exact API behavior', () => {
     renderPanel(ORDINARY_PERMISSIONS, 'fr');
     await selectCandidate();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Marquer comme inactif' }));
+    fireEvent.click(recordAction('Marquer comme inactif'));
 
     expect(confirm).toHaveBeenCalledWith(
       expect.stringContaining('Passer le statut de ce candidat à'),
@@ -590,8 +608,8 @@ describe('Candidate mutations keep their exact API behavior', () => {
     await selectCandidate();
     const before = candidateCalls(calls).length;
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move to talent pool' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Archive candidate' }));
+    fireEvent.click(recordAction('Move to talent pool'));
+    fireEvent.click(recordAction('Archive candidate'));
 
     expect(candidateCalls(calls)).toHaveLength(before);
   });
@@ -602,7 +620,7 @@ describe('Candidate mutations keep their exact API behavior', () => {
     renderPanel(ORDINARY_PERMISSIONS);
     await selectCandidate();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Archive candidate' }));
+    fireEvent.click(recordAction('Archive candidate'));
 
     expect(await screen.findByText('Candidate archived.')).toBeVisible();
     expect(candidateCalls(calls).some((call) => call.method === 'DELETE')).toBe(false);
@@ -610,7 +628,7 @@ describe('Candidate mutations keep their exact API behavior', () => {
     expect(archive).toMatchObject({ body: undefined, method: 'POST' });
     // The record is now read-only: every write action is gone.
     expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Archive candidate' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /More actions|Plus d’actions/ })).toBeNull();
   });
 
   it('adds a skill with the same body and re-reads the record', async () => {
@@ -678,7 +696,7 @@ describe('Candidate conflict and validation feedback', () => {
     renderPanel(ORDINARY_PERMISSIONS);
     await selectCandidate();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    fireEvent.click(recordAction('Mark inactive'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'This candidate has been archived and can no longer be changed.',
@@ -792,7 +810,7 @@ async function moveToSecondCandidate() {
  * own action to be enabled again proves the earlier write has fully resolved.
  */
 async function waitForWriteToSettle() {
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Mark inactive' })).toBeEnabled());
+  await waitFor(() => expect(moreActions()).toBeEnabled());
 }
 
 describe('Candidate writes stay scoped to the candidate they started on', () => {
@@ -838,7 +856,7 @@ describe('Candidate writes stay scoped to the candidate they started on', () => 
       renderPanel(ORDINARY_PERMISSIONS);
       await selectCandidate();
 
-      fireEvent.click(screen.getByRole('button', { name: action }));
+      fireEvent.click(recordAction(action));
       await moveToSecondCandidate();
       write.release(
         jsonResponse({ error: { code: 'CANDIDATE_ARCHIVED', message: 'raw backend text' } }, 409),
@@ -943,16 +961,14 @@ describe('Candidate writes never overlap', () => {
     });
 
     // The first write starts.
-    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    fireEvent.click(recordAction('Mark inactive'));
     await waitFor(() => expect(writeCalls(calls)).toHaveLength(1));
 
     // No second write can start from any entry point.
     expect(screen.getByRole('button', { name: 'New candidate' })).toBeDisabled();
     expect(within(editForm).getByRole('button', { name: 'Save changes' })).toBeDisabled();
     expect(within(skillForm).getByRole('button', { name: 'Add skill' })).toBeDisabled();
-    for (const name of ['Move to talent pool', 'Archive candidate']) {
-      expect(screen.getByRole('button', { name })).toBeDisabled();
-    }
+    expect(moreActions()).toBeDisabled();
     for (const name of ['Add language', 'Add experience', 'Add education']) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
@@ -960,7 +976,9 @@ describe('Candidate writes never overlap', () => {
     // Even implicit submission from a text field is refused while the write runs.
     fireEvent.submit(editForm);
     fireEvent.submit(skillForm);
-    fireEvent.click(screen.getByRole('button', { name: 'Move to talent pool' }));
+    // The overflow menu cannot even open while the write runs.
+    fireEvent.click(moreActions());
+    expect(screen.queryByRole('menu')).toBeNull();
     expect(writeCalls(calls)).toHaveLength(1);
 
     // Once it settles, the lock is released and a new write may start.
@@ -992,7 +1010,7 @@ describe('Candidate writes never overlap', () => {
     await waitFor(() => expect(writeCalls(calls)).toHaveLength(1));
 
     // While the create is in flight, no other write may begin.
-    for (const control of ['Edit profile', 'Mark inactive', 'Archive candidate', 'Add skill']) {
+    for (const control of ['Edit profile', 'More actions', 'Add skill']) {
       expect(screen.getByRole('button', { name: control })).toBeDisabled();
     }
 
@@ -1046,7 +1064,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
     await selectCandidate();
 
     // A write starts under Filter A and stays pending.
-    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    fireEvent.click(recordAction('Mark inactive'));
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
 
     // Back in the directory, Filter B is applied and resolves while the write is pending.
@@ -1097,7 +1115,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
     await selectCandidate();
 
     // The write starts in session A and stays pending.
-    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    fireEvent.click(recordAction('Mark inactive'));
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/status'))).toBe(true));
     expect(calls.find((call) => call.url.endsWith('/status'))?.token).toBe('Bearer token-a');
 
@@ -1126,7 +1144,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
     expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
     expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
     // Issue #69 review: session A's selected record is not carried into session B.
-    expect(screen.queryByRole('button', { name: 'Mark inactive' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /More actions|Plus d’actions/ })).toBeNull();
     expect(screen.getByRole('table', { name: 'Candidate directory' })).toBeVisible();
   });
 });
@@ -1336,7 +1354,7 @@ describe('Candidate list pages and source filter', () => {
     await selectCandidate('Candidate 21');
 
     // Archiving the only active candidate on page 2 leaves that page empty.
-    fireEvent.click(screen.getByRole('button', { name: 'Archive candidate' }));
+    fireEvent.click(recordAction('Archive candidate'));
     expect(await screen.findByText('Candidate archived.')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(await screen.findByText('Page 1 of 1')).toBeVisible();
@@ -1521,7 +1539,7 @@ describe('Structured record maintenance', () => {
       renderPanel(ORDINARY_PERMISSIONS);
       await selectCandidate();
 
-      fireEvent.click(screen.getByRole('button', { name: action }));
+      fireEvent.click(recordAction(action));
 
       expect(await screen.findByText(success)).toBeVisible();
       expect(confirm).toHaveBeenCalledWith(
@@ -1661,7 +1679,7 @@ describe('Structured record maintenance', () => {
       'Archive Junior Recruiter · Example Staffing',
       'Add skill',
       'Edit profile',
-      'Archive candidate',
+      'More actions',
     ]) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
@@ -1967,7 +1985,7 @@ describe('Education dates and description', () => {
       `Archive ${SENIOR_ROLE}`,
       'Add education',
       'Add experience',
-      'Archive candidate',
+      'More actions',
     ]) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
@@ -1995,7 +2013,7 @@ const candidatePatches = (calls: RecordedCall[]) =>
   calls.filter((call) => call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}`);
 
 function openRestrictedForm(action: 'Edit compensation' | 'Manage consent') {
-  fireEvent.click(screen.getByRole('button', { name: action }));
+  fireEvent.click(recordAction(action));
   return screen.getByRole('form', { name: action });
 }
 
@@ -2249,10 +2267,9 @@ describe('Restricted writes share the Candidate write lifecycle', () => {
     for (const name of [
       'Manage consent',
       'Edit profile',
-      'Archive candidate',
+      'More actions',
       'Add skill',
       'Edit Sourcing',
-      'Mark inactive',
     ]) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
@@ -2940,5 +2957,78 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
 
     expect(screen.getByLabelText('City')).toHaveValue('Lyon');
+  });
+});
+
+describe('Candidates v2.0: quick preview as a mobile sheet', () => {
+  /** Gives the Candidates workspace a 390px phone width; everything else keeps no layout. */
+  function narrowWorkspace() {
+    // jsdom has no layout: every element measures 0 except the workspace root here.
+    return vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return new DOMRect(0, 0, this.classList.contains('candidates') ? 358 : 0, 0);
+    });
+  }
+
+  it('opens the preview at once as an accessible sheet without any request', async () => {
+    narrowWorkspace();
+    const { calls } = stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    const row = await screen.findByRole('button', { name: 'Synthetic Candidate' });
+    const before = calls.length;
+    row.focus();
+    fireEvent.click(row);
+
+    const sheet = screen.getByRole('dialog', { name: 'Synthetic Candidate' });
+    expect(sheet).toHaveAttribute('aria-modal', 'true');
+    expect(sheet.closest('.ui-drawer')).toHaveAttribute('data-placement', 'bottom');
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(within(sheet).getByRole('button', { name: 'Open full profile' })).toBeVisible();
+    // No side pane while the sheet shows: the directory stays one full-width pane.
+    expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
+    expect(screen.getByRole('table', { name: 'Candidate directory', hidden: true })).toBeTruthy();
+    expect(calls.length).toBe(before);
+  });
+
+  it('closes with Escape or Close and returns focus to the row, keeping the page', async () => {
+    narrowWorkspace();
+    const { calls } = stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    const row = await screen.findByRole('button', { name: 'Synthetic Candidate' });
+    const listsBefore = listCalls(calls).length;
+
+    row.focus();
+    fireEvent.click(row);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(row).toHaveFocus());
+
+    fireEvent.click(row);
+    const sheet = screen.getByRole('dialog');
+    const closeButtons = within(sheet).getAllByRole('button', { name: 'Close' });
+    fireEvent.click(closeButtons[closeButtons.length - 1]!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(row).toHaveFocus());
+    expect(listCalls(calls)).toHaveLength(listsBefore);
+  });
+
+  it('keeps Tab inside the sheet and opens the full profile from it', async () => {
+    narrowWorkspace();
+    const { calls } = stubCandidateApi([P.view]);
+    renderPanel([P.view]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Synthetic Candidate' }));
+    const sheet = screen.getByRole('dialog');
+    const open = within(sheet).getByRole('button', { name: 'Open full profile' });
+    open.focus();
+    fireEvent.keyDown(sheet, { key: 'Tab' });
+    expect(sheet).toContainElement(document.activeElement as HTMLElement);
+
+    fireEvent.click(open);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Synthetic Candidate' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(detailCalls(calls)).toHaveLength(1);
   });
 });

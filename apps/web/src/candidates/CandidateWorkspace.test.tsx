@@ -78,6 +78,24 @@ function renderWorkspace(
   return props;
 }
 
+/** The record's overflow menu button (its label shows progress while its action runs). */
+function moreActions() {
+  return screen.getByRole('button', {
+    name: /^(More actions|Plus d’actions|Working…|Traitement en cours…)$/,
+  });
+}
+
+/** A lifecycle or archive action, opening the record's overflow menu when needed. */
+function recordAction(name: string) {
+  // Record-row actions (Edit French, Archive Sourcing…) are still plain buttons.
+  const button = screen.queryByRole('button', { name });
+  if (button) return button;
+  const open = screen.queryByRole('menuitem', { name });
+  if (open) return open;
+  fireEvent.click(moreActions());
+  return screen.getByRole('menuitem', { name });
+}
+
 const button = (name: string | RegExp) => screen.queryByRole('button', { name });
 
 describe('Candidate workspace action permissions', () => {
@@ -92,7 +110,7 @@ describe('Candidate workspace action permissions', () => {
       'Mark active',
       'Mark inactive',
       'Move to talent pool',
-      'Archive candidate',
+      'More actions',
       'Add skill',
       'Add language',
       'Add experience',
@@ -136,13 +154,55 @@ describe('Candidate workspace action permissions', () => {
   it('offers only the other non-archival lifecycle states with candidates:status:manage', () => {
     const props = renderWorkspace([P.view, P.statusManage]);
 
-    expect(button('Mark active')).toBeNull();
-    expect(button('Mark inactive')).toBeVisible();
-    expect(button('Move to talent pool')).toBeVisible();
-    expect(button('Archive candidate')).toBeNull();
+    fireEvent.click(moreActions());
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Mark inactive',
+      'Move to talent pool',
+    ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move to talent pool' }));
+    fireEvent.click(recordAction('Move to talent pool'));
     expect(props.onChangeStatus).toHaveBeenCalledWith('TALENT_POOL');
+    // Choosing closes the menu and returns focus to its button.
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(moreActions()).toHaveFocus();
+  });
+
+  it('keeps Edit profile as the primary action and the rest in a keyboard-operable menu', () => {
+    const props = renderWorkspace(ORDINARY_PERMISSIONS);
+    expect(screen.getByRole('button', { name: 'Edit profile' })).toHaveClass('ui-button--primary');
+    const more = moreActions();
+    expect(more).toHaveAttribute('aria-haspopup', 'menu');
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.keyDown(more, { key: 'ArrowDown' });
+    const menu = screen.getByRole('menu', { name: 'More actions' });
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    expect(more).toHaveAttribute('aria-controls', menu.id);
+    const items = within(menu).getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Mark inactive',
+      'Move to talent pool',
+      'Archive candidate',
+    ]);
+    expect(items[0]).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'ArrowUp' });
+    expect(items[2]).toHaveFocus();
+    expect(items[2]).toHaveAttribute('data-danger', 'true');
+    fireEvent.keyDown(menu, { key: 'Home' });
+    expect(items[0]).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'End' });
+    expect(items[2]).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(more).toHaveFocus();
+    expect(props.onArchive).not.toHaveBeenCalled();
+
+    // A click outside closes it without choosing anything.
+    fireEvent.click(more);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(props.onChangeStatus).not.toHaveBeenCalled();
   });
 
   it('never offers lifecycle or archive actions on an archived record', () => {
@@ -156,12 +216,7 @@ describe('Candidate workspace action permissions', () => {
         }),
       },
     );
-    for (const name of [
-      'Mark active',
-      'Mark inactive',
-      'Move to talent pool',
-      'Archive candidate',
-    ]) {
+    for (const name of ['Mark active', 'Mark inactive', 'Move to talent pool', 'More actions']) {
       expect(button(name)).toBeNull();
     }
   });
@@ -169,7 +224,7 @@ describe('Candidate workspace action permissions', () => {
   it('offers archival only with candidates:archive, as a separate destructive action', () => {
     const props = renderWorkspace([P.view, P.archive]);
     expect(button('Mark inactive')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Archive candidate' }));
+    fireEvent.click(recordAction('Archive candidate'));
     expect(props.onArchive).toHaveBeenCalledTimes(1);
   });
 
@@ -368,8 +423,10 @@ describe('Candidate workspace localization', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Candidats' })).toBeVisible();
     expect(screen.getByText('Recrutement')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Nouveau candidat' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Marquer comme inactif' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Archiver le candidat' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Marquer comme inactif' })).toBeVisible();
+    expect(screen.getByRole('menuitem', { name: 'Archiver le candidat' })).toBeVisible();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(screen.getAllByText('Actif').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Informations restreintes' })).toBeVisible();
     expect(screen.getByText('Accordé')).toBeVisible();

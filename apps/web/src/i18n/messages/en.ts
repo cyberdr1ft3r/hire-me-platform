@@ -333,6 +333,7 @@ export const enMessages = {
       cancel: 'Cancel',
       create: 'Create candidate',
       edit: 'Edit profile',
+      more: 'More actions',
       newCandidate: 'New candidate',
       region: 'Candidate actions',
       save: 'Save changes',
@@ -532,6 +533,7 @@ export const enMessages = {
       back: 'Back to candidates',
       discardPrompt: 'This candidate has unsaved changes. Leave and discard them?',
       documents: {
+        count: plural({ one: '{count} document', other: '{count} documents' }),
         empty: 'Documents attached to this candidate appear here.',
         emptyTitle: 'No documents',
         error: 'Unable to load this candidate’s documents.',
@@ -550,12 +552,16 @@ export const enMessages = {
         tasks: 'Tasks',
       },
       tasks: {
+        count: plural({ one: '{count} task', other: '{count} tasks' }),
         due: 'Due {date}',
         empty: 'Tasks linked to this candidate appear here.',
         emptyTitle: 'No tasks',
         error: 'Unable to load this candidate’s tasks.',
         loading: 'Loading tasks…',
         noDue: 'No due date',
+        open: 'Open Tasks',
+        overdue: 'Overdue',
+        today: 'Due today',
       },
     },
     records: {

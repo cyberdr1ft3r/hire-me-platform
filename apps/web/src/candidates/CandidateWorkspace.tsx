@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/index.js';
 import {
   Button,
   PageHeader,
+  WORKSPACE_SPLIT_MIN_REM,
   WorkspacePane,
   WorkspaceSurface,
   WorkspaceToolbar,
@@ -31,6 +32,7 @@ import { CandidateDirectory } from './CandidateDirectory.js';
 import { CandidateFilters } from './CandidateFilters.js';
 import { CandidateFocusedRecord, type CandidateRelatedLoaders } from './CandidateFocusedRecord.js';
 import { CandidateQuickPreview } from './CandidateQuickPreview.js';
+import { useNarrowContainer } from './use-narrow-container.js';
 
 const NO_RELATED: CandidateRelatedLoaders = { documents: null, tasks: null };
 
@@ -124,6 +126,10 @@ export function CandidateWorkspace({
   const listHeadingId = useId();
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const directoryRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Too narrow for the side preview: the preview opens as a bottom sheet instead.
+  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const sidePreview = previewCandidate && !narrow ? previewCandidate : null;
   // Set by a page change: once the new page has settled, focus moves to the list heading.
   const focusListAfterPage = useRef(false);
   // The row to focus once the directory is back on screen (closing a preview or a record).
@@ -228,7 +234,11 @@ export function CandidateWorkspace({
   );
 
   return (
-    <div className="candidates ui-workspace-page" data-view={recordOpen ? 'record' : 'directory'}>
+    <div
+      className="candidates ui-workspace-page"
+      data-view={recordOpen ? 'record' : 'directory'}
+      ref={rootRef}
+    >
       {header}
 
       {canCreate && creating ? (
@@ -269,7 +279,7 @@ export function CandidateWorkspace({
           className="candidates__workspace"
           ref={directoryRef}
           split="preview"
-          view={previewCandidate ? undefined : 'list'}
+          view={sidePreview ? undefined : 'list'}
         >
           <WorkspacePane
             aria-labelledby={listHeadingId}
@@ -311,18 +321,28 @@ export function CandidateWorkspace({
               tableLabelId={listHeadingId}
             />
           </WorkspacePane>
-          {previewCandidate ? (
+          {sidePreview ? (
             <WorkspacePane as="div" className="candidates__preview-pane" kind="detail">
               <CandidateQuickPreview
-                candidate={previewCandidate}
-                key={previewCandidate.id}
+                candidate={sidePreview}
+                key={sidePreview.id}
                 onClose={closePreview}
-                onOpenRecord={() => onOpenRecord(previewCandidate.id)}
+                onOpenRecord={() => onOpenRecord(sidePreview.id)}
               />
             </WorkspacePane>
           ) : null}
         </WorkspaceSurface>
       )}
+
+      {!recordOpen && previewCandidate && narrow ? (
+        <CandidateQuickPreview
+          candidate={previewCandidate}
+          key={previewCandidate.id}
+          onClose={closePreview}
+          onOpenRecord={() => onOpenRecord(previewCandidate.id)}
+          presentation="sheet"
+        />
+      ) : null}
     </div>
   );
 }

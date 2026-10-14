@@ -347,6 +347,7 @@ export const frMessages: Messages = {
       cancel: 'Annuler',
       create: 'Créer le candidat',
       edit: 'Modifier le profil',
+      more: 'Plus d’actions',
       newCandidate: 'Nouveau candidat',
       region: 'Actions sur le candidat',
       save: 'Enregistrer les modifications',
@@ -551,6 +552,7 @@ export const frMessages: Messages = {
       discardPrompt:
         'Ce candidat a des modifications non enregistrées. Quitter et les abandonner ?',
       documents: {
+        count: plural({ one: '{count} document', other: '{count} documents' }),
         empty: 'Les documents rattachés à ce candidat apparaissent ici.',
         emptyTitle: 'Aucun document',
         error: 'Impossible de charger les documents de ce candidat.',
@@ -569,12 +571,16 @@ export const frMessages: Messages = {
         tasks: 'Tâches',
       },
       tasks: {
+        count: plural({ one: '{count} tâche', other: '{count} tâches' }),
         due: 'Échéance {date}',
         empty: 'Les tâches liées à ce candidat apparaissent ici.',
         emptyTitle: 'Aucune tâche',
         error: 'Impossible de charger les tâches de ce candidat.',
         loading: 'Chargement des tâches…',
         noDue: 'Sans échéance',
+        open: 'Ouvrir Tâches',
+        overdue: 'En retard',
+        today: 'Échéance aujourd’hui',
       },
     },
     records: {

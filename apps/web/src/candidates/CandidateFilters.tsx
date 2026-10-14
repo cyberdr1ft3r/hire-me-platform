@@ -74,6 +74,8 @@ export function CandidateFilters({
             maxLength={120}
             name="search"
             onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
+            // The hint is also the field's accessible description; the toolbar shows it here.
+            placeholder={t('candidate.filters.searchHint')}
             type="search"
             value={values.search}
           />
