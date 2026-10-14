@@ -43,7 +43,7 @@ Same single-bundle shape as pre-change Clients (no new lazy route). JS gzip refl
 
 ## Browser validation (Chrome, production `vite preview`, local API, synthetic fixtures)
 
-Harness: `docs/audit/issue-204-clients-workspace-v2/tools/evidence-clients.mjs`  
+Harness: `docs/audit/issue-204-clients-workspace-v2/tools/evidence-clients.mjs`
 Results: `issue-204-clients-workspace-v2/results/browser-checks.json` — **104/104** checks passed (EN + FR).
 
 Viewports: 1440×900, 1024×768, 768×1024, 390×844, 390×500, 720×450 (200% zoom).
