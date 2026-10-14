@@ -180,7 +180,7 @@ function contactEditForm() {
 }
 
 async function waitForWriteToSettle() {
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Create client' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 }
 
 function renderPanel(permissions = fullPermissions, locale: 'en' | 'fr' = 'en') {
@@ -412,7 +412,7 @@ describe('ClientsPanel', () => {
     renderPanel(['clients:view']);
     await screen.findByRole('search', { name: 'Client search' });
     expect(screen.getAllByText('Read-only access').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'Create client' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New client' })).not.toBeInTheDocument();
   });
 });
 
@@ -543,7 +543,7 @@ describe('Client writes respect session and permission principal', () => {
     const switchedAt = calls.length;
 
     view.rerender(panel('token-b'));
-    expect(screen.getByRole('button', { name: 'Create client' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'New client' })).toBeDisabled();
     await waitFor(() =>
       expect(
         calls.some((call) => call.url.includes('/v1/clients?') && call.token === 'Bearer token-b'),
@@ -551,9 +551,7 @@ describe('Client writes respect session and permission principal', () => {
     );
 
     update.release(jsonResponse({ client: clientSummary('Stale Name') }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Create client' })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
     expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
@@ -590,12 +588,10 @@ describe('Client writes respect session and permission principal', () => {
         />
       </I18nProvider>,
     );
-    expect(screen.getByRole('button', { name: 'Create client' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'New client' })).toBeDisabled();
 
     update.release(jsonResponse({ client: clientSummary('Stale Name') }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Create client' })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
     expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
@@ -672,5 +668,86 @@ describe('Client lifecycle actions', () => {
     const contactForm = within(contactEditForm());
     expect(contactForm.queryByRole('button', { name: 'Mark active' })).toBeNull();
     expect(contactForm.getByRole('button', { name: 'Mark inactive' })).toBeEnabled();
+  });
+});
+
+describe('Client creation drawer (Issue #196)', () => {
+  const newClientId = '66666666-6666-4666-8666-666666666666';
+
+  it('opens from the page header and leaves no inline creation form in the directory', async () => {
+    stubClientsApi();
+    renderPanel();
+    const header = (await screen.findByRole('heading', { level: 1, name: 'Clients' })).closest(
+      'header',
+    );
+    expect(header).toContainElement(screen.getByRole('button', { name: 'New client' }));
+    expect(screen.queryByRole('form', { name: 'Create client' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New client' }));
+    const drawer = screen.getByRole('dialog', { name: 'New client' });
+    expect(within(drawer).getByRole('textbox', { name: 'Client name' })).toHaveFocus();
+    expect(within(drawer).getByRole('textbox', { name: 'Commercial summary' })).toBeVisible();
+  });
+
+  it('creates once, closes, selects the new client and keeps the directory filters', async () => {
+    let posts = 0;
+    const create = deferredResponse();
+    stubClientsApi((call) => {
+      if (call.method === 'POST' && call.url.endsWith('/v1/clients')) {
+        posts += 1;
+        return create.promise;
+      }
+      if (call.method === 'GET' && call.url.endsWith(`/v1/clients/${newClientId}`)) {
+        return jsonResponse({ client: clientSummary('Drawer Client', newClientId) });
+      }
+      if (call.url.includes(`/v1/clients/${newClientId}/contacts?`)) {
+        return jsonResponse({ contacts: [], pagination: { page: 1, pageSize: 20, total: 0 } });
+      }
+      return undefined;
+    });
+    renderPanel();
+    const clientSearch = () => within(screen.getByRole('search', { name: 'Client search' }));
+    await screen.findByRole('button', { name: /Acme Corp/ });
+    const search = clientSearch().getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New client' }));
+    const drawer = screen.getByRole('dialog', { name: 'New client' });
+    fireEvent.change(within(drawer).getByRole('textbox', { name: 'Client name' }), {
+      target: { value: 'Drawer Client' },
+    });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Create client' }));
+    const busy = await within(drawer).findByRole('button', { name: 'Working…' });
+    expect(busy).toBeDisabled();
+    fireEvent.click(busy);
+    create.release(jsonResponse({ client: clientSummary('Drawer Client', newClientId) }, 201));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(posts).toBe(1);
+    expect(await screen.findByText('Client created.')).toBeVisible();
+    expect(await screen.findByRole('heading', { name: /Drawer Client/ })).toBeVisible();
+    expect(clientSearch().getByRole('searchbox')).toHaveValue('Acme');
+    // jsdom measures every layout as stacked, so the existing reveal moves focus to the
+    // new record's heading; side by side, focus returns to the header action instead.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /Drawer Client/ })).toHaveFocus(),
+    );
+  });
+
+  it('keeps the drawer and draft open with an error when creation fails', async () => {
+    stubClientsApi((call) =>
+      call.method === 'POST' && call.url.endsWith('/v1/clients')
+        ? jsonResponse({ error: { code: 'CLIENT_CONFLICT', message: 'Rejected' } }, 409)
+        : undefined,
+    );
+    renderPanel();
+    await screen.findByRole('button', { name: /Acme Corp/ });
+    fireEvent.click(screen.getByRole('button', { name: 'New client' }));
+    const drawer = screen.getByRole('dialog', { name: 'New client' });
+    fireEvent.change(within(drawer).getByRole('textbox', { name: 'Client name' }), {
+      target: { value: 'Rejected Client' },
+    });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Create client' }));
+    expect(await within(drawer).findByText('Client could not be created.')).toBeVisible();
+    expect(within(drawer).getByRole('textbox', { name: 'Client name' })).toHaveValue(
+      'Rejected Client',
+    );
   });
 });

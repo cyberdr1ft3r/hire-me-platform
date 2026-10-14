@@ -814,10 +814,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /clients/i })).toBeVisible();
     expect(await screen.findByText('Synthetic Client')).toBeVisible();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Client name' }), {
+    fireEvent.click(screen.getByRole('button', { name: 'New client' }));
+    const drawer = await screen.findByRole('dialog', { name: 'New client' });
+    fireEvent.change(within(drawer).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Created Client' },
     });
-    fireEvent.click(screen.getAllByRole('button', { name: /create client/i })[0]!);
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Create client' }));
 
     expect(await screen.findByRole('heading', { name: 'Created Client', level: 2 })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
