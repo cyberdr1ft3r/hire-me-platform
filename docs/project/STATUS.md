@@ -3,6 +3,22 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
+## Issue #196 — compact Notification Center Phase 1
+
+- Dedicated branch `feat/issue-196-notification-center` is based on #194 integration
+  head `bd46f59` after AppShell v1.2 and Workspace Surface v1.0 merged into that
+  branch. It is intended for a draft PR back to `fix/ui-refinement-demo-20261013`.
+- The AppShell bell combines existing own task notifications with unread PRIVATE and
+  GROUP conversation summaries. It reuses `/v1/notifications`,
+  `/v1/messages/unread-summary`, and `/v1/messages/conversations?filter=unread`; no
+  endpoint, schema, real-time transport, or message-created Notification row was
+  added. Each source keeps independent read state.
+- Exact message links use `/messages?conversation=<uuid>` and the existing
+  membership-scoped detail read. Synthetic EN/FR evidence covers 1440, 1024, 768
+  and 390px without document overflow. See
+  [the architecture note](../design/notification-center-phase-1.md). Human review
+  and exact-head CI remain required; do not merge or deploy automatically.
+
 ## Workspace Surface v1.0 and Messages layout
 
 - Branch `feat/workspace-surface-v1` from #194 head `25f8190` (AppShell v1.2 merged

@@ -4,6 +4,16 @@ Last updated: 2026-10-14
 
 ## Current situation
 
+- **Next: review Issue #196 Notification Center Phase 1** on
+  `feat/issue-196-notification-center`, based on current #194 integration head
+  `bd46f59`. The frontend-only implementation merges the existing notification and
+  unread-conversation DTOs in a compact AppShell popover, preserves independent
+  source read state, and deep-links through the existing membership-scoped Messages
+  read. Review [the architecture audit](../design/notification-center-phase-1.md),
+  EN/FR screenshots at 1440/1024/768/390, exact-head CI, keyboard/focus behavior and
+  physical mobile behavior. Utility Bar, Notes, branding and Missions/Clients drawers
+  remain outside this PR. Do not merge or deploy automatically.
+
 - **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
   `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual
   review of the Messages/Candidates before/after evidence and a real-device check of
