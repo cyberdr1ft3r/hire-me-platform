@@ -5,10 +5,24 @@ Last updated: 2026-10-14
 ## Current situation
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
-  PR (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
+  PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
   maintainer answers to the ADR open questions and clickable interaction evidence.
   Phase B0 (request core) and B1 (lazy routes) are the first implementation PRs, only
   after approval. No merge/deploy automatically.
+  Integration `c625018` (#199 and #201 merged) is merged into the branch; the
+  preflight records what those changes alter in the baseline findings.
+
+- **Merged: Issue #196 creation drawers** (PR #201, merge `c625018`, after integrating
+  `542bbf0` with both memory sections kept). Remaining: human review of the EN/FR
+  drawer evidence and real-device mobile keyboard check (R-056). Do not close #196:
+  the utility bar/wordmark scope remains.
+
+- **Merged: Issue #196 Notification Center Phase 1** (PR #199, merge `542bbf0`). The
+  compact AppShell popover merges the existing notification and unread-conversation DTOs,
+  keeps independent source read state and deep-links through the membership-scoped
+  Messages read. See [the architecture audit](../design/notification-center-phase-1.md).
+  Remaining: physical mobile and screen-reader acceptance. Utility Bar, Notes and
+  branding stay outside it.
 
 - **Next: review Workspace Surface v1.0** on `feat/workspace-surface-v1` (draft PR into
   `fix/ui-refinement-demo-20261013`). Completion requires exact-head CI, human visual

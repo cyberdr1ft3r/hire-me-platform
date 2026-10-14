@@ -209,25 +209,6 @@
   margin: 0;
 }
 
-/* New mission disclosure ------------------------------------------------- */
-
-.mission-disclosure {
-  border-block: var(--border-width) solid var(--color-border);
-  padding-block: var(--space-3);
-}
-
-.mission-disclosure__summary {
-  cursor: pointer;
-  font-weight: var(--font-weight-semibold);
-  min-height: var(--hit-target-min);
-  padding-block: var(--space-2);
-}
-
-.mission-disclosure__summary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-focus);
-  outline-offset: var(--focus-ring-width);
-}
-
 /* Detail ---------------------------------------------------------------- */
 
 .mission-detail {

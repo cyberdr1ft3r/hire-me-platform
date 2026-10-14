@@ -61,6 +61,27 @@ by permissions) is rendered as that destination's link instead of a reveal
 button. Selecting Messages can no longer leave Administration displayed as the
 context; multi-destination domains keep the v1.2 inspect behavior.
 
+## Creation drawer (Issue #196)
+
+Top-level creation opens from the page header into a right-side modal drawer
+(`ui/Drawer.tsx`: `Drawer`, `CreationDrawer`), never a form appended to a
+directory. Fixed header with title and close, scrolling body, pinned Cancel /
+Create footer that submits the body form by `form` id. Width
+`--layout-dialog-max` (36rem) on desktop; a full-screen sheet below 40rem with
+safe-area padding. It renders into `document.body`, marks the application
+inert, traps Tab, closes on Escape, close or scrim, and returns focus to its
+opener. Closing with input asks inside the footer (keep editing / discard).
+Browser Back/Forward with input asks the same question: the router writes a
+position into each history entry, so `navigation/navigation-guard.ts` returns the
+browser to the drawer's entry and replays the traversal only after Discard,
+without adding entries. Reload or tab close uses the browser's own prompt while
+input is unsaved.
+Submitting shows progress and cannot repeat; failures appear inside the drawer
+and keep the draft; success closes it and the module selects the new record.
+`initialFocus="title"` is for forms whose first control opens a popup on focus.
+Applied to Missions and Clients; module fields, pickers, validation, requests
+and permissions are unchanged.
+
 ## Migration order (proposed)
 
 1. **Commercial** — table list + record; tabs already consistent. Move filters

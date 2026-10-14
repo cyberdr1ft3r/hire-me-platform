@@ -33,11 +33,13 @@ function LocaleToggle() {
 
 function Workspace({
   accessToken = 'token-a',
+  initialConversationId = null,
   locale = 'en',
   onUnreadChanged = () => undefined,
   permissions = MESSAGING_ACCESS,
 }: {
   accessToken?: string;
+  initialConversationId?: string | null;
   locale?: Locale;
   onUnreadChanged?: () => void;
   permissions?: string[];
@@ -48,6 +50,7 @@ function Workspace({
       <MessagesPanel
         accessToken={accessToken}
         actorUserId={ACTOR_ID}
+        initialConversationId={initialConversationId}
         onUnreadChanged={onUnreadChanged}
         permissions={permissions}
       />
@@ -98,6 +101,14 @@ afterEach(() => {
 });
 
 describe('Messages workspace', () => {
+  it('opens a membership-scoped conversation from an exact deep link', async () => {
+    const fake = createFakeMessaging();
+    render(<Workspace initialConversationId={GROUP_ID} />);
+
+    expect(await screen.findByRole('heading', { name: 'Synthetic sourcing circle' })).toBeVisible();
+    expect(callsTo(fake.calls, 'GET', `/conversations/${GROUP_ID}`).length).toBeGreaterThan(0);
+  });
+
   it('lists conversations from safe API fields only: no preview, no raw ids, no admin or notification APIs', async () => {
     const fake = createFakeMessaging();
     const { container } = render(<Workspace />);

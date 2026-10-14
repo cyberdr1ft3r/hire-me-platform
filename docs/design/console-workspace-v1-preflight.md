@@ -18,6 +18,16 @@ No application code, contract, schema, permission or dependency changes.
 - **#196 / PR #199** Notification Center: open draft against the same integration
   branch; adds a 60 s shell notification poll and `/messages?conversation=<uuid>`.
   This preflight neither depends on nor modifies it; overlaps are listed below.
+- **Update after reconciliation (2026-10-14):** #199 (merge `542bbf0`) and #201
+  (Missions/Clients creation drawers, merge `c625018`) are now merged into the
+  integration branch. The measurements below are still those of `bd46f59`. Two
+  findings change: the shell poll now exists (see Polling), and #201 adds the first
+  unsaved-change protection, `apps/web/src/navigation/navigation-guard.ts`. Router
+  history entries carry `hiremeHistoryIndex`; one blocker (the open modal drawer) can
+  hold a Back/Forward and replay it after **Keep editing / Discard changes**. The
+  D-089 draft registry should extend that guard rather than add a second `popstate`
+  listener. Production bundle at `c625018`: 1,243.05 kB (307.12 kB gzip), against
+  1.23 MB (302.8 KB gzip) at `bd46f59`.
 - `main` is `283c18a`. The console must be built on the integration branch (it
   needs AppShell v1.2 and the Workspace Surface), so its PRs should target that
   branch while #194 is undecided.
@@ -96,7 +106,8 @@ pasted client URL can work (Phase C prerequisite, additive).
 ### Unsaved forms
 
 - 80 `<form>` elements across 12 modules; **no dirty tracking, navigation guard or
-  `beforeunload` handler anywhere**. Confirmations exist only for destructive
+  `beforeunload` handler anywhere** at `bd46f59` (since #201, only the Missions and
+  Clients creation drawers are protected; no `beforeunload` yet). Confirmations exist only for destructive
   actions. Today a sidebar click or Back silently discards an edit; a console with
   closable tabs would multiply that risk.
 

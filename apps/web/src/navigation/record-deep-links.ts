@@ -11,6 +11,7 @@ export interface RecordNavigationIntent {
   meetingId: string | null;
   programId: string | null;
   sessionId: string | null;
+  conversationId: string | null;
 }
 
 function validUuid(value: string | null): string | null {
@@ -40,7 +41,12 @@ export function recordNavigationIntent(
     meetingId: route === 'meetings' ? uniqueValidUuid(parameters, 'meeting') : null,
     programId: route === 'training' ? uniqueValidUuid(parameters, 'program') : null,
     sessionId: route === 'training' ? uniqueValidUuid(parameters, 'session') : null,
+    conversationId: route === 'messages' ? uniqueValidUuid(parameters, 'conversation') : null,
   };
+}
+
+export function conversationDeepLink(conversationId: string): string {
+  return `/messages?conversation=${encodeURIComponent(conversationId)}`;
 }
 
 export function candidateDeepLink(candidateId: string): string {

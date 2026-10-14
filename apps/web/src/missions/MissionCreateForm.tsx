@@ -1,47 +1,78 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, InlineMessage, TextArea } from '../ui/index.js';
+import { CreationDrawer, InlineMessage, TextArea } from '../ui/index.js';
 import { MissionPicker, type LoadPickerOptions } from './MissionPicker.js';
 import { MissionProfileFields } from './MissionProfile.js';
 import { EMPTY_MISSION_CREATE, type MissionCreateValues } from './mission-state.js';
 
+function hasInput(values: MissionCreateValues): boolean {
+  return (Object.keys(EMPTY_MISSION_CREATE) as (keyof MissionCreateValues)[]).some(
+    (key) => values[key] !== EMPTY_MISSION_CREATE[key],
+  );
+}
+
 /**
+ * The mission creation flow in a right-side drawer, opened from the page header.
  * A new mission is always attached to a client chosen by name. Without the
  * client directory permission there is nothing to choose from, so the form is
- * replaced by an explanation instead of asking for an ID.
+ * replaced by an explanation instead of asking for an ID. Fields, validation and
+ * the create request are the existing ones; success closes the drawer.
  */
-export function MissionCreateForm({
+export function MissionCreateDrawer({
+  failure,
   loadClientOptions,
+  onClose,
   onCreate,
   sourceKey,
   writesLocked,
 }: {
+  /** The page's latest failure, shown in the drawer once a submit was attempted. */
+  failure: ReactNode;
   loadClientOptions: LoadPickerOptions | null;
+  onClose: () => void;
   onCreate: (values: MissionCreateValues) => Promise<boolean>;
   sourceKey: string;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const formId = useId();
   const [values, setValues] = useState<MissionCreateValues>(EMPTY_MISSION_CREATE);
+  const [submitting, setSubmitting] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!values.client) {
+    if (!values.client || submitting || writesLocked) {
       return;
     }
-    if (await onCreate(values)) {
-      setValues(EMPTY_MISSION_CREATE);
+    setAttempted(true);
+    setSubmitting(true);
+    const created = await onCreate(values);
+    setSubmitting(false);
+    if (created) {
+      onClose();
     }
   }
 
   return (
-    <details className="mission-disclosure">
-      <summary className="mission-disclosure__summary">{t('missions.create.title')}</summary>
+    <CreationDrawer
+      dirty={hasInput(values)}
+      error={attempted && !submitting ? failure : null}
+      formId={formId}
+      // The client picker opens suggestions on focus; start on the title instead.
+      initialFocus="title"
+      onClose={onClose}
+      submitDisabled={!loadClientOptions || writesLocked || !values.client}
+      submitLabel={t('missions.create.submit')}
+      submitting={submitting}
+      title={t('missions.create.title')}
+    >
       {loadClientOptions ? (
         <form
           aria-label={t('missions.create.title')}
           className="mission-form"
+          id={formId}
           onSubmit={(event) => void handleSubmit(event)}
         >
           <MissionPicker
@@ -70,17 +101,12 @@ export function MissionCreateForm({
             rows={4}
             value={values.requirements}
           />
-          <div className="mission-actions">
-            <Button disabled={writesLocked || !values.client} type="submit" variant="primary">
-              {t('missions.create.submit')}
-            </Button>
-          </div>
         </form>
       ) : (
         <InlineMessage title={t('missions.create.title')} tone="info">
           <p className="mission-message__text">{t('missions.create.clientsUnavailable')}</p>
         </InlineMessage>
       )}
-    </details>
+    </CreationDrawer>
   );
 }
