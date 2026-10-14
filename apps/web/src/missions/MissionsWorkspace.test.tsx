@@ -431,9 +431,13 @@ describe('Missions option sources and raw identifiers', () => {
     });
 
     await selectMission('Mission Alpha');
+    fireEvent.click(screen.getByRole('button', { name: 'New mission' }));
+    const drawer = await screen.findByRole('dialog', { name: 'New mission' });
     expect(
-      await screen.findByText('Creating a mission requires access to the client directory.'),
+      within(drawer).getByText('Creating a mission requires access to the client directory.'),
     ).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: 'Create mission' })).toBeDisabled();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Cancel' }));
     await showMissionDetailTab('pipeline');
     expect(
       await screen.findByText('Linking a candidate requires access to the candidate directory.'),
@@ -979,5 +983,114 @@ describe('Stacked master-detail reveal', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 3, name: 'Alex Candidate' })).toHaveFocus(),
     );
+  });
+});
+
+describe('Mission creation drawer (Issue #196)', () => {
+  const NEW_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const clientOption = {
+    id: CLIENT_ID,
+    name: 'Synthetic Client',
+    normalizedName: 'synthetic client',
+    status: 'ACTIVE',
+    industry: null,
+    website: null,
+    mainPhone: null,
+    country: null,
+    city: 'Casablanca',
+    commercial: null,
+    archivedAt: null,
+    createdAt: '2026-10-01T09:00:00.000Z',
+    updatedAt: '2026-10-01T09:00:00.000Z',
+  };
+
+  function serveCreation(createResponse: () => Promise<Response> | Response): {
+    calls: RecordedCall[];
+    data: World;
+  } {
+    const data = world();
+    const calls = serve(data, (call) => {
+      if (call.path === '/v1/clients') return jsonResponse(page('clients', [clientOption]));
+      if (call.path === '/v1/missions' && call.method === 'POST') return createResponse();
+      return undefined;
+    });
+    return { calls, data };
+  }
+
+  async function openDrawerAndFill(title: string): Promise<HTMLElement> {
+    fireEvent.click(await screen.findByRole('button', { name: 'New mission' }));
+    const drawer = await screen.findByRole('dialog', { name: 'New mission' });
+    const client = within(drawer).getByRole('combobox', { name: 'Client' });
+    fireEvent.focus(client);
+    await within(drawer).findByRole('option', { name: /Synthetic Client/ });
+    fireEvent.keyDown(client, { key: 'ArrowDown' });
+    fireEvent.keyDown(client, { key: 'Enter' });
+    fireEvent.change(within(drawer).getByRole('textbox', { name: /^Title/ }), {
+      target: { value: title },
+    });
+    return drawer;
+  }
+
+  it('opens from the page header, not from the bottom of the directory', async () => {
+    serve(world());
+    renderWorkspace({ permissions: MANAGE });
+    const header = (await screen.findByRole('heading', { level: 1, name: 'Missions' })).closest(
+      'header',
+    );
+    expect(header).toContainElement(screen.getByRole('button', { name: 'New mission' }));
+    expect(document.querySelector('.mission-disclosure')).toBeNull();
+    expect(screen.queryByRole('form', { name: 'New mission' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New mission' }));
+    const drawer = await screen.findByRole('dialog', { name: 'New mission' });
+    // The client picker opens suggestions on focus, so the drawer starts on its title.
+    expect(within(drawer).getByRole('heading', { name: 'New mission' })).toHaveFocus();
+    expect(within(drawer).queryByRole('listbox')).toBeNull();
+  });
+
+  it('creates once, closes, selects the new mission and keeps it out of the drawer on success', async () => {
+    let posts = 0;
+    const created = syntheticMission(NEW_ID, 'Drawer Mission');
+    const { data } = serveCreation(() => {
+      posts += 1;
+      data.missions = [created, ...data.missions];
+      return jsonResponse({ mission: created }, 201);
+    });
+    renderWorkspace({ permissions: MANAGE });
+    await selectMission('Mission Beta');
+    const drawer = await openDrawerAndFill('Drawer Mission');
+    const submit = within(drawer).getByRole('button', { name: 'Create mission' });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(posts).toBe(1);
+    expect(await screen.findByText('Mission created.')).toBeVisible();
+    expect(await screen.findByRole('button', { name: /^Drawer Mission/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+  });
+
+  it('keeps the drawer, the draft and the directory selection when creation fails', async () => {
+    serveCreation(() => jsonResponse({ code: 'VALIDATION_FAILED', message: 'Rejected' }, 400));
+    renderWorkspace({ permissions: MANAGE });
+    await selectMission('Mission Beta');
+    const drawer = await openDrawerAndFill('Rejected Mission');
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Create mission' }));
+    expect(await within(drawer).findByRole('alert')).toBeVisible();
+    expect(within(drawer).getByRole('textbox', { name: /^Title/ })).toHaveValue('Rejected Mission');
+    fireEvent.keyDown(drawer, { key: 'Escape' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Discard changes' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: /^Mission Beta/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+  });
+
+  it('never offers creation without missions:create', async () => {
+    serve(world());
+    renderWorkspace({ permissions: [...VIEW, 'clients:view'] });
+    await screen.findByRole('heading', { level: 1, name: 'Missions' });
+    expect(screen.queryByRole('button', { name: 'New mission' })).toBeNull();
   });
 });
