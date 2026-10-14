@@ -4,6 +4,12 @@ Last updated: 2026-10-14
 
 ## Current situation
 
+- **Next: review PR #203** (Issue #202 Scope A, shared authenticated request core) into
+  `fix/ui-refinement-demo-20261013`. Real-API expiry acceptance passed
+  ([evidence](../audit/issue-202-auth-expiry-acceptance.md)). Then decide the cross-tab
+  follow-up (R-059) and Scope B (refresh limiter keying, proxy hops, R-055) as separate
+  issues. No deploy; #194 stays unmerged into `main`.
+
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
   maintainer answers to the ADR open questions and clickable interaction evidence.

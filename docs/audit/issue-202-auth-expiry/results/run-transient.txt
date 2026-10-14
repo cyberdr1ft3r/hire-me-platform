@@ -1,0 +1,8 @@
+PASS no API traffic while hidden (nothing refreshed before the burst)
+PASS C: wave 1 → one refresh attempt, 503 503
+PASS C: wave 1 401s returned as-is, not replayed 401 /v1/messages/unread-summary ; 401 /v1/notifications ; 503 /auth/refresh
+PASS C: 503 keeps the session
+PASS C: no automatic refresh retry after 503 (10 s quiet) 503
+PASS C: next user action → one refresh, 201, and replay succeeds 401 /v1/missions ; 401 /v1/missions ; 201 /auth/refresh ; 200 /v1/missions ; 200 /v1/missions
+PASS C: still signed in, no page errors
+7/7 passed
