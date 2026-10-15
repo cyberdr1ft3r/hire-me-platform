@@ -63,6 +63,38 @@ Raw results: [`smoke-results-2026-10-15.json`](./issue-198-frontend-lazy-routes/
 Screenshots (Playwright): `candidates-en.png`, `candidates-fr.png`, `mission-record-refresh.png` in agent
 artifacts for this run.
 
+Regression rerun (2026-10-15): **13/13** — [`smoke-results-2026-10-15-rerun.json`](./issue-198-frontend-lazy-routes/smoke-results-2026-10-15-rerun.json).
+
+## Maintainer browser verification (2026-10-15, PR #208 review comment)
+
+Stack: `pnpm dev`, Chrome headless (Playwright). Harness:
+[`tools/maintainer-browser-verification.mjs`](./issue-198-frontend-lazy-routes/tools/maintainer-browser-verification.mjs).
+Setup: `scripts/issue-114-evidence-setup.ts` + `scripts/issue-198-public-browser-setup.ts` (local synthetic
+public slug). Raw: [`maintainer-verification-2026-10-15.json`](./issue-198-frontend-lazy-routes/maintainer-verification-2026-10-15.json).
+
+| Scenario | Result | Notes |
+| --- | --- | --- |
+| Admin direct `/admin` + reload | Pass | `section[aria-label="User administration"]` |
+| Admin lazy entry (1200 ms held chunk) | Pass | `Loading workspace…` fallback seen, then module ready |
+| Public `/opportunities` cold load | Pass | Lazy public list module |
+| Public detail direct URL + reload | Pass | Slug `issue114-existing-a533b410` |
+| Permission: guest → `/candidates` | Pass | “Protected workspace” / no directory leak |
+| Permission: logged-out → `/admin` | Pass | Login form |
+| Sign-out during delayed Candidates chunk | Pass | Login after sign-out; no protected leak (`loadingSeen=true`) |
+| Cold-load timings (observed, no thresholds) | Recorded | See timing table below |
+
+**Timings (ms, dev server, single run):**
+
+| Label | ms |
+| --- | ---: |
+| `admin_direct_url_to_ready` | 274 |
+| `admin_rail_nav_with_1200ms_chunk_delay` | 1631 |
+| `public_list_cold_load` | 593 |
+| `public_detail_direct_url` | 964 |
+| `cold_login_shell_dom` | 285 |
+| `cold_login_submit_to_signed_in` | 114 |
+| `cold_first_candidates_click_to_directory` | 844 |
+
 ## Risks / follow-ups
 
 - Entry gzip **235 KB** still above Console preflight B1 target (~190 KB) until i18n/API slimming.

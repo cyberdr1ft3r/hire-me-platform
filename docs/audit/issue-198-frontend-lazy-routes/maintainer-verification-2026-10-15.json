@@ -1,0 +1,96 @@
+{
+  "at": "2026-10-15T14:50:19.003Z",
+  "web": "http://127.0.0.1:5173",
+  "api": "http://127.0.0.1:3000",
+  "ids": {
+    "clientId": "7d2ef748-28c0-4b49-9795-ca2746a2388c",
+    "missionId": "4eabe264-1938-46d4-a23f-d2fea1319fdc",
+    "candidateId": "201d7cc3-f702-4562-ac30-ca68ee8d97a0"
+  },
+  "publicSlug": "issue114-existing-a533b410",
+  "results": [
+    {
+      "name": "admin: direct /admin loads User administration",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "admin: reload keeps module",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "admin: lazy navigation with held chunk completes",
+      "ok": true,
+      "detail": "fallback visible"
+    },
+    {
+      "name": "public: cold load /opportunities",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "public: direct detail URL",
+      "ok": true,
+      "detail": "issue114-existing-a533b410"
+    },
+    {
+      "name": "public: detail reload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "permissions: guest deep link /candidates shows denied",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "permissions: no candidate directory leaked",
+      "ok": true,
+      "detail": "count=0"
+    },
+    {
+      "name": "permissions: unauthenticated /admin shows login",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "sign-out race: login shown after sign-out during chunk delay",
+      "ok": true,
+      "detail": "loadingSeen=true"
+    }
+  ],
+  "timings": [
+    {
+      "label": "admin_direct_url_to_ready",
+      "ms": 274
+    },
+    {
+      "label": "admin_rail_nav_with_1200ms_chunk_delay",
+      "ms": 1631,
+      "detail": "fallback_seen"
+    },
+    {
+      "label": "public_list_cold_load",
+      "ms": 593
+    },
+    {
+      "label": "public_detail_direct_url",
+      "ms": 964,
+      "slug": "issue114-existing-a533b410"
+    },
+    {
+      "label": "cold_login_shell_dom",
+      "ms": 285
+    },
+    {
+      "label": "cold_login_submit_to_signed_in",
+      "ms": 114
+    },
+    {
+      "label": "cold_first_candidates_click_to_directory",
+      "ms": 844,
+      "chunks": ""
+    }
+  ]
+}
