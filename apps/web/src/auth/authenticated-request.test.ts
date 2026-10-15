@@ -1,6 +1,7 @@
 import type { AuthResponse } from '@hire-me/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AUTH_COORDINATION_KEY, getAuthCoordinationSnapshot } from './auth-cross-tab.js';
 import {
   authenticatedFetch,
   endAuthSession,
@@ -440,7 +441,14 @@ describe('authenticatedFetch', () => {
     api.expireAll();
     await authenticatedFetch('login-token', API, `${API}/v1/tasks`);
 
-    expect(storage).not.toHaveBeenCalled();
+    expect(storage).toHaveBeenCalled();
+    for (const [key, value] of storage.mock.calls) {
+      expect(key).toBe(AUTH_COORDINATION_KEY);
+      expect(value).not.toContain('login-token');
+      expect(value).not.toContain('access-1');
+      expect(value).not.toContain(USER_ID);
+      expect(value).not.toContain('user@example.test');
+    }
     for (const spy of consoleSpies) {
       expect(spy).not.toHaveBeenCalled();
     }
@@ -463,6 +471,20 @@ describe('restoreAuthSession', () => {
     expect(second?.accessToken).toBe('access-1');
     expect(getAuthSessionAccessToken()).toBe('access-1');
     expect(api.refreshCalls()[0]?.init).toEqual({ method: 'POST', credentials: 'include' });
+  });
+
+  it('keeps the refresh completion marker when the restored auth reaches App state', async () => {
+    endAuthSession();
+    fakeApi();
+
+    const restored = await restoreAuthSession(API);
+    expect(restored).not.toBeNull();
+    const marker = getAuthCoordinationSnapshot();
+    expect(marker.kind).toBe('refresh');
+    startAuthSession(restored!);
+
+    expect(getAuthCoordinationSnapshot()).toEqual(marker);
+    expect(getAuthSessionAccessToken()).toBe(restored?.accessToken);
   });
 
   it('never overrides a sign in that happened while the restore was pending', async () => {

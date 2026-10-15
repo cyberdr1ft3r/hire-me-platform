@@ -4,10 +4,15 @@ Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: review Issue #202 cross-tab auth (R-059)** — draft PR on
-  `cursor/issue-202-cross-tab-auth-cf71` (Web Locks + BroadcastChannel). Evidence:
-  [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Real-API phase F on
-  Docker host. Scope B / R-055 unchanged. Lazy routes stay in PR #208.
+- **Next: finish Issue #202 cross-tab auth review (R-059)** — draft PR #209 on
+  `cursor/issue-202-cross-tab-auth-cf71`. The reviewed lock/message race is reproduced and
+  hardened with a synchronous non-secret marker plus correlated BroadcastChannel v2 sync.
+  Real-API Phase F passed with one refresh and both tabs signed in. Local format, architecture,
+  lint, typecheck, build, and focused auth tests pass; complete-test Windows/native limitations
+  are documented in the evidence. Push and wait for exact-head Linux CI; latest `main` is still
+  the original base `bdfbf5f`.
+  Evidence: [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B / R-055
+  unchanged. Lazy routes PR #208 remains untouched.
 
 - **Merged: Issue #204 Clients Workspace v2.0** (PR #207). Optional sign-off;
   [evidence](../audit/issue-204-clients-workspace-v2.md).

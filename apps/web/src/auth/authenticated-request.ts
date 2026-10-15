@@ -1,8 +1,11 @@
 import { AuthResponseSchema, type AuthenticatedUser, type AuthResponse } from '@hire-me/contracts';
 
 import {
+  authCoordinationChanged,
+  getAuthCoordinationSnapshot,
   initAuthCrossTab,
   publishAuthCrossTab,
+  requestAuthCrossTabSync,
   resetAuthCrossTabForTests,
   withAuthRefreshLock,
 } from './auth-cross-tab.js';
@@ -51,6 +54,8 @@ type SessionState = {
   issuedTokens: Set<string>;
   /** Latest auth payload after refresh (local or from another tab). */
   lastAuth: AuthResponse | null;
+  /** Storage marker paired with `lastAuth`; lets this tab answer an explicit waiter sync. */
+  lastAuthEventId: string | null;
 };
 
 let session: SessionState = emptySession(0);
@@ -59,11 +64,21 @@ const listeners = new Set<(event: AuthSessionEvent) => void>();
 let suppressCrossTabPublish = false;
 
 function emptySession(epoch: number): SessionState {
-  return { epoch, accessToken: null, userId: null, issuedTokens: new Set(), lastAuth: null };
+  return {
+    epoch,
+    accessToken: null,
+    userId: null,
+    issuedTokens: new Set(),
+    lastAuth: null,
+    lastAuthEventId: null,
+  };
 }
 
-function applyRemoteRefresh(auth: AuthResponse): void {
+function applyRemoteRefresh(auth: AuthResponse, eventId: string): void {
   if (session.accessToken === null) {
+    return;
+  }
+  if (session.lastAuthEventId === eventId) {
     return;
   }
   if (session.userId !== auth.user.id) {
@@ -74,6 +89,7 @@ function applyRemoteRefresh(auth: AuthResponse): void {
   session.userId = auth.user.id;
   session.issuedTokens.add(auth.accessToken);
   session.lastAuth = auth;
+  session.lastAuthEventId = eventId;
   emit({ type: 'refreshed', user: auth.user });
 }
 
@@ -105,16 +121,26 @@ initAuthCrossTab({
   onRemoteRefresh: applyRemoteRefresh,
   onRemoteSessionEnded: handleRemoteSessionEnded,
   onRemoteSessionReplaced: handleRemoteSessionReplaced,
+  getAuthForSync: (eventId) =>
+    session.accessToken !== null && session.lastAuthEventId === eventId ? session.lastAuth : null,
 });
 
 /** Starts a new session from a login or a restored refresh, replacing any earlier one. */
 export function startAuthSession(auth: AuthResponse): void {
+  // `restoreAuthSession` has already applied this exact response while holding
+  // the refresh lock. Treat the App-level handoff as idempotent so it does not
+  // overwrite the refresh completion marker before another tab acquires the lock.
+  if (session.accessToken === auth.accessToken && session.userId === auth.user.id) {
+    session.lastAuth = auth;
+    return;
+  }
   session = {
     epoch: session.epoch + 1,
     accessToken: auth.accessToken,
     userId: auth.user.id,
     issuedTokens: new Set([auth.accessToken]),
     lastAuth: auth,
+    lastAuthEventId: null,
   };
   inFlightRefresh = null;
   if (!suppressCrossTabPublish) {
@@ -182,7 +208,11 @@ async function requestRefresh(apiBaseUrl: string): Promise<RefreshOutcome> {
   }
 }
 
-function settleRefresh(epoch: number, outcome: RefreshOutcome): RefreshOutcome {
+function settleRefresh(
+  epoch: number,
+  outcome: RefreshOutcome,
+  remoteEventId?: string,
+): RefreshOutcome {
   if (session.epoch !== epoch) {
     return { status: 'superseded' };
   }
@@ -199,9 +229,10 @@ function settleRefresh(epoch: number, outcome: RefreshOutcome): RefreshOutcome {
     session.userId = auth.user.id;
     session.issuedTokens.add(auth.accessToken);
     session.lastAuth = auth;
+    session.lastAuthEventId = remoteEventId ?? null;
     emit({ type: 'refreshed', user: auth.user });
-    if (!suppressCrossTabPublish) {
-      publishAuthCrossTab({ type: 'refresh', auth });
+    if (!suppressCrossTabPublish && remoteEventId === undefined) {
+      session.lastAuthEventId = publishAuthCrossTab({ type: 'refresh', auth });
     }
     return outcome;
   }
@@ -224,6 +255,7 @@ export function refreshAuthSession(apiBaseUrl: string): Promise<RefreshOutcome> 
 
   const epoch = session.epoch;
   const tokenBefore = session.accessToken;
+  const coordinationBeforeLock = getAuthCoordinationSnapshot();
   const promise = withAuthRefreshLock(async () => {
     if (session.epoch !== epoch) {
       return { status: 'superseded' } satisfies RefreshOutcome;
@@ -236,12 +268,60 @@ export function refreshAuthSession(apiBaseUrl: string): Promise<RefreshOutcome> 
     ) {
       return { status: 'refreshed', auth: session.lastAuth } satisfies RefreshOutcome;
     }
-    return requestRefresh(apiBaseUrl).then((outcome) => settleRefresh(epoch, outcome));
-  }).finally(() => {
-    if (inFlightRefresh?.promise === promise) {
-      inFlightRefresh = null;
+
+    const coordinationAfterLock = getAuthCoordinationSnapshot();
+    if (authCoordinationChanged(coordinationBeforeLock, coordinationAfterLock)) {
+      if (coordinationAfterLock.kind !== 'refresh' || coordinationAfterLock.eventId === null) {
+        return { status: 'superseded' } satisfies RefreshOutcome;
+      }
+      const remoteAuth = await requestAuthCrossTabSync(coordinationAfterLock.eventId);
+      if (session.epoch !== epoch) {
+        return { status: 'superseded' } satisfies RefreshOutcome;
+      }
+      if (remoteAuth !== null) {
+        return settleRefresh(
+          epoch,
+          { status: 'refreshed', auth: remoteAuth },
+          coordinationAfterLock.eventId,
+        );
+      }
+      if (
+        tokenBefore !== null &&
+        session.accessToken !== null &&
+        session.accessToken !== tokenBefore &&
+        session.lastAuth !== null
+      ) {
+        return { status: 'refreshed', auth: session.lastAuth } satisfies RefreshOutcome;
+      }
+      const coordinationAfterSync = getAuthCoordinationSnapshot();
+      if (
+        authCoordinationChanged(coordinationAfterLock, coordinationAfterSync) &&
+        coordinationAfterSync.kind !== 'refresh'
+      ) {
+        return { status: 'superseded' } satisfies RefreshOutcome;
+      }
     }
-  });
+
+    const coordinationBeforeRequest = getAuthCoordinationSnapshot();
+    const outcome = await requestRefresh(apiBaseUrl);
+    if (
+      session.epoch !== epoch ||
+      authCoordinationChanged(coordinationBeforeRequest, getAuthCoordinationSnapshot())
+    ) {
+      return { status: 'superseded' } satisfies RefreshOutcome;
+    }
+    return settleRefresh(epoch, outcome);
+  })
+    .catch(() =>
+      session.epoch === epoch
+        ? ({ status: 'unavailable' } satisfies RefreshOutcome)
+        : ({ status: 'superseded' } satisfies RefreshOutcome),
+    )
+    .finally(() => {
+      if (inFlightRefresh?.promise === promise) {
+        inFlightRefresh = null;
+      }
+    });
   inFlightRefresh = { epoch, promise };
   return promise;
 }

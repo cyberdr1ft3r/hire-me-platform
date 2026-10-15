@@ -1,6 +1,6 @@
 // #203 real-API acceptance: natural access-token expiry against a live local API
 // (ACCESS_TOKEN_TTL_SECONDS=60), Vite dev server (StrictMode). Synthetic data only.
-// usage: node expiry.mjs <playwright path> <outDir>   env: WEB, API, EMAIL, PW, TTL
+// usage: node expiry.mjs <playwright path> <outDir>   env: WEB, API, EMAIL, PW, TTL, PHASE=F
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
@@ -9,6 +9,7 @@ const OUT = process.argv[3];
 mkdirSync(OUT, { recursive: true });
 const { WEB, API, EMAIL, PW } = process.env;
 const TTL = Number(process.env.TTL ?? 60);
+const phaseFOnly = process.env.PHASE === 'F';
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok: !!ok, detail });
@@ -83,7 +84,7 @@ async function burst(p) {
 }
 
 // A. Natural expiry, simultaneous module requests, exactly one refresh, recovery.
-{
+if (!phaseFOnly) {
   const { ctx, p, log, errors } = await session();
   const t0 = await expireWhileHidden(ctx, [p], [log]);
   await burst(p);
@@ -155,7 +156,7 @@ async function burst(p) {
 }
 
 // E. Missing cookie (cleared) → refresh 401 → single sign-out.
-{
+if (!phaseFOnly) {
   // With a dirty creation drawer open (#201): the shell's own 60 s poll hits the
   // expiry, the refresh fails, and sign-out must not leave the app inert.
   const { ctx, p, log } = await session();

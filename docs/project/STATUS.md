@@ -5,9 +5,13 @@ Status owner: repository maintainer
 
 ## Issue #202 — Cross-tab refresh coordination (R-059, draft PR pending)
 
-- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. Web Locks +
-  BroadcastChannel on PR #203 request core; D-090 proposed. Unit tests + updated phase F script;
-  real-API rerun pending Docker host. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. PR #209 security-review
+  race reproduced deterministically and hardened with a non-secret synchronous completion marker
+  plus correlated BroadcastChannel v2 sync; D-090 updated. Focused auth tests 42/42, formatting,
+  architecture, lint, typecheck, and build pass. Real-API Chrome Phase F passed with one refresh
+  (`[201]` / `[]`) and neither tab signed out. Complete local tests have documented Windows/native
+  binding limitations; push and exact-head Linux CI are pending. Latest `main` remains the branch
+  base `bdfbf5f`. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 ## Issue #204 — Clients Workspace v2.0 (merged PR #207)
 
