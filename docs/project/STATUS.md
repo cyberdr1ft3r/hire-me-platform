@@ -3,19 +3,22 @@
 Last updated: 2026-10-15
 Status owner: repository maintainer
 
-## Issue #202 — Cross-tab refresh coordination (R-059, draft PR pending)
+## Issue #198 — Frontend lazy routes (Phase B1, merged PR #208 `170973a`)
 
-- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. PR #209 security-review
-  race reproduced deterministically and hardened with a non-secret synchronous completion marker
-  plus correlated BroadcastChannel v2 sync; D-090 updated. Focused auth tests 42/42, formatting,
-  architecture, lint, typecheck, and build pass. Real-API Chrome Phase F passed with one refresh
-  (`[201]` / `[]`) and neither tab signed out. Complete local tests have documented Windows/native
-  binding limitations; push and exact-head Linux CI are pending. Latest `main` remains the branch
-  base `bdfbf5f`. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+- Merged to `main` 2026-10-15 (head `10dd0ec`). Route-level `React.lazy` + `RouteModuleBoundary`.
+  Entry JS gzip **411.56 → 235.62 KB** (~43% reduction); maintainer browser verification **10/10** and
+  regression smoke **13/13** (2026-10-15). [Evidence](../audit/issue-198-frontend-lazy-routes.md).
 
-## Issue #204 — Clients Workspace v2.0 (merged PR #207)
+## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
 
-- [Evidence](../audit/issue-204-clients-workspace-v2.md). Optional human sign-off.
+- Branch `cursor/issue-202-cross-tab-auth-cf71`; **`main` (`170973a`, includes #208) merged 2026-10-15**.
+  Auth coordination + lazy routes combined on branch; rerun Phase F, browser harnesses, and exact-head CI
+  on integrated head before merge. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+
+## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
+
+- Directory/preview/mobile sheet; focused record read-first overview and on-demand contacts.
+  Playwright EN/FR 104/104. [Evidence](../audit/issue-204-clients-workspace-v2.md). Optional human sign-off.
 
 ## Issue #204 — Missions Workspace v2.0 (merged, PR #206 `4890f9b`)
 
@@ -56,14 +59,6 @@ Status owner: repository maintainer
 - Figma items without domain support (pipeline statuses, experience, owner, sort,
   Applications, Activity) are documented, not invented.
   [Evidence](../audit/issue-204-candidates-workspace-v2.md). Human sign-off pending.
-
-## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
-
-- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. Draft PR #209; **not merged**.
-- `main` merged into branch 2026-10-15 (no conflicts; **Issue #198 / PR #208 not on `main` yet** — re-merge
-  `main` after #208 lands before final review).
-- Local regression: `auth-cross-tab` **10/10**, `authenticated-request` **32/32**; Phase F real-API two-tab
-  refresh **1× POST /auth/refresh** ([`phase-f-results-2026-10-15.json`](../audit/issue-202-cross-tab-auth/results/phase-f-results-2026-10-15.json)).
 
 ## Issue #202 Scope A — shared authenticated request core (PR #203)
 

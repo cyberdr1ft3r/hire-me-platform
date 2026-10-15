@@ -4,17 +4,15 @@ Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: finish Issue #202 cross-tab auth review (R-059)** — draft PR #209 on
-  `cursor/issue-202-cross-tab-auth-cf71`. The reviewed lock/message race is reproduced and
-  hardened with a synchronous non-secret marker plus correlated BroadcastChannel v2 sync.
-  Real-API Phase F passed with one refresh and both tabs signed in. Local format, architecture,
-  lint, typecheck, build, and focused auth tests pass; complete-test Windows/native limitations
-  are documented in the evidence. Push and wait for exact-head Linux CI; latest `main` is still
-  the original base `bdfbf5f`.
-  Evidence: [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B / R-055
-  unchanged. Lazy routes PR #208 remains untouched.
+- **Merged: Issue #198 lazy routes (PR #208 → `main` `170973a`)** — maintainer-approved merge
+  2026-10-15. Evidence: [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
 
-- **Merged: Issue #204 Clients Workspace v2.0** (PR #207). Optional sign-off;
+- **Next: Issue #202 cross-tab auth (PR #209, draft)** — branch `cursor/issue-202-cross-tab-auth-cf71`
+  after merging `main` post-#208. Rerun Phase F, lazy-route smoke (13), maintainer harness (10), full web
+  CI on exact head; human review before merge. Evidence:
+  [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+
+- **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
   [evidence](../audit/issue-204-clients-workspace-v2.md).
 
 - **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
@@ -22,11 +20,6 @@ Last updated: 2026-10-15
 
 - **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
   candidate stay deferred (needs a cross-mission backend read).
-
-- **Next: human review Issue #202 cross-tab refresh (PR #209)** — branch
-  `cursor/issue-202-cross-tab-auth-cf71`; Phase F re-run 2026-10-15 (one refresh, both tabs
-  signed in). **Blocker:** merge PR #208 first, then merge `main` into #209 and rerun exact-head CI
-  before final sign-off. Scope B (limiter/proxy) stays open.
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires

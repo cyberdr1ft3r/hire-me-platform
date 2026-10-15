@@ -1,0 +1,77 @@
+{
+  "at": "2026-10-15T12:45:20.504Z",
+  "web": "http://127.0.0.1:5173",
+  "api": "http://127.0.0.1:3000",
+  "ids": {
+    "clientId": "cb77c019-4de0-40c7-897f-2d075b878722",
+    "missionId": "6788d96d-b535-4017-b6ac-3111b1341f89",
+    "candidateId": "201d7cc3-f702-4562-ac30-ca68ee8d97a0"
+  },
+  "results": [
+    {
+      "name": "nav: Candidates loads directory",
+      "ok": true,
+      "detail": "cached"
+    },
+    {
+      "name": "nav: Missions loads directory",
+      "ok": true,
+      "detail": "cached"
+    },
+    {
+      "name": "nav: Clients loads directory",
+      "ok": true,
+      "detail": "cached"
+    },
+    {
+      "name": "direct URL: candidate record",
+      "ok": true,
+      "detail": "201d7cc3-f702-4562-ac30-ca68ee8d97a0"
+    },
+    {
+      "name": "refresh: candidate record survives reload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "direct URL: mission record",
+      "ok": true,
+      "detail": "6788d96d-b535-4017-b6ac-3111b1341f89"
+    },
+    {
+      "name": "refresh: mission record survives reload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "direct URL: client record",
+      "ok": true,
+      "detail": "cb77c019-4de0-40c7-897f-2d075b878722"
+    },
+    {
+      "name": "idle: no unexpected API polling (5s on client record)",
+      "ok": true,
+      "detail": "0 GETs"
+    },
+    {
+      "name": "i18n FR: Candidates shell strings",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "chunk error: retry UI visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "chunk error: retry control remounts boundary",
+      "ok": true,
+      "detail": "React.lazy caches rejected imports; UI offers retry without full reload"
+    },
+    {
+      "name": "auth: unauthenticated deep link shows login",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

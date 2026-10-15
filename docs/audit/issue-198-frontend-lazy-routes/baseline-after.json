@@ -1,0 +1,18 @@
+{
+  "commit": "0590a95",
+  "date": "2026-10-15",
+  "build": "pnpm --filter @hire-me/web build",
+  "assets": {
+    "entryJsGzipKb": 235.62,
+    "entryJsRawKb": 877.75,
+    "cssGzipKb": 19.04,
+    "cssSplit": true,
+    "lazyRouteChunks": 14,
+    "moduleChunksGzipKb": {
+      "ClientsPanel": 12.55,
+      "AdminPanel": 2.85,
+      "largestModuleChunk": 31.8
+    },
+    "notes": "Entry chunk carries shell, auth, i18n, api client, and shared UI. Each internal route loads via React.lazy."
+  }
+}
