@@ -138,9 +138,9 @@ describe('cross-tab refresh coordination', () => {
     let releaseLock!: () => void;
     vi.spyOn(navigator.locks, 'request').mockImplementation(
       (_name: string, optionsOrCallback: unknown, maybeCallback?: unknown) => {
-        const callback = (typeof optionsOrCallback === 'function'
-          ? optionsOrCallback
-          : maybeCallback) as (lock: LockInfo) => Promise<unknown>;
+        const callback = (
+          typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
+        ) as (lock: LockInfo) => Promise<unknown>;
         return new Promise<RefreshOutcome>((resolve) => {
           releaseLock = () => {
             void callback({ name: AUTH_REFRESH_LOCK, mode: 'exclusive' }).then((result) =>
