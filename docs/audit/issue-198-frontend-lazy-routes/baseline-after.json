@@ -1,5 +1,5 @@
 {
-  "commit": "pending",
+  "commit": "0590a95",
   "date": "2026-10-15",
   "build": "pnpm --filter @hire-me/web build",
   "assets": {
