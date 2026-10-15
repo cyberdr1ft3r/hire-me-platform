@@ -1,13 +1,19 @@
 import { AuthResponseSchema, type AuthenticatedUser, type AuthResponse } from '@hire-me/contracts';
 
+import {
+  initAuthCrossTab,
+  publishAuthCrossTab,
+  resetAuthCrossTabForTests,
+  withAuthRefreshLock,
+} from './auth-cross-tab.js';
+
 /**
  * The web client's one authenticated request core (Issue #202).
  *
  * Access tokens are short-lived and rotate through `POST /auth/refresh`, which
  * also rotates the refresh cookie and revokes the whole session family when a
- * consumed refresh token is presented again. Two refreshes racing from one
- * browser therefore sign the user out, so every refresh in the web client goes
- * through the single-flight promise below.
+ * consumed refresh token is presented again. Refreshes therefore use in-tab
+ * single-flight plus cross-tab Web Locks / BroadcastChannel coordination (R-059).
  *
  * The session lives in module memory only: no token ever reaches web storage
  * or a log line. Callers keep passing the access token they were given at sign
@@ -43,15 +49,63 @@ type SessionState = {
   userId: string | null;
   /** Every access token issued to this session, so callers holding an older one are recognized. */
   issuedTokens: Set<string>;
+  /** Latest auth payload after refresh (local or from another tab). */
+  lastAuth: AuthResponse | null;
 };
 
 let session: SessionState = emptySession(0);
 let inFlightRefresh: { epoch: number; promise: Promise<RefreshOutcome> } | null = null;
 const listeners = new Set<(event: AuthSessionEvent) => void>();
+let suppressCrossTabPublish = false;
 
 function emptySession(epoch: number): SessionState {
-  return { epoch, accessToken: null, userId: null, issuedTokens: new Set() };
+  return { epoch, accessToken: null, userId: null, issuedTokens: new Set(), lastAuth: null };
 }
+
+function applyRemoteRefresh(auth: AuthResponse): void {
+  if (session.accessToken === null) {
+    return;
+  }
+  if (session.userId !== auth.user.id) {
+    endAuthSessionAndNotify('user-changed');
+    return;
+  }
+  session.accessToken = auth.accessToken;
+  session.userId = auth.user.id;
+  session.issuedTokens.add(auth.accessToken);
+  session.lastAuth = auth;
+  emit({ type: 'refreshed', user: auth.user });
+}
+
+function handleRemoteSessionEnded(reason: 'expired' | 'user-changed' | 'logout'): void {
+  if (session.accessToken === null) {
+    return;
+  }
+  suppressCrossTabPublish = true;
+  try {
+    endAuthSessionAndNotify(reason);
+  } finally {
+    suppressCrossTabPublish = false;
+  }
+}
+
+function handleRemoteSessionReplaced(userId: string): void {
+  if (session.accessToken === null || session.userId === userId) {
+    return;
+  }
+  suppressCrossTabPublish = true;
+  try {
+    endAuthSessionAndNotify('user-changed');
+  } finally {
+    suppressCrossTabPublish = false;
+  }
+}
+
+initAuthCrossTab({
+  onRemoteRefresh: applyRemoteRefresh,
+  onRemoteSessionEnded: handleRemoteSessionEnded,
+  onRemoteSessionReplaced: handleRemoteSessionReplaced,
+});
 
 /** Starts a new session from a login or a restored refresh, replacing any earlier one. */
 export function startAuthSession(auth: AuthResponse): void {
@@ -60,8 +114,12 @@ export function startAuthSession(auth: AuthResponse): void {
     accessToken: auth.accessToken,
     userId: auth.user.id,
     issuedTokens: new Set([auth.accessToken]),
+    lastAuth: auth,
   };
   inFlightRefresh = null;
+  if (!suppressCrossTabPublish) {
+    publishAuthCrossTab({ type: 'session-replaced', userId: auth.user.id });
+  }
 }
 
 /**
@@ -91,9 +149,12 @@ function emit(event: AuthSessionEvent): void {
   }
 }
 
-function endAuthSessionAndNotify(reason: 'expired' | 'user-changed'): void {
+function endAuthSessionAndNotify(reason: 'expired' | 'user-changed' | 'logout'): void {
   endAuthSession();
-  emit({ type: 'ended', reason });
+  emit({ type: 'ended', reason: reason === 'logout' ? 'expired' : reason });
+  if (!suppressCrossTabPublish && reason !== 'logout') {
+    publishAuthCrossTab({ type: 'session-ended', reason });
+  }
 }
 
 async function requestRefresh(apiBaseUrl: string): Promise<RefreshOutcome> {
@@ -137,7 +198,11 @@ function settleRefresh(epoch: number, outcome: RefreshOutcome): RefreshOutcome {
     session.accessToken = auth.accessToken;
     session.userId = auth.user.id;
     session.issuedTokens.add(auth.accessToken);
+    session.lastAuth = auth;
     emit({ type: 'refreshed', user: auth.user });
+    if (!suppressCrossTabPublish) {
+      publishAuthCrossTab({ type: 'refresh', auth });
+    }
     return outcome;
   }
 
@@ -158,13 +223,25 @@ export function refreshAuthSession(apiBaseUrl: string): Promise<RefreshOutcome> 
   }
 
   const epoch = session.epoch;
-  const promise = requestRefresh(apiBaseUrl)
-    .then((outcome) => settleRefresh(epoch, outcome))
-    .finally(() => {
-      if (inFlightRefresh?.promise === promise) {
-        inFlightRefresh = null;
-      }
-    });
+  const tokenBefore = session.accessToken;
+  const promise = withAuthRefreshLock(async () => {
+    if (session.epoch !== epoch) {
+      return { status: 'superseded' } satisfies RefreshOutcome;
+    }
+    if (
+      tokenBefore !== null &&
+      session.accessToken !== null &&
+      session.accessToken !== tokenBefore &&
+      session.lastAuth !== null
+    ) {
+      return { status: 'refreshed', auth: session.lastAuth } satisfies RefreshOutcome;
+    }
+    return requestRefresh(apiBaseUrl).then((outcome) => settleRefresh(epoch, outcome));
+  }).finally(() => {
+    if (inFlightRefresh?.promise === promise) {
+      inFlightRefresh = null;
+    }
+  });
   inFlightRefresh = { epoch, promise };
   return promise;
 }
@@ -291,6 +368,7 @@ export async function logoutAuthSession(accessToken: string, apiBaseUrl: string)
   const ownedBySession = session.issuedTokens.has(accessToken);
   const sentToken = (ownedBySession ? session.accessToken : null) ?? accessToken;
   endAuthSession();
+  publishAuthCrossTab({ type: 'session-ended', reason: 'logout' });
 
   const sendLogout = (token: string) =>
     fetch(
@@ -303,7 +381,7 @@ export async function logoutAuthSession(accessToken: string, apiBaseUrl: string)
     if (response.status !== 401 || !ownedBySession) {
       return;
     }
-    const outcome = await requestRefresh(apiBaseUrl);
+    const outcome = await withAuthRefreshLock(() => requestRefresh(apiBaseUrl));
     if (outcome.status === 'refreshed') {
       await sendLogout(outcome.auth.accessToken);
     }
@@ -316,4 +394,5 @@ export async function logoutAuthSession(accessToken: string, apiBaseUrl: string)
 export function resetAuthSessionForTests(): void {
   endAuthSession();
   listeners.clear();
+  resetAuthCrossTabForTests();
 }

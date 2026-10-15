@@ -1,14 +1,16 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: human review Issue #204 Clients Workspace v2.0** — draft PR #207 on
-  `cursor/issue-204-clients-workspace-v2-cf71` into `main` (`4890f9b`). Directory →
-  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md)
-  includes EN/FR screenshots and 104/104 browser checks. Confirm exact-head CI green,
-  then visual sign-off. No merge/deploy automatically.
+- **Next: review Issue #202 cross-tab auth (R-059)** — draft PR on
+  `cursor/issue-202-cross-tab-auth-cf71` (Web Locks + BroadcastChannel). Evidence:
+  [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Real-API phase F on
+  Docker host. Scope B / R-055 unchanged. Lazy routes stay in PR #208.
+
+- **Merged: Issue #204 Clients Workspace v2.0** (PR #207). Optional sign-off;
+  [evidence](../audit/issue-204-clients-workspace-v2.md).
 
 - **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
   [evidence](../audit/issue-204-missions-workspace-v2.md).
