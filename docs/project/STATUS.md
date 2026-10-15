@@ -11,9 +11,10 @@ Status owner: repository maintainer
 
 ## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
 
-- Branch `cursor/issue-202-cross-tab-auth-cf71`; **`main` (`170973a`, includes #208) merged 2026-10-15**.
-  Auth coordination + lazy routes combined on branch; rerun Phase F, browser harnesses, and exact-head CI
-  on integrated head before merge. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+- Branch `cursor/issue-202-cross-tab-auth-cf71` head **`eba9d4b`** (integrates `main` **`170973a`** / #208).
+  Local validation on integrated head (2026-10-15): web **1023/1023**, cross-tab unit **42/42**, Phase F **4/4**,
+  lazy smoke **13/13**, maintainer harness **10/10**, logout/re-login + lazy `/admin` **3/3**; exact-head CI pending
+  push. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 ## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
 

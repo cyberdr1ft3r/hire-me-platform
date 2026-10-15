@@ -8,9 +8,9 @@ Last updated: 2026-10-15
   2026-10-15. Evidence: [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
 
 - **Next: Issue #202 cross-tab auth (PR #209, draft)** — branch `cursor/issue-202-cross-tab-auth-cf71`
-  after merging `main` post-#208. Rerun Phase F, lazy-route smoke (13), maintainer harness (10), full web
-  CI on exact head; human review before merge. Evidence:
-  [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+  at **`eba9d4b`** (post-#208 integration). Local rerun complete (web 1023, auth 42, Phase F 4/4, smoke 13,
+  maintainer 10, logout/re-login 3); **await exact-head GitHub CI** on pushed head and human merge review.
+  Evidence: [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 - **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
   [evidence](../audit/issue-204-clients-workspace-v2.md).
