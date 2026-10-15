@@ -23,10 +23,10 @@ Last updated: 2026-10-15
 - **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
   candidate stay deferred (needs a cross-mission backend read).
 
-- **Merged:** PR #203 (Issue #202 Scope A, shared request core) into the integration
-  branch, and #194 (integration) into `main` at `14fc745`. Still to decide: the
-  cross-tab refresh follow-up (R-059) and Scope B (refresh limiter keying, proxy hops,
-  R-055), as separate issues.
+- **Next: human review Issue #202 cross-tab refresh (PR #209)** — branch
+  `cursor/issue-202-cross-tab-auth-cf71`; Phase F re-run 2026-10-15 (one refresh, both tabs
+  signed in). **Blocker:** merge PR #208 first, then merge `main` into #209 and rerun exact-head CI
+  before final sign-off. Scope B (limiter/proxy) stays open.
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires
