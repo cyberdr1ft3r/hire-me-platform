@@ -71,6 +71,8 @@ export function ClientsWorkspace({
   onApplyContactFilters,
   onArchiveClient,
   onArchiveContact,
+  onCancelClientEdit,
+  onCancelContactCreate,
   onChangeClientStatus,
   onChangeContactStatus,
   onClientFiltersChange,
@@ -121,6 +123,8 @@ export function ClientsWorkspace({
   onApplyContactFilters: () => void;
   onArchiveClient: () => void;
   onArchiveContact: () => void;
+  onCancelClientEdit: () => void;
+  onCancelContactCreate: () => void;
   onChangeClientStatus: (status: ClientStatus) => void;
   onChangeContactStatus: (status: 'ACTIVE' | 'INACTIVE') => void;
   onClientFiltersChange: (values: ClientFilterValues) => void;
@@ -276,6 +280,8 @@ export function ClientsWorkspace({
           onArchiveClient={onArchiveClient}
           onArchiveContact={onArchiveContact}
           onBack={onCloseRecord}
+          onCancelClientEdit={onCancelClientEdit}
+          onCancelContactCreate={onCancelContactCreate}
           onChangeClientStatus={onChangeClientStatus}
           onChangeContactStatus={onChangeContactStatus}
           onContactFiltersChange={onContactFiltersChange}

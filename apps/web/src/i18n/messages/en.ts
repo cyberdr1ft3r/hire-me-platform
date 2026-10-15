@@ -621,6 +621,8 @@ export const enMessages = {
       archiveContact: 'Archive contact',
       createClient: 'Create client',
       createContact: 'Create contact',
+      editClient: 'Edit client',
+      more: 'More actions',
       newClient: 'New client',
       region: 'Client actions',
       saveClient: 'Save client',
@@ -633,8 +635,10 @@ export const enMessages = {
       detailTitle: 'Contact detail',
       editTitle: 'Edit contact',
       empty: 'No contacts match these filters.',
+      emptyCreate: 'Add a contact to track people at this organization.',
       emptyTitle: 'No contacts',
       listTitle: 'Contacts',
+      newContact: 'New contact',
       selectPrompt: 'Select a contact to view or edit.',
     },
     detail: {
@@ -683,6 +687,13 @@ export const enMessages = {
       roleTitle: 'Role title',
       status: 'Status',
       website: 'Website',
+    },
+    profile: {
+      commercialTitle: 'Commercial',
+      companyTitle: 'Company',
+      editTitle: 'Edit client profile',
+      noHeadline: 'No company details recorded',
+      updated: 'Updated {date}',
     },
     directory: {
       columns: {

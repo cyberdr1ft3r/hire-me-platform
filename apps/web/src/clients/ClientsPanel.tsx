@@ -792,6 +792,12 @@ export function ClientsPanel({
       onApplyContactFilters={applyContactFilters}
       onArchiveClient={() => void handleArchiveClient()}
       onArchiveContact={() => void handleArchiveContact()}
+      onCancelClientEdit={() => {
+        if (clientDetail.status === 'ready') {
+          setEditClientValues(clientSummaryToProfileValues(clientDetail.client));
+        }
+      }}
+      onCancelContactCreate={() => setCreateContactValues(EMPTY_CREATE_CONTACT)}
       onChangeClientStatus={(status) => void handleChangeClientStatus(status)}
       onChangeContactStatus={(status) => void handleChangeContactStatus(status)}
       onClientFiltersChange={setClientFilters}

@@ -306,11 +306,128 @@
   gap: var(--space-3);
 }
 
+.client-detail {
+  container: client-detail / inline-size;
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.client-detail__identity {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  justify-content: space-between;
+}
+
 .client-detail__heading {
+  align-content: start;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.client-detail__heading .client-detail__title {
+  font-size: var(--font-size-6);
+  line-height: var(--line-height-tight);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.client-detail__headline {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-4);
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.client-detail__meta {
   align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-2);
+  gap: var(--space-2) var(--space-4);
+}
+
+.client-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.client-section {
+  align-content: start;
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+.client-section__head h3 {
+  font-size: var(--font-size-4);
+  margin-bottom: 0;
+}
+
+.client-facts {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.client-facts > div {
+  display: grid;
+  gap: var(--space-0-5);
+}
+
+.client-facts dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.client-facts dd {
+  font-size: var(--font-size-3);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.client-facts dd[data-recorded='false'] {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.client-summary h4 {
+  font-size: var(--font-size-3);
+  margin-bottom: var(--space-1);
+}
+
+.client-summary__text {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-3);
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.client-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.client-contacts__toolbar {
+  align-items: flex-end;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.client-contacts__toolbar .client-filters {
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 .client-lifecycle__actions {

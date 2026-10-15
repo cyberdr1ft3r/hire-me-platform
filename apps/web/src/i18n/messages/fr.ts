@@ -641,6 +641,8 @@ export const frMessages: Messages = {
       archiveContact: 'Archiver le contact',
       createClient: 'Créer le client',
       createContact: 'Créer le contact',
+      editClient: 'Modifier le client',
+      more: 'Plus d’actions',
       newClient: 'Nouveau client',
       region: 'Actions client',
       saveClient: 'Enregistrer le client',
@@ -653,8 +655,10 @@ export const frMessages: Messages = {
       detailTitle: 'Détail du contact',
       editTitle: 'Modifier le contact',
       empty: 'Aucun contact ne correspond à ces filtres.',
+      emptyCreate: 'Ajoutez un contact pour suivre les personnes de cette organisation.',
       emptyTitle: 'Aucun contact',
       listTitle: 'Contacts',
+      newContact: 'Nouveau contact',
       selectPrompt: 'Sélectionnez un contact pour le consulter ou le modifier.',
     },
     detail: {
@@ -704,6 +708,13 @@ export const frMessages: Messages = {
       roleTitle: 'Intitulé de poste',
       status: 'Statut',
       website: 'Site web',
+    },
+    profile: {
+      commercialTitle: 'Commercial',
+      companyTitle: 'Entreprise',
+      editTitle: 'Modifier le profil client',
+      noHeadline: 'Aucune information entreprise enregistrée',
+      updated: 'Mis à jour le {date}',
     },
     directory: {
       columns: {

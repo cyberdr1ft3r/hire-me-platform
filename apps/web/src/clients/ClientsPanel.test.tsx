@@ -169,7 +169,12 @@ function stubClientsApi(hold?: (call: RecordedCall) => Response | Promise<Respon
 async function selectClientByName(name: string) {
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(name) }));
   fireEvent.click(screen.getByRole('button', { name: 'Open full record' }));
-  await screen.findByRole('form', { name: 'Client profile' });
+  await screen.findByRole('heading', { level: 2, name });
+}
+
+async function openClientEdit() {
+  fireEvent.click(screen.getByRole('button', { name: 'Edit client' }));
+  await screen.findByRole('form', { name: 'Edit client profile' });
 }
 
 async function openContactsTab() {
@@ -185,7 +190,7 @@ async function backToDirectory() {
 }
 
 function clientProfileForm() {
-  return screen.getByRole('form', { name: 'Client profile' });
+  return screen.getByRole('form', { name: 'Edit client profile' });
 }
 
 function contactEditForm() {
@@ -344,7 +349,9 @@ describe('ClientsPanel', () => {
     await screen.findByRole('button', { name: /Acme Corp/ });
     fireEvent.click(screen.getByRole('button', { name: /Acme Corp/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Open full record' }));
-    await screen.findByRole('textbox', { name: 'Client name' });
+    await screen.findByRole('heading', { level: 2, name: 'Acme Corp' });
+    expect(screen.queryByRole('heading', { name: 'Commercial' })).not.toBeInTheDocument();
+    await openClientEdit();
     expect(screen.queryByLabelText('Commercial summary')).not.toBeInTheDocument();
   });
 
@@ -440,6 +447,7 @@ describe('Client writes stay scoped to the client they started on', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Updated Acme' },
     });
@@ -451,9 +459,7 @@ describe('Client writes stay scoped to the client they started on', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Beta Industries' })).toBeVisible();
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' })).toHaveValue(
-      'Beta Industries',
-    );
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
   });
 
   it('does not show a late contact update under another selected client', async () => {
@@ -493,6 +499,7 @@ describe('Client writes stay scoped to the client they started on', () => {
     renderPanel();
     await selectClientByName('Acme Corp');
     await openContactsTab();
+    fireEvent.click(screen.getByRole('button', { name: 'New contact' }));
     const createContactForm = screen.getByRole('form', { name: 'New contact' });
     fireEvent.change(within(createContactForm).getByRole('textbox', { name: 'Contact name' }), {
       target: { value: 'Late Contact' },
@@ -556,6 +563,7 @@ describe('Client writes respect session and permission principal', () => {
     );
     const view = render(panel('token-a'));
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Session A edit' },
     });
@@ -575,7 +583,7 @@ describe('Client writes respect session and permission principal', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
     expect(screen.getByRole('heading', { level: 2, name: 'Client directory' })).toBeVisible();
     const afterSwitch = calls.slice(switchedAt);
     expect(afterSwitch.every((call) => call.token === 'Bearer token-b')).toBe(true);
@@ -594,6 +602,7 @@ describe('Client writes respect session and permission principal', () => {
       </I18nProvider>,
     );
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Principal edit' },
     });
@@ -613,7 +622,7 @@ describe('Client writes respect session and permission principal', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
   });
 });
 
@@ -627,21 +636,20 @@ describe('Client writes never overlap', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Overlap edit' },
     });
     fireEvent.click(within(clientProfileForm()).getByRole('button', { name: 'Save client' }));
     await waitFor(() => expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1));
 
-    const clientLifecycle = within(screen.getByRole('region', { name: 'Lifecycle' }));
-    for (const name of ['Mark prospect', 'Mark inactive', 'Archive client']) {
-      expect(clientLifecycle.getByRole('button', { name })).toBeDisabled();
-    }
+    expect(within(clientProfileForm()).getByRole('button', { name: 'Save client' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeDisabled();
 
     await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
     expect(within(contactEditForm()).getByRole('button', { name: 'Save contact' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Create contact' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'New contact' })).toBeDisabled();
 
     fireEvent.click(within(contactEditForm()).getByRole('button', { name: 'Save contact' }));
     expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
@@ -672,10 +680,11 @@ describe('Client lifecycle actions', () => {
     await selectClientByName('Acme Corp');
 
     // Acme is ACTIVE: its badge states that, and only real transitions remain.
-    const clientLifecycle = within(screen.getByRole('region', { name: 'Lifecycle' }));
-    expect(clientLifecycle.queryByRole('button', { name: 'Mark active' })).toBeNull();
-    expect(clientLifecycle.getByRole('button', { name: 'Mark prospect' })).toBeEnabled();
-    expect(clientLifecycle.getByRole('button', { name: 'Mark inactive' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Mark active' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Mark prospect' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Mark inactive' })).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
 
     await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));

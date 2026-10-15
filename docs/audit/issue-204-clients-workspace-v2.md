@@ -10,7 +10,7 @@ interaction model from Candidates (#205) and Missions (#206).
 | --- | --- |
 | `ClientDirectory.tsx` (replaces `ClientList.tsx`) | Full-width table: client, status, industry, location, phone, updated. Row opens quick preview only (no detail read). |
 | `ClientQuickPreview.tsx` | List-row data only; **no commercial summary** in preview. Side pane or bottom sheet. |
-| `ClientFocusedRecord.tsx` | Overview (profile + lifecycle), Contacts, optional Missions tab (`missions:view`, first page via existing `listMissions` + `clientId`). Leave guard for unsaved forms. |
+| `ClientFocusedRecord.tsx` / `ClientRecordOverview.tsx` | Read-first overview with identity header, company/commercial sections, **Edit client** form on demand; lifecycle/archive in **More actions** menu. Contacts list first with **New contact** on demand. Optional Missions tab unchanged. Leave guard for unsaved forms. |
 | `ClientsWorkspace.tsx` | Directory + preview + record; creation drawer unchanged. |
 | `ClientsPanel.tsx` | Preview state; record open/close with URL `/clients?client=<id>`; detail and contacts load only when the record opens. |
 | `ClientFilters.tsx` | Compact toolbar: search inline; status and industry in Filters disclosure. |
@@ -36,8 +36,8 @@ Additional viewport captures live under `issue-204-clients-workspace-v2/results/
 
 | Asset | Gzip |
 | --- | --- |
-| `index-*.js` | 410.03 KB |
-| `index-*.css` | 20.76 KB |
+| `index-*.js` | 411.55 KB |
+| `index-*.css` | 20.89 KB |
 
 Same single-bundle shape as pre-change Clients (no new lazy route). JS gzip reflects current monolith size on this branch, not a Clients-only delta.
 

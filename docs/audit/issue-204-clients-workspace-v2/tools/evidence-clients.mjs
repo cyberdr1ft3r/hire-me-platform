@@ -27,6 +27,7 @@ const T = {
     back: /Back to clients/,
     close: 'Close preview',
     contacts: 'Contacts',
+    edit: 'Edit client',
     missions: 'Missions',
     search: 'Search',
     dir: 'Client directory',
@@ -36,6 +37,7 @@ const T = {
     back: /Retour aux clients/,
     close: 'Fermer l’aperçu',
     contacts: 'Contacts',
+    edit: 'Modifier le client',
     missions: 'Missions',
     search: 'Recherche',
     dir: 'Répertoire clients',
@@ -231,7 +233,10 @@ for (const locale of ['en', 'fr']) {
   await p.waitForSelector('.client-record');
   check(`${locale}: browser Forward reopens record`, p.url() === recordUrl);
 
-  const nameField = p.locator('.client-record form input[name="name"]').first();
+  await p.getByRole('button', { name: t.edit }).click();
+  const editForm = p.getByRole('form', { name: locale === 'en' ? 'Edit client profile' : 'Modifier le profil client' });
+  await editForm.waitFor({ timeout: 10000 });
+  const nameField = editForm.locator('input[name="name"]');
   await nameField.fill('Synthetic unsaved edit');
   const dialogs = [];
   p.once('dialog', (d) => {
