@@ -1,14 +1,16 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: human review Issue #204 Clients Workspace v2.0** — draft PR #207 on
-  `cursor/issue-204-clients-workspace-v2-cf71` into `main` (`4890f9b`). Directory →
-  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md)
-  includes EN/FR screenshots and 104/104 browser checks. Confirm exact-head CI green,
-  then visual sign-off. No merge/deploy automatically.
+- **Next: review Issue #198 frontend lazy routes (Phase B1)** — draft PR on
+  `cursor/issue-198-lazy-routes-cf71` for route-level `React.lazy` after PR #207 (`bdfbf5f`);
+  evidence in [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
+  Confirm exact-head CI, then ChatGPT review. Console B0/B2 only after approval.
+
+- **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
+  [evidence](../audit/issue-204-clients-workspace-v2.md).
 
 - **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
   [evidence](../audit/issue-204-missions-workspace-v2.md).

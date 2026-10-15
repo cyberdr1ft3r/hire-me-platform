@@ -1,0 +1,12 @@
+{
+  "commit": "bdfbf5f1f6c3a463a728eb7f3e51f53bb39cef27",
+  "date": "2026-10-15",
+  "build": "pnpm --filter @hire-me/web build",
+  "assets": {
+    "entryJsGzipKb": 411.56,
+    "entryJsRawKb": 1930.97,
+    "cssGzipKb": 20.89,
+    "lazyRouteChunks": 0,
+    "notes": "Single index-*.js chunk; all workspace modules eager-loaded from App.tsx."
+  }
+}

@@ -56,6 +56,11 @@ export const enMessages = {
     },
   },
   navigation: {
+    moduleLoadFailed:
+      'The workspace module could not be loaded. Check your connection and try again.',
+    moduleLoadFailedTitle: 'Workspace unavailable',
+    moduleLoadRetry: 'Try again',
+    moduleLoading: 'Loading workspace…',
     destinations: {
       accounting: 'Accounting',
       administration: 'Administration',
