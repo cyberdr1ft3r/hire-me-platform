@@ -1,14 +1,17 @@
 # Project Status
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 Status owner: repository maintainer
 
-## Issue #204 — Clients Workspace v2.0 (draft PR #207, visual re-review)
+## Issue #202 — Cross-tab refresh coordination (R-059, draft PR pending)
 
-- Branch `cursor/issue-204-clients-workspace-v2-cf71` from `main` `4890f9b` (#206 merged).
-  Directory/preview/mobile sheet approved; focused record refined to read-first overview with Edit client
-  and on-demand New contact (PR #207 review). Playwright EN/FR 104/104 on latest head.
-  [Evidence](../audit/issue-204-clients-workspace-v2.md). Draft PR #207 awaiting exact-head CI and final visual sign-off.
+- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. Web Locks +
+  BroadcastChannel on PR #203 request core; D-090 proposed. Unit tests + updated phase F script;
+  real-API rerun pending Docker host. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+
+## Issue #204 — Clients Workspace v2.0 (merged PR #207)
+
+- [Evidence](../audit/issue-204-clients-workspace-v2.md). Optional human sign-off.
 
 ## Issue #204 — Missions Workspace v2.0 (merged, PR #206 `4890f9b`)
 
