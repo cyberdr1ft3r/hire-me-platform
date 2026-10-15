@@ -314,7 +314,11 @@ function ClientContactsSection({
           values={contactFilters}
         />
         {canCreate && !creatingContact ? (
-          <Button disabled={writesLocked} onClick={() => setCreatingContact(true)} variant="primary">
+          <Button
+            disabled={writesLocked}
+            onClick={() => setCreatingContact(true)}
+            variant="primary"
+          >
             {t('clients.contacts.newContact')}
           </Button>
         ) : null}
