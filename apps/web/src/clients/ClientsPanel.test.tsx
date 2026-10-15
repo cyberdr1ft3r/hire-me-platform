@@ -168,11 +168,29 @@ function stubClientsApi(hold?: (call: RecordedCall) => Response | Promise<Respon
 
 async function selectClientByName(name: string) {
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(name) }));
-  await screen.findByRole('form', { name: 'Client profile' });
+  fireEvent.click(screen.getByRole('button', { name: 'Open full record' }));
+  await screen.findByRole('heading', { level: 2, name });
+}
+
+async function openClientEdit() {
+  fireEvent.click(screen.getByRole('button', { name: 'Edit client' }));
+  await screen.findByRole('form', { name: 'Edit client profile' });
+}
+
+async function openContactsTab() {
+  fireEvent.click(screen.getByRole('tab', { name: 'Contacts' }));
+  await screen.findByRole('search', { name: 'Contact search' });
+}
+
+async function backToDirectory() {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Back to clients' }));
+  confirm.mockRestore();
+  await screen.findByRole('heading', { level: 2, name: 'Client directory' });
 }
 
 function clientProfileForm() {
-  return screen.getByRole('form', { name: 'Client profile' });
+  return screen.getByRole('form', { name: 'Edit client profile' });
 }
 
 function contactEditForm() {
@@ -330,7 +348,10 @@ describe('ClientsPanel', () => {
     renderPanel(fullPermissions.filter((p) => p !== 'commercial_data:access'));
     await screen.findByRole('button', { name: /Acme Corp/ });
     fireEvent.click(screen.getByRole('button', { name: /Acme Corp/ }));
-    await screen.findByRole('textbox', { name: 'Client name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open full record' }));
+    await screen.findByRole('heading', { level: 2, name: 'Acme Corp' });
+    expect(screen.queryByRole('heading', { name: 'Commercial' })).not.toBeInTheDocument();
+    await openClientEdit();
     expect(screen.queryByLabelText('Commercial summary')).not.toBeInTheDocument();
   });
 
@@ -375,14 +396,14 @@ describe('ClientsPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(await screen.findByRole('button', { name: /Acme Corp/ }));
-    await screen.findByRole('heading', { name: 'Contacts', level: 3 });
+    await selectClientByName('Acme Corp');
+    await openContactsTab();
     await waitFor(() => expect(contactCalls.length).toBeGreaterThan(0));
-    const contactSearch = screen.getByRole('search', { name: 'Contact search' });
-    fireEvent.change(contactSearch.querySelector('input[name="contactSearch"]')!, {
+    const contactSearch = within(screen.getByRole('search', { name: 'Contact search' }));
+    fireEvent.change(contactSearch.getByRole('searchbox'), {
       target: { value: 'jane' },
     });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Apply filters' })[1]!);
+    fireEvent.click(contactSearch.getByRole('button', { name: 'Apply filters' }));
     await waitFor(() => expect(contactCalls.some((u) => u.includes('search=jane'))).toBe(true));
   });
 
@@ -426,19 +447,19 @@ describe('Client writes stay scoped to the client they started on', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Updated Acme' },
     });
     fireEvent.click(within(clientProfileForm()).getByRole('button', { name: 'Save client' }));
+    await backToDirectory();
     await selectClientByName('Beta Industries');
     update.release(jsonResponse({ client: clientSummary('Updated Acme') }));
     await waitForWriteToSettle();
 
     expect(screen.getByRole('heading', { level: 2, name: 'Beta Industries' })).toBeVisible();
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' })).toHaveValue(
-      'Beta Industries',
-    );
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
   });
 
   it('does not show a late contact update under another selected client', async () => {
@@ -450,11 +471,13 @@ describe('Client writes stay scoped to the client they started on', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
     fireEvent.change(within(contactEditForm()).getByRole('textbox', { name: 'Contact name' }), {
       target: { value: 'Jane Updated' },
     });
     fireEvent.click(within(contactEditForm()).getByRole('button', { name: 'Save contact' }));
+    await backToDirectory();
     await selectClientByName('Beta Industries');
     update.release(jsonResponse({ contact: contactSummary('Jane Updated', contactId) }));
     await waitForWriteToSettle();
@@ -462,6 +485,7 @@ describe('Client writes stay scoped to the client they started on', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Beta Industries' })).toBeVisible();
     expect(screen.queryByText('Contact updated.')).toBeNull();
     expect(screen.queryByRole('heading', { level: 4, name: 'Jane Updated' })).toBeNull();
+    await openContactsTab();
     expect(screen.getByRole('button', { name: /Beta Contact/ })).toBeVisible();
   });
 
@@ -474,11 +498,14 @@ describe('Client writes stay scoped to the client they started on', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openContactsTab();
+    fireEvent.click(screen.getByRole('button', { name: 'New contact' }));
     const createContactForm = screen.getByRole('form', { name: 'New contact' });
     fireEvent.change(within(createContactForm).getByRole('textbox', { name: 'Contact name' }), {
       target: { value: 'Late Contact' },
     });
     fireEvent.click(within(createContactForm).getByRole('button', { name: 'Create contact' }));
+    await backToDirectory();
     await selectClientByName('Beta Industries');
     create.release(
       jsonResponse(
@@ -502,6 +529,7 @@ describe('Client writes stay scoped to the client they started on', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
     fireEvent.change(within(contactEditForm()).getByRole('textbox', { name: 'Contact name' }), {
       target: { value: 'Jane Updated' },
@@ -535,6 +563,7 @@ describe('Client writes respect session and permission principal', () => {
     );
     const view = render(panel('token-a'));
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Session A edit' },
     });
@@ -554,10 +583,8 @@ describe('Client writes respect session and permission principal', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
-    expect(
-      screen.getByText('Select a client to inspect its profile, lifecycle, and contacts.'),
-    ).toBeVisible();
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Client directory' })).toBeVisible();
     const afterSwitch = calls.slice(switchedAt);
     expect(afterSwitch.every((call) => call.token === 'Bearer token-b')).toBe(true);
   });
@@ -575,6 +602,7 @@ describe('Client writes respect session and permission principal', () => {
       </I18nProvider>,
     );
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Principal edit' },
     });
@@ -594,7 +622,7 @@ describe('Client writes respect session and permission principal', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'New client' })).toBeEnabled());
 
     expect(screen.queryByText('Client updated.')).toBeNull();
-    expect(screen.queryByRole('form', { name: 'Client profile' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Edit client profile' })).toBeNull();
   });
 });
 
@@ -608,19 +636,20 @@ describe('Client writes never overlap', () => {
     );
     renderPanel();
     await selectClientByName('Acme Corp');
+    await openClientEdit();
     fireEvent.change(within(clientProfileForm()).getByRole('textbox', { name: 'Client name' }), {
       target: { value: 'Overlap edit' },
     });
     fireEvent.click(within(clientProfileForm()).getByRole('button', { name: 'Save client' }));
     await waitFor(() => expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1));
 
+    expect(within(clientProfileForm()).getByRole('button', { name: 'Save client' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeDisabled();
+
+    await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
     expect(within(contactEditForm()).getByRole('button', { name: 'Save contact' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Create contact' })).toBeDisabled();
-    const clientLifecycle = within(screen.getByRole('region', { name: 'Lifecycle' }));
-    for (const name of ['Mark prospect', 'Mark inactive', 'Archive client']) {
-      expect(clientLifecycle.getByRole('button', { name })).toBeDisabled();
-    }
+    expect(screen.getByRole('button', { name: 'New contact' })).toBeDisabled();
 
     fireEvent.click(within(contactEditForm()).getByRole('button', { name: 'Save contact' }));
     expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
@@ -632,23 +661,15 @@ describe('Client writes never overlap', () => {
   });
 });
 
-function forceStackedClientsLayout(): void {
-  const container = document.querySelector('.clients');
-  if (!container) {
-    throw new Error('Missing clients layout container');
-  }
-  Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
-}
-
-describe('Stacked master-detail reveal', () => {
-  it('focuses the client heading after explicit selection on stacked layouts', async () => {
-    stubClientsApi();
+describe('Quick preview', () => {
+  it('does not load the client detail read until the record is opened', async () => {
+    const { calls } = stubClientsApi();
     renderPanel();
-    forceStackedClientsLayout();
     fireEvent.click(await screen.findByRole('button', { name: /Acme Corp/ }));
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 2, name: 'Acme Corp' })).toHaveFocus(),
-    );
+    await screen.findByRole('heading', { level: 2, name: 'Acme Corp' });
+    expect(
+      calls.filter((call) => call.method === 'GET' && call.url.includes('/v1/clients/')),
+    ).toHaveLength(0);
   });
 });
 
@@ -659,11 +680,13 @@ describe('Client lifecycle actions', () => {
     await selectClientByName('Acme Corp');
 
     // Acme is ACTIVE: its badge states that, and only real transitions remain.
-    const clientLifecycle = within(screen.getByRole('region', { name: 'Lifecycle' }));
-    expect(clientLifecycle.queryByRole('button', { name: 'Mark active' })).toBeNull();
-    expect(clientLifecycle.getByRole('button', { name: 'Mark prospect' })).toBeEnabled();
-    expect(clientLifecycle.getByRole('button', { name: 'Mark inactive' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Mark active' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Mark prospect' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Mark inactive' })).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
 
+    await openContactsTab();
     fireEvent.click(await screen.findByRole('button', { name: /Jane Doe/ }));
     const contactForm = within(contactEditForm());
     expect(contactForm.queryByRole('button', { name: 'Mark active' })).toBeNull();
@@ -723,12 +746,8 @@ describe('Client creation drawer (Issue #196)', () => {
     expect(posts).toBe(1);
     expect(await screen.findByText('Client created.')).toBeVisible();
     expect(await screen.findByRole('heading', { name: /Drawer Client/ })).toBeVisible();
+    await backToDirectory();
     expect(clientSearch().getByRole('searchbox')).toHaveValue('Acme');
-    // jsdom measures every layout as stacked, so the existing reveal moves focus to the
-    // new record's heading; side by side, focus returns to the header action instead.
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /Drawer Client/ })).toHaveFocus(),
-    );
   });
 
   it('keeps the drawer and draft open with an error when creation fails', async () => {

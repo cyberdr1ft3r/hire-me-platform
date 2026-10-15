@@ -3,7 +3,14 @@
 Last updated: 2026-10-14
 Status owner: repository maintainer
 
-## Issue #204 — Missions Workspace v2.0 (draft PR)
+## Issue #204 — Clients Workspace v2.0 (draft PR #207, visual re-review)
+
+- Branch `cursor/issue-204-clients-workspace-v2-cf71` from `main` `4890f9b` (#206 merged).
+  Directory/preview/mobile sheet approved; focused record refined to read-first overview with Edit client
+  and on-demand New contact (PR #207 review). Playwright EN/FR 104/104 on latest head.
+  [Evidence](../audit/issue-204-clients-workspace-v2.md). Draft PR #207 awaiting exact-head CI and final visual sign-off.
+
+## Issue #204 — Missions Workspace v2.0 (merged, PR #206 `4890f9b`)
 
 - Branch `feat/issue-204-missions-workspace-v2` from `main` `e2ff257` (#205 merged).
   Frontend only; no API, contract, schema or permission change.

@@ -1,25 +1,26 @@
-import type { ClientContactSummary, ClientStatus } from '@hire-me/contracts';
+import type { ClientContactSummary, ClientStatus, ClientSummary } from '@hire-me/contracts';
 import type { FormEvent, ReactNode } from 'react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import {
-  CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
-  useStackedMasterDetailReveal,
-} from '../layout/index.js';
+import { useNarrowContainer } from '../layout/index.js';
 import {
   Button,
   CreationDrawer,
   InlineMessage,
   PageHeader,
-  StatusBadge,
   TextArea,
   TextField,
+  WORKSPACE_SPLIT_MIN_REM,
+  WorkspacePane,
+  WorkspaceSurface,
+  WorkspaceToolbar,
 } from '../ui/index.js';
+import { ClientDirectory } from './ClientDirectory.js';
 import { ClientFilters } from './ClientFilters.js';
-import { ClientList } from './ClientList.js';
-import { ContactFilters } from './ContactFilters.js';
-import { ContactList } from './ContactList.js';
+import { ClientFocusedRecord } from './ClientFocusedRecord.js';
+import type { ClientMissionsLoad } from './ClientRelatedMissions.js';
+import { ClientQuickPreview } from './ClientQuickPreview.js';
 import type { ClientAccess } from './client-access.js';
 import type {
   ClientCreateValues,
@@ -27,12 +28,6 @@ import type {
   ContactCreateValues,
   ContactProfileValues,
 } from './client-form.js';
-import {
-  clientStatusLabelKey,
-  clientStatusTone,
-  contactStatusLabelKey,
-  contactStatusTone,
-} from './client-labels.js';
 import type {
   ClientDetailState,
   ClientFeedback,
@@ -41,8 +36,7 @@ import type {
   ContactFilterValues,
   ContactListState,
 } from './client-state.js';
-
-const CLIENT_LIFECYCLE: readonly ClientStatus[] = ['PROSPECT', 'ACTIVE', 'INACTIVE'];
+import { hasActiveClientFilters } from './client-state.js';
 
 function formatClientFeedback(
   t: ReturnType<typeof useI18n>['t'],
@@ -55,6 +49,9 @@ function formatClientFeedback(
   return plain(feedback.messageKey);
 }
 
+/**
+ * Entity Workspace v2.0 (Issue #204): full-width directory, quick preview, focused record.
+ */
 export function ClientsWorkspace({
   access,
   appliedClientFilters,
@@ -69,14 +66,19 @@ export function ClientsWorkspace({
   editClientValues,
   editContactValues,
   feedback,
+  loadMissions,
   onApplyClientFilters,
   onApplyContactFilters,
   onArchiveClient,
   onArchiveContact,
+  onCancelClientEdit,
+  onCancelContactCreate,
   onChangeClientStatus,
   onChangeContactStatus,
   onClientFiltersChange,
   onClientPage,
+  onClosePreview,
+  onCloseRecord,
   onContactFiltersChange,
   onContactPage,
   onCreateClient,
@@ -85,6 +87,9 @@ export function ClientsWorkspace({
   onCreateContactValuesChange,
   onEditClientValuesChange,
   onEditContactValuesChange,
+  onNavigatePath,
+  onOpenRecord,
+  onPreview,
   onResetClientFilters,
   onResetContactFilters,
   onRetryClientDetail,
@@ -92,11 +97,11 @@ export function ClientsWorkspace({
   onRetryContactList,
   onSaveClient,
   onSaveContact,
-  onSelectClient,
   onSelectContact,
   clientDetailRevealToken,
   contactDetailRevealToken,
-  selectedClientId,
+  previewClient,
+  recordClientId,
   selectedContact,
   writesLocked,
 }: {
@@ -113,23 +118,30 @@ export function ClientsWorkspace({
   editClientValues: ClientProfileValues | null;
   editContactValues: ContactProfileValues | null;
   feedback: ClientFeedback | null;
+  loadMissions: ClientMissionsLoad | null;
   onApplyClientFilters: () => void;
   onApplyContactFilters: () => void;
   onArchiveClient: () => void;
   onArchiveContact: () => void;
+  onCancelClientEdit: () => void;
+  onCancelContactCreate: () => void;
   onChangeClientStatus: (status: ClientStatus) => void;
   onChangeContactStatus: (status: 'ACTIVE' | 'INACTIVE') => void;
   onClientFiltersChange: (values: ClientFilterValues) => void;
   onClientPage: (page: number) => void;
+  onClosePreview: () => void;
+  onCloseRecord: () => void;
   onContactFiltersChange: (values: ContactFilterValues) => void;
   onContactPage: (page: number) => void;
-  /** Resolves true once the client exists; the drawer closes only then. */
   onCreateClient: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
   onCreateClientValuesChange: (values: ClientCreateValues) => void;
   onCreateContact: (event: FormEvent<HTMLFormElement>) => void;
   onCreateContactValuesChange: (values: ContactCreateValues) => void;
   onEditClientValuesChange: (values: ClientProfileValues) => void;
   onEditContactValuesChange: (values: ContactProfileValues) => void;
+  onNavigatePath?: (path: string) => void;
+  onOpenRecord: (clientId: string) => void;
+  onPreview: (client: ClientSummary) => void;
   onResetClientFilters: () => void;
   onResetContactFilters: () => void;
   onRetryClientDetail: () => void;
@@ -137,62 +149,85 @@ export function ClientsWorkspace({
   onRetryContactList: () => void;
   onSaveClient: (event: FormEvent<HTMLFormElement>) => void;
   onSaveContact: (event: FormEvent<HTMLFormElement>) => void;
-  onSelectClient: (clientId: string) => void;
   onSelectContact: (contactId: string) => void;
   clientDetailRevealToken: number;
   contactDetailRevealToken: number;
-  selectedClientId: string | null;
+  previewClient: ClientSummary | null;
+  recordClientId: string | null;
   selectedContact: ClientContactSummary | null;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const layoutContainerRef = useRef<HTMLElement>(null);
-  // Creation happens in a drawer over the directory, so selection, filters and
-  // scroll position are untouched until a created client is selected.
-  const [creatingClient, setCreatingClient] = useState(false);
+  const rootRef = useRef<HTMLElement>(null);
+  const directoryRef = useRef<HTMLDivElement>(null);
+  const listHeadingId = useId();
+  const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const clientHeadingRef = useRef<HTMLHeadingElement>(null);
   const contactHeadingRef = useRef<HTMLHeadingElement>(null);
-  const listBusy = clientList.status === 'loading';
-  const filteredClients =
-    appliedClientFilters.search.trim().length > 0 ||
-    appliedClientFilters.status !== '' ||
-    appliedClientFilters.industry.trim().length > 0;
-  const filteredContacts =
-    appliedContactFilters.search.trim().length > 0 || appliedContactFilters.status !== '';
+  const [creatingClient, setCreatingClient] = useState(false);
+  const recordOpen = recordClientId !== null;
+  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const sidePreview = previewClient && !narrow ? previewClient : null;
+  const focusRowAfterRender = useRef<string | null>(null);
+  const lastRecordId = useRef<string | null>(null);
+  const focusListAfterPage = useRef(false);
 
-  const detailClient =
-    clientDetail.status === 'ready'
-      ? clientDetail.client
-      : selectedClientId && clientList.status === 'ready'
-        ? (clientList.clients.find((client) => client.id === selectedClientId) ?? null)
-        : null;
+  if (recordClientId) {
+    lastRecordId.current = recordClientId;
+  }
 
-  const archivedClient = detailClient?.status === 'ARCHIVED';
-  const archivedContact = selectedContact?.status === 'ARCHIVED';
+  useEffect(() => {
+    if (!focusListAfterPage.current || clientList.status === 'loading') {
+      return;
+    }
+    focusListAfterPage.current = false;
+    listHeadingRef.current?.focus();
+  }, [clientList]);
 
-  useStackedMasterDetailReveal({
-    containerRef: layoutContainerRef,
-    ready: clientDetail.status === 'ready',
-    revealToken: clientDetailRevealToken,
-    sideBySideMinRem: CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
-    targetRef: clientHeadingRef,
+  useEffect(() => {
+    if (recordOpen || !lastRecordId.current) {
+      return;
+    }
+    focusRowAfterRender.current = lastRecordId.current;
+    lastRecordId.current = null;
+  }, [recordOpen]);
+
+  useEffect(() => {
+    const id = focusRowAfterRender.current;
+    if (!id || recordOpen) {
+      return;
+    }
+    focusRowAfterRender.current = null;
+    const row = directoryRef.current?.querySelector<HTMLButtonElement>(
+      `button[data-client-id="${CSS.escape(id)}"]`,
+    );
+    (row ?? listHeadingRef.current)?.focus();
   });
 
-  useStackedMasterDetailReveal({
-    containerRef: layoutContainerRef,
-    ready: selectedContact !== null,
-    revealToken: contactDetailRevealToken,
-    sideBySideMinRem: CANDIDATE_CLIENT_SIDE_BY_SIDE_MIN_REM,
-    targetRef: contactHeadingRef,
-  });
+  function closePreview(): void {
+    if (previewClient) {
+      focusRowAfterRender.current = previewClient.id;
+    }
+    onClosePreview();
+  }
+
+  function changePage(page: number): void {
+    focusListAfterPage.current = true;
+    onClientPage(page);
+  }
 
   return (
-    <section aria-label={t('clients.region')} className="clients" ref={layoutContainerRef}>
+    <section
+      aria-label={t('clients.region')}
+      className="clients ui-workspace-page"
+      data-view={recordOpen ? 'record' : 'directory'}
+      ref={rootRef}
+    >
       <PageHeader
+        compact
         description={t('clients.header.description')}
         eyebrow={t('clients.header.eyebrow')}
         primaryAction={
-          // Without client creation authority the action does not exist at all.
           access.canCreateClients ? (
             <Button
               aria-haspopup="dialog"
@@ -225,237 +260,118 @@ export function ClientsWorkspace({
         </InlineMessage>
       ) : null}
 
-      <div className="clients__workspace">
-        <div className="clients__list-pane">
-          <h2 className="clients__pane-title">{t('clients.list.title')}</h2>
-          <ClientFilters
-            busy={listBusy}
-            onChange={onClientFiltersChange}
-            onReset={onResetClientFilters}
-            onSubmit={onApplyClientFilters}
-            showReset={filteredClients}
-            values={clientFilters}
-          />
-          <ClientList
-            filtered={filteredClients}
-            list={clientList}
-            onPage={onClientPage}
-            onReset={onResetClientFilters}
-            onRetry={onRetryClientList}
-            onSelect={onSelectClient}
-            selectedId={selectedClientId}
-          />
-        </div>
-
-        <div className="clients__detail-pane">
-          {!selectedClientId ? (
-            <p>{t('clients.detail.selectPrompt')}</p>
-          ) : clientDetail.status === 'loading' ? (
-            <p role="status">{t('clients.states.loadingDetail')}</p>
-          ) : clientDetail.status === 'error' ? (
-            <InlineMessage announce title={t('clients.states.detailErrorTitle')} tone="danger">
-              <p>{t('clients.states.detailError')}</p>
-              <Button onClick={onRetryClientDetail} size="compact" variant="secondary">
-                {t('common.actions.retry')}
-              </Button>
-            </InlineMessage>
-          ) : detailClient && editClientValues ? (
-            <>
-              <div className="client-detail__heading">
-                <h2
-                  className="clients__pane-title client-detail__title"
-                  ref={clientHeadingRef}
-                  tabIndex={-1}
-                >
-                  {detailClient.name}
-                </h2>
-                <StatusBadge tone={clientStatusTone(detailClient.status)}>
-                  {t(clientStatusLabelKey(detailClient.status))}
-                </StatusBadge>
-              </div>
-              {archivedClient ? (
-                <InlineMessage title={t('clients.lifecycle.archivedNotice')} tone="warning">
-                  {t('clients.lifecycle.archivedNotice')}
-                </InlineMessage>
-              ) : null}
-              <form
-                aria-label={t('clients.detail.workspaceTitle')}
-                className="client-form"
-                onSubmit={onSaveClient}
-              >
-                <ClientEditFields
-                  disabled={!access.canUpdateClients || archivedClient}
-                  includeCommercial={access.canSeeCommercial}
-                  onChange={onEditClientValuesChange}
-                  values={editClientValues}
-                />
-                <Button
-                  disabled={writesLocked || !access.canUpdateClients || archivedClient}
-                  type="submit"
-                  variant="primary"
-                >
-                  {t('clients.actions.saveClient')}
-                </Button>
-              </form>
-
-              <section aria-label={t('clients.detail.lifecycleTitle')} className="client-lifecycle">
-                <h3 className="clients__pane-title">{t('clients.detail.lifecycleTitle')}</h3>
-                {/*
-                  The current state is shown by the badge above, so it is not
-                  offered again as an action that would change nothing.
-                */}
-                <div className="client-lifecycle__actions">
-                  {CLIENT_LIFECYCLE.filter((status) => status !== detailClient.status).map(
-                    (status) => (
-                      <Button
-                        disabled={writesLocked || !access.canManageClientStatus || archivedClient}
-                        key={status}
-                        onClick={() => onChangeClientStatus(status)}
-                        size="compact"
-                        type="button"
-                        variant="secondary"
-                      >
-                        {status === 'PROSPECT'
-                          ? t('clients.lifecycle.moveTo.PROSPECT')
-                          : status === 'ACTIVE'
-                            ? t('clients.lifecycle.moveTo.ACTIVE')
-                            : t('clients.lifecycle.moveTo.INACTIVE')}
-                      </Button>
-                    ),
-                  )}
-                  <Button
-                    disabled={writesLocked || !access.canArchiveClients || archivedClient}
-                    onClick={onArchiveClient}
-                    size="compact"
-                    type="button"
-                    variant="danger"
+      {recordOpen ? (
+        <ClientFocusedRecord
+          access={access}
+          appliedContactFilters={appliedContactFilters}
+          clientDetail={clientDetail}
+          clientHeadingRef={clientHeadingRef}
+          contactDetailRevealToken={contactDetailRevealToken}
+          contactFilters={contactFilters}
+          contactHeadingRef={contactHeadingRef}
+          contactList={contactList}
+          createContactValues={createContactValues}
+          detailRevealToken={clientDetailRevealToken}
+          editClientValues={editClientValues}
+          editContactValues={editContactValues}
+          feedback={feedback}
+          loadMissions={loadMissions}
+          onApplyContactFilters={onApplyContactFilters}
+          onArchiveClient={onArchiveClient}
+          onArchiveContact={onArchiveContact}
+          onBack={onCloseRecord}
+          onCancelClientEdit={onCancelClientEdit}
+          onCancelContactCreate={onCancelContactCreate}
+          onChangeClientStatus={onChangeClientStatus}
+          onChangeContactStatus={onChangeContactStatus}
+          onContactFiltersChange={onContactFiltersChange}
+          onContactPage={onContactPage}
+          onCreateContact={onCreateContact}
+          onCreateContactValuesChange={onCreateContactValuesChange}
+          onEditClientValuesChange={onEditClientValuesChange}
+          onEditContactValuesChange={onEditContactValuesChange}
+          onNavigatePath={onNavigatePath}
+          onResetContactFilters={onResetContactFilters}
+          onRetryClientDetail={onRetryClientDetail}
+          onRetryContactList={onRetryContactList}
+          onSaveClient={onSaveClient}
+          onSaveContact={onSaveContact}
+          onSelectContact={onSelectContact}
+          renderClientFields={(props) => <ClientEditFields {...props} />}
+          renderContactFields={(props) => <ContactFields {...props} />}
+          selectedContact={selectedContact}
+          writesLocked={writesLocked}
+        />
+      ) : (
+        <WorkspaceSurface
+          className="clients__workspace"
+          ref={directoryRef}
+          split="preview"
+          view={sidePreview ? undefined : 'list'}
+        >
+          <WorkspacePane
+            aria-labelledby={listHeadingId}
+            className="clients__list-pane"
+            kind="list"
+            toolbar={
+              <WorkspaceToolbar
+                heading={
+                  <h2
+                    className="clients__pane-title"
+                    id={listHeadingId}
+                    ref={listHeadingRef}
+                    tabIndex={-1}
                   >
-                    {t('clients.actions.archiveClient')}
-                  </Button>
-                </div>
-              </section>
-
-              {access.canViewContacts ? (
-                <section aria-label={t('clients.contacts.listTitle')} className="client-contacts">
-                  <h3 className="clients__pane-title">{t('clients.contacts.listTitle')}</h3>
-                  <ContactFilters
-                    busy={contactList.status === 'loading'}
-                    onChange={onContactFiltersChange}
-                    onReset={onResetContactFilters}
-                    onSubmit={onApplyContactFilters}
-                    showReset={filteredContacts}
-                    values={contactFilters}
-                  />
-                  <ContactList
-                    filtered={filteredContacts}
-                    list={contactList}
-                    onPage={onContactPage}
-                    onReset={onResetContactFilters}
-                    onRetry={onRetryContactList}
-                    onSelect={onSelectContact}
-                    selectedId={selectedContact?.id ?? null}
-                  />
-
-                  {access.canCreateContacts && !archivedClient ? (
-                    <form
-                      aria-label={t('clients.contacts.createTitle')}
-                      className="client-form"
-                      onSubmit={onCreateContact}
-                    >
-                      <h4 className="clients__pane-title">{t('clients.contacts.createTitle')}</h4>
-                      <ContactFields
-                        onChange={onCreateContactValuesChange}
-                        values={createContactValues}
-                      />
-                      <Button disabled={writesLocked} type="submit" variant="primary">
-                        {t('clients.actions.createContact')}
-                      </Button>
-                    </form>
-                  ) : null}
-
-                  {selectedContact && editContactValues ? (
-                    <form
-                      aria-label={t('clients.contacts.editTitle')}
-                      className="client-form"
-                      onSubmit={onSaveContact}
-                    >
-                      <h4
-                        className="clients__pane-title client-detail__title"
-                        ref={contactHeadingRef}
-                        tabIndex={-1}
-                      >
-                        {selectedContact.displayName}
-                      </h4>
-                      {archivedContact ? (
-                        <InlineMessage
-                          title={t('clients.lifecycle.contactArchivedNotice')}
-                          tone="warning"
-                        >
-                          {t('clients.lifecycle.contactArchivedNotice')}
-                        </InlineMessage>
-                      ) : null}
-                      <StatusBadge tone={contactStatusTone(selectedContact.status)}>
-                        {t(contactStatusLabelKey(selectedContact.status))}
-                      </StatusBadge>
-                      <ContactFields
-                        disabled={!access.canUpdateContacts || archivedContact}
-                        onChange={onEditContactValuesChange}
-                        values={editContactValues}
-                      />
-                      <Button
-                        disabled={writesLocked || !access.canUpdateContacts || archivedContact}
-                        type="submit"
-                        variant="primary"
-                      >
-                        {t('clients.actions.saveContact')}
-                      </Button>
-                      <div className="client-lifecycle__actions">
-                        {selectedContact.status !== 'ACTIVE' ? (
-                          <Button
-                            disabled={
-                              writesLocked || !access.canManageContactStatus || archivedContact
-                            }
-                            onClick={() => onChangeContactStatus('ACTIVE')}
-                            size="compact"
-                            type="button"
-                            variant="secondary"
-                          >
-                            {t('clients.lifecycle.contactMoveTo.ACTIVE')}
-                          </Button>
-                        ) : null}
-                        {selectedContact.status !== 'INACTIVE' ? (
-                          <Button
-                            disabled={
-                              writesLocked || !access.canManageContactStatus || archivedContact
-                            }
-                            onClick={() => onChangeContactStatus('INACTIVE')}
-                            size="compact"
-                            type="button"
-                            variant="secondary"
-                          >
-                            {t('clients.lifecycle.contactMoveTo.INACTIVE')}
-                          </Button>
-                        ) : null}
-                        <Button
-                          disabled={writesLocked || !access.canArchiveContacts || archivedContact}
-                          onClick={onArchiveContact}
-                          size="compact"
-                          type="button"
-                          variant="danger"
-                        >
-                          {t('clients.actions.archiveContact')}
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <p>{t('clients.contacts.selectPrompt')}</p>
-                  )}
-                </section>
-              ) : null}
-            </>
+                    {t('clients.directory.title')}
+                  </h2>
+                }
+              >
+                <ClientFilters
+                  appliedValues={appliedClientFilters}
+                  busy={clientList.status === 'loading'}
+                  onChange={onClientFiltersChange}
+                  onReset={onResetClientFilters}
+                  onSubmit={onApplyClientFilters}
+                  showReset={hasActiveClientFilters(appliedClientFilters)}
+                  values={clientFilters}
+                />
+              </WorkspaceToolbar>
+            }
+          >
+            <ClientDirectory
+              filtered={hasActiveClientFilters(appliedClientFilters)}
+              list={clientList}
+              onPage={changePage}
+              onPreview={onPreview}
+              onReset={onResetClientFilters}
+              onRetry={onRetryClientList}
+              previewId={previewClient?.id ?? null}
+              tableLabelId={listHeadingId}
+            />
+          </WorkspacePane>
+          {sidePreview ? (
+            <WorkspacePane as="div" className="clients__preview-pane" kind="detail">
+              <ClientQuickPreview
+                client={sidePreview}
+                key={sidePreview.id}
+                onClose={closePreview}
+                onOpenRecord={() => onOpenRecord(sidePreview.id)}
+              />
+            </WorkspacePane>
           ) : null}
-        </div>
-      </div>
+        </WorkspaceSurface>
+      )}
+
+      {!recordOpen && previewClient && narrow ? (
+        <ClientQuickPreview
+          client={previewClient}
+          key={previewClient.id}
+          onClose={closePreview}
+          onOpenRecord={() => onOpenRecord(previewClient.id)}
+          presentation="sheet"
+        />
+      ) : null}
+
       {access.canCreateClients && creatingClient ? (
         <ClientCreateDrawer
           failure={
@@ -481,11 +397,6 @@ function blankClient(values: ClientCreateValues): ClientCreateValues {
   return Object.fromEntries(Object.keys(values).map((key) => [key, ''])) as ClientCreateValues;
 }
 
-/**
- * The existing client creation fields and request in a right-side drawer. The
- * draft lives in the panel as before; discarding clears it, and only a confirmed
- * create closes the drawer.
- */
 function ClientCreateDrawer({
   failure,
   includeCommercial,

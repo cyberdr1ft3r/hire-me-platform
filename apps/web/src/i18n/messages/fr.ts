@@ -641,6 +641,8 @@ export const frMessages: Messages = {
       archiveContact: 'Archiver le contact',
       createClient: 'Créer le client',
       createContact: 'Créer le contact',
+      editClient: 'Modifier le client',
+      more: 'Plus d’actions',
       newClient: 'Nouveau client',
       region: 'Actions client',
       saveClient: 'Enregistrer le client',
@@ -653,8 +655,10 @@ export const frMessages: Messages = {
       detailTitle: 'Détail du contact',
       editTitle: 'Modifier le contact',
       empty: 'Aucun contact ne correspond à ces filtres.',
+      emptyCreate: 'Ajoutez un contact pour suivre les personnes de cette organisation.',
       emptyTitle: 'Aucun contact',
       listTitle: 'Contacts',
+      newContact: 'Nouveau contact',
       selectPrompt: 'Sélectionnez un contact pour le consulter ou le modifier.',
     },
     detail: {
@@ -705,8 +709,24 @@ export const frMessages: Messages = {
       status: 'Statut',
       website: 'Site web',
     },
+    profile: {
+      commercialTitle: 'Commercial',
+      companyTitle: 'Entreprise',
+      editTitle: 'Modifier le profil client',
+      noHeadline: 'Aucune information entreprise enregistrée',
+      updated: 'Mis à jour le {date}',
+    },
+    directory: {
+      columns: {
+        client: 'Client',
+        updated: 'Mis à jour',
+      },
+      title: 'Répertoire clients',
+    },
     filters: {
       anyStatus: 'Tous les statuts',
+      filtersActive: plural({ one: '{count} filtre', other: '{count} filtres' }),
+      filtersToggle: 'Filtres',
       industry: 'Secteur',
       industryHint: 'Correspondance exacte du secteur',
       region: 'Recherche clients',
@@ -715,6 +735,33 @@ export const frMessages: Messages = {
       searchHint: 'Nom, secteur, ville ou pays',
       status: 'Statut',
       submit: 'Appliquer les filtres',
+    },
+    preview: {
+      close: 'Fermer l’aperçu',
+      eyebrow: 'Aperçu rapide',
+      openRecord: 'Ouvrir la fiche complète',
+      updated: 'Dernière mise à jour',
+    },
+    record: {
+      back: 'Retour aux clients',
+      discardPrompt:
+        'Ce client comporte des modifications non enregistrées. Quitter et les abandonner ?',
+      navigation: 'Navigation fiche client',
+      missions: {
+        count: plural({ one: '{count} mission', other: '{count} missions' }),
+        empty: 'Aucune mission de recrutement n’est encore liée à ce client.',
+        emptyTitle: 'Aucune mission',
+        error: 'Impossible de charger les missions de ce client.',
+        errorTitle: 'Missions indisponibles',
+        loading: 'Chargement des missions…',
+        more: 'Seule la première page est affichée ici. Ouvrez Missions pour le répertoire complet.',
+        title: 'Missions liées',
+      },
+      sections: {
+        label: 'Sections de la fiche client',
+        missions: 'Missions',
+        overview: 'Vue d’ensemble',
+      },
     },
     contactFilters: {
       anyStatus: 'Tous les statuts',

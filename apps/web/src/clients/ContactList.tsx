@@ -7,6 +7,7 @@ import type { ContactListState } from './client-state.js';
 export function ContactList({
   filtered,
   list,
+  onCreateContact,
   onPage,
   onReset,
   onRetry,
@@ -15,6 +16,7 @@ export function ContactList({
 }: {
   filtered: boolean;
   list: ContactListState;
+  onCreateContact?: () => void;
   onPage: (page: number) => void;
   onReset: () => void;
   onRetry: () => void;
@@ -59,8 +61,17 @@ export function ContactList({
         {t('clients.contacts.empty')}
       </EmptyState>
     ) : (
-      <EmptyState title={t('clients.contacts.emptyTitle')}>
-        {t('clients.contacts.empty')}
+      <EmptyState
+        action={
+          onCreateContact ? (
+            <Button onClick={onCreateContact} variant="primary">
+              {t('clients.contacts.newContact')}
+            </Button>
+          ) : undefined
+        }
+        title={t('clients.contacts.emptyTitle')}
+      >
+        {onCreateContact ? t('clients.contacts.emptyCreate') : t('clients.contacts.empty')}
       </EmptyState>
     );
   }

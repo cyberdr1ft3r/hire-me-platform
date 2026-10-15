@@ -4,6 +4,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export interface RecordNavigationIntent {
   candidateId: string | null;
+  clientId: string | null;
   missionId: string | null;
   processId: string | null;
   interviewId: string | null;
@@ -34,6 +35,7 @@ export function recordNavigationIntent(
   const parameters = new URLSearchParams(search);
   return {
     candidateId: route === 'candidates' ? uniqueValidUuid(parameters, 'candidate') : null,
+    clientId: route === 'clients' ? uniqueValidUuid(parameters, 'client') : null,
     missionId: route === 'missions' ? uniqueValidUuid(parameters, 'mission') : null,
     processId: route === 'missions' ? uniqueValidUuid(parameters, 'process') : null,
     interviewId: route === 'missions' ? uniqueValidUuid(parameters, 'interview') : null,
@@ -51,6 +53,10 @@ export function conversationDeepLink(conversationId: string): string {
 
 export function candidateDeepLink(candidateId: string): string {
   return `/candidates?candidate=${encodeURIComponent(candidateId)}`;
+}
+
+export function clientDeepLink(clientId: string): string {
+  return `/clients?client=${encodeURIComponent(clientId)}`;
 }
 
 export function missionDeepLink(missionId: string): string {

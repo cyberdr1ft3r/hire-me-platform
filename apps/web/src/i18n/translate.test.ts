@@ -103,6 +103,8 @@ describe('dictionary contract', () => {
       'accounting.payments.count',
       'candidate.record.documents.count',
       'candidate.record.tasks.count',
+      'clients.filters.filtersActive',
+      'clients.record.missions.count',
       'commercial.list.count',
       'common.counts.candidates',
       'common.counts.clients',
