@@ -11,10 +11,10 @@ Status owner: repository maintainer
 
 ## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
 
-- Branch `cursor/issue-202-cross-tab-auth-cf71` head **`eba9d4b`** (integrates `main` **`170973a`** / #208).
-  Local validation on integrated head (2026-10-15): web **1023/1023**, cross-tab unit **42/42**, Phase F **4/4**,
+- Branch `cursor/issue-202-cross-tab-auth-cf71` head **`60f27e7`** (integrates `main` **`170973a`** / #208 via **`eba9d4b`**).
+  Local validation on integrated tree (2026-10-15): web **1023/1023**, cross-tab unit **42/42**, Phase F **4/4**,
   lazy smoke **13/13**, maintainer harness **10/10**, logout/re-login + lazy `/admin` **3/3**; exact-head CI run
-  **38763370194** green on **`4d0c818`**. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+  **38764633749** green on **`60f27e7`**. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 ## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
 
