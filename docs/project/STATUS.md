@@ -3,12 +3,13 @@
 Last updated: 2026-10-15
 Status owner: repository maintainer
 
-## Issue #198 — Frontend lazy routes (Phase B1, draft PR pending)
+## Issue #198 — Frontend lazy routes (Phase B1, PR #208 open)
 
 - Branch `cursor/issue-198-lazy-routes-cf71` from `main` `bdfbf5f` (PR #207 merged).
   Route-level `React.lazy` + `RouteModuleBoundary` (Suspense, chunk error retry). Entry JS gzip
   **411.56 → 235.62 KB** (~43% reduction); 14 async module chunks. No Console tabs or B0 request core.
-  [Evidence](../audit/issue-198-frontend-lazy-routes.md). Awaiting draft PR, exact-head CI, review.
+  [Evidence](../audit/issue-198-frontend-lazy-routes.md). Exact-head CI green on head `1d9ab86`;
+  browser smoke **13/13** on 2026-10-15 (dev stack). Awaiting human/ChatGPT review — not merged.
 
 ## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
 

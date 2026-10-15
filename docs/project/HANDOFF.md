@@ -4,10 +4,11 @@ Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: review Issue #198 frontend lazy routes (Phase B1)** — draft PR on
-  `cursor/issue-198-lazy-routes-cf71` for route-level `React.lazy` after PR #207 (`bdfbf5f`);
-  evidence in [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
-  Confirm exact-head CI, then ChatGPT review. Console B0/B2 only after approval.
+- **Next: human review Issue #198 lazy routes (PR #208)** — branch
+  `cursor/issue-198-lazy-routes-cf71`; browser smoke recorded 2026-10-15 in
+  [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md). Do not merge
+  until approved. After #208 merges, rebase/merge `main` into PR #209 (#202 cross-tab) and rerun
+  Phase F + exact-head CI.
 
 - **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
   [evidence](../audit/issue-204-clients-workspace-v2.md).
