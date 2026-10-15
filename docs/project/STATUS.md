@@ -57,6 +57,14 @@ Status owner: repository maintainer
   Applications, Activity) are documented, not invented.
   [Evidence](../audit/issue-204-candidates-workspace-v2.md). Human sign-off pending.
 
+## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
+
+- Branch `cursor/issue-202-cross-tab-auth-cf71` from `main` `bdfbf5f`. Draft PR #209; **not merged**.
+- `main` merged into branch 2026-10-15 (no conflicts; **Issue #198 / PR #208 not on `main` yet** — re-merge
+  `main` after #208 lands before final review).
+- Local regression: `auth-cross-tab` **10/10**, `authenticated-request` **32/32**; Phase F real-API two-tab
+  refresh **1× POST /auth/refresh** ([`phase-f-results-2026-10-15.json`](../audit/issue-202-cross-tab-auth/results/phase-f-results-2026-10-15.json)).
+
 ## Issue #202 Scope A — shared authenticated request core (PR #203)
 
 - Branch `fix/issue-202-web-auth-request-core` targets `fix/ui-refinement-demo-20261013`;
