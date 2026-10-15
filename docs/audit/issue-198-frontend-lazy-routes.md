@@ -43,6 +43,26 @@ finding — address in follow-up locale/API splits).
   `RouteModuleBoundary.test.tsx`)
 - `App.test.tsx` suite passes with lazy panels (Vitest resolves dynamic imports in dev/test bundle)
 
+## Browser smoke (2026-10-15, PR #208 final integration)
+
+Stack: local PostgreSQL, `pnpm dev` (API `127.0.0.1:3000`, Vite `127.0.0.1:5173`), synthetic admin
+`admin@example.test`. Harness:
+[`tools/smoke-lazy-routes.mjs`](./issue-198-frontend-lazy-routes/tools/smoke-lazy-routes.mjs).
+Raw results: [`smoke-results-2026-10-15.json`](./issue-198-frontend-lazy-routes/smoke-results-2026-10-15.json).
+
+| Check | Result |
+| --- | --- |
+| Icon-rail navigation → Candidates / Missions / Clients directories | Pass |
+| Direct deep links + full reload on candidate / mission / client records | Pass |
+| FR locale (`hireme.locale`) on Candidates workspace | Pass |
+| Unauthenticated `/candidates` → login gate | Pass |
+| 5 s idle on client record (no surprise `/v1` GET polling) | Pass (0 GETs) |
+| Simulated chunk import failure → localized retry UI | Pass |
+| Retry remount after failed dynamic import | UI remounts; `React.lazy` keeps rejected import until navigation/reload (documented) |
+
+Screenshots (Playwright): `candidates-en.png`, `candidates-fr.png`, `mission-record-refresh.png` in agent
+artifacts for this run.
+
 ## Risks / follow-ups
 
 - Entry gzip **235 KB** still above Console preflight B1 target (~190 KB) until i18n/API slimming.
