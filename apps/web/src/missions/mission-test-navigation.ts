@@ -21,8 +21,12 @@ export async function openMissionRecord(name: string | RegExp): Promise<void> {
   const back = screen.queryByRole('button', { name: /Back to missions|Retour aux missions/ });
   if (back) fireEvent.click(back);
   const pattern = typeof name === 'string' ? new RegExp(`^${name}`) : name;
-  fireEvent.click(await screen.findByRole('button', { name: pattern }));
+  fireEvent.click(await screen.findByRole('button', { name: pattern }, { timeout: 10_000 }));
   fireEvent.click(
-    await screen.findByRole('button', { name: /^(Open full record|Ouvrir la fiche complète)$/ }),
+    await screen.findByRole(
+      'button',
+      { name: /^(Open full record|Ouvrir la fiche complète)$/ },
+      { timeout: 10_000 },
+    ),
   );
 }

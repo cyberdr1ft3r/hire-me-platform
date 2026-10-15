@@ -2699,6 +2699,8 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
       { name: /missions/i },
     ),
   );
+  // Missions is a lazy route chunk; on slower CI the directory row is not ready immediately.
+  await screen.findByRole('button', { name: /new mission/i }, { timeout: 10_000 });
   await openMissionRecord(/synthetic mission/i);
 }
 
