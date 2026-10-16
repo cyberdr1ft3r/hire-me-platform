@@ -1,6 +1,8 @@
 # Known limitation — cross-tab access-token refresh (Issue #202)
 
-Status: open, not addressed by PR #203. Recorded as risk R-059.
+Status: **mitigated in client** (Web Locks + BroadcastChannel; see
+[coordination design](./auth-cross-tab-refresh-coordination.md)). Historical context for PR #203;
+recorded as risk R-059.
 
 ## What happens
 

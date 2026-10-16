@@ -4,11 +4,13 @@ Last updated: 2026-10-15
 
 ## Current situation
 
-- **Next: human review Issue #198 lazy routes (PR #208)** — branch
-  `cursor/issue-198-lazy-routes-cf71`; browser smoke recorded 2026-10-15 in
-  [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md). Do not merge
-  until approved. After #208 merges, rebase/merge `main` into PR #209 (#202 cross-tab) and rerun
-  Phase F + exact-head CI.
+- **Merged: Issue #198 lazy routes (PR #208 → `main` `170973a`)** — maintainer-approved merge
+  2026-10-15. Evidence: [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
+
+- **Next: Issue #202 cross-tab auth (PR #209, draft)** — branch `cursor/issue-202-cross-tab-auth-cf71`
+  at **`a438803`** (post-#208 integration). Local rerun complete (web 1023, auth 42, Phase F 4/4, smoke 13,
+  maintainer 10, logout/re-login 3); exact-head CI **38765900927** green on **`a438803`** — human merge review only.
+  Evidence: [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 - **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
   [evidence](../audit/issue-204-clients-workspace-v2.md).
@@ -18,11 +20,6 @@ Last updated: 2026-10-15
 
 - **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
   candidate stay deferred (needs a cross-mission backend read).
-
-- **Merged:** PR #203 (Issue #202 Scope A, shared request core) into the integration
-  branch, and #194 (integration) into `main` at `14fc745`. Still to decide: the
-  cross-tab refresh follow-up (R-059) and Scope B (refresh limiter keying, proxy hops,
-  R-055), as separate issues.
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires

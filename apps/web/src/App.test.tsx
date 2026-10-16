@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 
 import { App } from './App.js';
+import { AUTH_COORDINATION_KEY } from './auth/auth-cross-tab.js';
 import { openMissionRecord } from './missions/mission-test-navigation.js';
 
 const syntheticMissionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -98,7 +99,13 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByLabelText('Account and session'));
     expect(await screen.findByText('Development Administrator')).toBeVisible();
-    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).toHaveBeenCalled();
+    for (const [key, value] of localStorageSpy.mock.calls) {
+      expect(key).toBe(AUTH_COORDINATION_KEY);
+      expect(value).not.toContain('synthetic-access-token');
+      expect(value).not.toContain('admin@example.test');
+      expect(value).not.toContain('6f6d50ec-7fcf-4420-b41d-d723bdd7b07d');
+    }
 
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
 

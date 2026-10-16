@@ -3,13 +3,18 @@
 Last updated: 2026-10-15
 Status owner: repository maintainer
 
-## Issue #198 — Frontend lazy routes (Phase B1, PR #208 open)
+## Issue #198 — Frontend lazy routes (Phase B1, merged PR #208 `170973a`)
 
-- Branch `cursor/issue-198-lazy-routes-cf71` from `main` `bdfbf5f` (PR #207 merged).
-  Route-level `React.lazy` + `RouteModuleBoundary` (Suspense, chunk error retry). Entry JS gzip
-  **411.56 → 235.62 KB** (~43% reduction); 14 async module chunks. No Console tabs or B0 request core.
-  [Evidence](../audit/issue-198-frontend-lazy-routes.md). Exact-head CI green on head `1d9ab86`;
-  browser smoke **13/13** on 2026-10-15 (dev stack). Awaiting human/ChatGPT review — not merged.
+- Merged to `main` 2026-10-15 (head `10dd0ec`). Route-level `React.lazy` + `RouteModuleBoundary`.
+  Entry JS gzip **411.56 → 235.62 KB** (~43% reduction); maintainer browser verification **10/10** and
+  regression smoke **13/13** (2026-10-15). [Evidence](../audit/issue-198-frontend-lazy-routes.md).
+
+## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
+
+- Branch `cursor/issue-202-cross-tab-auth-cf71` head **`a438803`** (integrates `main` **`170973a`** / #208 via **`eba9d4b`**).
+  Local validation on integrated tree (2026-10-15): web **1023/1023**, cross-tab unit **42/42**, Phase F **4/4**,
+  lazy smoke **13/13**, maintainer harness **10/10**, logout/re-login + lazy `/admin` **3/3**; exact-head CI run
+  **38765900927** green on **`a438803`**. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
 
 ## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
 

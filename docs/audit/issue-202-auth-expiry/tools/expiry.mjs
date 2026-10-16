@@ -1,6 +1,6 @@
 // #203 real-API acceptance: natural access-token expiry against a live local API
 // (ACCESS_TOKEN_TTL_SECONDS=60), Vite dev server (StrictMode). Synthetic data only.
-// usage: node expiry.mjs <playwright path> <outDir>   env: WEB, API, EMAIL, PW, TTL
+// usage: node expiry.mjs <playwright path> <outDir>   env: WEB, API, EMAIL, PW, TTL, PHASE=F
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
@@ -9,6 +9,7 @@ const OUT = process.argv[3];
 mkdirSync(OUT, { recursive: true });
 const { WEB, API, EMAIL, PW } = process.env;
 const TTL = Number(process.env.TTL ?? 60);
+const phaseFOnly = process.env.PHASE === 'F';
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok: !!ok, detail });
@@ -83,7 +84,7 @@ async function burst(p) {
 }
 
 // A. Natural expiry, simultaneous module requests, exactly one refresh, recovery.
-{
+if (!phaseFOnly) {
   const { ctx, p, log, errors } = await session();
   const t0 = await expireWhileHidden(ctx, [p], [log]);
   await burst(p);
@@ -155,7 +156,7 @@ async function burst(p) {
 }
 
 // E. Missing cookie (cleared) → refresh 401 → single sign-out.
-{
+if (!phaseFOnly) {
   // With a dirty creation drawer open (#201): the shell's own 60 s poll hits the
   // expiry, the refresh fails, and sign-out must not leave the app inert.
   const { ctx, p, log } = await session();
@@ -178,7 +179,7 @@ async function burst(p) {
   await ctx.close();
 }
 
-// F. Cross-tab limitation (observation only; documented, not fixed by #203).
+// F. Cross-tab refresh coordination (R-059): one refresh across tabs, both stay signed in.
 {
   const { ctx, p, log } = await session();
   const p2 = await ctx.newPage();
@@ -188,12 +189,22 @@ async function burst(p) {
   await p2.getByRole('button', { name: /^Notifications/ }).waitFor({ timeout: 15000 }).catch(() => {});
   const t = await expireWhileHidden(ctx, [p, p2], [log, log2]);
   await Promise.all([burst(p).catch(() => {}), burst(p2).catch(() => {})]);
-  await p.waitForTimeout(3000);
-  const r1 = refreshes(since(log, t)).map((r) => r.status);
-  const r2 = refreshes(since(log2, t)).map((r) => r.status);
-  const out = { tab1Refresh: r1, tab2Refresh: r2, tab1SignedOut: await loggedOut(p), tab2SignedOut: await loggedOut(p2) };
-  console.log('F (observation):', JSON.stringify(out));
+  await p.waitForTimeout(4000);
+  const r1 = refreshes(since(log, t));
+  const r2 = refreshes(since(log2, t));
+  const allRefresh = [...r1, ...r2];
+  const out = {
+    tab1Refresh: r1.map((r) => r.status),
+    tab2Refresh: r2.map((r) => r.status),
+    tab1SignedOut: await loggedOut(p),
+    tab2SignedOut: await loggedOut(p2),
+    totalRefreshCalls: allRefresh.length,
+  };
+  console.log('F (cross-tab):', JSON.stringify(out));
   writeFileSync(`${OUT}/F_cross_tab.json`, JSON.stringify(out, null, 2));
+  check('F: exactly one POST /auth/refresh across both tabs', allRefresh.length === 1, `counts tab1=${r1.length} tab2=${r2.length}`);
+  check('F: refresh succeeded', allRefresh[0]?.status === 200 || allRefresh[0]?.status === 201, String(allRefresh[0]?.status));
+  check('F: neither tab signed out', !(await loggedOut(p)) && !(await loggedOut(p2)));
   await ctx.close();
 }
 
