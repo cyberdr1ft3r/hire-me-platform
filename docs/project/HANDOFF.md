@@ -4,7 +4,7 @@ Last updated: 2026-10-16
 
 ## Current situation
 
-- **P1 hotfix: Issue #214 Messages scrolling (draft PR pending).** Branch
+- **P1 hotfix: Issue #214 Messages scrolling (draft PR #215).** Branch
   `fix/issue-214-messages-scroll-hotfix` starts from merged-#213 `main` `66bc16a`. It removes the
   remaining Messages-only scroll-boundary containment while preserving the message log as an
   independent scroller. Installed-Chrome evidence and regression coverage are in
