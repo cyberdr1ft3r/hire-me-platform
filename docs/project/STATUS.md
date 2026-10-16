@@ -1,7 +1,21 @@
 # Project Status
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 Status owner: repository maintainer
+
+## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR pending)
+
+- Branch `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb`. The Missions
+  candidate-process detail and shared fill-layout panes now keep their nested overflow while
+  allowing native scroll chaining at boundaries (`overscroll-behavior-y: auto`). No wheel handler,
+  modal lock, API, schema, permission, or deployment change.
+- Installed-Chrome evidence covers wheel, trackpad-like deltas, `PageDown`, and touch plus Clients,
+  Candidates, Missions, Documents, and Admin at 1440×900 and 390×844. Focused regression tests,
+  lint, typecheck, build, architecture, style-token, contrast, and formatting checks pass.
+  [Evidence](../audit/issue-212-workspace-scroll.md).
+- The full Windows web run remains non-green for unrelated baseline issues: lazy route imports miss
+  existing one-second test waits in `App.test.tsx`, and `foundation.test.tsx` assumes LF while the
+  checkout supplies CRLF. The Issue #212 focused set is 56/56 green.
 
 ## Issue #198 — Frontend lazy routes (Phase B1, merged PR #208 `170973a`)
 
