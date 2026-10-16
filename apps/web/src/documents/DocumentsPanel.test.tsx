@@ -777,7 +777,9 @@ describe('DocumentsPanel accessibility', () => {
       level: 2,
       name: 'Synthetic client brief',
     });
-    expect(heading).toHaveFocus();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
     expect(screen.getByRole('button', { name: 'Synthetic client brief' })).toHaveAttribute(
       'aria-current',
       'true',
@@ -786,5 +788,32 @@ describe('DocumentsPanel accessibility', () => {
       'data-selected',
       'true',
     );
+  });
+
+  it('moves focus to the detail heading after a slow detail fetch completes', async () => {
+    const slowDetail = deferred<Response>();
+    standardApi((call) =>
+      call.method === 'GET' && call.path === `/v1/documents/${DOCUMENT_B_ID}`
+        ? slowDetail.promise
+        : undefined,
+    );
+    render(<Panel />);
+    await screen.findByRole('table', { name: 'Document list' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Synthetic client brief' }));
+    expect(screen.getByRole('status')).toHaveTextContent(/loading/i);
+
+    await act(async () => {
+      slowDetail.resolve(jsonResponse({ document: clientDocument }));
+      await slowDetail.promise;
+    });
+
+    const heading = await screen.findByRole('heading', {
+      level: 2,
+      name: 'Synthetic client brief',
+    });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
   });
 });

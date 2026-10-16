@@ -203,6 +203,9 @@ export function DocumentsPanel({
         return;
       }
       commitDetail(response.document, isCurrent);
+      if (isCurrent()) {
+        setFocusToken((token) => token + 1);
+      }
     } catch (error) {
       if (request !== detailRequest.current || !isCurrent()) {
         return;
@@ -221,7 +224,6 @@ export function DocumentsPanel({
     setVersionFile(null);
     setVersionInputKey((key) => key + 1);
     setFeedback(null);
-    setFocusToken((token) => token + 1);
     void loadDetail(documentId);
   }
 
