@@ -3,7 +3,7 @@
 Last updated: 2026-10-16
 Status owner: repository maintainer
 
-## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR pending)
+## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR #213)
 
 - Branch `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb`. The Missions
   candidate-process detail and shared fill-layout panes now keep their nested overflow while

@@ -4,7 +4,7 @@ Last updated: 2026-10-16
 
 ## Current situation
 
-- **P1 hotfix: Issue #212 workspace scrolling (draft PR pending).** Branch
+- **P1 hotfix: Issue #212 workspace scrolling (draft PR #213).** Branch
   `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb` removes scroll-boundary trapping
   from the shared fill panes and Missions process detail without changing their overflow ownership.
   Browser evidence and the five-workspace desktop/mobile matrix are in
