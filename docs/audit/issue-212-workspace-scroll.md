@@ -1,6 +1,6 @@
 # Issue #212 workspace scrolling audit
 
-Date: 2026-10-16  
+Date: 2026-10-16
 Scope: Clients, Candidates, Missions, Documents, and Admin; desktop and mobile.
 
 ## Root cause
