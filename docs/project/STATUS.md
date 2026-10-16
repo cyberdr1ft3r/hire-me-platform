@@ -11,8 +11,9 @@ Status owner: repository maintainer
   permission, or deployment change.
 - Installed-Chrome evidence covers the conversation list, long message thread, composer, surrounding
   whitespace, mouse wheel, trackpad-like deltas, keyboard Enter, `PageDown`, and mobile touch. The
-  selector regression and 47 focused Messages/workspace tests pass. Exact-head CI is pending on
-  draft PR #215.
+  selector regression and 47 focused Messages/workspace tests pass. Draft PR #215 CI run
+  `38946878376` was fully green on implementation/documentation head `2a4b7ad`; the final
+  memory-only head is re-running the exact same gate set.
   [Evidence](../audit/issue-214-messages-scroll.md).
 
 ## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR #213)
