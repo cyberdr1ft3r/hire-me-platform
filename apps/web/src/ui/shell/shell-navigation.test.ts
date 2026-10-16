@@ -64,10 +64,16 @@ describe('Workspace layout per route', () => {
     expect(workspaceLayoutForRoute('candidates', false)).toBe('fill');
     expect(workspaceLayoutForRoute('candidates', true)).toBe('flow');
   });
-  it.each(['home', 'tasks', 'missions', 'commercial', 'accounting', 'documents', 'admin'] as const)(
-    'keeps document flow for %s',
-    (route) => {
-      expect(workspaceLayoutForRoute(route, false)).toBe('flow');
-    },
-  );
+  it.each([
+    'home',
+    'tasks',
+    'missions',
+    'commercial',
+    'accounting',
+    'clients',
+    'documents',
+    'admin',
+  ] as const)('keeps document flow for %s', (route) => {
+    expect(workspaceLayoutForRoute(route, false)).toBe('flow');
+  });
 });

@@ -529,7 +529,8 @@
     max-block-size: min(70vh, 48rem);
     min-width: 0;
     overflow: auto;
-    overscroll-behavior: contain;
+    /* Keep the detail independently scrollable without trapping the page at its edges. */
+    overscroll-behavior-y: auto;
     padding-inline-start: var(--space-4);
     position: sticky;
     top: var(--space-4);

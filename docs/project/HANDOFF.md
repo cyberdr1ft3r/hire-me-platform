@@ -1,8 +1,15 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 ## Current situation
+
+- **P1 hotfix: Issue #212 workspace scrolling (draft PR #213).** Branch
+  `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb` removes scroll-boundary trapping
+  from the shared fill panes and Missions process detail without changing their overflow ownership.
+  Browser evidence and the five-workspace desktop/mobile matrix are in
+  [`issue-212-workspace-scroll`](../audit/issue-212-workspace-scroll.md). Do not merge or deploy
+  automatically; PR #210 remains untouched.
 
 - **Merged: Issue #198 lazy routes (PR #208 → `main` `170973a`)** — maintainer-approved merge
   2026-10-15. Evidence: [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
