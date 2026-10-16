@@ -4,6 +4,13 @@ Last updated: 2026-10-16
 
 ## Current situation
 
+- **P1 hotfix: Issue #214 Messages scrolling (draft PR pending).** Branch
+  `fix/issue-214-messages-scroll-hotfix` starts from merged-#213 `main` `66bc16a`. It removes the
+  remaining Messages-only scroll-boundary containment while preserving the message log as an
+  independent scroller. Installed-Chrome evidence and regression coverage are in
+  [`issue-214-messages-scroll`](../audit/issue-214-messages-scroll.md). Do not merge or deploy
+  automatically; PR #210 remains untouched.
+
 - **P1 hotfix: Issue #212 workspace scrolling (draft PR #213).** Branch
   `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb` removes scroll-boundary trapping
   from the shared fill panes and Missions process detail without changing their overflow ownership.

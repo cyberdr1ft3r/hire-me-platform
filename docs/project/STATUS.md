@@ -3,6 +3,17 @@
 Last updated: 2026-10-16
 Status owner: repository maintainer
 
+## Issue #214 — Messages wheel scrolling P1 hotfix (draft PR pending)
+
+- Branch `fix/issue-214-messages-scroll-hotfix` from merged-#213 `main` `66bc16a`. The Messages log
+  keeps its independent overflow but now allows native wheel, trackpad, and touch scroll handoff at
+  its boundaries (`overscroll-behavior-y: auto`). No wheel handler, flex sizing, API, schema,
+  permission, or deployment change.
+- Installed-Chrome evidence covers the conversation list, long message thread, composer, surrounding
+  whitespace, mouse wheel, trackpad-like deltas, keyboard Enter, `PageDown`, and mobile touch. The
+  selector regression and 47 focused Messages/workspace tests pass. Exact-head CI is pending.
+  [Evidence](../audit/issue-214-messages-scroll.md).
+
 ## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR #213)
 
 - Branch `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb`. The Missions

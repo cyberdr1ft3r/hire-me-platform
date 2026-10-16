@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const workspaceCss = readFileSync(join(process.cwd(), 'src/ui/workspace.css'), 'utf8');
 const missionCss = readFileSync(join(process.cwd(), 'src/missions/mission.css'), 'utf8');
+const messagesCss = readFileSync(join(process.cwd(), 'src/messages/messages.css'), 'utf8');
 
 describe('workspace scroll ownership', () => {
   it('keeps fill panes sized as scroll owners while allowing boundary handoff', () => {
@@ -18,5 +19,12 @@ describe('workspace scroll ownership', () => {
       /\.mission-pipeline-workspace__detail \{[\s\S]*?max-block-size: min\(70vh, 48rem\);[\s\S]*?overflow: auto;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?\}/,
     );
     expect(missionCss).not.toContain('overscroll-behavior: contain;');
+  });
+
+  it('keeps the Messages thread scrollable while allowing boundary handoff', () => {
+    expect(messagesCss).toMatch(
+      /\.messages-log \{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?\}/,
+    );
+    expect(messagesCss).not.toContain('overscroll-behavior: contain;');
   });
 });
