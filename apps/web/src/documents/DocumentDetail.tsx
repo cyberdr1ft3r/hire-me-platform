@@ -1,5 +1,5 @@
 import type { DocumentDetail as DocumentDetailRecord, DocumentVersion } from '@hire-me/contracts';
-import { useEffect, useRef, type FormEvent } from 'react';
+import { useLayoutEffect, useRef, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, InlineMessage, Select, StatusBadge, TextField } from '../ui/index.js';
@@ -53,11 +53,11 @@ export function DocumentDetail({
   const archived = document.status === 'ARCHIVED' || document.archivedAt !== null;
   const current = document.versions.find((version) => version.id === document.currentVersionId);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focusToken > 0) {
-      heading.current?.focus();
+      heading.current?.focus({ preventScroll: true });
     }
-  }, [focusToken]);
+  }, [focusToken, document.id]);
 
   return (
     <article aria-labelledby="document-detail-title" className="document-detail">
