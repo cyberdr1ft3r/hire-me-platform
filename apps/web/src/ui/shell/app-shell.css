@@ -310,10 +310,11 @@
   inset-inline-end: 0;
   z-index: 6;
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   width: 22rem;
   max-width: calc(100vw - var(--space-6));
   max-height: min(38rem, calc(100dvh - var(--layout-shell-topbar-height) - var(--space-4)));
-  overflow: hidden;
+  overflow: clip;
   background: var(--color-surface-raised);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-large);
@@ -326,6 +327,9 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border-bottom: var(--border-width) solid var(--color-border);
+}
+.notification-center__header > div {
+  min-width: 0;
 }
 .notification-center__header h2,
 .notification-center__header p {
@@ -348,8 +352,9 @@
   border-bottom: var(--border-width) solid var(--color-border);
 }
 .notification-center__body {
-  min-height: 8rem;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: auto;
 }
 .notification-center__action-error {
   margin: 0;
@@ -411,6 +416,11 @@
 }
 .notification-center__list li > .ui-button {
   margin-inline-end: var(--space-2);
+}
+.notification-center__header > .ui-button,
+.notification-center__list li > .ui-button {
+  max-width: 100%;
+  white-space: normal;
 }
 .notification-center__source {
   font-weight: var(--font-weight-semibold);
