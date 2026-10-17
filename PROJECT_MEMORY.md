@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-06
+Last updated: 2026-10-17
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -9,6 +9,13 @@ This file is the fastest context-rehydration entry point for humans and coding a
 Build a bilingual, responsive internal business platform for Hire Me that centralizes recruitment operations, client relationships, missions, public opportunities and applications, candidates and CVs, interviews and evaluations, training and coaching, task management, commercial operations, documents, notifications, reporting, and selected integrations.
 
 ## Current Phase
+
+Issue #216 has a focused CSS-only Notification Center P1 hotfix on draft PR #217, based on `main`
+`eed30f5` after merged scrolling fixes #213 and #215. It restores a bounded independent list
+scrollport and local action wrapping without changing notification data, permissions, pagination,
+navigation, or mutations. Reproducible installed-Chrome evidence is recorded in
+`docs/audit/issue-216-notification-center.md`; exact-head CI and human review remain required before
+merge. PR #210 is unrelated and must remain untouched.
 
 The Issue #52 representative milestone is complete. Stable pre–Issue #118 `main` is `4c0655d9ec59228b9a76d9a6964c1f505fa2be76`, including merged Issue #117 UI-DNA v1.1 interaction grammar (D-082) through PR #137, Issue #116 stacked master-detail through PR #138, Issue #124 / PR #136, Accounting #135, Training #123, Documents #119, and the core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda). UI-DNA v1.1 interaction grammar (Issue #117 / D-082, merged on `main`) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #118 Missions workspace IA/composition is implemented on open draft PR #139 and is **not merged** yet. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
 

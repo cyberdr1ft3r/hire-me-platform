@@ -1,7 +1,20 @@
 # Project Status
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 Status owner: repository maintainer
+
+## Issue #216 — Notification Center scrolling P1 hotfix (draft PR #217)
+
+- Branch `fix/issue-216-notification-center-hotfix` starts from latest `main` `eed30f5`, including
+  merged PRs #213 and #215. The CSS-only fix gives the Notification Center an explicit bounded grid
+  row and zero-minimum scroll body, preserves native boundary handoff, and permits only its action
+  labels to wrap. No API, pagination, permission, schema, unread-state, navigation, or deployment
+  change.
+- Installed-Chrome evidence covers 0, 1, 20, and 100 synthetic notifications in EN/FR at desktop,
+  tablet, and mobile sizes: 24/24 layout cases, 12/12 wheel/trackpad/PageDown long-list cases, 4/4
+  mobile touch cases, and 24/24 Escape focus restorations pass. Local lint, typecheck, build, focused
+  tests, architecture/style/contrast, and formatting gates pass. Exact-head CI is required on the
+  final documentation head. [Evidence](../audit/issue-216-notification-center.md).
 
 ## Issue #214 — Messages wheel scrolling P1 hotfix (draft PR #215)
 

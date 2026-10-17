@@ -1,8 +1,17 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 ## Current situation
+
+- **P1 hotfix: Issue #216 Notification Center scrolling (draft PR #217).** Branch
+  `fix/issue-216-notification-center-hotfix` starts from `main` `eed30f5` (merged #213 and #215).
+  It fixes the implicit auto-sized grid row that made the list expand behind a clipped panel, while
+  preserving Notification behavior and native scroll handoff. Installed-Chrome evidence and the
+  24-case EN/FR desktop/tablet/mobile matrix are in
+  [`issue-216-notification-center`](../audit/issue-216-notification-center.md). Local gates are green;
+  require exact-head CI and human review. Do not merge or deploy automatically; PR #210 remains
+  untouched.
 
 - **P1 hotfix: Issue #214 Messages scrolling (draft PR #215).** Branch
   `fix/issue-214-messages-scroll-hotfix` starts from merged-#213 `main` `66bc16a`. It removes the
