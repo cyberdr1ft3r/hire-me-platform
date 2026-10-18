@@ -9,6 +9,8 @@ export interface PageHeaderProps {
   primaryAction?: ReactNode;
   secondaryActions?: ReactNode;
   title: ReactNode;
+  /** Connects the page frame's accessible name to its single visible heading. */
+  titleId?: string;
 }
 
 export function PageHeader({
@@ -19,12 +21,13 @@ export function PageHeader({
   primaryAction,
   secondaryActions,
   title,
+  titleId,
 }: PageHeaderProps) {
   return (
     <header className={compact ? 'ui-page-header ui-page-header--compact' : 'ui-page-header'}>
       <div className="ui-page-header__copy">
         {eyebrow ? <p className="ui-page-header__eyebrow">{eyebrow}</p> : null}
-        <h1>{title}</h1>
+        <h1 id={titleId}>{title}</h1>
         {description ? <p className="ui-page-header__description">{description}</p> : null}
         {metadata ? <div className="ui-page-header__metadata">{metadata}</div> : null}
       </div>

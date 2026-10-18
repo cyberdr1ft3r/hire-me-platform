@@ -1,0 +1,156 @@
+{
+  "browser": "Google Chrome",
+  "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "generatedAt": "2026-10-18T23:34:47.423Z",
+  "passed": true,
+  "results": [
+    {
+      "locale": "en",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "en",
+        "headingCount": 1,
+        "headingText": [
+          "Overview"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": null,
+        "focusReturned": null
+      },
+      "screenshot": "desktop-en-overview.png",
+      "viewport": "desktop"
+    },
+    {
+      "locale": "fr",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "fr",
+        "headingCount": 1,
+        "headingText": [
+          "Vue d’ensemble"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": null,
+        "focusReturned": null
+      },
+      "screenshot": "desktop-fr-overview.png",
+      "viewport": "desktop"
+    },
+    {
+      "locale": "en",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "en",
+        "headingCount": 1,
+        "headingText": [
+          "Overview"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": null,
+        "focusReturned": null
+      },
+      "screenshot": "tablet-en-overview.png",
+      "viewport": "tablet"
+    },
+    {
+      "locale": "fr",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "fr",
+        "headingCount": 1,
+        "headingText": [
+          "Vue d’ensemble"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": null,
+        "focusReturned": null
+      },
+      "screenshot": "tablet-fr-overview.png",
+      "viewport": "tablet"
+    },
+    {
+      "locale": "en",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "en",
+        "headingCount": 1,
+        "headingText": [
+          "Overview"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": true,
+        "focusReturned": true
+      },
+      "screenshot": "mobile-en-overview.png",
+      "viewport": "mobile"
+    },
+    {
+      "locale": "fr",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "fr",
+        "headingCount": 1,
+        "headingText": [
+          "Vue d’ensemble"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "navigation": {
+        "escapeClosed": true,
+        "focusReturned": true
+      },
+      "screenshot": "mobile-fr-overview.png",
+      "viewport": "mobile"
+    },
+    {
+      "alertName": "_r_1_",
+      "alertText": "!Protected workspacePermission denied.",
+      "locale": "en",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "en",
+        "headingCount": 1,
+        "headingText": [
+          "Protected workspace"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "screenshot": "desktop-en-permission-denied.png",
+      "viewport": "desktop-permission-denied"
+    },
+    {
+      "alertName": "_r_1_",
+      "alertText": "!Espace protégéAccès refusé.",
+      "locale": "fr",
+      "metrics": {
+        "documentHorizontalOverflow": false,
+        "documentLanguage": "fr",
+        "headingCount": 1,
+        "headingText": [
+          "Espace protégé"
+        ],
+        "pageLayout": "flow",
+        "shellLayout": "flow"
+      },
+      "screenshot": "desktop-fr-permission-denied.png",
+      "viewport": "desktop-permission-denied"
+    }
+  ]
+}

@@ -25,6 +25,7 @@ import {
   recordNavigationIntent,
 } from './navigation/record-deep-links.js';
 import { AppShell } from './ui/shell/AppShell.js';
+import { PageShell, PageState } from './ui/PageSystem.js';
 import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
 import { formatUnreadBadge, useMessagingUnreadSummary } from './messages/index.js';
@@ -292,10 +293,11 @@ function AppRoutes() {
 
   if (!canOpenRoute) {
     routeContent = (
-      <section className="admin-panel" aria-label={t('access.deniedRegion')}>
-        <h2>{t('access.deniedTitle')}</h2>
-        <p role="alert">{t('access.deniedMessage')}</p>
-      </section>
+      <PageShell aria-label={t('access.deniedRegion')}>
+        <PageState kind="permission-denied" title={t('access.deniedTitle')}>
+          <p>{t('access.deniedMessage')}</p>
+        </PageState>
+      </PageShell>
     );
   } else {
     switch (route) {
