@@ -1,5 +1,5 @@
 import type { ConversationSummary, Notification } from '@hire-me/contracts';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../../i18n/index.js';
@@ -65,7 +65,6 @@ function renderCenter(onNavigatePath = vi.fn()) {
       <NotificationCenter
         accessToken="token"
         messageUnreadCount={1}
-        onMessageUnreadChanged={() => undefined}
         onNavigatePath={onNavigatePath}
         permissions={[
           'messages:view',
@@ -125,7 +124,6 @@ describe('NotificationCenter', () => {
           <NotificationCenter
             accessToken="token"
             messageUnreadCount={0}
-            onMessageUnreadChanged={() => undefined}
             onNavigatePath={vi.fn()}
             permissions={['notifications:view_own']}
           />
@@ -137,13 +135,14 @@ describe('NotificationCenter', () => {
     fireEvent.click(bell);
     const panel = await screen.findByRole('region', { name: 'Notifications' });
     const heading = screen.getByRole('heading', { name: 'Notifications' });
+    await waitFor(() => expect(heading).toHaveFocus());
 
     // This is the keyboard path: Tab moves to the creation trigger behind the
     // popover. The transition is outside the boundary and must dismiss it.
     fireEvent.blur(heading, { relatedTarget: newClient });
-    newClient.focus();
+    act(() => newClient.focus());
 
-    expect(panel).not.toBeInTheDocument();
+    await waitFor(() => expect(panel).not.toBeInTheDocument());
     expect(newClient).toHaveFocus();
   });
 
@@ -164,9 +163,16 @@ describe('NotificationCenter', () => {
     fireEvent.click(bell);
     const panel = await screen.findByRole('region', { name: 'Notifications' });
     const heading = screen.getByRole('heading', { name: 'Notifications' });
+    await waitFor(() => expect(heading).toHaveFocus());
     fireEvent.blur(heading, { relatedTarget: panel });
 
     expect(panel).toBeInTheDocument();
+
+    const allFilter = screen.getByRole('button', { name: 'All' });
+    fireEvent.blur(heading, { relatedTarget: null });
+    act(() => allFilter.focus());
+    await waitFor(() => expect(panel).toBeInTheDocument());
+    expect(allFilter).toHaveFocus();
   });
 
   it('dismisses when a modal drawer takes focus', async () => {
@@ -190,7 +196,6 @@ describe('NotificationCenter', () => {
           <NotificationCenter
             accessToken="token"
             messageUnreadCount={0}
-            onMessageUnreadChanged={() => undefined}
             onNavigatePath={vi.fn()}
             permissions={['notifications:view_own']}
           />
@@ -201,12 +206,14 @@ describe('NotificationCenter', () => {
     const bell = await screen.findByRole('button', { name: 'Notifications' });
     fireEvent.click(bell);
     const panel = await screen.findByRole('region', { name: 'Notifications' });
-    fireEvent.blur(screen.getByRole('heading', { name: 'Notifications' }), {
+    const heading = screen.getByRole('heading', { name: 'Notifications' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    fireEvent.blur(heading, {
       relatedTarget: drawer,
     });
-    drawer.focus();
+    act(() => drawer.focus());
 
-    expect(panel).not.toBeInTheDocument();
+    await waitFor(() => expect(panel).not.toBeInTheDocument());
     expect(drawer).toHaveFocus();
   });
 
@@ -243,6 +250,140 @@ describe('NotificationCenter', () => {
       false,
     );
     expect(screen.getByText('Synthetic Colleague')).toBeVisible();
+  });
+
+  it('removes a read Notification from the Unread filter and keeps the Messages count intact', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [conversation], nextCursor: null });
+      }
+      if (url.endsWith(`/v1/notifications/${NOTIFICATION_ID}/read`)) {
+        return json({
+          notification: {
+            ...notification,
+            readAt: '2026-10-14T11:00:00.000Z',
+            status: 'READ',
+            updatedAt: '2026-10-14T11:00:00.000Z',
+          },
+        });
+      }
+      if (url.includes('/v1/notifications')) {
+        return json({
+          notifications: [notification],
+          pageInfo: { hasNextPage: false, page: 1, pageSize: 25, total: 1 },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    renderCenter();
+    const bell = await screen.findByRole('button', { name: 'Notifications, 2 unread items' });
+    fireEvent.click(bell);
+    fireEvent.click(await screen.findByRole('button', { name: 'Unread' }));
+    expect(await screen.findByText('A task was assigned to you.')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as read' }));
+
+    await waitFor(() =>
+      expect(screen.queryByText('A task was assigned to you.')).not.toBeInTheDocument(),
+    );
+    expect(bell).toHaveAccessibleName('Notifications, 1 unread item');
+    expect(screen.getByText('Synthetic Colleague')).toBeVisible();
+  });
+
+  it('never requests or renders an activity source without its permission', async () => {
+    const calls: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = requestUrl(input);
+      calls.push(url);
+      if (url.includes('/v1/messages/conversations')) {
+        return json({ conversations: [conversation], nextCursor: null });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(
+      <I18nProvider initialLocale="en">
+        <NotificationCenter
+          accessToken="token"
+          messageUnreadCount={1}
+          onNavigatePath={vi.fn()}
+          permissions={['messages:view']}
+        />
+      </I18nProvider>,
+    );
+
+    const bell = screen.getByRole('button', { name: 'Notifications, 1 unread item' });
+    fireEvent.click(bell);
+    expect(await screen.findByText('Synthetic Colleague')).toBeVisible();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('/v1/messages/conversations?filter=unread');
+    expect(calls.some((url) => url.includes('/v1/notifications'))).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Mark notifications read' })).toBeNull();
+  });
+
+  it('does not render or fetch when neither activity source is authorized', () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    render(
+      <I18nProvider initialLocale="en">
+        <NotificationCenter
+          accessToken="token"
+          messageUnreadCount={null}
+          onNavigatePath={vi.fn()}
+          permissions={[]}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Notifications' })).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('drops a notification count response started with a replaced access token', async () => {
+    let resolveStale: (response: Response) => void = () => undefined;
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const headers = input instanceof Request ? input.headers : new Headers(init?.headers);
+      if (headers.get('Authorization') === 'Bearer token-a') {
+        return new Promise<Response>((resolve) => {
+          resolveStale = resolve;
+        });
+      }
+      return json({
+        notifications: [],
+        pageInfo: { hasNextPage: false, page: 1, pageSize: 1, total: 0 },
+      });
+    });
+    const view = (accessToken: string) => (
+      <I18nProvider initialLocale="en">
+        <NotificationCenter
+          accessToken={accessToken}
+          messageUnreadCount={0}
+          onNavigatePath={vi.fn()}
+          permissions={['notifications:view_own']}
+        />
+      </I18nProvider>
+    );
+    const { rerender } = render(view('token-a'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+
+    rerender(view('token-b'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Notifications' })).toBeVisible(),
+    );
+
+    resolveStale(
+      new Response(
+        JSON.stringify({
+          notifications: [],
+          pageInfo: { hasNextPage: false, page: 1, pageSize: 1, total: 9 },
+        }),
+        { status: 200 },
+      ),
+    );
+    await Promise.resolve();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /9 unread items/ })).toBeNull();
   });
 
   it('opens the exact conversation and restores bell focus after Escape', async () => {
