@@ -6,7 +6,7 @@ Last updated: 2026-10-19
 
 - Latest `main` is `cfe6be6` (#227 Notification Center hardening merged; no open pull requests at
   the start of this task).
-- Issue #228 Phase A preflight is a documentation/measurement-only draft PR on
+- Issue #228 Phase A preflight is documentation/measurement-only draft PR #229 on
   `docs/issue-228-console-tabs-preflight`, referencing #228 and #198. It re-audits `main`, proposes
   D-089 amendments A1–A7, revises the interaction matrix, records a new performance baseline with a
   corrected harness, and defines the B0′ → B1 → B2 → B3 → C1 → C2 → D1 PR sequence with gates.

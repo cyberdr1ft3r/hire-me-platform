@@ -5,7 +5,7 @@ Status owner: repository maintainer
 
 ## Issue #228 — Console Workspace tabs, Phase A preflight on `main`
 
-- Documentation and measurement only, on `docs/issue-228-console-tabs-preflight` from `main`
+- Documentation and measurement only, in draft PR #229 (`docs/issue-228-console-tabs-preflight`) from `main`
   `cfe6be6` (#227 merged). No application code, contract, schema, permission, dependency or
   sidebar change. [Preflight](../design/console-workspace-tabs-preflight-228.md),
   [revised interaction matrix](../design/console-workspace-v1-interaction-matrix.md),
