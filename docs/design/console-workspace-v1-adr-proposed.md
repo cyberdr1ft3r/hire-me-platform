@@ -10,6 +10,19 @@ Base: integration branch `fix/ui-refinement-demo-20261013` at `bd46f59` (AppShel
 v1.2 #195 and Workspace Surface v1.0 #197 merged into it; #194 into `main` and the
 Notification Center #199 are still open drafts).
 
+> **Amendments proposed by Issue #228 (2026-10-19, `main` `cfe6be6`), also pending sign-off.**
+> The [#228 preflight](./console-workspace-tabs-preflight-228.md#amendments-proposed-by-this-preflight)
+> re-audited `main`: B0 (request core, #203/#209) and B1 (lazy routes, #208) are done, and
+> Workspace v2 made the quick preview local state and the record query a pushed focused view.
+> It proposes: **A1** keep today's URLs and treat tab membership as session state (replaces §4's
+> `tab=record` grammar; only cross-module record tabs add `in=`); **A2** no response cache in
+> Phase B (§5); **A3** confirm-only drafts, no hidden `<Activity>` tabs (§1, §6), because hidden
+> Activity would release the effect-based leave guard; **A4** prune tabs on permission-only
+> changes, remount on user/session changes (§7); **A5** desktop strip in the utility-bar
+> breadcrumb slot (§9); **A6** reuse `navigation-guard.ts` and extend guard coverage first;
+> **A7** optional, versioned workspace snapshots. Sections below are unchanged and must be read
+> together with those amendments.
+
 ## Context
 
 Issue #198 asks for Salesforce-inspired, deliberately simpler in-app tabs: primary
