@@ -7,7 +7,7 @@ Last updated: 2026-10-20
 - Latest `main` is `cfe6be6`. Issue #228 Phase A was approved in the review of draft PR #229 with
   refinements RV1 (tab identity in `history.state`, URL-only fallback) and RV2 (guards ask only for
   genuinely unsaved input). PR #229 documents both; its exact-head CI is green and it stays draft.
-- B0′ is a separate draft PR on `feat/issue-228-b0-unsaved-input-guards`: RV2 dirty detection in
+- B0′ is draft PR #230 on `feat/issue-228-b0-unsaved-input-guards`: RV2 dirty detection in
   the shared guard, guard-stack fallthrough, and unsaved-input protection for Tasks, Training,
   Accounting, Commercial, Documents, Messages and Administration.
   [Evidence](../audit/issue-228-b0-unsaved-input.md).

@@ -5,7 +5,7 @@ Status owner: repository maintainer
 
 ## Issue #228 B0′ — unsaved-input guards for every module with forms
 
-- First implementation step after the Phase A approval in draft PR #229 (refinement RV2). Branch
+- First implementation step after the Phase A approval in draft PR #229 (refinement RV2), draft PR #230. Branch
   `feat/issue-228-b0-unsaved-input-guards` from `main` `cfe6be6`; no console tabs, API, contract,
   schema, permission or dependency change.
 - The shared guard now asks only for genuinely unsaved input (changed and different from the values
