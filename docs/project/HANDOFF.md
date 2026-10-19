@@ -1,8 +1,16 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 ## Current situation
+
+- **Draft: Clients Workspace v2.1 (PR #210).** Branch
+  `cursor/clients-workspace-v21-proposal-03f8` has a normal merge of `main` `290fa32` / #218, then a
+  presentation-only Clients implementation using the shared page-system foundation. Directory,
+  preview sheet/pane, full record, permissions, APIs, URL deep links, focus return, and scroll
+  ownership are covered by focused tests and six installed-Chrome EN/FR desktop/tablet/mobile
+  scenarios. Evidence: [`clients-workspace-v2.1`](../audit/clients-workspace-v2.1.md). Require
+  exact-head four-job CI and human review. Keep draft; do not merge or deploy automatically.
 
 - **Draft: Unified Page System foundation.** Branch `feat/unified-page-system-foundation` starts
   from latest `main` `2e01f40`, whose pre-work run `39023855790` passed all four CI jobs. The

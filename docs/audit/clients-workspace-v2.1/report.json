@@ -1,0 +1,152 @@
+{
+  "browser": "Google Chrome",
+  "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "generatedAt": "2026-10-19T10:42:24.699Z",
+  "passed": true,
+  "results": [
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "en",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "desktop-en-directory.png",
+        "desktop-en-preview.png",
+        "desktop-en-record.png"
+      ],
+      "scrollAfter": 846,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": false,
+      "toolbarCount": "30 clients",
+      "viewport": "desktop"
+    },
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "fr",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "desktop-fr-directory.png",
+        "desktop-fr-preview.png",
+        "desktop-fr-record.png"
+      ],
+      "scrollAfter": 846,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": false,
+      "toolbarCount": "30 clients",
+      "viewport": "desktop"
+    },
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "en",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "tablet-en-directory.png",
+        "tablet-en-preview.png",
+        "tablet-en-record.png"
+      ],
+      "scrollAfter": 942,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": false,
+      "toolbarCount": "30 clients",
+      "viewport": "tablet"
+    },
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "fr",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "tablet-fr-directory.png",
+        "tablet-fr-preview.png",
+        "tablet-fr-record.png"
+      ],
+      "scrollAfter": 942,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": false,
+      "toolbarCount": "30 clients",
+      "viewport": "tablet"
+    },
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "en",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "mobile-en-directory.png",
+        "mobile-en-preview.png",
+        "mobile-en-record.png"
+      ],
+      "scrollAfter": 995,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": true,
+      "toolbarCount": "30 clients",
+      "viewport": "mobile"
+    },
+    {
+      "actionPattern": 1,
+      "detailReads": 1,
+      "directory": 1,
+      "focusReturned": true,
+      "headings": 1,
+      "horizontalOverflow": 0,
+      "locale": "fr",
+      "pageErrors": [],
+      "previewDetailReads": 0,
+      "recordHeadings": 1,
+      "recordUrl": "http://127.0.0.1:5173/clients?client=11111111-1111-4111-8111-111111111111",
+      "screenshots": [
+        "mobile-fr-directory.png",
+        "mobile-fr-preview.png",
+        "mobile-fr-record.png"
+      ],
+      "scrollAfter": 995,
+      "scrollBefore": 0,
+      "selected": "true",
+      "sheet": true,
+      "toolbarCount": "30 clients",
+      "viewport": "mobile"
+    }
+  ]
+}

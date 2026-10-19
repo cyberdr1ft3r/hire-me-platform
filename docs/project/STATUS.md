@@ -1,7 +1,20 @@
 # Project Status
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 Status owner: repository maintainer
+
+## Clients Workspace v2.1 (draft PR #210)
+
+- Branch `cursor/clients-workspace-v21-proposal-03f8` is reconciled by normal merge with `main`
+  `290fa32` (merged PR #218). Main run `39228727562` passed all four jobs before implementation.
+- Clients now consume the shared `DirectoryPage`, `RecordPage`, `FilterToolbar`, and
+  `ContextualActions` foundation. The patch refines directory hierarchy, responsive columns,
+  toolbar count, preview rhythm, record identity/actions, and the proposed semantic CRM accent. It
+  does not change Clients APIs, schemas, permissions, business rules, deep links, or scroll owners.
+- Focused Clients tests, architecture/style/contrast, formatting, lint, typecheck, build, and six
+  installed-Chrome EN/FR desktop/tablet/mobile scenarios pass. Exact-head four-job CI is required on
+  the final commit. [Evidence](../audit/clients-workspace-v2.1.md). Keep PR #210 draft; do not merge
+  or deploy automatically.
 
 ## Unified Page System foundation (draft)
 

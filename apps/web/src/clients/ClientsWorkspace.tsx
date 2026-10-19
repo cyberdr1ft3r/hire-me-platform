@@ -6,9 +6,11 @@ import { useI18n } from '../i18n/index.js';
 import { useNarrowContainer } from '../layout/index.js';
 import {
   Button,
+  ContextualActions,
   CreationDrawer,
+  DirectoryPage,
   InlineMessage,
-  PageHeader,
+  RecordPage,
   TextArea,
   TextField,
   WORKSPACE_SPLIT_MIN_REM,
@@ -158,7 +160,6 @@ export function ClientsWorkspace({
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const rootRef = useRef<HTMLElement>(null);
   const directoryRef = useRef<HTMLDivElement>(null);
   const listHeadingId = useId();
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -166,7 +167,7 @@ export function ClientsWorkspace({
   const contactHeadingRef = useRef<HTMLHeadingElement>(null);
   const [creatingClient, setCreatingClient] = useState(false);
   const recordOpen = recordClientId !== null;
-  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const narrow = useNarrowContainer(directoryRef, WORKSPACE_SPLIT_MIN_REM.preview);
   const sidePreview = previewClient && !narrow ? previewClient : null;
   const focusRowAfterRender = useRef<string | null>(null);
   const lastRecordId = useRef<string | null>(null);
@@ -216,150 +217,166 @@ export function ClientsWorkspace({
     onClientPage(page);
   }
 
-  return (
-    <section
-      aria-label={t('clients.region')}
-      className="clients ui-workspace-page"
-      data-view={recordOpen ? 'record' : 'directory'}
-      ref={rootRef}
-    >
-      <PageHeader
-        compact
-        description={t('clients.header.description')}
-        eyebrow={t('clients.header.eyebrow')}
-        primaryAction={
-          access.canCreateClients ? (
-            <Button
-              aria-haspopup="dialog"
-              disabled={writesLocked}
-              onClick={() => setCreatingClient(true)}
-            >
-              <span aria-hidden="true">+ </span>
-              {t('clients.actions.newClient')}
-            </Button>
-          ) : undefined
-        }
-        title={t('clients.header.title')}
-      />
-      {access.readOnly ? (
-        <InlineMessage title={t('clients.readOnly')} tone="info">
-          {t('clients.readOnly')}
-        </InlineMessage>
-      ) : null}
-      {feedback ? (
-        <InlineMessage
-          announce
-          title={
-            feedback.tone === 'success'
-              ? t('clients.feedback.successTitle')
-              : t('common.actions.retry')
-          }
-          tone={feedback.tone === 'success' ? 'success' : 'danger'}
+  const primaryAction = access.canCreateClients ? (
+    <ContextualActions
+      primary={
+        <Button
+          aria-haspopup="dialog"
+          disabled={writesLocked}
+          onClick={() => setCreatingClient(true)}
         >
-          <p className="client-message__text">{formatClientFeedback(t, feedback)}</p>
-        </InlineMessage>
-      ) : null}
+          <span aria-hidden="true">+ </span>
+          {t('clients.actions.newClient')}
+        </Button>
+      }
+    />
+  ) : undefined;
 
-      {recordOpen ? (
-        <ClientFocusedRecord
-          access={access}
-          appliedContactFilters={appliedContactFilters}
-          clientDetail={clientDetail}
-          clientHeadingRef={clientHeadingRef}
-          contactDetailRevealToken={contactDetailRevealToken}
-          contactFilters={contactFilters}
-          contactHeadingRef={contactHeadingRef}
-          contactList={contactList}
-          createContactValues={createContactValues}
-          detailRevealToken={clientDetailRevealToken}
-          editClientValues={editClientValues}
-          editContactValues={editContactValues}
-          feedback={feedback}
-          loadMissions={loadMissions}
-          onApplyContactFilters={onApplyContactFilters}
-          onArchiveClient={onArchiveClient}
-          onArchiveContact={onArchiveContact}
-          onBack={onCloseRecord}
-          onCancelClientEdit={onCancelClientEdit}
-          onCancelContactCreate={onCancelContactCreate}
-          onChangeClientStatus={onChangeClientStatus}
-          onChangeContactStatus={onChangeContactStatus}
-          onContactFiltersChange={onContactFiltersChange}
-          onContactPage={onContactPage}
-          onCreateContact={onCreateContact}
-          onCreateContactValuesChange={onCreateContactValuesChange}
-          onEditClientValuesChange={onEditClientValuesChange}
-          onEditContactValuesChange={onEditContactValuesChange}
-          onNavigatePath={onNavigatePath}
-          onResetContactFilters={onResetContactFilters}
-          onRetryClientDetail={onRetryClientDetail}
-          onRetryContactList={onRetryContactList}
-          onSaveClient={onSaveClient}
-          onSaveContact={onSaveContact}
-          onSelectContact={onSelectContact}
-          renderClientFields={(props) => <ClientEditFields {...props} />}
-          renderContactFields={(props) => <ContactFields {...props} />}
-          selectedContact={selectedContact}
-          writesLocked={writesLocked}
-        />
-      ) : (
-        <WorkspaceSurface
-          className="clients__workspace"
-          ref={directoryRef}
-          split="preview"
-          view={sidePreview ? undefined : 'list'}
-        >
-          <WorkspacePane
-            aria-labelledby={listHeadingId}
-            className="clients__list-pane"
-            kind="list"
-            toolbar={
-              <WorkspaceToolbar
-                heading={
-                  <h2
-                    className="clients__pane-title"
-                    id={listHeadingId}
-                    ref={listHeadingRef}
-                    tabIndex={-1}
-                  >
-                    {t('clients.directory.title')}
-                  </h2>
-                }
-              >
-                <ClientFilters
-                  appliedValues={appliedClientFilters}
-                  busy={clientList.status === 'loading'}
-                  onChange={onClientFiltersChange}
-                  onReset={onResetClientFilters}
-                  onSubmit={onApplyClientFilters}
-                  showReset={hasActiveClientFilters(appliedClientFilters)}
-                  values={clientFilters}
-                />
-              </WorkspaceToolbar>
+  const notices =
+    access.readOnly || feedback ? (
+      <>
+        {access.readOnly ? (
+          <InlineMessage title={t('clients.readOnly')} tone="info">
+            {t('clients.readOnly')}
+          </InlineMessage>
+        ) : null}
+        {feedback ? (
+          <InlineMessage
+            announce
+            title={
+              feedback.tone === 'success'
+                ? t('clients.feedback.successTitle')
+                : t('common.actions.retry')
             }
+            tone={feedback.tone === 'success' ? 'success' : 'danger'}
           >
-            <ClientDirectory
-              filtered={hasActiveClientFilters(appliedClientFilters)}
-              list={clientList}
-              onPage={changePage}
-              onPreview={onPreview}
-              onReset={onResetClientFilters}
-              onRetry={onRetryClientList}
-              previewId={previewClient?.id ?? null}
-              tableLabelId={listHeadingId}
-            />
-          </WorkspacePane>
-          {sidePreview ? (
-            <WorkspacePane as="div" className="clients__preview-pane" kind="detail">
-              <ClientQuickPreview
-                client={sidePreview}
-                key={sidePreview.id}
-                onClose={closePreview}
-                onOpenRecord={() => onOpenRecord(sidePreview.id)}
+            <p className="client-message__text">{formatClientFeedback(t, feedback)}</p>
+          </InlineMessage>
+        ) : null}
+      </>
+    ) : undefined;
+
+  const pageProps = {
+    compact: true,
+    description: t('clients.header.description'),
+    eyebrow: t('clients.header.eyebrow'),
+    notices,
+    primaryAction,
+    title: t('clients.header.title'),
+  };
+
+  return (
+    <>
+      {recordOpen ? (
+        <RecordPage {...pageProps} className="clients ui-workspace-page" data-view="record">
+          <ClientFocusedRecord
+            access={access}
+            appliedContactFilters={appliedContactFilters}
+            clientDetail={clientDetail}
+            clientHeadingRef={clientHeadingRef}
+            contactDetailRevealToken={contactDetailRevealToken}
+            contactFilters={contactFilters}
+            contactHeadingRef={contactHeadingRef}
+            contactList={contactList}
+            createContactValues={createContactValues}
+            detailRevealToken={clientDetailRevealToken}
+            editClientValues={editClientValues}
+            editContactValues={editContactValues}
+            feedback={feedback}
+            loadMissions={loadMissions}
+            onApplyContactFilters={onApplyContactFilters}
+            onArchiveClient={onArchiveClient}
+            onArchiveContact={onArchiveContact}
+            onBack={onCloseRecord}
+            onCancelClientEdit={onCancelClientEdit}
+            onCancelContactCreate={onCancelContactCreate}
+            onChangeClientStatus={onChangeClientStatus}
+            onChangeContactStatus={onChangeContactStatus}
+            onContactFiltersChange={onContactFiltersChange}
+            onContactPage={onContactPage}
+            onCreateContact={onCreateContact}
+            onCreateContactValuesChange={onCreateContactValuesChange}
+            onEditClientValuesChange={onEditClientValuesChange}
+            onEditContactValuesChange={onEditContactValuesChange}
+            onNavigatePath={onNavigatePath}
+            onResetContactFilters={onResetContactFilters}
+            onRetryClientDetail={onRetryClientDetail}
+            onRetryContactList={onRetryContactList}
+            onSaveClient={onSaveClient}
+            onSaveContact={onSaveContact}
+            onSelectContact={onSelectContact}
+            renderClientFields={(props) => <ClientEditFields {...props} />}
+            renderContactFields={(props) => <ContactFields {...props} />}
+            selectedContact={selectedContact}
+            writesLocked={writesLocked}
+          />
+        </RecordPage>
+      ) : (
+        <DirectoryPage
+          {...pageProps}
+          className="clients ui-workspace-page"
+          data-view="directory"
+          layout="fill"
+        >
+          <WorkspaceSurface
+            className="clients__workspace"
+            ref={directoryRef}
+            split="preview"
+            view={sidePreview ? undefined : 'list'}
+          >
+            <WorkspacePane
+              aria-labelledby={listHeadingId}
+              className="clients__list-pane"
+              kind="list"
+              toolbar={
+                <WorkspaceToolbar
+                  heading={
+                    <h2
+                      className="clients__pane-title"
+                      id={listHeadingId}
+                      ref={listHeadingRef}
+                      tabIndex={-1}
+                    >
+                      {t('clients.directory.title')}
+                    </h2>
+                  }
+                >
+                  <ClientFilters
+                    appliedValues={appliedClientFilters}
+                    busy={clientList.status === 'loading'}
+                    onChange={onClientFiltersChange}
+                    onReset={onResetClientFilters}
+                    onSubmit={onApplyClientFilters}
+                    showReset={hasActiveClientFilters(appliedClientFilters)}
+                    total={clientList.status === 'ready' ? clientList.total : undefined}
+                    values={clientFilters}
+                  />
+                </WorkspaceToolbar>
+              }
+            >
+              <ClientDirectory
+                filtered={hasActiveClientFilters(appliedClientFilters)}
+                list={clientList}
+                onPage={changePage}
+                onPreview={onPreview}
+                onReset={onResetClientFilters}
+                onRetry={onRetryClientList}
+                previewId={previewClient?.id ?? null}
+                tableLabelId={listHeadingId}
               />
             </WorkspacePane>
-          ) : null}
-        </WorkspaceSurface>
+            {sidePreview ? (
+              <WorkspacePane as="div" className="clients__preview-pane" kind="detail">
+                <ClientQuickPreview
+                  client={sidePreview}
+                  key={sidePreview.id}
+                  onClose={closePreview}
+                  onOpenRecord={() => onOpenRecord(sidePreview.id)}
+                />
+              </WorkspacePane>
+            ) : null}
+          </WorkspaceSurface>
+        </DirectoryPage>
       )}
 
       {!recordOpen && previewClient && narrow ? (
@@ -389,7 +406,7 @@ export function ClientsWorkspace({
           writesLocked={writesLocked}
         />
       ) : null}
-    </section>
+    </>
   );
 }
 

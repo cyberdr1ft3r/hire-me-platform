@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, Select, TextField } from '../ui/index.js';
+import { Button, FilterToolbar, Select, TextField } from '../ui/index.js';
 import { CLIENT_STATUS_FILTER_OPTIONS, clientStatusLabelKey } from './client-labels.js';
 import type { ClientFilterValues } from './client-state.js';
 
@@ -16,6 +16,7 @@ export function ClientFilters({
   onReset,
   onSubmit,
   showReset,
+  total,
   values,
 }: {
   appliedValues: ClientFilterValues;
@@ -24,6 +25,7 @@ export function ClientFilters({
   onReset: () => void;
   onSubmit: () => void;
   showReset: boolean;
+  total?: number;
   values: ClientFilterValues;
 }) {
   const { t } = useI18n();
@@ -43,48 +45,58 @@ export function ClientFilters({
       onSubmit={handleSubmit}
       role="search"
     >
-      <div className="client-filters__bar">
-        <TextField
-          autoComplete="off"
-          className="client-filters__search"
-          hint={t('clients.filters.searchHint')}
-          label={t('clients.filters.search')}
-          maxLength={120}
-          name="search"
-          onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
-          type="search"
-          value={values.search}
-        />
-        <div className="client-filters__actions">
-          <Button disabled={busy} size="compact" type="submit" variant="primary">
-            {t('clients.filters.submit')}
-          </Button>
-          {showReset ? (
+      <FilterToolbar
+        actions={
+          <>
+            <Button disabled={busy} size="compact" type="submit" variant="primary">
+              {t('clients.filters.submit')}
+            </Button>
+            {showReset ? (
+              <Button
+                disabled={busy}
+                onClick={onReset}
+                size="compact"
+                type="button"
+                variant="secondary"
+              >
+                {t('clients.filters.reset')}
+              </Button>
+            ) : null}
             <Button
+              aria-controls={filtersId}
+              aria-expanded={advancedOpen}
               disabled={busy}
-              onClick={onReset}
+              onClick={() => setAdvancedOpen((open) => !open)}
               size="compact"
               type="button"
               variant="secondary"
             >
-              {t('clients.filters.reset')}
+              {advancedCount > 0
+                ? t('clients.filters.filtersActive', { count: advancedCount })
+                : t('clients.filters.filtersToggle')}
             </Button>
-          ) : null}
-          <Button
-            aria-controls={filtersId}
-            aria-expanded={advancedOpen}
-            disabled={busy}
-            onClick={() => setAdvancedOpen((open) => !open)}
-            size="compact"
-            type="button"
-            variant="secondary"
-          >
-            {advancedCount > 0
-              ? t('clients.filters.filtersActive', { count: advancedCount })
-              : t('clients.filters.filtersToggle')}
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        className="client-filters__bar"
+        search={
+          <TextField
+            autoComplete="off"
+            className="client-filters__search"
+            hint={t('clients.filters.searchHint')}
+            label={t('clients.filters.search')}
+            maxLength={120}
+            name="search"
+            onChange={(event) => onChange({ ...values, search: event.currentTarget.value })}
+            type="search"
+            value={values.search}
+          />
+        }
+        status={
+          total === undefined ? undefined : (
+            <span role="status">{t('common.counts.clients', { count: total })}</span>
+          )
+        }
+      />
       <div className="client-filters__advanced" hidden={!advancedOpen} id={filtersId}>
         <Select
           label={t('clients.filters.status')}

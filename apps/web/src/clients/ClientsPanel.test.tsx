@@ -662,6 +662,31 @@ describe('Client writes never overlap', () => {
 });
 
 describe('Quick preview', () => {
+  it('uses the shared directory and record composition without duplicating page headings', async () => {
+    stubClientsApi();
+    renderPanel();
+
+    const directoryHeading = await screen.findByRole('heading', { level: 1, name: 'Clients' });
+    const directoryPage = directoryHeading.closest('[data-page-kind="directory"]');
+    expect(directoryPage).not.toBeNull();
+    expect(within(directoryPage as HTMLElement).getAllByRole('heading', { level: 1 })).toHaveLength(
+      1,
+    );
+    expect(screen.getByRole('search', { name: 'Client search' })).toHaveClass('client-filters');
+    const row = await screen.findByRole('button', { name: 'Acme Corp' });
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('2 clients');
+
+    fireEvent.click(row);
+    expect(row).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open full record' }));
+
+    const recordPage = (await screen.findByRole('heading', { level: 1, name: 'Clients' })).closest(
+      '[data-page-kind="record"]',
+    );
+    expect(recordPage).not.toBeNull();
+    expect(within(recordPage as HTMLElement).getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('does not load the client detail read until the record is opened', async () => {
     const { calls } = stubClientsApi();
     renderPanel();

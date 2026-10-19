@@ -6,7 +6,7 @@ import {
   type CandidateMenuAction,
 } from '../candidates/CandidateActionMenu.js';
 import { useI18n } from '../i18n/index.js';
-import { Button, InlineMessage, StatusBadge } from '../ui/index.js';
+import { Button, ContextualActions, InlineMessage, StatusBadge } from '../ui/index.js';
 import type { ClientAccess } from './client-access.js';
 import type { ClientProfileValues } from './client-form.js';
 import { clientStatusLabelKey, clientStatusTone } from './client-labels.js';
@@ -129,20 +129,26 @@ export function ClientRecordOverview({
           </div>
         </div>
         {canEdit || menuActions.length > 0 ? (
-          <div aria-label={t('clients.actions.region')} className="client-actions" role="group">
-            {canEdit && !editing ? (
-              <Button disabled={writesLocked} onClick={() => setEditing(true)}>
-                {t('clients.actions.editClient')}
-              </Button>
-            ) : null}
-            {menuActions.length > 0 ? (
-              <CandidateActionMenu
-                actions={menuActions}
-                disabled={writesLocked}
-                label={t('clients.actions.more')}
-                loadingLabel={t('common.status.working')}
-              />
-            ) : null}
+          <div aria-label={t('clients.actions.region')} role="group">
+            <ContextualActions
+              overflow={
+                menuActions.length > 0 ? (
+                  <CandidateActionMenu
+                    actions={menuActions}
+                    disabled={writesLocked}
+                    label={t('clients.actions.more')}
+                    loadingLabel={t('common.status.working')}
+                  />
+                ) : undefined
+              }
+              primary={
+                canEdit && !editing ? (
+                  <Button disabled={writesLocked} onClick={() => setEditing(true)}>
+                    {t('clients.actions.editClient')}
+                  </Button>
+                ) : undefined
+              }
+            />
           </div>
         ) : null}
       </header>
