@@ -69,6 +69,10 @@ export const frMessages: Messages = {
     },
   },
   navigation: {
+    moduleLoadFailed: 'Impossible de charger ce module. Vérifiez votre connexion et réessayez.',
+    moduleLoadFailedTitle: 'Espace indisponible',
+    moduleLoadRetry: 'Réessayer',
+    moduleLoading: 'Chargement de l’espace…',
     destinations: {
       accounting: 'Comptabilité',
       administration: 'Administration',

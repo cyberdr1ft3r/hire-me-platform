@@ -1,14 +1,83 @@
 # Project Status
 
-Last updated: 2026-10-14
+Last updated: 2026-10-18
 Status owner: repository maintainer
 
-## Issue #204 — Clients Workspace v2.0 (draft PR #207, visual re-review)
+## Unified Page System foundation (draft)
 
-- Branch `cursor/issue-204-clients-workspace-v2-cf71` from `main` `4890f9b` (#206 merged).
-  Directory/preview/mobile sheet approved; focused record refined to read-first overview with Edit client
-  and on-demand New contact (PR #207 review). Playwright EN/FR 104/104 on latest head.
-  [Evidence](../audit/issue-204-clients-workspace-v2.md). Draft PR #207 awaiting exact-head CI and final visual sign-off.
+- Branch `feat/unified-page-system-foundation` starts from latest `main` `2e01f40`; that exact main
+  head's GitHub Actions run `39023855790` passed all four jobs before work began. PR #210 was read as
+  a proposal and was not modified.
+- The foundation reuses the existing route/permission registry, Salesforce-inspired AppShell,
+  semantic tokens, `PageHeader`, Workspace Surface, feedback, drawers, forms, request clients, and
+  typed EN/FR system. It adds only page composition and shared state primitives, applies `PageShell`
+  to Overview, and centralizes direct-route permission denial. No business workspace, API, schema,
+  permission, form, or workflow is migrated in this PR.
+- Architecture and the 14-route sequence: [design](../design/unified-page-system-foundation.md).
+  Installed Google Chrome evidence covers EN/FR at 1440, 1024, and 390px plus localized denial and
+  mobile Escape/focus restoration: [report](../audit/unified-page-system/report.json).
+- Focused page/shell/workspace tests, monorepo lint, typecheck, build, formatting, style tokens, and
+  contrast pass. A local all-at-once Windows `pnpm test` is non-authoritative because sandbox hard
+  links are denied and concurrent PDF/web suites exceed their existing five-second limits; exact-head
+  Linux CI is the release gate.
+
+## Issue #216 — Notification Center scrolling P1 hotfix (draft PR #217)
+
+- Branch `fix/issue-216-notification-center-hotfix` starts from latest `main` `eed30f5`, including
+  merged PRs #213 and #215. The CSS-only fix gives the Notification Center an explicit bounded grid
+  row and zero-minimum scroll body, preserves native boundary handoff, and permits only its action
+  labels to wrap. No API, pagination, permission, schema, unread-state, navigation, or deployment
+  change.
+- Installed-Chrome evidence covers 0, 1, 20, and 100 synthetic notifications in EN/FR at desktop,
+  tablet, and mobile sizes: 24/24 layout cases, 12/12 wheel/trackpad/PageDown long-list cases, 4/4
+  mobile touch cases, and 24/24 Escape focus restorations pass. Local lint, typecheck, build, focused
+  tests, architecture/style/contrast, and formatting gates pass. Exact-head CI is required on the
+  final documentation head. [Evidence](../audit/issue-216-notification-center.md).
+
+## Issue #214 — Messages wheel scrolling P1 hotfix (draft PR #215)
+
+- Branch `fix/issue-214-messages-scroll-hotfix` from merged-#213 `main` `66bc16a`. The Messages log
+  keeps its independent overflow but now allows native wheel, trackpad, and touch scroll handoff at
+  its boundaries (`overscroll-behavior-y: auto`). No wheel handler, flex sizing, API, schema,
+  permission, or deployment change.
+- Installed-Chrome evidence covers the conversation list, long message thread, composer, surrounding
+  whitespace, mouse wheel, trackpad-like deltas, keyboard Enter, `PageDown`, and mobile touch. The
+  selector regression and 47 focused Messages/workspace tests pass. Draft PR #215 CI run
+  `38946878376` was fully green on implementation/documentation head `2a4b7ad`; the final
+  memory-only head is re-running the exact same gate set.
+  [Evidence](../audit/issue-214-messages-scroll.md).
+
+## Issue #212 — Workspace wheel scrolling P1 hotfix (draft PR #213)
+
+- Branch `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb`. The Missions
+  candidate-process detail and shared fill-layout panes now keep their nested overflow while
+  allowing native scroll chaining at boundaries (`overscroll-behavior-y: auto`). No wheel handler,
+  modal lock, API, schema, permission, or deployment change.
+- Installed-Chrome evidence covers wheel, trackpad-like deltas, `PageDown`, and touch plus Clients,
+  Candidates, Missions, Documents, and Admin at 1440×900 and 390×844. Focused regression tests,
+  lint, typecheck, build, architecture, style-token, contrast, and formatting checks pass.
+  [Evidence](../audit/issue-212-workspace-scroll.md).
+- The full Windows web run remains non-green for unrelated baseline issues: lazy route imports miss
+  existing one-second test waits in `App.test.tsx`, and `foundation.test.tsx` assumes LF while the
+  checkout supplies CRLF. The Issue #212 focused set is 56/56 green.
+
+## Issue #198 — Frontend lazy routes (Phase B1, merged PR #208 `170973a`)
+
+- Merged to `main` 2026-10-15 (head `10dd0ec`). Route-level `React.lazy` + `RouteModuleBoundary`.
+  Entry JS gzip **411.56 → 235.62 KB** (~43% reduction); maintainer browser verification **10/10** and
+  regression smoke **13/13** (2026-10-15). [Evidence](../audit/issue-198-frontend-lazy-routes.md).
+
+## Issue #202 — Cross-tab refresh (PR #209 open, R-059)
+
+- Branch `cursor/issue-202-cross-tab-auth-cf71` head **`a438803`** (integrates `main` **`170973a`** / #208 via **`eba9d4b`**).
+  Local validation on integrated tree (2026-10-15): web **1023/1023**, cross-tab unit **42/42**, Phase F **4/4**,
+  lazy smoke **13/13**, maintainer harness **10/10**, logout/re-login + lazy `/admin` **3/3**; exact-head CI run
+  **38765900927** green on **`a438803`**. [Evidence](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+
+## Issue #204 — Clients Workspace v2.0 (merged PR #207 `bdfbf5f`)
+
+- Directory/preview/mobile sheet; focused record read-first overview and on-demand contacts.
+  Playwright EN/FR 104/104. [Evidence](../audit/issue-204-clients-workspace-v2.md). Optional human sign-off.
 
 ## Issue #204 — Missions Workspace v2.0 (merged, PR #206 `4890f9b`)
 

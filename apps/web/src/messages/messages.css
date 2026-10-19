@@ -205,7 +205,8 @@
   max-height: min(60dvh, 40rem);
   min-height: 12rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /* Keep the thread independent, but hand wheel/touch input to the page at its edges. */
+  overscroll-behavior-y: auto;
   padding-block: var(--space-2);
 }
 

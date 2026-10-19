@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-06
+Last updated: 2026-10-18
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -9,6 +9,15 @@ This file is the fastest context-rehydration entry point for humans and coding a
 Build a bilingual, responsive internal business platform for Hire Me that centralizes recruitment operations, client relationships, missions, public opportunities and applications, candidates and CVs, interviews and evaluations, training and coaching, task management, commercial operations, documents, notifications, reporting, and selected integrations.
 
 ## Current Phase
+
+The Unified Page System foundation is on branch `feat/unified-page-system-foundation`, based on
+latest `main` `2e01f40` (including merged P1 hotfixes #213, #215, and #217). It reuses the existing
+permission-aware Salesforce-inspired AppShell, UI-DNA tokens, `PageHeader`, Workspace Surface,
+feedback, drawers, and typed EN/FR infrastructure, and adds only the missing page-composition layer:
+`PageShell`, `DirectoryPage`, `RecordPage`, `FilterToolbar`, `ContextualActions`, and `PageState`.
+The architecture and 14-route migration map are in `docs/design/unified-page-system-foundation.md`;
+installed-Chrome evidence is in `docs/audit/unified-page-system/`. PR #210 remains untouched and
+must be integrated only after this foundation is reviewed. No merge or deployment is authorized.
 
 The Issue #52 representative milestone is complete. Stable pre–Issue #118 `main` is `4c0655d9ec59228b9a76d9a6964c1f505fa2be76`, including merged Issue #117 UI-DNA v1.1 interaction grammar (D-082) through PR #137, Issue #116 stacked master-detail through PR #138, Issue #124 / PR #136, Accounting #135, Training #123, Documents #119, and the core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda). UI-DNA v1.1 interaction grammar (Issue #117 / D-082, merged on `main`) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #118 Missions workspace IA/composition is implemented on open draft PR #139 and is **not merged** yet. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
 

@@ -1,25 +1,59 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-14
+Last updated: 2026-10-18
 
 ## Current situation
 
-- **Next: human review Issue #204 Clients Workspace v2.0** — draft PR #207 on
-  `cursor/issue-204-clients-workspace-v2-cf71` into `main` (`4890f9b`). Directory →
-  preview → focused client record; [evidence](../audit/issue-204-clients-workspace-v2.md)
-  includes EN/FR screenshots and 104/104 browser checks. Confirm exact-head CI green,
-  then visual sign-off. No merge/deploy automatically.
+- **Draft: Unified Page System foundation.** Branch `feat/unified-page-system-foundation` starts
+  from latest `main` `2e01f40`, whose pre-work run `39023855790` passed all four CI jobs. The
+  architecture-first map inventories all 14 internal routes and deliberately reuses AppShell,
+  route/RBAC rules, UI-DNA tokens, PageHeader, Workspace Surface, feedback, drawers, forms, and
+  EN/FR infrastructure. The implementation adds only `PageShell`, `DirectoryPage`, `RecordPage`,
+  `FilterToolbar`, `ContextualActions`, and `PageState`; Overview and the central denied route prove
+  integration without migrating business modules. Google Chrome evidence covers 8 EN/FR
+  desktop/tablet/mobile and denied-state scenarios. PR #210 remains untouched. Require exact-head
+  CI and human review; do not merge or deploy automatically.
+
+- **P1 hotfix: Issue #216 Notification Center scrolling (draft PR #217).** Branch
+  `fix/issue-216-notification-center-hotfix` starts from `main` `eed30f5` (merged #213 and #215).
+  It fixes the implicit auto-sized grid row that made the list expand behind a clipped panel, while
+  preserving Notification behavior and native scroll handoff. Installed-Chrome evidence and the
+  24-case EN/FR desktop/tablet/mobile matrix are in
+  [`issue-216-notification-center`](../audit/issue-216-notification-center.md). Local gates are green;
+  require exact-head CI and human review. Do not merge or deploy automatically; PR #210 remains
+  untouched.
+
+- **P1 hotfix: Issue #214 Messages scrolling (draft PR #215).** Branch
+  `fix/issue-214-messages-scroll-hotfix` starts from merged-#213 `main` `66bc16a`. It removes the
+  remaining Messages-only scroll-boundary containment while preserving the message log as an
+  independent scroller. Installed-Chrome evidence and regression coverage are in
+  [`issue-214-messages-scroll`](../audit/issue-214-messages-scroll.md). Exact-head CI run
+  `38946878376` was green on `2a4b7ad`; the final memory-only head is re-running the gate set. Do
+  not merge or deploy automatically; PR #210 remains untouched.
+
+- **P1 hotfix: Issue #212 workspace scrolling (draft PR #213).** Branch
+  `fix/issue-212-workspace-scroll-hotfix` from `main` `e2c07eb` removes scroll-boundary trapping
+  from the shared fill panes and Missions process detail without changing their overflow ownership.
+  Browser evidence and the five-workspace desktop/mobile matrix are in
+  [`issue-212-workspace-scroll`](../audit/issue-212-workspace-scroll.md). Do not merge or deploy
+  automatically; PR #210 remains untouched.
+
+- **Merged: Issue #198 lazy routes (PR #208 → `main` `170973a`)** — maintainer-approved merge
+  2026-10-15. Evidence: [`issue-198-frontend-lazy-routes`](../audit/issue-198-frontend-lazy-routes.md).
+
+- **Next: Issue #202 cross-tab auth (PR #209, draft)** — branch `cursor/issue-202-cross-tab-auth-cf71`
+  at **`a438803`** (post-#208 integration). Local rerun complete (web 1023, auth 42, Phase F 4/4, smoke 13,
+  maintainer 10, logout/re-login 3); exact-head CI **38765900927** green on **`a438803`** — human merge review only.
+  Evidence: [`issue-202-cross-tab-auth`](../audit/issue-202-cross-tab-auth.md). Scope B unchanged.
+
+- **Merged: Issue #204 Clients Workspace v2.0** (PR #207, `bdfbf5f`). Optional human sign-off;
+  [evidence](../audit/issue-204-clients-workspace-v2.md).
 
 - **Merged: Missions Workspace v2.0** (PR #206, `4890f9b`). Human sign-off pending;
   [evidence](../audit/issue-204-missions-workspace-v2.md).
 
 - **Merged: Candidates Workspace v2.0** (PR #205, `e2ff257`). Applications for a
   candidate stay deferred (needs a cross-mission backend read).
-
-- **Merged:** PR #203 (Issue #202 Scope A, shared request core) into the integration
-  branch, and #194 (integration) into `main` at `14fc745`. Still to decide: the
-  cross-tab refresh follow-up (R-059) and Scope B (refresh limiter keying, proxy hops,
-  R-055), as separate issues.
 
 - **Next: Issue #198 Console Workspace sign-off.** Review the documentation-only draft
   PR #200 (preflight, D-089 proposal, interaction matrix, baseline). Completion requires

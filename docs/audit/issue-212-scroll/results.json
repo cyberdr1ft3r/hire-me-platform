@@ -1,0 +1,318 @@
+{
+  "generatedAt": "2026-10-16T17:14:30.296Z",
+  "baseline": {
+    "note": "The exact pre-fix contain declaration was reapplied in-page to record the original behavior.",
+    "wheel": {
+      "before": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "contain",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "after": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "contain",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "handedOff": false
+    }
+  },
+  "fixed": {
+    "keyboard": {
+      "pageTop": 809,
+      "moved": true
+    },
+    "trackpad": {
+      "before": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "after": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 140
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "handedOff": true
+    },
+    "wheel": {
+      "before": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "after": {
+        "bodyOverflow": "visible",
+        "detail": {
+          "clientHeight": 630,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 1931,
+          "scrollTop": 1301
+        },
+        "document": {
+          "clientHeight": 900,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1709,
+          "scrollTop": 809
+        },
+        "horizontalOverflow": false,
+        "pane": null,
+        "shellMain": {
+          "clientHeight": 1653,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 1653,
+          "scrollTop": 0
+        }
+      },
+      "handedOff": true
+    }
+  },
+  "matrix": {
+    "desktop": {
+      "clients": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "candidates": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": false,
+        "wheelMoved": false
+      },
+      "missions": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "documents": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "admin": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      }
+    },
+    "mobile": {
+      "clients": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "candidates": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "missions": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "documents": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "admin": {
+        "bodyUnlocked": true,
+        "horizontalOverflow": false,
+        "loaded": true,
+        "owner": "document",
+        "scrollable": true,
+        "wheelMoved": true
+      },
+      "missionsTouch": {
+        "before": {
+          "bodyOverflow": "visible",
+          "detail": null,
+          "document": {
+            "clientHeight": 844,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2508,
+            "scrollTop": 0
+          },
+          "horizontalOverflow": false,
+          "pane": {
+            "clientHeight": 2005,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2005,
+            "scrollTop": 0
+          },
+          "shellMain": {
+            "clientHeight": 2452,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2452,
+            "scrollTop": 0
+          }
+        },
+        "after": {
+          "bodyOverflow": "visible",
+          "detail": null,
+          "document": {
+            "clientHeight": 844,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2508,
+            "scrollTop": 1035
+          },
+          "horizontalOverflow": false,
+          "pane": {
+            "clientHeight": 2005,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2005,
+            "scrollTop": 0
+          },
+          "shellMain": {
+            "clientHeight": 2452,
+            "overflowY": "visible",
+            "overscrollY": "auto",
+            "scrollHeight": 2452,
+            "scrollTop": 0
+          }
+        },
+        "moved": true
+      }
+    }
+  }
+}

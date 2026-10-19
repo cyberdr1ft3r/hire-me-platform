@@ -1,32 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import type {
-  AdminPermission,
-  AdminRole,
-  AdminRoleName,
-  AdminUserDetail,
-  AdminUserSummary,
-  AuthenticatedUser,
-} from '@hire-me/contracts';
+import type { AuthenticatedUser } from '@hire-me/contracts';
 
-import {
-  assignAdminRole,
-  createAdminUser,
-  fetchHealthStatus,
-  fetchMe,
-  getAdminUser,
-  listAdminPermissions,
-  listAdminRoles,
-  listAdminUsers,
-  login,
-  logout,
-  removeAdminRole,
-  revokeAdminSession,
-  revokeAllAdminSessions,
-  updateAdminUser,
-  updateAdminUserStatus,
-  restoreSession,
-} from './api.js';
+import { fetchHealthStatus, fetchMe, login, logout, restoreSession } from './api.js';
 import { subscribeAuthSession } from './auth/authenticated-request.js';
 import {
   canAccessInternalRoute,
@@ -48,29 +24,29 @@ import {
   missionDeepLink,
   recordNavigationIntent,
 } from './navigation/record-deep-links.js';
-import { Button, PageHeader, TextField, StatusBadge } from './ui/index.js';
-import { PermissionGroups } from './admin/PermissionGroups.js';
-import { adminStatusTone } from './admin/role-labels.js';
 import { AppShell } from './ui/shell/AppShell.js';
+import { PageShell, PageState } from './ui/PageSystem.js';
 import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
 import { InternalHome } from './ui/shell/InternalHome.js';
-import { ReportingPanel } from './reporting/index.js';
-import { CandidatesPanel } from './candidates/index.js';
-import { AccountingPanel } from './accounting/index.js';
-import { CommercialPanel } from './commercial/index.js';
-import { ClientsPanel } from './clients/ClientsPanel.js';
-import { DocumentsPanel } from './documents/index.js';
-import { MissionsPanel } from './missions/index.js';
-import { TrainingPanel } from './training/index.js';
-import { formatAdminRoleName } from './admin/role-labels.js';
-import { AgendaPanel } from './agenda/index.js';
-import { MeetingsPanel } from './meetings/index.js';
-import { TasksPanel } from './tasks/index.js';
-import { formatUnreadBadge, MessagesPanel, useMessagingUnreadSummary } from './messages/index.js';
+import { formatUnreadBadge, useMessagingUnreadSummary } from './messages/index.js';
+import { RouteModuleBoundary } from './navigation/RouteModuleBoundary.js';
 import {
-  PublicOpportunitiesPanel,
-  PublicOpportunityDetailPanel,
-} from './public-opportunities/index.js';
+  LazyAccountingPanel,
+  LazyAdminPanel,
+  LazyAgendaPanel,
+  LazyCandidatesPanel,
+  LazyClientsPanel,
+  LazyCommercialPanel,
+  LazyDocumentsPanel,
+  LazyMeetingsPanel,
+  LazyMessagesPanel,
+  LazyMissionsPanel,
+  LazyPublicOpportunitiesPanel,
+  LazyPublicOpportunityDetailPanel,
+  LazyReportingPanel,
+  LazyTasksPanel,
+  LazyTrainingPanel,
+} from './navigation/route-lazy-modules.js';
 
 type ApiState =
   | { status: 'loading' }
@@ -258,15 +234,21 @@ function AppRoutes() {
   // the internal shell and are matched on the same URLs as always.
   const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
   if (window.location.pathname === '/opportunities') {
-    return <PublicOpportunitiesPanel />;
+    return (
+      <RouteModuleBoundary>
+        <LazyPublicOpportunitiesPanel />
+      </RouteModuleBoundary>
+    );
   }
   if (publicOpportunityMatch?.[1]) {
     // Keyed by slug, so a different opportunity never inherits another's form.
     return (
-      <PublicOpportunityDetailPanel
-        key={publicOpportunityMatch[1]}
-        publicSlug={publicOpportunityMatch[1]}
-      />
+      <RouteModuleBoundary>
+        <LazyPublicOpportunityDetailPanel
+          key={publicOpportunityMatch[1]}
+          publicSlug={publicOpportunityMatch[1]}
+        />
+      </RouteModuleBoundary>
     );
   }
 
@@ -311,19 +293,20 @@ function AppRoutes() {
 
   if (!canOpenRoute) {
     routeContent = (
-      <section className="admin-panel" aria-label={t('access.deniedRegion')}>
-        <h2>{t('access.deniedTitle')}</h2>
-        <p role="alert">{t('access.deniedMessage')}</p>
-      </section>
+      <PageShell aria-label={t('access.deniedRegion')}>
+        <PageState kind="permission-denied" title={t('access.deniedTitle')}>
+          <p>{t('access.deniedMessage')}</p>
+        </PageState>
+      </PageShell>
     );
   } else {
     switch (route) {
       case 'admin':
-        routeContent = <AdminPanel accessToken={accessToken} />;
+        routeContent = <LazyAdminPanel accessToken={accessToken} />;
         break;
       case 'clients':
         routeContent = (
-          <ClientsPanel
+          <LazyClientsPanel
             accessToken={accessToken}
             onCloseRecord={() => navigateToPath('/clients')}
             onNavigatePath={navigateToPath}
@@ -335,7 +318,7 @@ function AppRoutes() {
         break;
       case 'candidates':
         routeContent = (
-          <CandidatesPanel
+          <LazyCandidatesPanel
             accessToken={accessToken}
             // Opening a record is a history entry, so Back returns to the directory.
             onCloseRecord={() => navigateToPath('/candidates')}
@@ -348,7 +331,7 @@ function AppRoutes() {
         break;
       case 'missions':
         routeContent = (
-          <MissionsPanel
+          <LazyMissionsPanel
             accessToken={accessToken}
             actorUserId={user.id}
             initialInterviewId={recordIntent.interviewId}
@@ -363,23 +346,29 @@ function AppRoutes() {
         break;
       case 'meetings':
         routeContent = (
-          <MeetingsPanel accessToken={accessToken} initialMeetingId={recordIntent.meetingId} />
+          <LazyMeetingsPanel accessToken={accessToken} initialMeetingId={recordIntent.meetingId} />
         );
         break;
       case 'agenda':
-        routeContent = <AgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />;
+        routeContent = <LazyAgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />;
         break;
       case 'tasks':
         routeContent = (
-          <TasksPanel accessToken={accessToken} initialTaskId={recordIntent.taskId} user={user} />
+          <LazyTasksPanel
+            accessToken={accessToken}
+            initialTaskId={recordIntent.taskId}
+            user={user}
+          />
         );
         break;
       case 'documents':
-        routeContent = <DocumentsPanel accessToken={accessToken} permissions={user.permissions} />;
+        routeContent = (
+          <LazyDocumentsPanel accessToken={accessToken} permissions={user.permissions} />
+        );
         break;
       case 'messages':
         routeContent = (
-          <MessagesPanel
+          <LazyMessagesPanel
             accessToken={accessToken}
             actorUserId={user.id}
             initialConversationId={recordIntent.conversationId}
@@ -390,7 +379,7 @@ function AppRoutes() {
         break;
       case 'training':
         routeContent = (
-          <TrainingPanel
+          <LazyTrainingPanel
             accessToken={accessToken}
             actorUserId={user.id}
             initialProgramId={recordIntent.programId}
@@ -408,7 +397,7 @@ function AppRoutes() {
         break;
       case 'reporting':
         routeContent = (
-          <ReportingPanel
+          <LazyReportingPanel
             accessToken={accessToken}
             onNavigate={navigateToPath}
             permissions={user.permissions}
@@ -417,7 +406,7 @@ function AppRoutes() {
         break;
       case 'commercial':
         routeContent = (
-          <CommercialPanel
+          <LazyCommercialPanel
             accessToken={accessToken}
             actorUserId={user.id}
             permissions={user.permissions}
@@ -426,7 +415,7 @@ function AppRoutes() {
         break;
       case 'accounting':
         routeContent = (
-          <AccountingPanel
+          <LazyAccountingPanel
             accessToken={accessToken}
             actorUserId={user.id}
             permissions={user.permissions}
@@ -469,355 +458,13 @@ function AppRoutes() {
       onRefreshUser={handleRefreshUser}
       user={user}
     >
-      {routeContent}
+      <RouteModuleBoundary route={canOpenRoute ? route : undefined}>
+        {routeContent}
+      </RouteModuleBoundary>
     </AppShell>
   );
 }
 
 function sameUser(current: AuthenticatedUser | null, next: AuthenticatedUser): boolean {
   return current !== null && JSON.stringify(current) === JSON.stringify(next);
-}
-
-function AdminPanel({ accessToken }: { accessToken: string }) {
-  const { t } = useI18n();
-  const [users, setUsers] = useState<AdminUserSummary[]>([]);
-  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
-  const [roles, setRoles] = useState<AdminRole[]>([]);
-  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    void loadCatalog();
-    void loadUsers();
-  }, []);
-
-  async function loadCatalog(): Promise<void> {
-    const [roleList, permissionList] = await Promise.all([
-      listAdminRoles(accessToken),
-      listAdminPermissions(accessToken),
-    ]);
-    setRoles(roleList.roles);
-    setPermissions(permissionList.permissions);
-  }
-
-  async function loadUsers(nextSearch = search, nextStatus = statusFilter): Promise<void> {
-    const response = await listAdminUsers({
-      accessToken,
-      search: nextSearch,
-      status: nextStatus || undefined,
-      pageSize: 20,
-    });
-    setUsers(response.users);
-  }
-
-  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    await loadUsers(search, statusFilter);
-  }
-
-  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const created = await createAdminUser(accessToken, {
-      displayName: formValue(formData, 'displayName'),
-      email: formValue(formData, 'email'),
-      initialPassword: formValue(formData, 'initialPassword'),
-      locale: formValue(formData, 'locale', 'en'),
-    });
-    form.reset();
-    setSelectedUser(created.user);
-    setMessage('User created.');
-    await loadUsers();
-  }
-
-  async function selectUser(userId: string): Promise<void> {
-    const response = await getAdminUser(accessToken, userId);
-    setSelectedUser(response.user);
-    setMessage(null);
-  }
-
-  async function handleUpdate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (!selectedUser) {
-      return;
-    }
-    const formData = new FormData(event.currentTarget);
-    const updated = await updateAdminUser(accessToken, selectedUser.id, {
-      displayName: formValue(formData, 'displayName', selectedUser.displayName),
-      locale: formValue(formData, 'locale', selectedUser.locale),
-    });
-    setSelectedUser(updated.user);
-    setMessage('User updated.');
-    await loadUsers();
-  }
-
-  async function handleAssignRole(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (!selectedUser) {
-      return;
-    }
-    const formData = new FormData(event.currentTarget);
-    const roleName = formValue(formData, 'roleName') as AdminRoleName;
-    const updated = await assignAdminRole(accessToken, selectedUser.id, { roleName });
-    setSelectedUser(updated.user);
-    setMessage('Role assigned.');
-    await loadUsers();
-  }
-
-  async function removeRole(roleName: string): Promise<void> {
-    if (!selectedUser || !window.confirm(`Remove ${roleName} from this user?`)) {
-      return;
-    }
-    const updated = await removeAdminRole(accessToken, selectedUser.id, roleName);
-    setSelectedUser(updated.user);
-    setMessage('Role removed.');
-    await loadUsers();
-  }
-
-  async function changeStatus(status: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED'): Promise<void> {
-    if (!selectedUser || !window.confirm(`Change this user status to ${status}?`)) {
-      return;
-    }
-    const updated = await updateAdminUserStatus(accessToken, selectedUser.id, { status });
-    setSelectedUser(updated.user);
-    setMessage(`Status changed to ${status}.`);
-    await loadUsers();
-  }
-
-  async function revokeOneSession(sessionId: string): Promise<void> {
-    if (!selectedUser || !window.confirm('Revoke this selected refresh session?')) {
-      return;
-    }
-    const response = await revokeAdminSession(accessToken, selectedUser.id, sessionId);
-    setSelectedUser({ ...selectedUser, sessions: response.sessions });
-    setMessage('Session revoked.');
-  }
-
-  async function revokeAllSessions(): Promise<void> {
-    if (!selectedUser || !window.confirm('Revoke all active refresh sessions for this user?')) {
-      return;
-    }
-    const response = await revokeAllAdminSessions(accessToken, selectedUser.id);
-    setSelectedUser({ ...selectedUser, sessions: response.sessions, activeSessionCount: 0 });
-    setMessage('All sessions revoked.');
-    await loadUsers();
-  }
-
-  return (
-    <section className="admin-panel" aria-label="Administration">
-      <PageHeader title="Administration" />
-      <div className="admin-grid">
-        <section aria-label="User administration">
-          <h2>Users</h2>
-          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
-            <label>
-              Search
-              <input
-                className="ui-field__control"
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-                name="search"
-              />
-            </label>
-            <label>
-              Status
-              <select
-                className="ui-field__control"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.currentTarget.value)}
-                name="status"
-              >
-                <option value="">Any</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </label>
-            <Button variant="secondary" type="submit">
-              Search users
-            </Button>
-          </form>
-
-          <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Roles</th>
-                  <th>Sessions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((adminUser) => (
-                  <tr key={adminUser.id}>
-                    <td>
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        onClick={() => void selectUser(adminUser.id)}
-                      >
-                        {adminUser.displayName}
-                      </Button>
-                    </td>
-                    <td>
-                      <StatusBadge tone={adminStatusTone(adminUser.status)}>
-                        {adminUser.status}
-                      </StatusBadge>
-                    </td>
-                    <td>
-                      {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
-                        'None'}
-                    </td>
-                    <td>{adminUser.activeSessionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <form
-            className="stacked-form"
-            aria-label="Create internal user"
-            onSubmit={(event) => void handleCreate(event)}
-          >
-            <h3>Create internal user</h3>
-            <TextField
-              label="Display name"
-              name="displayName"
-              placeholder="Display name"
-              required
-            />
-            <TextField label="Email" name="email" type="email" placeholder="Email" required />
-            <TextField label="Locale" name="locale" defaultValue="en" required />
-            <TextField
-              label="Initial password"
-              name="initialPassword"
-              type="password"
-              placeholder="Initial password"
-              autoComplete="new-password"
-              required
-            />
-            <Button type="submit">Create user</Button>
-          </form>
-        </section>
-
-        <section aria-label="Selected user detail">
-          {selectedUser ? (
-            <>
-              <h2>{selectedUser.displayName}</h2>
-              <p>{selectedUser.email}</p>
-              <StatusBadge tone={adminStatusTone(selectedUser.status)}>
-                {selectedUser.status}
-              </StatusBadge>
-              <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
-                <TextField
-                  name="displayName"
-                  label="Display name"
-                  defaultValue={selectedUser.displayName}
-                />
-                <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
-                <Button variant="secondary" type="submit">
-                  Update profile
-                </Button>
-              </form>
-
-              <div className="action-row">
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('ACTIVE')}
-                >
-                  Reactivate
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('SUSPENDED')}
-                >
-                  Suspend
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('ARCHIVED')}
-                >
-                  Archive
-                </Button>
-              </div>
-
-              <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
-                <label>
-                  Role
-                  <select name="roleName" required>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.name}>
-                        {formatAdminRoleName(t, role.name)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button variant="secondary" type="submit">
-                  Assign role
-                </Button>
-              </form>
-
-              <ul>
-                {selectedUser.roles.map((roleName) => (
-                  <li key={roleName}>
-                    {formatAdminRoleName(t, roleName)}{' '}
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      onClick={() => void removeRole(roleName)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-
-              <h3>Active sessions</h3>
-              <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
-                Revoke all sessions
-              </Button>
-              <ul>
-                {selectedUser.sessions.map((session) => (
-                  <li key={session.id}>
-                    {session.createdAt}{' '}
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      onClick={() => void revokeOneSession(session.id)}
-                    >
-                      Revoke
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-
-              <h3>Effective permissions</h3>
-              <PermissionGroups codes={selectedUser.effectivePermissions} />
-            </>
-          ) : (
-            <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
-          )}
-          {message ? <p role="status">{message}</p> : null}
-        </section>
-      </div>
-
-      <section aria-label="Permission catalog">
-        <h2>Permission catalog</h2>
-        <PermissionGroups codes={permissions.map((permission) => permission.code)} />
-      </section>
-    </section>
-  );
-}
-
-function formValue(formData: FormData, name: string, fallback = ''): string {
-  const value = formData.get(name);
-  return typeof value === 'string' ? value : fallback;
 }

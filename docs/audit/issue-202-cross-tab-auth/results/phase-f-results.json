@@ -1,0 +1,22 @@
+[
+  {
+    "name": "no API traffic while hidden (nothing refreshed before the burst)",
+    "ok": true,
+    "detail": " | "
+  },
+  {
+    "name": "F: exactly one POST /auth/refresh across both tabs",
+    "ok": true,
+    "detail": "counts tab1=1 tab2=0"
+  },
+  {
+    "name": "F: refresh succeeded",
+    "ok": true,
+    "detail": "201"
+  },
+  {
+    "name": "F: neither tab signed out",
+    "ok": true,
+    "detail": ""
+  }
+]

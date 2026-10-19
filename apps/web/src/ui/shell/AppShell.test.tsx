@@ -236,6 +236,20 @@ describe('AppShell', () => {
     );
     expect(shellCss).toMatch(/\.app-shell__session\s*\{[^}]*flex:\s*0 0 auto;/s);
   });
+
+  it('constrains the notification list to an independently scrolling grid row', () => {
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+
+    expect(shellCss).toMatch(
+      /\.notification-center__panel\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\);[^}]*overflow:\s*clip;/s,
+    );
+    expect(shellCss).toMatch(
+      /\.notification-center__body\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior-y:\s*auto;/s,
+    );
+    expect(shellCss).toMatch(
+      /\.notification-center__header > \.ui-button,[^{]*\.notification-center__list li > \.ui-button\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;/s,
+    );
+  });
 });
 
 describe('AppShell single-destination domains and workspace layout', () => {

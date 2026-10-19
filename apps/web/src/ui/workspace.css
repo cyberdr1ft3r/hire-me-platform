@@ -7,6 +7,10 @@
  * inherited from the foundation and never removed here.
  */
 
+.route-module-fallback {
+  padding: var(--space-6) var(--space-4);
+}
+
 .ui-workspace {
   container: workspace / inline-size;
   display: flex;
@@ -193,7 +197,8 @@
   .app-shell[data-layout='fill'] .ui-workspace__pane-body {
     flex: 1 1 auto;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    /* Let wheel, trackpad and touch input continue on the shell at a pane boundary. */
+    overscroll-behavior-y: auto;
   }
 
   .app-shell[data-layout='fill'] .ui-workspace__layout:not([data-view]) .ui-workspace__pane-body {
