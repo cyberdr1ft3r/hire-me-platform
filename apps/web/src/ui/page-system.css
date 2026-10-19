@@ -25,7 +25,8 @@
 
 .ui-page-shell[data-page-layout='fill'] > .ui-page-shell__content {
   display: flex;
-  flex: 1 1 auto;
+  /* A zero basis keeps tall nested content from sizing the fill page itself. */
+  flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
 }

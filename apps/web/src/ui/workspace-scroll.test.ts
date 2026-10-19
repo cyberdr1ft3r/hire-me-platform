@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const workspaceCss = readFileSync(join(process.cwd(), 'src/ui/workspace.css'), 'utf8');
+const pageSystemCss = readFileSync(join(process.cwd(), 'src/ui/page-system.css'), 'utf8');
 const missionCss = readFileSync(join(process.cwd(), 'src/missions/mission.css'), 'utf8');
 const messagesCss = readFileSync(join(process.cwd(), 'src/messages/messages.css'), 'utf8');
 
@@ -22,6 +23,9 @@ describe('workspace scroll ownership', () => {
   });
 
   it('keeps the Messages thread scrollable while allowing boundary handoff', () => {
+    expect(pageSystemCss).toMatch(
+      /\.ui-page-shell\[data-page-layout='fill'\] > \.ui-page-shell__content \{[\s\S]*?flex: 1 1 0;[\s\S]*?min-height: 0;/,
+    );
     expect(messagesCss).toMatch(
       /\.messages-log \{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?\}/,
     );

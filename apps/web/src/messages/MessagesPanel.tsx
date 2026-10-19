@@ -12,9 +12,10 @@ import {
 } from '../layout/stacked-master-detail.js';
 import {
   Button,
+  ContextualActions,
+  DirectoryPage,
   EmptyState,
   InlineMessage,
-  PageHeader,
   Skeleton,
   StatusBadge,
   WorkspacePane,
@@ -335,43 +336,51 @@ function MessagesWorkspace({
     mode.kind === 'conversation' || mode.kind === 'details' ? mode.conversation.id : null;
 
   return (
-    <section aria-label={t('messages.region')} className="messages-panel ui-workspace-page">
-      <PageHeader
-        compact
-        // A phone showing one thread gives its height to the conversation; the
-        // description stays on the inbox view and on side-by-side layouts.
-        description={
-          stacked && mobileView === 'detail' ? undefined : t('messages.header.description')
-        }
-        eyebrow={t('messages.header.eyebrow')}
-        primaryAction={
-          access.create ? (
-            <Button onClick={() => openPane({ kind: 'new-direct' })}>
-              {t('messages.actions.newMessage')}
-            </Button>
-          ) : undefined
-        }
-        secondaryActions={
-          access.create ? (
-            <Button onClick={() => openPane({ kind: 'new-group' })} variant="secondary">
-              {t('messages.actions.newGroup')}
-            </Button>
-          ) : undefined
-        }
-        title={t('messages.header.title')}
-      />
-      {access.create ? null : (
-        <InlineMessage title={t('messages.readOnly.title')} tone="info">
-          <p className="messages-text">{t('messages.readOnly.body')}</p>
-        </InlineMessage>
-      )}
-      {notice ? (
-        <InlineMessage announce title={t('messages.feedback.successTitle')} tone="success">
-          <p className="messages-text">
-            {notice === 'hidden' ? t('messages.feedback.hidden') : t('messages.feedback.left')}
-          </p>
-        </InlineMessage>
-      ) : null}
+    <DirectoryPage
+      aria-label={t('messages.region')}
+      className="messages-panel ui-workspace-page"
+      compact
+      // A phone showing one thread gives its height to the conversation; the
+      // description stays on the inbox view and on side-by-side layouts.
+      description={
+        stacked && mobileView === 'detail' ? undefined : t('messages.header.description')
+      }
+      eyebrow={t('messages.header.eyebrow')}
+      layout="fill"
+      notices={
+        <>
+          {access.create ? null : (
+            <InlineMessage title={t('messages.readOnly.title')} tone="info">
+              <p className="messages-text">{t('messages.readOnly.body')}</p>
+            </InlineMessage>
+          )}
+          {notice ? (
+            <InlineMessage announce title={t('messages.feedback.successTitle')} tone="success">
+              <p className="messages-text">
+                {notice === 'hidden' ? t('messages.feedback.hidden') : t('messages.feedback.left')}
+              </p>
+            </InlineMessage>
+          ) : null}
+        </>
+      }
+      primaryAction={
+        access.create ? (
+          <ContextualActions
+            primary={
+              <Button onClick={() => openPane({ kind: 'new-direct' })}>
+                {t('messages.actions.newMessage')}
+              </Button>
+            }
+            secondary={
+              <Button onClick={() => openPane({ kind: 'new-group' })} variant="secondary">
+                {t('messages.actions.newGroup')}
+              </Button>
+            }
+          />
+        ) : undefined
+      }
+      title={t('messages.header.title')}
+    >
       <WorkspaceSurface className="messages-workspace" ref={containerRef} view={mobileView}>
         <WorkspacePane
           aria-labelledby="messages-list-title"
@@ -480,7 +489,7 @@ function MessagesWorkspace({
           ) : null}
         </WorkspacePane>
       </WorkspaceSurface>
-    </section>
+    </DirectoryPage>
   );
 }
 
