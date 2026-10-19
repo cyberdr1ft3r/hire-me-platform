@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, Checkbox, Select, TextField } from '../ui/index.js';
+import { Button, Checkbox, FilterToolbar, Select, TextField } from '../ui/index.js';
 import { MissionPicker, type LoadPickerOptions } from './MissionPicker.js';
 import {
   MISSION_PRIORITIES,
@@ -85,10 +85,45 @@ export function MissionFilters({
       onSubmit={handleSubmit}
       role="search"
     >
-      <div className="mission-filters__bar">
-        <div className="mission-filters__search">
+      <FilterToolbar
+        actions={
+          <>
+            <Button disabled={busy} size="compact" type="submit">
+              {t('missions.filters.submit')}
+            </Button>
+            <Button
+              aria-controls={advancedId}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+              size="compact"
+              type="button"
+              variant="secondary"
+            >
+              {appliedAdvanced > 0
+                ? t('missions.filters.toggleActive', { count: appliedAdvanced })
+                : t('missions.filters.toggle')}
+            </Button>
+            {showReset ? (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  setDeadlineRangeInvalid(false);
+                  onReset();
+                }}
+                size="compact"
+                type="button"
+                variant="quiet"
+              >
+                {t('missions.filters.reset')}
+              </Button>
+            ) : null}
+          </>
+        }
+        className="mission-filters__bar"
+        search={
           <TextField
             autoComplete="off"
+            className="mission-filters__search"
             hint={t('missions.filters.searchHint')}
             label={t('missions.filters.search')}
             maxLength={120}
@@ -99,35 +134,8 @@ export function MissionFilters({
             type="search"
             value={values.search}
           />
-        </div>
-        <div className="mission-filters__actions">
-          <Button disabled={busy} type="submit">
-            {t('missions.filters.submit')}
-          </Button>
-          <Button
-            aria-controls={advancedId}
-            aria-expanded={expanded}
-            onClick={() => setExpanded((value) => !value)}
-            variant="secondary"
-          >
-            {appliedAdvanced > 0
-              ? t('missions.filters.toggleActive', { count: appliedAdvanced })
-              : t('missions.filters.toggle')}
-          </Button>
-          {showReset ? (
-            <Button
-              disabled={busy}
-              onClick={() => {
-                setDeadlineRangeInvalid(false);
-                onReset();
-              }}
-              variant="quiet"
-            >
-              {t('missions.filters.reset')}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+        }
+      />
       <div className="mission-filters__advanced" hidden={!expanded} id={advancedId}>
         <Select
           label={t('missions.filters.state')}

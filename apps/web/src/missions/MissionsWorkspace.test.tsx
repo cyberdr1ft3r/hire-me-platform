@@ -306,6 +306,8 @@ describe('Missions workspace localization and structure', () => {
     expect(deferredEnglishRoutes).not.toContain('missions');
     expect(await screen.findByRole('heading', { level: 1, name: 'Missions' })).toBeVisible();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(document.querySelector('[data-page-kind="directory"]')).not.toBeNull();
+    expect(screen.getByRole('search').querySelector('.ui-filter-toolbar')).not.toBeNull();
     expect(
       screen.getByRole('heading', { level: 2, name: 'Répertoire des missions' }),
     ).toBeVisible();
@@ -974,7 +976,7 @@ describe('Missions candidate pipeline pagination', () => {
 });
 
 function forceStackedMissionsLayout(): void {
-  const container = document.querySelector('.missions');
+  const container = document.querySelector('.mission-record');
   if (!container) {
     throw new Error('Missing missions layout container');
   }
@@ -1150,6 +1152,8 @@ describe('Missions v2.0: directory, quick preview and focused record (Issue #204
 
     const heading = await screen.findByRole('heading', { level: 2, name: 'Mission Alpha' });
     await waitFor(() => expect(heading).toHaveFocus());
+    expect(document.querySelector('[data-page-kind="record"]')).not.toBeNull();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(onOpenRecord).toHaveBeenCalledWith(MISSION_A_ID);
     expect(screen.queryByRole('table', { name: 'Mission directory' })).toBeNull();
     await waitFor(() =>
@@ -1169,7 +1173,7 @@ describe('Missions v2.0: directory, quick preview and focused record (Issue #204
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
-      return new DOMRect(0, 0, this.classList.contains('missions') ? 358 : 0, 0);
+      return new DOMRect(0, 0, this.classList.contains('missions__workspace') ? 358 : 0, 0);
     });
     const calls = serve(world());
     renderWorkspace({ permissions: VIEW });

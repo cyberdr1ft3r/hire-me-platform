@@ -17,9 +17,11 @@ import {
 import { useRecordLeaveGuard } from '../navigation/use-record-leave-guard.js';
 import {
   Button,
+  ContextualActions,
+  DirectoryPage,
   EmptyState,
   InlineMessage,
-  PageHeader,
+  RecordPage,
   Skeleton,
   StatusBadge,
   WORKSPACE_SPLIT_MIN_REM,
@@ -195,7 +197,7 @@ export function MissionsWorkspace({
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const rootRef = useRef<HTMLElement>(null);
+  const recordLayoutRef = useRef<HTMLDivElement>(null);
   const directoryRef = useRef<HTMLDivElement>(null);
   const listHeadingId = useId();
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -205,7 +207,7 @@ export function MissionsWorkspace({
   const [creating, setCreating] = useState(false);
   const recordOpen = list.selectedId !== null;
   // Too narrow for the side preview: the preview opens as a bottom sheet instead.
-  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const narrow = useNarrowContainer(directoryRef, WORKSPACE_SPLIT_MIN_REM.preview);
   const preview = list.previewMission;
   const sidePreview = preview && !narrow ? preview : null;
   // The row to focus once the directory is back on screen (closing a preview or a record).
@@ -237,121 +239,127 @@ export function MissionsWorkspace({
     list.onClosePreview();
   }
 
-  return (
-    <section
-      aria-label={t('missions.region')}
-      className="missions ui-workspace-page"
-      data-view={recordOpen ? 'record' : 'directory'}
-      ref={rootRef}
-    >
-      <PageHeader
-        compact
-        description={t('missions.header.description')}
-        eyebrow={t('missions.header.eyebrow')}
-        primaryAction={
-          // Without mission creation authority the action does not exist at all.
-          access.canCreate ? (
-            <Button
-              aria-haspopup="dialog"
-              disabled={writesLocked}
-              onClick={() => setCreating(true)}
-            >
-              <span aria-hidden="true">+ </span>
-              {t('missions.create.title')}
-            </Button>
-          ) : undefined
-        }
-        title={t('missions.header.title')}
-      />
+  const primaryAction = access.canCreate ? (
+    <ContextualActions
+      primary={
+        <Button aria-haspopup="dialog" disabled={writesLocked} onClick={() => setCreating(true)}>
+          <span aria-hidden="true">+ </span>
+          {t('missions.create.title')}
+        </Button>
+      }
+    />
+  ) : undefined;
+
+  const notices = (
+    <>
       {access.readOnly ? (
         <InlineMessage title={t('missions.readOnly.title')} tone="info">
           <p className="mission-message__text">{t('missions.readOnly.body')}</p>
         </InlineMessage>
       ) : null}
       {feedback ? <FeedbackMessage feedback={feedback} /> : null}
+    </>
+  );
 
+  const pageProps = {
+    'aria-label': t('missions.region'),
+    className: 'missions ui-workspace-page',
+    compact: true,
+    description: t('missions.header.description'),
+    eyebrow: t('missions.header.eyebrow'),
+    primaryAction,
+    title: t('missions.header.title'),
+  };
+
+  return (
+    <>
       {recordOpen ? (
-        <MissionFocusedRecord
-          feedback={feedback}
-          onBack={onCloseRecord}
-          writesLocked={writesLocked}
-        >
-          <MissionDetailPane
-            access={access}
-            activeSection={detailSection}
-            key={list.selectedId ?? 'none'}
-            layoutContainerRef={rootRef}
-            missionDetailRevealToken={missionDetailRevealToken}
-            // The record is the whole workspace, so its heading always takes focus on open.
-            missionSideBySideMinRem={Number.POSITIVE_INFINITY}
-            model={detail}
-            onSectionChange={onDetailSectionChange}
-            processDetailRevealToken={processDetailRevealToken}
-            sessionKey={sessionKey}
-            sideBySideMinRem={MISSION_SIDE_BY_SIDE_MIN_REM}
+        <RecordPage {...pageProps} data-view="record" notices={notices}>
+          <MissionFocusedRecord
+            containerRef={recordLayoutRef}
+            feedback={feedback}
+            onBack={onCloseRecord}
             writesLocked={writesLocked}
-          />
-        </MissionFocusedRecord>
-      ) : (
-        <WorkspaceSurface
-          className="missions__workspace"
-          ref={directoryRef}
-          split="preview"
-          view={sidePreview ? undefined : 'list'}
-        >
-          <WorkspacePane
-            aria-labelledby={listHeadingId}
-            className="missions__list-pane"
-            kind="list"
-            toolbar={
-              <WorkspaceToolbar
-                heading={
-                  <h2
-                    className="missions__pane-title"
-                    id={listHeadingId}
-                    ref={listHeadingRef}
-                    tabIndex={-1}
-                  >
-                    {t('missions.directory.title')}
-                  </h2>
-                }
-              >
-                <MissionFilters
-                  appliedValues={list.appliedFilters}
-                  busy={list.list.status === 'loading'}
-                  loadClientOptions={list.loadClientFilterOptions}
-                  onChange={list.onFiltersChange}
-                  onReset={list.onResetFilters}
-                  onSubmit={list.onApplyFilters}
-                  showReset={filtered || hasActiveMissionFilters(list.filters)}
-                  sourceKey={sessionKey}
-                  values={list.filters}
-                />
-              </WorkspaceToolbar>
-            }
           >
-            <MissionDirectory
-              filtered={filtered}
-              list={list.list}
-              onPage={list.onPage}
-              onPreview={list.onPreview}
-              onReset={list.onResetFilters}
-              onRetry={list.onRetry}
-              previewId={preview?.id ?? null}
-              tableLabelId={listHeadingId}
+            <MissionDetailPane
+              access={access}
+              activeSection={detailSection}
+              key={list.selectedId ?? 'none'}
+              layoutContainerRef={recordLayoutRef}
+              missionDetailRevealToken={missionDetailRevealToken}
+              // The record is the whole workspace, so its heading always takes focus on open.
+              missionSideBySideMinRem={Number.POSITIVE_INFINITY}
+              model={detail}
+              onSectionChange={onDetailSectionChange}
+              processDetailRevealToken={processDetailRevealToken}
+              sessionKey={sessionKey}
+              sideBySideMinRem={MISSION_SIDE_BY_SIDE_MIN_REM}
+              writesLocked={writesLocked}
             />
-          </WorkspacePane>
-          {sidePreview ? (
-            <WorkspacePane as="div" className="missions__preview-pane" kind="detail">
-              <MissionQuickPreview
-                key={sidePreview.id}
-                mission={sidePreview}
-                onClose={closePreview}
-                onOpenRecord={() => list.onSelect(sidePreview.id)}
+          </MissionFocusedRecord>
+        </RecordPage>
+      ) : (
+        <DirectoryPage {...pageProps} data-view="directory" layout="fill" notices={notices}>
+          <WorkspaceSurface
+            className="missions__workspace"
+            ref={directoryRef}
+            split="preview"
+            view={sidePreview ? undefined : 'list'}
+          >
+            <WorkspacePane
+              aria-labelledby={listHeadingId}
+              className="missions__list-pane"
+              kind="list"
+              toolbar={
+                <WorkspaceToolbar
+                  heading={
+                    <h2
+                      className="missions__pane-title"
+                      id={listHeadingId}
+                      ref={listHeadingRef}
+                      tabIndex={-1}
+                    >
+                      {t('missions.directory.title')}
+                    </h2>
+                  }
+                >
+                  <MissionFilters
+                    appliedValues={list.appliedFilters}
+                    busy={list.list.status === 'loading'}
+                    loadClientOptions={list.loadClientFilterOptions}
+                    onChange={list.onFiltersChange}
+                    onReset={list.onResetFilters}
+                    onSubmit={list.onApplyFilters}
+                    showReset={filtered || hasActiveMissionFilters(list.filters)}
+                    sourceKey={sessionKey}
+                    values={list.filters}
+                  />
+                </WorkspaceToolbar>
+              }
+            >
+              <MissionDirectory
+                filtered={filtered}
+                list={list.list}
+                onPage={list.onPage}
+                onPreview={list.onPreview}
+                onReset={list.onResetFilters}
+                onRetry={list.onRetry}
+                previewId={preview?.id ?? null}
+                tableLabelId={listHeadingId}
               />
             </WorkspacePane>
-          ) : null}
-        </WorkspaceSurface>
+            {sidePreview ? (
+              <WorkspacePane as="div" className="missions__preview-pane" kind="detail">
+                <MissionQuickPreview
+                  key={sidePreview.id}
+                  mission={sidePreview}
+                  onClose={closePreview}
+                  onOpenRecord={() => list.onSelect(sidePreview.id)}
+                />
+              </WorkspacePane>
+            ) : null}
+          </WorkspaceSurface>
+        </DirectoryPage>
       )}
 
       {!recordOpen && preview && narrow ? (
@@ -376,7 +384,7 @@ export function MissionsWorkspace({
           writesLocked={writesLocked}
         />
       ) : null}
-    </section>
+    </>
   );
 }
 
@@ -388,17 +396,18 @@ export function MissionsWorkspace({
  */
 function MissionFocusedRecord({
   children,
+  containerRef,
   feedback,
   onBack,
   writesLocked,
 }: {
   children: ReactNode;
+  containerRef: RefObject<HTMLDivElement | null>;
   feedback: MissionFeedback | null;
   onBack: () => void;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const containerRef = useRef<HTMLDivElement>(null);
   useRecordLeaveGuard(containerRef, t('missions.record.discardPrompt'), writesLocked, {
     clearOnSubmit: true,
     failureSignal: feedback?.tone === 'danger' ? feedback : null,
