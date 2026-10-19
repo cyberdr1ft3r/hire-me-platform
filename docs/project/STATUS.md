@@ -3,24 +3,34 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
-## Clients Workspace v2.1 (draft PR #210)
+## Issue #219 — Agenda and Tasks Unified Page System migration (draft PR #220)
 
-- Branch `cursor/clients-workspace-v21-proposal-03f8` is reconciled by normal merge with `main`
-  `290fa32` (merged PR #218). Main run `39228727562` passed all four jobs before implementation.
+- Branch `feat/issue-219-agenda-tasks-page-system` starts from `main` `65791e7`, including merged
+  page-system foundation #218 and Clients v2.1 #210. Baseline run `39242964484` passed all four CI
+  jobs before implementation.
+- Agenda now composes `DirectoryPage`, `FilterToolbar`, and `PageState`; Tasks composes
+  `DirectoryPage`, `FilterToolbar`, and `ContextualActions`. Existing request ownership, calendar
+  deep links, task board/list, drawer, forms, permissions, APIs, pagination, notifications,
+  reminders, and scroll owners are unchanged.
+- Focused tests pass 79/79. Installed Chrome passes six EN/FR desktop/tablet/mobile scenarios with
+  mouse wheel, fine-delta trackpad input, `PageDown`, touch, Escape/focus return, back/forward, and
+  horizontal-overflow checks. [Evidence](../audit/issue-219-agenda-tasks.md). Exact-head four-job CI
+  and review remain required on draft PR #220; do not merge or deploy automatically.
+
+## Clients Workspace v2.1 (merged PR #210)
+
+- PR #210 merged into `main` as `65791e7` after reconciliation with merged foundation #218.
 - Clients now consume the shared `DirectoryPage`, `RecordPage`, `FilterToolbar`, and
   `ContextualActions` foundation. The patch refines directory hierarchy, responsive columns,
   toolbar count, preview rhythm, record identity/actions, and the proposed semantic CRM accent. It
   does not change Clients APIs, schemas, permissions, business rules, deep links, or scroll owners.
 - Focused Clients tests, architecture/style/contrast, formatting, lint, typecheck, build, and six
-  installed-Chrome EN/FR desktop/tablet/mobile scenarios pass. Exact-head four-job CI is required on
-  the final commit. [Evidence](../audit/clients-workspace-v2.1.md). Keep PR #210 draft; do not merge
-  or deploy automatically.
+  installed-Chrome EN/FR desktop/tablet/mobile scenarios passed. Exact-head run `39239799400` passed
+  all four jobs on implementation head `3de32f7`. [Evidence](../audit/clients-workspace-v2.1.md).
 
-## Unified Page System foundation (draft)
+## Unified Page System foundation (merged PR #218)
 
-- Branch `feat/unified-page-system-foundation` starts from latest `main` `2e01f40`; that exact main
-  head's GitHub Actions run `39023855790` passed all four jobs before work began. PR #210 was read as
-  a proposal and was not modified.
+- PR #218 merged into `main` as `290fa32`; its reviewed implementation head was `f5fd8fe`.
 - The foundation reuses the existing route/permission registry, Salesforce-inspired AppShell,
   semantic tokens, `PageHeader`, Workspace Surface, feedback, drawers, forms, request clients, and
   typed EN/FR system. It adds only page composition and shared state primitives, applies `PageShell`
@@ -30,9 +40,7 @@ Status owner: repository maintainer
   Installed Google Chrome evidence covers EN/FR at 1440, 1024, and 390px plus localized denial and
   mobile Escape/focus restoration: [report](../audit/unified-page-system/report.json).
 - Focused page/shell/workspace tests, monorepo lint, typecheck, build, formatting, style tokens, and
-  contrast pass. A local all-at-once Windows `pnpm test` is non-authoritative because sandbox hard
-  links are denied and concurrent PDF/web suites exceed their existing five-second limits; exact-head
-  Linux CI is the release gate.
+  contrast passed before merge.
 
 ## Issue #216 — Notification Center scrolling P1 hotfix (draft PR #217)
 

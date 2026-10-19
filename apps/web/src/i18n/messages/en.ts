@@ -157,7 +157,9 @@ export const enMessages = {
     description: 'Chronological view of your dated work across Hire Me.',
     emptyDescription: 'No agenda items match this view and filter.',
     emptyTitle: 'Nothing scheduled here',
+    errorTitle: 'Unable to load your agenda',
     filters: {
+      region: 'Agenda filters',
       source: 'Source',
       view: 'View',
     },

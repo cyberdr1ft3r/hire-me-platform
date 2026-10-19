@@ -14,11 +14,15 @@ vi.mock('../api.js', () => ({
 
 describe('AgendaPanel', () => {
   it('renders the agenda workspace shell', async () => {
-    render(
+    const { container } = render(
       <I18nProvider>
         <AgendaPanel accessToken="token" onNavigate={vi.fn()} />
       </I18nProvider>,
     );
-    expect(await screen.findByRole('region', { name: /agenda/i })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: 'My Agenda' })).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Agenda filters' })).toBeVisible();
+    expect(container.querySelector('[data-page-kind="directory"]')).not.toBeNull();
+    expect(container.querySelector('[data-state="empty"]')).not.toBeNull();
   });
 });

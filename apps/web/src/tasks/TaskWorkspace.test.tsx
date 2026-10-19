@@ -134,8 +134,10 @@ function dialog() {
 
 describe('Task workspace presentation', () => {
   it('uses one h1 and exposes the selected card as a real selected button', () => {
-    renderWorkspace();
+    const { container } = renderWorkspace();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(container.querySelector('[data-page-kind="directory"]')).not.toBeNull();
+    expect(container.querySelector('.task-filters .ui-filter-toolbar')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Review candidate follow-up' })).toHaveAttribute(
       'aria-current',
       'true',
