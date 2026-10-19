@@ -13,8 +13,6 @@
 }
 
 .tasks__page {
-  display: grid;
-  gap: var(--space-6);
   min-width: 0;
 }
 
@@ -154,10 +152,26 @@
 }
 
 .task-filters {
-  border-block: var(--border-width) solid var(--color-border);
   display: grid;
   gap: var(--space-3);
-  padding-block: var(--space-4);
+}
+
+.task-filters__toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.task-filters__toolbar .ui-filter-toolbar__filters {
+  display: block;
+}
+
+@container tasks (max-width: 62rem) {
+  .task-filters__toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-filters__toolbar .ui-filter-toolbar__actions {
+    justify-content: flex-start;
+  }
 }
 
 .task-filters__row,

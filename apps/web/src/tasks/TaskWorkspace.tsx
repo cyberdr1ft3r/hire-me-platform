@@ -2,7 +2,7 @@ import type { Notification } from '@hire-me/contracts';
 import { useEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, InlineMessage, PageHeader } from '../ui/index.js';
+import { Button, ContextualActions, DirectoryPage, InlineMessage } from '../ui/index.js';
 import { TaskBoard } from './TaskBoard.js';
 import { TaskCreateForm, type TaskCreateValues } from './TaskCreateForm.js';
 import { TaskDetailPanel, type TaskDetailActions } from './TaskDetail.js';
@@ -100,39 +100,44 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
 
   return (
     <div className="tasks" data-density="internal-standard">
-      <div className="tasks__page" inert={drawerOpen ? true : undefined}>
-        <PageHeader
-          primaryAction={
-            props.access.canCreate ? (
-              <Button
-                aria-expanded={creating}
-                data-task-create-toggle=""
-                disabled={busy || creating}
-                onClick={() => setCreating(true)}
-                size="compact"
-              >
-                {t('task.actions.newTask')}
-              </Button>
-            ) : null
-          }
-          description={t('task.header.description')}
-          title={t('task.header.title')}
-        />
-
-        {props.feedback?.scope === 'page' ? (
-          <InlineMessage
-            announce
-            title={
-              props.feedback.tone === 'success'
-                ? t('task.feedback.successTitle')
-                : t('task.feedback.errorTitle')
-            }
-            tone={props.feedback.tone}
-          >
-            {props.feedback.message}
-          </InlineMessage>
-        ) : null}
-
+      <DirectoryPage
+        className="tasks__page"
+        description={t('task.header.description')}
+        inert={drawerOpen ? true : undefined}
+        notices={
+          props.feedback?.scope === 'page' ? (
+            <InlineMessage
+              announce
+              title={
+                props.feedback.tone === 'success'
+                  ? t('task.feedback.successTitle')
+                  : t('task.feedback.errorTitle')
+              }
+              tone={props.feedback.tone}
+            >
+              {props.feedback.message}
+            </InlineMessage>
+          ) : null
+        }
+        primaryAction={
+          props.access.canCreate ? (
+            <ContextualActions
+              primary={
+                <Button
+                  aria-expanded={creating}
+                  data-task-create-toggle=""
+                  disabled={busy || creating}
+                  onClick={() => setCreating(true)}
+                  size="compact"
+                >
+                  {t('task.actions.newTask')}
+                </Button>
+              }
+            />
+          ) : null
+        }
+        title={t('task.header.title')}
+      >
         {creating ? (
           <TaskCreateForm
             access={props.access}
@@ -231,7 +236,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
             pending={props.pending === 'process-reminders'}
           />
         ) : null}
-      </div>
+      </DirectoryPage>
 
       <TaskDetailPanel
         access={props.access}

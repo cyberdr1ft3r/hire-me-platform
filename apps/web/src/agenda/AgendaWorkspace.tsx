@@ -1,7 +1,7 @@
 import type { AgendaItem, AgendaView } from '@hire-me/contracts';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, EmptyState, InlineMessage, PageHeader, Select } from '../ui/index.js';
+import { Button, DirectoryPage, FilterToolbar, PageState, Select } from '../ui/index.js';
 import type { AgendaFilters, AgendaListState } from './agenda-state.js';
 import { groupAgendaByDay } from './agenda-rules.js';
 import type { AgendaSourceFilter } from './agenda-rules.js';
@@ -36,48 +36,68 @@ export function AgendaWorkspace({
   const { t, formatDate, formatDateTime } = useI18n();
   const grouped = groupAgendaByDay(items);
 
-  return (
-    <section className="agenda-panel" aria-label={t('agenda.region')}>
-      <PageHeader title={t('agenda.title')} description={t('agenda.description')} />
-      <div className="agenda-toolbar">
-        <Select
-          label={t('agenda.filters.view')}
-          value={filters.view}
-          onChange={(event) =>
-            onFiltersChange({ ...filters, view: event.target.value as AgendaView })
-          }
-        >
-          {VIEW_OPTIONS.map((view) => (
-            <option key={view} value={view}>
-              {t(`agenda.views.${view}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label={t('agenda.filters.source')}
-          value={filters.source}
-          onChange={(event) =>
-            onFiltersChange({ ...filters, source: event.target.value as AgendaSourceFilter })
-          }
-        >
-          {SOURCE_OPTIONS.map((source) => (
-            <option key={source} value={source}>
-              {t(`agenda.sources.${source}`)}
-            </option>
-          ))}
-        </Select>
+  const toolbar = (
+    <FilterToolbar
+      actions={
         <Button variant="secondary" type="button" onClick={onRefresh} disabled={pending}>
           {t('agenda.refresh')}
         </Button>
-      </div>
+      }
+      aria-label={t('agenda.filters.region')}
+      className="agenda-toolbar"
+      filters={
+        <>
+          <Select
+            label={t('agenda.filters.view')}
+            value={filters.view}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, view: event.target.value as AgendaView })
+            }
+          >
+            {VIEW_OPTIONS.map((view) => (
+              <option key={view} value={view}>
+                {t(`agenda.views.${view}`)}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label={t('agenda.filters.source')}
+            value={filters.source}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, source: event.target.value as AgendaSourceFilter })
+            }
+          >
+            {SOURCE_OPTIONS.map((source) => (
+              <option key={source} value={source}>
+                {t(`agenda.sources.${source}`)}
+              </option>
+            ))}
+          </Select>
+        </>
+      }
+    />
+  );
+
+  return (
+    <DirectoryPage
+      aria-label={t('agenda.region')}
+      className="agenda-panel"
+      description={t('agenda.description')}
+      title={t('agenda.title')}
+      toolbar={toolbar}
+    >
       {listState.status === 'error' ? (
-        <InlineMessage tone="danger" title={t('agenda.emptyTitle')}>
+        <PageState kind="error" title={t('agenda.errorTitle')}>
           {listState.message}
-        </InlineMessage>
+        </PageState>
       ) : null}
-      {listState.status === 'loading' ? <p>{t('common.status.working')}</p> : null}
+      {listState.status === 'loading' ? (
+        <PageState kind="loading" title={t('common.status.working')} />
+      ) : null}
       {listState.status === 'ready' && items.length === 0 ? (
-        <EmptyState title={t('agenda.emptyTitle')}>{t('agenda.emptyDescription')}</EmptyState>
+        <PageState kind="empty" title={t('agenda.emptyTitle')}>
+          {t('agenda.emptyDescription')}
+        </PageState>
       ) : null}
       {listState.status === 'ready' && items.length > 0
         ? [...grouped.entries()].map(([day, dayItems]) => (
@@ -115,6 +135,6 @@ export function AgendaWorkspace({
             </section>
           ))
         : null}
-    </section>
+    </DirectoryPage>
   );
 }

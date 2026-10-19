@@ -1,18 +1,9 @@
 .agenda-panel {
-  display: grid;
-  gap: var(--space-4);
   min-width: 0;
 }
-.agenda-panel .ui-page-header {
-  margin-bottom: var(--space-2);
-}
-.agenda-toolbar {
-  display: flex;
-  flex-wrap: wrap;
+
+.agenda-toolbar .ui-filter-toolbar__filters {
   gap: var(--space-3);
-  align-items: end;
-  padding-bottom: var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .agenda-day-group {
   min-width: 0;

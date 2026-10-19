@@ -1,0 +1,187 @@
+{
+  "browser": "Google Chrome",
+  "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "fixtureMode": "contract-shaped synthetic API responses",
+  "generatedAt": "2026-10-19T11:35:00.998Z",
+  "passed": true,
+  "results": [
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 787
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-en-agenda.png",
+        "desktop-en-tasks.png",
+        "desktop-en-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": null,
+      "viewport": "desktop"
+    },
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 787
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-fr-agenda.png",
+        "desktop-fr-tasks.png",
+        "desktop-fr-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": null,
+      "viewport": "desktop"
+    },
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 896
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "tablet-en-agenda.png",
+        "tablet-en-tasks.png",
+        "tablet-en-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": null,
+      "viewport": "tablet"
+    },
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 896
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "tablet-fr-agenda.png",
+        "tablet-fr-tasks.png",
+        "tablet-fr-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": null,
+      "viewport": "tablet"
+    },
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 738,
+        "touchBefore": 0,
+        "touchAfter": 405
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "mobile-en-agenda.png",
+        "mobile-en-tasks.png",
+        "mobile-en-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": true,
+      "viewport": "mobile"
+    },
+    {
+      "agendaHeadings": 1,
+      "agendaOverflow": 0,
+      "agendaScroll": {
+        "wheelBefore": 0,
+        "wheelAfter": 520,
+        "trackpadBefore": 0,
+        "trackpadAfter": 480,
+        "keyboardBefore": 0,
+        "keyboardAfter": 738,
+        "touchBefore": 0,
+        "touchAfter": 405
+      },
+      "agendaToolbar": 1,
+      "backUrl": "http://127.0.0.1:4173/agenda",
+      "deepLink": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "focusReturned": true,
+      "forwardUrl": "http://127.0.0.1:4173/tasks?task=11111111-1111-4111-8111-111111111111",
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "mobile-fr-agenda.png",
+        "mobile-fr-tasks.png",
+        "mobile-fr-task-detail.png"
+      ],
+      "tasksHeadings": 1,
+      "tasksOverflow": 0,
+      "tasksToolbar": 1,
+      "touchClose": true,
+      "viewport": "mobile"
+    }
+  ]
+}

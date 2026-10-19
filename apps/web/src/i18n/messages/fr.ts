@@ -178,7 +178,9 @@ export const frMessages: Messages = {
     description: 'Vue chronologique de votre travail daté dans Hire Me.',
     emptyDescription: 'Aucun élément ne correspond à cette vue et à ce filtre.',
     emptyTitle: 'Rien de planifié ici',
+    errorTitle: 'Impossible de charger votre agenda',
     filters: {
+      region: 'Filtres de l’agenda',
       source: 'Source',
       view: 'Vue',
     },

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, Select, TextField } from '../ui/index.js';
+import { Button, FilterToolbar, Select, TextField } from '../ui/index.js';
 import {
   taskContextKindLabelKey,
   taskDueFilterLabelKey,
@@ -94,83 +94,115 @@ export function TaskFilterBar({
         onApply();
       }}
     >
-      <div className="task-filters__row">
-        <TextField
-          label={t('task.fields.search')}
-          onChange={(event) => onChange({ ...filters, search: event.target.value })}
-          type="search"
-          value={filters.search}
-        />
-        <Select
-          label={t('task.fields.view')}
-          onChange={(event) => setScope(event.target.value as Scope)}
-          value={scope}
-        >
-          <option value="all">{t('task.filters.scope.all')}</option>
-          <option value="assignedToMe">{t('task.filters.scope.assignedToMe')}</option>
-          <option value="ownedByMe">{t('task.filters.scope.ownedByMe')}</option>
-          <option value="createdByMe">{t('task.filters.scope.createdByMe')}</option>
-          {scope === 'custom' ? (
-            <option disabled value="custom">
-              {t('task.filters.scope.custom')}
-            </option>
-          ) : null}
-        </Select>
-        <Select
-          label={t('task.fields.due')}
-          onChange={(event) =>
-            onChange({ ...filters, due: event.target.value as TaskFilters['due'] })
-          }
-          value={filters.due}
-        >
-          <option value="">{t('task.filters.anyDue')}</option>
-          <option value="dueSoon">{t(taskDueFilterLabelKey('dueSoon'))}</option>
-          <option value="overdue">{t(taskDueFilterLabelKey('overdue'))}</option>
-        </Select>
-        <Select
-          label={t('task.fields.priority')}
-          onChange={(event) =>
-            onChange({ ...filters, priority: event.target.value as TaskFilters['priority'] })
-          }
-          value={filters.priority}
-        >
-          <option value="">{t('task.filters.anyPriority')}</option>
-          {TASK_PRIORITIES.map((priority) => (
-            <option key={priority} value={priority}>
-              {t(taskPriorityLabelKey(priority))}
-            </option>
-          ))}
-        </Select>
-        {view === 'list' ? (
-          <Select
-            label={t('task.fields.status')}
-            onChange={(event) =>
-              onChange({ ...filters, status: event.target.value as TaskFilters['status'] })
-            }
-            value={filters.status}
-          >
-            <option value="">{t('task.filters.anyStatus')}</option>
-            {TASK_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {t(taskStatusLabelKey(status))}
-              </option>
-            ))}
-          </Select>
-        ) : null}
-        <Select
-          label={t('task.fields.sort')}
-          onChange={(event) =>
-            onChange({ ...filters, sort: event.target.value as TaskFilters['sort'] })
-          }
-          value={filters.sort}
-        >
-          {TASK_SORTS.map((sort) => (
-            <option key={sort} value={sort}>
-              {t(taskSortLabelKey(sort))}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <FilterToolbar
+        actions={
+          <>
+            <Button size="compact" type="submit">
+              {t('task.actions.applyFilters')}
+            </Button>
+            <Button
+              aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}
+              size="compact"
+              variant="quiet"
+            >
+              {expanded ? t('task.actions.fewerFilters') : t('task.actions.moreFilters')}
+            </Button>
+            {hasTaskFilters(appliedFilters) || hasTaskFilters(filters) ? (
+              <Button
+                onClick={() => {
+                  setResets((value) => value + 1);
+                  onReset();
+                }}
+                size="compact"
+                variant="quiet"
+              >
+                {t('task.actions.reset')}
+              </Button>
+            ) : null}
+          </>
+        }
+        className="task-filters__toolbar"
+        filters={
+          <div className="task-filters__row">
+            <TextField
+              label={t('task.fields.search')}
+              onChange={(event) => onChange({ ...filters, search: event.target.value })}
+              type="search"
+              value={filters.search}
+            />
+            <Select
+              label={t('task.fields.view')}
+              onChange={(event) => setScope(event.target.value as Scope)}
+              value={scope}
+            >
+              <option value="all">{t('task.filters.scope.all')}</option>
+              <option value="assignedToMe">{t('task.filters.scope.assignedToMe')}</option>
+              <option value="ownedByMe">{t('task.filters.scope.ownedByMe')}</option>
+              <option value="createdByMe">{t('task.filters.scope.createdByMe')}</option>
+              {scope === 'custom' ? (
+                <option disabled value="custom">
+                  {t('task.filters.scope.custom')}
+                </option>
+              ) : null}
+            </Select>
+            <Select
+              label={t('task.fields.due')}
+              onChange={(event) =>
+                onChange({ ...filters, due: event.target.value as TaskFilters['due'] })
+              }
+              value={filters.due}
+            >
+              <option value="">{t('task.filters.anyDue')}</option>
+              <option value="dueSoon">{t(taskDueFilterLabelKey('dueSoon'))}</option>
+              <option value="overdue">{t(taskDueFilterLabelKey('overdue'))}</option>
+            </Select>
+            <Select
+              label={t('task.fields.priority')}
+              onChange={(event) =>
+                onChange({ ...filters, priority: event.target.value as TaskFilters['priority'] })
+              }
+              value={filters.priority}
+            >
+              <option value="">{t('task.filters.anyPriority')}</option>
+              {TASK_PRIORITIES.map((priority) => (
+                <option key={priority} value={priority}>
+                  {t(taskPriorityLabelKey(priority))}
+                </option>
+              ))}
+            </Select>
+            {view === 'list' ? (
+              <Select
+                label={t('task.fields.status')}
+                onChange={(event) =>
+                  onChange({ ...filters, status: event.target.value as TaskFilters['status'] })
+                }
+                value={filters.status}
+              >
+                <option value="">{t('task.filters.anyStatus')}</option>
+                {TASK_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(taskStatusLabelKey(status))}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
+            <Select
+              label={t('task.fields.sort')}
+              onChange={(event) =>
+                onChange({ ...filters, sort: event.target.value as TaskFilters['sort'] })
+              }
+              value={filters.sort}
+            >
+              {TASK_SORTS.map((sort) => (
+                <option key={sort} value={sort}>
+                  {t(taskSortLabelKey(sort))}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
+      />
 
       {expanded ? (
         <div className="task-filters__more">
@@ -218,32 +250,6 @@ export function TaskFilterBar({
           ) : null}
         </div>
       ) : null}
-
-      <div className="task-filters__actions">
-        <Button size="compact" type="submit">
-          {t('task.actions.applyFilters')}
-        </Button>
-        <Button
-          aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
-          size="compact"
-          variant="quiet"
-        >
-          {expanded ? t('task.actions.fewerFilters') : t('task.actions.moreFilters')}
-        </Button>
-        {hasTaskFilters(appliedFilters) || hasTaskFilters(filters) ? (
-          <Button
-            onClick={() => {
-              setResets((value) => value + 1);
-              onReset();
-            }}
-            size="compact"
-            variant="quiet"
-          >
-            {t('task.actions.reset')}
-          </Button>
-        ) : null}
-      </div>
     </form>
   );
 }

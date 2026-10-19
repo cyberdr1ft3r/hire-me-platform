@@ -1,17 +1,18 @@
 # Delivery Roadmap
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
 ## Current UI composition sequence
 
-The proposed Unified Page System foundation reuses the merged AppShell, route permissions, UI-DNA,
-PageHeader, Workspace Surface, feedback, drawers, and EN/FR infrastructure. After foundation review,
-migrations proceed as isolated PRs: Overview/denial; Agenda/Tasks; Messages frame only;
-Candidates/Missions; Clients after foundation integration and separate PR #210 review; Reporting;
-Commercial/Accounting; Training/Documents; Meetings; Administration after localization and form-label
-prerequisites. See `docs/design/unified-page-system-foundation.md`; no broad all-workspace rewrite.
+The merged Unified Page System foundation reuses the AppShell, route permissions, UI-DNA,
+PageHeader, Workspace Surface, feedback, drawers, and EN/FR infrastructure. Overview/denial are
+merged through #218 and Clients v2.1 through #210. Issue #219 migrates Agenda/Tasks in one focused
+composition PR. Remaining migrations continue independently: Messages frame only;
+Candidates/Missions; Reporting; Commercial/Accounting; Training/Documents; Meetings;
+Administration after localization and form-label prerequisites. See
+`docs/design/unified-page-system-foundation.md`; no broad all-workspace rewrite.
 
 ## Phase 0 - Discovery
 
