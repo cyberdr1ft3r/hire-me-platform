@@ -1,6 +1,6 @@
 # Console Workspace v1.0 — interaction behavior matrix (proposed)
 
-Status: **Proposed — revised for Issue #228 Phase A on `main` `cfe6be6`.** Each row is a testable
+Status: **Approved direction (PR #229 review, 2026-10-19) with refinements RV1/RV2 — revised for Issue #228 Phase A on `main` `cfe6be6`.** Each row is a testable
 contract for Phase B/C. It follows the proposed [ADR (D-089)](./console-workspace-v1-adr-proposed.md)
 as amended by the [#228 preflight](./console-workspace-tabs-preflight-228.md) (A1–A7). Row IDs from
 the #198 version are kept; new rows are marked **new**.
@@ -36,9 +36,10 @@ that must pass the row. Test IDs (U*, T*) are defined in the
 | D2 | Close a workspace tab that has record tabs | — | One confirmation naming the count; unsaved members trigger D4 first | replace | C1 |
 | D3 | Close Overview / the only tab | — | Not closable | — | B2 |
 | D4 | Close a tab with unsaved input | — | Existing guard confirmation; cancel keeps editing; confirm discards and closes | replace on confirm | B2 |
-| D5 | Switch away from a tab with unsaved input | Guarded surfaces ask; Tasks/Training/Accounting/Commercial/Documents/Admin/Messages composer lose input silently | Every module asks (B0′); no hidden mounted trees (A3) | push on confirm | B0′, B2 |
+| D5 | Switch away from a tab with unsaved input (RV2: values differ from the editing baseline) | Guarded surfaces ask; Tasks/Training/Accounting/Commercial/Documents/Admin/Messages composer lose input silently | Every module asks (B0′); no hidden mounted trees (A3) | push on confirm | B0′, B2 |
 | D6 | Sidebar or Back/Forward with unsaved input | Guarded surfaces: undo + confirm + replay (`navigation-guard.ts`); others silent | Same mechanism for all modules and for tab activation | — | B0′ |
 | D7 | Reload/close the browser tab with unsaved input | `beforeunload` on guarded surfaces only | `beforeunload` for every module while dirty | — | B0′ |
+| D12 **new** | Unchanged, reverted, saved, reset or search/filter forms | Guarded surfaces ask after any input, even reverted | Never ask (RV2) | — | B0′ |
 | D8 | Open the 9th tab | — | Polite notice (soft limit 8) | push | B2 |
 | D9 | Open the 11th tab | — | Offer: replace least recently used tab without unsaved input, or open the tab list; never blocked without a way out | — | B2 |
 | D10 | "More tabs" menu / mobile tab dialog | — | All tabs grouped by workspace, filter above 6 tabs, close buttons, unsaved markers, keyboard operable | — | B2 |
@@ -48,8 +49,8 @@ that must pass the row. Test IDs (U*, T*) are defined in the
 
 | ID | Trigger | Today | Proposed | Hist. | PR |
 | --- | --- | --- | --- | --- | --- |
-| H1 | Back after switching tabs A → B | Previous module remounts and refetches (median settled 91 ms at 4×) | Activate A (snapshot from B3) | — | B2 |
-| H2 | Back to an entry whose tab was closed | — | View renders in its workspace tab with fresh data; no tab or draft resurrected | — | B2 |
+| H1 | Back after switching tabs A → B | Previous module remounts and refetches (median settled 91 ms at 4×) | Activate A, identified by `history.state.hiremeConsoleTab` (RV1; snapshot from B3) | — | B2 |
+| H2 | Back to an entry whose tab was closed | — | State names a closed tab → URL-only fallback: view renders in its workspace tab with fresh data; no tab or draft resurrected | — | B2 |
 | H3 | Paste a record URL in a clean signed-in session | Candidates/Clients/Missions/Training/Tasks/Meetings/Messages resolve; Commercial/Accounting/Documents have no record parameter | Unchanged: the view opens in its workspace tab; no record tab unless `in=` is present | — | B2 |
 | H3b **new** | Clean session with `…&in=clients` | Parameter ignored | Creates `ws:clients` (no data fetch) and the record tab under it, if both routes are permitted; otherwise ignored | — | C2 |
 | H4 | Paste a record URL while signed out | Login, then the URL is honoured | Same | — | B2 (regression) |
@@ -58,6 +59,8 @@ that must pass the row. Test IDs (U*, T*) are defined in the
 | H7 | Record deleted, archived or no longer accessible | Module error/denied state | Record tab shows "unavailable" with Close; no background retry | — | C1 |
 | H8 **new** | Back/Forward across many tab switches | Remount per step | Every step activates or shows the URL's view; history length equals the number of activations | — | B2 |
 | H9 **new** | Back while the guard holds a traversal | Undo + confirm + replay | Same; the strip shows the tab the user stays on | — | B2 |
+| H10 **new** | Back/Forward to a URL two contexts can show (record focused in its workspace tab earlier, open as a record tab now) | — | Resolution order RV1: state's tab if open in this console → canonical record tab → workspace tab (URL-only) | — | B1 (U6), B2 |
+| H11 **new** | Back after a reload or a different user signed in on the same browser tab | Entries keep `hiremeHistoryIndex` only | Old `hiremeConsoleTab` values carry another console instance id and are ignored (URL-only fallback) | — | B1 (U6), B2 |
 | S1 | Sign-out (this browser tab or another, D-090) | `ended` event clears user/token; modules unmount | Console remounts empty (A4) | push | B2 |
 | S2 | Account refresh changes permissions | User replaced; route gate re-evaluated | Prune tabs whose route is now denied; active denied tab shows the permission-denied state with Close (A4) | replace | B2 |
 | S3 | Access token expires | Request core refreshes single-flight and replays (#203/#209) | Unchanged; tab activation never triggers a refresh by itself | — | B2 (regression) |

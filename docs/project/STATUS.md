@@ -21,7 +21,11 @@ Status owner: repository maintainer
   requests/min. Seven modules with forms (Tasks, Training, Accounting, Commercial, Documents, Admin,
   Messages composer) have no unsaved-input guard; a guard-coverage PR (B0′) is proposed before
   closable tabs. The refresh limiter still logs out the 7th rapid reload (R-055).
-- Next: maintainer sign-off on A1–A7 and the six open questions; Phase B stays unstarted until then.
+- Maintainer review (2026-10-19) approved the direction, A1–A7, the ≥ 900px utility-bar strip,
+  active-only rendering with confirm-before-switch, no restoration/cache in v1.0 and recorded browser
+  evidence instead of Figma, with refinements RV1 (tab identity in `history.state`, URL-only
+  fallback) and RV2 (guards ask only for genuinely unsaved input). D-089 Accepted. Next: B0′ draft
+  PR, then B1 after review. PR #229 stays draft.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 

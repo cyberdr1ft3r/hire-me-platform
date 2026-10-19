@@ -171,9 +171,14 @@ Unit and component tests (Vitest/jsdom, run in CI with the web package):
 - **U4 principal and session**: user id or session change remounts the console empty; a
   permission-only change prunes denied tabs and keeps the rest; sign-out from another browser tab
   (D-090 event) empties it.
+- **U6 history state (RV1)**: `hiremeConsoleTab` is written only through `pushHistoryPath` /
+  `replaceHistoryPath` together with `hiremeHistoryIndex`; resolution order (state's open tab →
+  canonical record tab → URL-only workspace fallback); entries from another console instance,
+  unindexed entries and malformed state fall back to the URL; no labels or names in state.
 - **U5 snapshots** (B3): schema version, size cap, unknown fields dropped, no free text or names.
-- **B0′ module tests**: for each newly guarded module, input → shell link/Back/reload asks; save or
-  reset clears; search forms never block.
+- **B0′ module tests (RV2)**: for each newly guarded module, changed input → shell link/Back/reload
+  asks; typed-then-reverted input, unchanged forms, saved forms, reset forms and search/filter forms
+  never ask.
 - **A11y component tests**: tablist roles and names, roving focus, close buttons, live-region
   announcements, mobile dialog focus trap and Escape (EN and FR strings present).
 - Existing suites that must stay green unchanged: `App.test.tsx`, `AppShell*.test.tsx`,

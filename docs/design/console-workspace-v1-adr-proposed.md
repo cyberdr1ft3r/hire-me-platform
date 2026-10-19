@@ -10,7 +10,9 @@ Base: integration branch `fix/ui-refinement-demo-20261013` at `bd46f59` (AppShel
 v1.2 #195 and Workspace Surface v1.0 #197 merged into it; #194 into `main` and the
 Notification Center #199 are still open drafts).
 
-> **Amendments proposed by Issue #228 (2026-10-19, `main` `cfe6be6`), also pending sign-off.**
+> **Amendments A1–A7 from Issue #228 (2026-10-19, `main` `cfe6be6`) — approved in the PR #229
+> review with refinements RV1 (tab identity in `history.state`, URL-only fallback) and RV2 (guard
+> asks only for genuinely unsaved input).**
 > The [#228 preflight](./console-workspace-tabs-preflight-228.md#amendments-proposed-by-this-preflight)
 > re-audited `main`: B0 (request core, #203/#209) and B1 (lazy routes, #208) are done, and
 > Workspace v2 made the quick preview local state and the record query a pushed focused view.

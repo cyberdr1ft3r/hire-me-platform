@@ -1,7 +1,31 @@
 # Console Workspace tabs — Phase A preflight on `main` (Issue #228)
 
-Status: **Proposed — documentation and measurement only. Human sign-off gate before Phase B.**
-No application code, contract, schema, permission, dependency or sidebar change.
+Status: **Phase A approved with two refinements (RV1, RV2) (maintainer review of PR #229, 2026-10-19).**
+Documentation and measurement only; no application code, contract, schema, permission, dependency
+or sidebar change.
+
+## Phase A review outcome
+
+Approved: the Console Workspace direction and amendments A1–A7; the utility-bar tab strip at
+≥ 900px (with responsive and accessibility evidence); active-only rendering with
+confirm-before-switch; **no `sessionStorage` restoration and no response cache in v1.0**; recorded
+browser interaction evidence (screenshots/video of desktop, mobile, overflow, keyboard and dirty
+transitions) instead of a separate Figma prototype. Next steps: B0′ as a dedicated draft PR, then
+B1 as a separate draft PR after B0′ review. B2 implementation, merges, deployment, sidebar redesign
+and unrelated fixes each need later explicit approval.
+
+Refinements, now part of the design:
+
+- **RV1 — Tab identity in `history.state`** (refines A1, §3.7). Record URLs stay unchanged. When
+  several console contexts could show the same URL, the router entry records which tab it belongs
+  to, inside the `history.state` object the existing router already writes. URL-only resolution
+  remains the fallback for closed tabs and clean sessions. `navigation-guard.ts` stays the only
+  history authority; no second listener or history model.
+- **RV2 — B0′ guard semantics** (refines A6, §5). A form is protected only while it holds genuinely
+  unsaved input: values that differ from the form's state when editing began. Unchanged forms
+  (including input typed and then reverted), saved forms and search/filter forms never ask. Tests
+  and browser evidence must show save and reset clearing the state, and Back and reload asking only
+  while input is unsaved.
 
 Issue #228 implements the browser-style console designed in Issue #198. The #198 Phase 0/A
 documents were written on the integration branch at `bd46f59` (2026-10-14). Since then the
@@ -280,8 +304,23 @@ dictionaries remain the next entry-size lever; console chrome must stay small (�
 
 - Push only on tab activation and on `showRecord`/`openRecordTab`; replace for close, filter, page
   and preview changes; preview itself writes nothing (today's behaviour).
-- Back/Forward: if the URL's view belongs to an open tab, activate it (with snapshot); otherwise
-  show the view in its workspace tab. Guarded traversal uses the existing undo/replay mechanism.
+- **Tab identity in `history.state` (RV1).** Every entry written by `pushHistoryPath` /
+  `replaceHistoryPath` already carries `{ hiremeHistoryIndex }`. B2 adds one optional field to the
+  same object, `hiremeConsoleTab: { console: <console instance id>, tab: <canonical tab id> }`,
+  written by the same two functions (an optional argument), never by a separate `pushState`. The
+  console instance id is a random value created when the console mounts (new user, new session or
+  reload), so entries written by an earlier console never match a current tab.
+- **Deterministic Back/Forward resolution** for the URL's view, in order:
+  1. `history.state.hiremeConsoleTab` belongs to this console instance, names an open tab, and that
+     tab can show the URL's view → activate that tab (snapshot from B3);
+  2. otherwise, a canonical record tab for the URL's record is open → activate it (dedupe invariant);
+  3. otherwise (closed tab, older console, unindexed entry, clean session) → **URL-only fallback**:
+     show the view in its route's workspace tab, creating that tab if needed, plus `in=` handling.
+  Guarded traversal keeps using the existing undo/replay mechanism: the guard decides before the
+  console resolves anything, and a held traversal never changes tabs.
+- `history.state` holds only the index and canonical ids (route names and record UUIDs that are
+  already in the URL): no labels, names or snapshots. It survives a reload but is ignored by rule 1
+  because the console instance id changes.
 - Clean session (new browser tab, pasted link, after login): only the linked view opens, as today;
   `in=<route>` additionally creates that workspace tab as the parent without fetching its data.
 - Modified clicks (Ctrl/Cmd/middle) on real links keep native browser behaviour; a new browser tab
@@ -308,7 +347,7 @@ stateDiagram-v2
 
 | Area | Safeguard | Verified by |
 | --- | --- | --- |
-| Unsaved forms | All transitions through the guard stack; B0′ coverage for every module with forms; `beforeunload` only while dirty; no draft persistence | U3, B0′ module tests, browser D-rows |
+| Unsaved forms | All transitions through the guard stack; B0′ coverage for every module with forms; dirty = differs from the editing baseline (RV2); `beforeunload` only while dirty; no draft persistence | U3, B0′ module tests, browser D-rows |
 | User/session isolation | Provider keyed by user id + session epoch; `ended` remounts; cross-tab sign-out (D-090) arrives as `ended` | U4, browser S-rows |
 | Revoked permissions | Prune on permission change; gate on every render; denied state for the active tab; API remains the authority | U4, T8 |
 | Inactive polling | Active-only rendering; no new pollers in console code; shell keeps its two 60 s polls | T5 poll-count test |
@@ -322,9 +361,9 @@ evidence from the #228 harness. No step merges without explicit approval.
 
 | PR | Scope (and nothing else) | Acceptance gate |
 | --- | --- | --- |
-| **A** (this PR) | Audit, amendments A1–A7, matrix, baseline, test plan | Maintainer sign-off on A1–A7 and the open questions below |
-| **B0′ Draft guard coverage** | Apply the existing container guard to Tasks, Training, Accounting, Commercial, Documents, Admin and the Messages composer (non-empty only); no tab code | Per-module tests: input + shell link / Back / reload asks; save or reset clears; search forms ignored. No change to any API or form behaviour |
-| **B1 Console state core** | Pure reducer, descriptor types, identity/URL codec, fallback and limit rules; unit tests; not yet rendered | U1, U2 green; no bundle change in the entry chunk beyond the module (tree-shaken until B2) |
+| **A** (PR #229) | Audit, amendments A1–A7, matrix, baseline, test plan | **Approved 2026-10-19 with RV1, RV2** |
+| **B0′ Draft guard coverage** | RV2 dirty detection (differs from the editing baseline) in the shared guard; apply it to Tasks, Training, Accounting, Commercial, Documents, Admin and the Messages composer; no tab code | Per-module tests: changed input + shell link / Back / reload asks; unchanged, reverted, saved, reset and search/filter forms never ask; browser evidence of save/reset clearing and Back/reload. No API or form behaviour change |
+| **B1 Console state core** | Pure reducer, descriptor types, identity/URL codec, RV1 history-state codec and resolution order, fallback and limit rules; unit tests; not yet rendered | U1, U2, U6 green; no bundle change in the entry chunk beyond the module (tree-shaken until B2) |
 | **B2 Primary workspace tabs** | `ConsoleProvider` in `AppRoutes`, desktop strip in the utility bar, mobile tab dialog, open/focus/close, limits, guard integration, A4 prune/reset, EN/FR strings, a11y | Matrix N1–N2, D1–D10, H1–H6, S1–S4, A1–A5, R1–R4, L1 pass in browser; T2–T6, T9, T10 within budget; console chrome ≤ 8 KB gzip in entry |
 | **B3 Workspace snapshots** | A7 snapshots for Clients, Candidates, Missions directories | Return to a workspace tab restores query/page/preview/scroll; T2 p95 within budget |
 | **C1 Record tabs** | "Open in tab" on preview and focused-record headers (Clients, Candidates, Missions); dedupe; unavailable state for 403/404 | N3–N7, H7 pass; one tab per record; preview stays the default row action |
@@ -348,9 +387,9 @@ Findings that change the #198 plan:
 5. Revisits are already fast without a cache (A2); Tasks' 7 requests per visit are the slowest case.
 6. The harness from #198 under-measures first visits on a lazy-route build; the #228 copy fixes it.
 
-Blockers: **none technical.** Phase B is blocked only by the sign-off gate below.
+Blockers: **none.** Phase A is approved; B2 and later still need explicit approval.
 
-Open questions (each has a proposed answer):
+Open questions as proposed, with the review answers:
 
 1. A1 URL model with `in=` only for cross-module record tabs — accept? (Alternative: path segments.)
 2. A3 confirm-only drafts in v1 — accept? (Alternative: an in-memory draft registry independent of
@@ -363,6 +402,10 @@ Open questions (each has a proposed answer):
 6. The clickable interaction prototype required by #198 is still missing. Proposal: treat the B2
    draft PR's browser evidence (recorded flows per matrix row) as that evidence instead of a separate
    Figma prototype. Needs the maintainer's agreement.
+
+Answers (2026-10-19): 1 accepted with RV1; 2 accepted (confirm-before-switch); 3 accepted with
+responsive/a11y evidence; 4 accepted, B0′ first with RV2; 5 no restoration in v1.0; 6 accepted —
+recorded screenshots/video of desktop, mobile, overflow, keyboard and dirty transitions.
 
 ## Non-goals
 

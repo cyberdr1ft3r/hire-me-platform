@@ -207,7 +207,7 @@ Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → ~~PR C (#145)~~ → **C2 (
 
 ## Issues #198 / #228 — Console Workspace v1.0 tabs (proposed sequence)
 
-**State:** #228 Phase A preflight in review on `main`; implementation not approved. Already done:
+**State:** #228 Phase A approved (PR #229 review, 2026-10-19, refinements RV1/RV2). B0′ authorized as a dedicated draft PR, B1 after its review; B2 onward needs later approval. Already done:
 request core (#203, #209), lazy routes (#208), `?client=` (#207).
 [Sequence and gates](../design/console-workspace-tabs-preflight-228.md#5-implementation-sequence-and-acceptance-gates).
 
