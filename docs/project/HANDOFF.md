@@ -4,27 +4,26 @@ Last updated: 2026-10-19
 
 ## Current situation
 
-- Issue #221 merged through PR #222 as `58b7676fb94e82bd65ff5703b1a153ddc6acad4f`.
-- Messages uses the shared fill-layout `DirectoryPage` and `ContextualActions`. The existing
-  `WorkspaceSurface`, conversation list, thread log, composer, unread/read logic, permissions,
-  API contracts, deep-link intent, session isolation, and focus management are unchanged.
-- The page-system fill content uses a zero flex basis with `min-height: 0`; installed Chrome proved
-  that long threads keep their independent scroll range and PR #215 boundary handoff.
-- Focused tests pass 54/54. Installed Chrome passes six EN/FR desktop/tablet/mobile scenarios plus
-  EN/FR short-viewport boundary handoff. Evidence:
-  [`issue-221-messages-page-system`](../audit/issue-221-messages-page-system.md).
-- Exact-head run `39252983760` passed all four jobs on reviewed head `30f7a84`; post-merge main run
-  `39254910991` passed all four jobs on `58b7676`. No deployment was performed.
+- Issue #224 Candidates PR #225 merged into `main` as
+  `73dff3c2f20d5c91b2c754e4af83bb9c4aaea972`.
+- Draft Missions PR #226 was reconciled by normally merging that `main` into
+  `feat/issue-224-missions-page-system`. The merge had no conflicts, and a normalized diff confirms
+  that `apps/web/src/candidates` is unchanged from `main`.
+- Missions still owns its existing workflows, permissions, APIs, forms, deep links, focus behavior,
+  and scrolling. Its only product change remains the reviewed shared-page composition documented in
+  [`issue-224-missions-page-system`](../audit/issue-224-missions-page-system.md).
+- Reconciliation validation passes: architecture, formatting, lint, typecheck, build, and 235/235
+  combined Candidates/Missions/PageSystem/scrolling regression tests. No deployment was performed.
 
 ## Next concrete action
 
-1. Review and merge the separate documentation-only post-merge status PR when appropriate.
-2. Consider optional physical-device, precision-touchpad, and screen-reader recordings as follow-up
-   acceptance; they are not known blockers.
-3. Do not deploy, implement the floating launcher/drawer, or start another workspace
-   migration without explicit approval.
+1. Confirm the final PR #226 head has all four required exact-head CI jobs green and remains cleanly
+   mergeable.
+2. Review draft PR #226 and its installed-Chrome EN/FR desktop/tablet/mobile evidence.
+3. Keep PR #226 draft and unmerged until explicit approval; do not deploy or begin another workspace
+   migration.
 
 ## Completion conditions
 
-- The documentation-only status PR remains draft until human review.
-- No deployment or further workspace migration begins without explicit approval.
+- PR #226 remains draft, cleanly mergeable, and backed by four green exact-head jobs.
+- No merge, deployment, or unrelated workspace work occurs without explicit approval.
