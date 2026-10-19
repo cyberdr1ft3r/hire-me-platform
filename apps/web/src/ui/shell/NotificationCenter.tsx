@@ -19,7 +19,6 @@ type LoadState<T> =
 export interface NotificationCenterProps {
   accessToken: string;
   messageUnreadCount: number | null;
-  onMessageUnreadChanged: () => void;
   onNavigatePath: (path: string) => void;
   permissions: readonly string[];
 }
@@ -74,17 +73,28 @@ export function NotificationCenter(props: NotificationCenterProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const request = useRef(0);
+  const unreadRequest = useRef(0);
 
   const refreshUnread = useCallback(() => {
     if (!canViewNotifications) {
       setNotificationUnread(0);
       return;
     }
+    const current = ++unreadRequest.current;
     void listNotifications(props.accessToken, { pageSize: 1, status: 'UNREAD' }).then(
-      (page) => setNotificationUnread(page.pageInfo.total),
+      (page) => {
+        if (unreadRequest.current === current) setNotificationUnread(page.pageInfo.total);
+      },
       () => undefined,
     );
   }, [canViewNotifications, props.accessToken]);
+
+  useEffect(
+    () => () => {
+      unreadRequest.current += 1;
+    },
+    [canViewNotifications, props.accessToken],
+  );
 
   const refresh = useCallback(() => {
     const current = ++request.current;
@@ -132,9 +142,16 @@ export function NotificationCenter(props: NotificationCenterProps) {
     const closeOutside = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) close(true);
     };
+    const closeWhenFocusMovesOutside = (event: FocusEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) close(false);
+    };
     document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('focusin', closeWhenFocusMovesOutside);
     requestAnimationFrame(() => headingRef.current?.focus());
-    return () => document.removeEventListener('pointerdown', closeOutside);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('focusin', closeWhenFocusMovesOutside);
+    };
   }, [open]);
 
   function close(restoreFocus: boolean): void {
@@ -148,11 +165,15 @@ export function NotificationCenter(props: NotificationCenterProps) {
     setActionFailed(false);
     try {
       const response = await markNotificationRead(props.accessToken, id);
+      unreadRequest.current += 1;
       setNotifications((current) =>
         current.status === 'ready'
           ? {
               ...current,
-              data: current.data.map((item) => (item.id === id ? response.notification : item)),
+              data:
+                filter === 'unread'
+                  ? current.data.filter((item) => item.id !== id)
+                  : current.data.map((item) => (item.id === id ? response.notification : item)),
             }
           : current,
       );
@@ -170,6 +191,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
     setActionFailed(false);
     try {
       await markAllNotificationsRead(props.accessToken, { status: 'UNREAD' });
+      unreadRequest.current += 1;
       setNotificationUnread(0);
       setNotifications((current) =>
         current.status === 'ready'
@@ -217,18 +239,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   if (!canViewNotifications && !canViewMessages) return null;
 
   return (
-    <div
-      className="notification-center"
-      onBlur={(event) => {
-        // Focus may move from the popover to a control behind it (for example a
-        // creation-drawer trigger). Treat that as leaving the interaction
-        // boundary, but keep focus on the new target instead of stealing it
-        // back to the bell. Blurs between descendants remain inside the panel.
-        const nextTarget = event.relatedTarget;
-        if (!nextTarget || !rootRef.current?.contains(nextTarget)) close(false);
-      }}
-      ref={rootRef}
-    >
+    <div className="notification-center" ref={rootRef}>
       <button
         aria-controls="notification-center-panel"
         aria-expanded={open}
@@ -332,7 +343,6 @@ export function NotificationCenter(props: NotificationCenterProps) {
                             event.preventDefault();
                             close(false);
                             props.onNavigatePath(path);
-                            props.onMessageUnreadChanged();
                           }}
                         >
                           <span className="notification-center__source">

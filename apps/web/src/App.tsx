@@ -440,7 +440,6 @@ function AppRoutes() {
       notificationCenter={{
         accessToken,
         messageUnreadCount: unreadMessages.count,
-        onMessageUnreadChanged: unreadMessages.refresh,
         onNavigatePath: navigateToPath,
       }}
       navigationBadges={

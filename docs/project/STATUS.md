@@ -3,6 +3,22 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
+## Issue #196 — Notification Center unread-consistency follow-up
+
+- The core compact Notification Center and unread Messages composition already merged through PR
+  #199; the follow-up keeps its existing APIs and independent read models. It fixes a real-Chrome
+  focus-boundary race that could close the popover before a filter or row-action click, removes a
+  read Notification immediately from the Unread filter, rejects stale notification-count responses,
+  and removes a speculative Messages-summary refresh before the conversation read cursor advances.
+- No backend, contract, schema, permission, polling interval, or unrelated workspace changed.
+  Focused Notification Center/Messages regressions and installed-Chrome EN/FR desktop/tablet/mobile
+  evidence cover counts, source permissions, notification-only read handling, exact conversation
+  navigation, Escape focus restoration, and session isolation.
+  [Evidence](../audit/issue-196-notification-center-hardening.md).
+- Latest `main` `d1da9b5` includes merged Candidates #225 and Missions #226; post-merge run
+  `39286931663` concluded successfully. The follow-up remains a draft, unmerged, and undeployed
+  until exact-head CI and human review.
+
 ## Issue #224 — Candidates and Missions Unified Page System migration
 
 - Candidates PR #225 merged into `main` as `73dff3c`. Missions remains isolated in draft PR #226

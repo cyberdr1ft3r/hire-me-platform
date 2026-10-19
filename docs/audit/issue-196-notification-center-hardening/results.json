@@ -1,0 +1,77 @@
+{
+  "generatedAt": "2026-10-19T17:01:53.747Z",
+  "scenarios": [
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "en",
+      "viewport": "desktop"
+    },
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "en",
+      "viewport": "tablet"
+    },
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "en",
+      "viewport": "mobile"
+    },
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "fr",
+      "viewport": "desktop"
+    },
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "fr",
+      "viewport": "tablet"
+    },
+    {
+      "afterItems": 1,
+      "badgeAfterRead": "1",
+      "documentHorizontalOverflow": false,
+      "errors": [],
+      "escapeRestoredFocus": true,
+      "exactNavigation": true,
+      "href": "/messages?conversation=44444444-4444-4444-8444-444444444444",
+      "initialItems": 2,
+      "locale": "fr",
+      "viewport": "mobile"
+    }
+  ]
+}
