@@ -2963,11 +2963,11 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
 describe('Candidates v2.0: quick preview as a mobile sheet', () => {
   /** Gives the Candidates workspace a 390px phone width; everything else keeps no layout. */
   function narrowWorkspace() {
-    // jsdom has no layout: every element measures 0 except the workspace root here.
+    // jsdom has no layout: every element measures 0 except the shared workspace surface here.
     return vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
-      return new DOMRect(0, 0, this.classList.contains('candidates') ? 358 : 0, 0);
+      return new DOMRect(0, 0, this.classList.contains('candidates__workspace') ? 358 : 0, 0);
     });
   }
 

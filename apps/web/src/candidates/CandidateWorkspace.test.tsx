@@ -1111,6 +1111,10 @@ describe('Workspace Surface', () => {
   it('places the directory and the preview in one surface with the filters in the list toolbar', () => {
     const shaped = asServerWouldReturn(syntheticCandidate(), [P.view]);
     renderWorkspace([P.view], { previewCandidate: shaped, recordCandidateId: null });
+    const page = screen.getByRole('heading', { level: 1, name: 'Candidates' }).closest('section');
+    expect(page).toHaveAttribute('data-page-kind', 'directory');
+    expect(page).toHaveAttribute('data-page-layout', 'fill');
+    expect(within(page as HTMLElement).getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const list = screen.getByRole('region', { name: 'Candidate directory' });
     expect(list).toHaveAttribute('data-pane', 'list');
     expect(list.closest('.ui-workspace')).toHaveAttribute('data-split', 'preview');
@@ -1121,6 +1125,7 @@ describe('Workspace Surface', () => {
     );
     const toolbar = list.querySelector('.ui-workspace__toolbar');
     expect(toolbar).toContainElement(screen.getByRole('search'));
+    expect(screen.getByRole('search').querySelector('.ui-filter-toolbar')).not.toBeNull();
     expect(
       screen.getByRole('heading', { level: 1, name: 'Candidates' }).closest('header'),
     ).toHaveClass('ui-page-header--compact');
@@ -1138,6 +1143,9 @@ describe('Workspace Surface', () => {
       list: { candidates: [first, second], page: 1, pageSize: 20, status: 'ready', total: 2 },
       recordCandidateId: first.id,
     });
+    const page = screen.getByRole('heading', { level: 1, name: 'Candidates' }).closest('section');
+    expect(page).toHaveAttribute('data-page-kind', 'record');
+    expect(within(page as HTMLElement).getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 2, name: 'Synthetic Candidate' })).toHaveFocus();
     cleanup();
     const { rerender } = render(

@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
-import { Button, Select, TextField } from '../ui/index.js';
+import { Button, FilterToolbar, Select, TextField } from '../ui/index.js';
 import {
   CANDIDATE_STATUS_FILTER_OPTIONS,
   candidateSourceModeLabelKey,
@@ -36,6 +36,7 @@ export function CandidateFilters({
   onReset,
   onSubmit,
   showReset,
+  total,
   values,
 }: {
   /** The filters the list on screen was loaded with; the toggle counts these. */
@@ -45,6 +46,7 @@ export function CandidateFilters({
   onReset: () => void;
   onSubmit: () => void;
   showReset: boolean;
+  total?: number;
   values: CandidateFilterValues;
 }) {
   const { t } = useI18n();
@@ -65,10 +67,43 @@ export function CandidateFilters({
       onSubmit={handleSubmit}
       role="search"
     >
-      <div className="candidate-filters__bar">
-        <div className="candidate-filters__search">
+      <FilterToolbar
+        actions={
+          <>
+            <Button disabled={busy} size="compact" type="submit">
+              {t('candidate.filters.submit')}
+            </Button>
+            <Button
+              aria-controls={advancedId}
+              aria-expanded={expanded}
+              disabled={busy}
+              onClick={() => setExpanded((value) => !value)}
+              size="compact"
+              type="button"
+              variant="secondary"
+            >
+              {appliedAdvanced > 0
+                ? t('candidate.filters.toggleActive', { count: appliedAdvanced })
+                : t('candidate.filters.toggle')}
+            </Button>
+            {showReset ? (
+              <Button
+                disabled={busy}
+                onClick={onReset}
+                size="compact"
+                type="button"
+                variant="quiet"
+              >
+                {t('candidate.filters.reset')}
+              </Button>
+            ) : null}
+          </>
+        }
+        className="candidate-filters__bar"
+        search={
           <TextField
             autoComplete="off"
+            className="candidate-filters__search"
             hint={t('candidate.filters.searchHint')}
             label={t('candidate.filters.search')}
             maxLength={120}
@@ -79,28 +114,13 @@ export function CandidateFilters({
             type="search"
             value={values.search}
           />
-        </div>
-        <div className="candidate-filters__actions">
-          <Button disabled={busy} type="submit">
-            {t('candidate.filters.submit')}
-          </Button>
-          <Button
-            aria-controls={advancedId}
-            aria-expanded={expanded}
-            onClick={() => setExpanded((value) => !value)}
-            variant="secondary"
-          >
-            {appliedAdvanced > 0
-              ? t('candidate.filters.toggleActive', { count: appliedAdvanced })
-              : t('candidate.filters.toggle')}
-          </Button>
-          {showReset ? (
-            <Button disabled={busy} onClick={onReset} variant="quiet">
-              {t('candidate.filters.reset')}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+        }
+        status={
+          total === undefined ? undefined : (
+            <span role="status">{t('common.counts.candidates', { count: total })}</span>
+          )
+        }
+      />
       <div className="candidate-filters__advanced" hidden={!expanded} id={advancedId}>
         <Select
           label={t('candidate.filters.status')}
