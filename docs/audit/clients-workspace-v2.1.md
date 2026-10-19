@@ -22,7 +22,8 @@ schemas, data scope, route/deep-link behavior, or business workflows.
 
 ## Installed Google Chrome evidence
 
-Harness: [`scripts/clients-v21-browser-evidence.mjs`](../../scripts/clients-v21-browser-evidence.mjs)  
+Harness: [`scripts/clients-v21-browser-evidence.mjs`](../../scripts/clients-v21-browser-evidence.mjs)
+
 Machine-readable result: [`report.json`](clients-workspace-v2.1/report.json)
 
 The production build ran in installed Google Chrome
