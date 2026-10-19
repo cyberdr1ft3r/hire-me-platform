@@ -8,9 +8,9 @@ This roadmap records sequencing and dependencies. It does not replace individual
 
 The merged Unified Page System foundation reuses the AppShell, route permissions, UI-DNA,
 PageHeader, Workspace Surface, feedback, drawers, and EN/FR infrastructure. Overview/denial are
-merged through #218 and Clients v2.1 through #210. Issue #219 migrates Agenda/Tasks in one focused
-composition PR. Remaining migrations continue independently: Messages frame only;
-Candidates/Missions; Reporting; Commercial/Accounting; Training/Documents; Meetings;
+merged through #218, Clients v2.1 through #210, and Agenda/Tasks through #220. Issue #221 migrates
+the Messages frame only while preserving PR #215 scroll ownership. Remaining migrations continue
+independently: Candidates/Missions; Reporting; Commercial/Accounting; Training/Documents; Meetings;
 Administration after localization and form-label prerequisites. See
 `docs/design/unified-page-system-foundation.md`; no broad all-workspace rewrite.
 

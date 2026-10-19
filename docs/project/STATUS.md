@@ -3,7 +3,21 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
-## Issue #219 — Agenda and Tasks Unified Page System migration (draft PR #220)
+## Issue #221 — Messages Unified Page System migration (draft PR #222)
+
+- Branch `feat/issue-221-messages-page-system` starts from `main` `7e6d0af`, including merged
+  Agenda/Tasks PR #220. Messages now composes the shared fill-layout `DirectoryPage` and
+  `ContextualActions`; conversation/list/thread/composer ownership and every messaging workflow,
+  API, permission, deep link, unread rule, and focus behavior remain in the existing module.
+- Installed Chrome exposed and verified the required nested-flex correction: fill-page content uses
+  a zero flex basis plus `min-height: 0`, so the thread remains an independent scroller while PR
+  #215 boundary handoff remains intact. Six EN/FR desktop/tablet/mobile scenarios and two
+  short-viewport boundary cases pass. [Evidence](../audit/issue-221-messages-page-system.md).
+- Focused tests pass 54/54. Latest-main run `39248516124` passed all four jobs on attempt 2 after an
+  unrelated Missions test timeout in the first Quality attempt. Exact-head four-job PR CI remains
+  required on draft PR #222. Do not merge or deploy automatically.
+
+## Issue #219 — Agenda and Tasks Unified Page System migration (merged PR #220)
 
 - Branch `feat/issue-219-agenda-tasks-page-system` starts from `main` `65791e7`, including merged
   page-system foundation #218 and Clients v2.1 #210. Baseline run `39242964484` passed all four CI
@@ -12,10 +26,10 @@ Status owner: repository maintainer
   `DirectoryPage`, `FilterToolbar`, and `ContextualActions`. Existing request ownership, calendar
   deep links, task board/list, drawer, forms, permissions, APIs, pagination, notifications,
   reminders, and scroll owners are unchanged.
-- Focused tests pass 79/79. Installed Chrome passes six EN/FR desktop/tablet/mobile scenarios with
+- Focused tests passed 79/79. Installed Chrome passed six EN/FR desktop/tablet/mobile scenarios with
   mouse wheel, fine-delta trackpad input, `PageDown`, touch, Escape/focus return, back/forward, and
-  horizontal-overflow checks. [Evidence](../audit/issue-219-agenda-tasks.md). Exact-head four-job CI
-  and review remain required on draft PR #220; do not merge or deploy automatically.
+  horizontal-overflow checks. [Evidence](../audit/issue-219-agenda-tasks.md). Exact-head run
+  `39246615683` passed all four jobs on `566f429`; PR #220 merged as `7e6d0af`.
 
 ## Clients Workspace v2.1 (merged PR #210)
 

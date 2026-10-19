@@ -745,6 +745,10 @@ describe('Messages workspace', () => {
     createFakeMessaging();
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
     render(<Workspace />);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    const page = screen.getByRole('heading', { level: 1, name: 'Messages' }).closest('section');
+    expect(page).toHaveAttribute('data-page-kind', 'directory');
+    expect(page).toHaveAttribute('data-page-layout', 'fill');
     expect(
       screen.getByRole('heading', { level: 1, name: 'Messages' }).closest('header'),
     ).toHaveClass('ui-page-header--compact');

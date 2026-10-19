@@ -1,0 +1,405 @@
+{
+  "boundaries": {
+    "en": {
+      "after": {
+        "content": {
+          "clientHeight": 0,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        },
+        "detailPane": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "document": {
+          "clientHeight": 440,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 802,
+          "scrollTop": 362
+        },
+        "horizontalOverflow": 0,
+        "layout": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "log": {
+          "clientHeight": 264,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 3787,
+          "scrollTop": 3523
+        },
+        "main": {
+          "clientHeight": 225,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 746,
+          "scrollTop": 0
+        },
+        "page": {
+          "clientHeight": 161,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 714,
+          "scrollTop": 0
+        },
+        "workspace": {
+          "clientHeight": 553,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        }
+      },
+      "before": {
+        "content": {
+          "clientHeight": 0,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        },
+        "detailPane": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "document": {
+          "clientHeight": 440,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 802,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": 0,
+        "layout": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "log": {
+          "clientHeight": 264,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 3787,
+          "scrollTop": 3523
+        },
+        "main": {
+          "clientHeight": 225,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 746,
+          "scrollTop": 0
+        },
+        "page": {
+          "clientHeight": 161,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 714,
+          "scrollTop": 0
+        },
+        "workspace": {
+          "clientHeight": 553,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        }
+      },
+      "handedOff": true,
+      "threadStayedAtBoundary": true
+    },
+    "fr": {
+      "after": {
+        "content": {
+          "clientHeight": 0,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        },
+        "detailPane": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "document": {
+          "clientHeight": 440,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 802,
+          "scrollTop": 362
+        },
+        "horizontalOverflow": 0,
+        "layout": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "log": {
+          "clientHeight": 264,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 3787,
+          "scrollTop": 3523
+        },
+        "main": {
+          "clientHeight": 225,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 746,
+          "scrollTop": 0
+        },
+        "page": {
+          "clientHeight": 161,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 714,
+          "scrollTop": 0
+        },
+        "workspace": {
+          "clientHeight": 553,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        }
+      },
+      "before": {
+        "content": {
+          "clientHeight": 0,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        },
+        "detailPane": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "document": {
+          "clientHeight": 440,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 802,
+          "scrollTop": 0
+        },
+        "horizontalOverflow": 0,
+        "layout": {
+          "clientHeight": 551,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 551,
+          "scrollTop": 0
+        },
+        "log": {
+          "clientHeight": 264,
+          "overflowY": "auto",
+          "overscrollY": "auto",
+          "scrollHeight": 3787,
+          "scrollTop": 3523
+        },
+        "main": {
+          "clientHeight": 225,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 746,
+          "scrollTop": 0
+        },
+        "page": {
+          "clientHeight": 161,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 714,
+          "scrollTop": 0
+        },
+        "workspace": {
+          "clientHeight": 553,
+          "overflowY": "visible",
+          "overscrollY": "auto",
+          "scrollHeight": 553,
+          "scrollTop": 0
+        }
+      },
+      "handedOff": true,
+      "threadStayedAtBoundary": true
+    }
+  },
+  "browser": "Google Chrome",
+  "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "fixtureMode": "contract-shaped synthetic API responses",
+  "generatedAt": "2026-10-19T12:21:38.761Z",
+  "passed": true,
+  "results": [
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": null,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "en",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "desktop-en-directory.png",
+        "desktop-en-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": null,
+      "unreadBefore": "true",
+      "viewport": "desktop",
+      "wheelMovedThread": true
+    },
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": null,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "fr",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "desktop-fr-directory.png",
+        "desktop-fr-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": null,
+      "unreadBefore": "true",
+      "viewport": "desktop",
+      "wheelMovedThread": true
+    },
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": null,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "en",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "tablet-en-directory.png",
+        "tablet-en-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": null,
+      "unreadBefore": "true",
+      "viewport": "tablet",
+      "wheelMovedThread": true
+    },
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": null,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "fr",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "tablet-fr-directory.png",
+        "tablet-fr-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": null,
+      "unreadBefore": "true",
+      "viewport": "tablet",
+      "wheelMovedThread": true
+    },
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": true,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "en",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "mobile-en-directory.png",
+        "mobile-en-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": true,
+      "unreadBefore": "true",
+      "viewport": "mobile",
+      "wheelMovedThread": true
+    },
+    {
+      "actionsCount": 1,
+      "backReturnedToInbox": true,
+      "composerPreserved": true,
+      "deepLinkOpened": true,
+      "directoryOverflow": 0,
+      "focusReturned": true,
+      "forwardReopened": true,
+      "h1Count": 1,
+      "locale": "fr",
+      "pageErrors": [],
+      "pageKindCount": 1,
+      "pageDownMoved": true,
+      "screenshots": [
+        "mobile-fr-directory.png",
+        "mobile-fr-thread.png"
+      ],
+      "threadHasIndependentRange": true,
+      "threadOverscroll": "auto",
+      "trackpadMovedThread": true,
+      "touchMoved": true,
+      "unreadBefore": "true",
+      "viewport": "mobile",
+      "wheelMovedThread": true
+    }
+  ]
+}
