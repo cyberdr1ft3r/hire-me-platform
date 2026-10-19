@@ -25,6 +25,8 @@
 
   --green-100: #e5f4ec;
   --green-700: #17633f;
+  --hire-me-green-100: #e8efe9;
+  --hire-me-green-700: #41554b;
   --amber-100: #fff3cf;
   --amber-800: #744c00;
   --red-100: #fdebed;
@@ -78,6 +80,8 @@
   --color-chart-3: var(--chart-violet);
   --color-chart-4: var(--chart-copper);
   --color-chart-5: var(--chart-slate);
+  --color-crm-accent: var(--hire-me-green-700);
+  --color-crm-accent-subtle: var(--hire-me-green-100);
 
   --font-family-ui:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

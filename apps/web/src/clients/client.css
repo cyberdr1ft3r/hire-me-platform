@@ -3,8 +3,7 @@
  */
 .clients {
   container: clients / inline-size;
-  display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
   max-width: var(--layout-content-max);
   min-width: 0;
 }
@@ -32,11 +31,9 @@
   gap: var(--space-3);
 }
 
-.client-filters__bar {
-  align-items: start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
+.client-filters__bar.ui-filter-toolbar {
+  border-block: 0;
+  padding-block: 0;
 }
 
 .client-filters__search {
@@ -52,13 +49,6 @@
   position: absolute;
   white-space: nowrap;
   width: var(--border-width);
-}
-
-.client-filters__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding-block-start: calc(var(--font-size-2) * var(--line-height-body) + var(--space-1));
 }
 
 .client-filters__advanced {
@@ -84,12 +74,6 @@
   min-width: 0;
 }
 
-.client-directory__count {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2);
-  margin: 0;
-}
-
 .client-directory__table {
   border-collapse: collapse;
   width: 100%;
@@ -98,9 +82,9 @@
 .client-directory__table th,
 .client-directory__table td {
   border-block-end: var(--border-width) solid var(--color-border);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   text-align: start;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .client-directory__table thead th {
@@ -114,8 +98,14 @@
 }
 
 .client-directory__row[data-previewed='true'] {
-  background: var(--color-table-selected);
-  border-inline-start-color: var(--color-brand);
+  background: var(--color-crm-accent-subtle);
+  border-inline-start-color: var(--color-crm-accent);
+}
+
+.client-directory__identity {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
 .client-directory__open {
@@ -124,9 +114,14 @@
   color: var(--color-text);
   cursor: pointer;
   font: inherit;
+  font-size: var(--font-size-4);
   font-weight: var(--font-weight-semibold);
+  max-width: 100%;
+  overflow: hidden;
   padding: 0;
   text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .client-directory__open:hover {
@@ -139,6 +134,21 @@
   outline-offset: var(--space-0-5);
 }
 
+.client-directory__secondary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-directory__table [data-column='status'] {
+  text-align: end;
+  white-space: nowrap;
+  width: 1%;
+}
+
 @container clients (max-width: 48rem) {
   .client-directory__table [data-column='phone'],
   .client-directory__table [data-column='updated'] {
@@ -147,8 +157,8 @@
 }
 
 @container clients (max-width: 36rem) {
-  .client-directory__table [data-column='industry'],
-  .client-directory__table [data-column='location'] {
+  .client-directory__table [data-column='phone'],
+  .client-directory__table [data-column='updated'] {
     display: none;
   }
 }
@@ -168,8 +178,9 @@
 }
 
 .client-preview__eyebrow {
-  color: var(--color-text-muted);
+  color: var(--color-crm-accent);
   font-size: var(--font-size-2);
+  font-weight: var(--font-weight-semibold);
   margin: 0;
 }
 
@@ -194,8 +205,14 @@
 
 .client-preview__facts {
   display: grid;
-  gap: var(--space-2);
   margin: 0;
+}
+
+.client-preview__facts > div {
+  border-block-start: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
 }
 
 .client-preview__facts dt {
@@ -315,10 +332,12 @@
 
 .client-detail__identity {
   align-items: flex-start;
+  border-block-end: var(--border-width) solid var(--color-crm-accent);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4) var(--space-6);
   justify-content: space-between;
+  padding-block-end: var(--space-6);
 }
 
 .client-detail__heading {
@@ -359,10 +378,11 @@
 
 .client-section {
   align-content: start;
-  border-block-start: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-medium);
   display: grid;
   gap: var(--space-3);
-  padding-block-start: var(--space-4);
+  padding: var(--space-4);
 }
 
 .client-section__head h3 {

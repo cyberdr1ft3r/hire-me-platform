@@ -79,27 +79,18 @@ export function ClientDirectory({
 
   return (
     <div className="client-directory">
-      <p className="client-directory__count" role="status">
-        {t('common.counts.clients', { count: list.total })}
-      </p>
       <table aria-labelledby={tableLabelId} className="client-directory__table">
         <thead>
           <tr>
             <th scope="col">{t('clients.directory.columns.client')}</th>
-            <th data-column="status" scope="col">
-              {t('clients.fields.status')}
-            </th>
-            <th data-column="industry" scope="col">
-              {t('clients.fields.industry')}
-            </th>
-            <th data-column="location" scope="col">
-              {t('clients.fields.location')}
-            </th>
             <th data-column="phone" scope="col">
               {t('clients.fields.mainPhone')}
             </th>
             <th data-column="updated" scope="col">
               {t('clients.directory.columns.updated')}
+            </th>
+            <th data-column="status" scope="col">
+              {t('clients.fields.status')}
             </th>
           </tr>
         </thead>
@@ -113,28 +104,32 @@ export function ClientDirectory({
                 key={client.id}
               >
                 <th scope="row">
-                  <button
-                    aria-current={previewed ? 'true' : undefined}
-                    className="client-directory__open"
-                    data-client-id={client.id}
-                    onClick={() => onPreview(client)}
-                    type="button"
-                  >
-                    {client.name}
-                  </button>
+                  <div className="client-directory__identity">
+                    <button
+                      aria-current={previewed ? 'true' : undefined}
+                      className="client-directory__open"
+                      data-client-id={client.id}
+                      onClick={() => onPreview(client)}
+                      title={client.name}
+                      type="button"
+                    >
+                      {client.name}
+                    </button>
+                    <span className="client-directory__secondary">
+                      {[client.industry?.trim(), formatLocation(client.city, client.country, '')]
+                        .filter(Boolean)
+                        .join(' · ') || notRecorded}
+                    </span>
+                  </div>
                 </th>
+                <td data-column="phone">{client.mainPhone?.trim() || notRecorded}</td>
+                <td className="u-tabular" data-column="updated">
+                  {formatDate(client.updatedAt)}
+                </td>
                 <td data-column="status">
                   <StatusBadge tone={clientStatusTone(client.status)}>
                     {t(clientStatusLabelKey(client.status))}
                   </StatusBadge>
-                </td>
-                <td data-column="industry">{client.industry?.trim() || notRecorded}</td>
-                <td data-column="location">
-                  {formatLocation(client.city, client.country, notRecorded)}
-                </td>
-                <td data-column="phone">{client.mainPhone?.trim() || notRecorded}</td>
-                <td className="u-tabular" data-column="updated">
-                  {formatDate(client.updatedAt)}
                 </td>
               </tr>
             );
