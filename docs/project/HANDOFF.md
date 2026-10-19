@@ -1,8 +1,18 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 ## Current situation
+
+- **Draft: Unified Page System foundation.** Branch `feat/unified-page-system-foundation` starts
+  from latest `main` `2e01f40`, whose pre-work run `39023855790` passed all four CI jobs. The
+  architecture-first map inventories all 14 internal routes and deliberately reuses AppShell,
+  route/RBAC rules, UI-DNA tokens, PageHeader, Workspace Surface, feedback, drawers, forms, and
+  EN/FR infrastructure. The implementation adds only `PageShell`, `DirectoryPage`, `RecordPage`,
+  `FilterToolbar`, `ContextualActions`, and `PageState`; Overview and the central denied route prove
+  integration without migrating business modules. Google Chrome evidence covers 8 EN/FR
+  desktop/tablet/mobile and denied-state scenarios. PR #210 remains untouched. Require exact-head
+  CI and human review; do not merge or deploy automatically.
 
 - **P1 hotfix: Issue #216 Notification Center scrolling (draft PR #217).** Branch
   `fix/issue-216-notification-center-hotfix` starts from `main` `eed30f5` (merged #213 and #215).

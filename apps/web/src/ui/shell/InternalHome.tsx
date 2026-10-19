@@ -2,12 +2,13 @@ import type { AuthenticatedUser } from '@hire-me/contracts';
 
 import { useI18n } from '../../i18n/index.js';
 import { PageHeader } from '../PageHeader.js';
+import { PageShell } from '../PageSystem.js';
 
 export function InternalHome({ user }: { user: AuthenticatedUser }) {
   const { t } = useI18n();
 
   return (
-    <div className="app-home">
+    <PageShell className="app-home">
       <PageHeader
         description={t('overview.description')}
         eyebrow={t('overview.eyebrow')}
@@ -18,6 +19,6 @@ export function InternalHome({ user }: { user: AuthenticatedUser }) {
         <h2 id="app-home-start">{t('overview.introTitle')}</h2>
         <p>{t('overview.intro')}</p>
       </section>
-    </div>
+    </PageShell>
   );
 }

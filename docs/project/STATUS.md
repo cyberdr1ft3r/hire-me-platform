@@ -1,7 +1,25 @@
 # Project Status
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 Status owner: repository maintainer
+
+## Unified Page System foundation (draft)
+
+- Branch `feat/unified-page-system-foundation` starts from latest `main` `2e01f40`; that exact main
+  head's GitHub Actions run `39023855790` passed all four jobs before work began. PR #210 was read as
+  a proposal and was not modified.
+- The foundation reuses the existing route/permission registry, Salesforce-inspired AppShell,
+  semantic tokens, `PageHeader`, Workspace Surface, feedback, drawers, forms, request clients, and
+  typed EN/FR system. It adds only page composition and shared state primitives, applies `PageShell`
+  to Overview, and centralizes direct-route permission denial. No business workspace, API, schema,
+  permission, form, or workflow is migrated in this PR.
+- Architecture and the 14-route sequence: [design](../design/unified-page-system-foundation.md).
+  Installed Google Chrome evidence covers EN/FR at 1440, 1024, and 390px plus localized denial and
+  mobile Escape/focus restoration: [report](../audit/unified-page-system/report.json).
+- Focused page/shell/workspace tests, monorepo lint, typecheck, build, formatting, style tokens, and
+  contrast pass. A local all-at-once Windows `pnpm test` is non-authoritative because sandbox hard
+  links are denied and concurrent PDF/web suites exceed their existing five-second limits; exact-head
+  Linux CI is the release gate.
 
 ## Issue #216 — Notification Center scrolling P1 hotfix (draft PR #217)
 
