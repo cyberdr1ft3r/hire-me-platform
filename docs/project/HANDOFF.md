@@ -4,7 +4,8 @@ Last updated: 2026-10-19
 
 ## Current situation
 
-- Issue #219 is implemented on branch `feat/issue-219-agenda-tasks-page-system`, based on latest
+- Issue #219 is implemented in draft PR #220 on branch
+  `feat/issue-219-agenda-tasks-page-system`, based on latest
   `main` `65791e7ef314091634b1e5b67a690a97fe9f4b51` (merged #218 and #210).
 - Agenda adopts shared `DirectoryPage`, `FilterToolbar`, and `PageState` composition. Tasks adopts
   shared `DirectoryPage`, `FilterToolbar`, and `ContextualActions` composition.
@@ -19,13 +20,12 @@ Last updated: 2026-10-19
 
 ## Next concrete action
 
-1. Complete root formatting, architecture/style, lint, typecheck, and build gates.
-2. Commit and push the focused branch, open one draft PR linked to Issue #219, and keep it unmerged.
-3. Wait for exact-head GitHub Actions and confirm all four jobs are green on the final head.
-4. Request human review of the desktop/tablet/mobile screenshots. The automated run uses
+1. Wait for exact-head GitHub Actions on draft PR #220 and confirm all four jobs are green on the
+   final head.
+2. Request human review of the desktop/tablet/mobile screenshots. The automated run uses
    contract-shaped API fixtures; a physical-device and screen-reader pass is useful follow-up
    acceptance, not a known implementation blocker.
-5. Do not deploy or start the next workspace migration without explicit approval.
+3. Do not merge, deploy, or start the next workspace migration without explicit approval.
 
 ## Completion conditions
 

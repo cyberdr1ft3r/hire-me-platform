@@ -3,7 +3,7 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
-## Issue #219 — Agenda and Tasks Unified Page System migration (draft)
+## Issue #219 — Agenda and Tasks Unified Page System migration (draft PR #220)
 
 - Branch `feat/issue-219-agenda-tasks-page-system` starts from `main` `65791e7`, including merged
   page-system foundation #218 and Clients v2.1 #210. Baseline run `39242964484` passed all four CI
@@ -15,7 +15,7 @@ Status owner: repository maintainer
 - Focused tests pass 79/79. Installed Chrome passes six EN/FR desktop/tablet/mobile scenarios with
   mouse wheel, fine-delta trackpad input, `PageDown`, touch, Escape/focus return, back/forward, and
   horizontal-overflow checks. [Evidence](../audit/issue-219-agenda-tasks.md). Exact-head four-job CI
-  and review remain required; do not merge or deploy automatically.
+  and review remain required on draft PR #220; do not merge or deploy automatically.
 
 ## Clients Workspace v2.1 (merged PR #210)
 

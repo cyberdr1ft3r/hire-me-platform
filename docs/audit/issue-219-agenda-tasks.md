@@ -3,6 +3,7 @@
 Date: 2026-10-19  
 Base: `main` `65791e7ef314091634b1e5b67a690a97fe9f4b51` (merged PRs #218 and #210)  
 Scope: frontend presentation and composition only
+Draft PR: #220
 
 ## Preflight and architecture audit
 
