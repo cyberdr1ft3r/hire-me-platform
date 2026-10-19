@@ -3,7 +3,7 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
-## Issue #221 — Messages Unified Page System migration (implementation)
+## Issue #221 — Messages Unified Page System migration (draft PR #222)
 
 - Branch `feat/issue-221-messages-page-system` starts from `main` `7e6d0af`, including merged
   Agenda/Tasks PR #220. Messages now composes the shared fill-layout `DirectoryPage` and
@@ -15,7 +15,7 @@ Status owner: repository maintainer
   short-viewport boundary cases pass. [Evidence](../audit/issue-221-messages-page-system.md).
 - Focused tests pass 54/54. Latest-main run `39248516124` passed all four jobs on attempt 2 after an
   unrelated Missions test timeout in the first Quality attempt. Exact-head four-job PR CI remains
-  required. Do not merge or deploy automatically.
+  required on draft PR #222. Do not merge or deploy automatically.
 
 ## Issue #219 — Agenda and Tasks Unified Page System migration (merged PR #220)
 

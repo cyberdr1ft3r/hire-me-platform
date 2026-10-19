@@ -4,8 +4,8 @@ Last updated: 2026-10-19
 
 ## Current situation
 
-- Issue #221 is implemented on branch `feat/issue-221-messages-page-system`, based on latest
-  `main` `7e6d0af7187a16e3955a3394f3fa83708312be25` (merged #220).
+- Issue #221 is implemented in draft PR #222 on branch `feat/issue-221-messages-page-system`, based
+  on latest `main` `7e6d0af7187a16e3955a3394f3fa83708312be25` (merged #220).
 - Messages uses the shared fill-layout `DirectoryPage` and `ContextualActions`. The existing
   `WorkspaceSurface`, conversation list, thread log, composer, unread/read logic, permissions,
   API contracts, deep-link intent, session isolation, and focus management are unchanged.
@@ -20,12 +20,11 @@ Last updated: 2026-10-19
 
 ## Next concrete action
 
-1. Complete root architecture/style, formatting, lint, typecheck, test, and build gates.
-2. Commit and push the focused branch, then open one draft PR linked to Issue #221.
-3. Wait for exact-head GitHub Actions and confirm all four jobs are green on the final head.
-4. Request human review of the desktop/tablet/mobile screenshots. Physical-device, precision
+1. Wait for exact-head GitHub Actions on draft PR #222 and confirm all four jobs are green on the
+   final head.
+2. Request human review of the desktop/tablet/mobile screenshots. Physical-device, precision
    touchpad, and screen-reader recordings are useful follow-up acceptance, not known blockers.
-5. Do not merge, deploy, implement the floating launcher/drawer, or start another workspace
+3. Do not merge, deploy, implement the floating launcher/drawer, or start another workspace
    migration without explicit approval.
 
 ## Completion conditions

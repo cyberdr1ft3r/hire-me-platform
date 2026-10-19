@@ -3,6 +3,7 @@
 Date: 2026-10-19
 Base: `main` `7e6d0af7187a16e3955a3394f3fa83708312be25` (merged PR #220)
 Scope: Messages page frame and shared fill-page sizing only
+Draft PR: #222
 
 ## Architecture and behavior audit
 
