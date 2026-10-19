@@ -4,7 +4,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.js';
 import {
   Button,
-  PageHeader,
+  ContextualActions,
+  DirectoryPage,
+  RecordPage,
   WORKSPACE_SPLIT_MIN_REM,
   WorkspacePane,
   WorkspaceSurface,
@@ -126,9 +128,8 @@ export function CandidateWorkspace({
   const listHeadingId = useId();
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const directoryRef = useRef<HTMLDivElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
   // Too narrow for the side preview: the preview opens as a bottom sheet instead.
-  const narrow = useNarrowContainer(rootRef, WORKSPACE_SPLIT_MIN_REM.preview);
+  const narrow = useNarrowContainer(directoryRef, WORKSPACE_SPLIT_MIN_REM.preview);
   const sidePreview = previewCandidate && !narrow ? previewCandidate : null;
   // Set by a page change: once the new page has settled, focus moves to the list heading.
   const focusListAfterPage = useRef(false);
@@ -138,7 +139,6 @@ export function CandidateWorkspace({
   const [creating, setCreating] = useState(false);
   // Cancel and a successful create both return focus to the page action that opened the drawer.
   const restoreCreateFocus = useRef(false);
-  const headerRef = useRef<HTMLDivElement>(null);
   const canCreate = access.canCreate;
   // The single write lock: while any Candidate write is in flight, no other may start.
   const mutationBusy = pending !== null;
@@ -189,7 +189,7 @@ export function CandidateWorkspace({
       return;
     }
     restoreCreateFocus.current = false;
-    headerRef.current?.querySelector<HTMLButtonElement>('[data-create-toggle]')?.focus();
+    document.querySelector<HTMLButtonElement>('.candidates [data-create-toggle]')?.focus();
   }, [creating, mutationBusy]);
 
   function closeCreate(): void {
@@ -209,129 +209,123 @@ export function CandidateWorkspace({
     onClosePreview();
   }
 
-  const header = (
-    <div ref={headerRef}>
-      <PageHeader
-        compact
-        description={t('candidate.header.description')}
-        eyebrow={t('candidate.header.eyebrow')}
-        primaryAction={
-          // Without `candidates:create` the action does not exist at all.
-          canCreate ? (
-            <Button
-              aria-haspopup="dialog"
-              data-create-toggle=""
-              disabled={creating || mutationBusy}
-              onClick={() => setCreating(true)}
-            >
-              {t('candidate.actions.newCandidate')}
-            </Button>
-          ) : undefined
-        }
-        title={t('candidate.header.title')}
-      />
-    </div>
-  );
+  const primaryAction = canCreate ? (
+    <ContextualActions
+      primary={
+        <Button
+          aria-haspopup="dialog"
+          data-create-toggle=""
+          disabled={creating || mutationBusy}
+          onClick={() => setCreating(true)}
+        >
+          {t('candidate.actions.newCandidate')}
+        </Button>
+      }
+    />
+  ) : undefined;
+
+  const pageProps = {
+    compact: true,
+    description: t('candidate.header.description'),
+    eyebrow: t('candidate.header.eyebrow'),
+    primaryAction,
+    title: t('candidate.header.title'),
+  };
 
   return (
-    <div
-      className="candidates ui-workspace-page"
-      data-view={recordOpen ? 'record' : 'directory'}
-      ref={rootRef}
-    >
-      {header}
-
-      {canCreate && creating ? (
-        <CandidateCreateDrawer
-          busy={mutationBusy}
-          onClose={closeCreate}
-          onSubmit={onCreate}
-          submitting={pending === 'create'}
-        />
-      ) : null}
-
+    <>
       {recordOpen ? (
-        <CandidateFocusedRecord
-          detailProps={{
-            access,
-            detail,
-            detailRevealToken,
-            feedback,
-            // The record is always the whole workspace, so its heading always takes focus on open.
-            layoutContainerRef: directoryRef,
-            onAddRecord,
-            onArchive,
-            onArchiveRecord,
-            onChangeStatus,
-            onRetry: onRetryDetail,
-            onUpdate,
-            onUpdateRecord,
-            onUpdateSensitive,
-            pending,
-            sideBySideMinRem: Number.POSITIVE_INFINITY,
-          }}
-          loaders={relatedLoaders}
-          onBack={onCloseRecord}
-          onNavigatePath={onNavigatePath}
-        />
+        <RecordPage {...pageProps} className="candidates ui-workspace-page" data-view="record">
+          <CandidateFocusedRecord
+            detailProps={{
+              access,
+              detail,
+              detailRevealToken,
+              feedback,
+              // The record is always the whole workspace, so its heading always takes focus on open.
+              layoutContainerRef: directoryRef,
+              onAddRecord,
+              onArchive,
+              onArchiveRecord,
+              onChangeStatus,
+              onRetry: onRetryDetail,
+              onUpdate,
+              onUpdateRecord,
+              onUpdateSensitive,
+              pending,
+              sideBySideMinRem: Number.POSITIVE_INFINITY,
+            }}
+            loaders={relatedLoaders}
+            onBack={onCloseRecord}
+            onNavigatePath={onNavigatePath}
+          />
+        </RecordPage>
       ) : (
-        <WorkspaceSurface
-          className="candidates__workspace"
-          ref={directoryRef}
-          split="preview"
-          view={sidePreview ? undefined : 'list'}
+        <DirectoryPage
+          {...pageProps}
+          className="candidates ui-workspace-page"
+          data-view="directory"
+          layout="fill"
         >
-          <WorkspacePane
-            aria-labelledby={listHeadingId}
-            className="candidates__list-pane"
-            kind="list"
-            toolbar={
-              <WorkspaceToolbar
-                heading={
-                  <h2
-                    className="candidates__pane-title"
-                    id={listHeadingId}
-                    ref={listHeadingRef}
-                    tabIndex={-1}
-                  >
-                    {t('candidate.directory.title')}
-                  </h2>
-                }
-              >
-                <CandidateFilters
-                  appliedValues={appliedFilters}
-                  busy={list.status === 'loading'}
-                  onChange={onFiltersChange}
-                  onReset={onResetFilters}
-                  onSubmit={onSearch}
-                  showReset={hasActiveCandidateFilters(appliedFilters)}
-                  values={filters}
-                />
-              </WorkspaceToolbar>
-            }
+          <WorkspaceSurface
+            className="candidates__workspace"
+            ref={directoryRef}
+            split="preview"
+            view={sidePreview ? undefined : 'list'}
           >
-            <CandidateDirectory
-              filtered={hasActiveCandidateFilters(appliedFilters)}
-              list={list}
-              onPage={changePage}
-              onPreview={onPreview}
-              onReset={onResetFilters}
-              onRetry={onRetryList}
-              previewId={previewCandidate?.id ?? null}
-              tableLabelId={listHeadingId}
-            />
-          </WorkspacePane>
-          {sidePreview ? (
-            <WorkspacePane as="div" className="candidates__preview-pane" kind="detail">
-              <CandidateQuickPreview
-                candidate={sidePreview}
-                key={sidePreview.id}
-                onClose={closePreview}
-                onOpenRecord={() => onOpenRecord(sidePreview.id)}
+            <WorkspacePane
+              aria-labelledby={listHeadingId}
+              className="candidates__list-pane"
+              kind="list"
+              toolbar={
+                <WorkspaceToolbar
+                  heading={
+                    <h2
+                      className="candidates__pane-title"
+                      id={listHeadingId}
+                      ref={listHeadingRef}
+                      tabIndex={-1}
+                    >
+                      {t('candidate.directory.title')}
+                    </h2>
+                  }
+                >
+                  <CandidateFilters
+                    appliedValues={appliedFilters}
+                    busy={list.status === 'loading'}
+                    onChange={onFiltersChange}
+                    onReset={onResetFilters}
+                    onSubmit={onSearch}
+                    showReset={hasActiveCandidateFilters(appliedFilters)}
+                    total={list.status === 'ready' ? list.total : undefined}
+                    values={filters}
+                  />
+                </WorkspaceToolbar>
+              }
+            >
+              <CandidateDirectory
+                filtered={hasActiveCandidateFilters(appliedFilters)}
+                list={list}
+                onPage={changePage}
+                onPreview={onPreview}
+                onReset={onResetFilters}
+                onRetry={onRetryList}
+                previewId={previewCandidate?.id ?? null}
+                tableLabelId={listHeadingId}
               />
             </WorkspacePane>
-          ) : null}
-        </WorkspaceSurface>
+            {sidePreview ? (
+              <WorkspacePane as="div" className="candidates__preview-pane" kind="detail">
+                <CandidateQuickPreview
+                  candidate={sidePreview}
+                  key={sidePreview.id}
+                  onClose={closePreview}
+                  onOpenRecord={() => onOpenRecord(sidePreview.id)}
+                />
+              </WorkspacePane>
+            ) : null}
+          </WorkspaceSurface>
+        </DirectoryPage>
       )}
 
       {!recordOpen && previewCandidate && narrow ? (
@@ -343,6 +337,15 @@ export function CandidateWorkspace({
           presentation="sheet"
         />
       ) : null}
-    </div>
+
+      {canCreate && creating ? (
+        <CandidateCreateDrawer
+          busy={mutationBusy}
+          onClose={closeCreate}
+          onSubmit={onCreate}
+          submitting={pending === 'create'}
+        />
+      ) : null}
+    </>
   );
 }
