@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider, useI18n, type Locale } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import { AccountingPanel } from './AccountingPanel.js';
 import {
   ACTOR_ID,
@@ -375,5 +376,39 @@ describe('AccountingPanel: stale read protection', () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
     });
     expect(screen.queryByRole('heading', { level: 2, name: 'PAY-SYN-001' })).toBeNull();
+  });
+});
+
+describe('AccountingPanel: unsaved input (Issue #228 B0′)', () => {
+  function leavingAsks(): boolean {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return navigate.mock.calls.length === 0;
+  }
+
+  it('asks for a typed expense and never for the expense filters', async () => {
+    resetNavigationGuardForTests();
+    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    standardApi();
+    render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
+    expect(await screen.findByRole('table', { name: 'Payments' })).toBeVisible();
+    await openArea('Expenses');
+
+    const filters = screen.getByRole('search', { name: 'Filter expenses' });
+    const filterField = within(filters).getAllByRole('combobox')[0]!;
+    fireEvent.focusIn(filterField);
+    fireEvent.change(filterField, { target: { value: 'Synthetic' } });
+    expect(leavingAsks()).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record expense' }));
+    const vendor = within(screen.getByRole('form', { name: 'Record expense' })).getByLabelText(
+      /^Vendor/,
+    );
+    fireEvent.focusIn(vendor);
+    fireEvent.change(vendor, { target: { value: 'Synthetic Vendor' } });
+    expect(leavingAsks()).toBe(true);
+    expect(confirmLeave).toHaveBeenCalledWith(
+      'You have unsaved changes on this page. Leave and discard them?',
+    );
   });
 });

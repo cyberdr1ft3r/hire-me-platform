@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-19T23:49:18.744Z",
+  "web": "http://localhost:5720",
+  "passed": 17,
+  "total": 17,
+  "results": [
+    {
+      "name": "tasks: unchanged edit form, shell link",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "tasks: changed title, shell link (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/tasks",
+      "kept": "Synthetic follow-up for evidence (saved 23:47:48) (edited)",
+      "pass": true
+    },
+    {
+      "name": "tasks: changed title, browser Back (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/tasks",
+      "pass": true
+    },
+    {
+      "name": "tasks: changed title, reload (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "beforeunload",
+          "message": ""
+        }
+      ],
+      "urlAfter": "/tasks",
+      "pass": true
+    },
+    {
+      "name": "tasks: title restored to saved value, shell link",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "tasks: after a successful save, shell link",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "tasks: search filter typed, shell link",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "admin: create form typed, browser Back (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/admin",
+      "pass": true
+    },
+    {
+      "name": "admin: create form reset after saving, browser Back",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "admin: profile changed, reload (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "beforeunload",
+          "message": ""
+        }
+      ],
+      "urlAfter": "/admin",
+      "pass": true
+    },
+    {
+      "name": "admin: profile saved and still open, browser Back",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "messages: unsent draft, browser Back (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/messages",
+      "pass": true
+    },
+    {
+      "name": "messages: draft sent, browser Back",
+      "expectedPrompt": false,
+      "prompted": false,
+      "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "tasks (FR, 1024px): changed title, browser Back (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "Cette page contient des modifications non enregistrées. Quitter et les abandonner ?"
+        }
+      ],
+      "urlAfter": "/tasks",
+      "pass": true
+    },
+    {
+      "name": "tasks (390px): changed title, browser Back (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/tasks",
+      "pass": true
+    },
+    {
+      "name": "tasks (390px): changed title, reload (stay)",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "beforeunload",
+          "message": ""
+        }
+      ],
+      "urlAfter": "/tasks",
+      "pass": true
+    },
+    {
+      "name": "tasks (390px): changed title, Back and discard",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/",
+      "pass": true
+    }
+  ]
+}

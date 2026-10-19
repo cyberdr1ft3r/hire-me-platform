@@ -87,6 +87,8 @@ export function TaskFilterBar({
   return (
     <form
       aria-label={t('task.filters.region')}
+      // Filters hold no edits; the unsaved-input guard leaves them alone.
+      data-unsaved-guard="ignore"
       className="task-filters"
       data-density="internal-compact"
       onSubmit={(event) => {

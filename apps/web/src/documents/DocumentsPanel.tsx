@@ -42,6 +42,7 @@ import {
 } from './document-state.js';
 import type { LoadDocumentOptions } from './DocumentOptionPicker.js';
 import { DocumentsWorkspace } from './DocumentsWorkspace.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -415,47 +416,54 @@ export function DocumentsPanel({
   }
 
   return (
-    <DocumentsWorkspace
-      key={session.key}
-      access={access}
-      appliedFilters={appliedQuery.filters}
-      detail={detail}
-      downloading={downloading}
-      feedback={feedback}
-      filters={filters}
-      focusToken={focusToken}
-      list={list}
-      loadOptions={loadOptions}
-      metadata={metadata}
-      onAddVersion={(event) => void handleAddVersion(event)}
-      onApplyFilters={() => applyQuery({ filters, page: 1 })}
-      onArchive={() => void handleArchive()}
-      onDownload={(version) => void handleDownload(version)}
-      onFiltersChange={setFilters}
-      onMetadataChange={setMetadata}
-      onPage={(page) => applyQuery({ ...appliedQueryRef.current, page })}
-      onRegister={(event) => void handleRegister(event)}
-      onRegisterValuesChange={setRegisterValues}
-      onResetFilters={() => {
-        setFilters(EMPTY_DOCUMENT_FILTERS);
-        applyQuery(FIRST_DOCUMENT_PAGE);
-      }}
-      onRetryDetail={() => {
-        if (selectedRef.current) {
-          void loadDetail(selectedRef.current);
-        }
-      }}
-      onRetryList={() => void loadList(appliedQueryRef.current)}
-      onSaveMetadata={(event) => void handleSaveMetadata(event)}
-      onSelect={selectDocument}
-      onVersionFileChange={setVersionFile}
-      registerFormKey={registerFormKey}
-      registerValues={registerValues}
-      selectedId={selectedId}
-      sessionKey={session.key}
-      versionFile={versionFile}
-      versionInputKey={versionInputKey}
-      writesLocked={pending !== null}
-    />
+    // Unsaved input in any of this module's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={pending !== null}
+    >
+      <DocumentsWorkspace
+        key={session.key}
+        access={access}
+        appliedFilters={appliedQuery.filters}
+        detail={detail}
+        downloading={downloading}
+        feedback={feedback}
+        filters={filters}
+        focusToken={focusToken}
+        list={list}
+        loadOptions={loadOptions}
+        metadata={metadata}
+        onAddVersion={(event) => void handleAddVersion(event)}
+        onApplyFilters={() => applyQuery({ filters, page: 1 })}
+        onArchive={() => void handleArchive()}
+        onDownload={(version) => void handleDownload(version)}
+        onFiltersChange={setFilters}
+        onMetadataChange={setMetadata}
+        onPage={(page) => applyQuery({ ...appliedQueryRef.current, page })}
+        onRegister={(event) => void handleRegister(event)}
+        onRegisterValuesChange={setRegisterValues}
+        onResetFilters={() => {
+          setFilters(EMPTY_DOCUMENT_FILTERS);
+          applyQuery(FIRST_DOCUMENT_PAGE);
+        }}
+        onRetryDetail={() => {
+          if (selectedRef.current) {
+            void loadDetail(selectedRef.current);
+          }
+        }}
+        onRetryList={() => void loadList(appliedQueryRef.current)}
+        onSaveMetadata={(event) => void handleSaveMetadata(event)}
+        onSelect={selectDocument}
+        onVersionFileChange={setVersionFile}
+        registerFormKey={registerFormKey}
+        registerValues={registerValues}
+        selectedId={selectedId}
+        sessionKey={session.key}
+        versionFile={versionFile}
+        versionInputKey={versionInputKey}
+        writesLocked={pending !== null}
+      />
+    </UnsavedInputScope>
   );
 }

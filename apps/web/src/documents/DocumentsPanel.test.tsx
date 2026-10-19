@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider, useI18n, type Locale } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import { installBlobArrayBuffer } from '../public-opportunities/public-opportunity-test-data.js';
 import { DocumentsPanel } from './DocumentsPanel.js';
 import {
@@ -815,5 +816,69 @@ describe('DocumentsPanel accessibility', () => {
     await waitFor(() => {
       expect(heading).toHaveFocus();
     });
+  });
+});
+
+describe('DocumentsPanel unsaved input (Issue #228 B0′)', () => {
+  function leavingAsks(): boolean {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return navigate.mock.calls.length === 0;
+  }
+
+  it('asks for changed details until they are saved, and never for filters', async () => {
+    resetNavigationGuardForTests();
+    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    standardApi((call) =>
+      call.method === 'PATCH' && call.path === `/v1/documents/${DOCUMENT_A_ID}`
+        ? jsonResponse({ document: { ...linkedDocument, title: 'Renamed report' } })
+        : undefined,
+    );
+    render(<Panel />);
+
+    const search = within(screen.getByRole('search', { name: 'Filter documents' })).getByRole(
+      'searchbox',
+      { name: 'Search' },
+    );
+    fireEvent.focusIn(search);
+    fireEvent.change(search, { target: { value: 'synthetic' } });
+    expect(leavingAsks()).toBe(false);
+
+    await openDocument('Synthetic interview report');
+    const details = screen.getByRole('form', { name: 'Details' });
+    const title = within(details).getByLabelText(/^Title/);
+    fireEvent.focusIn(title);
+    fireEvent.change(title, { target: { value: 'Renamed report' } });
+    expect(leavingAsks()).toBe(true);
+    expect(confirmLeave).toHaveBeenCalledWith(
+      'You have unsaved changes on this page. Leave and discard them?',
+    );
+
+    // The details form stays open after saving; the confirmed write makes it saved.
+    fireEvent.click(within(details).getByRole('button', { name: 'Save details' }));
+    expect(await screen.findByText('Details saved.')).toBeVisible();
+    expect(screen.getByRole('form', { name: 'Details' })).toBeVisible();
+    expect(leavingAsks()).toBe(false);
+  });
+
+  it('keeps asking when saving the details fails', async () => {
+    resetNavigationGuardForTests();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    standardApi((call) =>
+      call.method === 'PATCH' && call.path === `/v1/documents/${DOCUMENT_A_ID}`
+        ? jsonResponse({ error: { code: 'CONFLICT', message: 'Synthetic conflict' } }, 409)
+        : undefined,
+    );
+    render(<Panel />);
+    await openDocument('Synthetic interview report');
+    const details = screen.getByRole('form', { name: 'Details' });
+    const title = within(details).getByLabelText(/^Title/);
+    fireEvent.focusIn(title);
+    fireEvent.change(title, { target: { value: 'Not saved' } });
+    fireEvent.click(within(details).getByRole('button', { name: 'Save details' }));
+    await waitFor(() =>
+      expect(within(details).getByRole('button', { name: 'Save details' })).toBeEnabled(),
+    );
+    expect(leavingAsks()).toBe(true);
   });
 });

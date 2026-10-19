@@ -21,6 +21,7 @@ import {
   updateAdminUserStatus,
 } from '../api.js';
 import { useI18n } from '../i18n/index.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 import { Button, PageHeader, StatusBadge, TextField } from '../ui/index.js';
 import { PermissionGroups } from './PermissionGroups.js';
 import { adminStatusTone, formatAdminRoleName } from './role-labels.js';
@@ -34,6 +35,10 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  // Form writes only: lets the unsaved-input guard tell a saved form from a failed one.
+  const [formWritePending, setFormWritePending] = useState(false);
+  const [formWriteFailures, setFormWriteFailures] = useState(0);
+  const [formWriteSaves, setFormWriteSaves] = useState(0);
 
   useEffect(() => {
     void loadCatalog();
@@ -59,6 +64,19 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
     setUsers(response.users);
   }
 
+  async function trackFormWrite(write: () => Promise<void>): Promise<void> {
+    setFormWritePending(true);
+    try {
+      await write();
+      setFormWriteSaves((count) => count + 1);
+    } catch (error) {
+      setFormWriteFailures((count) => count + 1);
+      throw error;
+    } finally {
+      setFormWritePending(false);
+    }
+  }
+
   async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     await loadUsers(search, statusFilter);
@@ -67,17 +85,19 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
-    const created = await createAdminUser(accessToken, {
-      displayName: formValue(formData, 'displayName'),
-      email: formValue(formData, 'email'),
-      initialPassword: formValue(formData, 'initialPassword'),
-      locale: formValue(formData, 'locale', 'en'),
+    await trackFormWrite(async () => {
+      const formData = new FormData(form);
+      const created = await createAdminUser(accessToken, {
+        displayName: formValue(formData, 'displayName'),
+        email: formValue(formData, 'email'),
+        initialPassword: formValue(formData, 'initialPassword'),
+        locale: formValue(formData, 'locale', 'en'),
+      });
+      form.reset();
+      setSelectedUser(created.user);
+      setMessage('User created.');
+      await loadUsers();
     });
-    form.reset();
-    setSelectedUser(created.user);
-    setMessage('User created.');
-    await loadUsers();
   }
 
   async function selectUser(userId: string): Promise<void> {
@@ -92,13 +112,16 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const updated = await updateAdminUser(accessToken, selectedUser.id, {
-      displayName: formValue(formData, 'displayName', selectedUser.displayName),
-      locale: formValue(formData, 'locale', selectedUser.locale),
+    const user = selectedUser;
+    await trackFormWrite(async () => {
+      const updated = await updateAdminUser(accessToken, user.id, {
+        displayName: formValue(formData, 'displayName', user.displayName),
+        locale: formValue(formData, 'locale', user.locale),
+      });
+      setSelectedUser(updated.user);
+      setMessage('User updated.');
+      await loadUsers();
     });
-    setSelectedUser(updated.user);
-    setMessage('User updated.');
-    await loadUsers();
   }
 
   async function handleAssignRole(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -107,11 +130,14 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const roleName = formValue(formData, 'roleName') as AdminRoleName;
-    const updated = await assignAdminRole(accessToken, selectedUser.id, { roleName });
-    setSelectedUser(updated.user);
-    setMessage('Role assigned.');
-    await loadUsers();
+    const user = selectedUser;
+    await trackFormWrite(async () => {
+      const roleName = formValue(formData, 'roleName') as AdminRoleName;
+      const updated = await assignAdminRole(accessToken, user.id, { roleName });
+      setSelectedUser(updated.user);
+      setMessage('Role assigned.');
+      await loadUsers();
+    });
   }
 
   async function removeRole(roleName: string): Promise<void> {
@@ -154,213 +180,224 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   }
 
   return (
-    <section className="admin-panel" aria-label="Administration">
-      <PageHeader title="Administration" />
-      <div className="admin-grid">
-        <section aria-label="User administration">
-          <h2>Users</h2>
-          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
-            <label>
-              Search
-              <input
-                className="ui-field__control"
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-                name="search"
-              />
-            </label>
-            <label>
-              Status
-              <select
-                className="ui-field__control"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.currentTarget.value)}
-                name="status"
-              >
-                <option value="">Any</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </label>
-            <Button variant="secondary" type="submit">
-              Search users
-            </Button>
-          </form>
+    // Unsaved input in the create, edit and role forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={formWriteFailures || null}
+      savedSignal={formWriteSaves || null}
+      writePending={formWritePending}
+    >
+      <section className="admin-panel" aria-label="Administration">
+        <PageHeader title="Administration" />
+        <div className="admin-grid">
+          <section aria-label="User administration">
+            <h2>Users</h2>
+            <form
+              className="inline-form"
+              data-unsaved-guard="ignore"
+              onSubmit={(event) => void handleSearch(event)}
+            >
+              <label>
+                Search
+                <input
+                  className="ui-field__control"
+                  value={search}
+                  onChange={(event) => setSearch(event.currentTarget.value)}
+                  name="search"
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  className="ui-field__control"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                  name="status"
+                >
+                  <option value="">Any</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </label>
+              <Button variant="secondary" type="submit">
+                Search users
+              </Button>
+            </form>
 
-          <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Roles</th>
-                  <th>Sessions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((adminUser) => (
-                  <tr key={adminUser.id}>
-                    <td>
+            <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Roles</th>
+                    <th>Sessions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((adminUser) => (
+                    <tr key={adminUser.id}>
+                      <td>
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          onClick={() => void selectUser(adminUser.id)}
+                        >
+                          {adminUser.displayName}
+                        </Button>
+                      </td>
+                      <td>
+                        <StatusBadge tone={adminStatusTone(adminUser.status)}>
+                          {adminUser.status}
+                        </StatusBadge>
+                      </td>
+                      <td>
+                        {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
+                          'None'}
+                      </td>
+                      <td>{adminUser.activeSessionCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <form
+              className="stacked-form"
+              aria-label="Create internal user"
+              onSubmit={(event) => void handleCreate(event)}
+            >
+              <h3>Create internal user</h3>
+              <TextField
+                label="Display name"
+                name="displayName"
+                placeholder="Display name"
+                required
+              />
+              <TextField label="Email" name="email" type="email" placeholder="Email" required />
+              <TextField label="Locale" name="locale" defaultValue="en" required />
+              <TextField
+                label="Initial password"
+                name="initialPassword"
+                type="password"
+                placeholder="Initial password"
+                autoComplete="new-password"
+                required
+              />
+              <Button type="submit">Create user</Button>
+            </form>
+          </section>
+
+          <section aria-label="Selected user detail">
+            {selectedUser ? (
+              <>
+                <h2>{selectedUser.displayName}</h2>
+                <p>{selectedUser.email}</p>
+                <StatusBadge tone={adminStatusTone(selectedUser.status)}>
+                  {selectedUser.status}
+                </StatusBadge>
+                <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
+                  <TextField
+                    name="displayName"
+                    label="Display name"
+                    defaultValue={selectedUser.displayName}
+                  />
+                  <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
+                  <Button variant="secondary" type="submit">
+                    Update profile
+                  </Button>
+                </form>
+
+                <div className="action-row">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => void changeStatus('ACTIVE')}
+                  >
+                    Reactivate
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => void changeStatus('SUSPENDED')}
+                  >
+                    Suspend
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => void changeStatus('ARCHIVED')}
+                  >
+                    Archive
+                  </Button>
+                </div>
+
+                <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
+                  <label>
+                    Role
+                    <select name="roleName" required>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {formatAdminRoleName(t, role.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button variant="secondary" type="submit">
+                    Assign role
+                  </Button>
+                </form>
+
+                <ul>
+                  {selectedUser.roles.map((roleName) => (
+                    <li key={roleName}>
+                      {formatAdminRoleName(t, roleName)}{' '}
                       <Button
                         variant="secondary"
                         type="button"
-                        onClick={() => void selectUser(adminUser.id)}
+                        onClick={() => void removeRole(roleName)}
                       >
-                        {adminUser.displayName}
+                        Remove
                       </Button>
-                    </td>
-                    <td>
-                      <StatusBadge tone={adminStatusTone(adminUser.status)}>
-                        {adminUser.status}
-                      </StatusBadge>
-                    </td>
-                    <td>
-                      {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
-                        'None'}
-                    </td>
-                    <td>{adminUser.activeSessionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </li>
+                  ))}
+                </ul>
 
-          <form
-            className="stacked-form"
-            aria-label="Create internal user"
-            onSubmit={(event) => void handleCreate(event)}
-          >
-            <h3>Create internal user</h3>
-            <TextField
-              label="Display name"
-              name="displayName"
-              placeholder="Display name"
-              required
-            />
-            <TextField label="Email" name="email" type="email" placeholder="Email" required />
-            <TextField label="Locale" name="locale" defaultValue="en" required />
-            <TextField
-              label="Initial password"
-              name="initialPassword"
-              type="password"
-              placeholder="Initial password"
-              autoComplete="new-password"
-              required
-            />
-            <Button type="submit">Create user</Button>
-          </form>
+                <h3>Active sessions</h3>
+                <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
+                  Revoke all sessions
+                </Button>
+                <ul>
+                  {selectedUser.sessions.map((session) => (
+                    <li key={session.id}>
+                      {session.createdAt}{' '}
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={() => void revokeOneSession(session.id)}
+                      >
+                        Revoke
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+
+                <h3>Effective permissions</h3>
+                <PermissionGroups codes={selectedUser.effectivePermissions} />
+              </>
+            ) : (
+              <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
+            )}
+            {message ? <p role="status">{message}</p> : null}
+          </section>
+        </div>
+
+        <section aria-label="Permission catalog">
+          <h2>Permission catalog</h2>
+          <PermissionGroups codes={permissions.map((permission) => permission.code)} />
         </section>
-
-        <section aria-label="Selected user detail">
-          {selectedUser ? (
-            <>
-              <h2>{selectedUser.displayName}</h2>
-              <p>{selectedUser.email}</p>
-              <StatusBadge tone={adminStatusTone(selectedUser.status)}>
-                {selectedUser.status}
-              </StatusBadge>
-              <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
-                <TextField
-                  name="displayName"
-                  label="Display name"
-                  defaultValue={selectedUser.displayName}
-                />
-                <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
-                <Button variant="secondary" type="submit">
-                  Update profile
-                </Button>
-              </form>
-
-              <div className="action-row">
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('ACTIVE')}
-                >
-                  Reactivate
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('SUSPENDED')}
-                >
-                  Suspend
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => void changeStatus('ARCHIVED')}
-                >
-                  Archive
-                </Button>
-              </div>
-
-              <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
-                <label>
-                  Role
-                  <select name="roleName" required>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.name}>
-                        {formatAdminRoleName(t, role.name)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button variant="secondary" type="submit">
-                  Assign role
-                </Button>
-              </form>
-
-              <ul>
-                {selectedUser.roles.map((roleName) => (
-                  <li key={roleName}>
-                    {formatAdminRoleName(t, roleName)}{' '}
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      onClick={() => void removeRole(roleName)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-
-              <h3>Active sessions</h3>
-              <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
-                Revoke all sessions
-              </Button>
-              <ul>
-                {selectedUser.sessions.map((session) => (
-                  <li key={session.id}>
-                    {session.createdAt}{' '}
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      onClick={() => void revokeOneSession(session.id)}
-                    >
-                      Revoke
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-
-              <h3>Effective permissions</h3>
-              <PermissionGroups codes={selectedUser.effectivePermissions} />
-            </>
-          ) : (
-            <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
-          )}
-          {message ? <p role="status">{message}</p> : null}
-        </section>
-      </div>
-
-      <section aria-label="Permission catalog">
-        <h2>Permission catalog</h2>
-        <PermissionGroups codes={permissions.map((permission) => permission.code)} />
       </section>
-    </section>
+    </UnsavedInputScope>
   );
 }
 

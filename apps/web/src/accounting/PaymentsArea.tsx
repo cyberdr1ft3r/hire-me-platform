@@ -53,6 +53,7 @@ import {
 } from './accounting-state.js';
 import { DateText, ErrorBlock, FeedbackMessage, LoadingBlock, Money } from './AccountingParts.js';
 import { PaymentDetailView, type PaymentActions, type PendingAllocation } from './PaymentDetail.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 type Scope = 'area' | 'record';
 
@@ -288,98 +289,107 @@ export function PaymentsArea({
   const writesLocked = session.pending !== null;
 
   return (
-    <div className="accounting-area">
-      <div className="accounting-area__header">
-        <h2 className="accounting__pane-title" id="accounting-payments-title">
-          {t('accounting.payments.title')}
-        </h2>
-        {access.payments.record && !draft ? (
-          <Button
-            disabled={writesLocked}
-            onClick={() => {
-              setFeedback(null);
-              setDraft({ focusToken: 1, invoice: null, values: emptyPaymentForm() });
-            }}
-          >
-            {t('accounting.payments.new')}
-          </Button>
-        ) : null}
-      </div>
-      <p className="accounting-muted">{t('accounting.payments.description')}</p>
-
-      <FeedbackMessage feedback={feedback} />
-
-      {draft ? (
-        <PaymentCreateForm
-          draft={draft}
-          key={`${session.key}:${draft.focusToken}`}
-          loadClients={loaders.clients}
-          onCancel={() => setDraft(null)}
-          onChange={(values) => setDraft((current) => (current ? { ...current, values } : current))}
-          onSubmit={(values) => create(values, draft.invoice)}
-          pending={session.pending}
-          sessionKey={session.key}
-        />
-      ) : null}
-
-      {!canList ? (
-        <InlineMessage title={t('accounting.notices.clientScope.title')} tone="info">
-          <p className="accounting-message__text">{t('accounting.notices.clientScope.body')}</p>
-        </InlineMessage>
-      ) : (
-        <div className="accounting__workspace">
-          <section aria-labelledby="accounting-payments-title" className="accounting__list-pane">
-            <PaymentFiltersForm
-              busy={list.status === 'loading'}
-              loadClients={loaders.clients}
-              onChange={setFilters}
-              onReset={() => {
-                clearSelection();
-                setFilters(EMPTY_PAYMENT_FILTERS);
-                applyQuery(FIRST_QUERY);
+    // Unsaved input in this area's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={writesLocked}
+    >
+      <div className="accounting-area">
+        <div className="accounting-area__header">
+          <h2 className="accounting__pane-title" id="accounting-payments-title">
+            {t('accounting.payments.title')}
+          </h2>
+          {access.payments.record && !draft ? (
+            <Button
+              disabled={writesLocked}
+              onClick={() => {
+                setFeedback(null);
+                setDraft({ focusToken: 1, invoice: null, values: emptyPaymentForm() });
               }}
-              onSubmit={() => {
-                clearSelection();
-                applyQuery({ filters, page: 1 });
-              }}
-              sessionKey={session.key}
-              showReset={hasPaymentFilters(query.filters) || hasPaymentFilters(filters)}
-              values={filters}
-            />
-            <PaymentList
-              filtered={hasPaymentFilters(query.filters)}
-              list={list}
-              onPage={(page) => applyQuery({ ...queryRef.current, page })}
-              onReset={() => {
-                clearSelection();
-                setFilters(EMPTY_PAYMENT_FILTERS);
-                applyQuery(FIRST_QUERY);
-              }}
-              onRetry={() => void loadList(queryRef.current)}
-              onSelect={select}
-              selectedId={selectedId}
-            />
-          </section>
-          <div className="accounting__detail-pane">
-            <PaymentDetailView
-              access={access}
-              actions={actions}
-              allocationIntent={allocationIntent}
-              focusToken={focusToken}
-              loaders={loaders}
-              onRetry={() => {
-                const id = selectedRef.current;
-                if (id) void loadDetail(id);
-              }}
-              pending={session.pending}
-              selectedId={selectedId}
-              session={session}
-              state={detail}
-            />
-          </div>
+            >
+              {t('accounting.payments.new')}
+            </Button>
+          ) : null}
         </div>
-      )}
-    </div>
+        <p className="accounting-muted">{t('accounting.payments.description')}</p>
+
+        <FeedbackMessage feedback={feedback} />
+
+        {draft ? (
+          <PaymentCreateForm
+            draft={draft}
+            key={`${session.key}:${draft.focusToken}`}
+            loadClients={loaders.clients}
+            onCancel={() => setDraft(null)}
+            onChange={(values) =>
+              setDraft((current) => (current ? { ...current, values } : current))
+            }
+            onSubmit={(values) => create(values, draft.invoice)}
+            pending={session.pending}
+            sessionKey={session.key}
+          />
+        ) : null}
+
+        {!canList ? (
+          <InlineMessage title={t('accounting.notices.clientScope.title')} tone="info">
+            <p className="accounting-message__text">{t('accounting.notices.clientScope.body')}</p>
+          </InlineMessage>
+        ) : (
+          <div className="accounting__workspace">
+            <section aria-labelledby="accounting-payments-title" className="accounting__list-pane">
+              <PaymentFiltersForm
+                busy={list.status === 'loading'}
+                loadClients={loaders.clients}
+                onChange={setFilters}
+                onReset={() => {
+                  clearSelection();
+                  setFilters(EMPTY_PAYMENT_FILTERS);
+                  applyQuery(FIRST_QUERY);
+                }}
+                onSubmit={() => {
+                  clearSelection();
+                  applyQuery({ filters, page: 1 });
+                }}
+                sessionKey={session.key}
+                showReset={hasPaymentFilters(query.filters) || hasPaymentFilters(filters)}
+                values={filters}
+              />
+              <PaymentList
+                filtered={hasPaymentFilters(query.filters)}
+                list={list}
+                onPage={(page) => applyQuery({ ...queryRef.current, page })}
+                onReset={() => {
+                  clearSelection();
+                  setFilters(EMPTY_PAYMENT_FILTERS);
+                  applyQuery(FIRST_QUERY);
+                }}
+                onRetry={() => void loadList(queryRef.current)}
+                onSelect={select}
+                selectedId={selectedId}
+              />
+            </section>
+            <div className="accounting__detail-pane">
+              <PaymentDetailView
+                access={access}
+                actions={actions}
+                allocationIntent={allocationIntent}
+                focusToken={focusToken}
+                loaders={loaders}
+                onRetry={() => {
+                  const id = selectedRef.current;
+                  if (id) void loadDetail(id);
+                }}
+                pending={session.pending}
+                selectedId={selectedId}
+                session={session}
+                state={detail}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </UnsavedInputScope>
   );
 }
 

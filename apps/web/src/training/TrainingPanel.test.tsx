@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider, useI18n, type Locale } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import { TrainingPanel } from './TrainingPanel.js';
 import {
   ACTOR_ID,
@@ -796,5 +797,51 @@ describe('TrainingPanel: lifecycle, participation, and certificates', () => {
         screen.getByRole('heading', { level: 2, name: 'Synthetic Onboarding' }),
       ),
     );
+  });
+});
+
+describe('TrainingPanel: unsaved input asks before leaving (Issue #228 B0′)', () => {
+  function leavingAsks(): boolean {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return navigate.mock.calls.length === 0;
+  }
+
+  it('asks for a typed cancellation reason, never for filters, and not after the write succeeds', async () => {
+    resetNavigationGuardForTests();
+    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const cancelPath = `/v1/training/programs/${PROGRAM_A_ID}/sessions/${SESSION_A_ID}/cancel`;
+    const canceled = {
+      ...sessionA,
+      status: 'SESSION_CANCELED' as const,
+      cancellationReason: 'Synthetic reason',
+    };
+    standardApi((call) =>
+      call.method === 'POST' && call.path === cancelPath
+        ? jsonResponse({ session: canceled })
+        : undefined,
+    );
+    render(<Panel />);
+    await openProgram('Synthetic Onboarding');
+
+    const filter = within(programFilters()).getByRole('searchbox', { name: 'Search' });
+    fireEvent.focusIn(filter);
+    fireEvent.change(filter, { target: { value: 'synthetic' } });
+    expect(leavingAsks()).toBe(false);
+
+    await openSession();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel session' }));
+    const form = screen.getByRole('form', { name: 'Cancel this session' });
+    const reason = within(form).getByLabelText(/^Cancellation reason/);
+    fireEvent.focusIn(reason);
+    fireEvent.change(reason, { target: { value: 'Synthetic reason' } });
+    expect(leavingAsks()).toBe(true);
+    expect(confirmLeave).toHaveBeenCalledWith(
+      'You have unsaved changes on this page. Leave and discard them?',
+    );
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Confirm cancellation' }));
+    expect(await screen.findByText('Session canceled.')).toBeVisible();
+    expect(leavingAsks()).toBe(false);
   });
 });

@@ -11,9 +11,11 @@
  * In-app links (shell navigation, notification items, record actions) ask through
  * `requestNavigation` before they move, so the same question covers them.
  *
- * Blockers stack: the most recently registered one decides. A focused record with an
- * open edit form registers one, and a creation drawer opened on top registers its
- * own; closing the drawer hands the decision back to the record.
+ * Blockers stack: the most recently registered one that wants to ask decides. A
+ * focused record with an open edit form registers one, and a creation drawer opened on
+ * top registers its own; closing the drawer hands the decision back to the record. A
+ * blocker with nothing unsaved is skipped, and after one blocker's input is discarded
+ * the next one that still holds unsaved input asks too, so no input is lost silently.
  */
 
 const INDEX_KEY = 'hiremeHistoryIndex';
@@ -55,10 +57,13 @@ function release(blocker: NavigationBlocker): void {
   blockers = blockers.filter((entry) => entry !== blocker);
 }
 
-/** The blocker that decides now, if it wants to ask. */
+/** The most recently registered blocker that wants to ask now, if any. */
 function activeBlocker(): NavigationBlocker | null {
-  const top = blockers[blockers.length - 1] ?? null;
-  return top && (top.shouldBlock?.() ?? true) ? top : null;
+  for (let index = blockers.length - 1; index >= 0; index -= 1) {
+    const blocker = blockers[index];
+    if (blocker && (blocker.shouldBlock?.() ?? true)) return blocker;
+  }
+  return null;
 }
 
 /** Registers a blocker; the returned function releases only that blocker. */
@@ -79,7 +84,8 @@ export function requestNavigation(proceed: () => void): void {
   }
   held.confirmLeave(() => {
     release(held);
-    proceed();
+    // Another surface may still hold unsaved input of its own; it asks next.
+    requestNavigation(proceed);
   });
 }
 

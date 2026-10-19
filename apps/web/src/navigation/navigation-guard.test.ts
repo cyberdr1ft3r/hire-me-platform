@@ -166,4 +166,45 @@ describe('navigation guard', () => {
     requestNavigation(navigate);
     expect(navigate).toHaveBeenCalledTimes(1);
   });
+
+  it('skips a later blocker with nothing unsaved and asks the earlier one that has input', () => {
+    pushHistoryPath('/messages');
+    const workspace = vi.fn();
+    blockNavigation({ confirmLeave: workspace, shouldBlock: () => true });
+    const details = vi.fn();
+    blockNavigation({ confirmLeave: details, shouldBlock: () => false });
+
+    expect(acceptHistoryTraversal(at(0))).toBe(false);
+    expect(details).not.toHaveBeenCalled();
+    expect(workspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks every surface that holds unsaved input before an in-app navigation proceeds', () => {
+    const asked: string[] = [];
+    let confirmRecord: (() => void) | undefined;
+    let confirmDrawer: (() => void) | undefined;
+    blockNavigation({
+      confirmLeave: (proceed) => {
+        asked.push('record');
+        confirmRecord = proceed;
+      },
+      shouldBlock: () => true,
+    });
+    blockNavigation({
+      confirmLeave: (proceed) => {
+        asked.push('drawer');
+        confirmDrawer = proceed;
+      },
+    });
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    expect(asked).toEqual(['drawer']);
+
+    confirmDrawer?.();
+    expect(asked).toEqual(['drawer', 'record']);
+    expect(navigate).not.toHaveBeenCalled();
+
+    confirmRecord?.();
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,32 +1,28 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Current situation
 
-- Latest `main` is `d1da9b588f85bff85b77809ce9b36ed7e7905169`, including merged Candidates
-  #225 and Missions #226. Post-merge run `39286931663` concluded successfully.
-- Issue #196's core Notification Center was already merged through PR #199. The current focused
-  follow-up fixes a Chrome focus-boundary race, Unread-filter consistency, stale notification-count
-  responses, and a premature Messages-summary refresh without changing any backend contract,
-  permission, polling interval, or Messages read model.
-- Focused tests and installed-Chrome EN/FR desktop/tablet/mobile evidence cover combined counts,
-  source permission boundaries, Notification-only read actions, exact conversation navigation,
-  session isolation, responsive overflow, and Escape focus restoration.
-  [Evidence](../audit/issue-196-notification-center-hardening.md).
-- Utility Bar/Quick Notes remains a separately gated slice. Wordmark acceptance still requires the
-  missing brand reference/typeface evidence. Neither is part of this patch.
+- Latest `main` is `cfe6be6`. Issue #228 Phase A was approved in the review of draft PR #229 with
+  refinements RV1 (tab identity in `history.state`, URL-only fallback) and RV2 (guards ask only for
+  genuinely unsaved input). PR #229 documents both; its exact-head CI is green and it stays draft.
+- B0′ is a separate draft PR on `feat/issue-228-b0-unsaved-input-guards`: RV2 dirty detection in
+  the shared guard, guard-stack fallthrough, and unsaved-input protection for Tasks, Training,
+  Accounting, Commercial, Documents, Messages and Administration.
+  [Evidence](../audit/issue-228-b0-unsaved-input.md).
+- No console tab code exists yet. B2 onward is not approved.
 
 ## Next concrete action
 
-1. Review the Issue #196 follow-up draft PR and browser evidence.
-2. Confirm all four exact-head CI jobs remain green after any requested review changes.
-3. Keep the PR draft and unmerged; do not deploy or begin Utility Bar/wordmark work without a
-   separately approved, fully specified slice.
+1. Maintainer reviews the B0′ draft PR and its browser evidence; resolve comments on the same branch.
+2. After B0′ review, open B1 (pure console state core with the RV1 history-state codec and
+   resolution order, unit tests only, not rendered) as its own draft PR from latest `main`.
+3. Reconcile `docs/project/STATUS.md` / `HANDOFF.md` between #229 and B0′ at merge time (both add
+   an Issue #228 section).
 
 ## Completion conditions
 
-- The Issue #196 follow-up remains draft, cleanly mergeable, and backed by four green exact-head
-  jobs.
-- No merge, deployment, backend redesign, or unrelated workspace work occurs without explicit
+- PR #229, B0′ and B1 stay draft and unmerged, each with green exact-head CI.
+- No B2 implementation, merge, deployment, sidebar redesign or unrelated fix without explicit
   approval.

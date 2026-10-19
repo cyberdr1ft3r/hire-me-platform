@@ -3,6 +3,20 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
+## Issue #228 B0′ — unsaved-input guards for every module with forms
+
+- First implementation step after the Phase A approval in draft PR #229 (refinement RV2). Branch
+  `feat/issue-228-b0-unsaved-input-guards` from `main` `cfe6be6`; no console tabs, API, contract,
+  schema, permission or dependency change.
+- The shared guard now asks only for genuinely unsaved input (changed and different from the values
+  when editing began); unchanged, reverted, saved (`savedSignal` after a started write), reset and
+  search/filter forms never ask. The guard stack consults the most recent blocker that has unsaved
+  input and asks every such surface in turn. Tasks, Training, Accounting, Commercial, Documents,
+  Messages and Administration are now protected; Candidates, Clients and Missions keep their guards.
+- Web tests 1061/1062 (only the known Windows CRLF assertion), lint/typecheck/build/format/architecture
+  pass; installed-Chrome evidence 17/17 across EN desktop, FR 1024px and 390px.
+  [Evidence](../audit/issue-228-b0-unsaved-input.md). Draft, unmerged, undeployed. B1 waits for review.
+
 ## Issue #196 — Notification Center unread-consistency follow-up
 
 - The core compact Notification Center and unread Messages composition already merged through PR

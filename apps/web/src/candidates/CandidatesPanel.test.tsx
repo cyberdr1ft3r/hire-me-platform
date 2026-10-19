@@ -2910,18 +2910,34 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
     await selectCandidate();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     const form = screen.getByRole('form', { name: 'Edit profile' });
-    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Lyon' } });
+    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Marseille' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(confirm).toHaveBeenCalledWith(
       'This candidate has unsaved changes. Leave and discard them?',
     );
     expect(onCloseRecord).not.toHaveBeenCalled();
-    expect(within(form).getByLabelText('City')).toHaveValue('Lyon');
+    expect(within(form).getByLabelText('City')).toHaveValue('Marseille');
 
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(onCloseRecord).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+  });
+
+  it('leaves without asking when the input leaves the form as it was (Issue #228 RV2)', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const city = within(screen.getByRole('form', { name: 'Edit profile' })).getByLabelText('City');
+    fireEvent.focusIn(city);
+    fireEvent.input(city, { target: { value: 'Marseille' } });
+    fireEvent.input(city, { target: { value: 'Lyon' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(confirm).not.toHaveBeenCalled();
     expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
   });
 

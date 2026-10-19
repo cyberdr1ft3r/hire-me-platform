@@ -63,6 +63,7 @@ import type { TaskCreateValues } from './TaskCreateForm.js';
 import type { TaskUpdateValues } from './TaskDetail.js';
 import type { NotificationFilter } from './TaskNotifications.js';
 import { TaskWorkspace } from './TaskWorkspace.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 const OPTION_PAGE_SIZE = 20;
 
@@ -669,196 +670,203 @@ export function TasksPanel({
   );
 
   return (
-    <TaskWorkspace
-      access={access}
-      appliedFilters={appliedFilters}
-      board={board}
-      contextLabels={contextLabels}
-      currentUser={me}
-      detail={detail}
-      feedback={feedback}
-      filters={filters}
-      list={list}
-      loadOptions={loadOptions}
-      notificationStatus={notificationStatus}
-      notificationTotal={notificationTotal}
-      notificationUnread={notificationUnread}
-      notifications={notifications}
-      onAddAssignment={(values) =>
-        mutateSelected(
-          'assignment',
-          (taskId) => addTaskAssignment(accessToken, taskId, values),
-          () => t('task.feedback.assignmentAdded'),
-        ).then((ok) => {
-          if (ok) refreshNotifications();
-          return ok;
-        })
-      }
-      onAddComment={(values) =>
-        mutateChild(
-          'comment',
-          (taskId) => createTaskComment(accessToken, taskId, values),
-          t('task.feedback.commentAdded'),
-          true,
-        )
-      }
-      onAddReminder={(values) =>
-        mutateChild(
-          'reminder',
-          (taskId) => createTaskReminder(accessToken, taskId, values),
-          t('task.feedback.reminderAdded'),
-          false,
-        )
-      }
-      onApplyFilters={() => {
-        appliedFiltersRef.current = filters;
-        listPageRef.current = 1;
-        setListPage(1);
-        setAppliedFilters(filters);
-      }}
-      onArchive={(reason) =>
-        mutateSelected(
-          'archive',
-          (taskId) => archiveTask(accessToken, taskId, reason),
-          () => t('task.feedback.archived'),
-        )
-      }
-      onArchiveComment={(commentId) =>
-        mutateChild(
-          'archiveComment',
-          (taskId) => archiveTaskComment(accessToken, taskId, commentId),
-          t('task.feedback.commentArchived'),
-          false,
-        )
-      }
-      onCancelReminder={(reminderId) =>
-        mutateChild(
-          'cancelReminder',
-          (taskId) => cancelTaskReminder(accessToken, taskId, reminderId),
-          t('task.feedback.reminderCanceled'),
-          false,
-        )
-      }
-      onChangeOwner={(values) =>
-        mutateSelected(
-          'owner',
-          (taskId) => changeTaskOwner(accessToken, taskId, values),
-          () => t('task.feedback.ownerChanged'),
-        ).then((ok) => {
-          if (ok) refreshNotifications();
-          return ok;
-        })
-      }
-      onCloseDetail={closeDetail}
-      onCreate={handleCreate}
-      onEditComment={(values) =>
-        mutateChild(
-          'editComment',
-          // Only the text is sent: the comment's mentions stay as they were.
-          (taskId) =>
-            updateTaskComment(accessToken, taskId, values.commentId, { body: values.body }),
-          t('task.feedback.commentEdited'),
-          false,
-        )
-      }
-      onFiltersChange={setFilters}
-      onListPage={(page) => {
-        listPageRef.current = page;
-        setListPage(page);
-      }}
-      onLoadMore={loadMore}
-      onNotificationArchive={(id) =>
-        pageWrite('notification', () => archiveNotification(accessToken, id))
-      }
-      onNotificationFilter={(status) => {
-        notificationStatusRef.current = status;
-        setNotificationStatus(status);
-      }}
-      onNotificationRead={(id) =>
-        pageWrite('notification', () => markNotificationRead(accessToken, id))
-      }
-      onNotificationsReadAll={() =>
-        pageWrite('notifications', () => markAllNotificationsRead(accessToken))
-      }
-      // The notification only says which task; the task read decides access.
-      onOpenTask={select}
-      onProcessReminders={() => {
-        const operation = begin('process-reminders');
-        if (operation === null) return;
-        processDueTaskReminders(accessToken)
-          .then((response) => {
-            if (!owns(operation)) return;
-            setFeedback({
-              message: t('task.feedback.remindersProcessed', {
-                delivered: response.remindersDelivered,
-                overdue: response.overdueNotificationsCreated,
+    // Unsaved input in any of this module's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={pending !== null}
+    >
+      <TaskWorkspace
+        access={access}
+        appliedFilters={appliedFilters}
+        board={board}
+        contextLabels={contextLabels}
+        currentUser={me}
+        detail={detail}
+        feedback={feedback}
+        filters={filters}
+        list={list}
+        loadOptions={loadOptions}
+        notificationStatus={notificationStatus}
+        notificationTotal={notificationTotal}
+        notificationUnread={notificationUnread}
+        notifications={notifications}
+        onAddAssignment={(values) =>
+          mutateSelected(
+            'assignment',
+            (taskId) => addTaskAssignment(accessToken, taskId, values),
+            () => t('task.feedback.assignmentAdded'),
+          ).then((ok) => {
+            if (ok) refreshNotifications();
+            return ok;
+          })
+        }
+        onAddComment={(values) =>
+          mutateChild(
+            'comment',
+            (taskId) => createTaskComment(accessToken, taskId, values),
+            t('task.feedback.commentAdded'),
+            true,
+          )
+        }
+        onAddReminder={(values) =>
+          mutateChild(
+            'reminder',
+            (taskId) => createTaskReminder(accessToken, taskId, values),
+            t('task.feedback.reminderAdded'),
+            false,
+          )
+        }
+        onApplyFilters={() => {
+          appliedFiltersRef.current = filters;
+          listPageRef.current = 1;
+          setListPage(1);
+          setAppliedFilters(filters);
+        }}
+        onArchive={(reason) =>
+          mutateSelected(
+            'archive',
+            (taskId) => archiveTask(accessToken, taskId, reason),
+            () => t('task.feedback.archived'),
+          )
+        }
+        onArchiveComment={(commentId) =>
+          mutateChild(
+            'archiveComment',
+            (taskId) => archiveTaskComment(accessToken, taskId, commentId),
+            t('task.feedback.commentArchived'),
+            false,
+          )
+        }
+        onCancelReminder={(reminderId) =>
+          mutateChild(
+            'cancelReminder',
+            (taskId) => cancelTaskReminder(accessToken, taskId, reminderId),
+            t('task.feedback.reminderCanceled'),
+            false,
+          )
+        }
+        onChangeOwner={(values) =>
+          mutateSelected(
+            'owner',
+            (taskId) => changeTaskOwner(accessToken, taskId, values),
+            () => t('task.feedback.ownerChanged'),
+          ).then((ok) => {
+            if (ok) refreshNotifications();
+            return ok;
+          })
+        }
+        onCloseDetail={closeDetail}
+        onCreate={handleCreate}
+        onEditComment={(values) =>
+          mutateChild(
+            'editComment',
+            // Only the text is sent: the comment's mentions stay as they were.
+            (taskId) =>
+              updateTaskComment(accessToken, taskId, values.commentId, { body: values.body }),
+            t('task.feedback.commentEdited'),
+            false,
+          )
+        }
+        onFiltersChange={setFilters}
+        onListPage={(page) => {
+          listPageRef.current = page;
+          setListPage(page);
+        }}
+        onLoadMore={loadMore}
+        onNotificationArchive={(id) =>
+          pageWrite('notification', () => archiveNotification(accessToken, id))
+        }
+        onNotificationFilter={(status) => {
+          notificationStatusRef.current = status;
+          setNotificationStatus(status);
+        }}
+        onNotificationRead={(id) =>
+          pageWrite('notification', () => markNotificationRead(accessToken, id))
+        }
+        onNotificationsReadAll={() =>
+          pageWrite('notifications', () => markAllNotificationsRead(accessToken))
+        }
+        // The notification only says which task; the task read decides access.
+        onOpenTask={select}
+        onProcessReminders={() => {
+          const operation = begin('process-reminders');
+          if (operation === null) return;
+          processDueTaskReminders(accessToken)
+            .then((response) => {
+              if (!owns(operation)) return;
+              setFeedback({
+                message: t('task.feedback.remindersProcessed', {
+                  delivered: response.remindersDelivered,
+                  overdue: response.overdueNotificationsCreated,
+                }),
+                scope: 'page',
+                tone: 'success',
+              });
+              refreshNotifications();
+            })
+            .catch(() => {
+              if (owns(operation)) {
+                setFeedback({ message: t('task.feedback.failed'), scope: 'page', tone: 'danger' });
+              }
+            })
+            .finally(() => end(operation));
+        }}
+        onResetFilters={() => {
+          appliedFiltersRef.current = { ...EMPTY_TASK_FILTERS };
+          listPageRef.current = 1;
+          setFilters({ ...EMPTY_TASK_FILTERS });
+          setListPage(1);
+          setAppliedFilters(appliedFiltersRef.current);
+        }}
+        onRemoveAssignment={(values) =>
+          mutateSelected(
+            'removeAssignment',
+            (taskId) =>
+              removeTaskAssignment(accessToken, taskId, values.assignmentId, {
+                reason: values.reason,
               }),
-              scope: 'page',
-              tone: 'success',
-            });
-            refreshNotifications();
+            () => t('task.feedback.assignmentRemoved'),
+          )
+        }
+        onRescheduleReminder={(values) =>
+          mutateChild(
+            'rescheduleReminder',
+            (taskId) =>
+              updateTaskReminder(accessToken, taskId, values.reminderId, {
+                remindAt: values.remindAt,
+              }),
+            t('task.feedback.reminderRescheduled'),
+            false,
+          )
+        }
+        onRetryBoard={() => loadBoard(appliedFiltersRef.current)}
+        onRetryDetail={() => {
+          if (selectedRef.current) loadDetail(selectedRef.current);
+        }}
+        onRetryList={() => loadList(appliedFiltersRef.current, listPageRef.current)}
+        onSelect={select}
+        onTransition={(status: TaskStatus, reason) =>
+          mutateSelected(
+            'transition',
+            (taskId) => updateTaskStatus(accessToken, taskId, { reason, status }),
+            (task) =>
+              t('task.feedback.statusChanged', { status: t(taskStatusLabelKey(task.status)) }),
+          ).then((ok) => {
+            if (ok) refreshNotifications();
+            return ok;
           })
-          .catch(() => {
-            if (owns(operation)) {
-              setFeedback({ message: t('task.feedback.failed'), scope: 'page', tone: 'danger' });
-            }
-          })
-          .finally(() => end(operation));
-      }}
-      onResetFilters={() => {
-        appliedFiltersRef.current = { ...EMPTY_TASK_FILTERS };
-        listPageRef.current = 1;
-        setFilters({ ...EMPTY_TASK_FILTERS });
-        setListPage(1);
-        setAppliedFilters(appliedFiltersRef.current);
-      }}
-      onRemoveAssignment={(values) =>
-        mutateSelected(
-          'removeAssignment',
-          (taskId) =>
-            removeTaskAssignment(accessToken, taskId, values.assignmentId, {
-              reason: values.reason,
-            }),
-          () => t('task.feedback.assignmentRemoved'),
-        )
-      }
-      onRescheduleReminder={(values) =>
-        mutateChild(
-          'rescheduleReminder',
-          (taskId) =>
-            updateTaskReminder(accessToken, taskId, values.reminderId, {
-              remindAt: values.remindAt,
-            }),
-          t('task.feedback.reminderRescheduled'),
-          false,
-        )
-      }
-      onRetryBoard={() => loadBoard(appliedFiltersRef.current)}
-      onRetryDetail={() => {
-        if (selectedRef.current) loadDetail(selectedRef.current);
-      }}
-      onRetryList={() => loadList(appliedFiltersRef.current, listPageRef.current)}
-      onSelect={select}
-      onTransition={(status: TaskStatus, reason) =>
-        mutateSelected(
-          'transition',
-          (taskId) => updateTaskStatus(accessToken, taskId, { reason, status }),
-          (task) =>
-            t('task.feedback.statusChanged', { status: t(taskStatusLabelKey(task.status)) }),
-        ).then((ok) => {
-          if (ok) refreshNotifications();
-          return ok;
-        })
-      }
-      onUpdate={handleUpdate}
-      onViewChange={(next) => {
-        viewRef.current = next;
-        setView(next);
-      }}
-      optionsKey={`session-${sessionGeneration}`}
-      pending={pending}
-      selectedId={selectedId}
-      view={view}
-    />
+        }
+        onUpdate={handleUpdate}
+        onViewChange={(next) => {
+          viewRef.current = next;
+          setView(next);
+        }}
+        optionsKey={`session-${sessionGeneration}`}
+        pending={pending}
+        selectedId={selectedId}
+        view={view}
+      />
+    </UnsavedInputScope>
   );
 }
