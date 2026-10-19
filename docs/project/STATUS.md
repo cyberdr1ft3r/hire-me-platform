@@ -3,6 +3,20 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
+## Issue #224 — Candidates and Missions Unified Page System migration
+
+- Candidates PR #225 merged into `main` as `73dff3c`. Missions remains isolated in draft PR #226
+  on `feat/issue-224-missions-page-system` and was reconciled with that exact `main` through a
+  normal merge commit. The merge completed without conflicts, and the Candidates subtree on the
+  reconciled branch is byte-for-byte identical to `main`.
+- Missions composes the shared `DirectoryPage`, `RecordPage`, `FilterToolbar`, and
+  `ContextualActions` primitives while retaining its existing request ownership, permissions, API
+  contracts, recruitment workflows, forms, deep links, session isolation, focus behavior, and
+  nested scrolling. [Evidence](../audit/issue-224-missions-page-system.md).
+- After reconciliation, architecture, formatting, lint, typecheck, build, and the combined
+  Candidates/Missions/PageSystem/scrolling regression set pass (235/235). PR #226 remains draft,
+  unmerged, and undeployed pending exact-head CI and human review.
+
 ## Issue #221 — Messages Unified Page System migration (merged PR #222)
 
 - Branch `feat/issue-221-messages-page-system` starts from `main` `7e6d0af`, including merged
