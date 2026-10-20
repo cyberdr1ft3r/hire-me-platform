@@ -21,6 +21,7 @@ import {
   updateAdminUserStatus,
 } from '../api.js';
 import { useI18n } from '../i18n/index.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 import { Button, PageHeader, StatusBadge, TextField } from '../ui/index.js';
 import { PermissionGroups } from './PermissionGroups.js';
 import { adminStatusTone, formatAdminRoleName } from './role-labels.js';
@@ -34,6 +35,10 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  // One tracked write per form, so each form's guard knows its own outcome exactly.
+  const createWrite = useTrackedFormWrite();
+  const updateWrite = useTrackedFormWrite();
+  const roleWrite = useTrackedFormWrite();
 
   useEffect(() => {
     void loadCatalog();
@@ -67,17 +72,19 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
-    const created = await createAdminUser(accessToken, {
-      displayName: formValue(formData, 'displayName'),
-      email: formValue(formData, 'email'),
-      initialPassword: formValue(formData, 'initialPassword'),
-      locale: formValue(formData, 'locale', 'en'),
+    await createWrite.track(async () => {
+      const formData = new FormData(form);
+      const created = await createAdminUser(accessToken, {
+        displayName: formValue(formData, 'displayName'),
+        email: formValue(formData, 'email'),
+        initialPassword: formValue(formData, 'initialPassword'),
+        locale: formValue(formData, 'locale', 'en'),
+      });
+      form.reset();
+      setSelectedUser(created.user);
+      setMessage('User created.');
+      await loadUsers();
     });
-    form.reset();
-    setSelectedUser(created.user);
-    setMessage('User created.');
-    await loadUsers();
   }
 
   async function selectUser(userId: string): Promise<void> {
@@ -92,13 +99,16 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const updated = await updateAdminUser(accessToken, selectedUser.id, {
-      displayName: formValue(formData, 'displayName', selectedUser.displayName),
-      locale: formValue(formData, 'locale', selectedUser.locale),
+    const user = selectedUser;
+    await updateWrite.track(async () => {
+      const updated = await updateAdminUser(accessToken, user.id, {
+        displayName: formValue(formData, 'displayName', user.displayName),
+        locale: formValue(formData, 'locale', user.locale),
+      });
+      setSelectedUser(updated.user);
+      setMessage('User updated.');
+      await loadUsers();
     });
-    setSelectedUser(updated.user);
-    setMessage('User updated.');
-    await loadUsers();
   }
 
   async function handleAssignRole(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -107,11 +117,14 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const roleName = formValue(formData, 'roleName') as AdminRoleName;
-    const updated = await assignAdminRole(accessToken, selectedUser.id, { roleName });
-    setSelectedUser(updated.user);
-    setMessage('Role assigned.');
-    await loadUsers();
+    const user = selectedUser;
+    await roleWrite.track(async () => {
+      const roleName = formValue(formData, 'roleName') as AdminRoleName;
+      const updated = await assignAdminRole(accessToken, user.id, { roleName });
+      setSelectedUser(updated.user);
+      setMessage('Role assigned.');
+      await loadUsers();
+    });
   }
 
   async function removeRole(roleName: string): Promise<void> {
@@ -159,7 +172,11 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       <div className="admin-grid">
         <section aria-label="User administration">
           <h2>Users</h2>
-          <form className="inline-form" onSubmit={(event) => void handleSearch(event)}>
+          <form
+            className="inline-form"
+            data-unsaved-guard="ignore"
+            onSubmit={(event) => void handleSearch(event)}
+          >
             <label>
               Search
               <input
@@ -226,30 +243,36 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
             </table>
           </div>
 
-          <form
-            className="stacked-form"
-            aria-label="Create internal user"
-            onSubmit={(event) => void handleCreate(event)}
+          <UnsavedInputScope
+            failureSignal={createWrite.failures || null}
+            savedSignal={createWrite.saves || null}
+            writePending={createWrite.pending}
           >
-            <h3>Create internal user</h3>
-            <TextField
-              label="Display name"
-              name="displayName"
-              placeholder="Display name"
-              required
-            />
-            <TextField label="Email" name="email" type="email" placeholder="Email" required />
-            <TextField label="Locale" name="locale" defaultValue="en" required />
-            <TextField
-              label="Initial password"
-              name="initialPassword"
-              type="password"
-              placeholder="Initial password"
-              autoComplete="new-password"
-              required
-            />
-            <Button type="submit">Create user</Button>
-          </form>
+            <form
+              className="stacked-form"
+              aria-label="Create internal user"
+              onSubmit={(event) => void handleCreate(event)}
+            >
+              <h3>Create internal user</h3>
+              <TextField
+                label="Display name"
+                name="displayName"
+                placeholder="Display name"
+                required
+              />
+              <TextField label="Email" name="email" type="email" placeholder="Email" required />
+              <TextField label="Locale" name="locale" defaultValue="en" required />
+              <TextField
+                label="Initial password"
+                name="initialPassword"
+                type="password"
+                placeholder="Initial password"
+                autoComplete="new-password"
+                required
+              />
+              <Button type="submit">Create user</Button>
+            </form>
+          </UnsavedInputScope>
         </section>
 
         <section aria-label="Selected user detail">
@@ -260,17 +283,23 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
               <StatusBadge tone={adminStatusTone(selectedUser.status)}>
                 {selectedUser.status}
               </StatusBadge>
-              <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
-                <TextField
-                  name="displayName"
-                  label="Display name"
-                  defaultValue={selectedUser.displayName}
-                />
-                <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
-                <Button variant="secondary" type="submit">
-                  Update profile
-                </Button>
-              </form>
+              <UnsavedInputScope
+                failureSignal={updateWrite.failures || null}
+                savedSignal={updateWrite.saves || null}
+                writePending={updateWrite.pending}
+              >
+                <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
+                  <TextField
+                    name="displayName"
+                    label="Display name"
+                    defaultValue={selectedUser.displayName}
+                  />
+                  <TextField name="locale" label="Locale" defaultValue={selectedUser.locale} />
+                  <Button variant="secondary" type="submit">
+                    Update profile
+                  </Button>
+                </form>
+              </UnsavedInputScope>
 
               <div className="action-row">
                 <Button
@@ -296,21 +325,27 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
                 </Button>
               </div>
 
-              <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
-                <label>
-                  Role
-                  <select name="roleName" required>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.name}>
-                        {formatAdminRoleName(t, role.name)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button variant="secondary" type="submit">
-                  Assign role
-                </Button>
-              </form>
+              <UnsavedInputScope
+                failureSignal={roleWrite.failures || null}
+                savedSignal={roleWrite.saves || null}
+                writePending={roleWrite.pending}
+              >
+                <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
+                  <label>
+                    Role
+                    <select name="roleName" required>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {formatAdminRoleName(t, role.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button variant="secondary" type="submit">
+                    Assign role
+                  </Button>
+                </form>
+              </UnsavedInputScope>
 
               <ul>
                 {selectedUser.roles.map((roleName) => (
@@ -362,6 +397,30 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
       </section>
     </section>
   );
+}
+
+/**
+ * Pending state and outcome counters for one form's writes (Issue #228 B0′). Failures
+ * still reject as before; the counters only tell that form's unsaved-input guard
+ * whether its input was saved.
+ */
+function useTrackedFormWrite() {
+  const [pending, setPending] = useState(false);
+  const [saves, setSaves] = useState(0);
+  const [failures, setFailures] = useState(0);
+  async function track(write: () => Promise<void>): Promise<void> {
+    setPending(true);
+    try {
+      await write();
+      setSaves((count) => count + 1);
+    } catch (error) {
+      setFailures((count) => count + 1);
+      throw error;
+    } finally {
+      setPending(false);
+    }
+  }
+  return { failures, pending, saves, track };
 }
 
 function formValue(formData: FormData, name: string, fallback = ''): string {

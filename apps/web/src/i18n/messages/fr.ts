@@ -73,6 +73,8 @@ export const frMessages: Messages = {
     moduleLoadFailedTitle: 'Espace indisponible',
     moduleLoadRetry: 'Réessayer',
     moduleLoading: 'Chargement de l’espace…',
+    unsavedInputPrompt:
+      'Cette page contient des modifications non enregistrées. Quitter et les abandonner ?',
     destinations: {
       accounting: 'Comptabilité',
       administration: 'Administration',

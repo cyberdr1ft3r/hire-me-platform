@@ -1,0 +1,65 @@
+{
+  "scenario": "deeplink",
+  "cpuThrottle": 4,
+  "date": "2026-10-19T17:40:38.801Z",
+  "web": "http://localhost:5710",
+  "deeplinks": {
+    "/candidates": {
+      "settledMs": {
+        "n": 5,
+        "median": 1164.4,
+        "p95": 1398.6,
+        "max": 1398.6
+      },
+      "requests": [
+        "GET /health",
+        "POST /auth/refresh",
+        "GET /v1/notifications",
+        "GET /v1/messages/unread-summary",
+        "GET /v1/candidates",
+        "GET /v1/candidates/6a9a93a5-2bda-4910-a336-323f74f6a2ab"
+      ],
+      "urlPreserved": true
+    },
+    "/missions": {
+      "settledMs": {
+        "n": 5,
+        "median": 1347.2,
+        "p95": 1506.2,
+        "max": 1506.2
+      },
+      "requests": [
+        "GET /health",
+        "POST /auth/refresh",
+        "GET /v1/notifications",
+        "GET /v1/messages/unread-summary",
+        "GET /v1/missions",
+        "GET /v1/missions/4415a79b-19ad-406a-b348-2ef813c45043",
+        "GET /v1/missions/4415a79b-19ad-406a-b348-2ef813c45043/assignments",
+        "GET /v1/missions/4415a79b-19ad-406a-b348-2ef813c45043/candidates",
+        "GET /v1/missions/4415a79b-19ad-406a-b348-2ef813c45043/public-opportunity",
+        "GET /v1/missions/4415a79b-19ad-406a-b348-2ef813c45043/public-opportunity/applications"
+      ],
+      "urlPreserved": true
+    },
+    "/clients": {
+      "settledMs": {
+        "n": 5,
+        "median": 1204.9,
+        "p95": 1391.1,
+        "max": 1391.1
+      },
+      "requests": [
+        "GET /health",
+        "POST /auth/refresh",
+        "GET /v1/notifications",
+        "GET /v1/messages/unread-summary",
+        "GET /v1/clients",
+        "GET /v1/clients/2730bd01-d6ca-4657-8795-29a436349874",
+        "GET /v1/clients/2730bd01-d6ca-4657-8795-29a436349874/contacts",
+        "GET /v1/clients/2730bd01-d6ca-4657-8795-29a436349874"
+      ],
+      "urlPreserved": true
+    }
+  }
+}

@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticatedUser, Notification, TaskDetail, TaskSummary } from '@hire-me/contracts';
 
 import { I18nProvider, useI18n } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import {
   AMINA_ID,
   MISSION_A_ID,
@@ -1212,5 +1213,65 @@ describe('Mission-candidate context filter', () => {
     for (const call of listCalls(calls.slice(after))) {
       expect(call.url).not.toContain('missionCandidateId');
     }
+  });
+});
+
+describe('Unsaved task input asks before leaving (Issue #228 B0′)', () => {
+  const PROMPT = 'You have unsaved changes on this page. Leave and discard them?';
+
+  function leaving(): { asked: boolean } {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return { asked: navigate.mock.calls.length === 0 };
+  }
+
+  beforeEach(() => resetNavigationGuardForTests());
+
+  it('asks for a changed edit, never for filters, and stops once the edit is saved', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    mockApi((url, init) =>
+      url.endsWith(`/v1/tasks/${TASK_A_ID}`) && init?.method === 'PATCH'
+        ? Promise.resolve(detail({ ...taskDetail, title: 'Renamed' }))
+        : undefined,
+    );
+    renderPanel();
+
+    const search = await screen.findByLabelText('Search tasks');
+    fireEvent.focusIn(search);
+    fireEvent.change(search, { target: { value: 'synthetic' } });
+    expect(leaving().asked).toBe(false);
+
+    const dialog = await openTask();
+    await within(dialog).findByText('Client asked for a response before noon.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit task' }));
+    const title = within(dialog).getByLabelText(/^Title/);
+    fireEvent.focusIn(title);
+    fireEvent.change(title, { target: { value: 'Renamed' } });
+    expect(leaving().asked).toBe(true);
+    expect(confirm).toHaveBeenCalledWith(PROMPT);
+
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('Task updated.')).toBeVisible();
+    expect(leaving().asked).toBe(false);
+  });
+
+  it('does not ask when the edit is changed back to the saved value', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    mockApi();
+    renderPanel();
+    const dialog = await openTask();
+    await within(dialog).findByText('Client asked for a response before noon.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit task' }));
+    const title = within(dialog).getByLabelText(/^Title/);
+    fireEvent.focusIn(title);
+    const original = (title as HTMLInputElement).value;
+    fireEvent.change(title, { target: { value: 'Something else' } });
+    fireEvent.change(title, { target: { value: original } });
+    expect(leaving().asked).toBe(false);
+    expect(confirm).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,228 @@
+{
+  "scenario": "layout",
+  "cpuThrottle": 1,
+  "date": "2026-10-19T17:29:19.780Z",
+  "web": "http://localhost:5710",
+  "layout": [
+    {
+      "viewport": "1440x900",
+      "locale": "en",
+      "lang": "en",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 1200,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 1200,
+        "height": 844,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 1136,
+        "height": 77,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "1024x768",
+      "locale": "en",
+      "lang": "en",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 784,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 784,
+        "height": 712,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 720,
+        "height": 77,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "768x1024",
+      "locale": "en",
+      "lang": "en",
+      "mobileNavigation": true,
+      "utilityBar": {
+        "width": 768,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 768,
+        "height": 201,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 736,
+        "height": 137,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "390x844",
+      "locale": "en",
+      "lang": "en",
+      "mobileNavigation": true,
+      "utilityBar": {
+        "width": 390,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 390,
+        "height": 201,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 358,
+        "height": 137,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "1280x400",
+      "locale": "en",
+      "lang": "en",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 1040,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 1040,
+        "height": 157,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 976,
+        "height": 77,
+        "top": 88
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "1440x900",
+      "locale": "fr",
+      "lang": "fr",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 1200,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 1200,
+        "height": 844,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 1136,
+        "height": 77,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "1024x768",
+      "locale": "fr",
+      "lang": "fr",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 784,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 784,
+        "height": 712,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 720,
+        "height": 77,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "768x1024",
+      "locale": "fr",
+      "lang": "fr",
+      "mobileNavigation": true,
+      "utilityBar": {
+        "width": 768,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 768,
+        "height": 201,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 736,
+        "height": 137,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "390x844",
+      "locale": "fr",
+      "lang": "fr",
+      "mobileNavigation": true,
+      "utilityBar": {
+        "width": 390,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 390,
+        "height": 201,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 358,
+        "height": 137,
+        "top": 80
+      },
+      "horizontalOverflowPx": 0
+    },
+    {
+      "viewport": "1280x400",
+      "locale": "fr",
+      "lang": "fr",
+      "mobileNavigation": false,
+      "utilityBar": {
+        "width": 1040,
+        "height": 56,
+        "top": 0
+      },
+      "main": {
+        "width": 1040,
+        "height": 157,
+        "top": 56
+      },
+      "pageHeader": {
+        "width": 976,
+        "height": 77,
+        "top": 88
+      },
+      "horizontalOverflowPx": 0
+    }
+  ]
+}

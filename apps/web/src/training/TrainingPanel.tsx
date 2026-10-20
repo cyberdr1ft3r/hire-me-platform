@@ -94,6 +94,7 @@ import type { AttendanceValues } from './TrainingParticipation.js';
 import type { ExternalParticipantCreateValues } from './TrainingEnrollments.js';
 import type { RescheduleValues } from './TrainingSessionDetail.js';
 import { TrainingWorkspace } from './TrainingWorkspace.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 /** Which selection a response must still match before it may update the screen. */
 type Scope = 'workspace' | 'program' | 'session';
@@ -1196,118 +1197,125 @@ export function TrainingPanel({
   }
 
   return (
-    <TrainingWorkspace
-      access={access}
-      enrollments={{
-        certificate: {
-          onApplicability: setCertificateApplicability,
-          onDownload: downloadCertificate,
-          onGenerate: generateCertificate,
-          onLoadVersions: loadCertificateVersions,
-        },
-        filters: enrollmentQuery.filters,
-        list: enrollmentList,
-        selectedId: selectedEnrollmentId,
-        onArchive: archiveEnrollment,
-        onCreate: createEnrollment,
-        onCreateExternal: createExternalParticipant,
-        onFiltersChange: (filters) => {
-          setSelectedEnrollmentId(null);
-          applyEnrollmentQuery({ filters, page: 1 });
-        },
-        onPage: (page) => applyEnrollmentQuery({ ...enrollmentQueryRef.current, page }),
-        onRetry: () => {
-          const programId = selectedProgramRef.current;
-          if (programId) void loadEnrollments(programId, enrollmentQueryRef.current);
-        },
-        onSelect: setSelectedEnrollmentId,
-        onStatus: changeEnrollmentStatus,
-        onWithdraw: withdrawEnrollment,
-      }}
-      feedback={feedback}
-      key={session.key}
-      loaders={{
-        clients: loadClients,
-        enrollment: {
-          candidates: loadCandidates,
+    // Unsaved input in any of this module's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={pending !== null}
+    >
+      <TrainingWorkspace
+        access={access}
+        enrollments={{
+          certificate: {
+            onApplicability: setCertificateApplicability,
+            onDownload: downloadCertificate,
+            onGenerate: generateCertificate,
+            onLoadVersions: loadCertificateVersions,
+          },
+          filters: enrollmentQuery.filters,
+          list: enrollmentList,
+          selectedId: selectedEnrollmentId,
+          onArchive: archiveEnrollment,
+          onCreate: createEnrollment,
+          onCreateExternal: createExternalParticipant,
+          onFiltersChange: (filters) => {
+            setSelectedEnrollmentId(null);
+            applyEnrollmentQuery({ filters, page: 1 });
+          },
+          onPage: (page) => applyEnrollmentQuery({ ...enrollmentQueryRef.current, page }),
+          onRetry: () => {
+            const programId = selectedProgramRef.current;
+            if (programId) void loadEnrollments(programId, enrollmentQueryRef.current);
+          },
+          onSelect: setSelectedEnrollmentId,
+          onStatus: changeEnrollmentStatus,
+          onWithdraw: withdrawEnrollment,
+        }}
+        feedback={feedback}
+        key={session.key}
+        loaders={{
           clients: loadClients,
-          contacts: loadContacts,
-          external: loadExternalParticipants,
-          users: loadEnrollmentUsers,
-        },
-        enrollmentOptions: loadEnrollmentOptions,
-        owners: loadOwners,
-        trainers: loadTrainers,
-      }}
-      participation={{
-        filters: participationQuery.filters,
-        list: participationList,
-        selectedId: selectedParticipationId,
-        onAdd: addParticipation,
-        onArchive: archiveParticipation,
-        onCorrect: correctAttendance,
-        onFiltersChange: (filters) => {
-          setSelectedParticipationId(null);
-          applyParticipationQuery({ filters, page: 1 });
-        },
-        onPage: (page) => applyParticipationQuery({ ...participationQueryRef.current, page }),
-        onRecord: recordAttendance,
-        onRetry: () => {
-          const programId = selectedProgramRef.current;
-          const sessionId = selectedSessionRef.current;
-          if (programId && sessionId) {
-            void loadParticipations(programId, sessionId, participationQueryRef.current);
-          }
-        },
-        onSelect: setSelectedParticipationId,
-      }}
-      programs={{
-        appliedFilters: programQuery.filters,
-        filters: programFilters,
-        focusToken: programFocus,
-        list: programList,
-        selected: selectedProgram,
-        onApplyFilters: () => applyProgramQuery({ filters: programFilters, page: 1 }),
-        onArchive: archiveProgram,
-        onCreate: createProgram,
-        onFiltersChange: setProgramFilters,
-        onPage: (page) => applyProgramQuery({ ...programQueryRef.current, page }),
-        onResetFilters: () => {
-          setProgramFilters(EMPTY_PROGRAM_FILTERS);
-          applyProgramQuery(FIRST_PROGRAM_PAGE);
-        },
-        onRetry: () => void loadPrograms(programQueryRef.current),
-        onSave: saveProgram,
-        onSelect: selectProgram,
-        onStatus: changeProgramStatus,
-      }}
-      sessionKey={session.key}
-      sessions={{
-        appliedFilters: sessionQuery.filters,
-        filters: sessionFilters,
-        focusToken: sessionFocus,
-        list: sessionList,
-        selected: selectedSession,
-        onApplyFilters: () => applySessionQuery({ filters: sessionFilters, page: 1 }),
-        onArchive: archiveSession,
-        onCancelSession: cancelSession,
-        onCreate: createSession,
-        onFiltersChange: setSessionFilters,
-        onPage: (page) => applySessionQuery({ ...sessionQueryRef.current, page }),
-        onReschedule: rescheduleSession,
-        onResetFilters: () => {
-          setSessionFilters(EMPTY_SESSION_FILTERS);
-          applySessionQuery(FIRST_SESSION_PAGE);
-        },
-        onRetry: () => {
-          const programId = selectedProgramRef.current;
-          if (programId) void loadSessions(programId, sessionQueryRef.current);
-        },
-        onSelect: selectSession,
-        onStatus: changeSessionStatus,
-        onUpdate: updateSession,
-      }}
-      writesLocked={pending !== null}
-    />
+          enrollment: {
+            candidates: loadCandidates,
+            clients: loadClients,
+            contacts: loadContacts,
+            external: loadExternalParticipants,
+            users: loadEnrollmentUsers,
+          },
+          enrollmentOptions: loadEnrollmentOptions,
+          owners: loadOwners,
+          trainers: loadTrainers,
+        }}
+        participation={{
+          filters: participationQuery.filters,
+          list: participationList,
+          selectedId: selectedParticipationId,
+          onAdd: addParticipation,
+          onArchive: archiveParticipation,
+          onCorrect: correctAttendance,
+          onFiltersChange: (filters) => {
+            setSelectedParticipationId(null);
+            applyParticipationQuery({ filters, page: 1 });
+          },
+          onPage: (page) => applyParticipationQuery({ ...participationQueryRef.current, page }),
+          onRecord: recordAttendance,
+          onRetry: () => {
+            const programId = selectedProgramRef.current;
+            const sessionId = selectedSessionRef.current;
+            if (programId && sessionId) {
+              void loadParticipations(programId, sessionId, participationQueryRef.current);
+            }
+          },
+          onSelect: setSelectedParticipationId,
+        }}
+        programs={{
+          appliedFilters: programQuery.filters,
+          filters: programFilters,
+          focusToken: programFocus,
+          list: programList,
+          selected: selectedProgram,
+          onApplyFilters: () => applyProgramQuery({ filters: programFilters, page: 1 }),
+          onArchive: archiveProgram,
+          onCreate: createProgram,
+          onFiltersChange: setProgramFilters,
+          onPage: (page) => applyProgramQuery({ ...programQueryRef.current, page }),
+          onResetFilters: () => {
+            setProgramFilters(EMPTY_PROGRAM_FILTERS);
+            applyProgramQuery(FIRST_PROGRAM_PAGE);
+          },
+          onRetry: () => void loadPrograms(programQueryRef.current),
+          onSave: saveProgram,
+          onSelect: selectProgram,
+          onStatus: changeProgramStatus,
+        }}
+        sessionKey={session.key}
+        sessions={{
+          appliedFilters: sessionQuery.filters,
+          filters: sessionFilters,
+          focusToken: sessionFocus,
+          list: sessionList,
+          selected: selectedSession,
+          onApplyFilters: () => applySessionQuery({ filters: sessionFilters, page: 1 }),
+          onArchive: archiveSession,
+          onCancelSession: cancelSession,
+          onCreate: createSession,
+          onFiltersChange: setSessionFilters,
+          onPage: (page) => applySessionQuery({ ...sessionQueryRef.current, page }),
+          onReschedule: rescheduleSession,
+          onResetFilters: () => {
+            setSessionFilters(EMPTY_SESSION_FILTERS);
+            applySessionQuery(FIRST_SESSION_PAGE);
+          },
+          onRetry: () => {
+            const programId = selectedProgramRef.current;
+            if (programId) void loadSessions(programId, sessionQueryRef.current);
+          },
+          onSelect: selectSession,
+          onStatus: changeSessionStatus,
+          onUpdate: updateSession,
+        }}
+        writesLocked={pending !== null}
+      />
+    </UnsavedInputScope>
   );
 }

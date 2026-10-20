@@ -1,0 +1,624 @@
+{
+  "scenario": "switch",
+  "cpuThrottle": 4,
+  "date": "2026-10-19T17:29:59.076Z",
+  "web": "http://localhost:5710",
+  "heap": {
+    "start": {
+      "heapMB": 16.05,
+      "nodes": 218,
+      "listeners": 190,
+      "documents": 1
+    },
+    "after1": {
+      "heapMB": 16.52,
+      "nodes": 639,
+      "listeners": 217,
+      "documents": 1
+    },
+    "after5": {
+      "heapMB": 17.64,
+      "nodes": 365,
+      "listeners": 210,
+      "documents": 1
+    },
+    "after10": {
+      "heapMB": 18.41,
+      "nodes": 1761,
+      "listeners": 251,
+      "documents": 2
+    }
+  },
+  "heapCurve": [
+    {
+      "cycle": 10,
+      "heapMB": 19.18,
+      "nodes": 369,
+      "listeners": 206,
+      "documents": 2
+    },
+    {
+      "cycle": 20,
+      "heapMB": 19.27,
+      "nodes": 369,
+      "listeners": 206,
+      "documents": 2
+    },
+    {
+      "cycle": 30,
+      "heapMB": 19.4,
+      "nodes": 369,
+      "listeners": 206,
+      "documents": 2
+    },
+    {
+      "cycle": 40,
+      "heapMB": 19.44,
+      "nodes": 369,
+      "listeners": 206,
+      "documents": 2
+    },
+    {
+      "cycle": 50,
+      "heapMB": 19.49,
+      "nodes": 369,
+      "listeners": 206,
+      "documents": 2
+    }
+  ],
+  "routes": {
+    "first:/clients": {
+      "paintMs": {
+        "n": 1,
+        "median": 143.5,
+        "p95": 143.5,
+        "max": 143.5
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 817.4,
+        "p95": 817.4,
+        "max": 817.4
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 183,
+        "p95": 183,
+        "max": 183
+      },
+      "domNodes": 375,
+      "sampleRequests": [
+        "GET /v1/clients?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "first:/candidates": {
+      "paintMs": {
+        "n": 1,
+        "median": 77.1,
+        "p95": 77.1,
+        "max": 77.1
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 439.9,
+        "p95": 439.9,
+        "max": 439.9
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "domNodes": 383,
+      "sampleRequests": [
+        "GET /v1/candidates?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "first:/missions": {
+      "paintMs": {
+        "n": 1,
+        "median": 57.2,
+        "p95": 57.2,
+        "max": 57.2
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 417.1,
+        "p95": 417.1,
+        "max": 417.1
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "domNodes": 484,
+      "sampleRequests": [
+        "GET /v1/missions?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "first:/tasks": {
+      "paintMs": {
+        "n": 1,
+        "median": 64.3,
+        "p95": 64.3,
+        "max": 64.3
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 632.7,
+        "p95": 632.7,
+        "max": 632.7
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 169,
+        "p95": 169,
+        "max": 169
+      },
+      "domNodes": 552,
+      "sampleRequests": [
+        "GET /v1/tasks?status=OPEN&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=IN_PROGRESS&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=WAITING&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=BLOCKED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=COMPLETED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/notifications?page=1&pageSize=25",
+        "GET /v1/notifications?status=UNREAD&page=1&pageSize=1"
+      ],
+      "non2xx": 0
+    },
+    "first:/messages": {
+      "paintMs": {
+        "n": 1,
+        "median": 154.4,
+        "p95": 154.4,
+        "max": 154.4
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 154.4,
+        "p95": 154.4,
+        "max": 154.4
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 40,
+        "p95": 40,
+        "max": 40
+      },
+      "domNodes": 154,
+      "sampleRequests": [],
+      "non2xx": 0
+    },
+    "first:/commercial": {
+      "paintMs": {
+        "n": 1,
+        "median": 58,
+        "p95": 58,
+        "max": 58
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 425.3,
+        "p95": 425.3,
+        "max": 425.3
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 2,
+        "p95": 2,
+        "max": 2
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 16,
+        "p95": 16,
+        "max": 16
+      },
+      "domNodes": 199,
+      "sampleRequests": [
+        "GET /v1/clients?page=1&pageSize=20",
+        "GET /v1/commercial/quotations?page=1&pageSize=20&includeArchived=false"
+      ],
+      "non2xx": 0
+    },
+    "first:/accounting": {
+      "paintMs": {
+        "n": 1,
+        "median": 35.4,
+        "p95": 35.4,
+        "max": 35.4
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 411.3,
+        "p95": 411.3,
+        "max": 411.3
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 2,
+        "p95": 2,
+        "max": 2
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "domNodes": 195,
+      "sampleRequests": [
+        "GET /v1/clients?page=1&pageSize=20",
+        "GET /v1/accounting/payments?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "first:/training": {
+      "paintMs": {
+        "n": 1,
+        "median": 41.6,
+        "p95": 41.6,
+        "max": 41.6
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 496.5,
+        "p95": 496.5,
+        "max": 496.5
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 4,
+        "p95": 4,
+        "max": 4
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 9,
+        "p95": 9,
+        "max": 9
+      },
+      "domNodes": 282,
+      "sampleRequests": [
+        "GET /v1/training/program-owner-user-options",
+        "GET /v1/clients?page=1&pageSize=20",
+        "GET /v1/clients?page=1&pageSize=20",
+        "GET /v1/training/programs?page=1&pageSize=20&sortBy=createdAt&sortDirection=desc"
+      ],
+      "non2xx": 0
+    },
+    "first:/documents": {
+      "paintMs": {
+        "n": 1,
+        "median": 36.8,
+        "p95": 36.8,
+        "max": 36.8
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 568.9,
+        "p95": 568.9,
+        "max": 568.9
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 4,
+        "p95": 4,
+        "max": 4
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 32,
+        "p95": 32,
+        "max": 32
+      },
+      "domNodes": 341,
+      "sampleRequests": [
+        "GET /v1/documents/context-options?kind=client&purpose=filter",
+        "GET /v1/documents/context-options?kind=candidate&purpose=filter",
+        "GET /v1/documents/context-options?kind=mission&purpose=filter",
+        "GET /v1/documents?page=1&pageSize=20&lifecycle=current"
+      ],
+      "non2xx": 0
+    },
+    "first:/reporting": {
+      "paintMs": {
+        "n": 1,
+        "median": 53.8,
+        "p95": 53.8,
+        "max": 53.8
+      },
+      "settledMs": {
+        "n": 1,
+        "median": 508.3,
+        "p95": 508.3,
+        "max": 508.3
+      },
+      "requestsPerActivation": {
+        "n": 1,
+        "median": 5,
+        "p95": 5,
+        "max": 5
+      },
+      "blockingMs": {
+        "n": 1,
+        "median": 40,
+        "p95": 40,
+        "max": 40
+      },
+      "domNodes": 748,
+      "sampleRequests": [
+        "GET /v1/reporting/recruitment/summary",
+        "GET /v1/reporting/recruitment/pipeline",
+        "GET /v1/reporting/recruitment/breakdowns",
+        "GET /v1/reporting/recruitment/trends?interval=week",
+        "GET /v1/reporting/recruitment/drilldown?page=1&pageSize=25"
+      ],
+      "non2xx": 0
+    },
+    "repeat:/clients": {
+      "paintMs": {
+        "n": 50,
+        "median": 54.4,
+        "p95": 118,
+        "max": 153.1
+      },
+      "settledMs": {
+        "n": 50,
+        "median": 81,
+        "p95": 150.9,
+        "max": 218.8
+      },
+      "requestsPerActivation": {
+        "n": 50,
+        "median": 1,
+        "p95": 1,
+        "max": 3
+      },
+      "blockingMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 82,
+        "max": 265
+      },
+      "domNodes": 390,
+      "sampleRequests": [
+        "GET /v1/clients?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "repeat:/candidates": {
+      "paintMs": {
+        "n": 50,
+        "median": 51.2,
+        "p95": 172.8,
+        "max": 235.1
+      },
+      "settledMs": {
+        "n": 50,
+        "median": 85.4,
+        "p95": 192.5,
+        "max": 248.7
+      },
+      "requestsPerActivation": {
+        "n": 50,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 82,
+        "max": 248
+      },
+      "domNodes": 395,
+      "sampleRequests": [
+        "GET /v1/candidates?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "repeat:/missions": {
+      "paintMs": {
+        "n": 50,
+        "median": 54.2,
+        "p95": 122.9,
+        "max": 235.3
+      },
+      "settledMs": {
+        "n": 50,
+        "median": 90.9,
+        "p95": 147.1,
+        "max": 268.2
+      },
+      "requestsPerActivation": {
+        "n": 50,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 37,
+        "max": 323
+      },
+      "domNodes": 493,
+      "sampleRequests": [
+        "GET /v1/missions?page=1&pageSize=20"
+      ],
+      "non2xx": 0
+    },
+    "repeat:/tasks": {
+      "paintMs": {
+        "n": 50,
+        "median": 193.2,
+        "p95": 384.2,
+        "max": 412.6
+      },
+      "settledMs": {
+        "n": 50,
+        "median": 194.6,
+        "p95": 384.2,
+        "max": 412.6
+      },
+      "requestsPerActivation": {
+        "n": 50,
+        "median": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "blockingMs": {
+        "n": 50,
+        "median": 104,
+        "p95": 363,
+        "max": 399
+      },
+      "domNodes": 559,
+      "sampleRequests": [
+        "GET /v1/tasks?status=OPEN&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=IN_PROGRESS&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=WAITING&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=BLOCKED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/tasks?status=COMPLETED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+        "GET /v1/notifications?page=1&pageSize=25",
+        "GET /v1/notifications?status=UNREAD&page=1&pageSize=1"
+      ],
+      "non2xx": 0
+    },
+    "repeat:/messages": {
+      "paintMs": {
+        "n": 50,
+        "median": 52,
+        "p95": 145.4,
+        "max": 172.5
+      },
+      "settledMs": {
+        "n": 50,
+        "median": 72.9,
+        "p95": 157.7,
+        "max": 196.1
+      },
+      "requestsPerActivation": {
+        "n": 50,
+        "median": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "blockingMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 53,
+        "max": 87
+      },
+      "domNodes": 230,
+      "sampleRequests": [
+        "GET /v1/messages/conversations?filter=all"
+      ],
+      "non2xx": 0
+    }
+  },
+  "repeatAll": {
+    "paintMs": {
+      "n": 250,
+      "median": 60.1,
+      "p95": 232.9,
+      "max": 412.6
+    },
+    "settledMs": {
+      "n": 250,
+      "median": 90.5,
+      "p95": 246.8,
+      "max": 412.6
+    },
+    "requests": 552,
+    "activations": 250
+  },
+  "topRepeatedRequests": [
+    [
+      "GET /v1/notifications?status=UNREAD&page=1&pageSize=1",
+      51
+    ],
+    [
+      "GET /v1/clients?page=1&pageSize=20",
+      50
+    ],
+    [
+      "GET /v1/candidates?page=1&pageSize=20",
+      50
+    ],
+    [
+      "GET /v1/missions?page=1&pageSize=20",
+      50
+    ],
+    [
+      "GET /v1/tasks?status=OPEN&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/tasks?status=IN_PROGRESS&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/tasks?status=WAITING&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/tasks?status=BLOCKED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/tasks?status=COMPLETED&sortBy=dueAt&sortDirection=asc&page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/notifications?page=1&pageSize=25",
+      50
+    ],
+    [
+      "GET /v1/messages/conversations?filter=all",
+      50
+    ],
+    [
+      "GET /v1/messages/unread-summary",
+      1
+    ]
+  ]
+}

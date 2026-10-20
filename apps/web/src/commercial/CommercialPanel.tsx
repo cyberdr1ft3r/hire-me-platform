@@ -51,6 +51,7 @@ import {
   type LoadCommercialOptions,
 } from './commercial-state.js';
 import { CommercialWorkspace, type CommercialLoaders } from './CommercialWorkspace.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 /** Which selection a response must still match before it may update the screen. */
 type Scope = 'workspace' | 'record';
@@ -559,52 +560,59 @@ export function CommercialPanel({
   }
 
   return (
-    <CommercialWorkspace
-      access={access}
-      create={{
-        draft,
-        onCancel: () => setDraft(null),
-        onChange: (values) => setDraft((current) => (current ? { ...current, values } : current)),
-        onOpen: openCreate,
-        onSubmit: createRecord,
-      }}
-      detail={{
-        focusToken,
-        state: detail,
-        generation: { onDownload: download, onGenerate: generate, onLoadVersions: loadVersions },
-        onAction: runAction,
-        onRetry: () => {
-          const id = selectedRef.current;
-          if (id) void loadDetail(kindRef.current, id);
-        },
-      }}
-      feedback={feedback}
-      key={session.key}
-      kind={kind}
-      kinds={kinds}
-      list={{
-        appliedFilters: query.filters,
-        filters,
-        state: list,
-        selectedId,
-        onApply: () => {
-          clearSelection();
-          applyQuery({ filters, page: 1 });
-        },
-        onFiltersChange: setFilters,
-        onPage: (page) => applyQuery({ ...queryRef.current, page }),
-        onReset: () => {
-          clearSelection();
-          setFilters(EMPTY_LIST_FILTERS);
-          applyQuery(FIRST_LIST_QUERY);
-        },
-        onRetry: () => void loadList(kindRef.current, queryRef.current),
-        onSelect: selectRecord,
-      }}
-      loaders={loaders}
-      onKind={selectKind}
-      pending={pending}
-      sessionKey={session.key}
-    />
+    // Unsaved input in any of this module's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={pending !== null}
+    >
+      <CommercialWorkspace
+        access={access}
+        create={{
+          draft,
+          onCancel: () => setDraft(null),
+          onChange: (values) => setDraft((current) => (current ? { ...current, values } : current)),
+          onOpen: openCreate,
+          onSubmit: createRecord,
+        }}
+        detail={{
+          focusToken,
+          state: detail,
+          generation: { onDownload: download, onGenerate: generate, onLoadVersions: loadVersions },
+          onAction: runAction,
+          onRetry: () => {
+            const id = selectedRef.current;
+            if (id) void loadDetail(kindRef.current, id);
+          },
+        }}
+        feedback={feedback}
+        key={session.key}
+        kind={kind}
+        kinds={kinds}
+        list={{
+          appliedFilters: query.filters,
+          filters,
+          state: list,
+          selectedId,
+          onApply: () => {
+            clearSelection();
+            applyQuery({ filters, page: 1 });
+          },
+          onFiltersChange: setFilters,
+          onPage: (page) => applyQuery({ ...queryRef.current, page }),
+          onReset: () => {
+            clearSelection();
+            setFilters(EMPTY_LIST_FILTERS);
+            applyQuery(FIRST_LIST_QUERY);
+          },
+          onRetry: () => void loadList(kindRef.current, queryRef.current),
+          onSelect: selectRecord,
+        }}
+        loaders={loaders}
+        onKind={selectKind}
+        pending={pending}
+        sessionKey={session.key}
+      />
+    </UnsavedInputScope>
   );
 }

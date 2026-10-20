@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider, useI18n, type Locale } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import { CommercialPanel } from './CommercialPanel.js';
 import {
   ACTOR_ID,
@@ -1144,5 +1145,38 @@ describe('CommercialPanel: session and stale-response safety', () => {
     render(<Panel />);
     await openRecord('Q-SYN-001');
     expect(screen.getByRole('heading', { level: 2, name: 'Q-SYN-001' })).toHaveFocus();
+  });
+});
+
+describe('CommercialPanel: unsaved input (Issue #228 B0′)', () => {
+  function leavingAsks(): boolean {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return navigate.mock.calls.length === 0;
+  }
+
+  it('asks for a typed new record, never for the reference filter, and not once the input is restored', async () => {
+    resetNavigationGuardForTests();
+    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    standardApi();
+    render(<Panel />);
+
+    const filter = await screen.findByRole('searchbox', { name: 'Reference' });
+    fireEvent.focusIn(filter);
+    fireEvent.change(filter, { target: { value: 'Q-SYN' } });
+    expect(leavingAsks()).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'New quotation' }));
+    const reference = within(createForm()).getByLabelText(/^Reference/);
+    fireEvent.focusIn(reference);
+    const original = (reference as HTMLInputElement).value;
+    fireEvent.change(reference, { target: { value: 'Q-TYPED' } });
+    expect(leavingAsks()).toBe(true);
+    expect(confirmLeave).toHaveBeenCalledWith(
+      'You have unsaved changes on this page. Leave and discard them?',
+    );
+
+    fireEvent.change(reference, { target: { value: original } });
+    expect(leavingAsks()).toBe(false);
   });
 });

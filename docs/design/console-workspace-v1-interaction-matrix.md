@@ -1,72 +1,95 @@
 # Console Workspace v1.0 — interaction behavior matrix (proposed)
 
-Status: **Proposed — Issue #198 Phase A.** Each row is a testable contract for
-Phase B/C and the basis of the clickable prototype the issue still requires. It
-follows the proposed [ADR (D-089)](./console-workspace-v1-adr-proposed.md).
+Status: **Approved direction (PR #229 review, 2026-10-19) with refinements RV1/RV2 — revised for Issue #228 Phase A on `main` `cfe6be6`.** Each row is a testable
+contract for Phase B/C. It follows the proposed [ADR (D-089)](./console-workspace-v1-adr-proposed.md)
+as amended by the [#228 preflight](./console-workspace-tabs-preflight-228.md) (A1–A7). Row IDs from
+the #198 version are kept; new rows are marked **new**.
 
-Legend — **Today**: behavior measured or read on `bd46f59`. **Proposed**: target.
-**Hist.**: browser history effect (`push` = new entry, `replace` = same entry,
-`—` = none). IDs `C1…` are referenced by the regression tests in the
-[preflight](./console-workspace-v1-preflight.md#suggested-performance-and-regression-tests).
+Legend — **Today**: behaviour read or measured on `main` `cfe6be6`. **Proposed**: target. **Hist.**:
+browser history effect (`push` = new entry, `replace` = same entry, `—` = none). **PR**: first PR
+in the [#228 sequence](./console-workspace-tabs-preflight-228.md#5-implementation-sequence-and-acceptance-gates)
+that must pass the row. Test IDs (U*, T*) are defined in the
+[#228 test plan](../audit/issue-228-console-tabs-preflight.md#regression-strategy).
 
 ## Navigation and opening
 
-| ID | Trigger | Today | Proposed | Hist. |
-| --- | --- | --- | --- | --- |
-| N1 | Select a module in the rail/context panel | Unmounts current module, mounts target, `main` scroll reset, focus to `main` | `openWorkspace(module)`: focus existing workspace tab with its snapshot, or create it | push |
-| N2 | Same module selected again while active | Remount-free no-op (same route) | No-op; does not reset filters | — |
-| N3 | Row click in a list (Clients, Candidates, Missions) | Preview in the same pane; Candidates/Missions update the URL | Unchanged preview (`previewRecord`); no tab created | replace |
-| N4 | Explicit **Open in tab** on a row or record header | Not available | `openRecord(record, { from: active workspace })` | push |
-| N5 | Contextual related record (e.g. a mission inside a client) | Navigates to the other module and loses the client context | `openRecord` as a sibling subtab under the originating workspace | push |
-| N6 | Open a record that is already open (any workspace) | — | Focus the canonical tab; no duplicate, no reparenting | push |
-| N7 | Open from a record tab (record → related record) | — | Sibling under the same workspace, never nested | push |
-| N8 | Ctrl/Cmd/middle click on any destination or "Open in tab" link | Native new browser tab | Unchanged native behavior; the new browser tab starts its own console from the URL | — |
-| N9 | Create Client/Mission (drawer, #196) | Drawer/disclosure inside module | Drawer remains in the active tab; on success the created record previews in the workspace; "Open in tab" optional | replace |
-| N10 | Notification Center / Messages deep link (#199) | `navigateToPath('/messages?conversation=…')` | Same operation set: Messages focuses its workspace and the conversation; task links focus the Tasks workspace with the task selected | push |
-| N11 | Agenda / Notes utilities | Agenda is a route | Remain utilities/routes, never console tabs | push |
+| ID | Trigger | Today | Proposed | Hist. | PR |
+| --- | --- | --- | --- | --- | --- |
+| N1 | Select a module in the rail/context panel | Unmounts current module, mounts target (lazy chunk on first visit), `main` scroll reset and focus | `openWorkspace(route)`: focus the existing workspace tab (snapshot from B3) or create it | push | B2 |
+| N2 | Same module selected again while active | No-op | No-op; filters kept | — | B2 |
+| N3 | Row click in Clients/Candidates/Missions | Quick preview from the list row (local state, no request, no URL change) | Unchanged; never creates a tab | — | B2 (regression) |
+| N4 | **Open full profile** (preview or row action) | Focused record in the module, `push` `/<module>?<record>=<id>` | `showRecord`: same view in the current workspace tab; if a record tab for it is open, focus that tab instead | push | C1 |
+| N4b **new** | Explicit **Open in tab** (preview header, focused-record header) | Not available | `openRecordTab(record, { from: active workspace })` | push | C1 |
+| N5 | Contextual related record (client → mission, candidate → related item, Reporting drill-down) | Navigates to the other module and loses the origin | `openRecordTab` as a sibling under the originating workspace; URL gets `in=<origin>` | push | C2 |
+| N6 | Open a record that is already open (any workspace) | — | Focus the canonical tab; no duplicate, no re-parenting | push | C1 |
+| N7 | Related record opened from a record tab | — | Sibling under the same workspace, never nested | push | C2 |
+| N8 | Ctrl/Cmd/middle click on a link | Native new browser tab for real links (`CandidateRelated`, Reporting); `ClientRelatedMissions` is a button and cannot | Native everywhere; Phase C turns related buttons into links. The new browser tab starts its own console | — | C2 |
+| N9 | Create Client/Mission/Candidate (drawer, #196/#204) | Drawer inside the module, guarded | Unchanged inside the active tab; success previews or opens the record as today | as today | B2 (regression) |
+| N10 | Notification Center / Messages / Agenda destination | `navigateToPath` (`push`), guarded | Same paths through `openWorkspace`/`showRecord`; no new polling | push | D1 |
+| N11 | Overview, Agenda, Meetings | Routes | Not console tabs; Overview is the permanent floor tab | push | B2 |
 
 ## Closing, limits and drafts
 
-| ID | Trigger | Today | Proposed | Hist. |
+| ID | Trigger | Today | Proposed | Hist. | PR |
+| --- | --- | --- | --- | --- | --- |
+| D1 | Close a clean record tab | — | Remove; activate the most recent tab in the same group, else its workspace tab | replace | C1 |
+| D2 | Close a workspace tab that has record tabs | — | One confirmation naming the count; unsaved members trigger D4 first | replace | C1 |
+| D3 | Close Overview / the only tab | — | Not closable | — | B2 |
+| D4 | Close a tab with unsaved input | — | Existing guard confirmation; cancel keeps editing; confirm discards and closes | replace on confirm | B2 |
+| D5 | Switch away from a tab with unsaved input (RV2: values differ from the editing baseline) | Guarded surfaces ask; Tasks/Training/Accounting/Commercial/Documents/Admin/Messages composer lose input silently | Every module asks (B0′); no hidden mounted trees (A3) | push on confirm | B0′, B2 |
+| D6 | Sidebar or Back/Forward with unsaved input | Guarded surfaces: undo + confirm + replay (`navigation-guard.ts`); others silent | Same mechanism for all modules and for tab activation | — | B0′ |
+| D7 | Reload/close the browser tab with unsaved input | `beforeunload` on guarded surfaces only | `beforeunload` for every module while dirty | — | B0′ |
+| D12 **new** | Unchanged, reverted, saved, reset or search/filter forms | Guarded surfaces ask after any input, even reverted | Never ask (RV2) | — | B0′ |
+| D8 | Open the 9th tab | — | Polite notice (soft limit 8) | push | B2 |
+| D9 | Open the 11th tab | — | Offer: replace least recently used tab without unsaved input, or open the tab list; never blocked without a way out | — | B2 |
+| D10 | "More tabs" menu / mobile tab dialog | — | All tabs grouped by workspace, filter above 6 tabs, close buttons, unsaved markers, keyboard operable | — | B2 |
+| D11 **new** | Sign-out with unsaved input | Sign-out does not ask (session ends); input lost | Unchanged by design (ending the session drops everything); documented | push | B2 |
+
+## History, refresh, deep links and session
+
+| ID | Trigger | Today | Proposed | Hist. | PR |
+| --- | --- | --- | --- | --- | --- |
+| H1 | Back after switching tabs A → B | Previous module remounts and refetches (median settled 91 ms at 4×) | Activate A, identified by `history.state.hiremeConsoleTab` (RV1; snapshot from B3) | — | B2 |
+| H2 | Back to an entry whose tab was closed | — | State names a closed tab → URL-only fallback: view renders in its workspace tab with fresh data; no tab or draft resurrected | — | B2 |
+| H3 | Paste a record URL in a clean signed-in session | Candidates/Clients/Missions/Training/Tasks/Meetings/Messages resolve; Commercial/Accounting/Documents have no record parameter | Unchanged: the view opens in its workspace tab; no record tab unless `in=` is present | — | B2 |
+| H3b **new** | Clean session with `…&in=clients` | Parameter ignored | Creates `ws:clients` (no data fetch) and the record tab under it, if both routes are permitted; otherwise ignored | — | C2 |
+| H4 | Paste a record URL while signed out | Login, then the URL is honoured | Same | — | B2 (regression) |
+| H5 | Reload | Active view restored from the URL; everything else lost | Same: active view restored, other tabs not restored (no storage in Phase B) | — | B2 |
+| H6 | Malformed, duplicated or unknown parameters | Ignored before any read | Unchanged; never creates a tab | — | B1 (U2) |
+| H7 | Record deleted, archived or no longer accessible | Module error/denied state | Record tab shows "unavailable" with Close; no background retry | — | C1 |
+| H8 **new** | Back/Forward across many tab switches | Remount per step | Every step activates or shows the URL's view; history length equals the number of activations | — | B2 |
+| H9 **new** | Back while the guard holds a traversal | Undo + confirm + replay | Same; the strip shows the tab the user stays on | — | B2 |
+| H10 **new** | Back/Forward to a URL two contexts can show (record focused in its workspace tab earlier, open as a record tab now) | — | Resolution order RV1: state's tab if open in this console → canonical record tab → workspace tab (URL-only) | — | B1 (U6), B2 |
+| H11 **new** | Back after a reload or a different user signed in on the same browser tab | Entries keep `hiremeHistoryIndex` only | Old `hiremeConsoleTab` values carry another console instance id and are ignored (URL-only fallback) | — | B1 (U6), B2 |
+| S1 | Sign-out (this browser tab or another, D-090) | `ended` event clears user/token; modules unmount | Console remounts empty (A4) | push | B2 |
+| S2 | Account refresh changes permissions | User replaced; route gate re-evaluated | Prune tabs whose route is now denied; active denied tab shows the permission-denied state with Close (A4) | replace | B2 |
+| S3 | Access token expires | Request core refreshes single-flight and replays (#203/#209) | Unchanged; tab activation never triggers a refresh by itself | — | B2 (regression) |
+| S4 | Second browser tab of the app | Independent app, coordinated refresh (D-090) | Independent console; no tab sync in v1 | — | B2 |
+| S5 **new** | Different user signs in on the same browser tab | New user state after login | Provider keyed by user id + session epoch: no tab, label or snapshot of the previous user survives | — | B2 |
+
+## Keyboard and accessibility
+
+| ID | Behaviour | Proposed | PR |
+| --- | --- | --- | --- |
+| A1 | Strip semantics | `role="tablist"` named "Open tabs" / « Onglets ouverts », roving `tabindex`; Left/Right, Home/End; Enter/Space activate (manual activation); each tab has a separate close button ("Close <title>") reachable by Tab; `Delete` on a focused tab closes it | B2 |
+| A2 | Shortcuts | None beyond A1 in v1; never override browser shortcuts | — |
+| A3 | Focus | Keyboard activation keeps focus in the strip; pointer/list activation focuses `main` as AppShell does today; after close, focus goes to the new active tab | B2 |
+| A4 | Announcements | Polite live region for opened/closed/limit messages, EN/FR | B2 |
+| A5 | Unsaved marker | Visible dot plus "unsaved changes" in the accessible name | B2 |
+| A6 **new** | Nested tablists | Record-section tablists inside a record keep their own arrow-key handling; the strip never captures keys outside itself | B2 |
+| A7 **new** | Mobile tab dialog | Modal dialog with focus trap, Escape closes and returns focus to the "Tabs" button, list items are buttons with close actions | B2 |
+
+## Devices, zoom and locale
+
+Measured today on `/candidates` (EN and FR identical): utility bar 56px; page header 77px tall on
+desktop, 137px on mobile; no horizontal overflow at any size below.
+
+| ID | Viewport | Today | Proposed | PR |
 | --- | --- | --- | --- | --- |
-| D1 | Close a clean record tab | — | Remove; activate most recent tab in the same workspace, else its workspace tab | replace |
-| D2 | Close the active workspace tab that has record subtabs | — | Confirm closing the group (lists count); dirty subtabs block as D4 | replace |
-| D3 | Close the last remaining tab | — | Not closable when it is the only tab; Overview workspace is the floor | — |
-| D4 | Close a dirty tab | Not applicable (drafts are silently lost on navigation) | Dialog: **Keep editing** (default) / **Discard changes**; Escape = keep | replace on discard |
-| D5 | Switch away from a dirty tab | Draft silently lost | Keep it mounted hidden (`<Activity>`, max 2 hidden dirty tabs); at the cap, D4 dialog | push |
-| D6 | Sidebar navigation or Back/Forward while dirty and cap reached | Silent loss | D4 dialog before the transition; cancelling restores the URL with `pushState` | — |
-| D7 | Reload/close the browser tab while dirty | Silent loss | Native `beforeunload` prompt only while a dirty draft exists | — |
-| D8 | Open the 9th tab | — | Non-blocking notice (soft limit 8) | push |
-| D9 | Open the 11th tab | — | Blocked with options: replace LRU **clean** tab, or open the overflow list to close tabs; never replaces a dirty tab | — |
-| D10 | Overflow/search menu | — | Lists all tabs with workspace grouping, filter-as-you-type, close buttons; keyboard operable | — |
-
-## History, deep links and session
-
-| ID | Trigger | Today | Proposed | Hist. |
-| --- | --- | --- | --- | --- |
-| H1 | Back after switching tabs A → B | Previous module remounted from scratch | Activate A with its snapshot (cache permitting) | — |
-| H2 | Back to an entry whose tab was closed | — | Reopen from the URL with fresh data; old draft never resurrected | — |
-| H3 | Paste a record URL in a clean signed-in session | Candidates/Missions/Training/Tasks/Meetings resolve; Clients/Commercial/Accounting/Documents have no record parameter | Opens the record (preview or record tab per `tab=`); workspace parent created lazily without fetching | — |
-| H4 | Paste a record URL while signed out | Login, then route from URL (path and query kept by the page) | Same; after login the deep link is honored once | — |
-| H5 | Reload | Active route restored; everything else lost | Active tab restored from the URL; other tabs not restored in Phase B | — |
-| H6 | Malformed/duplicated/unknown parameters | Ignored before any read | Unchanged; never creates a tab | — |
-| H7 | Record later deleted/archived or access revoked | Module error state | Tab marked unavailable with message + Close; no background retry | — |
-| S1 | Sign-out | Token/user cleared, navigate home | `reset`: all tabs, snapshots, cached responses dropped | push |
-| S2 | Account refresh returns different permissions | User replaced; current route re-checked | Principal change → `reset`, then reopen the URL's tab if still permitted | replace |
-| S3 | Access token expires (300 s default) | Module reads fail with `401` and show errors; no automatic refresh | Shared request core refreshes once (single-flight) and retries; failure → S1 | — |
-| S4 | Second browser tab of the app | Independent app; shares refresh cookie | Independent console; no cross-tab sync in v1.0 (documented) | — |
-
-## Keyboard, accessibility and responsive
-
-| ID | Behavior | Proposed |
-| --- | --- | --- |
-| A1 | Tab strip semantics | `role="tablist"` per row with roving `tabindex`; Left/Right move, Home/End jump, Enter/Space activate; each tab has a separate close button (`aria-label` "Close <title>") reachable by Tab |
-| A2 | Keyboard shortcuts | Optional and conflict-checked: `Ctrl+Alt+W` close, `Ctrl+Alt+[ / ]` previous/next; never override browser shortcuts |
-| A3 | Focus on activation | Focus moves to the workspace heading (as AppShell does today on route change); closing returns focus to the newly active tab |
-| A4 | Announcements | Polite live region for "Tab opened", "Tab closed", limit notices; localized EN/FR |
-| A5 | Dirty indicator | Visible dot plus text in the accessible name ("unsaved changes") |
-| R1 | 1440 / 1024px | One strip row; long titles truncate with tooltip; overflow button appears before tabs shrink below a readable minimum |
-| R2 | 768px (≥ 900px shell boundary not met) | Mobile switcher (R4) |
-| R3 | Short height / 200% zoom | Strip never wraps into multiple rows; `main` remains the scroll owner (Workspace Surface rules) |
-| R4 | < 900px | "Workspaces" button opens a list dialog (same operations, close buttons, dirty markers); no desktop tab strip |
-| L1 | EN/FR | Titles from data; chrome strings from dictionaries; French strings measured for truncation |
+| R1 | 1440×900 (main 1200px wide) | Breadcrumb in utility bar | Strip in the breadcrumb slot; ~6 tabs before overflow | B2 |
+| R1b **new** | 1024×768 (main 784px) | Same | Strip in the slot; ~3 tabs then "More tabs"; titles truncate with full title in tooltip and accessible name | B2 |
+| R2 | 768×1024 (mobile navigation, < 900px) | Modal navigation | No strip; "Tabs" button + dialog (R4) | B2 |
+| R3 | 1280×400 short height, 200 % zoom | Document scrolls; `main` is not a fixed scroll box | Strip never wraps and adds no height (lives in the utility bar); no obscured controls | B2 |
+| R4 | 390×844 | Modal navigation, document scrolls | "Tabs" button + dialog; no desktop strip or subtabs | B2 |
+| L1 | EN/FR | Shell and migrated modules localized; Admin keeps the English boundary | Console strings in both dictionaries; FR truncation measured at 1024px; titles come from data | B2 |
+| L2 **new** | Locale change with tabs open | Re-renders in place | Tabs and labels re-render; no tab is closed or refetched because of a locale change | B2 |
