@@ -5,6 +5,17 @@ import {
 } from '../navigation/internal-navigation.js';
 import { recordNavigationIntent } from '../navigation/record-deep-links.js';
 
+/**
+ * B1 owns deterministic tab state and URL/history intent only; it does not grant access.
+ * Before B2 opens or activates a tab, and before it resolves a history entry into a
+ * rendered tab, the caller must check the target route against the current user's
+ * permissions. A history hint is never an authorization artifact. After permissions
+ * change, B2 must gate content reads/rendering immediately, prune revoked inactive
+ * tabs, and retain a revoked active descriptor only to show the existing denied state
+ * with a Close action. Server-side authorization remains authoritative for every read
+ * and action.
+ */
+
 export type RecordKind = 'client' | 'candidate' | 'mission';
 export type TabId = `ws:${InternalRoute}` | `rec:${RecordKind}:${string}`;
 export type ConsoleTab =
@@ -42,20 +53,81 @@ const excluded = new Set<InternalRoute>(['agenda', 'meetings']);
 export const SOFT_TAB_LIMIT = 8;
 export const HARD_TAB_LIMIT = 10;
 export const overview: ConsoleTab = { id: 'ws:home', kind: 'workspace', route: 'home' };
+const consoleRoutes = new Set<InternalRoute>([
+  'home',
+  'admin',
+  'messages',
+  'clients',
+  'candidates',
+  'missions',
+  'tasks',
+  'documents',
+  'training',
+  'reporting',
+  'commercial',
+  'accounting',
+]);
+
+function isConsoleRoute(route: unknown): route is InternalRoute {
+  return typeof route === 'string' && consoleRoutes.has(route as InternalRoute);
+}
+
+function isRecordKind(kind: unknown): kind is RecordKind {
+  return typeof kind === 'string' && Object.prototype.hasOwnProperty.call(recordRoutes, kind);
+}
+
+function isValidTab(tab: unknown): tab is ConsoleTab {
+  if (!tab || typeof tab !== 'object' || Array.isArray(tab)) return false;
+  const value = tab as Record<string, unknown>;
+  if (value.kind === 'workspace') {
+    return (
+      isConsoleRoute(value.route) &&
+      workspaceTab(value.route) !== null &&
+      value.id === `ws:${value.route}`
+    );
+  }
+  if (value.kind !== 'record') return false;
+
+  const recordKind = value.recordKind;
+  const recordId = value.recordId;
+  const route = value.route;
+  const parent = value.parent;
+  if (
+    !isRecordKind(recordKind) ||
+    typeof recordId !== 'string' ||
+    !uuid.test(recordId) ||
+    typeof route !== 'string' ||
+    !isConsoleRoute(route) ||
+    typeof parent !== 'string' ||
+    !parent.startsWith('ws:')
+  ) {
+    return false;
+  }
+  const parentRoute = parent.slice(3);
+  return (
+    route === recordRoutes[recordKind] &&
+    value.id === `rec:${recordKind}:${recordId.toLowerCase()}` &&
+    workspaceTab(parentRoute as InternalRoute) !== null &&
+    parent === `ws:${parentRoute}`
+  );
+}
+
 export const initialConsoleState = (): ConsoleState => ({
   tabs: [overview],
   active: overview.id,
   recent: [overview.id],
 });
 export function workspaceTab(route: InternalRoute): ConsoleTab | null {
-  return excluded.has(route) ? null : { kind: 'workspace', id: `ws:${route}`, route };
+  return !isConsoleRoute(route) || excluded.has(route)
+    ? null
+    : { kind: 'workspace', id: `ws:${route}`, route };
 }
 export function recordTab(
   kind: RecordKind,
   recordId: string,
   from: InternalRoute,
 ): ConsoleTab | null {
-  if (!uuid.test(recordId)) return null;
+  if (!isRecordKind(kind) || !uuid.test(recordId)) return null;
   const owner = recordRoutes[kind];
   const parent = workspaceTab(from);
   if (!parent || parent.kind !== 'workspace') return null;
@@ -69,10 +141,11 @@ export function recordTab(
   };
 }
 function focus(state: ConsoleState, id: TabId): ConsoleState {
-  if (!state.tabs.some((tab) => tab.id === id)) return state;
+  if (!state.tabs.some((tab) => tab.id === id && isValidTab(tab))) return state;
   return { ...state, active: id, recent: [id, ...state.recent.filter((item) => item !== id)] };
 }
 function add(state: ConsoleState, tab: ConsoleTab): ConsoleState {
+  if (!isValidTab(tab)) return state;
   if (state.tabs.some((item) => item.id === tab.id)) return focus(state, tab.id);
   if (state.tabs.length >= HARD_TAB_LIMIT) return state;
   const parent = tab.kind === 'record' ? workspaceTab(tab.parent.slice(3) as InternalRoute) : null;
@@ -122,14 +195,15 @@ export function consoleReducer(state: ConsoleState, action: ConsoleAction): Cons
     case 'prune': {
       const allowed = state.tabs.filter(
         (tab) =>
-          tab.id === overview.id ||
-          (canAccessInternalRoute(tab.route, action.permissions) &&
-            (tab.kind !== 'record' ||
-              canAccessInternalRoute(tab.parent.slice(3) as InternalRoute, action.permissions))),
+          isValidTab(tab) &&
+          (tab.id === overview.id ||
+            (canAccessInternalRoute(tab.route, action.permissions) &&
+              (tab.kind !== 'record' ||
+                canAccessInternalRoute(tab.parent.slice(3) as InternalRoute, action.permissions)))),
       );
       const activeTab = state.tabs.find((tab) => tab.id === state.active);
       const retained =
-        activeTab && !allowed.some((tab) => tab.id === activeTab.id)
+        activeTab && isValidTab(activeTab) && !allowed.some((tab) => tab.id === activeTab.id)
           ? [...allowed, activeTab]
           : allowed;
       const ids = new Set(retained.map((tab) => tab.id));
@@ -157,6 +231,7 @@ export function consoleReducer(state: ConsoleState, action: ConsoleAction): Cons
               : [tab];
           return {
             id: tab.id,
+            group: tab.kind === 'record' ? tab.parent : tab.id,
             members,
             recency: Math.min(
               ...members.map((member) => recentPosition.get(member.id) ?? Number.POSITIVE_INFINITY),
@@ -167,7 +242,7 @@ export function consoleReducer(state: ConsoleState, action: ConsoleAction): Cons
           return (
             !candidate.members.some(
               (member) => protectedIds.has(member.id) || member.id === state.active,
-            ) && candidate.id !== activeGroup
+            ) && candidate.group !== activeGroup
           );
         })
         .sort(
@@ -228,7 +303,10 @@ export function encodeConsoleHistoryState(
   const base = state && typeof state === 'object' && !Array.isArray(state) ? { ...state } : {};
   return { ...base, [HISTORY_TAB_KEY]: { console: consoleId, tab } };
 }
-/** Never trust a persisted history entry as an authorization decision. */
+/**
+ * Never trust a persisted history entry as an authorization decision. The B2 caller
+ * must re-check the returned tab's route permission before activation or rendering.
+ */
 export function resolveConsoleHistoryTab(
   state: ConsoleState,
   historyState: unknown,
@@ -238,12 +316,15 @@ export function resolveConsoleHistoryTab(
 ): TabId {
   const view = consoleUrlIntent(pathname, search);
   const hint =
-    historyState && typeof historyState === 'object'
+    historyState && typeof historyState === 'object' && !Array.isArray(historyState)
       ? (historyState as Record<string, unknown>)[HISTORY_TAB_KEY]
       : null;
-  if (hint && typeof hint === 'object') {
+  if (hint && typeof hint === 'object' && !Array.isArray(hint)) {
     const value = hint as Record<string, unknown>;
-    const tab = state.tabs.find((item) => item.id === value.tab);
+    const tab =
+      typeof value.tab === 'string'
+        ? state.tabs.find((item) => item.id === value.tab && isValidTab(item))
+        : undefined;
     if (
       value.console === consoleId &&
       tab &&
@@ -252,6 +333,7 @@ export function resolveConsoleHistoryTab(
     )
       return tab.id;
   }
-  if (view.record && state.tabs.some((tab) => tab.id === view.record)) return view.record;
+  if (view.record && state.tabs.some((tab) => tab.id === view.record && isValidTab(tab)))
+    return view.record;
   return workspaceTab(view.route)?.id ?? overview.id;
 }
