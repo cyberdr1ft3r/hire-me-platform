@@ -3,6 +3,25 @@
 Last updated: 2026-10-20
 Status owner: repository maintainer
 
+## Issue #232 — CI repair before Phase B2
+
+- Phase A #229, B0′ #230, and B1 #231 are merged; B1 merge commit is
+  `0e0ae23cd0909085f1414fddda54588bd737f137`. The exact baseline main Quality job
+  failed in `App.test.tsx` while the other three jobs passed (Actions run
+  `39435424188`).
+- Investigation found an App-level test synchronization assumption: the Tasks route is lazy-loaded,
+  then independently fetches board data. The default one-second `findByRole` window could expire
+  before the authorized OPEN task appeared on a cold/full-suite run. The task API mock already
+  filters by status and the read-only principal has `tasks:view`; there is no application permission
+  or status-filter defect. The CI repair branch adds a bounded wait for that observed route+data
+  transition and strengthens read-only detail assertions without changing production code.
+- On Windows, the exact-baseline isolated test passed; the initial full web suite reproduced the
+  target failure. After the test-only correction, the full web suite passed the target test but
+  ended 1103/1105: an unrelated Admin save/confirmation timing assertion and the known CSS LF-vs-CRLF
+  assertion failed locally. WSL/Docker are unavailable in this environment; exact-head Linux CI is
+  required before review. The repair is on `fix/issue-232-readonly-tasks-ci`, draft/unmerged; no B2
+  work, merge, or deployment has started.
+
 ## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
 
 - Documentation and measurement only; PR #229 merged into `main` as
