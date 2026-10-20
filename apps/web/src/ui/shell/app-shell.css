@@ -264,6 +264,160 @@
 .app-shell__breadcrumb > span:last-child {
   overflow-wrap: anywhere;
 }
+.app-shell__console-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.console-tabs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+}
+.console-tabs__list {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.console-tabs__list::-webkit-scrollbar {
+  display: none;
+}
+.console-tabs__item,
+.console-tabs__dialog-item {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-inline-end: var(--border-width) solid var(--color-border);
+}
+.console-tabs__tab,
+.console-tabs__dialog-tab {
+  min-height: var(--hit-target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.console-tabs__tab[aria-selected='true'] {
+  color: var(--color-text);
+  box-shadow: inset 0 -3px var(--color-brand);
+  font-weight: var(--font-weight-semibold);
+}
+.console-tabs__dirty-marker {
+  color: var(--color-warning);
+}
+.console-tabs__close,
+.console-tabs__control,
+.console-tabs__more,
+.console-tabs__mobile-trigger {
+  display: grid;
+  place-items: center;
+  min-width: var(--hit-target-min);
+  min-height: var(--hit-target-min);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.console-tabs__more {
+  display: inline-grid;
+}
+.console-tabs__mobile-trigger {
+  display: none;
+}
+.console-tabs__scroll-controls {
+  display: flex;
+}
+.console-tabs__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--color-overlay-scrim);
+}
+.console-tabs__dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(34rem, 100%);
+  max-height: min(80dvh, 48rem);
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+}
+.console-tabs__dialog-header,
+.console-tabs__dialog-item,
+.console-tabs__limit-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.console-tabs__dialog-header {
+  justify-content: space-between;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.console-tabs__dialog-header h2 {
+  margin: 0;
+  font-size: var(--font-size-3);
+}
+.console-tabs__dialog-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+}
+.console-tabs__dialog-item {
+  justify-content: space-between;
+  border: 0;
+  border-radius: var(--radius-medium);
+}
+.console-tabs__dialog-tab {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  border-radius: var(--radius-medium);
+  text-align: start;
+  white-space: normal;
+}
+.console-tabs__dialog-tab[data-console-dialog-active='true'] {
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+.console-tabs__pending-copy {
+  padding: 0 var(--space-4);
+}
+.console-tabs__limit-actions {
+  flex-wrap: wrap;
+  border-top: var(--border-width) solid var(--color-border);
+}
+.console-tabs__action {
+  min-height: var(--hit-target-min);
+  padding: var(--space-2) var(--space-3);
+}
+.console-tabs__action--secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+@media (min-width: 56.25rem) {
+  .console-tabs__list {
+    display: flex;
+  }
+  .console-tabs__more {
+    display: inline-grid;
+  }
+  .console-tabs__mobile-trigger {
+    display: none;
+  }
+}
 .app-shell__utilities {
   display: flex;
   align-items: center;
@@ -639,6 +793,39 @@
   .app-shell__breadcrumb > span[aria-hidden='true'] {
     display: none;
   }
+  .app-shell__console-workspace {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .console-tabs__list,
+  .console-tabs__scroll-controls,
+  .console-tabs__more {
+    display: none;
+  }
+  .console-tabs__mobile-trigger {
+    display: inline-flex;
+    gap: var(--space-2);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .console-tabs__scrim {
+    align-items: end;
+    padding: 0;
+  }
+  .console-tabs__dialog {
+    width: 100%;
+    max-height: 82dvh;
+    border-radius: var(--radius-large) var(--radius-large) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .console-tabs__dialog-item,
+  .console-tabs__dialog-tab,
+  .console-tabs__close,
+  .console-tabs__action {
+    min-height: max(var(--hit-target-min), 2.75rem);
+  }
   .notification-center__panel {
     position: fixed;
     inset: calc(var(--layout-shell-topbar-height) + env(safe-area-inset-top)) var(--space-2) auto;
@@ -759,4 +946,17 @@
 /* Grid workspaces already provide the section gap; do not count it twice. */
 :where(.training, .commercial, .accounting, .documents, .missions) > .ui-page-header {
   margin-bottom: 0;
+}
+
+/* At exactly 900px the existing navigation drawer may be in use, but B2 keeps
+   the desktop workspace-tab list at its documented breakpoint. */
+@media (min-width: 56.25rem) {
+  .console-tabs__list,
+  .console-tabs__scroll-controls,
+  .console-tabs__more {
+    display: flex;
+  }
+  .console-tabs__mobile-trigger {
+    display: none;
+  }
 }

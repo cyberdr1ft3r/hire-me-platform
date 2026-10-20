@@ -1322,6 +1322,26 @@ export const enMessages = {
       publicApplications: 'Public applications',
     },
   },
+  consoleTabs: {
+    closeDialog: 'Close tab list',
+    closeTab: 'Close {title}',
+    continueOpen: 'Open without replacing',
+    current: 'Current',
+    dialogTitle: 'Open workspaces',
+    limitMessage:
+      'The workspace is full. To open {title}, replace a least-recently-used clean tab or close one first.',
+    limitTitle: 'Workspace tab limit reached',
+    more: 'More tabs',
+    openTabs: 'Workspace tabs',
+    record: 'Record',
+    replaceLeastRecent: 'Replace least-recently-used clean tab',
+    scrollLeft: 'Scroll tabs left',
+    scrollRight: 'Scroll tabs right',
+    openCount: '{count} tabs open. Consider closing unused tabs.',
+    switcher: 'Tabs',
+    keepCurrent: 'Stay here',
+    unsavedChange: 'Unsaved changes',
+  },
   preview: {
     candidate: {
       access: 'Preview access',

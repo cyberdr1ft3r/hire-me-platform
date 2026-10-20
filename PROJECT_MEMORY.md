@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-18
+Last updated: 2026-10-20
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -10,14 +10,14 @@ Build a bilingual, responsive internal business platform for Hire Me that centra
 
 ## Current Phase
 
-The Unified Page System foundation is on branch `feat/unified-page-system-foundation`, based on
-latest `main` `2e01f40` (including merged P1 hotfixes #213, #215, and #217). It reuses the existing
-permission-aware Salesforce-inspired AppShell, UI-DNA tokens, `PageHeader`, Workspace Surface,
-feedback, drawers, and typed EN/FR infrastructure, and adds only the missing page-composition layer:
-`PageShell`, `DirectoryPage`, `RecordPage`, `FilterToolbar`, `ContextualActions`, and `PageState`.
-The architecture and 14-route migration map are in `docs/design/unified-page-system-foundation.md`;
-installed-Chrome evidence is in `docs/audit/unified-page-system/`. PR #210 remains untouched and
-must be integrated only after this foundation is reviewed. No merge or deployment is authorized.
+Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
+`ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`
+passed all four required CI jobs on that exact SHA. The visible workspace tab UI integrates B1's
+reducer/provider with App routing and B0′ navigation guards under accepted D-089/RV1/RV2; existing
+URLs, permissions, one history authority, active-only module rendering, and no response cache or
+session persistence remain mandatory. Route-keying the lazy boundary prevents hidden prior modules
+during route loading. The B2 draft must stay unmerged and undeployed. See the current B2 section in
+`docs/project/STATUS.md` and browser artifacts in `docs/audit/issue-232-console-tabs-evidence/`.
 
 The Issue #52 representative milestone is complete. Stable pre–Issue #118 `main` is `4c0655d9ec59228b9a76d9a6964c1f505fa2be76`, including merged Issue #117 UI-DNA v1.1 interaction grammar (D-082) through PR #137, Issue #116 stacked master-detail through PR #138, Issue #124 / PR #136, Accounting #135, Training #123, Documents #119, and the core workspaces (Reporting, Candidate, Public Opportunity, Tasks, Clients, Missions, Training, Commercial, Accounting, Documents, Agenda). UI-DNA v1.1 interaction grammar (Issue #117 / D-082, merged on `main`) defines read/edit/create/combobox rules; visual tokens remain UI-DNA v1. Issue #118 Missions workspace IA/composition is implemented on open draft PR #139 and is **not merged** yet. Issue #109 / #110 and D-068/D-070 operational items remain open as tracked in `docs/project/STATUS.md`.
 

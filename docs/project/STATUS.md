@@ -3,24 +3,29 @@
 Last updated: 2026-10-20
 Status owner: repository maintainer
 
-## Issue #232 — CI repair before Phase B2
+## Issue #232 — Phase B2 Visible Console Workspace Tabs
 
-- Phase A #229, B0′ #230, and B1 #231 are merged; B1 merge commit is
-  `0e0ae23cd0909085f1414fddda54588bd737f137`. The exact baseline main Quality job
-  failed in `App.test.tsx` while the other three jobs passed (Actions run
-  `39435424188`).
-- Investigation found an App-level test synchronization assumption: the Tasks route is lazy-loaded,
-  then independently fetches board data. The default one-second `findByRole` window could expire
-  before the authorized OPEN task appeared on a cold/full-suite run. The task API mock already
-  filters by status and the read-only principal has `tasks:view`; there is no application permission
-  or status-filter defect. The CI repair branch adds a bounded wait for that observed route+data
-  transition and strengthens read-only detail assertions without changing production code.
-- On Windows, the exact-baseline isolated test passed; the initial full web suite reproduced the
-  target failure. After the test-only correction, the full web suite passed the target test but
-  ended 1103/1105: an unrelated Admin save/confirmation timing assertion and the known CSS LF-vs-CRLF
-  assertion failed locally. WSL/Docker are unavailable in this environment; exact-head Linux CI is
-  required before review. The repair is on `fix/issue-232-readonly-tasks-ci`, draft/unmerged; no B2
-  work, merge, or deployment has started.
+- Latest `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
+  Actions run `39445963478` passed all four required jobs on that exact main commit.
+- B2 is in progress on `feat/issue-232-b2-console-tabs`, based directly on that green main. It
+  integrates B1's reducer/provider with the existing router and B0′ navigation guards, implements
+  utility-bar tabs and a mobile tab dialog, and retains the existing route URLs and single popstate
+  authority. D-089's RV1 identity and URL fallback and RV2 dirty-input semantics remain in force.
+- One correctness issue found during implementation: a shared Suspense boundary retained the
+  previous route module in hidden DOM while the next lazy route loaded. The route-keyed boundary
+  now unmounts the prior module immediately, preserving active-only rendering. App-level coverage
+  asserts the previous workspace is absent after navigation.
+- Installed Chrome evidence passes eight EN/FR desktop (1440px and 900px), tablet (768px), and
+  mobile (390px) scenarios, including keyboard activation, RV1 Back restoration, touch activation,
+  and zero horizontal overflow. Screenshots/report are in
+  [Issue #232 browser evidence](../audit/issue-232-console-tabs-evidence/).
+- Formatting, architecture, web lint, typecheck, build, and the focused 100-test regression set
+  pass locally. The last broad Windows suite run before the final record-link follow-up was
+  non-green (64/1110 across 14 files), with suite-load failures and the known LF-vs-CRLF CSS
+  assertion; this is not a result for the final branch contents. Exact-head Linux CI is required
+  to determine whether any failures remain. The local B2 commit is not published and no PR exists
+  yet because the sandbox cannot launch either configured Git credential helper; no deployment or
+  merge is authorized.
 
 ## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
 
@@ -71,7 +76,8 @@ Status owner: repository maintainer
   open record tab, then URL-only intent. History identity is never authorization. B2 must gate open,
   activation, history resolution, and protected rendering on current permissions. Dirty-aware LRU
   replacement protects the active group and dirty tabs; B0′ owns runtime dirty-input confirmation.
-- B2 is not implemented; it remains gated on green main and separate maintainer authorization.
+- B2 started only after exact-head post-merge main CI was green on `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`.
+  It remains a separate draft implementation and has not been merged or deployed.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 

@@ -232,6 +232,9 @@ describe('App', () => {
     expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
   });
 
+  // This end-to-end route test includes cold lazy-module loading, auth restore,
+  // and three independently fetched task columns; complete-suite runs measured
+  // just over the global 5s cap, while the assertion and permission checks pass.
   it('loads read-only task lists without mutation controls', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = input instanceof Request ? input.url : input.toString();
@@ -345,7 +348,7 @@ describe('App', () => {
     expect(
       within(detail).queryByRole('button', { name: /add comment|add reminder/i }),
     ).not.toBeInTheDocument();
-  });
+  }, 10_000);
 
   it('lets authorized staff create tasks through environment-configured API calls', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -943,7 +946,12 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: /candidates/i })).toBeVisible();
+    // Route-level chunks can compile cold in the browser test environment; keep
+    // the assertion but allow the candidate module's measured lazy-load window.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /candidates/i }, { timeout: 5000 }),
+    ).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Overview' })).toBeNull();
     expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
 
     // The redesigned workspace opens creation from the page action, and its
@@ -1537,7 +1545,9 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Training' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Training' }, { timeout: 5000 }),
+    ).toBeVisible();
     expect(screen.getByText('Read-only access')).toBeVisible();
     fireEvent.click(await screen.findByRole('button', { name: 'Internal Onboarding' }));
     expect(await screen.findByText('Synthetic Candidate')).toBeVisible();
@@ -1599,7 +1609,7 @@ describe('App', () => {
       expect.stringContaining('/v1/training/programs?'),
       expect.objectContaining({ credentials: 'include' }),
     );
-  });
+  }, 10_000);
 
   it('hides the reporting navigation from users without reporting permission', async () => {
     mockReportingSession(['records:view']);
@@ -1689,7 +1699,11 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/candidates');
     expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Deep Link Candidate' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
 
     act(() => window.history.back());
@@ -1700,7 +1714,11 @@ describe('App', () => {
 
     act(() => window.history.forward());
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Deep Link Candidate' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
     expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
 
@@ -1717,8 +1735,16 @@ describe('App', () => {
     const view = render(<App />);
     await loginAs('direct-candidate@example.test');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Deep Link Candidate' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Candidates · Record' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     view.unmount();
 
     window.history.pushState({}, '', '/candidates?candidate=not-a-uuid&unknown=value');
@@ -1729,6 +1755,7 @@ describe('App', () => {
       await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: /Back to candidates/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Candidates · Record' })).toBeNull();
     expect(
       fetchMock.mock.calls.filter(([input]) => requestUrl(input).includes('not-a-uuid')),
     ).toHaveLength(0);
@@ -1741,7 +1768,11 @@ describe('App', () => {
     render(<App />);
     await loginAs('candidate-history@example.test');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Deep Link Candidate' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
 
     // The record's own Back action is a history entry to the directory.
@@ -1757,6 +1788,10 @@ describe('App', () => {
       await screen.findByRole('heading', { level: 2, name: 'Deep Link Candidate' }),
     ).toBeVisible();
     expect(window.location.search).toBe(deepLink);
+    expect(screen.getByRole('tab', { name: 'Candidates · Record' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
 
     act(() => window.history.forward());
     expect(
@@ -1777,7 +1812,11 @@ describe('App', () => {
     await loginAs('direct-mission@example.test');
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Synthetic Mission' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Synthetic Mission' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
     expect(window.location.search).toBe(`?mission=${syntheticMissionId}`);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -1794,7 +1833,11 @@ describe('App', () => {
     render(<App />);
     await loginAs('mission-history@example.test');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Synthetic Mission' }),
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Synthetic Mission' },
+        { timeout: 5000 },
+      ),
     ).toBeVisible();
 
     // The record's own Back action is a history entry to the directory.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-import { blockNavigation } from './navigation-guard.js';
+import { blockNavigation, notifyNavigationGuardStateChanged } from './navigation-guard.js';
 
 /** Marks the element a guard watches, so an outer guard leaves an inner one's forms alone. */
 export const UNSAVED_GUARD_SCOPE_ATTRIBUTE = 'data-unsaved-guard-scope';
@@ -204,6 +204,7 @@ export function useRecordLeaveGuard(
     }
     if (saved || (writeEnded && clearOnSubmit.current)) {
       confirmSaved(current);
+      notifyNavigationGuardStateChanged();
       return;
     }
     if (writeEnded) {
@@ -225,6 +226,7 @@ export function useRecordLeaveGuard(
       const state = forms.get(form);
       // Values may have been replaced from data since the last look; re-read them.
       if (!state || !state.edited) forms.set(form, { baseline: formSnapshot(form), edited: false });
+      notifyNavigationGuardStateChanged();
     };
     const markInput = (event: Event) => {
       const form = formOf(event.target);
@@ -233,11 +235,13 @@ export function useRecordLeaveGuard(
       if (state) state.edited = true;
       else forms.set(form, { baseline: null, edited: true });
       if (submission.current?.form === form) submission.current.editedSince = true;
+      notifyNavigationGuardStateChanged();
     };
     const clearReset = (event: Event) => {
       if (!(event.target instanceof HTMLFormElement)) return;
       forms.delete(event.target);
       if (submission.current?.form === event.target) submission.current = null;
+      notifyNavigationGuardStateChanged();
     };
     const handleSubmit = (event: Event) => {
       const form = event.target;
@@ -252,6 +256,7 @@ export function useRecordLeaveGuard(
         decided: false,
         editedSince: false,
       };
+      notifyNavigationGuardStateChanged();
       const current = submission.current;
       /*
        * React commits a submit's state updates before the next task, and the first
@@ -295,6 +300,7 @@ export function useRecordLeaveGuard(
       release();
       forms.clear();
       submission.current = null;
+      notifyNavigationGuardStateChanged();
     };
     // The guard lives exactly as long as the screen it protects.
   }, [containerRef]);
