@@ -3,6 +3,30 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
+## Issue #228 — Console Workspace tabs, Phase A preflight on `main`
+
+- Documentation and measurement only, in draft PR #229 (`docs/issue-228-console-tabs-preflight`) from `main`
+  `cfe6be6` (#227 merged). No application code, contract, schema, permission, dependency or
+  sidebar change. [Preflight](../design/console-workspace-tabs-preflight-228.md),
+  [revised interaction matrix](../design/console-workspace-v1-interaction-matrix.md),
+  [baseline and test plan](../audit/issue-228-console-tabs-preflight.md).
+- No console/tab-manager code exists; the only `role="tablist"` components are in-record sections.
+  #198's B0 (request core #203/#209) and B1 (lazy routes #208) and `?client=` are already on `main`.
+- Proposed D-089 amendments A1–A7: keep today's URLs (tab membership is session state; `in=` only
+  for cross-module record tabs), no response cache in Phase B, confirm-only drafts (hidden
+  `<Activity>` would release the effect-based guard), prune on permission change / remount on user
+  or session change, desktop strip in the utility-bar breadcrumb slot, reuse `navigation-guard.ts`.
+- Baseline at 4× CPU: entry 179.2 KB gzip (was 302.8), cold FCP median 928 ms, revisit paint
+  60 ms median / 233 ms p95, Back/Forward settled ~110 ms, heap flat over 50 cycles, 2 idle
+  requests/min. Seven modules with forms (Tasks, Training, Accounting, Commercial, Documents, Admin,
+  Messages composer) have no unsaved-input guard; a guard-coverage PR (B0′) is proposed before
+  closable tabs. The refresh limiter still logs out the 7th rapid reload (R-055).
+- Maintainer review (2026-10-19) approved the direction, A1–A7, the ≥ 900px utility-bar strip,
+  active-only rendering with confirm-before-switch, no restoration/cache in v1.0 and recorded browser
+  evidence instead of Figma, with refinements RV1 (tab identity in `history.state`, URL-only
+  fallback) and RV2 (guards ask only for genuinely unsaved input). D-089 Accepted. Next: B0′ draft
+  PR, then B1 after review. PR #229 stays draft.
+
 ## Issue #196 — Notification Center unread-consistency follow-up
 
 - The core compact Notification Center and unread Messages composition already merged through PR

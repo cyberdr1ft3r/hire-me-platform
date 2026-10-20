@@ -1,14 +1,26 @@
-# ADR proposal — HireMe Console Workspace v1.0 tab manager (D-089)
+# Accepted Architecture Record — HireMe Console Workspace v1.0 (D-089)
 
-Status: **Proposed — Issue #198 Phase A. Human sign-off required before Phase B.**
-Nothing here is an accepted decision or an implementation. Companion documents:
-[preflight assessment](./console-workspace-v1-preflight.md),
-[interaction matrix](./console-workspace-v1-interaction-matrix.md) and
-[performance baseline](../audit/console-workspace-v1-baseline.md).
+Status: **Accepted — Issue #198 Phase A, 2026-10-19, with RV1 and RV2 refinements.**
+This record describes the approved Phase A architecture. Each implementation phase remains
+subject to its own review, exact-head CI, and explicit merge authorization.
 
-Base: integration branch `fix/ui-refinement-demo-20261013` at `bd46f59` (AppShell
-v1.2 #195 and Workspace Surface v1.0 #197 merged into it; #194 into `main` and the
-Notification Center #199 are still open drafts).
+Companion documents:
+[#228 preflight assessment](./console-workspace-tabs-preflight-228.md),
+[interaction matrix](./console-workspace-v1-interaction-matrix.md), and
+[performance baseline](../audit/issue-228-console-tabs-preflight.md).
+
+Decision baseline: main at cfe6be6, audited in PR #229. The original Issue #198
+proposal below is retained only where it agrees with the accepted amendments and the
+[#228 preflight](./console-workspace-tabs-preflight-228.md).
+
+> **Accepted amendments A1–A7 and refinements RV1/RV2.** Keep existing record URLs and
+> treat tab membership as in-memory console state; RV1 stores console-instance and
+> canonical-tab identity in the existing router history state, with deterministic
+> URL-only fallback and no second history authority. RV2 protects only genuinely
+> unsaved input. Render only the active module; never retain inactive modules in hidden
+> React Activity trees. Do not add a response cache in B2. Do not restore open tabs
+> from sessionStorage in v1.0. The accepted preflight and this record supersede
+> conflicting statements in the historical proposal sections below.
 
 ## Context
 
@@ -35,23 +47,19 @@ preflight) has:
   list 30 s and open conversation 15 s while Messages is mounted). #199 adds a 60 s
   notification poll in the shell.
 
-## Decision (proposed)
+## Accepted architecture
 
-### 1. Active-only rendering with serializable tab snapshots
+### 1. Active-only rendering
 
-- Only the **active tab's module is mounted**. An inactive tab is a descriptor plus
-  a bounded, serializable UI snapshot — not a hidden React tree, iframe or second
-  app instance.
-- **Single exception, measured before adoption:** a tab with a dirty draft may be
-  kept mounted under React 19.2 `<Activity mode="hidden">` (React 19.2.7 is already
-  installed). Hidden Activity keeps component state but destroys effects, so its
-  polls and subscriptions stop. Cap: at most **2 hidden dirty tabs**; a third dirty
-  tab must be saved, discarded or kept active. If Phase B evidence shows any
-  hidden-tab work or unbounded memory, fall back to guarded switching (§6).
-
-Rejected: keeping every opened tab mounted (memory and duplicate effects scale with
-tab count — the issue's main risk); iframes / multiple app roots (duplicate auth,
-polling and memory); a generalized window manager.
+- Exactly one active workspace module is mounted at a time. Inactive tabs are lightweight,
+  bounded in-memory descriptors and (where implemented in a later approved phase) validated
+  serializable UI snapshots.
+- There is no hidden-module exception: never keep an inactive dirty module mounted in a
+  hidden React Activity tree. Before a transition that would unmount a dirty module, the
+  shared guard asks for confirmation. A confirmed discard permits the transition; staying
+  keeps the active module mounted and its input intact.
+- No iframe, duplicate application root, or hidden copy of a module. This keeps effects,
+  polling, subscriptions, and memory bounded by the active module.
 
 ### 2. Central tab manager — small, dependency-free
 
@@ -123,82 +131,61 @@ each add a dependency and a broad migration; see §5 and the open questions.
 - Labels are resolved from data at render time and kept in memory only; tab IDs
   contain no names (candidate/client names are personal or commercial data).
 
-### 4. URL and history semantics
+### 4. URL and history semantics (A1, RV1)
 
-The URL always describes the **active tab** completely; it is sufficient on its own
-in a clean session.
+- Preserve existing paths and record query parameters. Examples include /clients,
+  /clients?client=<uuid>, /candidates?candidate=<uuid>, and
+  /missions?mission=<uuid>. Do not introduce a tab=record parameter or change
+  pathToRoute URL behavior. The URL describes the active route/record intent; the open-tab
+  collection is in-memory console state.
+- A cross-module record-tab URL may carry the existing validated in=<module> hint. It is
+  contextual intent only; malformed, duplicate, incompatible, or unauthorized hints are ignored.
+- The existing pushHistoryPath / replaceHistoryPath functions remain the sole history
+  writer and the existing popstate path remains the sole traversal authority. RV1 adds
+  optional metadata to that existing state: a console-instance ID and canonical tab ID.
+- Resolve an entry deterministically: a compatible open tab from the current console instance;
+  otherwise an already-open canonical record tab compatible with the URL; otherwise the
+  URL-only workspace/record intent. Missing, stale, malformed, closed-tab, or URL-incompatible
+  metadata never resurrects stale tab state. In a clean session, the existing URL still works.
+- Back/Forward applies only after the existing navigation guard accepts the traversal. A closed
+  tab's old identity is not authorization and does not recover its old draft. Modified links keep
+  native browser behavior.
+- Reload preserves the active route from the URL only. Do not persist or restore the open-tab list
+  from sessionStorage in v1.0; any later restoration requires a separately reviewed phase.
 
-| Active tab | URL | Notes |
-| --- | --- | --- |
-| Workspace, nothing selected | `/clients` | Unchanged existing paths |
-| Workspace with preview selection | `/candidates?candidate=<uuid>` | Existing deep links keep working as preview |
-| Record tab | `/candidates?candidate=<uuid>&tab=record` (parent implied by module) or `…&tab=record&in=clients` | Additive; the parameter grammar extends `record-deep-links.ts`; `in` is validated against the registry and the user's permissions |
+### 5. Data, caching and polling
 
-Rules:
+- No response cache or request deduplication is introduced in B2. Workspace activation uses
+  the existing request behavior. Revisit performance is evaluated against the measured #228
+  baseline; a future cache would require a separate evidence-backed decision and authorization.
+- Keep existing lazy route boundaries; do not eagerly load every workspace or introduce a new
+  runtime dependency as part of B2.
+- Existing polling owners remain unchanged. Because only the active module is mounted, inactive
+  modules run no pollers. Do not add a shell poll registry or polling merely to support tabs.
 
-- Activating a different tab = `pushState`. Preview selection, filter and page
-  changes inside a tab = `replaceState` (today's behavior). History therefore
-  records tab switches, not every row click.
-- Back/forward restores whatever the URL says: if that tab is open it is
-  activated with its snapshot; if it was closed it is **reopened from the URL**
-  (fresh data, empty snapshot). A closed tab never resurrects its old draft.
-- Close = remove + `replaceState` to the fallback: the most recently active
-  remaining tab in the same workspace, else the workspace tab, else the previous
-  active tab overall.
-- Unknown, malformed or duplicated parameters are ignored exactly as today and
-  never trigger a read; unauthorized targets render the existing access-denied
-  state without leaking the record's existence beyond what the API returns.
-- Modified clicks (Ctrl/Cmd/middle) keep native browser behavior: a new browser
-  tab, which starts its own independent console from the URL.
+### 6. Unsaved input and navigation guards (RV2)
 
-Reload: the active tab is restored from the URL. **Other tabs are not restored in
-Phase B.** Restoring the open-tab list from `sessionStorage` is deferred to a
-separately approved step (security review: IDs only, no labels, snapshots or
-drafts; key bound to user id; cleared on sign-out, principal change and refresh
-failure).
-
-### 5. Data, cache and polling
-
-- **Prerequisite (Phase B0):** one shared request core in `api.ts` with
-  single-flight refresh and one retry on `401`, and a stable token getter so that
-  token rotation no longer re-runs every `[accessToken]` effect. Without it, long-
-  lived tabs hit expired tokens (TTL 300 s default, 900 s max) and parallel
-  refreshes risk reuse detection.
-- **Response cache:** a bounded in-memory map keyed by
-  `principalKey + method + path + query`, GET only, with in-flight deduplication,
-  short TTL (proposed 30 s list / 60 s detail), stale-while-revalidate on tab
-  activation, LRU cap (proposed 100 entries) and explicit invalidation by the
-  mutating module (record type + id). Never persisted. Cleared on `reset`.
-  Alternative: TanStack Query (maintained, well-understood) — requires explicit
-  maintainer approval as a new dependency; recommended only if the in-house cache
-  grows beyond ~150 lines or needs retries/refetch policies.
-- Render a snapshot-driven skeleton immediately and the cached response if fresh;
-  always show a visible loading state for first loads and revalidation. Do not
-  fake instant loads.
-- **Polling ownership:** pollers live only in mounted components or in one shell-
-  level registry. Inactive tabs are unmounted (or Activity-hidden), so they run no
-  polls. The shell keeps one unread-summary poll shared by the badge and the
-  Notification Center (#199 currently adds a second 60 s shell timer).
-
-### 6. Drafts
-
-- A small draft registry: forms report `dirty` for their tab; the manager blocks
-  silent loss on close, tab switch (when the tab cannot be Activity-hidden),
-  sidebar navigation, `popstate` and `beforeunload`.
-- Close/switch on a dirty tab opens one accessible confirmation: **Keep editing**
-  (default focus) / **Discard changes**. Saving stays in the form.
-- No draft content is persisted to storage. Optional in-memory form snapshots are
-  out of scope until a module needs them.
+- Reuse the existing navigation guard as the single authority for in-app navigation, tab
+  activation/close, Back/Forward, and unload protection. Integrate the B0′ guard stack; do not
+  create a second popstate listener or independent confirmation system.
+- A form blocks only while it contains genuinely unsaved input: it was changed and its current
+  values differ from the editing baseline. Unchanged, reverted, saved, reset, and search/filter
+  forms do not block. Writes in flight remain protected until success or failure is known.
+- Confirm before any dirty workspace is unmounted, closed, or replaced. If the user stays, preserve
+  the active module and its input; if the user confirms discard, proceed. Dirty record groups must
+  not be silently removed by hard-limit replacement.
+- Do not persist draft content or keep inactive modules mounted to retain it.
 
 ### 7. Authorization and session
 
-- A tab descriptor is never an authorization artifact. Every activation re-runs
-  `canAccessInternalRoute` against the current user; the API remains the authority
-  for every read and action, including in reused tabs.
-- `principalKey` change (sign-out, `onRefreshUser` returning different
-  permissions, failed refresh) → `reset`: tabs, snapshots and cache are dropped.
-- A `403`/`404` on a record tab marks it `unavailable` with a localized message and
-  a Close action; it does not retry in the background.
+- A tab descriptor or RV1 history hint is never authorization. Check current route permissions
+  before every tab open, activation, history resolution, and protected render; server-side
+  authorization remains authoritative for every read and action.
+- On permission changes, immediately remove revoked inactive tabs. If the active tab loses access,
+  keep only the minimum descriptor needed to render the existing permission-denied state and a
+  close action; never render its protected content.
+- Reset all console state on sign-out, session termination/epoch change, or principal change.
+  Permission-only changes retain only still-authorized tabs. No tab state crosses users or sessions.
 
 ### 8. Loading and bundles
 
@@ -220,19 +207,19 @@ failure).
 
 ## Consequences
 
-Positive: bounded memory (one mounted module, ≤ 2 hidden dirty tabs), no inactive
-polling, URL-complete deep links, incremental per-module adoption without a
-router/state library, and a fix for today's silent draft loss and token expiry.
+Positive: one active module bounds mounted effects and polling; existing record URLs and deep links
+remain valid; the existing router and guard remain the single navigation authorities; no response
+cache or persisted tab collection creates a new data-leak surface.
 
-Costs: each participating module must accept snapshot props and report dirty
-state; the request core and cache touch `api.ts` (high-conflict file); reactivation
-remains a remount (cheap with cache, measured ~100–400 ms today without it).
+Costs: tabs are session-local descriptors, not hidden module instances, so switching away from
+unsaved input requires an explicit decision. Module snapshots and tab restoration are deferred
+rather than assumed.
 
-## Open questions for sign-off
+## Deferred scope, not open Phase A decisions
 
-1. Record-tab URL grammar: `?…&tab=record` (proposed, additive) or new path
-   segments (cleaner but changes `pathToRoute` exact matching).
-2. In-house response cache (proposed) vs TanStack Query (new dependency).
-3. Hidden-Activity retention of up to 2 dirty tabs vs confirm-only drafts.
-4. Whether any multi-tab restoration after reload is wanted in v1.0.
-5. Which modules join Phase C beyond Clients, Missions and Candidates.
+- Open-tab restoration after reload is not part of B2 or v1.0; any later proposal requires a
+  separate security review and explicit approval.
+- A response cache is not part of B2. Reconsider only if measured performance misses the agreed
+  budget, with separate design and authorization.
+- Contextual record-tab launch controls and further module participation belong to later approved
+  phases; they do not change the accepted B2 routing/history contract.
