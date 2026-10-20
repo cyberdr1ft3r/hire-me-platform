@@ -20,7 +20,7 @@ Last updated: 2026-10-20
   confirmation timing and CSS line-ending expectation, 1103/1105 overall). WSL and Docker are
   inaccessible here, so the exact-head Linux Actions result is the required final gate.
 
-- Latest `main` is `bb4ee927dddb93a13492c74ebe894e8df1d013b2`; it includes merged PR #229, which
+- Latest verified `main` is `0e0ae23cd0909085f1414fddda54588bd737f137`; it includes merged PR #229, which
   records the accepted D-089 Phase A architecture with RV1/RV2. RV1 keeps tab identity in existing
   `history.state` with URL-only fallback and one navigation authority; RV2 guards only genuinely
   unsaved values. B2 must render only the active module; hidden Activity trees, response caching and
@@ -32,10 +32,8 @@ Last updated: 2026-10-20
 - B0′ exact-head Actions passed all four jobs on `d65009249d1084c8cec990d1a31a2752b947be5f`; its
   committed installed-Chrome audit is 20/20 on the hardened implementation. Browser checks could not
   be rerun during reconciliation because credentials and Docker access were unavailable.
-- B1 PR #231 is reconciled with `main` at `bb4ee927dddb93a13492c74ebe894e8df1d013b2` by normal
-  merge commit `e6f4b10727eec71b00a6a54a57f5cca24e2b4fab` on the existing branch. Keep #231 draft
-  and unmerged through exact-head verification and maintainer review. No console tab UI exists; B2
-  remains unauthorized.
+- B1 PR #231 is merged in `main` at `0e0ae23cd0909085f1414fddda54588bd737f137`. No console tab UI
+  exists; B2 remains gated on green main after the current CI repair and explicit authorization.
 
 ## Next concrete action
 

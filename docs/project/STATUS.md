@@ -62,18 +62,16 @@ Status owner: repository maintainer
   it was not rerun after documentation-only reconciliation because the environment lacked browser
   test credentials and Docker access.
 
-## Issue #228 B1 — Console state core (draft PR #231)
+## Issue #228 B1 — Console state core (merged PR #231)
 
-- PR #231 remains on `feat/issue-228-b1-console-state-core` and has been reconciled with latest
-  `main` at `bb4ee927dddb93a13492c74ebe894e8df1d013b2` in normal merge commit
-  `e6f4b10727eec71b00a6a54a57f5cca24e2b4fab`. It remains a pure reducer/URL/history layer; no
-  provider, app routing, visible tabs, or second history owner is introduced.
+- PR #231 merged into `main` as `0e0ae23cd0909085f1414fddda54588bd737f137`. It remains a pure
+  reducer/URL/history layer; no provider, app routing, visible tabs, or second history owner is
+  introduced.
 - RV1 resolves only compatible open identities from the current console instance, then a canonical
   open record tab, then URL-only intent. History identity is never authorization. B2 must gate open,
   activation, history resolution, and protected rendering on current permissions. Dirty-aware LRU
   replacement protects the active group and dirty tabs; B0′ owns runtime dirty-input confirmation.
-- Keep #231 draft and unmerged. B2 requires separate explicit implementation authorization after
-  this integration and B1 review checkpoint.
+- B2 is not implemented; it remains gated on green main and separate maintainer authorization.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 
