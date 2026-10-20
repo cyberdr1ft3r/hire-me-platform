@@ -11,15 +11,19 @@ Last updated: 2026-10-20
   while preserving D-089/RV1/RV2, B0′ guards, and existing URLs.
 - Route-level Suspense initially retained the previous module in hidden DOM during a lazy import;
   keying the boundary by the active route fixed that active-only rendering violation. The full App
-  suite passes 44/44 and the focused B2/navigation set passes 100/100. The last broad Windows web
-  run before the final record-link follow-up was non-green (64/1110 across 14 files), including the
-  LF-vs-CRLF stylesheet assertion and suite-load failures. Do not present local full-suite results
-  as green; await exact-head Linux CI.
-- Local implementation commit is `ac5b641c0e88f6278e857501564abc251d43cc0f` on
-  `feat/issue-232-b2-console-tabs`; it is not pushed and no PR exists yet. `gh auth status` shows a
-  valid `cyberdr1ft3r` login with repo/workflow scopes, but `git push` cannot start either the
-  configured GitHub CLI credential helper or Windows Git Credential Manager in this sandbox
-  (`NtCreateDirectoryObject ... 0xC0000022`). Do not reconstruct GitHub blobs/trees as a workaround.
+  suite passes 44/44 and the focused B2/navigation set passes 100/100. The latest full Windows web
+  suite run with two workers passed 1,110/1,111 tests; the one failure is the existing literal-LF
+  stylesheet assertion against CRLF checkout bytes. The default-parallel run also timed out under
+  suite load. Do not present local full-suite results as green; exact-head Linux CI is authoritative.
+- The current implementation commit is `9e11a2f209bb61b01c00b60e468ca4da6a63754e` on
+  `feat/issue-232-b2-console-tabs`, with the visual refinement and evidence still uncommitted. The
+  remote branch and PR are absent. Host `gh auth status` succeeds with the user's `cyberdr1ft3r`
+  keyring session; sandboxed commands cannot access that helper, so Git publication must use the
+  host-authorized execution context. Do not reconstruct GitHub blobs/trees as a workaround.
+- Installed Chrome refinement evidence passes 28 EN/FR workspace/viewports across Tasks, Clients,
+  Documents, Commercial, and Candidates. Native Chrome 200% zoom is still unverified because this
+  environment's UI bridge cannot control the headed Chrome window. Evidence and current local gate
+  outcomes are in `docs/audit/issue-232-console-tabs-evidence/README.md`.
 - Latest verified `main` includes merged PR #229, which
   records the accepted D-089 Phase A architecture with RV1/RV2. RV1 keeps tab identity in existing
   `history.state` with URL-only fallback and one navigation authority; RV2 guards only genuinely
@@ -38,10 +42,10 @@ Last updated: 2026-10-20
 
 ## Next concrete action
 
-1. Finish B2 verification, resolve any implementation-owned CI failures, and open a dedicated draft
-   PR referencing Issue #232 with browser evidence.
-2. Verify the four required Actions jobs on the exact final B2 SHA. Keep the PR draft and unmerged;
-   do not deploy or begin later phases.
+1. Publish the existing B2 branch (including its current local refinement) and open a dedicated
+   draft PR referencing Issue #232 with the evidence and Windows-suite caveat.
+2. Verify all four required Actions jobs on the exact final B2 SHA. Keep the PR draft and unmerged;
+   do not deploy or begin later phases. Arrange a native Chrome 200% zoom check before review.
 
 ## Completion conditions
 

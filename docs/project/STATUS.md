@@ -15,17 +15,21 @@ Status owner: repository maintainer
   previous route module in hidden DOM while the next lazy route loaded. The route-keyed boundary
   now unmounts the prior module immediately, preserving active-only rendering. App-level coverage
   asserts the previous workspace is absent after navigation.
-- Installed Chrome evidence passes eight EN/FR desktop (1440px and 900px), tablet (768px), and
-  mobile (390px) scenarios, including keyboard activation, RV1 Back restoration, touch activation,
-  and zero horizontal overflow. Screenshots/report are in
-  [Issue #232 browser evidence](../audit/issue-232-console-tabs-evidence/).
-- Formatting, architecture, web lint, typecheck, build, and the focused 100-test regression set
-  pass locally. The last broad Windows suite run before the final record-link follow-up was
-  non-green (64/1110 across 14 files), with suite-load failures and the known LF-vs-CRLF CSS
-  assertion; this is not a result for the final branch contents. Exact-head Linux CI is required
-  to determine whether any failures remain. The local B2 commit is not published and no PR exists
-  yet because the sandbox cannot launch either configured Git credential helper; no deployment or
-  merge is authorized.
+- Installed Chrome evidence passes 28 EN/FR viewport/module scenarios for Tasks, Clients,
+  Documents, Commercial, and Candidates, including keyboard activation, RV1 Back restoration,
+  touch activation, and zero horizontal overflow. Before/after screenshots and the run report are
+  in [Issue #232 browser evidence](../audit/issue-232-console-tabs-evidence/).
+- The visual refinement separates the tab layer from a tokenized white content panel with a 12px
+  radius on desktop; the panel loses its outer border/radius on mobile. The sidebar and utility
+  controls are unchanged. Native Chrome 200% zoom is not verified yet because the UI bridge cannot
+  control the headed Chrome window.
+- Formatting, architecture, web lint, typecheck, production build, and focused AppShell tests (16)
+  pass. The full web suite with two workers passed 1,110/1,111 tests; the only failure is the
+  known literal-LF stylesheet assertion on CRLF Windows checkout bytes. A default-parallel run also
+  had suite-load timeouts. Local implementation commit `9e11a2f` and refinement changes remain on
+  the existing feature branch; there is no remote branch or PR yet. Host GitHub keyring auth is
+  available for publication. Exact-head GitHub CI remains required; no deployment or merge is
+  authorized.
 
 ## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
 

@@ -7,7 +7,13 @@ const ROOT = process.cwd();
 const WEB = process.env.ISSUE_232_WEB_URL ?? 'http://localhost:5180';
 const CHROME =
   process.env.ISSUE_232_CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const OUTPUT = path.join(ROOT, 'docs', 'audit', 'issue-232-console-tabs-evidence');
+const OUTPUT = path.join(
+  ROOT,
+  'docs',
+  'audit',
+  'issue-232-console-tabs-evidence',
+  'refinement-after',
+);
 const VIEWPORTS = [
   { height: 900, name: 'desktop', width: 1440 },
   { height: 900, name: 'desktop-breakpoint', width: 900 },
@@ -26,7 +32,14 @@ const auth = {
     displayName: 'Console Workspace Reviewer',
     email: 'issue-232@example.test',
     id: '00000000-0000-4000-8000-000000000232',
-    permissions: ['tasks:view'],
+    permissions: [
+      'tasks:view',
+      'clients:view',
+      'candidates:view',
+      'missions:view',
+      'documents:view',
+      'quotations:view',
+    ],
   },
 };
 
@@ -63,19 +76,19 @@ async function installFixtures(page) {
   });
 }
 
-async function signIn(page, locale) {
+async function signIn(page, locale, route = 'tasks') {
   await page.addInitScript((value) => localStorage.setItem('hireme.locale', value), locale);
-  await page.goto(`${WEB}/tasks`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${WEB}/${route === 'home' ? '' : route}`, { waitUntil: 'domcontentloaded' });
   await page.locator('input[name="email"]').fill('issue-232@example.test');
   await page.locator('input[name="password"]').fill('Synthetic-password-232!');
   await page.locator('form.auth-panel button[type="submit"]').click();
   await page.locator('.app-shell').waitFor({ state: 'visible' });
-  await page
-    .getByRole('heading', {
-      level: 1,
-      name: locale === 'fr' ? 'Pipeline des tâches' : 'Task pipeline',
-    })
-    .waitFor();
+  await page.locator('.app-shell__surface').waitFor({ state: 'visible' });
+  await page.waitForFunction(
+    () => !document.querySelector('.app-shell__surface [aria-busy="true"]'),
+    undefined,
+    { timeout: 15_000 },
+  );
 }
 
 await mkdir(OUTPUT, { recursive: true });
@@ -128,6 +141,9 @@ try {
           throw new Error(`${locale} ${viewport.name}: RV1 Back did not restore the active tab`);
         }
       } else {
+        await page.screenshot({
+          path: path.join(OUTPUT, `${viewport.name}-${locale}-page.png`),
+        });
         await mobileTrigger.tap();
         const dialog = page.getByRole('dialog', { name: expected.title });
         await dialog.waitFor({ state: 'visible' });
@@ -181,6 +197,56 @@ try {
         horizontalOverflow: overflow,
       });
       await context.close();
+    }
+  }
+
+  for (const route of ['tasks', 'clients', 'documents', 'commercial', 'candidates']) {
+    for (const locale of ['en', 'fr']) {
+      for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
+        const context = await browser.newContext({
+          hasTouch: viewport.hasTouch,
+          isMobile: viewport.isMobile,
+          viewport: { height: viewport.height, width: viewport.width },
+        });
+        const page = await context.newPage();
+        const pageErrors = [];
+        page.on('pageerror', (error) => pageErrors.push(String(error)));
+        await installFixtures(page);
+        await signIn(page, locale, route);
+        const shell = page.locator('.app-shell[data-console-workspace="true"]');
+        const surface = shell.locator('.app-shell__surface');
+        await surface.waitFor({ state: 'visible' });
+        await page.waitForTimeout(200);
+        const surfaceStyle = await surface.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            borderRadius: style.borderRadius,
+            height: Math.round(element.getBoundingClientRect().height),
+            width: Math.round(element.getBoundingClientRect().width),
+          };
+        });
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        if (overflow > 1 || pageErrors.length || surfaceStyle.width <= 0) {
+          throw new Error(
+            `${locale} ${route} ${viewport.name}: overflow=${overflow}, surface=${JSON.stringify(surfaceStyle)}, errors=${pageErrors.join('; ')}`,
+          );
+        }
+        const shot = `${route}-${locale}-${viewport.name}.png`;
+        await page.screenshot({ path: path.join(OUTPUT, shot) });
+        results.push({
+          locale,
+          pageErrors,
+          route,
+          screenshot: shot,
+          surface: surfaceStyle,
+          viewport: viewport.name,
+          width: viewport.width,
+          horizontalOverflow: overflow,
+        });
+        await context.close();
+      }
     }
   }
 } finally {

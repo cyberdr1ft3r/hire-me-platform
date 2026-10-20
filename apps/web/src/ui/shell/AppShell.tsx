@@ -239,6 +239,7 @@ export function AppShell({
   return (
     <div
       className="app-shell"
+      data-console-workspace={consoleWorkspace ? 'true' : undefined}
       data-density="internal-compact"
       data-expanded={expanded ? 'true' : 'false'}
       data-layout={workspaceLayoutForRoute(currentRoute, mobile)}
@@ -444,7 +445,7 @@ export function AppShell({
           tabIndex={-1}
         >
           <div className="app-shell__content" data-route={routeToPath(currentRoute)}>
-            {children}
+            {consoleWorkspace ? <div className="app-shell__surface">{children}</div> : children}
           </div>
         </main>
       </div>

@@ -58,6 +58,34 @@ function ShellHarness() {
 }
 
 describe('AppShell', () => {
+  it('separates Console tab navigation from the active page surface', () => {
+    mockMobileNavigation(false);
+    const { container } = render(
+      <I18nProvider initialLocale="en">
+        <AppShell
+          apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
+          consoleWorkspace={<div role="tablist" aria-label="Workspace tabs" />}
+          currentRoute="tasks"
+          onLogout={() => undefined}
+          onNavigate={() => undefined}
+          onRefreshUser={() => undefined}
+          user={syntheticUser}
+        >
+          <section data-testid="workspace-page">Tasks content</section>
+        </AppShell>
+      </I18nProvider>,
+    );
+
+    const shell = container.querySelector('.app-shell');
+    expect(shell).toHaveAttribute('data-console-workspace', 'true');
+    expect(
+      shell?.querySelector('.app-shell__console-workspace [role="tablist"]'),
+    ).toBeInTheDocument();
+    const surface = container.querySelector('.app-shell__surface');
+    expect(surface).toContainElement(screen.getByTestId('workspace-page'));
+    expect(surface?.parentElement).toHaveClass('app-shell__content');
+  });
+
   it('collapses the context, persists the choice and opens a different authorized domain', () => {
     mockMobileNavigation(false);
     const { unmount } = render(<ShellHarness />);
