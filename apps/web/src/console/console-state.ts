@@ -326,6 +326,7 @@ export function resolveConsoleHistoryTab(
         ? state.tabs.find((item) => item.id === value.tab && isValidTab(item))
         : undefined;
     if (
+      consoleId.trim().length > 0 &&
       value.console === consoleId &&
       tab &&
       tab.route === view.route &&

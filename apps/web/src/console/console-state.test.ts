@@ -317,6 +317,27 @@ describe('Console Workspace URL / RV1 history', () => {
       resolveConsoleHistoryTab(state, historyState, 'instance-A', '/clients', `?client=${ID}`),
     ).toBe(`rec:client:${ID}`);
   });
+  it('rejects an empty console instance id even when the history hint matches', () => {
+    const state = stateWithClientRecord();
+    const malformed = encodeConsoleHistoryState({ hiremeHistoryIndex: 11 }, '', `rec:client:${ID}`);
+
+    expect(resolveConsoleHistoryTab(state, malformed, '', '/clients', `?client=${ID}`)).toBe(
+      `rec:client:${ID}`,
+    );
+  });
+  it('does not resolve a tab id that is absent from the current console state', () => {
+    const cleanSession = initialConsoleState();
+    const unknownTab = encodeConsoleHistoryState(
+      { hiremeHistoryIndex: 12 },
+      'instance-A',
+      'ws:tasks',
+    );
+
+    expect(resolveConsoleHistoryTab(cleanSession, unknownTab, 'instance-A', '/tasks', '')).toBe(
+      'ws:tasks',
+    );
+    expect(cleanSession.tabs.map((tab) => tab.id)).toEqual(['ws:home']);
+  });
   it('ignores stale instances and incompatible open-tab hints', () => {
     let state = stateWithClientRecord();
     state = consoleReducer(state, open('tasks'));

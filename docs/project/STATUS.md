@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 Status owner: repository maintainer
 
 ## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
@@ -22,9 +22,10 @@ Status owner: repository maintainer
 - The measured baseline, permission/history constraints and non-goals remain in the accepted
   preflight. No console tab manager is implemented yet.
 
-## Issue #228 B0′ — unsaved-input guards for every module with forms (draft PR #230)
+## Issue #228 B0′ — unsaved-input guards for every module with forms (merged PR #230)
 
-- Branch `feat/issue-228-b0-unsaved-input-guards` began from `main` `cfe6be6` and was reconciled
+- PR #230 merged into `main` as `bb4ee927dddb93a13492c74ebe894e8df1d013b2`; its branch began from
+  `cfe6be6` and was reconciled
   with merged Phase A commit `6eb69c7903a51abf0d653c03ea1e38ec72c7dff2` in merge commit
   `391d8c29e409ab82167350d07049336bae4f77e9`. The implementation adds no console tabs, API,
   contract, schema, permission or dependency change.
@@ -35,15 +36,25 @@ Status owner: repository maintainer
 - Review hardening keeps confirmations local to one navigation attempt and never unregisters a
   blocker; dirty input remains protected during writes, and write outcomes are credited only to the
   submit that started the write. [Evidence](../audit/issue-228-b0-unsaved-input.md).
-- Reconciled-head formatting, architecture, web lint, typecheck and build pass. Local web tests
-  report 1075/1076 because of the known Windows CRLF assertion; the exact-head Linux CI test suite
-  passed. Exact-head GitHub Actions run `39417931440` passed all four jobs on
-  `391d8c29e409ab82167350d07049336bae4f77e9` after a Quality-check retry; the first two attempts
-  each exposed a different one-test failure, while the targeted retry passed. The existing installed-
-  Chrome audit records 20/20 checks on the hardened B0′ implementation; it was not rerun after the
-  documentation-only reconciliation because this environment lacks the browser-test credentials
-  and Docker access. PR #230 remains draft, unmerged and undeployed; B1 remains separate and B2 is
-  not authorized.
+- Reconciled-head formatting, architecture, web lint, typecheck and build passed. Local web tests
+  reported 1075/1076 because of the known Windows CRLF assertion; the exact-head Linux CI test suite
+  passed. Exact-head Actions passed all four jobs on `d65009249d1084c8cec990d1a31a2752b947be5f`.
+  Existing installed-Chrome audit evidence records 20/20 checks on the hardened B0′ implementation;
+  it was not rerun after documentation-only reconciliation because the environment lacked browser
+  test credentials and Docker access.
+
+## Issue #228 B1 — Console state core (draft PR #231)
+
+- PR #231 remains on `feat/issue-228-b1-console-state-core` and has been reconciled with latest
+  `main` at `bb4ee927dddb93a13492c74ebe894e8df1d013b2` in normal merge commit
+  `e6f4b10727eec71b00a6a54a57f5cca24e2b4fab`. It remains a pure reducer/URL/history layer; no
+  provider, app routing, visible tabs, or second history owner is introduced.
+- RV1 resolves only compatible open identities from the current console instance, then a canonical
+  open record tab, then URL-only intent. History identity is never authorization. B2 must gate open,
+  activation, history resolution, and protected rendering on current permissions. Dirty-aware LRU
+  replacement protects the active group and dirty tabs; B0′ owns runtime dirty-input confirmation.
+- Keep #231 draft and unmerged. B2 requires separate explicit implementation authorization after
+  this integration and B1 review checkpoint.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 
