@@ -205,15 +205,21 @@ Sequence: ~~preflight~~ → ~~PR A~~ → ~~PR B~~ → ~~PR C (#145)~~ → **C2 (
 
 **Issue #147** ([C2 doc](../design/issue-147-barid-c2-provider-engagement.md)): engagement package prepared (`READY_TO_CONTACT_PROVIDER`); provider contact has **not yet been sent**. After send, transition to `WAITING_ON_PROVIDER`; fixtures/token and prepared-artifact proof remain required. **Ready for provider implementation: NO**. Issue #132 stays open.
 
-## Issue #198 — Console Workspace v1.0 (proposed sequence)
+## Issues #198 / #228 — Console Workspace v1.0 tabs (proposed sequence)
 
-**State:** Phase A preflight in review; implementation not approved
+**State:** #228 Phase A approved (PR #229 review, 2026-10-19, refinements RV1/RV2). B0′ authorized as a dedicated draft PR, B1 after its review; B2 onward needs later approval. Already done:
+request core (#203, #209), lazy routes (#208), `?client=` (#207).
+[Sequence and gates](../design/console-workspace-tabs-preflight-228.md#5-implementation-sequence-and-acceptance-gates).
 
-- A: preflight + interaction prototype (human sign-off gate).
-- B0: shared request core (single-flight refresh, R-057) → B1: lazy route chunks and
-  per-locale dictionaries → B2: console foundation (workspace tabs, history, drafts).
-- C: contextual record subtabs for Clients, Missions, Candidates (needs `?client=`).
-- D: Notification Center/Messages integration after #199; one shell poll registry.
+- A: #228 preflight (amendments A1–A7, matrix, baseline) — human sign-off gate.
+- B0′: unsaved-input guard for every module with forms → B1: console state core (pure, tested) →
+  B2: primary workspace tabs (strip, mobile dialog, history, guard, prune/reset) → B3: workspace
+  snapshots for Clients, Candidates, Missions.
+- C1: explicit "Open in tab" record tabs → C2: contextual related-record tabs (`in=`).
+- D1: Notification Center/Messages/Agenda destinations through console operations; D2 optional
+  shell poll registry.
+- Later and separately approved: tab restoration after reload, response cache, per-locale
+  dictionaries, sidebar redesign (next UX milestone).
 
 ## Roadmap rules
 

@@ -1,0 +1,256 @@
+{
+  "scenario": "cold",
+  "cpuThrottle": 4,
+  "date": "2026-10-19T17:38:31.580Z",
+  "web": "http://localhost:5710",
+  "runs": [
+    {
+      "domContentLoadedMs": 781.0999999977648,
+      "loadMs": 781.5,
+      "fcpMs": 1012,
+      "loginFormLcpMs": 1012,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 588,
+      "longestTaskMs": 638,
+      "scriptDurationMs": 714.6,
+      "jsHeapAfterLoadMB": 15.79,
+      "loginToShellMs": 355,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1667,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 750,
+        "lcpMs": 960
+      }
+    },
+    {
+      "domContentLoadedMs": 696.3000000007451,
+      "loadMs": 696.8000000007451,
+      "fcpMs": 784,
+      "loginFormLcpMs": 784,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 538,
+      "longestTaskMs": 588,
+      "scriptDurationMs": 610.4,
+      "jsHeapAfterLoadMB": 43.89,
+      "loginToShellMs": 217,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1363,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 663,
+        "lcpMs": 948
+      }
+    },
+    {
+      "domContentLoadedMs": 1151.0999999977648,
+      "loadMs": 1152.199999999255,
+      "fcpMs": 1248,
+      "loginFormLcpMs": 1248,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 899,
+      "longestTaskMs": 949,
+      "scriptDurationMs": 969.3,
+      "jsHeapAfterLoadMB": 46,
+      "loginToShellMs": 230,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1233,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 603,
+        "lcpMs": 848
+      }
+    },
+    {
+      "domContentLoadedMs": 823.8000000007451,
+      "loadMs": 824.9000000022352,
+      "fcpMs": 908,
+      "loginFormLcpMs": 908,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 644,
+      "longestTaskMs": 694,
+      "scriptDurationMs": 718.2,
+      "jsHeapAfterLoadMB": 35.56,
+      "loginToShellMs": 402,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1783,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 1000,
+        "lcpMs": 1320
+      }
+    },
+    {
+      "domContentLoadedMs": 813.5,
+      "loadMs": 814.4000000022352,
+      "fcpMs": 928,
+      "loginFormLcpMs": 928,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 655,
+      "longestTaskMs": 705,
+      "scriptDurationMs": 728.1,
+      "jsHeapAfterLoadMB": 112.3,
+      "loginToShellMs": 213,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1255,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 534,
+        "lcpMs": 788
+      }
+    },
+    {
+      "domContentLoadedMs": 781,
+      "loadMs": 782.8999999985099,
+      "fcpMs": 908,
+      "loginFormLcpMs": 908,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 648,
+      "longestTaskMs": 698,
+      "scriptDurationMs": 725.4,
+      "jsHeapAfterLoadMB": 91.07,
+      "loginToShellMs": 196,
+      "restored": true,
+      "reloadToCandidatesSettledMs": 1136,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 201",
+          "GET /v1/notifications 200",
+          "GET /v1/messages/unread-summary 200",
+          "GET /v1/candidates 200"
+        ],
+        "blockingMs": 495,
+        "lcpMs": 708
+      }
+    },
+    {
+      "domContentLoadedMs": 1399.6000000014901,
+      "loadMs": 1400.4000000022352,
+      "fcpMs": 1496,
+      "loginFormLcpMs": 1496,
+      "transferKB": 195.1,
+      "decodedKB": 803.1,
+      "longTasks": 1,
+      "blockingMs": 1199,
+      "longestTaskMs": 1249,
+      "scriptDurationMs": 1275.1,
+      "jsHeapAfterLoadMB": 159.06,
+      "loginToShellMs": 252,
+      "restored": false,
+      "reloadToCandidatesSettledMs": null,
+      "reload": {
+        "requests": [
+          "GET /health 200",
+          "POST /auth/refresh 429"
+        ],
+        "blockingMs": 914,
+        "lcpMs": 1224
+      }
+    }
+  ],
+  "domContentLoadedMs": {
+    "n": 7,
+    "median": 813.5,
+    "p95": 1399.6,
+    "max": 1399.6
+  },
+  "fcpMs": {
+    "n": 7,
+    "median": 928,
+    "p95": 1496,
+    "max": 1496
+  },
+  "loginFormLcpMs": {
+    "n": 7,
+    "median": 928,
+    "p95": 1496,
+    "max": 1496
+  },
+  "loadMs": {
+    "n": 7,
+    "median": 814.4,
+    "p95": 1400.4,
+    "max": 1400.4
+  },
+  "scriptDurationMs": {
+    "n": 7,
+    "median": 725.4,
+    "p95": 1275.1,
+    "max": 1275.1
+  },
+  "blockingMs": {
+    "n": 7,
+    "median": 648,
+    "p95": 1199,
+    "max": 1199
+  },
+  "longestTaskMs": {
+    "n": 7,
+    "median": 698,
+    "p95": 1249,
+    "max": 1249
+  },
+  "loginToShellMs": {
+    "n": 7,
+    "median": 230,
+    "p95": 402,
+    "max": 402
+  },
+  "reloadToCandidatesSettledMs": {
+    "n": 6,
+    "median": 1255,
+    "p95": 1783,
+    "max": 1783
+  },
+  "transferKB": 195.1,
+  "restorationFailures": [
+    [
+      "GET /health 200",
+      "POST /auth/refresh 429"
+    ]
+  ],
+  "decodedKB": 803.1
+}

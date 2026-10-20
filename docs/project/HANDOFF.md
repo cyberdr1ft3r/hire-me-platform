@@ -4,25 +4,29 @@ Last updated: 2026-10-20
 
 ## Current situation
 
-- Latest `main` is `cfe6be6`. Issue #228 Phase A was approved in the review of draft PR #229 with
-  refinements RV1 (tab identity in `history.state`, URL-only fallback) and RV2 (guards ask only for
-  genuinely unsaved input). PR #229 documents both; its exact-head CI is green and it stays draft.
-- B0′ is draft PR #230 on `feat/issue-228-b0-unsaved-input-guards`: RV2 dirty detection in
-  the shared guard, guard-stack fallthrough, and unsaved-input protection for Tasks, Training,
-  Accounting, Commercial, Documents, Messages and Administration.
-  [Evidence](../audit/issue-228-b0-unsaved-input.md).
-- No console tab code exists yet. B2 onward is not approved.
+- Latest `main` is `6eb69c7903a51abf0d653c03ea1e38ec72c7dff2`; it includes merged PR #229, which
+  records the accepted D-089 Phase A architecture with RV1/RV2. RV1 keeps tab identity in existing
+  `history.state` with URL-only fallback and one navigation authority; RV2 guards only genuinely
+  unsaved values. B2 must render only the active module; hidden Activity trees, response caching and
+  sessionStorage restoration are out of scope.
+- B0′ remains draft PR #230 on `feat/issue-228-b0-unsaved-input-guards`. Its dirty detection,
+  multi-blocker navigation-guard behavior, and form coverage across Tasks, Training, Accounting,
+  Commercial, Documents, Messages and Administration are preserved. Evidence:
+  [B0′ audit](../audit/issue-228-b0-unsaved-input.md).
+- #230 is reconciled locally with latest `main`; exact-head checks and browser regressions are the
+  next gate. Do not mark ready or merge it here. PR #231 (B1) remains untouched on its own branch
+  and will need its own reconciliation after #230 is reviewed/integrated.
+- No console tab UI exists yet. B2 onward remains unauthorized.
 
 ## Next concrete action
 
-1. Maintainer reviews the B0′ draft PR and its browser evidence; resolve comments on the same branch.
-2. After B0′ review, open B1 (pure console state core with the RV1 history-state codec and
-   resolution order, unit tests only, not rendered) as its own draft PR from latest `main`.
-3. Reconcile `docs/project/STATUS.md` / `HANDOFF.md` between #229 and B0′ at merge time (both add
-   an Issue #228 section).
+1. Complete and record formatting, architecture, lint, typecheck, full web tests, build, and relevant
+   browser regression results on reconciled #230; push only to its existing branch.
+2. Verify all four CI jobs on the exact pushed SHA and confirm GitHub mergeability; stop at the
+   maintainer review/merge-readiness checkpoint.
+3. Do not modify #231, start B2, merge or deploy without the applicable explicit authorization.
 
 ## Completion conditions
 
-- PR #229, B0′ and B1 stay draft and unmerged, each with green exact-head CI.
-- No B2 implementation, merge, deployment, sidebar redesign or unrelated fix without explicit
-  approval.
+- #230 remains draft/unmerged with exact-head checks green and semantic D-089/B0′ status documentation.
+- No changes to #231, B2 implementation, merge, deployment, sidebar redesign or unrelated work.

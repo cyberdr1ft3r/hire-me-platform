@@ -1,0 +1,12 @@
+total minified bytes 664894
+  220.7 KB  34.0% web:i18n
+  176.5 KB  27.2% npm:react-dom
+   78.4 KB  12.1% contracts
+   67.0 KB  10.3% npm:zod
+   37.4 KB   5.8% web:api
+   21.4 KB   3.3% web:ui
+    8.7 KB   1.3% web:messages
+    8.1 KB   1.3% npm:react
+    8.0 KB   1.2% web:navigation
+    7.5 KB   1.2% web:auth
+    5.4 KB   0.8% web:App

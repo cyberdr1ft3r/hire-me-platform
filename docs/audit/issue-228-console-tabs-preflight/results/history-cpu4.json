@@ -1,0 +1,49 @@
+{
+  "scenario": "history",
+  "cpuThrottle": 4,
+  "date": "2026-10-19T17:39:31.372Z",
+  "web": "http://localhost:5710",
+  "history": {
+    "back": {
+      "paintMs": {
+        "n": 40,
+        "median": 60.3,
+        "p95": 179.9,
+        "max": 273.2
+      },
+      "settledMs": {
+        "n": 40,
+        "median": 108.8,
+        "p95": 212.3,
+        "max": 301.7
+      },
+      "requestsPerStep": {
+        "n": 40,
+        "median": 1,
+        "p95": 7,
+        "max": 7
+      }
+    },
+    "forward": {
+      "paintMs": {
+        "n": 40,
+        "median": 74.2,
+        "p95": 236,
+        "max": 330.9
+      },
+      "settledMs": {
+        "n": 40,
+        "median": 112.3,
+        "p95": 254.7,
+        "max": 378
+      },
+      "requestsPerStep": {
+        "n": 40,
+        "median": 1,
+        "p95": 7,
+        "max": 7
+      }
+    }
+  },
+  "finalUrl": "/messages"
+}
