@@ -24,8 +24,9 @@ Status owner: repository maintainer
 
 ## Issue #228 B0′ — unsaved-input guards for every module with forms (draft PR #230)
 
-- Branch `feat/issue-228-b0-unsaved-input-guards` began from `main` `cfe6be6` and is being
-  reconciled with merged Phase A commit `6eb69c7`. The implementation adds no console tabs, API,
+- Branch `feat/issue-228-b0-unsaved-input-guards` began from `main` `cfe6be6` and was reconciled
+  with merged Phase A commit `6eb69c7903a51abf0d653c03ea1e38ec72c7dff2` in merge commit
+  `391d8c29e409ab82167350d07049336bae4f77e9`. The implementation adds no console tabs, API,
   contract, schema, permission or dependency change.
 - The shared guard asks only for genuinely unsaved input (changed and different from the values when
   editing began); unchanged, reverted, saved (`savedSignal` after a started write), reset and
@@ -34,10 +35,15 @@ Status owner: repository maintainer
 - Review hardening keeps confirmations local to one navigation attempt and never unregisters a
   blocker; dirty input remains protected during writes, and write outcomes are credited only to the
   submit that started the write. [Evidence](../audit/issue-228-b0-unsaved-input.md).
-- Earlier branch verification recorded 20/20 installed-Chrome cases and 1075/1076 local web tests
-  (the known Windows CRLF assertion), with formatting, architecture, lint, typecheck and build passing.
-  Re-run results for the reconciled head are recorded in the PR review update. PR #230 stays draft,
-  unmerged and undeployed; B1 remains separate and B2 is not authorized.
+- Reconciled-head formatting, architecture, web lint, typecheck and build pass. Local web tests
+  report 1075/1076 because of the known Windows CRLF assertion; the exact-head Linux CI test suite
+  passed. Exact-head GitHub Actions run `39417931440` passed all four jobs on
+  `391d8c29e409ab82167350d07049336bae4f77e9` after a Quality-check retry; the first two attempts
+  each exposed a different one-test failure, while the targeted retry passed. The existing installed-
+  Chrome audit records 20/20 checks on the hardened B0′ implementation; it was not rerun after the
+  documentation-only reconciliation because this environment lacks the browser-test credentials
+  and Docker access. PR #230 remains draft, unmerged and undeployed; B1 remains separate and B2 is
+  not authorized.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 
