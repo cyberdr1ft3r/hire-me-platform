@@ -61,6 +61,7 @@ export const enMessages = {
     moduleLoadFailedTitle: 'Workspace unavailable',
     moduleLoadRetry: 'Try again',
     moduleLoading: 'Loading workspace…',
+    unsavedInputPrompt: 'You have unsaved changes on this page. Leave and discard them?',
     destinations: {
       accounting: 'Accounting',
       administration: 'Administration',

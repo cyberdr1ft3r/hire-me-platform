@@ -30,6 +30,7 @@ import {
 import { PaneHeader, SelectedPeople } from './NewConversation.js';
 import { participantOptions } from './participant-options.js';
 import { useAliveRef } from './polling.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 type Feedback =
   | { key: Extract<MessageKey, `messages.feedback.${string}`>; tone: 'success' }
@@ -238,196 +239,205 @@ export function GroupDetails({
   }
 
   return (
-    <section className="messages-pane messages-details">
-      <PaneHeader
-        authored
-        backLabel={t('messages.details.back')}
-        headingRef={headingRef}
-        meta={
-          <>
-            <span>{t('messages.details.title')}</span>
-            <span>{t('messages.list.memberCount', { count: detail.activeMemberCount })}</span>
-            {active ? null : (
-              <StatusBadge tone="neutral">{t('messages.list.archived')}</StatusBadge>
-            )}
-          </>
-        }
-        onBack={onBack}
-        title={detail.title ?? ''}
-      />
-      {feedback ? (
-        <InlineMessage
-          announce
-          title={
-            feedback.tone === 'success'
-              ? t('messages.feedback.successTitle')
-              : t('messages.feedback.errorTitle')
+    // The rename and add-member forms stay open after saving; their own scope knows when.
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={pending !== null}
+    >
+      <section className="messages-pane messages-details">
+        <PaneHeader
+          authored
+          backLabel={t('messages.details.back')}
+          headingRef={headingRef}
+          meta={
+            <>
+              <span>{t('messages.details.title')}</span>
+              <span>{t('messages.list.memberCount', { count: detail.activeMemberCount })}</span>
+              {active ? null : (
+                <StatusBadge tone="neutral">{t('messages.list.archived')}</StatusBadge>
+              )}
+            </>
           }
-          tone={feedback.tone}
-        >
-          <p className="messages-text">{t(feedback.key)}</p>
-        </InlineMessage>
-      ) : null}
-      {active ? null : (
-        <InlineMessage title={t('messages.composer.readOnlyArchivedTitle')} tone="info">
-          <p className="messages-text">{t('messages.details.archivedNotice')}</p>
-        </InlineMessage>
-      )}
-      {manage ? (
-        <form className="messages-form messages-form--inline" onSubmit={rename}>
-          <TextField
-            error={titleProblem === 'required' ? t('messages.newGroup.nameRequired') : undefined}
-            hint={t('messages.newGroup.nameHint')}
-            label={t('messages.details.rename')}
-            maxLength={GROUP_TITLE_MAX_LENGTH}
-            onChange={(event) => setTitle(event.currentTarget.value)}
-            required
-            translate="no"
-            value={title}
-          />
-          <div className="messages-form__actions">
+          onBack={onBack}
+          title={detail.title ?? ''}
+        />
+        {feedback ? (
+          <InlineMessage
+            announce
+            title={
+              feedback.tone === 'success'
+                ? t('messages.feedback.successTitle')
+                : t('messages.feedback.errorTitle')
+            }
+            tone={feedback.tone}
+          >
+            <p className="messages-text">{t(feedback.key)}</p>
+          </InlineMessage>
+        ) : null}
+        {active ? null : (
+          <InlineMessage title={t('messages.composer.readOnlyArchivedTitle')} tone="info">
+            <p className="messages-text">{t('messages.details.archivedNotice')}</p>
+          </InlineMessage>
+        )}
+        {manage ? (
+          <form className="messages-form messages-form--inline" onSubmit={rename}>
+            <TextField
+              error={titleProblem === 'required' ? t('messages.newGroup.nameRequired') : undefined}
+              hint={t('messages.newGroup.nameHint')}
+              label={t('messages.details.rename')}
+              maxLength={GROUP_TITLE_MAX_LENGTH}
+              onChange={(event) => setTitle(event.currentTarget.value)}
+              required
+              translate="no"
+              value={title}
+            />
+            <div className="messages-form__actions">
+              <Button
+                disabled={titleProblem !== null || title.trim() === detail.title}
+                loading={pending === 'rename'}
+                loadingLabel={t('common.status.working')}
+                size="compact"
+                type="submit"
+                variant="secondary"
+              >
+                {t('messages.details.renameSubmit')}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+        <section aria-labelledby="messages-details-members" className="messages-details__members">
+          <h3 id="messages-details-members">{t('messages.details.members')}</h3>
+          {owner ? null : <p className="messages-muted">{t('messages.details.ownerNote')}</p>}
+          <ul className="messages-members">
+            {detail.members.map((member) => {
+              const you = sameUser(member.user.id, actorUserId);
+              const memberRole = member.role === 'OWNER';
+              return (
+                <li className="messages-member" key={member.user.id}>
+                  <div className="messages-member__identity">
+                    <span className="messages-member__name" translate="no">
+                      {member.user.displayName}
+                    </span>
+                    <span className="messages-member__detail" translate="no">
+                      {member.user.email}
+                    </span>
+                  </div>
+                  <div className="messages-member__markers">
+                    <StatusBadge tone={memberRole ? 'info' : 'neutral'}>
+                      {memberRole ? t('messages.details.owner') : t('messages.details.member')}
+                    </StatusBadge>
+                    {you ? (
+                      <span className="messages-marker">{t('messages.details.you')}</span>
+                    ) : null}
+                    {member.user.inactive ? (
+                      <StatusBadge tone="warning">{t('messages.details.inactive')}</StatusBadge>
+                    ) : null}
+                  </div>
+                  {manage && !you && !memberRole ? (
+                    <div className="messages-member__actions">
+                      <Button
+                        disabled={pending !== null}
+                        onClick={() => promote(member)}
+                        size="compact"
+                        variant="quiet"
+                      >
+                        {t('messages.details.promote')}
+                      </Button>
+                      <Button
+                        disabled={pending !== null}
+                        onClick={() => remove(member)}
+                        size="compact"
+                        variant="quiet"
+                      >
+                        {t('messages.details.remove')}
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+        {manage ? (
+          <form aria-labelledby="messages-details-add" className="messages-form" onSubmit={add}>
+            <h3 id="messages-details-add">{t('messages.details.addTitle')}</h3>
+            <BoundedCombobox
+              disabled={full}
+              hint={
+                full
+                  ? t('messages.newGroup.maxMembers', { max: GROUP_MAX_ACTIVE_MEMBERS })
+                  : t('messages.newGroup.memberHint')
+              }
+              label={t('messages.newGroup.memberPicker')}
+              loadOptions={participantOptions({
+                accessToken,
+                conversationId,
+                exclude: [
+                  ...detail.members.map((member) => member.user.id),
+                  ...adding.map((person) => person.id),
+                ],
+                purpose: 'group-add',
+              })}
+              onChange={(option) => {
+                if (option && !full) {
+                  setAdding((current) =>
+                    current.some((person) => person.id === option.id)
+                      ? current
+                      : [...current, option],
+                  );
+                }
+              }}
+              sourceKey={`group-add:${adding.length}:${detail.activeMemberCount}`}
+              value={null}
+            />
+            <SelectedPeople
+              onRemove={(id) =>
+                setAdding((current) => current.filter((person) => person.id !== id))
+              }
+              people={adding}
+            />
+            <p className="messages-muted">{t('messages.newGroup.historyNotice')}</p>
+            <div className="messages-form__actions">
+              <Button
+                disabled={adding.length === 0}
+                loading={pending === 'add'}
+                loadingLabel={t('common.status.working')}
+                size="compact"
+                type="submit"
+              >
+                {t('messages.details.addSubmit')}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+        {canCreate && active ? (
+          <div className="messages-details__danger">
             <Button
-              disabled={titleProblem !== null || title.trim() === detail.title}
-              loading={pending === 'rename'}
+              disabled={pending !== null && pending !== 'leave'}
+              loading={pending === 'leave'}
               loadingLabel={t('common.status.working')}
+              onClick={leave}
               size="compact"
-              type="submit"
               variant="secondary"
             >
-              {t('messages.details.renameSubmit')}
+              {t('messages.details.leave')}
             </Button>
+            {manage ? (
+              <Button
+                disabled={pending !== null && pending !== 'archive'}
+                loading={pending === 'archive'}
+                loadingLabel={t('common.status.working')}
+                onClick={archive}
+                size="compact"
+                variant="danger"
+              >
+                {t('messages.details.archive')}
+              </Button>
+            ) : null}
           </div>
-        </form>
-      ) : null}
-      <section aria-labelledby="messages-details-members" className="messages-details__members">
-        <h3 id="messages-details-members">{t('messages.details.members')}</h3>
-        {owner ? null : <p className="messages-muted">{t('messages.details.ownerNote')}</p>}
-        <ul className="messages-members">
-          {detail.members.map((member) => {
-            const you = sameUser(member.user.id, actorUserId);
-            const memberRole = member.role === 'OWNER';
-            return (
-              <li className="messages-member" key={member.user.id}>
-                <div className="messages-member__identity">
-                  <span className="messages-member__name" translate="no">
-                    {member.user.displayName}
-                  </span>
-                  <span className="messages-member__detail" translate="no">
-                    {member.user.email}
-                  </span>
-                </div>
-                <div className="messages-member__markers">
-                  <StatusBadge tone={memberRole ? 'info' : 'neutral'}>
-                    {memberRole ? t('messages.details.owner') : t('messages.details.member')}
-                  </StatusBadge>
-                  {you ? (
-                    <span className="messages-marker">{t('messages.details.you')}</span>
-                  ) : null}
-                  {member.user.inactive ? (
-                    <StatusBadge tone="warning">{t('messages.details.inactive')}</StatusBadge>
-                  ) : null}
-                </div>
-                {manage && !you && !memberRole ? (
-                  <div className="messages-member__actions">
-                    <Button
-                      disabled={pending !== null}
-                      onClick={() => promote(member)}
-                      size="compact"
-                      variant="quiet"
-                    >
-                      {t('messages.details.promote')}
-                    </Button>
-                    <Button
-                      disabled={pending !== null}
-                      onClick={() => remove(member)}
-                      size="compact"
-                      variant="quiet"
-                    >
-                      {t('messages.details.remove')}
-                    </Button>
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        ) : null}
       </section>
-      {manage ? (
-        <form aria-labelledby="messages-details-add" className="messages-form" onSubmit={add}>
-          <h3 id="messages-details-add">{t('messages.details.addTitle')}</h3>
-          <BoundedCombobox
-            disabled={full}
-            hint={
-              full
-                ? t('messages.newGroup.maxMembers', { max: GROUP_MAX_ACTIVE_MEMBERS })
-                : t('messages.newGroup.memberHint')
-            }
-            label={t('messages.newGroup.memberPicker')}
-            loadOptions={participantOptions({
-              accessToken,
-              conversationId,
-              exclude: [
-                ...detail.members.map((member) => member.user.id),
-                ...adding.map((person) => person.id),
-              ],
-              purpose: 'group-add',
-            })}
-            onChange={(option) => {
-              if (option && !full) {
-                setAdding((current) =>
-                  current.some((person) => person.id === option.id)
-                    ? current
-                    : [...current, option],
-                );
-              }
-            }}
-            sourceKey={`group-add:${adding.length}:${detail.activeMemberCount}`}
-            value={null}
-          />
-          <SelectedPeople
-            onRemove={(id) => setAdding((current) => current.filter((person) => person.id !== id))}
-            people={adding}
-          />
-          <p className="messages-muted">{t('messages.newGroup.historyNotice')}</p>
-          <div className="messages-form__actions">
-            <Button
-              disabled={adding.length === 0}
-              loading={pending === 'add'}
-              loadingLabel={t('common.status.working')}
-              size="compact"
-              type="submit"
-            >
-              {t('messages.details.addSubmit')}
-            </Button>
-          </div>
-        </form>
-      ) : null}
-      {canCreate && active ? (
-        <div className="messages-details__danger">
-          <Button
-            disabled={pending !== null && pending !== 'leave'}
-            loading={pending === 'leave'}
-            loadingLabel={t('common.status.working')}
-            onClick={leave}
-            size="compact"
-            variant="secondary"
-          >
-            {t('messages.details.leave')}
-          </Button>
-          {manage ? (
-            <Button
-              disabled={pending !== null && pending !== 'archive'}
-              loading={pending === 'archive'}
-              loadingLabel={t('common.status.working')}
-              onClick={archive}
-              size="compact"
-              variant="danger"
-            >
-              {t('messages.details.archive')}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
+    </UnsavedInputScope>
   );
 }

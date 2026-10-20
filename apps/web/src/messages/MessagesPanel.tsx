@@ -40,6 +40,7 @@ import {
 } from './messaging-state.js';
 import { NewDirectPane, NewGroupPane } from './NewConversation.js';
 import { useAliveRef, useVisibleInterval } from './polling.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 type PaneMode =
   | { kind: 'empty' }
@@ -93,14 +94,21 @@ export function MessagesPanel({
 }) {
   const sessionKey = `${actorUserId}\n${[...permissions].sort().join(' ')}\n${accessToken}`;
   return (
-    <MessagesWorkspace
-      accessToken={accessToken}
-      actorUserId={actorUserId}
-      initialConversationId={initialConversationId}
-      key={sessionKey}
-      onUnreadChanged={onUnreadChanged}
-      permissions={permissions}
-    />
+    /*
+     * An unsent draft, an open message edit or a new-conversation form asks before
+     * leaving (Issue #228 B0′). Each clears itself on success (sent, closed, opened),
+     * and group details keep their own scope for the forms that stay open.
+     */
+    <UnsavedInputScope writePending={false}>
+      <MessagesWorkspace
+        accessToken={accessToken}
+        actorUserId={actorUserId}
+        initialConversationId={initialConversationId}
+        key={sessionKey}
+        onUnreadChanged={onUnreadChanged}
+        permissions={permissions}
+      />
+    </UnsavedInputScope>
   );
 }
 

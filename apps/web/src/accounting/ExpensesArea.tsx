@@ -60,6 +60,7 @@ import {
   Money,
 } from './AccountingParts.js';
 import { ConfirmPanel, CorrectionForm } from './PaymentDetail.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 type Scope = 'area' | 'record';
 
@@ -251,83 +252,92 @@ export function ExpensesArea({ access, loaders, session }: AreaProps) {
   };
 
   return (
-    <div className="accounting-area">
-      <div className="accounting-area__header">
-        <h2 className="accounting__pane-title" id="accounting-expenses-title">
-          {t('accounting.expenses.title')}
-        </h2>
-        {access.expenses.record && !draft ? (
-          <Button
-            disabled={writesLocked}
-            onClick={() => {
-              setFeedback(null);
-              setDraft({ token: 1, values: emptyExpenseForm() });
-            }}
-          >
-            {t('accounting.expenses.new')}
-          </Button>
-        ) : null}
-      </div>
-      <p className="accounting-muted">{t('accounting.expenses.description')}</p>
+    // Unsaved input in this area's forms asks before leaving (Issue #228 B0′).
+    <UnsavedInputScope
+      failureSignal={feedback?.tone === 'danger' ? feedback : null}
+      savedSignal={feedback?.tone === 'success' ? feedback : null}
+      writePending={writesLocked}
+    >
+      <div className="accounting-area">
+        <div className="accounting-area__header">
+          <h2 className="accounting__pane-title" id="accounting-expenses-title">
+            {t('accounting.expenses.title')}
+          </h2>
+          {access.expenses.record && !draft ? (
+            <Button
+              disabled={writesLocked}
+              onClick={() => {
+                setFeedback(null);
+                setDraft({ token: 1, values: emptyExpenseForm() });
+              }}
+            >
+              {t('accounting.expenses.new')}
+            </Button>
+          ) : null}
+        </div>
+        <p className="accounting-muted">{t('accounting.expenses.description')}</p>
 
-      <FeedbackMessage feedback={feedback} />
+        <FeedbackMessage feedback={feedback} />
 
-      {draft ? (
-        <ExpenseCreateForm
-          access={access}
-          key={`${session.key}:${draft.token}`}
-          loaders={loaders}
-          onCancel={() => setDraft(null)}
-          onChange={(values) => setDraft((current) => (current ? { ...current, values } : current))}
-          onSubmit={create}
-          pending={session.pending}
-          sessionKey={session.key}
-          values={draft.values}
-        />
-      ) : null}
-
-      <div className="accounting__workspace">
-        <section aria-labelledby="accounting-expenses-title" className="accounting__list-pane">
-          <ExpenseFiltersForm
+        {draft ? (
+          <ExpenseCreateForm
             access={access}
-            busy={list.status === 'loading'}
-            loadClients={loaders.clients}
-            onChange={setFilters}
-            onReset={reset}
-            onSubmit={() => {
-              clearSelection();
-              applyQuery({ filters, page: 1 });
-            }}
-            sessionKey={session.key}
-            showReset={hasExpenseFilters(query.filters) || hasExpenseFilters(filters)}
-            values={filters}
-          />
-          <ExpenseList
-            filtered={hasExpenseFilters(query.filters)}
-            list={list}
-            onPage={(page) => applyQuery({ ...queryRef.current, page })}
-            onReset={reset}
-            onRetry={() => void loadList(queryRef.current)}
-            onSelect={select}
-            selectedId={selectedId}
-          />
-        </section>
-        <div className="accounting__detail-pane">
-          <ExpenseDetailView
-            access={access}
-            actions={actions}
-            focusToken={focusToken}
-            onRetry={() => {
-              const id = selectedRef.current;
-              if (id) void loadDetail(id);
-            }}
+            key={`${session.key}:${draft.token}`}
+            loaders={loaders}
+            onCancel={() => setDraft(null)}
+            onChange={(values) =>
+              setDraft((current) => (current ? { ...current, values } : current))
+            }
+            onSubmit={create}
             pending={session.pending}
-            selectedId={selectedId}
-            state={detail}
+            sessionKey={session.key}
+            values={draft.values}
           />
+        ) : null}
+
+        <div className="accounting__workspace">
+          <section aria-labelledby="accounting-expenses-title" className="accounting__list-pane">
+            <ExpenseFiltersForm
+              access={access}
+              busy={list.status === 'loading'}
+              loadClients={loaders.clients}
+              onChange={setFilters}
+              onReset={reset}
+              onSubmit={() => {
+                clearSelection();
+                applyQuery({ filters, page: 1 });
+              }}
+              sessionKey={session.key}
+              showReset={hasExpenseFilters(query.filters) || hasExpenseFilters(filters)}
+              values={filters}
+            />
+            <ExpenseList
+              filtered={hasExpenseFilters(query.filters)}
+              list={list}
+              onPage={(page) => applyQuery({ ...queryRef.current, page })}
+              onReset={reset}
+              onRetry={() => void loadList(queryRef.current)}
+              onSelect={select}
+              selectedId={selectedId}
+            />
+          </section>
+          <div className="accounting__detail-pane">
+            <ExpenseDetailView
+              access={access}
+              actions={actions}
+              focusToken={focusToken}
+              onRetry={() => {
+                const id = selectedRef.current;
+                if (id) void loadDetail(id);
+              }}
+              pending={session.pending}
+              selectedId={selectedId}
+              state={detail}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </UnsavedInputScope>
   );
 }
 

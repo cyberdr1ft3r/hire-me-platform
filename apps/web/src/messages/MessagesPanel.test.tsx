@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider, useI18n, type Locale } from '../i18n/index.js';
+import { requestNavigation, resetNavigationGuardForTests } from '../navigation/navigation-guard.js';
 import { MessagesPanel } from './MessagesPanel.js';
 import {
   ACTOR_ID,
@@ -904,5 +905,70 @@ describe('Messages workspace', () => {
     expect(await screen.findByText('No archived groups')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'All' }));
     expect(await screen.findByText('No conversations yet')).toBeVisible();
+  });
+});
+
+describe('Messages unsaved draft (Issue #228 B0′)', () => {
+  function leavingAsks(): boolean {
+    const navigate = vi.fn();
+    requestNavigation(navigate);
+    return navigate.mock.calls.length === 0;
+  }
+
+  it('asks while a draft is unsent, keeps it after a failed send, and stops once it is sent', async () => {
+    resetNavigationGuardForTests();
+    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    let failNext = true;
+    createFakeMessaging({
+      override: (call) => {
+        if (call.method === 'POST' && call.path.endsWith(`${DIRECT_ID}/messages`) && failNext) {
+          failNext = false;
+          return apiError(503, 'SERVICE_UNAVAILABLE');
+        }
+        return undefined;
+      },
+    });
+    render(<Workspace />);
+    await openRow(/Nadia Peer/);
+
+    const composer = screen.getByRole('textbox', { name: 'Message' });
+    fireEvent.focusIn(composer);
+    expect(leavingAsks()).toBe(false);
+    fireEvent.change(composer, { target: { value: 'Synthetic draft' } });
+    expect(leavingAsks()).toBe(true);
+    expect(confirmLeave).toHaveBeenCalledWith(
+      'You have unsaved changes on this page. Leave and discard them?',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('The request could not be completed. Try again.')).toBeVisible();
+    expect(leavingAsks()).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await within(screen.getByRole('log', { name: 'Message history' })).findByText(
+      'Synthetic draft',
+    );
+    expect(composer).toHaveValue('');
+    expect(leavingAsks()).toBe(false);
+  });
+
+  it('treats a renamed group as saved while the details stay open', async () => {
+    resetNavigationGuardForTests();
+    createFakeMessaging();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<Workspace />);
+    await openRow(/circle/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    const name = await screen.findByRole('textbox', { name: /Group name/ });
+    fireEvent.focusIn(name);
+    fireEvent.change(name, { target: { value: 'Renamed synthetic circle' } });
+    expect(leavingAsks()).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    expect(await screen.findByText('Group renamed.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: /Group name/ })).toHaveValue(
+      'Renamed synthetic circle',
+    );
+    expect(leavingAsks()).toBe(false);
   });
 });

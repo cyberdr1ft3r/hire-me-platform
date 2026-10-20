@@ -3,29 +3,47 @@
 Last updated: 2026-10-19
 Status owner: repository maintainer
 
-## Issue #228 — Console Workspace tabs, Phase A preflight on `main`
+## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
 
-- Documentation and measurement only, in draft PR #229 (`docs/issue-228-console-tabs-preflight`) from `main`
-  `cfe6be6` (#227 merged). No application code, contract, schema, permission, dependency or
+- Documentation and measurement only; PR #229 merged into `main` as
+  `6eb69c7903a51abf0d653c03ea1e38ec72c7dff2`. It adds no application code, contract, schema, permission or
   sidebar change. [Preflight](../design/console-workspace-tabs-preflight-228.md),
   [revised interaction matrix](../design/console-workspace-v1-interaction-matrix.md),
   [baseline and test plan](../audit/issue-228-console-tabs-preflight.md).
-- No console/tab-manager code exists; the only `role="tablist"` components are in-record sections.
-  #198's B0 (request core #203/#209) and B1 (lazy routes #208) and `?client=` are already on `main`.
-- Proposed D-089 amendments A1–A7: keep today's URLs (tab membership is session state; `in=` only
-  for cross-module record tabs), no response cache in Phase B, confirm-only drafts (hidden
-  `<Activity>` would release the effect-based guard), prune on permission change / remount on user
-  or session change, desktop strip in the utility-bar breadcrumb slot, reuse `navigation-guard.ts`.
+- D-089 is accepted with amendments A1–A7 and RV1/RV2: keep existing record URLs; tab identity is
+  stored in the existing router history state with URL-compatible fallback; `navigation-guard.ts`
+  remains the sole history authority; genuinely unsaved input is guarded. Render only the active
+  module, with no hidden React Activity trees, response cache, or sessionStorage restoration.
 - Baseline at 4× CPU: entry 179.2 KB gzip (was 302.8), cold FCP median 928 ms, revisit paint
   60 ms median / 233 ms p95, Back/Forward settled ~110 ms, heap flat over 50 cycles, 2 idle
   requests/min. Seven modules with forms (Tasks, Training, Accounting, Commercial, Documents, Admin,
   Messages composer) have no unsaved-input guard; a guard-coverage PR (B0′) is proposed before
   closable tabs. The refresh limiter still logs out the 7th rapid reload (R-055).
-- Maintainer review (2026-10-19) approved the direction, A1–A7, the ≥ 900px utility-bar strip,
-  active-only rendering with confirm-before-switch, no restoration/cache in v1.0 and recorded browser
-  evidence instead of Figma, with refinements RV1 (tab identity in `history.state`, URL-only
-  fallback) and RV2 (guards ask only for genuinely unsaved input). D-089 Accepted. Next: B0′ draft
-  PR, then B1 after review. PR #229 stays draft.
+- The measured baseline, permission/history constraints and non-goals remain in the accepted
+  preflight. No console tab manager is implemented yet.
+
+## Issue #228 B0′ — unsaved-input guards for every module with forms (draft PR #230)
+
+- Branch `feat/issue-228-b0-unsaved-input-guards` began from `main` `cfe6be6` and was reconciled
+  with merged Phase A commit `6eb69c7903a51abf0d653c03ea1e38ec72c7dff2` in merge commit
+  `391d8c29e409ab82167350d07049336bae4f77e9`. The implementation adds no console tabs, API,
+  contract, schema, permission or dependency change.
+- The shared guard asks only for genuinely unsaved input (changed and different from the values when
+  editing began); unchanged, reverted, saved (`savedSignal` after a started write), reset and
+  search/filter forms never ask. Tasks, Training, Accounting, Commercial, Documents, Messages and
+  Administration are protected; Candidates, Clients and Missions retain their existing guards.
+- Review hardening keeps confirmations local to one navigation attempt and never unregisters a
+  blocker; dirty input remains protected during writes, and write outcomes are credited only to the
+  submit that started the write. [Evidence](../audit/issue-228-b0-unsaved-input.md).
+- Reconciled-head formatting, architecture, web lint, typecheck and build pass. Local web tests
+  report 1075/1076 because of the known Windows CRLF assertion; the exact-head Linux CI test suite
+  passed. Exact-head GitHub Actions run `39417931440` passed all four jobs on
+  `391d8c29e409ab82167350d07049336bae4f77e9` after a Quality-check retry; the first two attempts
+  each exposed a different one-test failure, while the targeted retry passed. The existing installed-
+  Chrome audit records 20/20 checks on the hardened B0′ implementation; it was not rerun after the
+  documentation-only reconciliation because this environment lacks the browser-test credentials
+  and Docker access. PR #230 remains draft, unmerged and undeployed; B1 remains separate and B2 is
+  not authorized.
 
 ## Issue #196 — Notification Center unread-consistency follow-up
 

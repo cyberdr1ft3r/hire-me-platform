@@ -815,6 +815,9 @@ async function waitForWriteToSettle() {
 
 describe('Candidate writes stay scoped to the candidate they started on', () => {
   it('does not show a late update success for candidate A on candidate B', async () => {
+    // Leaving while the save is in flight asks (Issue #228 B0′): the write may still
+    // fail after the record is gone. This person chooses to leave.
+    const leaveDuringSave = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const update = deferredResponse();
     const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
       call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}` ? update.promise : undefined,
@@ -829,6 +832,7 @@ describe('Candidate writes stay scoped to the candidate they started on', () => 
     await waitFor(() => expect(calls.some((call) => call.method === 'PATCH')).toBe(true));
 
     await moveToSecondCandidate();
+    expect(leaveDuringSave).toHaveBeenCalled();
     update.release(
       jsonResponse({ candidate: syntheticCandidate({ city: 'Paris', displayName: 'Updated A' }) }),
     );
@@ -894,6 +898,9 @@ describe('Candidate writes stay scoped to the candidate they started on', () => 
   });
 
   it('does not show a late add-record success for candidate A on candidate B, or re-read A', async () => {
+    // Leaving while the save is in flight asks (Issue #228 B0′): the write may still
+    // fail after the record is gone. This person chooses to leave.
+    const leaveDuringSave = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const skill = deferredResponse();
     const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
       call.url === `${API}/${CANDIDATE_ID}/skills` ? skill.promise : undefined,
@@ -906,6 +913,7 @@ describe('Candidate writes stay scoped to the candidate they started on', () => 
     fireEvent.change(within(form).getByLabelText(/^Skill/), { target: { value: 'Interviewing' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Add skill' }));
     await moveToSecondCandidate();
+    expect(leaveDuringSave).toHaveBeenCalled();
     expect(calls.some(isSecondCandidateDetail)).toBe(true);
 
     skill.release(
@@ -1609,6 +1617,9 @@ describe('Structured record maintenance', () => {
   });
 
   it('does not show a late record edit for candidate A on candidate B, or re-read A', async () => {
+    // Leaving while the save is in flight asks (Issue #228 B0′): the write may still
+    // fail after the record is gone. This person chooses to leave.
+    const leaveDuringSave = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const edit = deferredResponse();
     const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
       call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}/skills/${SKILL_ID}`
@@ -1624,6 +1635,7 @@ describe('Structured record maintenance', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(recordWrites(calls)).toHaveLength(1));
     await moveToSecondCandidate();
+    expect(leaveDuringSave).toHaveBeenCalled();
 
     edit.release(jsonResponse({ skill: { ...syntheticCandidate().skills[0]!, level: 'Expert' } }));
     await waitForWriteToSettle();
@@ -1940,6 +1952,9 @@ describe('Education dates and description', () => {
   });
 
   it('does not show a late education edit for candidate A on candidate B, or re-read A', async () => {
+    // Leaving while the save is in flight asks (Issue #228 B0′): the write may still
+    // fail after the record is gone. This person chooses to leave.
+    const leaveDuringSave = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const edit = deferredResponse();
     const { calls } = stubCandidateApi(ORDINARY_PERMISSIONS, (call) =>
       call.method === 'PATCH' && call.url.includes('/education/') ? edit.promise : undefined,
@@ -1952,6 +1967,7 @@ describe('Education dates and description', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(recordWrites(calls)).toHaveLength(1));
     await moveToSecondCandidate();
+    expect(leaveDuringSave).toHaveBeenCalled();
 
     edit.release(
       jsonResponse({ education: { ...syntheticCandidate().education[0]!, startDate: '2011' } }),
@@ -2293,6 +2309,9 @@ describe('Restricted writes share the Candidate write lifecycle', () => {
   });
 
   it('does not show a late restricted save for candidate A on candidate B, or re-read A', async () => {
+    // Leaving while the save is in flight asks (Issue #228 B0′): the write may still
+    // fail after the record is gone. This person chooses to leave.
+    const leaveDuringSave = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const save = deferredResponse();
     const { calls } = stubCandidateApi(FULL_PERMISSIONS, (call) =>
       call.method === 'PATCH' && call.url === `${API}/${CANDIDATE_ID}` ? save.promise : undefined,
@@ -2307,6 +2326,7 @@ describe('Restricted writes share the Candidate write lifecycle', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(candidatePatches(calls)).toHaveLength(1));
     await moveToSecondCandidate();
+    expect(leaveDuringSave).toHaveBeenCalled();
 
     save.release(
       jsonResponse({
@@ -2910,18 +2930,34 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
     await selectCandidate();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     const form = screen.getByRole('form', { name: 'Edit profile' });
-    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Lyon' } });
+    fireEvent.input(within(form).getByLabelText('City'), { target: { value: 'Marseille' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(confirm).toHaveBeenCalledWith(
       'This candidate has unsaved changes. Leave and discard them?',
     );
     expect(onCloseRecord).not.toHaveBeenCalled();
-    expect(within(form).getByLabelText('City')).toHaveValue('Lyon');
+    expect(within(form).getByLabelText('City')).toHaveValue('Marseille');
 
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(onCloseRecord).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+  });
+
+  it('leaves without asking when the input leaves the form as it was (Issue #228 RV2)', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    stubCandidateApi(ORDINARY_PERMISSIONS);
+    renderPanel(ORDINARY_PERMISSIONS);
+    await selectCandidate();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const city = within(screen.getByRole('form', { name: 'Edit profile' })).getByLabelText('City');
+    fireEvent.focusIn(city);
+    fireEvent.input(city, { target: { value: 'Marseille' } });
+    fireEvent.input(city, { target: { value: 'Lyon' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
+    expect(confirm).not.toHaveBeenCalled();
     expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
   });
 

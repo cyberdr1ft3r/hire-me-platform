@@ -11,6 +11,11 @@
   padding: var(--space-6) var(--space-4);
 }
 
+/* Unsaved-input guard scope: a listening boundary only, never a layout box. */
+.unsaved-input-scope {
+  display: contents;
+}
+
 .ui-workspace {
   container: workspace / inline-size;
   display: flex;
