@@ -26,10 +26,12 @@ Status owner: repository maintainer
 - Formatting, architecture, web lint, typecheck, production build, and focused AppShell tests (16)
   pass. The full web suite with two workers passed 1,110/1,111 tests; the only failure is the
   known literal-LF stylesheet assertion on CRLF Windows checkout bytes. A default-parallel run also
-  had suite-load timeouts. Local implementation commit `9e11a2f` and refinement changes remain on
-  the existing feature branch; there is no remote branch or PR yet. Host GitHub keyring auth is
-  available for publication. Exact-head GitHub CI remains required; no deployment or merge is
-  authorized.
+  had suite-load timeouts. B2 and its visual refinement are published on the existing feature branch
+  in draft PR #235: `https://github.com/cyberdr1ft3r/hire-me-platform/pull/235`. Exact head
+  `355f9b6d07d8f3e39149a322f9448f683cd2c38e` passed all four required GitHub Actions jobs in run
+  `39498835152`. The PR remains draft and unmerged. Native Chrome 200% zoom/accessibility validation
+  is still outstanding; do not treat that manual browser check as complete. No deployment or merge
+  is authorized.
 
 ## Issue #228 — Console Workspace tabs, Phase A preflight (merged PR #229)
 

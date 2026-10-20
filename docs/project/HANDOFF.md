@@ -15,15 +15,15 @@ Last updated: 2026-10-20
   suite run with two workers passed 1,110/1,111 tests; the one failure is the existing literal-LF
   stylesheet assertion against CRLF checkout bytes. The default-parallel run also timed out under
   suite load. Do not present local full-suite results as green; exact-head Linux CI is authoritative.
-- The current implementation commit is `9e11a2f209bb61b01c00b60e468ca4da6a63754e` on
-  `feat/issue-232-b2-console-tabs`, with the visual refinement and evidence still uncommitted. The
-  remote branch and PR are absent. Host `gh auth status` succeeds with the user's `cyberdr1ft3r`
-  keyring session; sandboxed commands cannot access that helper, so Git publication must use the
-  host-authorized execution context. Do not reconstruct GitHub blobs/trees as a workaround.
+- B2 and the visual refinement are published on `feat/issue-232-b2-console-tabs` in draft PR #235:
+  `https://github.com/cyberdr1ft3r/hire-me-platform/pull/235`. Exact head
+  `355f9b6d07d8f3e39149a322f9448f683cd2c38e` passed all four required GitHub Actions jobs in run
+  `39498835152`; GitHub reports the PR mergeable. The PR remains draft and unmerged. No merge or
+  deployment is authorized.
 - Installed Chrome refinement evidence passes 28 EN/FR workspace/viewports across Tasks, Clients,
   Documents, Commercial, and Candidates. Native Chrome 200% zoom is still unverified because this
-  environment's UI bridge cannot control the headed Chrome window. Evidence and current local gate
-  outcomes are in `docs/audit/issue-232-console-tabs-evidence/README.md`.
+  environment's UI bridge cannot control the headed Chrome window; arrange this manual check before
+  review. Evidence and local gate outcomes are in `docs/audit/issue-232-console-tabs-evidence/README.md`.
 - Latest verified `main` includes merged PR #229, which
   records the accepted D-089 Phase A architecture with RV1/RV2. RV1 keeps tab identity in existing
   `history.state` with URL-only fallback and one navigation authority; RV2 guards only genuinely
@@ -42,10 +42,8 @@ Last updated: 2026-10-20
 
 ## Next concrete action
 
-1. Publish the existing B2 branch (including its current local refinement) and open a dedicated
-   draft PR referencing Issue #232 with the evidence and Windows-suite caveat.
-2. Verify all four required Actions jobs on the exact final B2 SHA. Keep the PR draft and unmerged;
-   do not deploy or begin later phases. Arrange a native Chrome 200% zoom check before review.
+1. Complete native Chrome 200% zoom/accessibility validation and append its evidence to PR #235.
+2. Keep PR #235 draft and unmerged; do not deploy or begin later phases.
 
 ## Completion conditions
 
