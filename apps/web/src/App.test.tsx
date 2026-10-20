@@ -5,6 +5,7 @@ import { StrictMode } from 'react';
 import { App } from './App.js';
 import { AUTH_COORDINATION_KEY } from './auth/auth-cross-tab.js';
 import { openMissionRecord } from './missions/mission-test-navigation.js';
+import { taskDetail, taskSummary } from './tasks/task-test-data.js';
 
 const syntheticMissionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
@@ -271,52 +272,21 @@ describe('App', () => {
         );
       }
 
+      if (url.endsWith(`/v1/tasks/${taskSummary.id}`) && init?.method !== 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: taskDetail }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
       if (url.includes('/v1/tasks') && init?.method !== 'POST') {
         // The board reads one page per status column; this task is only in To do.
         const status = new URL(url).searchParams.get('status');
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              tasks:
-                status && status !== 'OPEN'
-                  ? []
-                  : [
-                      {
-                        id: '11111111-1111-4111-8111-111111111111',
-                        title: 'Review candidate follow-up',
-                        description: null,
-                        status: 'OPEN',
-                        priority: 'NORMAL',
-                        startAt: null,
-                        dueAt: null,
-                        timezone: null,
-                        ownerUserId: '6f6d50ec-7fcf-4420-b41d-d723bdd7b07d',
-                        ownerDisplayName: 'Read Only Task User',
-                        assigneeUserIds: [],
-                        context: {
-                          candidateId: null,
-                          clientId: null,
-                          clientContactId: null,
-                          recruitmentMissionId: null,
-                          missionRecruiterId: null,
-                          missionCandidateId: null,
-                          interviewId: null,
-                          recruitmentOfferId: null,
-                          recruitmentOfferVersionId: null,
-                          missionPlacementId: null,
-                          trainingProgramId: null,
-                          trainingSessionId: null,
-                          trainingEnrollmentId: null,
-                          trainingSessionParticipationId: null,
-                          documentId: null,
-                        },
-                        completedAt: null,
-                        canceledAt: null,
-                        archivedAt: null,
-                        createdAt: '2026-07-21T10:00:00.000Z',
-                        updatedAt: '2026-07-21T10:00:00.000Z',
-                      },
-                    ],
+              tasks: status && status !== 'OPEN' ? [] : [taskSummary],
               pageInfo: { page: 1, pageSize: 25, total: 1, hasNextPage: false },
             }),
             { headers: { 'Content-Type': 'application/json' } },
@@ -352,9 +322,29 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
     fireEvent.click(await screen.findByRole('link', { name: /tasks/i }));
 
-    expect(await screen.findByRole('button', { name: /Review candidate follow-up/ })).toBeVisible();
+    // The Tasks route is code-split and its board data is loaded after that
+    // module mounts. Under the complete CI suite, this observable route+data
+    // transition can exceed the default one-second query window.
+    const taskCard = await screen.findByRole(
+      'button',
+      { name: /Review candidate follow-up/ },
+      { timeout: 5000 },
+    );
+    expect(taskCard).toBeVisible();
+    expect(screen.queryByRole('button', { name: /new task/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('form', { name: /create task/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /process reminders/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Review candidate follow-up/ }));
+    const detail = await screen.findByRole('dialog', { name: /Review candidate follow-up/ });
+    expect(within(detail).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    expect(within(detail).queryByRole('form', { name: /workflow/i })).not.toBeInTheDocument();
+    expect(
+      within(detail).queryByRole('button', { name: /change owner|add assignee|archive/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(detail).queryByRole('button', { name: /add comment|add reminder/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('lets authorized staff create tasks through environment-configured API calls', async () => {
