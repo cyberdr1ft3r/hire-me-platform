@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-19T23:49:18.744Z",
+  "date": "2026-10-20T00:36:49.374Z",
   "web": "http://localhost:5720",
-  "passed": 17,
-  "total": 17,
+  "passed": 20,
+  "total": 20,
   "results": [
     {
       "name": "tasks: unchanged edit form, shell link",
@@ -23,7 +23,7 @@
         }
       ],
       "urlAfter": "/tasks",
-      "kept": "Synthetic follow-up for evidence (saved 23:47:48) (edited)",
+      "kept": "Synthetic follow-up for evidence (edited)",
       "pass": true
     },
     {
@@ -115,6 +115,54 @@
       "expectedPrompt": false,
       "prompted": false,
       "prompts": [],
+      "urlAfter": "/agenda",
+      "pass": true
+    },
+    {
+      "name": "admin: two dirty forms, Back, agree to first then cancel second",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        },
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/admin",
+      "questions": 7,
+      "pass": true
+    },
+    {
+      "name": "admin: retry Back after the cancelled attempt asks again",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
+      "urlAfter": "/admin",
+      "pass": true
+    },
+    {
+      "name": "admin: retry Back, agree to both, leaves",
+      "expectedPrompt": true,
+      "prompted": true,
+      "prompts": [
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        },
+        {
+          "type": "confirm",
+          "message": "You have unsaved changes on this page. Leave and discard them?"
+        }
+      ],
       "urlAfter": "/agenda",
       "pass": true
     },

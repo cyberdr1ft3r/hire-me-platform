@@ -10,11 +10,16 @@ Status owner: repository maintainer
   schema, permission or dependency change.
 - The shared guard now asks only for genuinely unsaved input (changed and different from the values
   when editing began); unchanged, reverted, saved (`savedSignal` after a started write), reset and
-  search/filter forms never ask. The guard stack consults the most recent blocker that has unsaved
-  input and asks every such surface in turn. Tasks, Training, Accounting, Commercial, Documents,
-  Messages and Administration are now protected; Candidates, Clients and Missions keep their guards.
-- Web tests 1061/1062 (only the known Windows CRLF assertion), lint/typecheck/build/format/architecture
-  pass; installed-Chrome evidence 17/17 across EN desktop, FR 1024px and 390px.
+  search/filter forms never ask. Tasks, Training, Accounting, Commercial, Documents, Messages and
+  Administration are now protected; Candidates, Clients and Missions keep their guards.
+- Review hardening: confirmations are local to one navigation attempt and never unregister a
+  blocker (cancelling a later question keeps earlier dirty surfaces protected); input stays unsaved
+  until its write is confirmed, so leaving during a save asks and other dirty forms keep asking;
+  outcomes are credited only to the submit that started the write (one lock per scope; one scope per
+  Administration form).
+- Web tests 1075/1076 (only the known Windows CRLF assertion), lint/typecheck/build/format/architecture
+  pass; installed-Chrome evidence 20/20 across EN desktop, FR 1024px and 390px, including two dirty
+  surfaces with a partial confirmation then cancel and retry.
   [Evidence](../audit/issue-228-b0-unsaved-input.md). Draft, unmerged, undeployed. B1 waits for review.
 
 ## Issue #196 — Notification Center unread-consistency follow-up

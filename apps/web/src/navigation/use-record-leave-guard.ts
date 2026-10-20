@@ -7,21 +7,19 @@ export const UNSAVED_GUARD_SCOPE_ATTRIBUTE = 'data-unsaved-guard-scope';
 
 export interface RecordLeaveGuardOptions {
   /**
-   * For records whose forms stay on screen after a save (Missions): submitting a
-   * form hands its input to the write, so the form counts as saved. If that write
-   * fails (`failureSignal` changes), the form that was submitted last counts as
-   * unsaved again. Records whose forms close or reset on success (Candidates) leave
-   * this off.
+   * For records whose forms stay on screen after a save and that report only failures
+   * (Missions): a submitted form counts as saved once its write ends without
+   * `failureSignal` changing. Until then, and after a failure, it stays unsaved.
+   * Records whose forms close or reset on success (Candidates) leave this off.
    */
   clearOnSubmit?: boolean;
-  /** Changes whenever a write in this record fails; see `clearOnSubmit`. */
+  /** Changes (to a new non-null value) whenever a write in this screen fails. */
   failureSignal?: unknown;
   /**
-   * Changes (to a new non-null value) whenever a write in this area succeeds, such as
-   * a success feedback object. The form submitted last then counts as saved with the
-   * values it shows, provided its submit started a write (`writePending` became true).
-   * A failed or never-started write leaves the form unsaved. Use it where edit forms
-   * stay on screen after saving.
+   * Changes (to a new non-null value) whenever a write in this screen succeeds, such as
+   * a success feedback object. The submitted form then counts as saved with the values
+   * it shows, provided its submit started a write. Use it where edit forms stay on
+   * screen after saving.
    */
   savedSignal?: unknown;
 }
@@ -31,6 +29,17 @@ interface TrackedForm {
   baseline: string | null;
   /** Whether the user changed a control since the baseline. */
   edited: boolean;
+}
+
+/** A submit whose outcome is not known yet. */
+interface Submission {
+  form: HTMLFormElement;
+  /** The values that were submitted. */
+  submitted: string;
+  /** Whether the first commit after the submit has been examined. */
+  decided: boolean;
+  /** The person changed the form after submitting it. */
+  editedSince: boolean;
 }
 
 const NON_VALUE_INPUTS = new Set(['button', 'submit', 'reset', 'image']);
@@ -98,10 +107,20 @@ function guardsForm(container: HTMLElement, form: HTMLFormElement): boolean {
  * `savedSignal` / `clearOnSubmit`) and search or filter forms never ask. Nothing
  * about the forms themselves changes.
  *
- * While such input exists, leaving asks first: the in-app navigation guard covers
+ * Input stays unsaved until its write is confirmed: a write in flight can still fail,
+ * and the screen may be gone by then, so leaving during a save asks too. Every other
+ * dirty form in the screen keeps asking while one form saves.
+ *
+ * `writePending` is the screen's single write lock (the modules run one write at a
+ * time). It only tells which submit started the write that a later `savedSignal` or
+ * `failureSignal` reports on: a submit counts when the lock was free and, in the
+ * first commit after it, a write is running or has already reported its outcome. A
+ * submit made while the lock is held is refused by the module and ignored here.
+ *
+ * While unsaved input exists, leaving asks first: the in-app navigation guard covers
  * Back/Forward, shell links and in-app actions, and `beforeunload` covers reload and
- * closing the tab, unless a save is in flight. `confirmLeave` uses the same native
- * confirmation the workspaces already use for lifecycle changes.
+ * closing the tab. `confirmLeave` uses the same native confirmation the workspaces
+ * already use for lifecycle changes.
  */
 export function useRecordLeaveGuard(
   containerRef: RefObject<HTMLElement | null>,
@@ -110,19 +129,16 @@ export function useRecordLeaveGuard(
   options: RecordLeaveGuardOptions = {},
 ): { hasUnsavedInput: () => boolean } {
   const tracked = useRef(new Map<HTMLFormElement, TrackedForm>());
-  const lastSubmitted = useRef<{ form: HTMLFormElement; before: TrackedForm | undefined } | null>(
-    null,
-  );
-  const awaiting = useRef<{ form: HTMLFormElement; wroteSince: boolean } | null>(null);
+  const submission = useRef<Submission | null>(null);
+  const seen = useRef({
+    failure: options.failureSignal,
+    pending: writePending,
+    saved: options.savedSignal,
+  });
   const message = useRef(confirmMessage);
   message.current = confirmMessage;
   const clearOnSubmit = useRef(options.clearOnSubmit ?? false);
   clearOnSubmit.current = options.clearOnSubmit ?? false;
-  /*
-   * While a save is in flight its input is not at risk: the write completes on the
-   * server whether or not the screen stays (the existing write lifecycle). A failed
-   * save leaves the form open with its input, and leaving asks again.
-   */
   const pending = useRef(writePending);
   pending.current = writePending;
 
@@ -137,44 +153,71 @@ export function useRecordLeaveGuard(
         unsaved = true;
       }
     }
-    return !pending.current && unsaved;
+    return unsaved;
   }
 
-  // A confirmed save: the submitted form now shows saved values.
-  useEffect(() => {
-    if (options.savedSignal === undefined || options.savedSignal === null) return;
-    const submitted = awaiting.current;
-    if (!submitted?.wroteSince) return;
-    awaiting.current = null;
-    if (submitted.form.isConnected) {
-      tracked.current.set(submitted.form, {
-        baseline: formSnapshot(submitted.form),
-        edited: false,
-      });
-    }
-  }, [options.savedSignal]);
+  /** The submitted form now shows saved values; anything typed since stays unsaved. */
+  function confirmSaved(current: Submission): void {
+    submission.current = null;
+    if (!current.form.isConnected) return;
+    tracked.current.set(
+      current.form,
+      current.editedSince
+        ? { baseline: current.submitted, edited: true }
+        : { baseline: formSnapshot(current.form), edited: false },
+    );
+  }
 
-  // A failed write puts the submitted form's input back at risk.
+  // After every commit: attribute write outcomes to the submit that started the write.
   useEffect(() => {
-    if (options.failureSignal === undefined || options.failureSignal === null) return;
-    awaiting.current = null;
-    const submitted = lastSubmitted.current;
-    if (clearOnSubmit.current && submitted?.form.isConnected) {
-      tracked.current.set(submitted.form, submitted.before ?? { baseline: null, edited: true });
+    const previous = seen.current;
+    const saved =
+      options.savedSignal !== undefined &&
+      options.savedSignal !== null &&
+      options.savedSignal !== previous.saved;
+    const failed =
+      options.failureSignal !== undefined &&
+      options.failureSignal !== null &&
+      options.failureSignal !== previous.failure;
+    const writeEnded = previous.pending && !writePending;
+    seen.current = {
+      failure: options.failureSignal,
+      pending: writePending,
+      saved: options.savedSignal,
+    };
+    const current = submission.current;
+    if (!current) return;
+    if (!current.decided) {
+      current.decided = true;
+      // A write that started and settled before this commit reports its outcome here.
+      const started = writePending || saved || failed;
+      if (!started) {
+        // Validation or a refused submit: nothing to confirm.
+        submission.current = null;
+        return;
+      }
     }
-  }, [options.failureSignal]);
-
-  // Only a submit that started a write can be confirmed by `savedSignal`.
-  useEffect(() => {
-    if (writePending && awaiting.current) awaiting.current.wroteSince = true;
-  }, [writePending]);
+    if (failed) {
+      // The input stays unsaved and keeps asking.
+      submission.current = null;
+      return;
+    }
+    if (saved || (writeEnded && clearOnSubmit.current)) {
+      confirmSaved(current);
+      return;
+    }
+    if (writeEnded) {
+      // Ended without reporting success: keep the input unsaved rather than guess.
+      submission.current = null;
+    }
+  });
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
     container.setAttribute(UNSAVED_GUARD_SCOPE_ATTRIBUTE, '');
     const forms = tracked.current;
-    let submitCheck: number | undefined;
+    let undecidedCheck: number | undefined;
 
     const startEditing = (event: Event) => {
       const form = formOf(event.target);
@@ -189,29 +232,35 @@ export function useRecordLeaveGuard(
       const state = forms.get(form);
       if (state) state.edited = true;
       else forms.set(form, { baseline: null, edited: true });
+      if (submission.current?.form === form) submission.current.editedSince = true;
     };
     const clearReset = (event: Event) => {
       if (!(event.target instanceof HTMLFormElement)) return;
       forms.delete(event.target);
-      if (awaiting.current?.form === event.target) awaiting.current = null;
+      if (submission.current?.form === event.target) submission.current = null;
     };
     const handleSubmit = (event: Event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !guardsForm(container, form)) return;
-      lastSubmitted.current = { form, before: forms.get(form) };
-      if (clearOnSubmit.current) {
-        forms.delete(form);
-        return;
-      }
-      awaiting.current = { form, wroteSince: false };
-      // A submit that starts no write (validation) cannot be confirmed later.
-      window.clearTimeout(submitCheck);
-      submitCheck = window.setTimeout(() => {
-        const submitted = awaiting.current;
-        if (submitted?.form === form && !submitted.wroteSince) {
-          if (pending.current) submitted.wroteSince = true;
-          else awaiting.current = null;
-        }
+      // With the write lock held this submit cannot start a write; the outcome that
+      // follows belongs to the write already running, so keep its submission.
+      if (pending.current) return;
+      // The form stays protected until its write is confirmed (see confirmSaved).
+      submission.current = {
+        form,
+        submitted: formSnapshot(form),
+        decided: false,
+        editedSince: false,
+      };
+      const current = submission.current;
+      /*
+       * React commits a submit's state updates before the next task, and the first
+       * commit decides above. A submit still undecided by then changed nothing (a
+       * handler that returned early): it started no write and confirms nothing later.
+       */
+      window.clearTimeout(undecidedCheck);
+      undecidedCheck = window.setTimeout(() => {
+        if (submission.current === current && !current.decided) submission.current = null;
       }, 0);
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -241,10 +290,11 @@ export function useRecordLeaveGuard(
       container.removeEventListener('reset', clearReset, true);
       container.removeEventListener('submit', handleSubmit, true);
       window.removeEventListener('beforeunload', beforeUnload);
-      window.clearTimeout(submitCheck);
+      window.clearTimeout(undecidedCheck);
       container.removeAttribute(UNSAVED_GUARD_SCOPE_ATTRIBUTE);
       release();
       forms.clear();
+      submission.current = null;
     };
     // The guard lives exactly as long as the screen it protects.
   }, [containerRef]);

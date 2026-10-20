@@ -29,9 +29,11 @@ async function session({ width, height, locale, video }) {
   const page = await context.newPage();
   const dialogs = [];
   let answer = 'dismiss';
+  /** Answers for the next questions, in order; then `answer` applies. */
+  const queue = [];
   page.on('dialog', async (dialog) => {
     dialogs.push({ type: dialog.type(), message: dialog.message() });
-    if (answer === 'accept') await dialog.accept();
+    if ((queue.shift() ?? answer) === 'accept') await dialog.accept();
     else await dialog.dismiss();
   });
   await page.goto(`${WEB}/`);
@@ -46,6 +48,7 @@ async function session({ width, height, locale, video }) {
     page,
     dialogs,
     setAnswer: (value) => (answer = value),
+    answerNext: (...values) => queue.push(...values),
   };
 }
 
@@ -174,6 +177,35 @@ async function desktopTasks() {
   await step(s, 'admin: profile saved and still open, browser Back', () => page.goBack().catch(() => undefined), false, async () => ({
     pass: new URL(page.url()).pathname !== '/admin',
   }));
+
+  // Two Admin forms, each with its own guard: agreeing to the first question and
+  // cancelling the second keeps both inputs protected; a retry asks both again.
+  await routeTo(page, '/admin');
+  const createAgain = page.getByRole('form', { name: 'Create internal user' });
+  await createAgain.getByLabel('Display name').fill('Second surface');
+  await page.getByRole('button', { name: /^Synthetic Peer/ }).first().click();
+  const profileName = page
+    .getByRole('region', { name: 'Selected user detail' })
+    .getByLabel('Display name');
+  await profileName.fill(`Peer ${Date.now()}`);
+  s.answerNext('accept', 'dismiss');
+  await step(s, 'admin: two dirty forms, Back, agree to first then cancel second', () => page.goBack().catch(() => undefined), true, async () => ({
+    questions: s.dialogs.length,
+    pass:
+      new URL(page.url()).pathname === '/admin' &&
+      (await createAgain.getByLabel('Display name').inputValue()) === 'Second surface',
+  }));
+  const lastTwo = results.at(-1).prompts.length;
+  results.at(-1).pass = results.at(-1).pass && lastTwo === 2;
+  s.answerNext('dismiss');
+  await step(s, 'admin: retry Back after the cancelled attempt asks again', () => page.goBack().catch(() => undefined), true, async () => ({
+    pass: new URL(page.url()).pathname === '/admin',
+  }));
+  s.answerNext('accept', 'accept');
+  await step(s, 'admin: retry Back, agree to both, leaves', () => page.goBack().catch(() => undefined), true, async () => ({
+    pass: new URL(page.url()).pathname !== '/admin',
+  }));
+  results.at(-1).pass = results.at(-1).pass && results.at(-1).prompts.length === 2;
 
   // Messages: an unsent draft asks; a sent message clears it.
   await routeTo(page, '/messages');

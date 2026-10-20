@@ -16,6 +16,12 @@
  * top registers its own; closing the drawer hands the decision back to the record. A
  * blocker with nothing unsaved is skipped, and after one blocker's input is discarded
  * the next one that still holds unsaved input asks too, so no input is lost silently.
+ *
+ * A confirmation answers only the navigation attempt it was asked for. It never
+ * unregisters a blocker: a blocker leaves the stack only when its own screen releases
+ * it (unmounts, or has nothing left to protect). So if a later question in the same
+ * attempt is cancelled, the user stays and every earlier surface is still protected;
+ * a retried navigation asks each of them again.
  */
 
 const INDEX_KEY = 'hiremeHistoryIndex';
@@ -23,7 +29,8 @@ const INDEX_KEY = 'hiremeHistoryIndex';
 export interface NavigationBlocker {
   /**
    * The user tried to leave. Ask; call `proceed` only if they confirm. Calling it
-   * releases this blocker and completes the original navigation.
+   * answers this navigation attempt only (the blocker stays registered); the
+   * navigation completes once every blocker with unsaved input has confirmed.
    */
   confirmLeave: (proceed: () => void) => void;
   /**
@@ -31,6 +38,12 @@ export interface NavigationBlocker {
    * modal drawer asks only when dirty, and decides that inside `confirmLeave`.
    */
   shouldBlock?: () => boolean;
+}
+
+/** One Back/Forward the user asked for, with the blockers that agreed to it so far. */
+interface TraversalAttempt {
+  delta: number;
+  confirmed: Set<NavigationBlocker>;
 }
 
 let blockers: NavigationBlocker[] = [];
@@ -41,7 +54,13 @@ let restoring = false;
  * `confirm()` answers synchronously). Two traversals started in the same task can be
  * merged by the browser, so the confirmed replay waits for the return trip.
  */
-let pendingReplay: number | null = null;
+let pendingReplay: TraversalAttempt | null = null;
+/** Set just before the guard replays a confirmed traversal itself. */
+let replaying: TraversalAttempt | null = null;
+/** The traversal waiting for an answer; an answer to an older one is ignored. */
+let heldTraversal: TraversalAttempt | null = null;
+/** Counts in-app navigation attempts; an answer to an older one is ignored. */
+let requestAttempt = 0;
 
 function indexOf(state: unknown): number | null {
   if (typeof state !== 'object' || state === null) return null;
@@ -57,11 +76,14 @@ function release(blocker: NavigationBlocker): void {
   blockers = blockers.filter((entry) => entry !== blocker);
 }
 
-/** The most recently registered blocker that wants to ask now, if any. */
-function activeBlocker(): NavigationBlocker | null {
+/**
+ * The most recently registered blocker that wants to ask now and has not already
+ * agreed to this attempt, if any.
+ */
+function activeBlocker(confirmed: ReadonlySet<NavigationBlocker>): NavigationBlocker | null {
   for (let index = blockers.length - 1; index >= 0; index -= 1) {
     const blocker = blockers[index];
-    if (blocker && (blocker.shouldBlock?.() ?? true)) return blocker;
+    if (blocker && !confirmed.has(blocker) && (blocker.shouldBlock?.() ?? true)) return blocker;
   }
   return null;
 }
@@ -77,15 +99,27 @@ export function blockNavigation(next: NavigationBlocker): () => void {
  * once when nothing would be lost, and only after confirmation otherwise.
  */
 export function requestNavigation(proceed: () => void): void {
-  const held = activeBlocker();
+  requestAttempt += 1;
+  askInTurn(proceed, new Set(), requestAttempt);
+}
+
+function askInTurn(
+  proceed: () => void,
+  confirmed: ReadonlySet<NavigationBlocker>,
+  attempt: number,
+): void {
+  const held = activeBlocker(confirmed);
   if (!held) {
     proceed();
     return;
   }
+  let answered = false;
   held.confirmLeave(() => {
-    release(held);
+    // One answer per question, and only for the attempt that asked it.
+    if (answered || attempt !== requestAttempt) return;
+    answered = true;
     // Another surface may still hold unsaved input of its own; it asks next.
-    requestNavigation(proceed);
+    askInTurn(proceed, new Set([...confirmed, held]), attempt);
   });
 }
 
@@ -102,6 +136,9 @@ export function initializeHistoryIndex(): void {
     currentIndex = index;
   }
   restoring = false;
+  pendingReplay = null;
+  replaying = null;
+  heldTraversal = null;
 }
 
 export function pushHistoryPath(path: string): void {
@@ -126,26 +163,37 @@ export function acceptHistoryTraversal(state: unknown): boolean {
     if (pendingReplay !== null) {
       const replay = pendingReplay;
       pendingReplay = null;
-      window.history.go(replay);
+      replaying = replay;
+      window.history.go(replay.delta);
     }
     return false;
   }
+  // The guard's own replay continues its attempt; any other traversal is a new one.
+  const attempt = replaying ?? { delta: 0, confirmed: new Set<NavigationBlocker>() };
+  replaying = null;
   const delta = target === null ? 0 : target - currentIndex;
-  const held = activeBlocker();
+  attempt.delta = delta;
+  const held = activeBlocker(attempt.confirmed);
   // Unindexed entries (written outside the router) cannot be undone exactly; let
   // them through rather than guess a direction.
   if (!held || target === null || delta === 0) {
     if (target !== null) currentIndex = target;
+    heldTraversal = null;
     return true;
   }
+  heldTraversal = attempt;
   restoring = true;
   window.history.go(-delta);
+  let answered = false;
   held.confirmLeave(() => {
-    release(held);
+    if (answered || heldTraversal !== attempt) return;
+    answered = true;
+    attempt.confirmed.add(held);
     if (restoring) {
-      pendingReplay = delta;
+      pendingReplay = attempt;
     } else {
-      window.history.go(delta);
+      replaying = attempt;
+      window.history.go(attempt.delta);
     }
   });
   return false;
@@ -157,4 +205,7 @@ export function resetNavigationGuardForTests(): void {
   currentIndex = 0;
   restoring = false;
   pendingReplay = null;
+  replaying = null;
+  heldTraversal = null;
+  requestAttempt = 0;
 }

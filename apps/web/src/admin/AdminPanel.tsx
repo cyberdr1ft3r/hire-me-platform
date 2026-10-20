@@ -35,10 +35,10 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  // Form writes only: lets the unsaved-input guard tell a saved form from a failed one.
-  const [formWritePending, setFormWritePending] = useState(false);
-  const [formWriteFailures, setFormWriteFailures] = useState(0);
-  const [formWriteSaves, setFormWriteSaves] = useState(0);
+  // One tracked write per form, so each form's guard knows its own outcome exactly.
+  const createWrite = useTrackedFormWrite();
+  const updateWrite = useTrackedFormWrite();
+  const roleWrite = useTrackedFormWrite();
 
   useEffect(() => {
     void loadCatalog();
@@ -64,19 +64,6 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
     setUsers(response.users);
   }
 
-  async function trackFormWrite(write: () => Promise<void>): Promise<void> {
-    setFormWritePending(true);
-    try {
-      await write();
-      setFormWriteSaves((count) => count + 1);
-    } catch (error) {
-      setFormWriteFailures((count) => count + 1);
-      throw error;
-    } finally {
-      setFormWritePending(false);
-    }
-  }
-
   async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     await loadUsers(search, statusFilter);
@@ -85,7 +72,7 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
-    await trackFormWrite(async () => {
+    await createWrite.track(async () => {
       const formData = new FormData(form);
       const created = await createAdminUser(accessToken, {
         displayName: formValue(formData, 'displayName'),
@@ -113,7 +100,7 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
     }
     const formData = new FormData(event.currentTarget);
     const user = selectedUser;
-    await trackFormWrite(async () => {
+    await updateWrite.track(async () => {
       const updated = await updateAdminUser(accessToken, user.id, {
         displayName: formValue(formData, 'displayName', user.displayName),
         locale: formValue(formData, 'locale', user.locale),
@@ -131,7 +118,7 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
     }
     const formData = new FormData(event.currentTarget);
     const user = selectedUser;
-    await trackFormWrite(async () => {
+    await roleWrite.track(async () => {
       const roleName = formValue(formData, 'roleName') as AdminRoleName;
       const updated = await assignAdminRole(accessToken, user.id, { roleName });
       setSelectedUser(updated.user);
@@ -180,88 +167,87 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
   }
 
   return (
-    // Unsaved input in the create, edit and role forms asks before leaving (Issue #228 B0′).
-    <UnsavedInputScope
-      failureSignal={formWriteFailures || null}
-      savedSignal={formWriteSaves || null}
-      writePending={formWritePending}
-    >
-      <section className="admin-panel" aria-label="Administration">
-        <PageHeader title="Administration" />
-        <div className="admin-grid">
-          <section aria-label="User administration">
-            <h2>Users</h2>
-            <form
-              className="inline-form"
-              data-unsaved-guard="ignore"
-              onSubmit={(event) => void handleSearch(event)}
-            >
-              <label>
-                Search
-                <input
-                  className="ui-field__control"
-                  value={search}
-                  onChange={(event) => setSearch(event.currentTarget.value)}
-                  name="search"
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  className="ui-field__control"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.currentTarget.value)}
-                  name="status"
-                >
-                  <option value="">Any</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="ARCHIVED">Archived</option>
-                </select>
-              </label>
-              <Button variant="secondary" type="submit">
-                Search users
-              </Button>
-            </form>
+    <section className="admin-panel" aria-label="Administration">
+      <PageHeader title="Administration" />
+      <div className="admin-grid">
+        <section aria-label="User administration">
+          <h2>Users</h2>
+          <form
+            className="inline-form"
+            data-unsaved-guard="ignore"
+            onSubmit={(event) => void handleSearch(event)}
+          >
+            <label>
+              Search
+              <input
+                className="ui-field__control"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                name="search"
+              />
+            </label>
+            <label>
+              Status
+              <select
+                className="ui-field__control"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                name="status"
+              >
+                <option value="">Any</option>
+                <option value="ACTIVE">Active</option>
+                <option value="SUSPENDED">Suspended</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </label>
+            <Button variant="secondary" type="submit">
+              Search users
+            </Button>
+          </form>
 
-            <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Roles</th>
-                    <th>Sessions</th>
+          <div className="admin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Roles</th>
+                  <th>Sessions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((adminUser) => (
+                  <tr key={adminUser.id}>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={() => void selectUser(adminUser.id)}
+                      >
+                        {adminUser.displayName}
+                      </Button>
+                    </td>
+                    <td>
+                      <StatusBadge tone={adminStatusTone(adminUser.status)}>
+                        {adminUser.status}
+                      </StatusBadge>
+                    </td>
+                    <td>
+                      {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
+                        'None'}
+                    </td>
+                    <td>{adminUser.activeSessionCount}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {users.map((adminUser) => (
-                    <tr key={adminUser.id}>
-                      <td>
-                        <Button
-                          variant="secondary"
-                          type="button"
-                          onClick={() => void selectUser(adminUser.id)}
-                        >
-                          {adminUser.displayName}
-                        </Button>
-                      </td>
-                      <td>
-                        <StatusBadge tone={adminStatusTone(adminUser.status)}>
-                          {adminUser.status}
-                        </StatusBadge>
-                      </td>
-                      <td>
-                        {adminUser.roles.map((role) => formatAdminRoleName(t, role)).join(', ') ||
-                          'None'}
-                      </td>
-                      <td>{adminUser.activeSessionCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
+          <UnsavedInputScope
+            failureSignal={createWrite.failures || null}
+            savedSignal={createWrite.saves || null}
+            writePending={createWrite.pending}
+          >
             <form
               className="stacked-form"
               aria-label="Create internal user"
@@ -286,16 +272,22 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
               />
               <Button type="submit">Create user</Button>
             </form>
-          </section>
+          </UnsavedInputScope>
+        </section>
 
-          <section aria-label="Selected user detail">
-            {selectedUser ? (
-              <>
-                <h2>{selectedUser.displayName}</h2>
-                <p>{selectedUser.email}</p>
-                <StatusBadge tone={adminStatusTone(selectedUser.status)}>
-                  {selectedUser.status}
-                </StatusBadge>
+        <section aria-label="Selected user detail">
+          {selectedUser ? (
+            <>
+              <h2>{selectedUser.displayName}</h2>
+              <p>{selectedUser.email}</p>
+              <StatusBadge tone={adminStatusTone(selectedUser.status)}>
+                {selectedUser.status}
+              </StatusBadge>
+              <UnsavedInputScope
+                failureSignal={updateWrite.failures || null}
+                savedSignal={updateWrite.saves || null}
+                writePending={updateWrite.pending}
+              >
                 <form className="stacked-form" onSubmit={(event) => void handleUpdate(event)}>
                   <TextField
                     name="displayName"
@@ -307,31 +299,37 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
                     Update profile
                   </Button>
                 </form>
+              </UnsavedInputScope>
 
-                <div className="action-row">
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    onClick={() => void changeStatus('ACTIVE')}
-                  >
-                    Reactivate
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    onClick={() => void changeStatus('SUSPENDED')}
-                  >
-                    Suspend
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    onClick={() => void changeStatus('ARCHIVED')}
-                  >
-                    Archive
-                  </Button>
-                </div>
+              <div className="action-row">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('ACTIVE')}
+                >
+                  Reactivate
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('SUSPENDED')}
+                >
+                  Suspend
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => void changeStatus('ARCHIVED')}
+                >
+                  Archive
+                </Button>
+              </div>
 
+              <UnsavedInputScope
+                failureSignal={roleWrite.failures || null}
+                savedSignal={roleWrite.saves || null}
+                writePending={roleWrite.pending}
+              >
                 <form className="inline-form" onSubmit={(event) => void handleAssignRole(event)}>
                   <label>
                     Role
@@ -347,58 +345,82 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
                     Assign role
                   </Button>
                 </form>
+              </UnsavedInputScope>
 
-                <ul>
-                  {selectedUser.roles.map((roleName) => (
-                    <li key={roleName}>
-                      {formatAdminRoleName(t, roleName)}{' '}
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        onClick={() => void removeRole(roleName)}
-                      >
-                        Remove
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+              <ul>
+                {selectedUser.roles.map((roleName) => (
+                  <li key={roleName}>
+                    {formatAdminRoleName(t, roleName)}{' '}
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => void removeRole(roleName)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
 
-                <h3>Active sessions</h3>
-                <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
-                  Revoke all sessions
-                </Button>
-                <ul>
-                  {selectedUser.sessions.map((session) => (
-                    <li key={session.id}>
-                      {session.createdAt}{' '}
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        onClick={() => void revokeOneSession(session.id)}
-                      >
-                        Revoke
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+              <h3>Active sessions</h3>
+              <Button variant="secondary" type="button" onClick={() => void revokeAllSessions()}>
+                Revoke all sessions
+              </Button>
+              <ul>
+                {selectedUser.sessions.map((session) => (
+                  <li key={session.id}>
+                    {session.createdAt}{' '}
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => void revokeOneSession(session.id)}
+                    >
+                      Revoke
+                    </Button>
+                  </li>
+                ))}
+              </ul>
 
-                <h3>Effective permissions</h3>
-                <PermissionGroups codes={selectedUser.effectivePermissions} />
-              </>
-            ) : (
-              <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
-            )}
-            {message ? <p role="status">{message}</p> : null}
-          </section>
-        </div>
-
-        <section aria-label="Permission catalog">
-          <h2>Permission catalog</h2>
-          <PermissionGroups codes={permissions.map((permission) => permission.code)} />
+              <h3>Effective permissions</h3>
+              <PermissionGroups codes={selectedUser.effectivePermissions} />
+            </>
+          ) : (
+            <p>Select a user to inspect safe profile, roles, permissions, and sessions.</p>
+          )}
+          {message ? <p role="status">{message}</p> : null}
         </section>
+      </div>
+
+      <section aria-label="Permission catalog">
+        <h2>Permission catalog</h2>
+        <PermissionGroups codes={permissions.map((permission) => permission.code)} />
       </section>
-    </UnsavedInputScope>
+    </section>
   );
+}
+
+/**
+ * Pending state and outcome counters for one form's writes (Issue #228 B0′). Failures
+ * still reject as before; the counters only tell that form's unsaved-input guard
+ * whether its input was saved.
+ */
+function useTrackedFormWrite() {
+  const [pending, setPending] = useState(false);
+  const [saves, setSaves] = useState(0);
+  const [failures, setFailures] = useState(0);
+  async function track(write: () => Promise<void>): Promise<void> {
+    setPending(true);
+    try {
+      await write();
+      setSaves((count) => count + 1);
+    } catch (error) {
+      setFailures((count) => count + 1);
+      throw error;
+    } finally {
+      setPending(false);
+    }
+  }
+  return { failures, pending, saves, track };
 }
 
 function formValue(formData: FormData, name: string, fallback = ''): string {
