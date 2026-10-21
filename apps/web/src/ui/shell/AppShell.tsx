@@ -325,21 +325,11 @@ export function AppShell({
             <strong className="app-shell__brand-name">HireMe</strong>
             <span
               aria-label={t('shell.applicationLabel')}
-              className="app-shell__application-selector"
+              className="app-shell__application-context"
             >
               <span aria-hidden="true" className="app-shell__application-icon" />
               {t('shell.application')}
             </span>
-          </div>
-          <div
-            aria-disabled="true"
-            aria-label={t('shell.searchUnavailable')}
-            className="app-shell__global-search"
-            role="search"
-          >
-            <ShellIcon name="search" />
-            <span>{t('shell.searchPlaceholder')}</span>
-            <span className="sr-only">{t('shell.searchUnavailable')}</span>
           </div>
           <div className="app-shell__utilities">
             {notificationCenter ? (

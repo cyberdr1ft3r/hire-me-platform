@@ -9,11 +9,15 @@ Last updated: 2026-10-21
   quick profile at 1117 × 707. The utility row is 45px (was 56px), workspace strip 33px (was 34px),
   and content inset/padding 12px (was 16px). More-menu clipping by the module-list scrollport was
   confirmed and corrected using viewport positioning. EN/FR desktop/mobile and 200%-equivalent
-  viewport smoke checks pass without horizontal overflow or browser errors.
+  viewport smoke checks pass without horizontal overflow or browser errors. Approved corrections
+  remove the decorative global-search box and render Recruitment as a plain context label; the
+  first row now balances the brand/context group against existing right-aligned utilities. Evidence
+  includes same-state Candidates before/after screenshots at 1117 × 707.
 - Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
-  warning), 85 focused regressions, final AppShell 17/17, and web build pass. The existing
-  production large-chunk advisory remains. Native Chrome zoom is not directly exercised. Evidence is
-  under `docs/audit/issue-234-top-navigation/`.
+  warning), 41 focused shell/localization regressions, final AppShell 17/17, and web build pass. The
+  existing production large-chunk advisory remains. Native Chrome zoom is not directly exercised;
+  the 559 × 354 viewport is an equivalent-width smoke check. Evidence is under
+  `docs/audit/issue-234-top-navigation/`.
 - PR #238 remains open and draft; exact-head CI after this refinement is pending. Keep it unmerged
   and do not deploy.
 
@@ -55,10 +59,10 @@ Last updated: 2026-10-21
 
 ## Next concrete action
 
-1. Commit and push the visual-fidelity refinement to the existing #238 branch, then wait for all
-   four required jobs to pass on the exact pushed SHA.
-2. Update PR #238 with the same-state Candidates screenshots, More-menu clipping evidence, and
-   focused test results. Keep it draft and unmerged; do not deploy.
+1. Commit and push the approved affordance corrections and evidence to existing PR #238.
+2. Wait for all four required jobs on the exact pushed SHA, then update PR #238 with the before/after
+   Candidates screenshots, More-menu clipping evidence, and focused test results. Keep it draft and
+   unmerged; do not deploy.
 
 ## Completion conditions
 

@@ -99,8 +99,6 @@ export const enMessages = {
     language: {
       label: 'Language',
     },
-    searchPlaceholder: 'Search HireMe…',
-    searchUnavailable: 'Global search is not available yet.',
     navigation: {
       communication: 'Communication',
       domainRegion: 'Workspace navigation',

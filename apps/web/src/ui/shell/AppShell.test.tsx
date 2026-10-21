@@ -205,15 +205,26 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: /Messages/ })).not.toBeInTheDocument();
   });
 
-  it('keeps the search and application selector visibly non-interactive', () => {
+  it('does not advertise unavailable global search and presents the application as context', () => {
     mockMobileNavigation(false);
     render(<ShellHarness />);
 
-    expect(
-      screen.getByRole('search', { name: 'Global search is not available yet.' }),
-    ).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText('Search HireMe…')).not.toBeInstanceOf(HTMLInputElement);
-    expect(screen.getByLabelText('Current application')).not.toBeInstanceOf(HTMLButtonElement);
+    expect(screen.queryByRole('search')).not.toBeInTheDocument();
+    expect(screen.queryByText('Search HireMe…')).not.toBeInTheDocument();
+    const applicationContext = screen.getByLabelText('Current application');
+    expect(applicationContext).toHaveClass('app-shell__application-context');
+    expect(applicationContext).toHaveTextContent('Recruitment');
+    expect(applicationContext).not.toBeInstanceOf(HTMLButtonElement);
+    expect(applicationContext).not.toHaveAttribute('aria-haspopup');
+
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+    expect(shellCss).toMatch(
+      /\.app-shell__application-context\s*\{[^}]*display:\s*inline-flex;[^}]*color:\s*var\(--color-text-secondary\);/s,
+    );
+    expect(shellCss).not.toMatch(/\.app-shell__application-context\s*\{[^}]*background:/s);
+    expect(shellCss).toMatch(
+      /\.app-shell__utility-bar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto;/s,
+    );
   });
 
   it('provides a skip target', () => {

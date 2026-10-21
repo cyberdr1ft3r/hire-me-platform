@@ -106,6 +106,33 @@ try {
       await installFixtures(page);
       await signIn(page, locale);
 
+      if ((await page.locator('.app-shell__global-search').count()) !== 0) {
+        throw new Error(`${locale} ${viewport.name}: decorative global search is still rendered`);
+      }
+      const applicationContext = page.locator('.app-shell__application-context');
+      const contextDetails = await applicationContext.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          backgroundColor: style.backgroundColor,
+          borderStyle: style.borderStyle,
+          cursor: style.cursor,
+          tagName: element.tagName,
+          text: element.textContent.trim(),
+        };
+      });
+      const expectedContext = locale === 'fr' ? 'Recrutement' : 'Recruitment';
+      if (
+        contextDetails.tagName !== 'SPAN' ||
+        contextDetails.text !== expectedContext ||
+        contextDetails.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
+        contextDetails.borderStyle !== 'none' ||
+        contextDetails.cursor === 'pointer'
+      ) {
+        throw new Error(
+          `${locale} ${viewport.name}: application context looks interactive: ${JSON.stringify(contextDetails)}`,
+        );
+      }
+
       const isMobile = viewport.width <= 900;
       const primaryNav = page.getByRole('navigation', {
         name: locale === 'fr' ? 'Navigation principale' : 'Primary navigation',

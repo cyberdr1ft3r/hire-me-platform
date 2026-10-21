@@ -112,8 +112,6 @@ export const frMessages: Messages = {
     language: {
       label: 'Langue',
     },
-    searchPlaceholder: 'Rechercher dans HireMe…',
-    searchUnavailable: 'La recherche globale n’est pas encore disponible.',
     navigation: {
       communication: 'Communication',
       domainRegion: 'Navigation des espaces',

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { mkdir, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
@@ -10,8 +9,7 @@ const WEB =
   process.env.ISSUE_234_WEB_URL ?? pathToFileURL(path.join(ROOT, 'apps/web/dist/index.html')).href;
 const CHROME =
   process.env.ISSUE_234_CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PHASE = process.env.ISSUE_234_PHASE ?? 'after';
-const BASELINE_SHA = '4d37d4b4e2bbe07b498ed88d0cd48f7281ea4566';
+const PHASE = 'after-affordance-correction';
 const OUTPUT = path.join(ROOT, 'docs/audit/issue-234-top-navigation');
 const CANDIDATE_ID = '11111111-1111-4111-8111-111111111111';
 const syntheticTime = '2026-10-20T10:00:00.000Z';
@@ -136,16 +134,6 @@ try {
   await page.locator('input[name="password"]').fill('Synthetic-password-234!');
   await page.locator('form.auth-panel button[type="submit"]').click();
   await page.locator('.app-shell').waitFor({ state: 'visible' });
-  if (PHASE === 'before') {
-    const baselineShellCss = execFileSync(
-      'git',
-      ['show', `${BASELINE_SHA}:apps/web/src/ui/shell/app-shell.css`],
-      { cwd: ROOT, encoding: 'utf8' },
-    );
-    await page.addStyleTag({
-      content: `.app-shell { --layout-shell-topbar-height: 3.5rem; }\n${baselineShellCss}`,
-    });
-  }
   await page.getByRole('link', { name: 'Candidates' }).click();
   try {
     await page.getByRole('heading', { name: 'Candidates', level: 1 }).waitFor({ timeout: 10000 });
@@ -239,7 +227,7 @@ try {
     };
   });
   await page.screenshot({ path: path.join(OUTPUT, `${PHASE}-more-menu-en.png`) });
-  if (PHASE === 'after' && menu?.hiddenByModuleList) {
+  if (menu?.hiddenByModuleList) {
     throw new Error(`More menu is clipped by the module list: ${JSON.stringify(menu)}`);
   }
   if (metrics.documentOverflow > 0 || pageErrors.length > 0) {

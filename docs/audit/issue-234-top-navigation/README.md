@@ -1,5 +1,23 @@
 # Issue #234 top-navigation visual-fidelity evidence
 
+## Approved nonfunctional-affordance correction
+
+The comparison below shows the same synthetic nine-row Candidates directory and selected Sofia El Amrani quick profile at 1117 × 707 in installed Chrome. The before image is from PR #238's prior head `12f591fdbf86006a460d59df987160f3f016e452`; the after image is captured from the corrected production build. The search-shaped box is removed; the Recruitment context remains a plain, non-interactive label.
+
+| Before — existing PR head | After — no decorative search |
+| --- | --- |
+| ![Candidates before removing nonfunctional search](before-affordance-correction-candidates-desktop-en.png) | ![Candidates after removing nonfunctional search](after-affordance-correction-candidates-desktop-en.png) |
+
+The after JSON contains the measured row/surface layout and browser error/overflow results. The first row now uses a left brand/context group and right-aligned existing utilities; the utility row height remains 45px. The three navigation rows, module content, and B2 tabs are unchanged.
+
+Run the post-change Candidate capture from the repository root after building the production app:
+
+```powershell
+node scripts/issue-234-fidelity-capture.mjs
+```
+
+## Earlier visual-fidelity comparison
+
 All screenshots were captured in installed Google Chrome at a 1117 × 707 CSS viewport with synthetic API responses. The Candidates comparison uses the same nine-row directory and selected Sofia El Amrani quick profile on both sides. The “before” frame applies the exact PR #238 baseline `app-shell.css` from `4d37d4b4e2bbe07b498ed88d0cd48f7281ea4566` to the same built app; the “after” frame uses the refined shell. No Candidate module code or data contracts were changed.
 
 | State | Screenshot |
@@ -34,8 +52,7 @@ After: the popup is positioned against the viewport below the compact header. Al
 Run the visual captures from the repository root:
 
 ```powershell
-$env:ISSUE_234_PHASE='before'; node scripts/issue-234-fidelity-capture.mjs
-$env:ISSUE_234_PHASE='after'; node scripts/issue-234-fidelity-capture.mjs
+node scripts/issue-234-fidelity-capture.mjs
 node scripts/issue-234-top-navigation-evidence.mjs
 ```
 

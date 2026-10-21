@@ -15,10 +15,15 @@ Status owner: repository maintainer
   the module list's horizontal scrollport; viewport positioning now exposes the whole menu. EN/FR
   desktop and mobile (1117 × 707 and 390 × 844) and a 559 × 354 zoom-equivalent viewport have zero
   horizontal overflow and no page errors. Evidence: [Issue #234 audit](../audit/issue-234-top-navigation/).
+- Approved affordance correction removes the decorative global-search box and unavailable copy;
+  Recruitment is now a plain, noninteractive context label. The first row is rebalanced to brand/
+  context at left and existing utilities at right. Same-state before/after images and measured
+  layout are recorded in the audit; browser smoke asserts no search affordance or control-like
+  context styling.
 - Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
-  warning), 85 focused App/AppShell/localization tests, final AppShell tests (17/17), and the web
+  warning), 41 focused AppShell/shell/localization tests, final AppShell tests (17/17), and the web
   production build pass. The build retains the existing large-chunk advisory. Native browser zoom is
-  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI for the refinement is pending.
+  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI for the correction is pending.
   PR #238 remains open, draft, and unmerged; no merge or deployment is authorized.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs

@@ -236,7 +236,7 @@
   min-height: var(--layout-shell-topbar-height);
   padding-inline: var(--space-4);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14.75rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-4);
   background: var(--color-surface);
@@ -254,16 +254,12 @@
   font-size: var(--font-size-3);
   font-weight: var(--font-weight-bold);
 }
-.app-shell__application-selector {
+.app-shell__application-context {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  min-height: calc(var(--control-height-compact) - var(--space-1));
   margin-inline-start: var(--space-6);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-small);
-  background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-size: var(--font-size-1);
   font-weight: var(--font-weight-medium);
@@ -276,28 +272,7 @@
   background: var(--color-brand);
   flex: 0 0 auto;
 }
-.app-shell__global-search {
-  box-sizing: border-box;
-  grid-column: 2;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  min-height: calc(var(--control-height-compact) - var(--space-1));
-  padding-inline: var(--space-3);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-small);
-  background: var(--color-surface-subtle);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-1);
-  white-space: nowrap;
-}
-.app-shell__global-search .app-shell__icon {
-  width: var(--space-4);
-  height: var(--space-4);
-}
 .app-shell__utilities {
-  grid-column: 3;
   display: flex;
   align-items: center;
   justify-self: end;
@@ -1122,8 +1097,7 @@
       max(var(--space-3), env(safe-area-inset-right));
     padding-top: env(safe-area-inset-top);
   }
-  .app-shell__application-selector,
-  .app-shell__global-search,
+  .app-shell__application-context,
   .app-shell__health-wrapper,
   .app-shell__module-nav {
     display: none;
