@@ -115,7 +115,9 @@ describe('authenticated AppShell integration', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Open roles' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'Open roles' }, { timeout: 5000 }),
+    ).toBeVisible();
     expect(
       screen.queryByRole('navigation', { name: 'Primary navigation' }),
     ).not.toBeInTheDocument();

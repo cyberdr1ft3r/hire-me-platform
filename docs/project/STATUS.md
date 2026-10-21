@@ -27,8 +27,13 @@ Status owner: repository maintainer
   primary links, and the permission-filtered More menu without changing page headings or B2 tabs.
   Regression suites for App, AppShell integration, and EN/FR shell localization pass 58/58; exact-head
   typecheck then caught unsupported `exact` query options. These were replaced by anchored name
-  regexes; local TypeScript and formatting checks pass. The correction is pushed on the existing PR
-  branch and exact-head CI is running again.
+  regexes; local TypeScript and formatting checks pass. Exact-head CI #576 then exposed a French
+  shell-link assertion still using the old label and lazy-route assertions expiring while the
+  accessible Suspense loading status remained visible. The French link is corrected, and only those
+  route-load assertions now wait up to five seconds. The unrelated AdminPanel dirty-form assertion
+  failed once under full-suite load but passes in isolation (1/1); its implementation and assertion
+  are unchanged. The affected App/shell/localization/content-language suites pass 68/68 with one
+  worker. This follow-up is ready for the next exact-head CI run.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 

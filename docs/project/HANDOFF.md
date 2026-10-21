@@ -22,8 +22,12 @@ Last updated: 2026-10-21
   the replaced Overview/domain-menu shell links; those assertions/helpers now follow Home, direct
   primary links, and the More menu while preserving page headings and B2 tabs. The correction is
   pushed. Exact-head typecheck then rejected unsupported `exact` query options; they have been
-  replaced by anchored name regexes and the follow-up has been pushed. Recheck all four required jobs
-  on the exact latest SHA. Keep draft; do not merge or deploy.
+  replaced by anchored name regexes. CI #576 then exposed a stale French shell-link assertion and
+  route-lazy queries expiring while the Suspense loading status remained visible. The link is fixed;
+  only those route-load assertions wait up to five seconds. AdminPanel's unchanged dirty-form test
+  failed once under full-suite load but passes in isolation (1/1). The four affected App/shell/
+  localization/content-language suites pass 68/68 with one worker. Push this follow-up and recheck
+  all four required jobs on the exact latest SHA. Keep draft; do not merge or deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.

@@ -175,12 +175,18 @@ describe('Task workspace inside a French shell', () => {
 
     // The shell itself is translated.
     expect(await screen.findByRole('link', { name: 'Tâches' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Accueil' })).toBeVisible();
     fireEvent.click(screen.getByLabelText('Compte et session'));
     expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
 
-    const taskHeading = await screen.findByRole('heading', { name: 'Pipeline des tâches' });
+    // Tasks is route-lazy; CI showed its Suspense status still visible at the default
+    // one-second query cutoff, so allow the measured cold route chunk window.
+    const taskHeading = await screen.findByRole(
+      'heading',
+      { name: 'Pipeline des tâches' },
+      { timeout: 5000 },
+    );
     expect(effectiveLanguage(taskHeading)).toBe('fr');
     expect(taskHeading.closest('[lang="en"]')).toBeNull();
 
@@ -194,7 +200,7 @@ describe('Task workspace inside a French shell', () => {
     mockInternalSession(['tasks:view']);
     render(<App />);
 
-    await screen.findByRole('heading', { name: 'Pipeline des tâches' });
+    await screen.findByRole('heading', { name: 'Pipeline des tâches' }, { timeout: 5000 });
     // Only the permitted destinations are present, exactly as without the boundary.
     expect(screen.getByRole('link', { name: 'Tâches' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Candidats' })).not.toBeInTheDocument();
@@ -278,7 +284,11 @@ describe('bilingual public routes carry no English boundary', () => {
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Postes à pourvoir' });
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Postes à pourvoir' },
+      { timeout: 5000 },
+    );
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
     expect(effectiveLanguage(heading)).toBe('fr');
     const title = await screen.findByRole('link', { name: 'Synthetic public role' });
@@ -302,10 +312,14 @@ describe('bilingual public routes carry no English boundary', () => {
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', {
-      level: 1,
-      name: 'Synthetic public role',
-    });
+    const heading = await screen.findByRole(
+      'heading',
+      {
+        level: 1,
+        name: 'Synthetic public role',
+      },
+      { timeout: 5000 },
+    );
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
     // The authored title is English inside a French document, and says so.
     expect(heading).toHaveAttribute('lang', 'en');
@@ -333,7 +347,11 @@ describe('bilingual public routes carry no English boundary', () => {
     mockPublicSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Postes à pourvoir' });
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Postes à pourvoir' },
+      { timeout: 5000 },
+    );
     await waitFor(() => expect(document.documentElement.lang).toBe('fr'));
     expect(effectiveLanguage(heading)).toBe('fr');
     // Loading the public page did not touch the stored preference.
@@ -348,7 +366,11 @@ describe('the Task route language boundary', () => {
     mockInternalSession();
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Pipeline des tâches' });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: 'Pipeline des tâches' },
+      { timeout: 5000 },
+    );
     expect(effectiveLanguage(heading)).toBe('fr');
     expect(heading.closest('.legacy-english-content')).toBeNull();
     expect(document.querySelector('.legacy-english-content')).toBeNull();
