@@ -13,13 +13,16 @@ Last updated: 2026-10-21
   200%-zoom-equivalent viewport, with zero horizontal overflow and no page errors. Popover/drawer
   Escape and focus restoration are checked. Full evidence is in
   `docs/audit/issue-234-top-navigation/`.
-- Focused AppShell tests (16/16), formatting, architecture scripts, changed-source lint, TypeScript,
-  and production web build pass. The local full web suite reported unrelated existing failures and
-  load-sensitive timeouts on this Windows checkout; the focused shell suite is the clean regression
-  signal. Native Chrome zoom was not tested through the browser UI.
-- The feature PR is not yet created. Next: run final checks, commit/push this branch, open a draft PR
-  referencing Issue #234, and verify all four required CI jobs on the exact pushed SHA. Keep draft;
-  do not merge or deploy.
+- Focused AppShell tests (16/16), App/AppShell/localization integration tests (58/58), formatting,
+  architecture scripts, changed-source lint, TypeScript, and production web build pass. The local
+  full web suite reported unrelated existing failures and load-sensitive timeouts on this Windows
+  checkout; the focused regressions are green. Native Chrome zoom was not tested through the browser
+  UI.
+- Draft PR #238 is open. Its first exact-head CI run identified stale integration-test selectors for
+  the replaced Overview/domain-menu shell links; those assertions/helpers now follow Home, direct
+  primary links, and the More menu while preserving page headings and B2 tabs. The correction is
+  ready to commit and push; then verify all four required jobs on the exact new SHA. Keep draft; do
+  not merge or deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.

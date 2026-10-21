@@ -652,8 +652,10 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    // A one-destination domain's rail control is that destination's link.
-    await openRailDomain('Administration');
+    // Administration is a permission-filtered destination in the overflow menu.
+    await openMoreMenu();
+    fireEvent.click(await screen.findByRole('link', { name: 'Administration' }));
+    fireEvent.click(screen.getByRole('button', { exact: true, name: 'More' }));
     expect(
       within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('link', {
         name: 'Administration',
@@ -808,8 +810,6 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    await openRailDomain('Operations');
-
     fireEvent.click(await screen.findByRole('link', { name: /clients/i }));
 
     expect(await screen.findByRole('heading', { name: /clients/i })).toBeVisible();
@@ -942,8 +942,6 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    await openRailDomain('Recruitment');
-
     fireEvent.click(await screen.findByRole('link', { name: /candidates/i }));
 
     // Route-level chunks can compile cold in the browser test environment; keep
@@ -1273,7 +1271,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    await openRailDomain('Operations');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
@@ -1339,7 +1337,7 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(screen.queryByRole('link', { name: /commercial/i })).toBeNull();
     expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
   });
@@ -1522,7 +1520,7 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Training' })).toBeNull();
   });
 
@@ -1541,7 +1539,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    await openRailDomain('Operations');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
@@ -1586,7 +1584,7 @@ describe('App', () => {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    await openRailDomain('Operations');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: 'Training' }));
 
@@ -1617,7 +1615,7 @@ describe('App', () => {
     render(<App />);
     await loginAs('no-report@example.test');
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(screen.queryByRole('link', { name: /^reporting$/i })).toBeNull();
   });
 
@@ -1626,7 +1624,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
-    await openRailDomain('Recruitment');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1648,7 +1646,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('viewonly-report@example.test');
-    await openRailDomain('Recruitment');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1670,7 +1668,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('full-report@example.test');
-    await openRailDomain('Recruitment');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
 
@@ -1689,7 +1687,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('navigation-report@example.test');
-    await openRailDomain('Recruitment');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: /^reporting$/i }));
     fireEvent.click(
@@ -1722,8 +1720,7 @@ describe('App', () => {
     ).toBeVisible();
     expect(window.location.search).toBe('?candidate=55555555-5555-4555-8555-555555555555');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }));
     expect(window.location.pathname).toBe('/');
     expect(window.location.search).toBe('');
   });
@@ -1866,7 +1863,7 @@ describe('App', () => {
     render(<App />);
     await loginAs('no-accounting@example.test');
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Accounting' })).toBeNull();
   });
 
@@ -1875,7 +1872,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-reader@example.test');
-    await openRailDomain('Commercial');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
@@ -1907,7 +1904,7 @@ describe('App', () => {
 
     render(<App />);
     await loginAs('accounting-operator@example.test');
-    await openRailDomain('Commercial');
+    await openMoreMenu();
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
@@ -2465,12 +2462,9 @@ function mockCommercialWorkspace(permissions: string[]) {
   return fetchMock;
 }
 
-/** Opens a rail domain: a button reveals several destinations; a link is the only one. */
-async function openRailDomain(name: string): Promise<void> {
-  const rail = await screen.findByRole('navigation', { name: 'Workspace navigation' });
-  const control =
-    within(rail).queryByRole('button', { name }) ?? within(rail).getByRole('link', { name });
-  fireEvent.click(control);
+/** Opens destinations that are outside the primary module navigation. */
+async function openMoreMenu(): Promise<void> {
+  fireEvent.click(await screen.findByRole('button', { exact: true, name: 'More' }));
 }
 
 async function openCommercialQuotation(displayName: string): Promise<void> {
@@ -2488,8 +2482,6 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
-  await openRailDomain('Commercial');
-
   fireEvent.click(
     within(await screen.findByRole('navigation', { name: 'Primary navigation' })).getByRole(
       'link',
@@ -2731,8 +2723,6 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
-  await openRailDomain('Recruitment');
-
   fireEvent.click(
     within(await screen.findByRole('navigation', { name: 'Primary navigation' })).getByRole(
       'link',

@@ -74,7 +74,7 @@ describe('authenticated AppShell integration', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    const overview = await screen.findByRole('link', { name: 'Overview' });
+    const overview = await screen.findByRole('link', { name: 'Home' });
     expect(overview).toHaveAttribute('aria-current', 'page');
     fireEvent.click(screen.getByRole('link', { name: 'Tasks' }));
     expect(window.location.pathname).toBe('/tasks');
