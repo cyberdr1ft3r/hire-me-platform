@@ -26,8 +26,9 @@ Last updated: 2026-10-21
   route-lazy queries expiring while the Suspense loading status remained visible. The link is fixed;
   only those route-load assertions wait up to five seconds. AdminPanel's unchanged dirty-form test
   failed once under full-suite load but passes in isolation (1/1). The four affected App/shell/
-  localization/content-language suites pass 68/68 with one worker. Push this follow-up and recheck
-  all four required jobs on the exact latest SHA. Keep draft; do not merge or deploy.
+  localization/content-language suites pass 68/68 with one worker. Exact-head CI run #577 passed all
+  four required jobs on `9c7e9f0eb52ced3cf8ada0c3dac03b2aa3e40ab3`. PR #238 remains open, draft, and
+  unmerged; recheck all four jobs after any further commit. Do not merge or deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.

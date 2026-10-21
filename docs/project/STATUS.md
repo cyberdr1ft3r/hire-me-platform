@@ -33,7 +33,8 @@ Status owner: repository maintainer
   route-load assertions now wait up to five seconds. The unrelated AdminPanel dirty-form assertion
   failed once under full-suite load but passes in isolation (1/1); its implementation and assertion
   are unchanged. The affected App/shell/localization/content-language suites pass 68/68 with one
-  worker. This follow-up is ready for the next exact-head CI run.
+  worker. Exact-head GitHub Actions run #577 on `9c7e9f0eb52ced3cf8ada0c3dac03b2aa3e40ab3` passed
+  all four required jobs. PR #238 remains open, draft, and unmerged.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 
