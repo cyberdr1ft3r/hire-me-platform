@@ -1,7 +1,31 @@
 # Project Status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 Status owner: repository maintainer
+
+## Issue #234 — Approved top application navigation
+
+- Work continues on `feat/issue-234-top-navigation`, based on merged main `c23040af0da0d2a717858408dd8af25372f85d86`.
+  The approved visual-fidelity refinement reduces the utility row from 56px to 45px, the B2 tab
+  strip from 34px to 33px, and the content inset/padding from 16px to 12px. It tightens shell
+  typography and gives desktop tabs a slim integrated active surface; mobile dialog targets and all
+  B2 state, history, focus, and guard behavior remain unchanged.
+- Installed-Chrome evidence includes before/after views of the same synthetic Candidates directory
+  and selected quick profile at 1117 × 707. It confirms the More destination popover was clipped by
+  the module list's horizontal scrollport; viewport positioning now exposes the whole menu. EN/FR
+  desktop and mobile (1117 × 707 and 390 × 844) and a 559 × 354 zoom-equivalent viewport have zero
+  horizontal overflow and no page errors. Evidence: [Issue #234 audit](../audit/issue-234-top-navigation/).
+- Approved affordance correction removes the decorative global-search box and unavailable copy;
+  Recruitment is now a plain, noninteractive context label. The first row is rebalanced to brand/
+  context at left and existing utilities at right. Same-state before/after images and measured
+  layout are recorded in the audit; browser smoke asserts no search affordance or control-like
+  context styling.
+- Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
+  warning), 41 focused AppShell/shell/localization tests, final AppShell tests (17/17), and the web
+  production build pass. The build retains the existing large-chunk advisory. Native browser zoom is
+  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI run #580 passed all four jobs on
+  implementation commit `5a5f9c8cd10a5832b8b5eb7959241fc2f53aedec`; any later PR head must be checked
+  separately. PR #238 remains open, draft, and unmerged; no merge or deployment is authorized.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 

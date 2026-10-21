@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { useState } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShellPreview } from '../../app-shell-preview/AppShellPreview.js';
@@ -78,42 +78,67 @@ describe('AppShell', () => {
 
     const shell = container.querySelector('.app-shell');
     expect(shell).toHaveAttribute('data-console-workspace', 'true');
-    expect(
-      shell?.querySelector('.app-shell__console-workspace [role="tablist"]'),
-    ).toBeInTheDocument();
+    const tabsRow = shell?.querySelector('.app-shell__console-workspace');
+    expect(tabsRow?.querySelector('[role="tablist"]')).toBeInTheDocument();
+    const utilityRow = shell?.querySelector('.app-shell__utility-bar');
+    const moduleNavigation = shell?.querySelector('.app-shell__module-nav');
+    const main = shell?.querySelector('.app-shell__main');
+    expect(utilityRow?.compareDocumentPosition(moduleNavigation!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(moduleNavigation?.compareDocumentPosition(tabsRow!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(tabsRow?.compareDocumentPosition(main!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const surface = container.querySelector('.app-shell__surface');
     expect(surface).toContainElement(screen.getByTestId('workspace-page'));
     expect(surface?.parentElement).toHaveClass('app-shell__content');
   });
 
-  it('collapses the context, persists the choice and opens a different authorized domain', () => {
+  it('keeps the desktop shell compact and the More menu outside the tab-strip scrollport', () => {
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+
+    expect(shellCss).toMatch(/\.app-shell\s*\{[^}]*--layout-shell-topbar-height:\s*2\.75rem;/s);
+    expect(shellCss).toMatch(/\.app-shell__more-panel\s*\{[^}]*position:\s*fixed;/s);
+    expect(shellCss).toMatch(
+      /@media\s*\(min-width:\s*56\.3125rem\)\s*\{[\s\S]*?\.console-tabs__tab,[\s\S]*?\.console-tabs__more\s*\{[^}]*min-height:\s*calc\(var\(--control-height-compact\)\s*-\s*var\(--border-width\)\);/,
+    );
+    expect(shellCss).toMatch(
+      /\.console-tabs__dialog-item,[\s\S]*?\.console-tabs__action\s*\{[^}]*min-height:\s*max\(var\(--hit-target-min\),\s*2\.75rem\);/,
+    );
+  });
+
+  it('uses a permission-filtered More menu without replacing the route', async () => {
     mockMobileNavigation(false);
-    const { unmount } = render(<ShellHarness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse contextual menu' }));
-    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand contextual menu' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
+    render(
+      <I18nProvider initialLocale="en">
+        <AppShell
+          apiState={{ status: 'ready', message: 'Synthetic API is healthy' }}
+          currentRoute="home"
+          onLogout={() => undefined}
+          onNavigate={() => undefined}
+          onRefreshUser={() => undefined}
+          user={{ ...syntheticUser, permissions: ['tasks:view', 'documents:view', 'users:view'] }}
+        >
+          <h1>Overview content</h1>
+        </AppShell>
+      </I18nProvider>,
     );
-    unmount();
-    render(<ShellHarness />);
-    expect(screen.getByRole('button', { name: 'Expand contextual menu' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Recruitment' }));
-    expect(screen.getByRole('link', { name: 'Missions' })).toHaveAttribute('href', '/missions');
-    expect(screen.queryByRole('link', { name: 'Tasks' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Overview' })).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
+    const more = screen.getByRole('button', { name: 'More' });
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Tasks' })).toHaveAttribute('href', '/tasks');
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
+    fireEvent.click(more);
+    expect(screen.getByText('Documents')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
+    fireEvent.keyDown(more, { key: 'Escape' });
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
+    await waitFor(() => expect(more).toHaveFocus());
   });
 
   it('keeps modified links native and closes the account popover with Escape', () => {
     mockMobileNavigation(false);
     render(<ShellHarness />);
-    fireEvent.click(screen.getByRole('link', { name: 'Tasks' }), { ctrlKey: true });
     expect(screen.getByRole('heading', { name: 'Overview content' })).toBeVisible();
     const account = screen.getByLabelText('Account and session');
     fireEvent.click(account);
@@ -128,7 +153,7 @@ describe('AppShell', () => {
     render(<ShellHarness />);
 
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Tasks' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
     expect(screen.getByText('API healthy')).toBeVisible();
@@ -167,12 +192,10 @@ describe('AppShell', () => {
       </I18nProvider>,
     );
 
-    // Communication has one destination, so its rail control is the Messages link itself.
-    const rail = screen.getByRole('link', { name: 'Communication · 3 unread conversations' });
-    expect(rail).toHaveAttribute('href', '/messages');
-    fireEvent.click(rail);
-    const messages = screen.getByRole('link', { name: /^Messages/ });
-    expect(messages).toHaveAccessibleName('Messages 3 unread conversations');
+    const messages = screen.getByRole('link', {
+      name: /Messages.*3 unread conversations/,
+    });
+    expect(messages).toHaveAccessibleName(/Messages.*3 unread conversations/);
     expect(messages).toHaveAttribute('href', '/messages');
   });
 
@@ -180,6 +203,28 @@ describe('AppShell', () => {
     mockMobileNavigation(false);
     render(<ShellHarness />);
     expect(screen.queryByRole('link', { name: /Messages/ })).not.toBeInTheDocument();
+  });
+
+  it('does not advertise unavailable global search and presents the application as context', () => {
+    mockMobileNavigation(false);
+    render(<ShellHarness />);
+
+    expect(screen.queryByRole('search')).not.toBeInTheDocument();
+    expect(screen.queryByText('Search HireMe…')).not.toBeInTheDocument();
+    const applicationContext = screen.getByLabelText('Current application');
+    expect(applicationContext).toHaveClass('app-shell__application-context');
+    expect(applicationContext).toHaveTextContent('Recruitment');
+    expect(applicationContext).not.toBeInstanceOf(HTMLButtonElement);
+    expect(applicationContext).not.toHaveAttribute('aria-haspopup');
+
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+    expect(shellCss).toMatch(
+      /\.app-shell__application-context\s*\{[^}]*display:\s*inline-flex;[^}]*color:\s*var\(--color-text-secondary\);/s,
+    );
+    expect(shellCss).not.toMatch(/\.app-shell__application-context\s*\{[^}]*background:/s);
+    expect(shellCss).toMatch(
+      /\.app-shell__utility-bar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto;/s,
+    );
   });
 
   it('provides a skip target', () => {
@@ -304,52 +349,38 @@ describe('AppShell single-destination domains and workspace layout', () => {
     );
   }
 
-  const rail = () => screen.getByRole('navigation', { name: 'Workspace navigation' });
-  const context = () => screen.getByRole('navigation', { name: 'Primary navigation' });
-
-  it('navigates straight to Messages and never shows Administration as its context', () => {
+  it('navigates using existing routes and reflects the active primary destination', () => {
     mockMobileNavigation(false);
     const { container } = render(<RoutedShell />);
     expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'flow');
 
-    fireEvent.click(within(rail()).getByRole('link', { name: 'Communication' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Messages' }));
     expect(screen.getByRole('heading', { name: 'Route messages' })).toBeVisible();
-    expect(within(rail()).getByRole('link', { name: 'Communication' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(within(context()).getByRole('link', { name: 'Messages' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(within(context()).queryByRole('link', { name: 'Administration' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Messages' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
     expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'fill');
 
-    fireEvent.click(within(rail()).getByRole('link', { name: 'Administration' }));
+    const workspace = container.querySelector('.app-shell__console-workspace');
+    expect(workspace).toBeNull();
+    const utility = container.querySelector('.app-shell__utility-bar');
+    const moduleNavigation = container.querySelector('.app-shell__module-nav');
+    const moduleHome = screen.getByRole('main');
+    expect(utility?.compareDocumentPosition(moduleNavigation!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(moduleNavigation?.compareDocumentPosition(moduleHome)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('navigates from More using the existing route and closes the menu', () => {
+    mockMobileNavigation(false);
+    render(<RoutedShell />);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    const admin = screen.getByRole('link', { name: 'Administration' });
+    expect(admin).toHaveAttribute('href', '/admin');
+    fireEvent.click(admin);
     expect(screen.getByRole('heading', { name: 'Route admin' })).toBeVisible();
-    expect(within(context()).queryByRole('link', { name: 'Messages' })).toBeNull();
-    expect(within(rail()).getByRole('link', { name: 'Communication' })).not.toHaveAttribute(
-      'aria-current',
-    );
-    expect(container.querySelector('.app-shell')).toHaveAttribute('data-layout', 'flow');
-  });
-
-  it('keeps modified clicks on a single-destination rail link native', () => {
-    mockMobileNavigation(false);
-    render(<RoutedShell />);
-    fireEvent.click(within(rail()).getByRole('link', { name: 'Communication' }), {
-      ctrlKey: true,
-    });
-    expect(screen.getByRole('heading', { name: 'Route home' })).toBeVisible();
-  });
-
-  it('keeps a multi-destination domain as a disclosure that does not change the route', () => {
-    mockMobileNavigation(false);
-    render(<RoutedShell />);
-    expect(within(rail()).getByRole('button', { name: 'Overview' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(screen.getByRole('heading', { name: 'Route home' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
   });
 });

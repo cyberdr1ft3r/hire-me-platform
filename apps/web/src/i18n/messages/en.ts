@@ -94,23 +94,24 @@ export const enMessages = {
     brand: {
       subtitle: 'Operations',
     },
+    application: 'Recruitment',
+    applicationLabel: 'Current application',
     language: {
       label: 'Language',
     },
     navigation: {
       communication: 'Communication',
       domainRegion: 'Workspace navigation',
-      collapse: 'Collapse contextual menu',
-      expand: 'Expand contextual menu',
-      contextHint: 'Choose a workspace from the icon rail.',
       close: 'Close',
       closeNavigation: 'Close navigation',
       dismissNavigation: 'Dismiss navigation',
+      home: 'Home',
       menu: 'Menu',
       mobileRegion: 'Mobile navigation',
+      more: 'More',
+      moreDestinations: 'More workspaces',
       openNavigation: 'Open navigation',
       primaryRegion: 'Primary navigation',
-      sidebarRegion: 'Application sidebar',
       skipToMain: 'Skip to main content',
     },
     session: {

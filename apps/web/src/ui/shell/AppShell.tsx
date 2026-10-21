@@ -14,10 +14,7 @@ import { LanguageSelect } from './LanguageSelect.js';
 import { NotificationCenter, type NotificationCenterProps } from './NotificationCenter.js';
 import { ShellIcon } from './ShellIcon.js';
 import {
-  domainForRoute,
-  readNavigationExpanded,
   workspaceLayoutForRoute,
-  saveNavigationExpanded,
   visibleShellDomains,
   type ShellDomain,
 } from './shell-navigation.js';
@@ -44,6 +41,15 @@ interface AppShellProps {
   user: AuthenticatedUser;
 }
 const mobileNavigationQuery = '(max-width: 56.25rem)';
+const primaryRoutes: readonly InternalRoute[] = [
+  'home',
+  'candidates',
+  'missions',
+  'clients',
+  'tasks',
+  'messages',
+  'commercial',
+];
 /** Plain primary clicks navigate in-app; modified clicks keep native link behavior. */
 function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
   return !(
@@ -77,25 +83,29 @@ export function AppShell({
   const { t } = useI18n();
   const [mobile, setMobile] = useState(isMobileNavigation);
   const [navigationOpen, setNavigationOpen] = useState(false);
-  const [expanded, setExpanded] = useState(readNavigationExpanded);
-  const [selectedDomain, setSelectedDomain] = useState(domainForRoute(currentRoute));
-  const [tooltipDismissed, setTooltipDismissed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const accountRef = useRef<HTMLDetailsElement>(null);
+  const moreRef = useRef<HTMLLIElement>(null);
   const previousRouteRef = useRef(currentRoute);
   const domains = visibleShellDomains(user.permissions);
-  const activeDomain = domainForRoute(currentRoute);
-  const context = domains.find((domain) => domain.id === selectedDomain) ?? domains[0];
-  const currentItem = domains
-    .flatMap((domain) => domain.items)
-    .find((item) => item.route === currentRoute);
-  const currentLabel = currentItem
-    ? t(currentItem.labelKey)
-    : currentRoute === 'meetings'
-      ? t('agenda.sources.meeting')
-      : t('navigation.destinations.overview');
+  const availableItems = domains.flatMap((domain) => domain.items);
+  const primaryItems = primaryRoutes.flatMap((route) => {
+    const item = availableItems.find((candidate) => candidate.route === route);
+    return item ? [item] : [];
+  });
+  const primaryRouteSet = new Set(primaryRoutes);
+  const moreDomains = domains
+    .map((domain) => ({
+      ...domain,
+      items: domain.items.filter((item) => !primaryRouteSet.has(item.route)),
+    }))
+    .filter((domain) => domain.items.length > 0);
+  const currentIsInMore = moreDomains.some((domain) =>
+    domain.items.some((item) => item.route === currentRoute),
+  );
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -111,8 +121,8 @@ export function AppShell({
   useEffect(() => {
     if (previousRouteRef.current !== currentRoute) {
       previousRouteRef.current = currentRoute;
-      setSelectedDomain(domainForRoute(currentRoute));
       setNavigationOpen(false);
+      setMoreOpen(false);
       // Fill-layout routes scroll inside main; never carry an old offset across routes.
       if (mainRef.current) mainRef.current.scrollTop = 0;
       if (focusMainOnRouteChange) mainRef.current?.focus({ preventScroll: true });
@@ -131,15 +141,12 @@ export function AppShell({
     const outside = (event: PointerEvent) => {
       if (accountRef.current && !accountRef.current.contains(event.target as Node))
         accountRef.current.open = false;
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
     };
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
   }, []);
 
-  function setPanelExpanded(next: boolean): void {
-    setExpanded(next);
-    saveNavigationExpanded(next);
-  }
   function closeNavigation(restoreFocus = true): void {
     setNavigationOpen(false);
     if (restoreFocus) window.setTimeout(() => triggerRef.current?.focus(), 0);
@@ -175,6 +182,12 @@ export function AppShell({
       mainRef.current?.focus({ preventScroll: true });
     }
     onNavigate(route);
+  }
+  function closeMoreOnEscape(event: KeyboardEvent<HTMLElement>): void {
+    if (event.key !== 'Escape' || !moreOpen) return;
+    event.preventDefault();
+    setMoreOpen(false);
+    window.setTimeout(() => moreRef.current?.querySelector('button')?.focus(), 0);
   }
   const apiLabel =
     apiState.status === 'loading'
@@ -241,88 +254,11 @@ export function AppShell({
       className="app-shell"
       data-console-workspace={consoleWorkspace ? 'true' : undefined}
       data-density="internal-compact"
-      data-expanded={expanded ? 'true' : 'false'}
       data-layout={workspaceLayoutForRoute(currentRoute, mobile)}
     >
       <a className="app-shell__skip-link" href="#main-content">
         {t('shell.navigation.skipToMain')}
       </a>
-      {!mobile ? (
-        <nav
-          aria-label={t('shell.navigation.domainRegion')}
-          className="app-shell__rail"
-          data-tooltip-dismissed={tooltipDismissed ? 'true' : undefined}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setTooltipDismissed(true);
-          }}
-        >
-          <span aria-label="HireMe" className="app-shell__brand-mark">
-            H
-          </span>
-          <div className="app-shell__rail-items">
-            {domains.map((domain) => {
-              const badge = domain.items
-                .map((item) => navigationBadges?.[item.route])
-                .find(Boolean);
-              const label = t(domain.labelKey) + (badge ? ` · ${badge.label}` : '');
-              const icon = (
-                <>
-                  <ShellIcon name={domain.id} />
-                  {badge ? (
-                    <span className="app-shell__rail-badge" aria-hidden="true">
-                      {badge.display}
-                    </span>
-                  ) : null}
-                </>
-              );
-              const onlyDestination = domain.items.length === 1 ? domain.items[0] : undefined;
-              return (
-                <div className="app-shell__rail-item" key={domain.id}>
-                  {onlyDestination ? (
-                    // A one-destination domain has nothing to reveal: its rail control is
-                    // that destination's link, so it can never leave a stale context open.
-                    <a
-                      aria-current={onlyDestination.route === currentRoute ? 'page' : undefined}
-                      aria-label={label}
-                      className="app-shell__rail-button"
-                      href={onlyDestination.path}
-                      onClick={(event) => {
-                        if (!isPlainClick(event)) return;
-                        setSelectedDomain(domain.id);
-                        handleDestination(event, onlyDestination.route);
-                      }}
-                      onFocus={() => setTooltipDismissed(false)}
-                      onMouseEnter={() => setTooltipDismissed(false)}
-                    >
-                      {icon}
-                    </a>
-                  ) : (
-                    <button
-                      className="app-shell__rail-button"
-                      type="button"
-                      aria-label={label}
-                      aria-controls="app-context-navigation"
-                      aria-expanded={expanded && context?.id === domain.id}
-                      aria-current={activeDomain === domain.id ? 'true' : undefined}
-                      onFocus={() => setTooltipDismissed(false)}
-                      onMouseEnter={() => setTooltipDismissed(false)}
-                      onClick={() => {
-                        setSelectedDomain(domain.id);
-                        setPanelExpanded(true);
-                      }}
-                    >
-                      {icon}
-                    </button>
-                  )}
-                  <span className="app-shell__tooltip" role="tooltip">
-                    {t(domain.labelKey)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </nav>
-      ) : null}
       {mobile && navigationOpen ? (
         <button
           aria-label={t('shell.navigation.dismissNavigation')}
@@ -332,24 +268,22 @@ export function AppShell({
           type="button"
         />
       ) : null}
-      <aside
-        aria-hidden={(mobile ? !navigationOpen : !expanded) ? 'true' : undefined}
-        aria-label={
-          mobile ? t('shell.navigation.mobileRegion') : t('shell.navigation.sidebarRegion')
-        }
-        aria-modal={mobile && navigationOpen ? 'true' : undefined}
-        className="app-shell__sidebar"
-        data-mobile={mobile ? 'true' : undefined}
-        data-open={navigationOpen ? 'true' : undefined}
-        id="app-context-navigation"
-        inert={(mobile ? !navigationOpen : !expanded) ? true : undefined}
-        onKeyDown={handleNavigationKeyDown}
-        ref={navigationRef}
-        role={mobile ? 'dialog' : undefined}
-      >
-        <div className="app-shell__brand">
-          <strong>HireMe</strong>
-          {mobile ? (
+      {mobile ? (
+        <aside
+          aria-hidden={!navigationOpen}
+          aria-label={t('shell.navigation.mobileRegion')}
+          aria-modal={navigationOpen ? 'true' : undefined}
+          className="app-shell__sidebar"
+          data-mobile="true"
+          data-open={navigationOpen ? 'true' : undefined}
+          id="app-context-navigation"
+          inert={!navigationOpen}
+          onKeyDown={handleNavigationKeyDown}
+          ref={navigationRef}
+          role="dialog"
+        >
+          <div className="app-shell__brand">
+            <strong>HireMe</strong>
             <Button
               aria-label={t('shell.navigation.closeNavigation')}
               onClick={() => closeNavigation()}
@@ -357,63 +291,53 @@ export function AppShell({
             >
               <ShellIcon name="close" />
             </Button>
-          ) : null}
-        </div>
-        <nav aria-label={t('shell.navigation.primaryRegion')} className="app-shell__navigation">
-          {mobile ? domains.map(links) : context ? links(context) : null}
-        </nav>
-        {mobile ? (
+          </div>
+          <nav aria-label={t('shell.navigation.primaryRegion')} className="app-shell__navigation">
+            {domains.map(links)}
+          </nav>
           <footer className="app-shell__mobile-session">
             {health}
             <LanguageSelect />
             {session}
           </footer>
-        ) : (
-          <p className="app-shell__context-hint">{t('shell.navigation.contextHint')}</p>
-        )}
-      </aside>
+        </aside>
+      ) : null}
       <div className="app-shell__workspace" inert={mobile && navigationOpen ? true : undefined}>
         <header className="app-shell__utility-bar">
-          <button
-            aria-controls="app-context-navigation"
-            aria-expanded={mobile ? navigationOpen : expanded}
-            aria-label={
-              mobile
-                ? t('shell.navigation.openNavigation')
-                : expanded
-                  ? t('shell.navigation.collapse')
-                  : t('shell.navigation.expand')
-            }
-            className="app-shell__menu-trigger"
-            onClick={() => (mobile ? setNavigationOpen(true) : setPanelExpanded(!expanded))}
-            ref={triggerRef}
-            type="button"
-            title={
-              mobile
-                ? t('shell.navigation.openNavigation')
-                : expanded
-                  ? t('shell.navigation.collapse')
-                  : t('shell.navigation.expand')
-            }
-          >
-            <ShellIcon name={mobile ? 'menu' : 'panel'} />
-          </button>
-          {consoleWorkspace ? (
-            <div className="app-shell__console-workspace">{consoleWorkspace}</div>
-          ) : (
-            <div className="app-shell__breadcrumb">
-              <strong>HireMe</strong>
-              <span aria-hidden="true">/</span>
-              <span>{currentLabel}</span>
-            </div>
-          )}
+          <div className="app-shell__topbar-start">
+            {mobile ? (
+              <button
+                aria-controls="app-context-navigation"
+                aria-expanded={navigationOpen}
+                aria-label={t('shell.navigation.openNavigation')}
+                className="app-shell__menu-trigger"
+                onClick={() => setNavigationOpen(true)}
+                ref={triggerRef}
+                type="button"
+                title={t('shell.navigation.openNavigation')}
+              >
+                <ShellIcon name="menu" />
+              </button>
+            ) : null}
+            <span aria-hidden="true" className="app-shell__brand-mark">
+              H
+            </span>
+            <strong className="app-shell__brand-name">HireMe</strong>
+            <span
+              aria-label={t('shell.applicationLabel')}
+              className="app-shell__application-context"
+            >
+              <span aria-hidden="true" className="app-shell__application-icon" />
+              {t('shell.application')}
+            </span>
+          </div>
           <div className="app-shell__utilities">
             {notificationCenter ? (
               <NotificationCenter {...notificationCenter} permissions={user.permissions} />
             ) : null}
+            <div className="app-shell__health-wrapper">{health}</div>
             {!mobile ? (
               <>
-                {health}
                 <LanguageSelect />
                 <details
                   className="app-shell__account"
@@ -437,6 +361,81 @@ export function AppShell({
             ) : null}
           </div>
         </header>
+        {!mobile ? (
+          <nav aria-label={t('shell.navigation.primaryRegion')} className="app-shell__module-nav">
+            <ul className="app-shell__module-list">
+              {primaryItems.map((item) => {
+                const badge = navigationBadges?.[item.route];
+                const label = item.route === 'home' ? t('shell.navigation.home') : t(item.labelKey);
+                return (
+                  <li key={item.route}>
+                    <a
+                      aria-current={item.route === currentRoute ? 'page' : undefined}
+                      href={item.path}
+                      onClick={(event) => handleDestination(event, item.route)}
+                    >
+                      <span>{label}</span>
+                      {badge ? (
+                        <span className="app-shell__nav-badge">
+                          <span aria-hidden="true">{badge.display}</span>
+                          <span className="sr-only">{badge.label}</span>
+                        </span>
+                      ) : null}
+                    </a>
+                  </li>
+                );
+              })}
+              {moreDomains.length > 0 ? (
+                <li className="app-shell__more" onKeyDown={closeMoreOnEscape} ref={moreRef}>
+                  <button
+                    aria-controls="app-shell-more-destinations"
+                    aria-current={currentIsInMore ? 'page' : undefined}
+                    aria-expanded={moreOpen}
+                    className="app-shell__more-trigger"
+                    onClick={() => setMoreOpen((open) => !open)}
+                    type="button"
+                  >
+                    {t('shell.navigation.more')}
+                    <span aria-hidden="true" className="app-shell__more-chevron" />
+                  </button>
+                  {moreOpen ? (
+                    <div
+                      aria-label={t('shell.navigation.moreDestinations')}
+                      className="app-shell__more-panel"
+                      id="app-shell-more-destinations"
+                    >
+                      {moreDomains.map((domain) => (
+                        <section className="app-shell__more-group" key={domain.id}>
+                          <h2>{t(domain.labelKey)}</h2>
+                          <ul>
+                            {domain.items.map((item) => (
+                              <li key={item.route}>
+                                <a
+                                  aria-current={item.route === currentRoute ? 'page' : undefined}
+                                  href={item.path}
+                                  onClick={(event) => {
+                                    const plainClick = isPlainClick(event);
+                                    handleDestination(event, item.route);
+                                    if (plainClick) setMoreOpen(false);
+                                  }}
+                                >
+                                  {t(item.labelKey)}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              ) : null}
+            </ul>
+          </nav>
+        ) : null}
+        {consoleWorkspace ? (
+          <div className="app-shell__console-workspace">{consoleWorkspace}</div>
+        ) : null}
         <main
           className="app-shell__main"
           id="main-content"

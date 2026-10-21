@@ -1,6 +1,7 @@
 import type { ShellDomainId } from './shell-navigation.js';
 
-export type ShellIconName = ShellDomainId | 'panel' | 'menu' | 'close' | 'account' | 'bell';
+export type ShellIconName =
+  ShellDomainId | 'panel' | 'menu' | 'close' | 'account' | 'bell' | 'search';
 const paths: Record<ShellIconName, string> = {
   overview: 'M3 10 12 3l9 7M5 9v12h14V9M9 21v-7h6v7',
   recruitment:
@@ -14,6 +15,7 @@ const paths: Record<ShellIconName, string> = {
   close: 'm6 6 12 12M6 18 18 6',
   account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
   bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4',
+  search: 'm20 20-4.25-4.25M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0',
 };
 
 /** Dependency-free shell icons; names live on the controls, never on decorative SVGs. */

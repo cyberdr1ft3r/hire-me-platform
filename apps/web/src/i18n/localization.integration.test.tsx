@@ -101,7 +101,7 @@ describe('locale selection at startup', () => {
     mockInternalSession();
     render(<App />);
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(document.documentElement.lang).toBe('en');
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull();
   });
@@ -111,7 +111,7 @@ describe('locale selection at startup', () => {
     mockInternalSession();
     render(<App />);
 
-    expect(await screen.findByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Accueil' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
   });
 
@@ -121,7 +121,7 @@ describe('locale selection at startup', () => {
     mockInternalSession();
     render(<App />);
 
-    expect(await screen.findByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Accueil' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
   });
 
@@ -131,7 +131,7 @@ describe('locale selection at startup', () => {
     mockInternalSession();
     render(<App />);
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     expect(document.documentElement.lang).toBe('en');
   });
 });
@@ -142,23 +142,19 @@ describe('switching language in the shell', () => {
     mockInternalSession();
     render(<App />);
 
-    await screen.findByRole('link', { name: 'Overview' });
+    await screen.findByRole('link', { name: 'Home' });
     expect(screen.getByText('API healthy')).toBeVisible();
 
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
 
-    expect(await screen.findByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Accueil' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Tâches' })).toBeVisible();
-    for (const [domain, labels] of [
-      ['Recrutement', ['Candidats', 'Rapports']],
-      ['Commercial', ['Comptabilité']],
-    ] as const) {
-      fireEvent.click(screen.getByRole('button', { name: domain }));
-      for (const label of labels) expect(screen.getByRole('link', { name: label })).toBeVisible();
-    }
-    // A one-destination domain is a direct, translated rail link.
+    expect(screen.getByRole('link', { name: 'Candidats' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /^Plus$/ }));
+    expect(screen.getByRole('link', { name: 'Rapports' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Comptabilité' })).toBeVisible();
     expect(
-      within(screen.getByRole('navigation', { name: 'Navigation des espaces' })).getByRole('link', {
+      within(screen.getByRole('navigation', { name: 'Navigation principale' })).getByRole('link', {
         name: 'Administration',
       }),
     ).toHaveAttribute('href', '/admin');
@@ -168,7 +164,7 @@ describe('switching language in the shell', () => {
     expect(screen.getByText('API opérationnelle')).toBeVisible();
     expect(screen.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Aller au contenu principal' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Vue d’ensemble', level: 1 })).toBeVisible();
 
     expect(document.documentElement.lang).toBe('fr');
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('fr');
@@ -179,10 +175,10 @@ describe('switching language in the shell', () => {
     mockInternalSession();
     render(<App />);
 
-    await screen.findByRole('link', { name: 'Vue d’ensemble' });
+    await screen.findByRole('link', { name: 'Accueil' });
     fireEvent.change(languageSelect(), { target: { value: 'en' } });
 
-    expect(await screen.findByRole('link', { name: 'Overview' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Home' })).toBeVisible();
     fireEvent.click(screen.getByLabelText('Account and session'));
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
     expect(document.documentElement.lang).toBe('en');
@@ -194,7 +190,7 @@ describe('switching language in the shell', () => {
     mockInternalSession();
     render(<App />);
 
-    await screen.findByRole('link', { name: 'Overview' });
+    await screen.findByRole('link', { name: 'Home' });
     const before = screen
       .getAllByRole('link')
       .map((link) => link.getAttribute('href'))
@@ -202,7 +198,7 @@ describe('switching language in the shell', () => {
     expect(window.location.pathname).toBe('/');
 
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
-    await screen.findByRole('link', { name: 'Vue d’ensemble' });
+    await screen.findByRole('link', { name: 'Accueil' });
 
     const after = screen
       .getAllByRole('link')
@@ -212,10 +208,7 @@ describe('switching language in the shell', () => {
     // Same permitted destinations, same paths, same route: only the labels moved.
     expect(after).toEqual(before);
     expect(window.location.pathname).toBe('/');
-    expect(screen.getByRole('link', { name: 'Vue d’ensemble' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(screen.getByRole('link', { name: 'Accueil' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('makes no API call merely because the language changed', async () => {
@@ -223,14 +216,14 @@ describe('switching language in the shell', () => {
     const fetchSpy = mockInternalSession();
     render(<App />);
 
-    await screen.findByRole('link', { name: 'Overview' });
+    await screen.findByRole('link', { name: 'Home' });
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(0));
     const callsBefore = fetchSpy.mock.calls.length;
 
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
-    await screen.findByRole('link', { name: 'Vue d’ensemble' });
+    await screen.findByRole('link', { name: 'Accueil' });
     fireEvent.change(languageSelect(), { target: { value: 'en' } });
-    await screen.findByRole('link', { name: 'Overview' });
+    await screen.findByRole('link', { name: 'Home' });
 
     expect(fetchSpy.mock.calls.length).toBe(callsBefore);
   });
@@ -240,7 +233,7 @@ describe('switching language in the shell', () => {
     mockInternalSession();
     render(<App />);
 
-    await screen.findByRole('link', { name: 'Overview' });
+    await screen.findByRole('link', { name: 'Home' });
     fireEvent.change(languageSelect(), { target: { value: 'fr' } });
     fireEvent.click(screen.getByLabelText('Compte et session'));
     fireEvent.click(await screen.findByRole('button', { name: 'Se déconnecter' }));

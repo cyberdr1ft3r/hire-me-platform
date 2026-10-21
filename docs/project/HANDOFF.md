@@ -1,8 +1,26 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Current situation
+
+- Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
+  after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
+  quick profile at 1117 × 707. The utility row is 45px (was 56px), workspace strip 33px (was 34px),
+  and content inset/padding 12px (was 16px). More-menu clipping by the module-list scrollport was
+  confirmed and corrected using viewport positioning. EN/FR desktop/mobile and 200%-equivalent
+  viewport smoke checks pass without horizontal overflow or browser errors. Approved corrections
+  remove the decorative global-search box and render Recruitment as a plain context label; the
+  first row now balances the brand/context group against existing right-aligned utilities. Evidence
+  includes same-state Candidates before/after screenshots at 1117 × 707.
+- Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
+  warning), 41 focused shell/localization regressions, final AppShell 17/17, and web build pass. The
+  existing production large-chunk advisory remains. Native Chrome zoom is not directly exercised;
+  the 559 × 354 viewport is an equivalent-width smoke check. Evidence is under
+  `docs/audit/issue-234-top-navigation/`.
+- Exact-head Actions run #580 passed all four jobs on implementation commit
+  `5a5f9c8cd10a5832b8b5eb7959241fc2f53aedec`. Any later PR head must be checked independently.
+  PR #238 remains open and draft; keep it unmerged and do not deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.
@@ -42,8 +60,9 @@ Last updated: 2026-10-20
 
 ## Next concrete action
 
-1. Complete native Chrome 200% zoom/accessibility validation and append its evidence to PR #235.
-2. Keep PR #235 draft and unmerged; do not deploy or begin later phases.
+1. Verify all four required jobs on the latest PR #238 head, including any documentation-only
+   follow-up commit.
+2. Keep PR #238 draft and unmerged; no deployment or additional feature work is authorized here.
 
 ## Completion conditions
 

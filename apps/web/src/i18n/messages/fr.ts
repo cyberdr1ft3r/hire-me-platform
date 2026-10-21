@@ -107,23 +107,24 @@ export const frMessages: Messages = {
     brand: {
       subtitle: 'Opérations',
     },
+    application: 'Recrutement',
+    applicationLabel: 'Application actuelle',
     language: {
       label: 'Langue',
     },
     navigation: {
       communication: 'Communication',
       domainRegion: 'Navigation des espaces',
-      collapse: 'Réduire le menu contextuel',
-      expand: 'Développer le menu contextuel',
-      contextHint: 'Choisissez un espace dans la barre d’icônes.',
       close: 'Fermer',
       closeNavigation: 'Fermer la navigation',
       dismissNavigation: 'Masquer le panneau de navigation',
+      home: 'Accueil',
       menu: 'Menu',
       mobileRegion: 'Navigation mobile',
+      more: 'Plus',
+      moreDestinations: 'Autres espaces de travail',
       openNavigation: 'Ouvrir la navigation',
       primaryRegion: 'Navigation principale',
-      sidebarRegion: 'Barre latérale de l’application',
       skipToMain: 'Aller au contenu principal',
     },
     session: {

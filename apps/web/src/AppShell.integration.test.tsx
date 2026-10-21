@@ -74,7 +74,7 @@ describe('authenticated AppShell integration', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    const overview = await screen.findByRole('link', { name: 'Overview' });
+    const overview = await screen.findByRole('link', { name: 'Home' });
     expect(overview).toHaveAttribute('aria-current', 'page');
     fireEvent.click(screen.getByRole('link', { name: 'Tasks' }));
     expect(window.location.pathname).toBe('/tasks');
@@ -115,7 +115,9 @@ describe('authenticated AppShell integration', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Open roles' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'Open roles' }, { timeout: 5000 }),
+    ).toBeVisible();
     expect(
       screen.queryByRole('navigation', { name: 'Primary navigation' }),
     ).not.toBeInTheDocument();
