@@ -150,7 +150,7 @@ describe('switching language in the shell', () => {
     expect(await screen.findByRole('link', { name: 'Accueil' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Tâches' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Candidats' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { exact: true, name: 'Plus' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Plus$/ }));
     expect(screen.getByRole('link', { name: 'Rapports' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Comptabilité' })).toBeVisible();
     expect(

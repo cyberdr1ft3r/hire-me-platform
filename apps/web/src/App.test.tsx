@@ -655,7 +655,7 @@ describe('App', () => {
     // Administration is a permission-filtered destination in the overflow menu.
     await openMoreMenu();
     fireEvent.click(await screen.findByRole('link', { name: 'Administration' }));
-    fireEvent.click(screen.getByRole('button', { exact: true, name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     expect(
       within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('link', {
         name: 'Administration',
@@ -2464,7 +2464,7 @@ function mockCommercialWorkspace(permissions: string[]) {
 
 /** Opens destinations that are outside the primary module navigation. */
 async function openMoreMenu(): Promise<void> {
-  fireEvent.click(await screen.findByRole('button', { exact: true, name: 'More' }));
+  fireEvent.click(await screen.findByRole('button', { name: /^More$/ }));
 }
 
 async function openCommercialQuotation(displayName: string): Promise<void> {
