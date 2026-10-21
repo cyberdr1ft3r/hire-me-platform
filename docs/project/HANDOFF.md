@@ -1,8 +1,25 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Current situation
+
+- Issue #234 top navigation is in progress on `feat/issue-234-top-navigation`, based on merged
+  `main` `c23040af0da0d2a717858408dd8af25372f85d86`. It retains the existing B2 tab layer, active
+  page surface, route/permission contracts, and mobile drawer while matching the product-owner
+  reference with a compact utility row, horizontal module row, neutral canvas, and separate page
+  panel. Search and the application selector remain non-interactive placeholders.
+- Installed Chrome evidence passes EN/FR at 1117 × 707 and 390 × 844, plus a 559 × 354
+  200%-zoom-equivalent viewport, with zero horizontal overflow and no page errors. Popover/drawer
+  Escape and focus restoration are checked. Full evidence is in
+  `docs/audit/issue-234-top-navigation/`.
+- Focused AppShell tests (16/16), formatting, architecture scripts, changed-source lint, TypeScript,
+  and production web build pass. The local full web suite reported unrelated existing failures and
+  load-sensitive timeouts on this Windows checkout; the focused shell suite is the clean regression
+  signal. Native Chrome zoom was not tested through the browser UI.
+- The feature PR is not yet created. Next: run final checks, commit/push this branch, open a draft PR
+  referencing Issue #234, and verify all four required CI jobs on the exact pushed SHA. Keep draft;
+  do not merge or deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.

@@ -1,7 +1,27 @@
 # Project Status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 Status owner: repository maintainer
+
+## Issue #234 — Approved top application navigation
+
+- Implementation is in progress on dedicated branch `feat/issue-234-top-navigation`, based on
+  merged `main` commit `c23040af0da0d2a717858408dd8af25372f85d86` (PR #235 merge). The change
+  replaces the contextual rail with the approved two-row header while retaining the existing B2
+  workspace-tab row and independent page surface. Existing route URLs, permission-filtered
+  destinations, mobile drawer, notification center, account/session controls, and B2 state/history
+  remain in place. Search and application selector are intentionally static and non-interactive.
+- Installed-Chrome synthetic-data evidence passes at the reference 1117 × 707 desktop and
+  390 × 844 mobile dimensions in EN/FR, with no page errors or horizontal overflow. More-menu and
+  drawer Escape/focus restoration, primary navigation order, permission filtering, and the compact
+  mobile B2 row are exercised. A 559 × 354 CSS viewport (200%-zoom equivalent) also has no
+  horizontal overflow; native browser zoom is not separately exercised. Evidence and runner:
+  [Issue #234 browser evidence](../audit/issue-234-top-navigation/).
+- Formatting, Prisma/style-token/contrast architecture checks, changed-source lint, TypeScript,
+  focused AppShell tests (16/16), and the production web build pass. A full web-suite run on the
+  Windows checkout surfaced existing cross-workspace failures/timeouts (including a literal-LF
+  stylesheet assertion under CRLF and suite-load timeouts); it was stopped after unrelated failures
+  accumulated. The focused shell suite is green. No merge or deployment is authorized.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 
