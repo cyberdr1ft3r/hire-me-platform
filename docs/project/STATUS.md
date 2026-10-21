@@ -26,7 +26,9 @@ Status owner: repository maintainer
   the replaced Overview/domain-menu shell links. Those assertions/helpers now follow Home, direct
   primary links, and the permission-filtered More menu without changing page headings or B2 tabs.
   Regression suites for App, AppShell integration, and EN/FR shell localization pass 58/58; exact-head
-  CI will be rerun after this test-only correction is pushed.
+  typecheck then caught unsupported `exact` query options. These were replaced by anchored name
+  regexes; local TypeScript and formatting checks pass. The correction is pushed on the existing PR
+  branch and exact-head CI is running again.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 

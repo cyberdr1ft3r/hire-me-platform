@@ -21,8 +21,9 @@ Last updated: 2026-10-21
 - Draft PR #238 is open. Its first exact-head CI run identified stale integration-test selectors for
   the replaced Overview/domain-menu shell links; those assertions/helpers now follow Home, direct
   primary links, and the More menu while preserving page headings and B2 tabs. The correction is
-  ready to commit and push; then verify all four required jobs on the exact new SHA. Keep draft; do
-  not merge or deploy.
+  pushed. Exact-head typecheck then rejected unsupported `exact` query options; they have been
+  replaced by anchored name regexes and the follow-up has been pushed. Recheck all four required jobs
+  on the exact latest SHA. Keep draft; do not merge or deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.
