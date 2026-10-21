@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = process.cwd();
-const WEB = process.env.ISSUE_234_WEB_URL ?? 'http://127.0.0.1:5173';
+const WEB =
+  process.env.ISSUE_234_WEB_URL ?? pathToFileURL(path.join(ROOT, 'apps/web/dist/index.html')).href;
 const CHROME =
   process.env.ISSUE_234_CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUTPUT = path.join(ROOT, 'docs/audit/issue-234-top-navigation');
@@ -66,7 +68,15 @@ async function installFixtures(page) {
 }
 
 async function signIn(page, locale) {
-  await page.addInitScript((value) => localStorage.setItem('hireme.locale', value), locale);
+  await page.addInitScript((value) => {
+    localStorage.setItem('hireme.locale', value);
+    if (location.protocol === 'file:') {
+      const nativePushState = history.pushState.bind(history);
+      const nativeReplaceState = history.replaceState.bind(history);
+      history.pushState = (state, title) => nativePushState(state, title);
+      history.replaceState = (state, title) => nativeReplaceState(state, title);
+    }
+  }, locale);
   await page.goto(WEB, { waitUntil: 'domcontentloaded' });
   await page.locator('input[name="email"]').fill('issue-234@example.test');
   await page.locator('input[name="password"]').fill('Synthetic-password-234!');
@@ -75,7 +85,11 @@ async function signIn(page, locale) {
 }
 
 await mkdir(OUTPUT, { recursive: true });
-const browser = await chromium.launch({ executablePath: CHROME, headless: true });
+const browser = await chromium.launch({
+  args: ['--allow-file-access-from-files'],
+  executablePath: CHROME,
+  headless: true,
+});
 const results = [];
 
 try {

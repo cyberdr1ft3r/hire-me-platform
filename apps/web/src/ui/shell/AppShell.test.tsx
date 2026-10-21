@@ -95,6 +95,19 @@ describe('AppShell', () => {
     expect(surface?.parentElement).toHaveClass('app-shell__content');
   });
 
+  it('keeps the desktop shell compact and the More menu outside the tab-strip scrollport', () => {
+    const shellCss = readFileSync(path.resolve('src/ui/shell/app-shell.css'), 'utf8');
+
+    expect(shellCss).toMatch(/\.app-shell\s*\{[^}]*--layout-shell-topbar-height:\s*2\.75rem;/s);
+    expect(shellCss).toMatch(/\.app-shell__more-panel\s*\{[^}]*position:\s*fixed;/s);
+    expect(shellCss).toMatch(
+      /@media\s*\(min-width:\s*56\.3125rem\)\s*\{[\s\S]*?\.console-tabs__tab,[\s\S]*?\.console-tabs__more\s*\{[^}]*min-height:\s*calc\(var\(--control-height-compact\)\s*-\s*var\(--border-width\)\);/,
+    );
+    expect(shellCss).toMatch(
+      /\.console-tabs__dialog-item,[\s\S]*?\.console-tabs__action\s*\{[^}]*min-height:\s*max\(var\(--hit-target-min\),\s*2\.75rem\);/,
+    );
+  });
+
   it('uses a permission-filtered More menu without replacing the route', async () => {
     mockMobileNavigation(false);
     render(

@@ -4,31 +4,18 @@ Last updated: 2026-10-21
 
 ## Current situation
 
-- Issue #234 top navigation is in progress on `feat/issue-234-top-navigation`, based on merged
-  `main` `c23040af0da0d2a717858408dd8af25372f85d86`. It retains the existing B2 tab layer, active
-  page surface, route/permission contracts, and mobile drawer while matching the product-owner
-  reference with a compact utility row, horizontal module row, neutral canvas, and separate page
-  panel. Search and the application selector remain non-interactive placeholders.
-- Installed Chrome evidence passes EN/FR at 1117 × 707 and 390 × 844, plus a 559 × 354
-  200%-zoom-equivalent viewport, with zero horizontal overflow and no page errors. Popover/drawer
-  Escape and focus restoration are checked. Full evidence is in
-  `docs/audit/issue-234-top-navigation/`.
-- Focused AppShell tests (16/16), App/AppShell/localization integration tests (58/58), formatting,
-  architecture scripts, changed-source lint, TypeScript, and production web build pass. The local
-  full web suite reported unrelated existing failures and load-sensitive timeouts on this Windows
-  checkout; the focused regressions are green. Native Chrome zoom was not tested through the browser
-  UI.
-- Draft PR #238 is open. Its first exact-head CI run identified stale integration-test selectors for
-  the replaced Overview/domain-menu shell links; those assertions/helpers now follow Home, direct
-  primary links, and the More menu while preserving page headings and B2 tabs. The correction is
-  pushed. Exact-head typecheck then rejected unsupported `exact` query options; they have been
-  replaced by anchored name regexes. CI #576 then exposed a stale French shell-link assertion and
-  route-lazy queries expiring while the Suspense loading status remained visible. The link is fixed;
-  only those route-load assertions wait up to five seconds. AdminPanel's unchanged dirty-form test
-  failed once under full-suite load but passes in isolation (1/1). The four affected App/shell/
-  localization/content-language suites pass 68/68 with one worker. Exact-head CI run #577 passed all
-  four required jobs on `9c7e9f0eb52ced3cf8ada0c3dac03b2aa3e40ab3`. PR #238 remains open, draft, and
-  unmerged; recheck all four jobs after any further commit. Do not merge or deploy.
+- Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
+  after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
+  quick profile at 1117 × 707. The utility row is 45px (was 56px), workspace strip 33px (was 34px),
+  and content inset/padding 12px (was 16px). More-menu clipping by the module-list scrollport was
+  confirmed and corrected using viewport positioning. EN/FR desktop/mobile and 200%-equivalent
+  viewport smoke checks pass without horizontal overflow or browser errors.
+- Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
+  warning), 85 focused regressions, final AppShell 17/17, and web build pass. The existing
+  production large-chunk advisory remains. Native Chrome zoom is not directly exercised. Evidence is
+  under `docs/audit/issue-234-top-navigation/`.
+- PR #238 remains open and draft; exact-head CI after this refinement is pending. Keep it unmerged
+  and do not deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.
@@ -68,8 +55,10 @@ Last updated: 2026-10-21
 
 ## Next concrete action
 
-1. Complete native Chrome 200% zoom/accessibility validation and append its evidence to PR #235.
-2. Keep PR #235 draft and unmerged; do not deploy or begin later phases.
+1. Commit and push the visual-fidelity refinement to the existing #238 branch, then wait for all
+   four required jobs to pass on the exact pushed SHA.
+2. Update PR #238 with the same-state Candidates screenshots, More-menu clipping evidence, and
+   focused test results. Keep it draft and unmerged; do not deploy.
 
 ## Completion conditions
 

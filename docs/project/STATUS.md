@@ -5,36 +5,21 @@ Status owner: repository maintainer
 
 ## Issue #234 — Approved top application navigation
 
-- Implementation is in progress on dedicated branch `feat/issue-234-top-navigation`, based on
-  merged `main` commit `c23040af0da0d2a717858408dd8af25372f85d86` (PR #235 merge). The change
-  replaces the contextual rail with the approved two-row header while retaining the existing B2
-  workspace-tab row and independent page surface. Existing route URLs, permission-filtered
-  destinations, mobile drawer, notification center, account/session controls, and B2 state/history
-  remain in place. Search and application selector are intentionally static and non-interactive.
-- Installed-Chrome synthetic-data evidence passes at the reference 1117 × 707 desktop and
-  390 × 844 mobile dimensions in EN/FR, with no page errors or horizontal overflow. More-menu and
-  drawer Escape/focus restoration, primary navigation order, permission filtering, and the compact
-  mobile B2 row are exercised. A 559 × 354 CSS viewport (200%-zoom equivalent) also has no
-  horizontal overflow; native browser zoom is not separately exercised. Evidence and runner:
-  [Issue #234 browser evidence](../audit/issue-234-top-navigation/).
-- Formatting, Prisma/style-token/contrast architecture checks, changed-source lint, TypeScript,
-  focused AppShell tests (16/16), and the production web build pass. A full web-suite run on the
-  Windows checkout surfaced existing cross-workspace failures/timeouts (including a literal-LF
-  stylesheet assertion under CRLF and suite-load timeouts); it was stopped after unrelated failures
-  accumulated. The focused shell suite is green. No merge or deployment is authorized.
-- Draft PR #238 is open. Its first exact-head CI run identified stale integration-test selectors for
-  the replaced Overview/domain-menu shell links. Those assertions/helpers now follow Home, direct
-  primary links, and the permission-filtered More menu without changing page headings or B2 tabs.
-  Regression suites for App, AppShell integration, and EN/FR shell localization pass 58/58; exact-head
-  typecheck then caught unsupported `exact` query options. These were replaced by anchored name
-  regexes; local TypeScript and formatting checks pass. Exact-head CI #576 then exposed a French
-  shell-link assertion still using the old label and lazy-route assertions expiring while the
-  accessible Suspense loading status remained visible. The French link is corrected, and only those
-  route-load assertions now wait up to five seconds. The unrelated AdminPanel dirty-form assertion
-  failed once under full-suite load but passes in isolation (1/1); its implementation and assertion
-  are unchanged. The affected App/shell/localization/content-language suites pass 68/68 with one
-  worker. Exact-head GitHub Actions run #577 on `9c7e9f0eb52ced3cf8ada0c3dac03b2aa3e40ab3` passed
-  all four required jobs. PR #238 remains open, draft, and unmerged.
+- Work continues on `feat/issue-234-top-navigation`, based on merged main `c23040af0da0d2a717858408dd8af25372f85d86`.
+  The approved visual-fidelity refinement reduces the utility row from 56px to 45px, the B2 tab
+  strip from 34px to 33px, and the content inset/padding from 16px to 12px. It tightens shell
+  typography and gives desktop tabs a slim integrated active surface; mobile dialog targets and all
+  B2 state, history, focus, and guard behavior remain unchanged.
+- Installed-Chrome evidence includes before/after views of the same synthetic Candidates directory
+  and selected quick profile at 1117 × 707. It confirms the More destination popover was clipped by
+  the module list's horizontal scrollport; viewport positioning now exposes the whole menu. EN/FR
+  desktop and mobile (1117 × 707 and 390 × 844) and a 559 × 354 zoom-equivalent viewport have zero
+  horizontal overflow and no page errors. Evidence: [Issue #234 audit](../audit/issue-234-top-navigation/).
+- Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
+  warning), 85 focused App/AppShell/localization tests, final AppShell tests (17/17), and the web
+  production build pass. The build retains the existing large-chunk advisory. Native browser zoom is
+  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI for the refinement is pending.
+  PR #238 remains open, draft, and unmerged; no merge or deployment is authorized.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 

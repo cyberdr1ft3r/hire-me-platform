@@ -1,0 +1,86 @@
+{
+  "phase": "before",
+  "metrics": {
+    "viewport": {
+      "width": 1117,
+      "height": 707
+    },
+    "rows": {
+      "utility": {
+        "x": 0,
+        "y": 0,
+        "width": 1117,
+        "height": 56,
+        "fontSize": "16px",
+        "paddingBlock": "0px"
+      },
+      "moduleNavigation": {
+        "x": 0,
+        "y": 56,
+        "width": 1117,
+        "height": 33,
+        "fontSize": "16px",
+        "paddingBlock": "0px"
+      },
+      "workspaceTabs": {
+        "x": 0,
+        "y": 89,
+        "width": 1117,
+        "height": 34,
+        "fontSize": "16px",
+        "paddingBlock": "0px"
+      }
+    },
+    "activeWorkspaceTab": {
+      "x": 90,
+      "y": 90,
+      "width": 76,
+      "height": 32,
+      "fontSize": "12px",
+      "paddingBlock": "4px"
+    },
+    "activeWorkspaceTabClose": {
+      "x": 166,
+      "y": 90,
+      "width": 32,
+      "height": 32,
+      "fontSize": "16px",
+      "paddingBlock": "4px"
+    },
+    "candidateHeader": {
+      "x": 33,
+      "y": 156,
+      "width": 1051,
+      "height": 81,
+      "fontSize": "16px",
+      "paddingBlock": "0px"
+    },
+    "candidateSurface": {
+      "x": 16,
+      "y": 139,
+      "width": 1085,
+      "height": 552,
+      "fontSize": "16px",
+      "paddingBlock": "16px"
+    },
+    "documentOverflow": 0
+  },
+  "menu": {
+    "panel": {
+      "top": 92,
+      "bottom": 408.78125,
+      "left": 149.421875,
+      "right": 693.421875
+    },
+    "moduleList": {
+      "top": 56,
+      "bottom": 88,
+      "overflowX": "auto",
+      "overflowY": "auto"
+    },
+    "position": "absolute",
+    "overlapHeightWithModuleList": 0,
+    "hiddenByModuleList": true
+  },
+  "pageErrors": []
+}
