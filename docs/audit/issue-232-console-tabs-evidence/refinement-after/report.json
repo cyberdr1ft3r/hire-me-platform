@@ -1,0 +1,385 @@
+{
+  "browser": "Google Chrome",
+  "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "chromeVersion": "155.0.8059.85",
+  "generatedAt": "2026-10-20T21:12:11.292Z",
+  "passed": true,
+  "results": [
+    {
+      "desktopListVisible": true,
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-en.png"
+      ],
+      "triggerVisible": false,
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": true,
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-fr.png"
+      ],
+      "triggerVisible": false,
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": true,
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-breakpoint-en.png"
+      ],
+      "triggerVisible": false,
+      "viewport": "desktop-breakpoint",
+      "width": 900,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": true,
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "desktop-breakpoint-fr.png"
+      ],
+      "triggerVisible": false,
+      "viewport": "desktop-breakpoint",
+      "width": 900,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": false,
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "tablet-en-dialog.png"
+      ],
+      "triggerVisible": true,
+      "viewport": "tablet",
+      "width": 768,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": false,
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "tablet-fr-dialog.png"
+      ],
+      "triggerVisible": true,
+      "viewport": "tablet",
+      "width": 768,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": false,
+      "locale": "en",
+      "pageErrors": [],
+      "screenshots": [
+        "mobile-en-dialog.png"
+      ],
+      "triggerVisible": true,
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "desktopListVisible": false,
+      "locale": "fr",
+      "pageErrors": [],
+      "screenshots": [
+        "mobile-fr-dialog.png"
+      ],
+      "triggerVisible": true,
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "tasks",
+      "screenshot": "tasks-en-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 434,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "tasks",
+      "screenshot": "tasks-en-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 863,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "tasks",
+      "screenshot": "tasks-fr-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 526,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "tasks",
+      "screenshot": "tasks-fr-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 887,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "clients",
+      "screenshot": "clients-en-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 217,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "clients",
+      "screenshot": "clients-en-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 199,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "clients",
+      "screenshot": "clients-fr-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 217,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "clients",
+      "screenshot": "clients-fr-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 199,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "documents",
+      "screenshot": "documents-en-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 1039,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "documents",
+      "screenshot": "documents-en-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 1522,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "documents",
+      "screenshot": "documents-fr-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 1039,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "documents",
+      "screenshot": "documents-fr-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 1627,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "commercial",
+      "screenshot": "commercial-en-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 967,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "commercial",
+      "screenshot": "commercial-en-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 1318,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "commercial",
+      "screenshot": "commercial-fr-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 967,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "commercial",
+      "screenshot": "commercial-fr-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 1368,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "candidates",
+      "screenshot": "candidates-en-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 812,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "en",
+      "pageErrors": [],
+      "route": "candidates",
+      "screenshot": "candidates-en-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 109,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "candidates",
+      "screenshot": "candidates-fr-desktop.png",
+      "surface": {
+        "borderRadius": "12px",
+        "height": 812,
+        "width": 1168
+      },
+      "viewport": "desktop",
+      "width": 1440,
+      "horizontalOverflow": 0
+    },
+    {
+      "locale": "fr",
+      "pageErrors": [],
+      "route": "candidates",
+      "screenshot": "candidates-fr-mobile.png",
+      "surface": {
+        "borderRadius": "0px",
+        "height": 109,
+        "width": 374
+      },
+      "viewport": "mobile",
+      "width": 390,
+      "horizontalOverflow": 0
+    }
+  ]
+}

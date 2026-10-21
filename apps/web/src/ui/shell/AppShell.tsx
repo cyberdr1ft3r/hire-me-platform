@@ -33,7 +33,9 @@ export interface NavigationBadge {
 interface AppShellProps {
   apiState: ShellApiState;
   children: ReactNode;
+  consoleWorkspace?: ReactNode;
   currentRoute: InternalRoute;
+  focusMainOnRouteChange?: boolean;
   navigationBadges?: Partial<Record<InternalRoute, NavigationBadge>>;
   notificationCenter?: Omit<NotificationCenterProps, 'permissions'>;
   onLogout: () => void | Promise<void>;
@@ -62,7 +64,9 @@ function isMobileNavigation(): boolean {
 export function AppShell({
   apiState,
   children,
+  consoleWorkspace,
   currentRoute,
+  focusMainOnRouteChange = true,
   navigationBadges,
   notificationCenter,
   onLogout,
@@ -111,9 +115,9 @@ export function AppShell({
       setNavigationOpen(false);
       // Fill-layout routes scroll inside main; never carry an old offset across routes.
       if (mainRef.current) mainRef.current.scrollTop = 0;
-      mainRef.current?.focus({ preventScroll: true });
+      if (focusMainOnRouteChange) mainRef.current?.focus({ preventScroll: true });
     }
-  }, [currentRoute]);
+  }, [currentRoute, focusMainOnRouteChange]);
   useEffect(() => {
     if (!mobile || !navigationOpen) return;
     navigationRef.current?.querySelector<HTMLElement>('button')?.focus();
@@ -235,6 +239,7 @@ export function AppShell({
   return (
     <div
       className="app-shell"
+      data-console-workspace={consoleWorkspace ? 'true' : undefined}
       data-density="internal-compact"
       data-expanded={expanded ? 'true' : 'false'}
       data-layout={workspaceLayoutForRoute(currentRoute, mobile)}
@@ -393,11 +398,15 @@ export function AppShell({
           >
             <ShellIcon name={mobile ? 'menu' : 'panel'} />
           </button>
-          <div className="app-shell__breadcrumb">
-            <strong>HireMe</strong>
-            <span aria-hidden="true">/</span>
-            <span>{currentLabel}</span>
-          </div>
+          {consoleWorkspace ? (
+            <div className="app-shell__console-workspace">{consoleWorkspace}</div>
+          ) : (
+            <div className="app-shell__breadcrumb">
+              <strong>HireMe</strong>
+              <span aria-hidden="true">/</span>
+              <span>{currentLabel}</span>
+            </div>
+          )}
           <div className="app-shell__utilities">
             {notificationCenter ? (
               <NotificationCenter {...notificationCenter} permissions={user.permissions} />
@@ -436,7 +445,7 @@ export function AppShell({
           tabIndex={-1}
         >
           <div className="app-shell__content" data-route={routeToPath(currentRoute)}>
-            {children}
+            {consoleWorkspace ? <div className="app-shell__surface">{children}</div> : children}
           </div>
         </main>
       </div>

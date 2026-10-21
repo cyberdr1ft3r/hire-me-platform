@@ -1,57 +1,35 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
 
 import { fetchHealthStatus, fetchMe, login, logout, restoreSession } from './api.js';
 import { subscribeAuthSession } from './auth/authenticated-request.js';
-import {
-  canAccessInternalRoute,
-  isDeferredEnglishRoute,
-  pathToRoute,
-  routeToPath,
-  type InternalRoute,
-} from './navigation/internal-navigation.js';
+import { pathToRoute, type InternalRoute } from './navigation/internal-navigation.js';
 import {
   acceptHistoryTraversal,
   initializeHistoryIndex,
-  pushHistoryPath,
   replaceHistoryPath,
   requestNavigation,
 } from './navigation/navigation-guard.js';
-import {
-  candidateDeepLink,
-  clientDeepLink,
-  missionDeepLink,
-  recordNavigationIntent,
-} from './navigation/record-deep-links.js';
-import { AppShell } from './ui/shell/AppShell.js';
-import { PageShell, PageState } from './ui/PageSystem.js';
-import { I18nProvider, LegacyEnglishContent, useI18n } from './i18n/index.js';
-import { InternalHome } from './ui/shell/InternalHome.js';
-import { formatUnreadBadge, useMessagingUnreadSummary } from './messages/index.js';
+import { I18nProvider, useI18n } from './i18n/index.js';
+import { useMessagingUnreadSummary } from './messages/index.js';
 import { RouteModuleBoundary } from './navigation/RouteModuleBoundary.js';
+import { ConsoleProvider } from './console/ConsoleProvider.js';
+import { AuthenticatedWorkspace } from './console/AuthenticatedWorkspace.js';
 import {
-  LazyAccountingPanel,
-  LazyAdminPanel,
-  LazyAgendaPanel,
-  LazyCandidatesPanel,
-  LazyClientsPanel,
-  LazyCommercialPanel,
-  LazyDocumentsPanel,
-  LazyMeetingsPanel,
-  LazyMessagesPanel,
-  LazyMissionsPanel,
   LazyPublicOpportunitiesPanel,
   LazyPublicOpportunityDetailPanel,
-  LazyReportingPanel,
-  LazyTasksPanel,
-  LazyTrainingPanel,
 } from './navigation/route-lazy-modules.js';
 
 type ApiState =
   | { status: 'loading' }
   | { status: 'ready'; message: string }
   | { status: 'error'; message: string };
+
+interface AppLocation {
+  route: InternalRoute;
+  search: string;
+}
 
 /**
  * One localization provider wraps the whole application, so the public
@@ -71,8 +49,10 @@ function AppRoutes() {
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const userIdRef = useRef<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [location, setLocation] = useState(() => ({
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+  const [location, setLocation] = useState<AppLocation>(() => ({
     route: pathToRoute(window.location.pathname),
     search: window.location.search,
   }));
@@ -130,7 +110,9 @@ function AppRoutes() {
     // never clear a session the user started by signing in meanwhile.
     void restoreSession().then((auth) => {
       if (isMounted && auth) {
+        setSessionEpoch((epoch) => epoch + 1);
         setAccessToken(auth.accessToken);
+        userIdRef.current = auth.user.id;
         setUser(auth.user);
       }
     });
@@ -148,10 +130,16 @@ function AppRoutes() {
     () =>
       subscribeAuthSession((event) => {
         if (event.type === 'ended') {
+          setSessionEpoch((epoch) => epoch + 1);
           setAccessToken(null);
+          userIdRef.current = null;
           setUser(null);
           return;
         }
+        if (userIdRef.current && userIdRef.current !== event.user.id) {
+          setSessionEpoch((epoch) => epoch + 1);
+        }
+        userIdRef.current = event.user.id;
         setUser((current) => (sameUser(current, event.user) ? current : event.user));
       }),
     [],
@@ -169,7 +157,9 @@ function AppRoutes() {
 
     try {
       const auth = await login(email, password);
+      setSessionEpoch((epoch) => epoch + 1);
       setAccessToken(auth.accessToken);
+      userIdRef.current = auth.user.id;
       setUser(auth.user);
     } catch {
       setAuthError(t('auth.failed'));
@@ -183,6 +173,10 @@ function AppRoutes() {
 
     try {
       const { user: nextUser } = await fetchMe(accessToken);
+      if (userIdRef.current && userIdRef.current !== nextUser.id) {
+        setSessionEpoch((epoch) => epoch + 1);
+      }
+      userIdRef.current = nextUser.id;
       setUser((current) => (sameUser(current, nextUser) ? current : nextUser));
     } catch {
       // A terminal refresh failure already signed out through the session
@@ -190,43 +184,22 @@ function AppRoutes() {
     }
   }
 
-  async function handleLogout(): Promise<void> {
+  function handleLogout(): void {
+    requestNavigation(() => {
+      void finishLogout();
+    });
+  }
+
+  async function finishLogout(): Promise<void> {
     if (accessToken) {
       await logout(accessToken);
     }
     setAccessToken(null);
+    userIdRef.current = null;
     setUser(null);
-    // Signing out ends the session; nothing on screen is kept, so nothing asks.
-    goToRoute('home');
-  }
-
-  function goToRoute(nextRoute: InternalRoute): void {
-    const path = routeToPath(nextRoute);
-    pushHistoryPath(path);
-    setLocation({ route: nextRoute, search: '' });
-  }
-
-  // In-app navigation asks first when the screen holds unsaved input (navigation-guard.ts).
-  function navigate(nextRoute: InternalRoute): void {
-    requestNavigation(() => goToRoute(nextRoute));
-  }
-
-  function navigateToPath(path: string): void {
-    requestNavigation(() => {
-      pushHistoryPath(path);
-      setLocation({
-        route: pathToRoute(new URL(path, window.location.origin).pathname),
-        search: new URL(path, window.location.origin).search,
-      });
-    });
-  }
-
-  function replaceRecordIntent(path: string): void {
-    replaceHistoryPath(path);
-    setLocation({
-      route: pathToRoute(new URL(path, window.location.origin).pathname),
-      search: new URL(path, window.location.origin).search,
-    });
+    // Signing out ends the session; the active unsaved guard has already asked.
+    replaceHistoryPath('/');
+    setLocation({ route: 'home', search: '' });
   }
 
   // The public opportunity pages are bilingual and share the locale provider and
@@ -287,180 +260,24 @@ function AppRoutes() {
     );
   }
 
-  const canOpenRoute = canAccessInternalRoute(route, user.permissions);
-  const recordIntent = recordNavigationIntent(route, location.search);
-  let routeContent: ReactNode;
-
-  if (!canOpenRoute) {
-    routeContent = (
-      <PageShell aria-label={t('access.deniedRegion')}>
-        <PageState kind="permission-denied" title={t('access.deniedTitle')}>
-          <p>{t('access.deniedMessage')}</p>
-        </PageState>
-      </PageShell>
-    );
-  } else {
-    switch (route) {
-      case 'admin':
-        routeContent = <LazyAdminPanel accessToken={accessToken} />;
-        break;
-      case 'clients':
-        routeContent = (
-          <LazyClientsPanel
-            accessToken={accessToken}
-            onCloseRecord={() => navigateToPath('/clients')}
-            onNavigatePath={navigateToPath}
-            onOpenRecord={(clientId) => navigateToPath(clientDeepLink(clientId))}
-            permissions={user.permissions}
-            recordClientId={recordIntent.clientId}
-          />
-        );
-        break;
-      case 'candidates':
-        routeContent = (
-          <LazyCandidatesPanel
-            accessToken={accessToken}
-            // Opening a record is a history entry, so Back returns to the directory.
-            onCloseRecord={() => navigateToPath('/candidates')}
-            onNavigatePath={navigateToPath}
-            onOpenRecord={(candidateId) => navigateToPath(candidateDeepLink(candidateId))}
-            permissions={user.permissions}
-            recordCandidateId={recordIntent.candidateId}
-          />
-        );
-        break;
-      case 'missions':
-        routeContent = (
-          <LazyMissionsPanel
-            accessToken={accessToken}
-            actorUserId={user.id}
-            initialInterviewId={recordIntent.interviewId}
-            initialProcessId={recordIntent.processId}
-            // Opening a record is a history entry, so Back returns to the directory.
-            onCloseRecord={() => navigateToPath('/missions')}
-            onOpenRecord={(missionId) => navigateToPath(missionDeepLink(missionId))}
-            permissions={user.permissions}
-            recordMissionId={recordIntent.missionId}
-          />
-        );
-        break;
-      case 'meetings':
-        routeContent = (
-          <LazyMeetingsPanel accessToken={accessToken} initialMeetingId={recordIntent.meetingId} />
-        );
-        break;
-      case 'agenda':
-        routeContent = <LazyAgendaPanel accessToken={accessToken} onNavigate={navigateToPath} />;
-        break;
-      case 'tasks':
-        routeContent = (
-          <LazyTasksPanel
-            accessToken={accessToken}
-            initialTaskId={recordIntent.taskId}
-            user={user}
-          />
-        );
-        break;
-      case 'documents':
-        routeContent = (
-          <LazyDocumentsPanel accessToken={accessToken} permissions={user.permissions} />
-        );
-        break;
-      case 'messages':
-        routeContent = (
-          <LazyMessagesPanel
-            accessToken={accessToken}
-            actorUserId={user.id}
-            initialConversationId={recordIntent.conversationId}
-            onUnreadChanged={unreadMessages.refresh}
-            permissions={user.permissions}
-          />
-        );
-        break;
-      case 'training':
-        routeContent = (
-          <LazyTrainingPanel
-            accessToken={accessToken}
-            actorUserId={user.id}
-            initialProgramId={recordIntent.programId}
-            initialSessionId={recordIntent.sessionId}
-            onSelectionChange={(programId, sessionId) => {
-              const parameters = new URLSearchParams({ program: programId });
-              if (sessionId) {
-                parameters.set('session', sessionId);
-              }
-              replaceRecordIntent(`/training?${parameters.toString()}`);
-            }}
-            permissions={user.permissions}
-          />
-        );
-        break;
-      case 'reporting':
-        routeContent = (
-          <LazyReportingPanel
-            accessToken={accessToken}
-            onNavigate={navigateToPath}
-            permissions={user.permissions}
-          />
-        );
-        break;
-      case 'commercial':
-        routeContent = (
-          <LazyCommercialPanel
-            accessToken={accessToken}
-            actorUserId={user.id}
-            permissions={user.permissions}
-          />
-        );
-        break;
-      case 'accounting':
-        routeContent = (
-          <LazyAccountingPanel
-            accessToken={accessToken}
-            actorUserId={user.id}
-            permissions={user.permissions}
-          />
-        );
-        break;
-      default:
-        routeContent = <InternalHome user={user} />;
-    }
-  }
-
-  if (canOpenRoute && isDeferredEnglishRoute(route)) {
-    // The shell around this module is translated, but the module itself is not
-    // yet. Say so, rather than letting French chrome imply French content.
-    routeContent = <LegacyEnglishContent>{routeContent}</LegacyEnglishContent>;
-  }
-
   return (
-    <AppShell
-      apiState={apiState}
-      currentRoute={route}
-      notificationCenter={{
-        accessToken,
-        messageUnreadCount: unreadMessages.count,
-        onNavigatePath: navigateToPath,
-      }}
-      navigationBadges={
-        unreadMessages.count
-          ? {
-              messages: {
-                display: formatUnreadBadge(unreadMessages.count),
-                label: t('messages.unreadBadge', { count: unreadMessages.count }),
-              },
-            }
-          : undefined
-      }
-      onLogout={handleLogout}
-      onNavigate={navigate}
-      onRefreshUser={handleRefreshUser}
-      user={user}
+    <ConsoleProvider
+      key={`${user.id}:${sessionEpoch}`}
+      initialRoute={route}
+      permissions={user.permissions}
     >
-      <RouteModuleBoundary route={canOpenRoute ? route : undefined}>
-        {routeContent}
-      </RouteModuleBoundary>
-    </AppShell>
+      <AuthenticatedWorkspace
+        apiState={apiState}
+        accessToken={accessToken}
+        location={location}
+        onLogout={handleLogout}
+        onRefreshUser={handleRefreshUser}
+        setLocation={setLocation}
+        unreadCount={unreadMessages.count ?? 0}
+        refreshUnread={unreadMessages.refresh}
+        user={user}
+      />
+    </ConsoleProvider>
   );
 }
 

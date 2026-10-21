@@ -61,6 +61,21 @@ let replaying: TraversalAttempt | null = null;
 let heldTraversal: TraversalAttempt | null = null;
 /** Counts in-app navigation attempts; an answer to an older one is ignored. */
 let requestAttempt = 0;
+const stateListeners = new Set<() => void>();
+
+/** Read-only presentation signal; requestNavigation remains the guard authority. */
+export function hasUnsavedNavigationChanges(): boolean {
+  return blockers.some((blocker) => blocker.shouldBlock?.() ?? true);
+}
+
+export function subscribeNavigationGuardState(listener: () => void): () => void {
+  stateListeners.add(listener);
+  return () => stateListeners.delete(listener);
+}
+
+export function notifyNavigationGuardStateChanged(): void {
+  for (const listener of stateListeners) listener();
+}
 
 function indexOf(state: unknown): number | null {
   if (typeof state !== 'object' || state === null) return null;
@@ -68,12 +83,18 @@ function indexOf(state: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
-function withIndex(index: number): Record<string, unknown> {
-  return { [INDEX_KEY]: index };
+function withIndex(index: number, extension?: Record<string, unknown>): Record<string, unknown> {
+  const current: unknown = window.history.state;
+  const base: Record<string, unknown> =
+    current && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, unknown>)
+      : {};
+  return { ...base, ...extension, [INDEX_KEY]: index };
 }
 
 function release(blocker: NavigationBlocker): void {
   blockers = blockers.filter((entry) => entry !== blocker);
+  notifyNavigationGuardStateChanged();
 }
 
 /**
@@ -91,6 +112,7 @@ function activeBlocker(confirmed: ReadonlySet<NavigationBlocker>): NavigationBlo
 /** Registers a blocker; the returned function releases only that blocker. */
 export function blockNavigation(next: NavigationBlocker): () => void {
   blockers = [...blockers, next];
+  notifyNavigationGuardStateChanged();
   return () => release(next);
 }
 
@@ -141,13 +163,13 @@ export function initializeHistoryIndex(): void {
   heldTraversal = null;
 }
 
-export function pushHistoryPath(path: string): void {
+export function pushHistoryPath(path: string, extension?: Record<string, unknown>): void {
   currentIndex += 1;
-  window.history.pushState(withIndex(currentIndex), '', path);
+  window.history.pushState({ ...extension, [INDEX_KEY]: currentIndex }, '', path);
 }
 
-export function replaceHistoryPath(path: string): void {
-  window.history.replaceState(withIndex(currentIndex), '', path);
+export function replaceHistoryPath(path: string, extension?: Record<string, unknown>): void {
+  window.history.replaceState({ ...extension, [INDEX_KEY]: currentIndex }, '', path);
 }
 
 /**

@@ -1354,6 +1354,26 @@ export const frMessages: Messages = {
       publicApplications: 'Candidatures publiques',
     },
   },
+  consoleTabs: {
+    closeDialog: 'Fermer la liste des onglets',
+    closeTab: 'Fermer {title}',
+    continueOpen: 'Ouvrir sans remplacer',
+    current: 'Actif',
+    dialogTitle: 'Espaces ouverts',
+    limitMessage:
+      'L’espace est complet. Pour ouvrir {title}, remplacez un onglet propre le moins récemment utilisé ou fermez-en un.',
+    limitTitle: 'Limite d’onglets atteinte',
+    more: 'Plus d’onglets',
+    openTabs: 'Onglets de l’espace',
+    record: 'Fiche',
+    replaceLeastRecent: 'Remplacer l’onglet propre le moins récent',
+    scrollLeft: 'Faire défiler les onglets à gauche',
+    scrollRight: 'Faire défiler les onglets à droite',
+    openCount: '{count} onglets ouverts. Pensez à fermer les onglets inutilisés.',
+    switcher: 'Onglets',
+    keepCurrent: 'Rester ici',
+    unsavedChange: 'Modifications non enregistrées',
+  },
   preview: {
     candidate: {
       access: 'Accès de prévisualisation',

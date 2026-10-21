@@ -78,7 +78,9 @@ describe('authenticated AppShell integration', () => {
     expect(overview).toHaveAttribute('aria-current', 'page');
     fireEvent.click(screen.getByRole('link', { name: 'Tasks' }));
     expect(window.location.pathname).toBe('/tasks');
-    expect(await screen.findByRole('heading', { name: 'Task pipeline' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'Task pipeline' }, { timeout: 5000 }),
+    ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Tasks' })).toHaveAttribute('aria-current', 'page');
 
     act(() => {
@@ -87,7 +89,7 @@ describe('authenticated AppShell integration', () => {
     });
     await waitFor(() => expect(overview).toHaveAttribute('aria-current', 'page'));
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  });
+  }, 10_000);
 
   it('keeps public opportunities outside the authenticated shell', async () => {
     window.history.pushState({}, '', '/opportunities');

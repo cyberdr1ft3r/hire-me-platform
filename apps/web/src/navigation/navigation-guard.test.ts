@@ -4,10 +4,13 @@ import {
   acceptHistoryTraversal,
   blockNavigation,
   initializeHistoryIndex,
+  hasUnsavedNavigationChanges,
+  notifyNavigationGuardStateChanged,
   pushHistoryPath,
   replaceHistoryPath,
   requestNavigation,
   resetNavigationGuardForTests,
+  subscribeNavigationGuardState,
 } from './navigation-guard.js';
 
 const at = (index: number) => ({ hiremeHistoryIndex: index });
@@ -40,6 +43,42 @@ describe('navigation guard', () => {
     initializeHistoryIndex();
     pushHistoryPath('/clients');
     expect(window.history.state).toEqual(at(5));
+  });
+
+  it('keeps console history metadata beside the guard index and replaces it in place', () => {
+    const tabState = { hiremeConsoleTab: { console: 'instance-a', tab: 'ws:clients' } };
+    pushHistoryPath('/clients', tabState);
+    expect(window.history.state).toEqual({ ...tabState, hiremeHistoryIndex: 1 });
+
+    replaceHistoryPath('/clients?client=4aabbbaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', {
+      hiremeConsoleTab: {
+        console: 'instance-a',
+        tab: 'rec:client:4aabbbaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+    });
+    expect(window.history.state).toEqual({
+      hiremeConsoleTab: {
+        console: 'instance-a',
+        tab: 'rec:client:4aabbbaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      hiremeHistoryIndex: 1,
+    });
+  });
+
+  it('publishes dirty-state changes for tab indicators without replacing guard decisions', () => {
+    let dirty = false;
+    const listener = vi.fn();
+    const unsubscribe = subscribeNavigationGuardState(listener);
+    const release = blockNavigation({ confirmLeave: vi.fn(), shouldBlock: () => dirty });
+
+    expect(hasUnsavedNavigationChanges()).toBe(false);
+    dirty = true;
+    notifyNavigationGuardStateChanged();
+    expect(hasUnsavedNavigationChanges()).toBe(true);
+    expect(listener).toHaveBeenCalled();
+
+    unsubscribe();
+    release();
   });
 
   it('applies traversals while nothing blocks them', () => {
