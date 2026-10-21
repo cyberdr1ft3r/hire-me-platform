@@ -18,8 +18,9 @@ Last updated: 2026-10-21
   existing production large-chunk advisory remains. Native Chrome zoom is not directly exercised;
   the 559 × 354 viewport is an equivalent-width smoke check. Evidence is under
   `docs/audit/issue-234-top-navigation/`.
-- PR #238 remains open and draft; exact-head CI after this refinement is pending. Keep it unmerged
-  and do not deploy.
+- Exact-head Actions run #580 passed all four jobs on implementation commit
+  `5a5f9c8cd10a5832b8b5eb7959241fc2f53aedec`. Any later PR head must be checked independently.
+  PR #238 remains open and draft; keep it unmerged and do not deploy.
 
 - Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
   Actions run `39445963478` passed all four required jobs on that exact commit.
@@ -59,10 +60,9 @@ Last updated: 2026-10-21
 
 ## Next concrete action
 
-1. Commit and push the approved affordance corrections and evidence to existing PR #238.
-2. Wait for all four required jobs on the exact pushed SHA, then update PR #238 with the before/after
-   Candidates screenshots, More-menu clipping evidence, and focused test results. Keep it draft and
-   unmerged; do not deploy.
+1. Verify all four required jobs on the latest PR #238 head, including any documentation-only
+   follow-up commit.
+2. Keep PR #238 draft and unmerged; no deployment or additional feature work is authorized here.
 
 ## Completion conditions
 

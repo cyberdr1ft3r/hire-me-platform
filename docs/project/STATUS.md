@@ -23,8 +23,9 @@ Status owner: repository maintainer
 - Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
   warning), 41 focused AppShell/shell/localization tests, final AppShell tests (17/17), and the web
   production build pass. The build retains the existing large-chunk advisory. Native browser zoom is
-  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI for the correction is pending.
-  PR #238 remains open, draft, and unmerged; no merge or deployment is authorized.
+  not tested; 559 × 354 is a CSS viewport equivalent. Exact-head CI run #580 passed all four jobs on
+  implementation commit `5a5f9c8cd10a5832b8b5eb7959241fc2f53aedec`; any later PR head must be checked
+  separately. PR #238 remains open, draft, and unmerged; no merge or deployment is authorized.
 
 ## Issue #232 — Phase B2 Visible Console Workspace Tabs
 
