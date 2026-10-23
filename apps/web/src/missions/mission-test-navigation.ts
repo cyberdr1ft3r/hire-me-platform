@@ -7,7 +7,7 @@ export async function showMissionDetailTab(
   const labels: Record<typeof tab, Record<'en' | 'fr', string>> = {
     overview: { en: 'Overview', fr: 'Vue d’ensemble' },
     team: { en: 'Team', fr: 'Équipe' },
-    pipeline: { en: 'Pipeline', fr: 'Vivier' },
+    pipeline: { en: 'Mission candidates', fr: 'Candidats de la mission' },
     public: { en: 'Public', fr: 'Public' },
   };
   fireEvent.click(await screen.findByRole('tab', { name: labels[tab][locale] }));

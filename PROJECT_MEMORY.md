@@ -1,12 +1,23 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-20
+Last updated: 2026-10-23
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
 ## Product Purpose
 
 Build a bilingual, responsive internal business platform for Hire Me that centralizes recruitment operations, client relationships, missions, public opportunities and applications, candidates and CVs, interviews and evaluations, training and coaching, task management, commercial operations, documents, notifications, reporting, and selected integrations.
+
+## Validated métier vocabulary
+
+HireMe preserves three distinct business pillars: **Recrutement**, **Formation**, and
+**Accompagnement**. The completed métier questionnaire validates **Vivier général** for the
+cross-mission candidate pool, **Candidats de la mission** / **Candidat de la mission** for
+mission-scoped processes, **Shortlist — 3 à 5 profils retenus pour présentation au client**, and
+**Personne accompagnée** for an Accompagnement recipient. These are presentation mappings only:
+backend enums, columns, API contracts, recruitment transitions, Training records, and
+`INDIVIDUAL_COACHING` keep their existing semantics. See
+`docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
 

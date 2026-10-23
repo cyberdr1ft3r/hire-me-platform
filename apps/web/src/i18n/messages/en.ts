@@ -376,7 +376,7 @@ export const enMessages = {
         candidate: 'Candidate',
       },
       order: 'Newest first',
-      title: 'Candidate directory',
+      title: 'General candidate pool',
     },
     education: {
       add: 'Add education',
@@ -505,7 +505,7 @@ export const enMessages = {
       moveTo: {
         ACTIVE: 'Mark active',
         INACTIVE: 'Mark inactive',
-        TALENT_POOL: 'Move to talent pool',
+        TALENT_POOL: 'Move to general candidate pool',
       },
     },
     list: {
@@ -516,8 +516,8 @@ export const enMessages = {
         range: '{first}–{last} of {total}',
         region: 'Candidate pages',
       },
-      region: 'Candidate list',
-      title: 'Candidate list',
+      region: 'General candidate pool',
+      title: 'General candidate pool',
       updated: 'Updated {date}',
     },
     preview: {
@@ -1242,7 +1242,7 @@ export const enMessages = {
       ACTIVE: 'Active',
       ARCHIVED: 'Archived',
       INACTIVE: 'Inactive',
-      TALENT_POOL: 'Talent pool',
+      TALENT_POOL: 'General candidate pool',
     },
     consentStatus: {
       EXPIRED: 'Expired',
@@ -1268,7 +1268,7 @@ export const enMessages = {
       PRESENTED_TO_CLIENT: 'Presented to client',
       PROBATION_COMPLETED: 'Probation completed',
       PROCESS_COMPLETED: 'Process completed',
-      TALENT_POOL: 'Talent pool',
+      TALENT_POOL: 'General candidate pool',
       TECHNICAL_TEST: 'Technical test',
       WAITING: 'Waiting',
       WITHDRAWN: 'Withdrawn',

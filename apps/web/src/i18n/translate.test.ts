@@ -275,6 +275,21 @@ describe('translation lookup', () => {
     expect(fr('navigation.destinations.training')).toBe('Formation');
   });
 
+  it('keeps the validated métier scopes distinct in English and French', () => {
+    expect(en('candidate.directory.title')).toBe('General candidate pool');
+    expect(fr('candidate.directory.title')).toBe('Vivier général');
+    expect(en('missions.pipeline.title')).toBe('Mission candidates');
+    expect(fr('missions.pipeline.title')).toBe('Candidats de la mission');
+    expect(en('missions.detail.nav.pipeline')).toBe('Mission candidates');
+    expect(fr('missions.detail.nav.pipeline')).toBe('Candidats de la mission');
+    expect(en('domain.candidateStatus.TALENT_POOL')).toBe('General candidate pool');
+    expect(fr('domain.candidateStatus.TALENT_POOL')).toBe('Vivier général');
+    expect(en('domain.pipelineState.TALENT_POOL')).toBe('General candidate pool');
+    expect(fr('domain.pipelineState.TALENT_POOL')).toBe('Vivier général');
+    expect(en('task.context.kinds.missionCandidate')).toBe('Mission candidate');
+    expect(fr('task.context.kinds.missionCandidate')).toBe('Candidat de la mission');
+  });
+
   it('refuses an unknown key instead of falling back silently', () => {
     // Typed call sites cannot reach these; the casts prove the runtime boundary
     // still fails closed when a key arrives untyped.

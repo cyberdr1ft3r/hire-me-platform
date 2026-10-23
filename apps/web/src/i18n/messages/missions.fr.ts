@@ -89,7 +89,7 @@ export const missionsFr: Messages['missions'] = {
       'Cette mission est archivée. Ses données sont en lecture seule et conservent leur historique.',
     nav: {
       overview: 'Vue d’ensemble',
-      pipeline: 'Vivier',
+      pipeline: 'Candidats de la mission',
       public: 'Public',
       region: 'Sections de la mission',
       team: 'Équipe',
@@ -244,15 +244,15 @@ export const missionsFr: Messages['missions'] = {
       page: 'Page {page} sur {pages}',
       previous: 'Page de candidats précédente',
       range: '{first}–{last} sur {total}',
-      region: 'Pages du vivier de candidats',
+      region: 'Pages des candidats de la mission',
     },
     placementConfirmed: 'Placement confirmé',
     processLeftPage:
       'Le processus ouvert a été fermé car il ne figure pas sur cette page. Ouvrez un candidat de cette page pour continuer.',
     selectProcessDetail:
-      'Sélectionnez un candidat dans le vivier pour consulter son processus, entretiens, évaluations, offre et placement.',
-    region: 'Vivier de candidats',
-    title: 'Vivier de candidats',
+      'Sélectionnez un candidat de la mission pour consulter son processus, ses entretiens, ses évaluations, son offre et son placement.',
+    region: 'Candidats de la mission',
+    title: 'Candidats de la mission',
   },
   process: {
     close: 'Fermer le processus',
