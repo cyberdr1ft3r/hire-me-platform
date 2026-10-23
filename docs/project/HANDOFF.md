@@ -4,15 +4,15 @@ Last updated: 2026-10-23
 
 ## Current situation
 
-- Issue #237 is the active P0. The invoice workflow now captures an immutable issuance business
-  snapshot and template v2 renders it in FR/EN. PostgreSQL integration, concurrency, authorization,
-  lifecycle, renderer, frontend, build, and authenticated browser create/issue/reload/generate/
-  download checks pass locally. Exact-head CI and the draft PR are the remaining technical delivery
-  steps.
-- The requested `hireme_devis_facture_prototype_v3.pdf` was unavailable, so exact branding/layout
-  comparison is explicitly unverified. Real invoicing remains blocked on Soukaina's approval of
-  seller identity and legal identifiers, tax treatment, payment details, numbering policy, and the
-  final prototype. Evidence is in `docs/audit/issue-237-invoice/`.
+- Issue #237 is the active P0. The invoice workflow captures an immutable issuance business snapshot
+  and template v3 renders it in FR/EN with localized dates/money, explicit tax rate, and HT line
+  totals. PostgreSQL integration, concurrency, authorization, lifecycle, renderer, frontend, and an
+  authenticated browser create/issue/reload/generate/download flow pass locally. Exact-head CI on
+  the final PR #240 commit is the remaining technical gate.
+- The owner prototype has now been compared side by side with a real 20% test invoice. Seller legal
+  form, capital, address, ICE, RC, email, and site come from the prototype; missing IF and bank/RIB
+  were not invented. Real invoicing remains blocked on owner approval of legal/tax/bank/customer
+  data, payment rules, and numbering policy. Evidence is in `docs/audit/issue-237-invoice/`.
 
 - Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
   after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
@@ -70,9 +70,10 @@ Last updated: 2026-10-23
 
 ## Next concrete action
 
-1. Open the focused Issue #237 draft PR and verify every required job against its exact head.
-2. Obtain the prototype and Soukaina's business/legal approvals before any production invoice is
-   issued. Keep the PR draft and unmerged; do not deploy.
+1. Push the final Issue #237 acceptance commit to draft PR #240 and verify every required job against
+   its exact head.
+2. Obtain owner business/legal approvals before any production invoice is issued. Keep the PR draft
+   and unmerged; do not deploy.
 
 ## Completion conditions
 
@@ -80,5 +81,5 @@ Last updated: 2026-10-23
   totals and an immutable, validated business snapshot; duplicate issue/generation is prevented.
 - PostgreSQL integration, concurrency, authorization/lifecycle, PDF content, EN/FR, browser, build,
   and exact-head CI evidence is recorded in the Issue #237 draft PR.
-- Missing business/legal inputs and the unavailable prototype remain explicit acceptance blockers.
-  No merge, deployment, or unrelated work.
+- The prototype comparison is recorded; missing business/legal inputs remain explicit production
+  blockers. No merge, deployment, or unrelated work.

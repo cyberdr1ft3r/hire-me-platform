@@ -607,10 +607,17 @@ describe('CommercialPanel: lifecycle', () => {
     });
     const values: [RegExp, string][] = [
       [/^Seller legal name/, 'Synthetic HireMe SARL'],
+      [/^Seller legal form/, 'Synthetic SARL'],
+      [/^Seller share capital/, '100 000 MAD synthetic'],
       [/^Seller address/, '1 Synthetic Avenue, Casablanca'],
+      [/^Seller email/, 'synthetic@example.invalid'],
+      [/^Seller website/, 'https://example.invalid'],
       [/^Billed client legal name/, 'Synthetic Client SA'],
       [/^Billed client address/, '2 Test Street, Rabat'],
+      [/^Billing contact/, 'Synthetic Billing Contact'],
+      [/^Customer reference/, 'CLIENT-REF-SYNTHETIC'],
       [/^Payment terms/, 'Bank transfer within 30 days.'],
+      [/^Payment method/, 'Synthetic transfer'],
       [/^Tax treatment/, 'Synthetic 20% VAT test treatment.'],
     ];
     for (const [label, value] of values) {
@@ -624,8 +631,15 @@ describe('CommercialPanel: lifecycle', () => {
     expect(body?.issueDate).toMatch(/^2026-10-(22|23)T/);
     expect(body?.businessDetails).toMatchObject({
       sellerLegalName: 'Synthetic HireMe SARL',
+      sellerLegalForm: 'Synthetic SARL',
+      sellerCapital: '100 000 MAD synthetic',
+      sellerEmail: 'synthetic@example.invalid',
+      sellerWebsite: 'https://example.invalid',
       buyerLegalName: 'Synthetic Client SA',
+      buyerBillingContact: 'Synthetic Billing Contact',
+      customerReference: 'CLIENT-REF-SYNTHETIC',
       paymentTerms: 'Bank transfer within 30 days.',
+      paymentMethod: 'Synthetic transfer',
       taxTreatment: 'Synthetic 20% VAT test treatment.',
     });
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();

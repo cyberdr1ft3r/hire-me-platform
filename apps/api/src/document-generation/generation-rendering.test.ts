@@ -353,17 +353,25 @@ describe('template registry', () => {
       party: { clientName: 'Synthetic Client SA', missionTitle: 'Synthetic Mission' },
       seller: {
         legalName: 'Synthetic HireMe SARL',
+        legalForm: 'Synthetic SARL',
+        capital: '100 000 MAD synthetic',
         address: '1 Synthetic Avenue, Casablanca',
         ice: 'SYNTHETIC-ICE',
         taxId: 'SYNTHETIC-IF',
         registrationNumber: 'SYNTHETIC-RC',
+        email: 'synthetic@example.invalid',
+        website: 'https://example.invalid',
       },
       buyer: {
         legalName: 'Synthetic Client SA',
         address: '2 Test Street, Rabat',
         ice: 'CLIENT-ICE',
+        taxId: 'CLIENT-IF',
+        billingContact: 'Synthetic Billing Contact',
       },
+      customerReference: 'CLIENT-REF-SYNTHETIC',
       paymentTerms: 'Bank transfer within 30 days.',
+      paymentMethod: 'Synthetic transfer',
       bankDetails: 'Synthetic test account only.',
       taxTreatment: 'Synthetic 20% VAT test treatment.',
       commercialReferences: {
@@ -380,7 +388,10 @@ describe('template registry', () => {
       expect(text).toContain('Bank transfer within 30 days.');
       expect(text).toContain('Synthetic 20% VAT test treatment.');
       expect(text).toContain('PO-SYN-001');
+      expect(text).toContain('CLIENT-REF-SYNTHETIC');
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
+      expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
+      expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
     }
   });
 });

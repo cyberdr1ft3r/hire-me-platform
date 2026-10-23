@@ -2343,14 +2343,22 @@ model Invoice {
   totalCents               Int           @default(0)
   issuedAt                 DateTime?
   sellerLegalName          String?
+  sellerLegalForm          String?
+  sellerCapital            String?
   sellerAddress            String?
   sellerIce                String?
   sellerTaxId              String?
   sellerRegistrationNumber String?
+  sellerEmail              String?
+  sellerWebsite            String?
   buyerLegalName           String?
   buyerAddress             String?
   buyerIce                 String?
+  buyerTaxId               String?
+  buyerBillingContact      String?
+  customerReference        String?
   paymentTerms             String?
+  paymentMethod            String?
   bankDetails              String?
   taxTreatment             String?
   canceledAt               DateTime?
