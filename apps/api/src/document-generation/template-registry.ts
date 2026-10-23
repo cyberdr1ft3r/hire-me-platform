@@ -3,7 +3,6 @@ import type { GenerationLanguage } from '@hire-me/contracts';
 import type {
   CertificateView,
   ContractView,
-  GenerationLineView,
   GenerationView,
   InvoiceView,
   PurchaseOrderView,
@@ -163,7 +162,7 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     client: 'Client',
     mission: 'Mission de recrutement',
     status: 'Statut',
-    issueDate: "Date d'emission",
+    issueDate: "Date d'émission",
     validUntil: "Valable jusqu'au",
     dueDate: "Date d'echeance",
     receivedDate: 'Date de reception',
@@ -236,20 +235,32 @@ function invoiceMoney(cents: number, currency: string, language: GenerationLangu
   return `${negative ? '-' : ''}${major}${language === 'fr' ? ',' : '.'}${minor} ${sanitizeText(currency)}`;
 }
 
-function invoiceStatus(status: string, language: GenerationLanguage): string {
-  if (status === 'ISSUED') {
-    return language === 'fr' ? 'Émise' : 'Issued';
-  }
-  return sanitizeText(status);
+function commercialStatus(status: string, language: GenerationLanguage): string {
+  const translations: Record<string, { fr: string; en: string }> = {
+    ACCEPTED: { fr: 'Accepté', en: 'Accepted' },
+    DRAFT: { fr: 'Brouillon', en: 'Draft' },
+    EXPIRED: { fr: 'Expiré', en: 'Expired' },
+    ISSUED: { fr: 'Émise', en: 'Issued' },
+    REJECTED: { fr: 'Refusé', en: 'Rejected' },
+    SENT: { fr: 'Envoyé', en: 'Sent' },
+  };
+  return translations[status]?.[language] ?? sanitizeText(status);
 }
 
-function invoiceTaxLabel(view: InvoiceView, language: GenerationLanguage): string {
-  const rates = [...new Set(view.lines.map((line) => line.taxRateBps))];
+function commercialTaxLabel(
+  lines: readonly { taxRateBps: number }[],
+  language: GenerationLanguage,
+): string {
+  const rates = [...new Set(lines.map((line) => line.taxRateBps))];
   if (rates.length !== 1) {
     return language === 'fr' ? 'TVA / taxe' : 'Tax';
   }
   const rate = rates[0]! / 100;
   return language === 'fr' ? `TVA (${rate.toFixed(2).replace('.00', '')} %)` : `Tax (${rate}%)`;
+}
+
+function invoiceTaxLabel(view: InvoiceView, language: GenerationLanguage): string {
+  return commercialTaxLabel(view.lines, language);
 }
 
 function partyBlock(
@@ -264,65 +275,71 @@ function partyBlock(
   return { kind: 'keyValues', rows };
 }
 
-function lineTable(
-  language: GenerationLanguage,
-  currency: string,
-  lines: readonly GenerationLineView[],
-): RenderableBlock {
-  const label = labels[language];
-  return {
-    kind: 'table',
-    columns: [label.description, label.quantity, label.unitPrice, label.taxRate, label.lineTotal],
-    rows: lines.map((line) => [
-      sanitizeText(line.description),
-      String(line.quantity),
-      formatMoney(line.unitPriceCents, currency),
-      `${(line.taxRateBps / 100).toFixed(2)}%`,
-      formatMoney(line.lineTotalCents, currency),
-    ]),
-  };
-}
-
-function totalsBlock(
-  language: GenerationLanguage,
-  currency: string,
-  totals: { subtotalCents: number; taxCents: number; totalCents: number },
-): RenderableBlock {
-  const label = labels[language];
-  return {
-    kind: 'keyValues',
-    rows: [
-      { label: label.subtotal, value: formatMoney(totals.subtotalCents, currency) },
-      { label: label.tax, value: formatMoney(totals.taxCents, currency) },
-      { label: label.total, value: formatMoney(totals.totalCents, currency) },
-    ],
-  };
-}
-
 const quotationTemplate: GenerationTemplate<QuotationView> = {
   templateId: 'commercial.quotation',
-  version: 1,
+  version: 2,
   sourceType: 'COMMERCIAL_QUOTATION',
   languages: ['fr', 'en'],
   build(view, language) {
     const label = labels[language];
+    const clientRows = [{ label: label.client, value: sanitizeText(view.party.clientName) }];
+    if (view.party.missionTitle) {
+      clientRows.push({ label: label.mission, value: sanitizeText(view.party.missionTitle) });
+    }
     return {
       title: `${label.quotation} ${sanitizeText(view.reference)}`,
-      subtitle: `${label.status}: ${sanitizeText(view.status)}`,
+      subtitle: commercialStatus(view.status, language),
       blocks: [
-        partyBlock(language, view.party),
         {
-          kind: 'keyValues',
+          kind: 'panelGrid',
+          panels: [{ heading: label.client, rows: clientRows }],
+        },
+        {
+          kind: 'table',
+          columns: [
+            language === 'fr' ? 'Désignation' : label.description,
+            language === 'fr' ? 'Qté' : label.quantity,
+            language === 'fr' ? 'Prix unit. HT' : 'Unit price excl. tax',
+            language === 'fr' ? 'TVA' : 'Tax',
+            language === 'fr' ? 'Total HT' : 'Total excl. tax',
+          ],
+          rows: view.lines.map((line) => [
+            sanitizeText(line.description),
+            String(line.quantity),
+            invoiceMoney(line.unitPriceCents, view.currency, language),
+            `${(line.taxRateBps / 100).toFixed(2).replace('.00', '')}${language === 'fr' ? ' %' : '%'}`,
+            invoiceMoney(line.lineSubtotalCents, view.currency, language),
+          ]),
+        },
+        {
+          kind: 'totals',
           rows: [
-            { label: label.issueDate, value: formatDate(view.issueDate) },
-            { label: label.validUntil, value: formatDate(view.validUntil) },
+            {
+              label: language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax',
+              value: invoiceMoney(view.subtotalCents, view.currency, language),
+            },
+            {
+              label: commercialTaxLabel(view.lines, language),
+              value: invoiceMoney(view.taxCents, view.currency, language),
+            },
+            {
+              label: language === 'fr' ? 'TOTAL TTC' : 'TOTAL INCL. TAX',
+              value: invoiceMoney(view.totalCents, view.currency, language),
+            },
           ],
         },
-        { kind: 'heading', text: label.lines },
-        lineTable(language, view.currency, view.lines),
-        totalsBlock(language, view.currency, view),
       ],
       footer: label.footer,
+      presentation: {
+        kind: 'hireme-commercial',
+        documentLabel: label.quotation.toUpperCase(),
+        reference: sanitizeText(view.reference),
+        status: commercialStatus(view.status, language),
+        details: [
+          { label: label.issueDate, value: invoiceDate(view.issueDate, language) },
+          { label: label.validUntil, value: invoiceDate(view.validUntil, language) },
+        ],
+      },
     };
   },
 };
@@ -405,7 +422,7 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 3,
+  version: 4,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
@@ -478,12 +495,15 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
     ];
     return {
       title: `${label.invoice} ${sanitizeText(view.reference)}`,
-      subtitle: invoiceStatus(view.status, language),
+      subtitle: commercialStatus(view.status, language),
       blocks: [
-        { kind: 'heading', text: label.seller },
-        { kind: 'keyValues', rows: sellerRows },
-        { kind: 'heading', text: label.billedClient },
-        { kind: 'keyValues', rows: buyerRows },
+        {
+          kind: 'panelGrid',
+          panels: [
+            { heading: label.seller, rows: sellerRows },
+            { heading: label.billedClient, rows: buyerRows },
+          ],
+        },
         ...(view.party.missionTitle
           ? [
               {
@@ -492,20 +512,6 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
               },
             ]
           : []),
-        {
-          kind: 'keyValues',
-          rows: [
-            {
-              label: language === 'fr' ? 'Facturée le' : label.issueDate,
-              value: invoiceDate(view.issueDate, language),
-            },
-            {
-              label: language === 'fr' ? 'Échéance' : label.dueDate,
-              value: invoiceDate(view.dueDate, language),
-            },
-          ],
-        },
-        { kind: 'heading', text: label.lines },
         {
           kind: 'table',
           columns: [
@@ -524,7 +530,7 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
           ]),
         },
         {
-          kind: 'keyValues',
+          kind: 'totals',
           rows: [
             {
               label: label.invoiceSubtotal,
@@ -542,27 +548,44 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         },
         { kind: 'heading', text: label.taxTreatment },
         { kind: 'paragraph', text: sanitizeText(view.taxTreatment) },
-        ...(referenceRows.length > 0
-          ? [
-              { kind: 'heading' as const, text: label.commercialReferences },
-              { kind: 'keyValues' as const, rows: referenceRows },
-            ]
-          : []),
-        { kind: 'heading', text: label.payment },
         {
-          kind: 'keyValues',
-          rows: [
-            { label: label.terms, value: sanitizeText(view.paymentTerms) },
-            ...(view.paymentMethod
-              ? [{ label: label.paymentMethod, value: sanitizeText(view.paymentMethod) }]
-              : []),
-            ...(view.bankDetails
-              ? [{ label: label.bankDetails, value: sanitizeText(view.bankDetails) }]
+          kind: 'panelGrid',
+          panels: [
+            {
+              heading: label.payment,
+              rows: [
+                { label: label.terms, value: sanitizeText(view.paymentTerms) },
+                ...(view.paymentMethod
+                  ? [{ label: label.paymentMethod, value: sanitizeText(view.paymentMethod) }]
+                  : []),
+                ...(view.bankDetails
+                  ? [{ label: label.bankDetails, value: sanitizeText(view.bankDetails) }]
+                  : []),
+              ],
+            },
+            ...(referenceRows.length > 0
+              ? [{ heading: label.commercialReferences, rows: referenceRows }]
               : []),
           ],
         },
       ],
       footer: label.footer,
+      presentation: {
+        kind: 'hireme-commercial',
+        documentLabel: label.invoice.toUpperCase(),
+        reference: sanitizeText(view.reference),
+        status: commercialStatus(view.status, language),
+        details: [
+          {
+            label: language === 'fr' ? 'Facturée le' : label.issueDate,
+            value: invoiceDate(view.issueDate, language),
+          },
+          {
+            label: language === 'fr' ? 'Échéance' : label.dueDate,
+            value: invoiceDate(view.dueDate, language),
+          },
+        ],
+      },
     };
   },
 };

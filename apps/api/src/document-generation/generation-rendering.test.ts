@@ -327,6 +327,70 @@ describe('template registry', () => {
     expect(paragraph && 'text' in paragraph ? paragraph.text : '').toHaveLength(2_000);
   });
 
+  it('applies the approved HireMe presentation only to invoice and quotation outputs', () => {
+    const quotation = resolveTemplate('COMMERCIAL_QUOTATION');
+    const built = quotation.build(
+      {
+        kind: 'COMMERCIAL_QUOTATION',
+        reference: 'DEV-SYN-001',
+        status: 'ACCEPTED',
+        currency: 'MAD',
+        issueDate: new Date('2026-10-23T00:00:00.000Z'),
+        validUntil: new Date('2026-11-23T00:00:00.000Z'),
+        subtotalCents: 10_000,
+        taxCents: 2_000,
+        totalCents: 12_000,
+        lines: [
+          {
+            description: 'Synthetic prestation',
+            quantity: 1,
+            unitPriceCents: 10_000,
+            taxRateBps: 2_000,
+            lineSubtotalCents: 10_000,
+            lineTaxCents: 2_000,
+            lineTotalCents: 12_000,
+          },
+        ],
+        party: { clientName: 'Synthetic Client', missionTitle: 'Synthetic Mission' },
+      },
+      'fr',
+    );
+
+    expect(quotation.version).toBe(2);
+    expect(built.presentation).toEqual({
+      kind: 'hireme-commercial',
+      documentLabel: 'DEVIS',
+      reference: 'DEV-SYN-001',
+      status: 'Accepté',
+      details: [
+        { label: "Date d'émission", value: '23/10/2026' },
+        { label: "Valable jusqu'au", value: '23/11/2026' },
+      ],
+    });
+    expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
+    expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
+    expect(
+      resolveTemplate('COMMERCIAL_CONTRACT').build(
+        {
+          kind: 'COMMERCIAL_CONTRACT',
+          reference: 'CT-SYN-001',
+          businessType: 'RECRUITMENT',
+          status: 'ACTIVE',
+          currency: 'MAD',
+          contractValueCents: 10_000,
+          taxCents: 2_000,
+          totalCents: 12_000,
+          termsSummary: null,
+          effectiveDate: null,
+          startDate: null,
+          endDate: null,
+          party: { clientName: 'Synthetic Client', missionTitle: null },
+        },
+        'fr',
+      ).presentation,
+    ).toBeUndefined();
+  });
+
   it('renders the complete bilingual invoice business snapshot and commercial references', () => {
     const template = resolveTemplate('INVOICE');
     const base = {
@@ -392,6 +456,10 @@ describe('template registry', () => {
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
+      expect(template.version).toBe(4);
+      expect(built.presentation?.kind).toBe('hireme-commercial');
+      expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
+      expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
     }
   });
 });

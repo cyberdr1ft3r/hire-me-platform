@@ -1137,7 +1137,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       where: { id: result.versionId },
     });
     expect(version.templateId).toBe('commercial.quotation');
-    expect(version.templateVersion).toBe(1);
+    expect(version.templateVersion).toBe(2);
     expect(version.generationLanguage).toBe('en');
     expect(version.source).toBe(DocumentVersionSource.GENERATED);
     expect(version.checksumSha256).toHaveLength(64);

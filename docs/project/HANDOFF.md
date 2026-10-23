@@ -5,14 +5,17 @@ Last updated: 2026-10-23
 ## Current situation
 
 - Issue #237 is the active P0. The invoice workflow captures an immutable issuance business snapshot
-  and template v3 renders it in FR/EN with localized dates/money, explicit tax rate, and HT line
-  totals. PostgreSQL integration, concurrency, authorization, lifecycle, renderer, frontend, and an
-  authenticated browser create/issue/reload/generate/download flow pass locally. Exact-head CI on
-  the final PR #240 commit is the remaining technical gate.
+  and branded template v4 renders it in FR/EN with localized dates/money, explicit tax rate, HT line
+  totals, framed identity blocks, and emphasized totals. The accepted wordmark changed only by
+  reducing the `Hire`/`Me` spacing. PostgreSQL integration, concurrency, authorization, lifecycle,
+  renderer, frontend, and an authenticated browser create/issue/reload/generate/download flow pass
+  locally. Exact-head CI on the final PR #240 commit is the remaining technical gate.
 - The owner prototype has now been compared side by side with a real 20% test invoice. Seller legal
   form, capital, address, ICE, RC, email, and site come from the prototype; missing IF and bank/RIB
   were not invented. Real invoicing remains blocked on owner approval of legal/tax/bank/customer
-  data, payment rules, and numbering policy. Evidence is in `docs/audit/issue-237-invoice/`.
+  data, payment rules, and numbering policy. The exact requested prototype copy named with `(2)` was
+  not accessible; the available v3 PDF was used and that limitation is recorded. Evidence is in
+  `docs/audit/issue-237-invoice/`.
 
 - Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
   after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
