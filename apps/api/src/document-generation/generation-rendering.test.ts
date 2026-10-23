@@ -326,4 +326,61 @@ describe('template registry', () => {
     const paragraph = built.blocks.find((block) => block.kind === 'paragraph');
     expect(paragraph && 'text' in paragraph ? paragraph.text : '').toHaveLength(2_000);
   });
+
+  it('renders the complete bilingual invoice business snapshot and commercial references', () => {
+    const template = resolveTemplate('INVOICE');
+    const base = {
+      kind: 'INVOICE' as const,
+      reference: 'INV-SYN-001',
+      status: 'ISSUED',
+      currency: 'MAD',
+      issueDate: new Date('2026-10-23T00:00:00.000Z'),
+      dueDate: new Date('2026-11-23T00:00:00.000Z'),
+      subtotalCents: 10_000,
+      taxCents: 2_000,
+      totalCents: 12_000,
+      lines: [
+        {
+          description: 'Synthetic prestation',
+          quantity: 1,
+          unitPriceCents: 10_000,
+          taxRateBps: 2_000,
+          lineSubtotalCents: 10_000,
+          lineTaxCents: 2_000,
+          lineTotalCents: 12_000,
+        },
+      ],
+      party: { clientName: 'Synthetic Client SA', missionTitle: 'Synthetic Mission' },
+      seller: {
+        legalName: 'Synthetic HireMe SARL',
+        address: '1 Synthetic Avenue, Casablanca',
+        ice: 'SYNTHETIC-ICE',
+        taxId: 'SYNTHETIC-IF',
+        registrationNumber: 'SYNTHETIC-RC',
+      },
+      buyer: {
+        legalName: 'Synthetic Client SA',
+        address: '2 Test Street, Rabat',
+        ice: 'CLIENT-ICE',
+      },
+      paymentTerms: 'Bank transfer within 30 days.',
+      bankDetails: 'Synthetic test account only.',
+      taxTreatment: 'Synthetic 20% VAT test treatment.',
+      commercialReferences: {
+        quotation: 'Q-SYN-001',
+        contract: 'C-SYN-001',
+        purchaseOrder: 'PO-SYN-001',
+      },
+    };
+    for (const language of ['en', 'fr'] as const) {
+      const built = template.build(base, language);
+      const text = JSON.stringify(built);
+      expect(text).toContain('Synthetic HireMe SARL');
+      expect(text).toContain('Synthetic Client SA');
+      expect(text).toContain('Bank transfer within 30 days.');
+      expect(text).toContain('Synthetic 20% VAT test treatment.');
+      expect(text).toContain('PO-SYN-001');
+      expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
+    }
+  });
 });

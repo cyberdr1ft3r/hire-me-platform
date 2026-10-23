@@ -51,6 +51,24 @@ const commercialPermissions = [
   'invoices:manage',
 ];
 
+const invoiceIssueDetails = {
+  issueDate: '2026-10-23T00:00:00.000Z',
+  dueDate: '2026-11-23T00:00:00.000Z',
+  businessDetails: {
+    sellerLegalName: 'Synthetic HireMe SARL',
+    sellerAddress: '1 Synthetic Avenue, Casablanca',
+    sellerIce: 'SYNTHETIC-ICE',
+    sellerTaxId: 'SYNTHETIC-IF',
+    sellerRegistrationNumber: 'SYNTHETIC-RC',
+    buyerLegalName: 'Synthetic Client SA',
+    buyerAddress: '2 Test Street, Rabat',
+    buyerIce: 'CLIENT-ICE',
+    paymentTerms: 'Bank transfer within 30 days.',
+    bankDetails: 'Synthetic test account only.',
+    taxTreatment: 'Synthetic 20% VAT test treatment.',
+  },
+};
+
 async function cleanCommercialTestRecords(): Promise<void> {
   await prisma.invoiceEvent.deleteMany({
     where: { invoice: { reference: { startsWith: 'I38-' } } },
@@ -618,7 +636,7 @@ describe('commercial workflow foundation', () => {
     await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
       method: 'POST',
       headers: authHeaders(commercialToken),
-      body: JSON.stringify({ reason: 'Issue snapshot.' }),
+      body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Issue snapshot.' }),
     });
     await prisma.commercialQuotationLine.updateMany({
       where: { quotationId: quotation.id },
@@ -630,6 +648,7 @@ describe('commercial workflow foundation', () => {
     const reloadedBody = InvoiceDetailResponseSchema.parse(await reloaded.json());
     expect(reloadedBody.invoice.amounts?.totalCents).toBe(24000);
     expect(reloadedBody.invoice.lines?.[0]?.unitPriceCents).toBe(10000);
+    expect(reloadedBody.invoice.businessDetails).toEqual(invoiceIssueDetails.businessDetails);
   });
 
   it('requires authoritative eligible placements and rejects accepted-offer-only invoice attempts', async () => {
@@ -936,12 +955,12 @@ describe('commercial workflow foundation', () => {
       fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
         method: 'POST',
         headers: authHeaders(commercialToken),
-        body: JSON.stringify({ reason: 'Concurrent A' }),
+        body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Concurrent A' }),
       }),
       fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
         method: 'POST',
         headers: authHeaders(commercialToken),
-        body: JSON.stringify({ reason: 'Concurrent B' }),
+        body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Concurrent B' }),
       }),
     ]);
     expect(first.status).toBe(200);
@@ -1230,7 +1249,7 @@ describe('commercial workflow foundation', () => {
         updateBody: { dueDate: '2026-10-01T00:00:00.000Z' },
         statusPath: `/v1/commercial/invoices/${hiddenInvoice.id}/issue`,
         missingStatusPath: `/v1/commercial/invoices/${missingId}/issue`,
-        statusBody: { reason: 'Issue' },
+        statusBody: invoiceIssueDetails,
         archivePath: `/v1/commercial/invoices/${hiddenInvoice.id}/archive`,
         missingArchivePath: `/v1/commercial/invoices/${missingId}/archive`,
       },

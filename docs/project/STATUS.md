@@ -1,7 +1,15 @@
 # Project Status
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 Status owner: repository maintainer
+
+## Issue #237 — P0 invoice weekend delivery
+
+- The existing Commercial invoice workflow has been audited end to end. Draft creation, server-owned integer monetary calculations, scoped authorization, lifecycle history, unique caller-supplied references, row-locked idempotent issuance, immutable generated versions, protected download, and durable reload already worked.
+- Issuance now atomically captures validated issue/due dates, seller and billed-client identity, tax treatment, payment terms, optional bank details, and commercial references. Issued line, amount, and business values are immutable. Historical issued rows without the new snapshot remain readable but generation fails closed pending an approved backfill.
+- Invoice template v2 renders the persisted snapshot in French and English. Synthetic PostgreSQL integration, rendering, concurrency, authorization/lifecycle, EN/FR component, build, and authenticated browser create → issue → reload → generate → download checks pass locally. Exact-head CI remains the final technical gate.
+- The requested `hireme_devis_facture_prototype_v3.pdf` was not present in the repository, issue attachments, or provided workspace, so branding/layout equivalence is not claimed. Production use remains blocked on Soukaina's approval of seller legal identity, tax/registration identifiers, tax treatment, payment information, numbering policy, and the final prototype. No real invoice, merge, or deployment is authorized by this work.
+- Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
 
 ## Issue #234 — Approved top application navigation
 

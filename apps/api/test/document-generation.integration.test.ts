@@ -63,6 +63,19 @@ const generatorPermissions = [
 
 /** Everything except the generation capability itself. */
 const noGeneratePermissions = generatorPermissions.filter((code) => code !== 'documents:generate');
+const invoiceBusinessSnapshot = {
+  sellerLegalName: 'Synthetic HireMe SARL',
+  sellerAddress: '1 Synthetic Avenue, Casablanca',
+  sellerIce: 'SYNTHETIC-ICE',
+  sellerTaxId: 'SYNTHETIC-IF',
+  sellerRegistrationNumber: 'SYNTHETIC-RC',
+  buyerLegalName: 'Synthetic Client SA',
+  buyerAddress: '2 Test Street, Rabat',
+  buyerIce: 'CLIENT-ICE',
+  paymentTerms: 'Bank transfer within 30 days.',
+  bankDetails: 'Synthetic test account only.',
+  taxTreatment: 'Synthetic 20% VAT test treatment.',
+};
 
 /** Generation capability without commercial data access. */
 const noCommercialDataPermissions = generatorPermissions.filter(
@@ -459,6 +472,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       mission?: string | null;
       referenceValue?: string;
       client?: string;
+      buyerLegalName?: string;
     } = {},
   ) {
     return prisma.invoice.create({
@@ -471,6 +485,8 @@ describe('document output generation', { timeout: 60_000 }, () => {
         issueDate: new Date(),
         issuedAt: new Date(),
         dueDate: new Date(Date.now() + 30 * 86_400_000),
+        ...invoiceBusinessSnapshot,
+        buyerLegalName: options.buyerLegalName ?? invoiceBusinessSnapshot.buyerLegalName,
         subtotalCents: 30_000,
         taxCents: 6_000,
         totalCents: 36_000,
@@ -782,10 +798,33 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(text).toContain('300.00 MAD');
     expect(text).toContain('60.00 MAD');
     expect(text).toContain('360.00 MAD');
+    expect(text).toContain('Synthetic HireMe SARL');
+    expect(text).toContain('Synthetic Client SA');
+    expect(text).toContain('Bank transfer within 30 days.');
     const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
     expect(stored.subtotalCents).toBe(30_000);
     expect(stored.taxCents).toBe(6_000);
     expect(stored.totalCents).toBe(36_000);
+  });
+
+  it('fails closed when a historical issued invoice has no immutable business snapshot', async () => {
+    const invoice = await createInvoice();
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        sellerLegalName: null,
+        sellerAddress: null,
+        buyerLegalName: null,
+        buyerAddress: null,
+        paymentTerms: null,
+        taxTreatment: null,
+      },
+    });
+
+    const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`);
+    expect(response.status).toBe(400);
+    expect(errorCode(response.body)).toBe('INVOICE_BUSINESS_SNAPSHOT_REQUIRED');
+    expect(await prisma.document.count({ where: { invoiceId: invoice.id } })).toBe(0);
   });
 
   it('generates a certificate for a certificate-ready enrollment', async () => {
@@ -1048,7 +1087,9 @@ describe('document output generation', { timeout: 60_000 }, () => {
         currency: 'MAD',
         status: InvoiceStatus.ISSUED,
         issueDate: new Date(),
+        dueDate: new Date(Date.now() + 30 * 86_400_000),
         issuedAt: new Date(),
+        ...invoiceBusinessSnapshot,
         subtotalCents: 1_000,
         taxCents: 0,
         totalCents: 1_000,
@@ -1717,7 +1758,9 @@ describe('document output generation', { timeout: 60_000 }, () => {
         currency: 'MAD',
         status: InvoiceStatus.ISSUED,
         issueDate: new Date(),
+        dueDate: new Date(Date.now() + 30 * 86_400_000),
         issuedAt: new Date(),
+        ...invoiceBusinessSnapshot,
         subtotalCents: 1_000,
         taxCents: 0,
         totalCents: 1_000,
@@ -1821,7 +1864,10 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const ligatureClient = await prisma.client.create({
       data: { name: 'Gen49 Cœur & Œuvre', normalizedName: 'gen49 coeur oeuvre' },
     });
-    const ligatureInvoice = await createInvoice({ client: ligatureClient.id });
+    const ligatureInvoice = await createInvoice({
+      client: ligatureClient.id,
+      buyerLegalName: ligatureClient.name,
+    });
     const ligature = await generate(`/v1/commercial/invoices/${ligatureInvoice.id}/generate`);
     expect(ligature.status).toBe(201);
     const ligatureVersion = await prisma.documentVersion.findUniqueOrThrow({
@@ -1835,7 +1881,10 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const arabicClient = await prisma.client.create({
       data: { name: 'شركة الأطلس للتقنية', normalizedName: 'gen49 arabic client' },
     });
-    const arabicInvoice = await createInvoice({ client: arabicClient.id });
+    const arabicInvoice = await createInvoice({
+      client: arabicClient.id,
+      buyerLegalName: arabicClient.name,
+    });
     const arabic = await generate(`/v1/commercial/invoices/${arabicInvoice.id}/generate`);
     expect(arabic.status).toBe(201);
     const arabicVersion = await prisma.documentVersion.findUniqueOrThrow({
@@ -1913,7 +1962,10 @@ describe('document output generation', { timeout: 60_000 }, () => {
     const scriptClient = await prisma.client.create({
       data: { name: 'Gen49 中文 客戶', normalizedName: 'gen49 uncovered script client' },
     });
-    const scriptInvoice = await createInvoice({ client: scriptClient.id });
+    const scriptInvoice = await createInvoice({
+      client: scriptClient.id,
+      buyerLegalName: scriptClient.name,
+    });
 
     const refused = await generate(`/v1/commercial/invoices/${scriptInvoice.id}/generate`);
     expect(refused.status).toBe(409);

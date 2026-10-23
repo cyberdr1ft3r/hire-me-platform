@@ -1,8 +1,18 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Current situation
+
+- Issue #237 is the active P0. The invoice workflow now captures an immutable issuance business
+  snapshot and template v2 renders it in FR/EN. PostgreSQL integration, concurrency, authorization,
+  lifecycle, renderer, frontend, build, and authenticated browser create/issue/reload/generate/
+  download checks pass locally. Exact-head CI and the draft PR are the remaining technical delivery
+  steps.
+- The requested `hireme_devis_facture_prototype_v3.pdf` was unavailable, so exact branding/layout
+  comparison is explicitly unverified. Real invoicing remains blocked on Soukaina's approval of
+  seller identity and legal identifiers, tax treatment, payment details, numbering policy, and the
+  final prototype. Evidence is in `docs/audit/issue-237-invoice/`.
 
 - Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
   after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
@@ -60,14 +70,15 @@ Last updated: 2026-10-21
 
 ## Next concrete action
 
-1. Verify all four required jobs on the latest PR #238 head, including any documentation-only
-   follow-up commit.
-2. Keep PR #238 draft and unmerged; no deployment or additional feature work is authorized here.
+1. Open the focused Issue #237 draft PR and verify every required job against its exact head.
+2. Obtain the prototype and Soukaina's business/legal approvals before any production invoice is
+   issued. Keep the PR draft and unmerged; do not deploy.
 
 ## Completion conditions
 
-- Only the active route module mounts; B0′ navigation guards, RV1 identity recovery, permissions,
-  session isolation, and existing routes remain intact.
-- Desktop/tablet/mobile EN/FR Chrome evidence, focused and full validation, and exact-head four-job
-  CI are recorded in the B2 draft PR.
-- No merge, deployment, sidebar redesign, or later-phase work.
+- Authorized users can create, issue, reload, generate, and download an invoice with server-owned
+  totals and an immutable, validated business snapshot; duplicate issue/generation is prevented.
+- PostgreSQL integration, concurrency, authorization/lifecycle, PDF content, EN/FR, browser, build,
+  and exact-head CI evidence is recorded in the Issue #237 draft PR.
+- Missing business/legal inputs and the unavailable prototype remain explicit acceptance blockers.
+  No merge, deployment, or unrelated work.

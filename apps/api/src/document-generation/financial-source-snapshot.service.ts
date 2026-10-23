@@ -76,6 +76,9 @@ export class FinancialSourceSnapshotService {
         include: {
           client: { select: { name: true } },
           recruitmentMission: { select: { title: true } },
+          quotation: { select: { reference: true } },
+          contract: { select: { reference: true } },
+          purchaseOrder: { select: { reference: true } },
           lines: { orderBy: { sortOrder: 'asc' } },
         },
       });

@@ -180,6 +180,7 @@ export function syntheticInvoice(overrides: Partial<InvoiceDetail> = {}): Invoic
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
     lines: [syntheticLine()],
+    businessDetails: null,
     history: [],
     ...overrides,
   };

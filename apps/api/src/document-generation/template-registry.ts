@@ -67,7 +67,23 @@ type LabelKey =
   | 'program'
   | 'completedOn'
   | 'certificateBody'
-  | 'footer';
+  | 'footer'
+  | 'seller'
+  | 'billedClient'
+  | 'address'
+  | 'ice'
+  | 'taxId'
+  | 'registrationNumber'
+  | 'payment'
+  | 'bankDetails'
+  | 'taxTreatment'
+  | 'commercialReferences'
+  | 'quotationReference'
+  | 'contractReference'
+  | 'purchaseOrderReference'
+  | 'invoiceSubtotal'
+  | 'invoiceTax'
+  | 'invoiceTotal';
 
 const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
   en: {
@@ -105,6 +121,22 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     completedOn: 'Completed on',
     certificateBody: 'This certifies that the participant completed the training programme.',
     footer: 'Generated from the authoritative business record. Amounts are shown per currency.',
+    seller: 'Seller',
+    billedClient: 'Billed client',
+    address: 'Address',
+    ice: 'ICE',
+    taxId: 'Tax identifier',
+    registrationNumber: 'Commercial register',
+    payment: 'Payment',
+    bankDetails: 'Bank details',
+    taxTreatment: 'Tax treatment',
+    commercialReferences: 'Commercial references',
+    quotationReference: 'Quotation',
+    contractReference: 'Contract',
+    purchaseOrderReference: 'Purchase order',
+    invoiceSubtotal: 'Subtotal excl. tax',
+    invoiceTax: 'Tax',
+    invoiceTotal: 'Total incl. tax',
   },
   fr: {
     quotation: 'Devis',
@@ -141,6 +173,22 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     completedOn: 'Termine le',
     certificateBody: 'La presente atteste que le participant a termine le programme de formation.',
     footer: 'Genere a partir du document commercial de reference. Les montants restent par devise.',
+    seller: 'Emetteur',
+    billedClient: 'Client facture',
+    address: 'Adresse',
+    ice: 'ICE',
+    taxId: 'Identifiant fiscal',
+    registrationNumber: 'Registre du commerce',
+    payment: 'Reglement',
+    bankDetails: 'Coordonnees bancaires',
+    taxTreatment: 'Traitement fiscal',
+    commercialReferences: 'References commerciales',
+    quotationReference: 'Devis',
+    contractReference: 'Contrat',
+    purchaseOrderReference: 'Bon de commande',
+    invoiceSubtotal: 'Sous-total HT',
+    invoiceTax: 'TVA / taxe',
+    invoiceTotal: 'Total TTC',
   },
 };
 
@@ -297,16 +345,74 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 1,
+  version: 2,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
     const label = labels[language];
+    const sellerRows = [
+      { label: label.seller, value: sanitizeText(view.seller.legalName) },
+      { label: label.address, value: sanitizeText(view.seller.address) },
+      ...(view.seller.ice ? [{ label: label.ice, value: sanitizeText(view.seller.ice) }] : []),
+      ...(view.seller.taxId
+        ? [{ label: label.taxId, value: sanitizeText(view.seller.taxId) }]
+        : []),
+      ...(view.seller.registrationNumber
+        ? [
+            {
+              label: label.registrationNumber,
+              value: sanitizeText(view.seller.registrationNumber),
+            },
+          ]
+        : []),
+    ];
+    const buyerRows = [
+      { label: label.billedClient, value: sanitizeText(view.buyer.legalName) },
+      { label: label.address, value: sanitizeText(view.buyer.address) },
+      ...(view.buyer.ice ? [{ label: label.ice, value: sanitizeText(view.buyer.ice) }] : []),
+    ];
+    const referenceRows = [
+      ...(view.commercialReferences.quotation
+        ? [
+            {
+              label: label.quotationReference,
+              value: sanitizeText(view.commercialReferences.quotation),
+            },
+          ]
+        : []),
+      ...(view.commercialReferences.contract
+        ? [
+            {
+              label: label.contractReference,
+              value: sanitizeText(view.commercialReferences.contract),
+            },
+          ]
+        : []),
+      ...(view.commercialReferences.purchaseOrder
+        ? [
+            {
+              label: label.purchaseOrderReference,
+              value: sanitizeText(view.commercialReferences.purchaseOrder),
+            },
+          ]
+        : []),
+    ];
     return {
       title: `${label.invoice} ${sanitizeText(view.reference)}`,
       subtitle: `${label.status}: ${sanitizeText(view.status)}`,
       blocks: [
-        partyBlock(language, view.party),
+        { kind: 'heading', text: label.seller },
+        { kind: 'keyValues', rows: sellerRows },
+        { kind: 'heading', text: label.billedClient },
+        { kind: 'keyValues', rows: buyerRows },
+        ...(view.party.missionTitle
+          ? [
+              {
+                kind: 'keyValues' as const,
+                rows: [{ label: label.mission, value: sanitizeText(view.party.missionTitle) }],
+              },
+            ]
+          : []),
         {
           kind: 'keyValues',
           rows: [
@@ -316,7 +422,35 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         },
         { kind: 'heading', text: label.lines },
         lineTable(language, view.currency, view.lines),
-        totalsBlock(language, view.currency, view),
+        {
+          kind: 'keyValues',
+          rows: [
+            {
+              label: label.invoiceSubtotal,
+              value: formatMoney(view.subtotalCents, view.currency),
+            },
+            { label: label.invoiceTax, value: formatMoney(view.taxCents, view.currency) },
+            { label: label.invoiceTotal, value: formatMoney(view.totalCents, view.currency) },
+          ],
+        },
+        { kind: 'heading', text: label.taxTreatment },
+        { kind: 'paragraph', text: sanitizeText(view.taxTreatment) },
+        ...(referenceRows.length > 0
+          ? [
+              { kind: 'heading' as const, text: label.commercialReferences },
+              { kind: 'keyValues' as const, rows: referenceRows },
+            ]
+          : []),
+        { kind: 'heading', text: label.payment },
+        {
+          kind: 'keyValues',
+          rows: [
+            { label: label.terms, value: sanitizeText(view.paymentTerms) },
+            ...(view.bankDetails
+              ? [{ label: label.bankDetails, value: sanitizeText(view.bankDetails) }]
+              : []),
+          ],
+        },
       ],
       footer: label.footer,
     };

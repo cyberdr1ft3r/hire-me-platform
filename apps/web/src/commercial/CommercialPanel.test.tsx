@@ -585,7 +585,7 @@ describe('CommercialPanel: lifecycle', () => {
     expect(callsTo(calls, cancelPath, 'POST')[0]?.body).toEqual({ reason: 'Duplicate invoice' });
   });
 
-  it('issues an invoice with its due date', async () => {
+  it('issues an invoice with dates and an immutable business snapshot', async () => {
     const issuePath = `${paths.invoice}/${INVOICE_ID}/issue`;
     const calls = standardApi((call) =>
       call.method === 'POST' && call.path === issuePath
@@ -599,15 +599,35 @@ describe('CommercialPanel: lifecycle', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Issue' }));
     const confirm = screen.getByRole('form', { name: 'Confirm issue' });
+    fireEvent.change(within(confirm).getByLabelText(/^Issue date/), {
+      target: { value: '2026-10-23' },
+    });
     fireEvent.change(within(confirm).getByLabelText(/^Due date/), {
       target: { value: '2026-11-30' },
     });
+    const values: [RegExp, string][] = [
+      [/^Seller legal name/, 'Synthetic HireMe SARL'],
+      [/^Seller address/, '1 Synthetic Avenue, Casablanca'],
+      [/^Billed client legal name/, 'Synthetic Client SA'],
+      [/^Billed client address/, '2 Test Street, Rabat'],
+      [/^Payment terms/, 'Bank transfer within 30 days.'],
+      [/^Tax treatment/, 'Synthetic 20% VAT test treatment.'],
+    ];
+    for (const [label, value] of values) {
+      fireEvent.change(within(confirm).getByLabelText(label), { target: { value } });
+    }
     fireEvent.click(within(confirm).getByRole('button', { name: 'Issue invoice' }));
 
     expect(await screen.findByText('Record issued.')).toBeVisible();
     const body = callsTo(calls, issuePath, 'POST')[0]?.body;
     expect(body?.dueDate).toMatch(/^2026-11-(29|30)T/);
-    expect(body).not.toHaveProperty('issueDate');
+    expect(body?.issueDate).toMatch(/^2026-10-(22|23)T/);
+    expect(body?.businessDetails).toMatchObject({
+      sellerLegalName: 'Synthetic HireMe SARL',
+      buyerLegalName: 'Synthetic Client SA',
+      paymentTerms: 'Bank transfer within 30 days.',
+      taxTreatment: 'Synthetic 20% VAT test treatment.',
+    });
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
   });
 

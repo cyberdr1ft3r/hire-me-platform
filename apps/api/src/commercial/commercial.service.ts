@@ -1329,10 +1329,19 @@ export class CommercialService {
         data: {
           status: InvoiceStatus.ISSUED,
           issuedAt: new Date(),
-          issueDate: input.issueDate
-            ? new Date(input.issueDate)
-            : (existing.issueDate ?? new Date()),
-          dueDate: input.dueDate ? new Date(input.dueDate) : existing.dueDate,
+          issueDate: new Date(input.issueDate),
+          dueDate: new Date(input.dueDate),
+          sellerLegalName: input.businessDetails.sellerLegalName,
+          sellerAddress: input.businessDetails.sellerAddress,
+          sellerIce: input.businessDetails.sellerIce ?? null,
+          sellerTaxId: input.businessDetails.sellerTaxId ?? null,
+          sellerRegistrationNumber: input.businessDetails.sellerRegistrationNumber ?? null,
+          buyerLegalName: input.businessDetails.buyerLegalName,
+          buyerAddress: input.businessDetails.buyerAddress,
+          buyerIce: input.businessDetails.buyerIce ?? null,
+          paymentTerms: input.businessDetails.paymentTerms,
+          bankDetails: input.businessDetails.bankDetails ?? null,
+          taxTreatment: input.businessDetails.taxTreatment,
           updatedByUserId: actorUserId,
         },
       });
@@ -2440,9 +2449,36 @@ export class CommercialService {
     return {
       ...this.toInvoiceSummary(invoice, access),
       lines: access.commercialData ? invoice.lines.map(toLine) : null,
+      businessDetails: access.commercialData ? invoiceBusinessDetails(invoice) : null,
       history: invoice.events.map((event) => toEvent(event, access)),
     };
   }
+}
+
+function invoiceBusinessDetails(invoice: InvoiceRecord) {
+  if (
+    !invoice.sellerLegalName ||
+    !invoice.sellerAddress ||
+    !invoice.buyerLegalName ||
+    !invoice.buyerAddress ||
+    !invoice.paymentTerms ||
+    !invoice.taxTreatment
+  ) {
+    return null;
+  }
+  return {
+    sellerLegalName: invoice.sellerLegalName,
+    sellerAddress: invoice.sellerAddress,
+    sellerIce: invoice.sellerIce,
+    sellerTaxId: invoice.sellerTaxId,
+    sellerRegistrationNumber: invoice.sellerRegistrationNumber,
+    buyerLegalName: invoice.buyerLegalName,
+    buyerAddress: invoice.buyerAddress,
+    buyerIce: invoice.buyerIce,
+    paymentTerms: invoice.paymentTerms,
+    bankDetails: invoice.bankDetails,
+    taxTreatment: invoice.taxTreatment,
+  };
 }
 
 const displaySourceInclude = {

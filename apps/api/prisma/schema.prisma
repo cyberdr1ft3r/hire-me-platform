@@ -2326,31 +2326,42 @@ model PurchaseOrderEvent {
 }
 
 model Invoice {
-  id                    String        @id @default(uuid()) @db.Uuid
-  reference             String        @unique
-  clientId              String        @db.Uuid
-  recruitmentMissionId  String?       @db.Uuid
-  missionPlacementId    String?       @unique @db.Uuid
-  quotationId           String?       @db.Uuid
-  contractId            String?       @db.Uuid
-  purchaseOrderId       String?       @db.Uuid
-  currency              String
-  status                InvoiceStatus @default(DRAFT)
-  issueDate             DateTime?
-  dueDate               DateTime?
-  subtotalCents         Int           @default(0)
-  taxCents              Int           @default(0)
-  totalCents            Int           @default(0)
-  issuedAt              DateTime?
-  canceledAt            DateTime?
-  canceledByUserId      String?       @db.Uuid
-  cancellationReason    String?
-  correctionOfInvoiceId String?       @db.Uuid
-  createdByUserId       String?       @db.Uuid
-  updatedByUserId       String?       @db.Uuid
-  archivedAt            DateTime?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id                       String        @id @default(uuid()) @db.Uuid
+  reference                String        @unique
+  clientId                 String        @db.Uuid
+  recruitmentMissionId     String?       @db.Uuid
+  missionPlacementId       String?       @unique @db.Uuid
+  quotationId              String?       @db.Uuid
+  contractId               String?       @db.Uuid
+  purchaseOrderId          String?       @db.Uuid
+  currency                 String
+  status                   InvoiceStatus @default(DRAFT)
+  issueDate                DateTime?
+  dueDate                  DateTime?
+  subtotalCents            Int           @default(0)
+  taxCents                 Int           @default(0)
+  totalCents               Int           @default(0)
+  issuedAt                 DateTime?
+  sellerLegalName          String?
+  sellerAddress            String?
+  sellerIce                String?
+  sellerTaxId              String?
+  sellerRegistrationNumber String?
+  buyerLegalName           String?
+  buyerAddress             String?
+  buyerIce                 String?
+  paymentTerms             String?
+  bankDetails              String?
+  taxTreatment             String?
+  canceledAt               DateTime?
+  canceledByUserId         String?       @db.Uuid
+  cancellationReason       String?
+  correctionOfInvoiceId    String?       @db.Uuid
+  createdByUserId          String?       @db.Uuid
+  updatedByUserId          String?       @db.Uuid
+  archivedAt               DateTime?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
   recruitmentMission  RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)

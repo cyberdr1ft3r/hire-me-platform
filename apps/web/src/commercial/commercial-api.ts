@@ -2,6 +2,7 @@ import type {
   CommercialContractStatus,
   DocumentGenerationRequest,
   DocumentGenerationResponse,
+  InvoiceBusinessDetailsInput,
   InvoiceStatus,
   PurchaseOrderStatus,
   QuotationStatus,
@@ -154,6 +155,7 @@ export type LifecycleInput = {
   /** `YYYY-MM-DD` from a date input; invoice issue only. */
   issueDate?: string;
   dueDate?: string;
+  businessDetails?: InvoiceBusinessDetailsInput;
 };
 
 function optionalReason(input: LifecycleInput): string | undefined {
@@ -183,9 +185,19 @@ export async function runCommercialAction(
   }
   if (kind === 'invoice') {
     if (action === 'issue') {
+      const { businessDetails, dueDate, issueDate } = input;
+      if (!issueDate || !dueDate || !businessDetails) {
+        throw new Error('Invoice issue details are required.');
+      }
+      const issueDateIso = dateInputStartIso(issueDate);
+      const dueDateIso = dateInputStartIso(dueDate);
+      if (!issueDateIso || !dueDateIso) {
+        throw new Error('Invoice issue dates are invalid.');
+      }
       const response = await issueInvoice(accessToken, id, {
-        ...(input.issueDate ? { issueDate: dateInputStartIso(input.issueDate) } : {}),
-        ...(input.dueDate ? { dueDate: dateInputStartIso(input.dueDate) } : {}),
+        issueDate: issueDateIso,
+        dueDate: dueDateIso,
+        businessDetails,
       });
       return { kind, record: response.invoice };
     }

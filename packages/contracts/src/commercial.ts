@@ -297,8 +297,23 @@ export const InvoiceSummarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const InvoiceBusinessDetailsSchema = z.object({
+  sellerLegalName: z.string(),
+  sellerAddress: z.string(),
+  sellerIce: z.string().nullable(),
+  sellerTaxId: z.string().nullable(),
+  sellerRegistrationNumber: z.string().nullable(),
+  buyerLegalName: z.string(),
+  buyerAddress: z.string(),
+  buyerIce: z.string().nullable(),
+  paymentTerms: z.string(),
+  bankDetails: z.string().nullable(),
+  taxTreatment: z.string(),
+});
+
 export const InvoiceDetailSchema = InvoiceSummarySchema.extend({
   lines: z.array(CommercialLineSchema).nullable(),
+  businessDetails: InvoiceBusinessDetailsSchema.nullable(),
   history: z.array(CommercialHistoryEventSchema),
 });
 
@@ -344,11 +359,34 @@ export const InvoiceUpdateRequestSchema = z
     message: 'At least one editable invoice field is required.',
   });
 
-export const InvoiceIssueRequestSchema = z.object({
-  issueDate: OptionalIsoDateSchema,
-  dueDate: OptionalIsoDateSchema,
-  reason: z.string().trim().min(1).max(500).optional(),
+const RequiredInvoiceTextSchema = z.string().trim().min(1).max(500);
+const OptionalInvoiceIdentifierSchema = z.string().trim().min(1).max(80).optional();
+
+export const InvoiceBusinessDetailsInputSchema = z.object({
+  sellerLegalName: z.string().trim().min(1).max(180),
+  sellerAddress: RequiredInvoiceTextSchema,
+  sellerIce: OptionalInvoiceIdentifierSchema,
+  sellerTaxId: OptionalInvoiceIdentifierSchema,
+  sellerRegistrationNumber: OptionalInvoiceIdentifierSchema,
+  buyerLegalName: z.string().trim().min(1).max(180),
+  buyerAddress: RequiredInvoiceTextSchema,
+  buyerIce: OptionalInvoiceIdentifierSchema,
+  paymentTerms: RequiredInvoiceTextSchema,
+  bankDetails: z.string().trim().min(1).max(1000).optional(),
+  taxTreatment: RequiredInvoiceTextSchema,
 });
+
+export const InvoiceIssueRequestSchema = z
+  .object({
+    issueDate: z.string().datetime(),
+    dueDate: z.string().datetime(),
+    businessDetails: InvoiceBusinessDetailsInputSchema,
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .refine((value) => Date.parse(value.dueDate) >= Date.parse(value.issueDate), {
+    message: 'Invoice due date must not be before its issue date.',
+    path: ['dueDate'],
+  });
 
 export const InvoiceCancelRequestSchema = z.object({
   reason: z.string().trim().min(1).max(500),
@@ -475,6 +513,8 @@ export type PurchaseOrderListResponse = z.infer<typeof PurchaseOrderListResponse
 export type PurchaseOrderDetailResponse = z.infer<typeof PurchaseOrderDetailResponseSchema>;
 export type InvoiceSummary = z.infer<typeof InvoiceSummarySchema>;
 export type InvoiceDetail = z.infer<typeof InvoiceDetailSchema>;
+export type InvoiceBusinessDetails = z.infer<typeof InvoiceBusinessDetailsSchema>;
+export type InvoiceBusinessDetailsInput = z.infer<typeof InvoiceBusinessDetailsInputSchema>;
 export type InvoiceListQuery = z.infer<typeof InvoiceListQuerySchema>;
 export type InvoiceCreateRequest = z.infer<typeof InvoiceCreateRequestSchema>;
 export type InvoiceUpdateRequest = z.infer<typeof InvoiceUpdateRequestSchema>;
