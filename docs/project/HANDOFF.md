@@ -20,6 +20,11 @@ Last updated: 2026-10-23
   reconciliation value (purchase order, contract, mission, or internal billing code), distinct from
   the invoice number and identity fields. Populated, absent-PDF, and post-issuance immutability paths
   are covered; the acceptance sample uses `BC-TEST-2026-0042`.
+- Standard 20% TVA invoices now omit the dedicated fiscal-treatment block; the existing amounts
+  table still shows the rate, tax amount, and TTC. Optional approved exceptional wording remains in
+  the immutable snapshot/fingerprint and renders only when supplied. The regenerated browser PDF
+  contains no internal test explanation. Focused contracts 6/6, renderer 25/25, web 37/37,
+  PostgreSQL integration 68/68, catalog 5/5, and Chrome E2E pass locally.
 
 - Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
   after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
@@ -77,8 +82,8 @@ Last updated: 2026-10-23
 
 ## Next concrete action
 
-1. Push the final Issue #237 acceptance commit to draft PR #240 and verify every required job against
-   its exact head.
+1. Push the final Issue #237 fiscal-treatment correction to draft PR #240 and verify every required
+   job against its exact head.
 2. Obtain owner business/legal approvals before any production invoice is issued. Keep the PR draft
    and unmerged; do not deploy.
 

@@ -437,7 +437,7 @@ describe('template registry', () => {
       paymentTerms: 'Bank transfer within 30 days.',
       paymentMethod: 'Synthetic transfer',
       bankDetails: 'Synthetic test account only.',
-      taxTreatment: 'Synthetic 20% VAT test treatment.',
+      taxTreatment: null,
       commercialReferences: {
         quotation: 'Q-SYN-001',
         contract: 'C-SYN-001',
@@ -450,7 +450,6 @@ describe('template registry', () => {
       expect(text).toContain('Synthetic HireMe SARL');
       expect(text).toContain('Synthetic Client SA');
       expect(text).toContain('Bank transfer within 30 days.');
-      expect(text).toContain('Synthetic 20% VAT test treatment.');
       expect(text).toContain('PO-SYN-001');
       expect(text).toContain('BC-TEST-2026-0042');
       expect(text).toContain(language === 'fr' ? 'Référence client' : 'Customer reference');
@@ -461,7 +460,15 @@ describe('template registry', () => {
       expect(built.presentation?.kind).toBe('hireme-commercial');
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
+      expect(text).not.toContain(language === 'fr' ? 'Traitement fiscal' : 'Tax treatment');
     }
+
+    const exceptional = template.build(
+      { ...base, taxTreatment: 'Approved exceptional tax wording.' },
+      'en',
+    );
+    expect(JSON.stringify(exceptional)).toContain('Tax treatment');
+    expect(JSON.stringify(exceptional)).toContain('Approved exceptional tax wording.');
 
     const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');

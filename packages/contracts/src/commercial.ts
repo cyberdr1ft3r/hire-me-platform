@@ -316,7 +316,7 @@ export const InvoiceBusinessDetailsSchema = z.object({
   paymentTerms: z.string(),
   paymentMethod: z.string().nullable(),
   bankDetails: z.string().nullable(),
-  taxTreatment: z.string(),
+  taxTreatment: z.string().nullable(),
 });
 
 export const InvoiceDetailSchema = InvoiceSummarySchema.extend({
@@ -389,7 +389,7 @@ export const InvoiceBusinessDetailsInputSchema = z.object({
   paymentTerms: RequiredInvoiceTextSchema,
   paymentMethod: z.string().trim().min(1).max(180).optional(),
   bankDetails: z.string().trim().min(1).max(1000).optional(),
-  taxTreatment: RequiredInvoiceTextSchema,
+  taxTreatment: z.string().trim().min(1).max(500).optional(),
 });
 
 export const InvoiceIssueRequestSchema = z

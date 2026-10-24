@@ -82,7 +82,7 @@ const invoiceBusinessSnapshot = {
   paymentTerms: 'Bank transfer within 30 days.',
   paymentMethod: 'Synthetic transfer',
   bankDetails: 'Synthetic test account only.',
-  taxTreatment: 'Synthetic 20% VAT test treatment.',
+  taxTreatment: null,
 };
 
 /** Generation capability without commercial data access. */
@@ -482,6 +482,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       client?: string;
       buyerLegalName?: string;
       customerReference?: string | null;
+      taxTreatment?: string | null;
     } = {},
   ) {
     return prisma.invoice.create({
@@ -500,6 +501,10 @@ describe('document output generation', { timeout: 60_000 }, () => {
           options.customerReference === undefined
             ? invoiceBusinessSnapshot.customerReference
             : options.customerReference,
+        taxTreatment:
+          options.taxTreatment === undefined
+            ? invoiceBusinessSnapshot.taxTreatment
+            : options.taxTreatment,
         subtotalCents: 30_000,
         taxCents: 6_000,
         totalCents: 36_000,
@@ -814,12 +819,31 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(text).toContain('Synthetic HireMe SARL');
     expect(text).toContain('Synthetic Client SA');
     expect(text).toContain('Bank transfer within 30 days.');
+    expect(text).toContain('TVA (20 %)');
+    expect(text).not.toContain('Traitement fiscal');
+    expect(text).not.toContain('Tax treatment');
     expect(text).toContain('Référence client');
     expect(text).toContain('BC-TEST-2026-0042');
     const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
     expect(stored.subtotalCents).toBe(30_000);
     expect(stored.taxCents).toBe(6_000);
     expect(stored.totalCents).toBe(36_000);
+  });
+
+  it('renders only approved exceptional tax wording in a dedicated fiscal section', async () => {
+    const invoice = await createInvoice({
+      taxTreatment: 'Approved exceptional tax wording.',
+    });
+    const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`);
+    expect(response.status).toBe(201);
+
+    const result = generated(response.body);
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    const text = await pdfText(await storage.get(version.storageKey));
+    expect(text).toContain('TRAITEMENT FISCAL');
+    expect(text).toContain('Approved exceptional tax wording.');
   });
 
   it('omits the customer reference label and row when no reference was supplied', async () => {

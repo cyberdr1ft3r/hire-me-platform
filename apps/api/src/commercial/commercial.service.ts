@@ -1349,7 +1349,7 @@ export class CommercialService {
           paymentTerms: input.businessDetails.paymentTerms,
           paymentMethod: input.businessDetails.paymentMethod ?? null,
           bankDetails: input.businessDetails.bankDetails ?? null,
-          taxTreatment: input.businessDetails.taxTreatment,
+          taxTreatment: input.businessDetails.taxTreatment ?? null,
           updatedByUserId: actorUserId,
         },
       });
@@ -2469,8 +2469,7 @@ function invoiceBusinessDetails(invoice: InvoiceRecord) {
     !invoice.sellerAddress ||
     !invoice.buyerLegalName ||
     !invoice.buyerAddress ||
-    !invoice.paymentTerms ||
-    !invoice.taxTreatment
+    !invoice.paymentTerms
   ) {
     return null;
   }

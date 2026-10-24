@@ -245,7 +245,9 @@ export const commercialFr: Messages['commercial'] = {
       paymentTerms: 'Conditions de règlement',
       paymentMethod: 'Mode de règlement (facultatif)',
       bankDetails: 'Coordonnées bancaires (facultatif)',
-      taxTreatment: 'Traitement fiscal',
+      taxTreatment: 'Mention fiscale exceptionnelle (facultatif)',
+      taxTreatmentHint:
+        'À renseigner uniquement avec une mention légale approuvée pour une exonération, une autoliquidation ou un autre traitement exceptionnel. Laisser vide pour une facture standard soumise à la TVA.',
     },
     facts: {
       client: 'Client',

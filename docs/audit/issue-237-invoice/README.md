@@ -6,7 +6,8 @@ Audit date: 2026-10-23. Scope is PR #240 only. No merge or deployment was perfor
 
 The invoice workflow and the approved visual direction are technically ready for business
 acceptance, subject to exact-head CI. It is not approved for real invoices: business/legal identity,
-tax wording, banking details, customer data, and numbering policy still require owner approval.
+exceptional tax wording, banking details, customer data, and numbering policy still require owner
+approval.
 
 ## Prototype comparison
 
@@ -48,6 +49,12 @@ Verified technical/template defects were corrected:
 
 No further reproducible technical blocker remained in the tested PDF/lifecycle scope.
 
+For a standard 20% TVA invoice, the dedicated `Traitement fiscal` section is omitted entirely. The
+financial table remains authoritative for the 20% rate, 8 000,00 MAD tax amount, and 48 000,00 MAD
+TTC total. Optional exceptional wording is accepted only when explicitly supplied, stored in the
+immutable issuance snapshot, fingerprinted, and rendered in a dedicated section. No test
+explanation or owner-confirmation note appears in the customer-facing sample.
+
 ### Visual improvements completed
 
 - Added the accepted teal header treatment and preserved the existing wordmark, changing only the
@@ -61,7 +68,8 @@ No further reproducible technical blocker remained in the tested PDF/lifecycle s
 
 - Exact seller legal wording and confirmation of the prototype's legal form, capital, address, ICE,
   and RC
-- Seller IF and production tax treatment; 20% is confirmed only for this test invoice
+- Seller IF and any legally required exceptional tax wording; the intended standard test invoice
+  uses the owner-confirmed 20% TVA
 - Bank name and RIB/IBAN
 - Real buyer legal name, address, ICE or IF, and billing contact
 - Invoice numbering format, sequence scope, and reset policy
@@ -83,14 +91,14 @@ No further reproducible technical blocker remained in the tested PDF/lifecycle s
 
 ## Verification
 
-- Customer-reference invoice contract validation: 4/4
+- Invoice contract validation, including optional/exceptional tax wording: 6/6
 - Invoice renderer/template tests: 25/25
-- Commercial web regression, including EN/FR customer-reference guidance: 36/36
-- Disposable PostgreSQL commercial and document-generation integration: 66/66 after all 26
+- Commercial web regression, including EN/FR customer-reference and exceptional-tax guidance: 37/37
+- Disposable PostgreSQL commercial and document-generation integration: 68/68 after all 26
   migrations
 - Authorization catalog integrity: 5/5
-- Browser create → issue with `BC-TEST-2026-0042` → reload → generate French template v4 →
-  protected download: passed
+- Browser create → issue with `BC-TEST-2026-0042` and no exceptional tax wording → reload →
+  generate French template v4 → protected download: passed
 - Visual QA: the updated invoice and one-page before/after PDF were rendered to images and inspected;
   no clipping or overflow was observed
 

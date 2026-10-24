@@ -946,8 +946,7 @@ export class DocumentGenerationService {
       !invoice.sellerAddress ||
       !invoice.buyerLegalName ||
       !invoice.buyerAddress ||
-      !invoice.paymentTerms ||
-      !invoice.taxTreatment
+      !invoice.paymentTerms
     ) {
       throw generationBadRequest(
         'INVOICE_BUSINESS_SNAPSHOT_REQUIRED',

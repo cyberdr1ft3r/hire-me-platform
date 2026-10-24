@@ -73,7 +73,6 @@ const invoiceIssueDetails = {
     paymentTerms: 'Bank transfer within 30 days.',
     paymentMethod: 'Synthetic transfer',
     bankDetails: 'Synthetic test account only.',
-    taxTreatment: 'Synthetic 20% VAT test treatment.',
   },
 };
 
@@ -661,10 +660,9 @@ describe('commercial workflow foundation', () => {
       }),
     });
     expect(repeatedIssue.status).toBe(200);
-    expect(
-      InvoiceDetailResponseSchema.parse(await repeatedIssue.json()).invoice.businessDetails
-        ?.customerReference,
-    ).toBe('BC-TEST-2026-0042');
+    const repeatedInvoice = InvoiceDetailResponseSchema.parse(await repeatedIssue.json()).invoice;
+    expect(repeatedInvoice.businessDetails?.customerReference).toBe('BC-TEST-2026-0042');
+    expect(repeatedInvoice.businessDetails?.taxTreatment).toBeNull();
 
     const updateIssued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}`, {
       method: 'PATCH',
@@ -682,7 +680,57 @@ describe('commercial workflow foundation', () => {
     const reloadedBody = InvoiceDetailResponseSchema.parse(await reloaded.json());
     expect(reloadedBody.invoice.amounts?.totalCents).toBe(24000);
     expect(reloadedBody.invoice.lines?.[0]?.unitPriceCents).toBe(10000);
-    expect(reloadedBody.invoice.businessDetails).toEqual(invoiceIssueDetails.businessDetails);
+    expect(reloadedBody.invoice.businessDetails).toEqual({
+      ...invoiceIssueDetails.businessDetails,
+      taxTreatment: null,
+    });
+  });
+
+  it('snapshots approved exceptional tax wording and does not replace it after issuance', async () => {
+    const { client } = await createClientAndMission('Issue38 Exceptional Tax', commercialUserId);
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-TAX');
+    await prisma.commercialQuotation.update({
+      where: { id: quotation.id },
+      data: { status: 'ACCEPTED' },
+    });
+    const created = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-TAX',
+        clientId: client.id,
+        quotationId: quotation.id,
+        currency: 'MAD',
+      }),
+    });
+    const invoice = InvoiceDetailResponseSchema.parse(await created.json()).invoice;
+    const exceptionalDetails = {
+      ...invoiceIssueDetails,
+      businessDetails: {
+        ...invoiceIssueDetails.businessDetails,
+        taxTreatment: 'Approved exceptional tax wording.',
+      },
+    };
+    const issued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify(exceptionalDetails),
+    });
+    expect(issued.status).toBe(200);
+    expect(
+      InvoiceDetailResponseSchema.parse(await issued.json()).invoice.businessDetails?.taxTreatment,
+    ).toBe('Approved exceptional tax wording.');
+
+    const repeated = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify(invoiceIssueDetails),
+    });
+    expect(repeated.status).toBe(200);
+    expect(
+      InvoiceDetailResponseSchema.parse(await repeated.json()).invoice.businessDetails
+        ?.taxTreatment,
+    ).toBe('Approved exceptional tax wording.');
   });
 
   it('requires authoritative eligible placements and rejects accepted-offer-only invoice attempts', async () => {

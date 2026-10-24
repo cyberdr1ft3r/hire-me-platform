@@ -20,7 +20,6 @@ const businessDetails = {
   paymentTerms: 'Bank transfer within 30 days.',
   paymentMethod: 'Synthetic transfer',
   bankDetails: 'Synthetic test account only.',
-  taxTreatment: 'Synthetic 20% VAT test treatment.',
 };
 
 describe('invoice issue contract', () => {
@@ -62,5 +61,26 @@ describe('invoice issue contract', () => {
       businessDetails: { ...businessDetails, customerReference: undefined },
     });
     expect(parsed.businessDetails.customerReference).toBeUndefined();
+  });
+
+  it('accepts standard VAT without explanatory tax wording', () => {
+    const parsed = InvoiceIssueRequestSchema.parse({
+      issueDate: '2026-10-23T00:00:00.000Z',
+      dueDate: '2026-11-23T00:00:00.000Z',
+      businessDetails,
+    });
+    expect(parsed.businessDetails.taxTreatment).toBeUndefined();
+  });
+
+  it('preserves an explicitly supplied exceptional tax treatment', () => {
+    const parsed = InvoiceIssueRequestSchema.parse({
+      issueDate: '2026-10-23T00:00:00.000Z',
+      dueDate: '2026-11-23T00:00:00.000Z',
+      businessDetails: {
+        ...businessDetails,
+        taxTreatment: 'Approved exceptional tax wording.',
+      },
+    });
+    expect(parsed.businessDetails.taxTreatment).toBe('Approved exceptional tax wording.');
   });
 });

@@ -243,7 +243,9 @@ export const commercialEn = {
       paymentTerms: 'Payment terms',
       paymentMethod: 'Payment method (optional)',
       bankDetails: 'Bank details (optional)',
-      taxTreatment: 'Tax treatment',
+      taxTreatment: 'Exceptional tax wording (optional)',
+      taxTreatmentHint:
+        'Enter only approved legal wording for an exemption, reverse charge, or another exceptional treatment. Leave blank for a standard VAT invoice.',
     },
     facts: {
       client: 'Client',

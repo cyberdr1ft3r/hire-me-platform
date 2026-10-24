@@ -626,7 +626,6 @@ describe('CommercialPanel: lifecycle', () => {
       [/^Customer reference/, 'BC-TEST-2026-0042'],
       [/^Payment terms/, 'Bank transfer within 30 days.'],
       [/^Payment method/, 'Synthetic transfer'],
-      [/^Tax treatment/, 'Synthetic 20% VAT test treatment.'],
     ];
     for (const [label, value] of values) {
       fireEvent.change(within(confirm).getByLabelText(label), { target: { value } });
@@ -648,7 +647,6 @@ describe('CommercialPanel: lifecycle', () => {
       customerReference: 'BC-TEST-2026-0042',
       paymentTerms: 'Bank transfer within 30 days.',
       paymentMethod: 'Synthetic transfer',
-      taxTreatment: 'Synthetic 20% VAT test treatment.',
     });
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
   });
@@ -668,6 +666,23 @@ describe('CommercialPanel: lifecycle', () => {
       ),
     ).toBeVisible();
     expect(within(confirm).getByLabelText(/^Customer reference/)).not.toBeRequired();
+  });
+
+  it('keeps exceptional tax wording optional and explains when it is appropriate', async () => {
+    standardApi();
+    render(<Panel />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Issue' }));
+    const confirm = screen.getByRole('form', { name: 'Confirm issue' });
+    expect(within(confirm).getByLabelText(/^Exceptional tax wording/)).not.toBeRequired();
+    expect(
+      within(confirm).getByText(
+        'Enter only approved legal wording for an exemption, reverse charge, or another exceptional treatment. Leave blank for a standard VAT invoice.',
+      ),
+    ).toBeVisible();
   });
 
   it('archives a completed contract after confirmation', async () => {

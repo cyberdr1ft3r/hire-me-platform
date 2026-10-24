@@ -212,7 +212,6 @@ function RecordDetail({
         confirming.buyerLegalName,
         confirming.buyerAddress,
         confirming.paymentTerms,
-        confirming.taxTreatment,
       ];
       if (required.some((value) => !value.trim())) {
         setIssueError(t('commercial.detail.confirm.invoiceDetailsRequired'));
@@ -269,7 +268,9 @@ function RecordDetail({
               ...(confirming.bankDetails.trim()
                 ? { bankDetails: confirming.bankDetails.trim() }
                 : {}),
-              taxTreatment: confirming.taxTreatment.trim(),
+              ...(confirming.taxTreatment.trim()
+                ? { taxTreatment: confirming.taxTreatment.trim() }
+                : {}),
             },
           }
         : {}),
@@ -525,11 +526,11 @@ function RecordDetail({
                   />
                   <TextArea
                     label={t('commercial.detail.invoice.taxTreatment')}
+                    hint={t('commercial.detail.invoice.taxTreatmentHint')}
                     maxLength={500}
                     onChange={(event) =>
                       updateConfirmation({ taxTreatment: event.currentTarget.value })
                     }
-                    required
                     rows={2}
                     value={confirming.taxTreatment}
                   />
@@ -851,9 +852,13 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
                 </span>
               </Fact>
             ) : null}
-            <Fact label={t('commercial.detail.invoice.taxTreatment')}>
-              <span className="commercial-break">{detail.record.businessDetails.taxTreatment}</span>
-            </Fact>
+            {detail.record.businessDetails.taxTreatment ? (
+              <Fact label={t('commercial.detail.invoice.taxTreatment')}>
+                <span className="commercial-break">
+                  {detail.record.businessDetails.taxTreatment}
+                </span>
+              </Fact>
+            ) : null}
           </dl>
         </section>
       ) : null}

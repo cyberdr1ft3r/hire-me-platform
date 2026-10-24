@@ -99,7 +99,7 @@ export type InvoiceView = {
   paymentTerms: string;
   paymentMethod: string | null;
   bankDetails: string | null;
-  taxTreatment: string;
+  taxTreatment: string | null;
   commercialReferences: {
     quotation: string | null;
     contract: string | null;

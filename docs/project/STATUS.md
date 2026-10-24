@@ -13,6 +13,11 @@ Status owner: repository maintainer
   from generated documents when absent, and is frozen with the issued snapshot. FR/EN form guidance
   distinguishes it from the invoice number, customer identity, ICE/IF, and HireMe internal IDs; the
   synthetic acceptance invoice uses `BC-TEST-2026-0042`.
+- Standard 20% TVA invoices no longer require or display explanatory fiscal text: rate, tax amount,
+  and TTC remain in the financial table. An optional approved exceptional mention is snapshotted,
+  fingerprinted, immutable, and rendered only when supplied. The acceptance sample contains no
+  internal test or owner-confirmation note. Contracts 6/6, renderer 25/25, Commercial web 37/37,
+  PostgreSQL Commercial/Generation 68/68, catalog 5/5, and the real Chrome flow pass locally.
 - Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
 
 ## Issue #234 — Approved top application navigation

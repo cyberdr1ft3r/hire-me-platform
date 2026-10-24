@@ -546,8 +546,12 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
             },
           ],
         },
-        { kind: 'heading', text: label.taxTreatment },
-        { kind: 'paragraph', text: sanitizeText(view.taxTreatment) },
+        ...(view.taxTreatment
+          ? [
+              { kind: 'heading' as const, text: label.taxTreatment },
+              { kind: 'paragraph' as const, text: sanitizeText(view.taxTreatment) },
+            ]
+          : []),
         {
           kind: 'panelGrid',
           panels: [
