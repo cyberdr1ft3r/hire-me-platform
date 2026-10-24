@@ -5,7 +5,7 @@ Audit date: 2026-10-23. Scope is PR #240 only. No merge or deployment was perfor
 ## Acceptance outcome
 
 The invoice workflow and the approved visual direction are technically ready for business
-acceptance, subject to exact-head CI. It is not approved for real invoices: business/legal identity,
+acceptance. It is not approved for real invoices: business/legal identity,
 exceptional tax wording, banking details, customer data, and numbering policy still require owner
 approval.
 
@@ -103,10 +103,10 @@ explanation or owner-confirmation note appears in the customer-facing sample.
   no clipping or overflow was observed
 
 Repository-wide formatting, lint, type checking, build, schema validation, and exact-head CI are
-recorded in PR #240 after the final commit.
+green on implementation commit `cff92c9` in Actions run `40094045850`.
 
 ## Final decision
 
-Technically ready for business acceptance after green exact-head CI. Not production-ready and not
-approved for real invoice issuance until the business/legal items above are accepted. PR #240 must
-remain draft, unmerged, and undeployed.
+Technically ready for business acceptance. Not production-ready and not approved for real invoice
+issuance until the business/legal items above are accepted. PR #240 must remain draft, unmerged,
+and undeployed.

@@ -18,6 +18,7 @@ Status owner: repository maintainer
   fingerprinted, immutable, and rendered only when supplied. The acceptance sample contains no
   internal test or owner-confirmation note. Contracts 6/6, renderer 25/25, Commercial web 37/37,
   PostgreSQL Commercial/Generation 68/68, catalog 5/5, and the real Chrome flow pass locally.
+  Implementation commit `cff92c9` passed all four exact-head CI jobs in run `40094045850`.
 - Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
 
 ## Issue #234 — Approved top application navigation
