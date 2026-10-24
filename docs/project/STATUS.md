@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 Status owner: repository maintainer
 
 ## Issue #237 — P0 invoice weekend delivery
@@ -20,6 +20,29 @@ Status owner: repository maintainer
   PostgreSQL Commercial/Generation 68/68, catalog 5/5, and the real Chrome flow pass locally.
   Implementation commit `cff92c9` passed all four exact-head CI jobs in run `40094045850`.
 - Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
+- PR #240 now includes terminology main `e74d47a1d70e4c44f88edfad0e47006ca699d05a`
+  without changing invoice behavior. All 26 migrations apply cleanly to an empty PostgreSQL database;
+  the two invoice migrations remain additive nullable-column additions. Post-integration verification
+  passes: format, architecture/style/contrast, lint (one pre-existing warning), typecheck, production
+  build, 129 focused Commercial/Missions/localization web tests, six contracts tests, 68 PostgreSQL
+  Commercial/document-generation tests, five authorization-catalog checks, and the authenticated
+  browser create → issue → reload → generate → protected-download flow. Exact-head CI on the
+  reconciled commit remains the final technical merge gate.
+
+## Issue #236 — HireMe métier terminology alignment
+
+- PR #239 was squash-merged into `main` at `e74d47a1d70e4c44f88edfad0e47006ca699d05a`.
+- The consolidated glossary records the validated questionnaire terms and keeps Recrutement,
+  Formation, and Accompagnement distinct. Unresolved translations, the exact shortlist-to-state
+  mapping, the sixth source-document identity, client-presentation operational details, and the
+  Accompagnement data model remain explicitly pending.
+- Presentation-only EN/FR corrections distinguish the general candidate pool from candidates of a
+  specific mission. No backend enum, database column, API contract, workflow transition,
+  permission, navigation destination, B2 tab, Training record, or `INDIVIDUAL_COACHING` semantic is
+  changed.
+- The before/after key matrix and verification results live in
+  [Issue #236 terminology evidence](../audit/issue-236-terminology-matrix.md). The merged wording is
+  preserved while Issue #237 continues separately in draft PR #240.
 
 ## Issue #234 — Approved top application navigation
 

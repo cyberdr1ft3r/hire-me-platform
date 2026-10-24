@@ -4,94 +4,50 @@ Last updated: 2026-10-24
 
 ## Current situation
 
-- Issue #237 is the active P0. The invoice workflow captures an immutable issuance business snapshot
-  and branded template v4 renders it in FR/EN with localized dates/money, explicit tax rate, HT line
-  totals, framed identity blocks, and emphasized totals. The accepted wordmark changed only by
-  reducing the `Hire`/`Me` spacing. PostgreSQL integration, concurrency, authorization, lifecycle,
-  renderer, frontend, and an authenticated browser create/issue/reload/generate/download flow pass
-  locally. Exact-head CI on the final PR #240 commit is the remaining technical gate.
-- The owner prototype has now been compared side by side with a real 20% test invoice. Seller legal
-  form, capital, address, ICE, RC, email, and site come from the prototype; missing IF and bank/RIB
-  were not invented. Real invoicing remains blocked on owner approval of legal/tax/bank/customer
-  data, payment rules, and numbering policy. The exact requested prototype copy named with `(2)` was
-  not accessible; the available v3 PDF was used and that limitation is recorded. Evidence is in
-  `docs/audit/issue-237-invoice/`.
-- `Référence client` is now explicitly documented in FR/EN as an optional customer-provided
-  reconciliation value (purchase order, contract, mission, or internal billing code), distinct from
-  the invoice number and identity fields. Populated, absent-PDF, and post-issuance immutability paths
-  are covered; the acceptance sample uses `BC-TEST-2026-0042`.
-- Standard 20% TVA invoices now omit the dedicated fiscal-treatment block; the existing amounts
-  table still shows the rate, tax amount, and TTC. Optional approved exceptional wording remains in
-  the immutable snapshot/fingerprint and renders only when supplied. The regenerated browser PDF
-  contains no internal test explanation. Focused contracts 6/6, renderer 25/25, web 37/37,
-  PostgreSQL integration 68/68, catalog 5/5, and Chrome E2E pass locally. Implementation commit
-  `cff92c9` passed all four exact-head jobs in Actions run `40094045850`.
-
-- Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
-  after installed-Chrome screenshots compare the same synthetic Candidates directory and selected
-  quick profile at 1117 × 707. The utility row is 45px (was 56px), workspace strip 33px (was 34px),
-  and content inset/padding 12px (was 16px). More-menu clipping by the module-list scrollport was
-  confirmed and corrected using viewport positioning. EN/FR desktop/mobile and 200%-equivalent
-  viewport smoke checks pass without horizontal overflow or browser errors. Approved corrections
-  remove the decorative global-search box and render Recruitment as a plain context label; the
-  first row now balances the brand/context group against existing right-aligned utilities. Evidence
-  includes same-state Candidates before/after screenshots at 1117 × 707.
-- Formatting, architecture/contrast checks, TypeScript, web lint (one pre-existing ClientsPanel test
-  warning), 41 focused shell/localization regressions, final AppShell 17/17, and web build pass. The
-  existing production large-chunk advisory remains. Native Chrome zoom is not directly exercised;
-  the 559 × 354 viewport is an equivalent-width smoke check. Evidence is under
-  `docs/audit/issue-234-top-navigation/`.
-- Exact-head Actions run #580 passed all four jobs on implementation commit
-  `5a5f9c8cd10a5832b8b5eb7959241fc2f53aedec`. Any later PR head must be checked independently.
-  PR #238 remains open and draft; keep it unmerged and do not deploy.
-
-- Latest verified `main` after merged PR #233 is `ce4dad61b0c89499b94a8558c1483b09c67f3ea2`; post-merge
-  Actions run `39445963478` passed all four required jobs on that exact commit.
-- B2 branch `feat/issue-232-b2-console-tabs` is based directly on that main. It adds the visible tab
-  UI, mobile workspace dialog, App router/provider integration, and session-local route identity
-  while preserving D-089/RV1/RV2, B0′ guards, and existing URLs.
-- Route-level Suspense initially retained the previous module in hidden DOM during a lazy import;
-  keying the boundary by the active route fixed that active-only rendering violation. The full App
-  suite passes 44/44 and the focused B2/navigation set passes 100/100. The latest full Windows web
-  suite run with two workers passed 1,110/1,111 tests; the one failure is the existing literal-LF
-  stylesheet assertion against CRLF checkout bytes. The default-parallel run also timed out under
-  suite load. Do not present local full-suite results as green; exact-head Linux CI is authoritative.
-- B2 and the visual refinement are published on `feat/issue-232-b2-console-tabs` in draft PR #235:
-  `https://github.com/cyberdr1ft3r/hire-me-platform/pull/235`. Exact head
-  `355f9b6d07d8f3e39149a322f9448f683cd2c38e` passed all four required GitHub Actions jobs in run
-  `39498835152`; GitHub reports the PR mergeable. The PR remains draft and unmerged. No merge or
-  deployment is authorized.
-- Installed Chrome refinement evidence passes 28 EN/FR workspace/viewports across Tasks, Clients,
-  Documents, Commercial, and Candidates. Native Chrome 200% zoom is still unverified because this
-  environment's UI bridge cannot control the headed Chrome window; arrange this manual check before
-  review. Evidence and local gate outcomes are in `docs/audit/issue-232-console-tabs-evidence/README.md`.
-- Latest verified `main` includes merged PR #229, which
-  records the accepted D-089 Phase A architecture with RV1/RV2. RV1 keeps tab identity in existing
-  `history.state` with URL-only fallback and one navigation authority; RV2 guards only genuinely
-  unsaved values. B2 must render only the active module; hidden Activity trees, response caching and
-  sessionStorage restoration are out of scope.
-- B0′ merged as PR #230 at `bb4ee927dddb93a13492c74ebe894e8df1d013b2`. Its dirty detection,
-  multi-blocker navigation-guard behavior, and form coverage across Tasks, Training, Accounting,
-  Commercial, Documents, Messages and Administration are preserved. Evidence:
-  [B0′ audit](../audit/issue-228-b0-unsaved-input.md).
-- B0′ exact-head Actions passed all four jobs on `d65009249d1084c8cec990d1a31a2752b947be5f`; its
-  committed installed-Chrome audit is 20/20 on the hardened implementation. Browser checks could not
-  be rerun during reconciliation because credentials and Docker access were unavailable.
-- B1 PR #231 is merged in `main` at `0e0ae23cd0909085f1414fddda54588bd737`. B2 is underway only
-  after the maintainer-provided authorization and green-main gate. Its PR must remain draft and
-  unmerged; do not deploy.
+- Issue #236 terminology alignment was squash-merged through PR #239 at
+  `e74d47a1d70e4c44f88edfad0e47006ca699d05a`. The merged EN/FR presentation vocabulary keeps
+  **General candidate pool / Vivier général** distinct from **Mission candidates / Candidats de la
+  mission**, preserves the three Recrutement / Formation / Accompagnement pillars, and changes no
+  backend enum, schema, API contract, workflow, permission, navigation destination, Training record,
+  or `INDIVIDUAL_COACHING` semantic. The unidentified sixth official document remains R-060.
+- Issue #237 remains the active P0 on draft PR #240. The invoice workflow captures an immutable
+  issuance business snapshot and branded template v4 renders it in FR/EN with localized dates and
+  money, explicit tax rate, HT line totals, framed identity blocks, emphasized totals, and only the
+  approved `Hire`/`Me` spacing refinement. Authorization, lifecycle, concurrency protection,
+  reload, generation, protected download, and duplicate prevention are covered.
+- `Référence client` is an optional customer-provided reconciliation value. It is preserved in the
+  immutable issuance snapshot, omitted from generated documents when absent, and remains distinct
+  from invoice/customer/tax/internal identifiers. The synthetic acceptance invoice uses
+  `BC-TEST-2026-0042`.
+- Under D-093, standard 20% TVA invoices omit a dedicated fiscal-treatment block while retaining the
+  rate, amount, and TTC in the financial table. Optional approved exceptional wording is snapshotted,
+  fingerprinted, immutable, and rendered only when supplied; internal test or owner-confirmation
+  notes never appear in customer output.
+- The owner prototype was compared side by side with the generated 20% sample. Seller legal form,
+  capital, address, ICE, RC, email, and site come from the prototype; missing IF and bank/RIB were
+  not invented. Real invoicing remains blocked under R-061 until the owner approves production
+  legal, tax, bank, customer, payment, numbering, and any historical-backfill information.
+- PR #240 has incorporated the merged terminology work from `main`. Format,
+  architecture/style/contrast, lint, typecheck, production build, focused Commercial/Missions/i18n
+  tests (129/129), contracts (6/6), PostgreSQL Commercial/document generation (68/68), authorization
+  catalog (5/5), and the authenticated browser create → issue → reload → generate → protected-download
+  flow pass on the reconciled tree. All 26 migrations apply from empty and the invoice migrations
+  remain additive. Exact-head CI is the remaining technical merge gate. Keep the PR draft and do not
+  deploy.
 
 ## Next concrete action
 
-1. Review draft PR #240 and the regenerated 20% sample for business acceptance.
-2. Obtain owner business/legal approvals before any production invoice is issued. Keep the PR draft
-   and unmerged; do not deploy.
+1. Complete the four-job exact-head CI gate for draft PR #240.
+2. Review the regenerated 20% sample and obtain owner business/legal approval before any real invoice
+   is issued.
+3. Keep PR #240 draft, unmerged, and undeployed until explicit approval.
 
 ## Completion conditions
 
+- The merged terminology vocabulary and Issue #237 invoice behavior coexist without regression.
 - Authorized users can create, issue, reload, generate, and download an invoice with server-owned
-  totals and an immutable, validated business snapshot; duplicate issue/generation is prevented.
-- PostgreSQL integration, concurrency, authorization/lifecycle, PDF content, EN/FR, browser, build,
-  and exact-head CI evidence is recorded in the Issue #237 draft PR.
-- The prototype comparison is recorded; missing business/legal inputs remain explicit production
-  blockers. No merge, deployment, or unrelated work.
+  totals and an immutable validated snapshot; duplicate issue/generation remains prevented.
+- Additive migrations apply cleanly from latest `main`, focused commercial/invoice PostgreSQL tests
+  and the browser acceptance flow pass, and all four exact-head CI jobs are green.
+- Missing business/legal inputs remain explicit blockers; no merge, deployment, or real invoice
+  issuance occurs without approval.
