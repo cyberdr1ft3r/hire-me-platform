@@ -266,6 +266,14 @@ describe('CommercialPanel: presentation and localization', () => {
     await openRecord('INV-SYN-001');
     expect(screen.getAllByText('Brouillon').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { level: 3, name: 'Pièces liées' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Émettre' }));
+    const issueConfirmation = screen.getByRole('form', { name: 'Confirmer l’émission' });
+    expect(within(issueConfirmation).getByLabelText(/^Référence client/)).not.toBeRequired();
+    expect(
+      within(issueConfirmation).getByText(
+        'Référence fournie par le client : bon de commande, contrat, mission ou code interne. Ne pas utiliser le numéro de facture, l’ICE/IF ou un identifiant HireMe.',
+      ),
+    ).toBeVisible();
     expect(screen.queryByText('Invoices')).toBeNull();
     expectNoRawIds();
   });
@@ -615,7 +623,7 @@ describe('CommercialPanel: lifecycle', () => {
       [/^Billed client legal name/, 'Synthetic Client SA'],
       [/^Billed client address/, '2 Test Street, Rabat'],
       [/^Billing contact/, 'Synthetic Billing Contact'],
-      [/^Customer reference/, 'CLIENT-REF-SYNTHETIC'],
+      [/^Customer reference/, 'BC-TEST-2026-0042'],
       [/^Payment terms/, 'Bank transfer within 30 days.'],
       [/^Payment method/, 'Synthetic transfer'],
       [/^Tax treatment/, 'Synthetic 20% VAT test treatment.'],
@@ -637,12 +645,29 @@ describe('CommercialPanel: lifecycle', () => {
       sellerWebsite: 'https://example.invalid',
       buyerLegalName: 'Synthetic Client SA',
       buyerBillingContact: 'Synthetic Billing Contact',
-      customerReference: 'CLIENT-REF-SYNTHETIC',
+      customerReference: 'BC-TEST-2026-0042',
       paymentTerms: 'Bank transfer within 30 days.',
       paymentMethod: 'Synthetic transfer',
       taxTreatment: 'Synthetic 20% VAT test treatment.',
     });
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
+  });
+
+  it('explains that the optional customer reference comes from the customer', async () => {
+    standardApi();
+    render(<Panel />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Issue' }));
+    const confirm = screen.getByRole('form', { name: 'Confirm issue' });
+    expect(
+      within(confirm).getByText(
+        'Reference supplied by the customer: purchase order, contract, mission, or internal billing code. Do not use the invoice number, ICE/IF, or a HireMe internal ID.',
+      ),
+    ).toBeVisible();
+    expect(within(confirm).getByLabelText(/^Customer reference/)).not.toBeRequired();
   });
 
   it('archives a completed contract after confirmation', async () => {

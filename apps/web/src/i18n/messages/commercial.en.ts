@@ -238,6 +238,8 @@ export const commercialEn = {
       buyerTaxId: 'Billed client tax identifier (optional)',
       buyerBillingContact: 'Billing contact (optional)',
       customerReference: 'Customer reference (optional)',
+      customerReferenceHint:
+        'Reference supplied by the customer: purchase order, contract, mission, or internal billing code. Do not use the invoice number, ICE/IF, or a HireMe internal ID.',
       paymentTerms: 'Payment terms',
       paymentMethod: 'Payment method (optional)',
       bankDetails: 'Bank details (optional)',

@@ -9,6 +9,10 @@ Status owner: repository maintainer
 - Issuance atomically captures validated issue/due dates, seller and billed-client identity, tax treatment, payment terms, optional bank details, commercial references, and the prototype-backed optional seller legal form/capital/contact and buyer tax/contact/payment fields. Issued line, amount, and business values are immutable. Historical issued rows without the snapshot remain readable but generation fails closed pending an approved backfill.
 - Invoice template v4 renders the persisted snapshot in French and English with localized dates/money, explicit tax rate, HT line totals, the accepted teal header, framed identity/payment/reference blocks, and emphasized totals. The wordmark was preserved with only the `Hire`/`Me` spacing reduced. Synthetic PostgreSQL integration (65/65), authorization catalog (5/5), renderer/Unicode tests (52/52), web regression (35/35), and authenticated browser create → issue → reload → generate → download checks pass locally. Exact-head CI remains the final technical gate.
 - The accessible owner-provided v3 prototype was compared side by side with a real 20% test invoice. The exact requested copy named `hireme_devis_facture_prototype_v3(2).pdf` was not present, so fidelity to that specific copy remains unverified. Production use remains blocked on approval of legal identity/IF, production tax treatment, bank/RIB, real customer data, payment rules, and numbering policy. No real invoice, merge, or deployment is authorized.
+- The optional customer reference is defined as a customer-provided reconciliation value, is omitted
+  from generated documents when absent, and is frozen with the issued snapshot. FR/EN form guidance
+  distinguishes it from the invoice number, customer identity, ICE/IF, and HireMe internal IDs; the
+  synthetic acceptance invoice uses `BC-TEST-2026-0042`.
 - Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
 
 ## Issue #234 — Approved top application navigation

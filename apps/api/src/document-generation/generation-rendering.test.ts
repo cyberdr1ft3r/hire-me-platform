@@ -433,7 +433,7 @@ describe('template registry', () => {
         taxId: 'CLIENT-IF',
         billingContact: 'Synthetic Billing Contact',
       },
-      customerReference: 'CLIENT-REF-SYNTHETIC',
+      customerReference: 'BC-TEST-2026-0042',
       paymentTerms: 'Bank transfer within 30 days.',
       paymentMethod: 'Synthetic transfer',
       bankDetails: 'Synthetic test account only.',
@@ -452,7 +452,8 @@ describe('template registry', () => {
       expect(text).toContain('Bank transfer within 30 days.');
       expect(text).toContain('Synthetic 20% VAT test treatment.');
       expect(text).toContain('PO-SYN-001');
-      expect(text).toContain('CLIENT-REF-SYNTHETIC');
+      expect(text).toContain('BC-TEST-2026-0042');
+      expect(text).toContain(language === 'fr' ? 'Référence client' : 'Customer reference');
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
@@ -461,5 +462,9 @@ describe('template registry', () => {
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
     }
+
+    const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
+    expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
+    expect(JSON.stringify(withoutCustomerReference)).not.toContain('BC-TEST-2026-0042');
   });
 });

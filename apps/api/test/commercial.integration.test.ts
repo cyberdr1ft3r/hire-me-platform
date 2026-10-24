@@ -69,7 +69,7 @@ const invoiceIssueDetails = {
     buyerIce: 'CLIENT-ICE',
     buyerTaxId: 'CLIENT-IF',
     buyerBillingContact: 'Synthetic Billing Contact',
-    customerReference: 'CLIENT-REF-SYNTHETIC',
+    customerReference: 'BC-TEST-2026-0042',
     paymentTerms: 'Bank transfer within 30 days.',
     paymentMethod: 'Synthetic transfer',
     bankDetails: 'Synthetic test account only.',
@@ -641,11 +641,37 @@ describe('commercial workflow foundation', () => {
       }),
     });
     const invoice = InvoiceDetailResponseSchema.parse(await created.json()).invoice;
-    await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+    const issued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
       method: 'POST',
       headers: authHeaders(commercialToken),
       body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Issue snapshot.' }),
     });
+    expect(issued.status).toBe(200);
+
+    const repeatedIssue = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        ...invoiceIssueDetails,
+        businessDetails: {
+          ...invoiceIssueDetails.businessDetails,
+          customerReference: 'BC-CHANGED-AFTER-ISSUE',
+        },
+        reason: 'Attempt to replace issued customer reference.',
+      }),
+    });
+    expect(repeatedIssue.status).toBe(200);
+    expect(
+      InvoiceDetailResponseSchema.parse(await repeatedIssue.json()).invoice.businessDetails
+        ?.customerReference,
+    ).toBe('BC-TEST-2026-0042');
+
+    const updateIssued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({ reference: 'I38-SNAPSHOT-CHANGED' }),
+    });
+    expect(await readErrorCode(updateIssued)).toBe('INVOICE_MUTATION_BLOCKED');
     await prisma.commercialQuotationLine.updateMany({
       where: { quotationId: quotation.id },
       data: { unitPriceCents: 999999, lineSubtotalCents: 999999, lineTotalCents: 999999 },

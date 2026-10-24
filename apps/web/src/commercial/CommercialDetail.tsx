@@ -488,6 +488,7 @@ function RecordDetail({
                     value={confirming.buyerBillingContact}
                   />
                   <TextField
+                    hint={t('commercial.detail.invoice.customerReferenceHint')}
                     label={t('commercial.detail.invoice.customerReference')}
                     maxLength={180}
                     onChange={(event) =>

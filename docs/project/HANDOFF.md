@@ -16,6 +16,10 @@ Last updated: 2026-10-23
   data, payment rules, and numbering policy. The exact requested prototype copy named with `(2)` was
   not accessible; the available v3 PDF was used and that limitation is recorded. Evidence is in
   `docs/audit/issue-237-invoice/`.
+- `Référence client` is now explicitly documented in FR/EN as an optional customer-provided
+  reconciliation value (purchase order, contract, mission, or internal billing code), distinct from
+  the invoice number and identity fields. Populated, absent-PDF, and post-issuance immutability paths
+  are covered; the acceptance sample uses `BC-TEST-2026-0042`.
 
 - Issue #234 visual-fidelity refinement is in progress on `feat/issue-234-top-navigation`. Before/
   after installed-Chrome screenshots compare the same synthetic Candidates directory and selected

@@ -19,6 +19,7 @@ example 12% tax rate, fictional customer data, and placeholder bank details were
 The test invoice uses the owner-confirmed 20% TVA:
 
 - Reference: `FAC-2026-TEST-0001`
+- Customer-provided reconciliation reference: `BC-TEST-2026-0042`
 - Issue date / due date: 23/10/2026 / 22/11/2026
 - Quantity / unit price HT: 4 / 10 000,00 MAD
 - Sous-total HT / TVA / Total TTC: 40 000,00 / 8 000,00 / 48 000,00 MAD
@@ -27,6 +28,10 @@ The test invoice uses the owner-confirmed 20% TVA:
 - Buyer: conspicuously synthetic name and address
 - Payment: 30 days and bank transfer; bank/RIB left blank
 - Seller IF and buyer ICE/IF left blank because approved values were not provided
+
+`Référence client` is distinct from the invoice number and identity fields. It is an optional value
+supplied by the customer, such as a purchase order, contract, mission, or internal billing code. It
+is captured in the immutable issued snapshot and the PDF row is omitted when no value was supplied.
 
 ## Discrepancy classification
 
@@ -78,13 +83,14 @@ No further reproducible technical blocker remained in the tested PDF/lifecycle s
 
 ## Verification
 
-- Contracts invoice validation: 3/3
-- Invoice renderer/template and Unicode tests: 52/52
-- Commercial web regression, including EN/FR issuance fields: 35/35
-- Disposable PostgreSQL commercial and document-generation integration: 65/65 after all 26
+- Customer-reference invoice contract validation: 4/4
+- Invoice renderer/template tests: 25/25
+- Commercial web regression, including EN/FR customer-reference guidance: 36/36
+- Disposable PostgreSQL commercial and document-generation integration: 66/66 after all 26
   migrations
 - Authorization catalog integrity: 5/5
-- Browser create → issue → reload → generate French template v4 → protected download: passed
+- Browser create → issue with `BC-TEST-2026-0042` → reload → generate French template v4 →
+  protected download: passed
 - Visual QA: the updated invoice and one-page before/after PDF were rendered to images and inspected;
   no clipping or overflow was observed
 

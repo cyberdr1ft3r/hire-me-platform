@@ -78,7 +78,7 @@ const invoiceBusinessSnapshot = {
   buyerIce: 'CLIENT-ICE',
   buyerTaxId: 'CLIENT-IF',
   buyerBillingContact: 'Synthetic Billing Contact',
-  customerReference: 'CLIENT-REF-SYNTHETIC',
+  customerReference: 'BC-TEST-2026-0042',
   paymentTerms: 'Bank transfer within 30 days.',
   paymentMethod: 'Synthetic transfer',
   bankDetails: 'Synthetic test account only.',
@@ -481,6 +481,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       referenceValue?: string;
       client?: string;
       buyerLegalName?: string;
+      customerReference?: string | null;
     } = {},
   ) {
     return prisma.invoice.create({
@@ -495,6 +496,10 @@ describe('document output generation', { timeout: 60_000 }, () => {
         dueDate: new Date(Date.now() + 30 * 86_400_000),
         ...invoiceBusinessSnapshot,
         buyerLegalName: options.buyerLegalName ?? invoiceBusinessSnapshot.buyerLegalName,
+        customerReference:
+          options.customerReference === undefined
+            ? invoiceBusinessSnapshot.customerReference
+            : options.customerReference,
         subtotalCents: 30_000,
         taxCents: 6_000,
         totalCents: 36_000,
@@ -809,11 +814,27 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(text).toContain('Synthetic HireMe SARL');
     expect(text).toContain('Synthetic Client SA');
     expect(text).toContain('Bank transfer within 30 days.');
-    expect(text).toContain('CLIENT-REF-SYNTHETIC');
+    expect(text).toContain('Référence client');
+    expect(text).toContain('BC-TEST-2026-0042');
     const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
     expect(stored.subtotalCents).toBe(30_000);
     expect(stored.taxCents).toBe(6_000);
     expect(stored.totalCents).toBe(36_000);
+  });
+
+  it('omits the customer reference label and row when no reference was supplied', async () => {
+    const invoice = await createInvoice({ customerReference: null });
+    const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`);
+    expect(response.status).toBe(201);
+
+    const result = generated(response.body);
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    const text = await pdfText(await storage.get(version.storageKey));
+    expect(text).not.toContain('Référence client');
+    expect(text).not.toContain('Customer reference');
+    expect(text).not.toContain('BC-TEST-2026-0042');
   });
 
   it('fails closed when a historical issued invoice has no immutable business snapshot', async () => {

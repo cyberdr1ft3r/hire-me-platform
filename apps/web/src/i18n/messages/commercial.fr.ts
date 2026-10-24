@@ -240,6 +240,8 @@ export const commercialFr: Messages['commercial'] = {
       buyerTaxId: 'IF du client facturé (facultatif)',
       buyerBillingContact: 'Contact facturation (facultatif)',
       customerReference: 'Référence client (facultatif)',
+      customerReferenceHint:
+        'Référence fournie par le client : bon de commande, contrat, mission ou code interne. Ne pas utiliser le numéro de facture, l’ICE/IF ou un identifiant HireMe.',
       paymentTerms: 'Conditions de règlement',
       paymentMethod: 'Mode de règlement (facultatif)',
       bankDetails: 'Coordonnées bancaires (facultatif)',
