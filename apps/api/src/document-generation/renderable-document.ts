@@ -6,17 +6,33 @@
  * reference, or anything else that a renderer would interpret. Every string is plain
  * text that the renderer draws verbatim.
  */
+export type RenderableKeyValue = { label: string; value: string };
+
 export type RenderableBlock =
   | { kind: 'heading'; text: string }
   | { kind: 'paragraph'; text: string }
-  | { kind: 'keyValues'; rows: { label: string; value: string }[] }
-  | { kind: 'table'; columns: string[]; rows: string[][] };
+  | { kind: 'keyValues'; rows: RenderableKeyValue[] }
+  | { kind: 'table'; columns: string[]; rows: string[][] }
+  | {
+      kind: 'panelGrid';
+      panels: { heading: string; rows: RenderableKeyValue[] }[];
+    }
+  | { kind: 'totals'; rows: RenderableKeyValue[] };
+
+export type RenderablePresentation = {
+  kind: 'hireme-commercial';
+  documentLabel: string;
+  reference: string;
+  status: string | null;
+  details: RenderableKeyValue[];
+};
 
 export type RenderableDocument = {
   title: string;
   subtitle: string | null;
   blocks: RenderableBlock[];
   footer: string | null;
+  presentation?: RenderablePresentation;
 };
 
 /**

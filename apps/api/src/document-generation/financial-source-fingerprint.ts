@@ -159,12 +159,34 @@ export function invoiceSourceFingerprint(invoice: {
   issueDate: Date | null;
   dueDate: Date | null;
   issuedAt: Date | null;
+  sellerLegalName: string | null;
+  sellerLegalForm: string | null;
+  sellerCapital: string | null;
+  sellerAddress: string | null;
+  sellerIce: string | null;
+  sellerTaxId: string | null;
+  sellerRegistrationNumber: string | null;
+  sellerEmail: string | null;
+  sellerWebsite: string | null;
+  buyerLegalName: string | null;
+  buyerAddress: string | null;
+  buyerIce: string | null;
+  buyerTaxId: string | null;
+  buyerBillingContact: string | null;
+  customerReference: string | null;
+  paymentTerms: string | null;
+  paymentMethod: string | null;
+  bankDetails: string | null;
+  taxTreatment: string | null;
   subtotalCents: number;
   taxCents: number;
   totalCents: number;
   archivedAt: Date | null;
   client: { name: string };
   recruitmentMission: { title: string } | null;
+  quotation: { reference: string } | null;
+  contract: { reference: string } | null;
+  purchaseOrder: { reference: string } | null;
   lines: {
     sortOrder: number;
     description: string;
@@ -187,12 +209,34 @@ export function invoiceSourceFingerprint(invoice: {
     invoice.issueDate,
     invoice.dueDate,
     invoice.issuedAt,
+    invoice.sellerLegalName,
+    invoice.sellerLegalForm,
+    invoice.sellerCapital,
+    invoice.sellerAddress,
+    invoice.sellerIce,
+    invoice.sellerTaxId,
+    invoice.sellerRegistrationNumber,
+    invoice.sellerEmail,
+    invoice.sellerWebsite,
+    invoice.buyerLegalName,
+    invoice.buyerAddress,
+    invoice.buyerIce,
+    invoice.buyerTaxId,
+    invoice.buyerBillingContact,
+    invoice.customerReference,
+    invoice.paymentTerms,
+    invoice.paymentMethod,
+    invoice.bankDetails,
+    invoice.taxTreatment,
     invoice.subtotalCents,
     invoice.taxCents,
     invoice.totalCents,
     invoice.archivedAt,
     invoice.client.name,
     invoice.recruitmentMission?.title ?? null,
+    invoice.quotation?.reference ?? null,
+    invoice.contract?.reference ?? null,
+    invoice.purchaseOrder?.reference ?? null,
     invoice.lines.length,
     ...invoice.lines.flatMap((line) => [
       line.sortOrder,

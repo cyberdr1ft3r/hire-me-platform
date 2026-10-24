@@ -78,6 +78,49 @@ function blockToElements(block: RenderableBlock): (Paragraph | Table)[] {
         new Paragraph({ children: [] }),
       ];
     }
+    case 'panelGrid': {
+      const panels = block.panels.map(
+        (panel) =>
+          new TableCell({
+            children: [
+              new Paragraph({ children: textRuns(panel.heading, true) }),
+              ...panel.rows.map(
+                (row) =>
+                  new Paragraph({
+                    children: [...textRuns(`${row.label}: `, true), ...textRuns(row.value)],
+                  }),
+              ),
+            ],
+          }),
+      );
+      return [
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [new TableRow({ children: panels })],
+        }),
+        new Paragraph({ children: [] }),
+      ];
+    }
+    case 'totals':
+      return [
+        new Table({
+          width: { size: 50, type: WidthType.PERCENTAGE },
+          rows: block.rows.map(
+            (row) =>
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: textRuns(row.label, true) })],
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: textRuns(row.value, true) })],
+                  }),
+                ],
+              }),
+          ),
+        }),
+        new Paragraph({ children: [] }),
+      ];
     default: {
       const exhaustive: never = block;
       throw new Error(`Unsupported renderable block: ${JSON.stringify(exhaustive)}`);

@@ -77,6 +77,34 @@ export type InvoiceView = {
   totalCents: number;
   lines: GenerationLineView[];
   party: GenerationParty;
+  seller: {
+    legalName: string;
+    legalForm: string | null;
+    capital: string | null;
+    address: string;
+    ice: string | null;
+    taxId: string | null;
+    registrationNumber: string | null;
+    email: string | null;
+    website: string | null;
+  };
+  buyer: {
+    legalName: string;
+    address: string;
+    ice: string | null;
+    taxId: string | null;
+    billingContact: string | null;
+  };
+  customerReference: string | null;
+  paymentTerms: string;
+  paymentMethod: string | null;
+  bankDetails: string | null;
+  taxTreatment: string | null;
+  commercialReferences: {
+    quotation: string | null;
+    contract: string | null;
+    purchaseOrder: string | null;
+  };
 };
 
 export type CertificateView = {

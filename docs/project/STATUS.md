@@ -1,12 +1,37 @@
 # Project Status
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 Status owner: repository maintainer
+
+## Issue #237 — P0 invoice weekend delivery
+
+- The existing Commercial invoice workflow has been audited end to end. Draft creation, server-owned integer monetary calculations, scoped authorization, lifecycle history, unique caller-supplied references, row-locked idempotent issuance, immutable generated versions, protected download, and durable reload already worked.
+- Issuance atomically captures validated issue/due dates, seller and billed-client identity, tax treatment, payment terms, optional bank details, commercial references, and the prototype-backed optional seller legal form/capital/contact and buyer tax/contact/payment fields. Issued line, amount, and business values are immutable. Historical issued rows without the snapshot remain readable but generation fails closed pending an approved backfill.
+- Invoice template v4 renders the persisted snapshot in French and English with localized dates/money, explicit tax rate, HT line totals, the accepted teal header, framed identity/payment/reference blocks, and emphasized totals. The wordmark was preserved with only the `Hire`/`Me` spacing reduced. Synthetic PostgreSQL integration (65/65), authorization catalog (5/5), renderer/Unicode tests (52/52), web regression (35/35), and authenticated browser create → issue → reload → generate → download checks pass locally. Exact-head CI remains the final technical gate.
+- The accessible owner-provided v3 prototype was compared side by side with a real 20% test invoice. The exact requested copy named `hireme_devis_facture_prototype_v3(2).pdf` was not present, so fidelity to that specific copy remains unverified. Production use remains blocked on approval of legal identity/IF, production tax treatment, bank/RIB, real customer data, payment rules, and numbering policy. No real invoice, merge, or deployment is authorized.
+- The optional customer reference is defined as a customer-provided reconciliation value, is omitted
+  from generated documents when absent, and is frozen with the issued snapshot. FR/EN form guidance
+  distinguishes it from the invoice number, customer identity, ICE/IF, and HireMe internal IDs; the
+  synthetic acceptance invoice uses `BC-TEST-2026-0042`.
+- Standard 20% TVA invoices no longer require or display explanatory fiscal text: rate, tax amount,
+  and TTC remain in the financial table. An optional approved exceptional mention is snapshotted,
+  fingerprinted, immutable, and rendered only when supplied. The acceptance sample contains no
+  internal test or owner-confirmation note. Contracts 6/6, renderer 25/25, Commercial web 37/37,
+  PostgreSQL Commercial/Generation 68/68, catalog 5/5, and the real Chrome flow pass locally.
+  Implementation commit `cff92c9` passed all four exact-head CI jobs in run `40094045850`.
+- Evidence: [Issue #237 invoice acceptance audit](../audit/issue-237-invoice/README.md).
+- PR #240 now includes terminology main `e74d47a1d70e4c44f88edfad0e47006ca699d05a`
+  without changing invoice behavior. All 26 migrations apply cleanly to an empty PostgreSQL database;
+  the two invoice migrations remain additive nullable-column additions. Post-integration verification
+  passes: format, architecture/style/contrast, lint (one pre-existing warning), typecheck, production
+  build, 129 focused Commercial/Missions/localization web tests, six contracts tests, 68 PostgreSQL
+  Commercial/document-generation tests, five authorization-catalog checks, and the authenticated
+  browser create → issue → reload → generate → protected-download flow. Exact-head CI on the
+  reconciled commit remains the final technical merge gate.
 
 ## Issue #236 — HireMe métier terminology alignment
 
-- Work is in progress on `feat/issue-236-metier-alignment`, based on `main`
-  `685e28990ddd5b2fdd3f05044b8fd84af579e6a9` after merged PR #238.
+- PR #239 was squash-merged into `main` at `e74d47a1d70e4c44f88edfad0e47006ca699d05a`.
 - The consolidated glossary records the validated questionnaire terms and keeps Recrutement,
   Formation, and Accompagnement distinct. Unresolved translations, the exact shortlist-to-state
   mapping, the sixth source-document identity, client-presentation operational details, and the
@@ -16,8 +41,8 @@ Status owner: repository maintainer
   permission, navigation destination, B2 tab, Training record, or `INDIVIDUAL_COACHING` semantic is
   changed.
 - The before/after key matrix and verification results live in
-  [Issue #236 terminology evidence](../audit/issue-236-terminology-matrix.md). A dedicated draft PR
-  must remain open and unmerged; no deployment is authorized.
+  [Issue #236 terminology evidence](../audit/issue-236-terminology-matrix.md). The merged wording is
+  preserved while Issue #237 continues separately in draft PR #240.
 
 ## Issue #234 — Approved top application navigation
 

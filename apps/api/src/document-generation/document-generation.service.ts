@@ -18,6 +18,7 @@ import type {
 
 import { GENERATION_PERMISSIONS } from './document-generation-permissions.js';
 import {
+  generationBadRequest,
   generationConflict,
   generationForbidden,
   generationSourceNotFound,
@@ -927,6 +928,9 @@ export class DocumentGenerationService {
       include: {
         client: { select: { name: true } },
         recruitmentMission: { select: { title: true } },
+        quotation: { select: { reference: true } },
+        contract: { select: { reference: true } },
+        purchaseOrder: { select: { reference: true } },
         lines: { orderBy: { sortOrder: 'asc' } },
       },
     });
@@ -935,6 +939,20 @@ export class DocumentGenerationService {
     }
     await this.assertCommercialSourceScope(invoice, actorUserId, access, this.prisma);
     this.assertInvoiceEligible(invoice.status, invoice.archivedAt);
+    if (
+      !invoice.issueDate ||
+      !invoice.dueDate ||
+      !invoice.sellerLegalName ||
+      !invoice.sellerAddress ||
+      !invoice.buyerLegalName ||
+      !invoice.buyerAddress ||
+      !invoice.paymentTerms
+    ) {
+      throw generationBadRequest(
+        'INVOICE_BUSINESS_SNAPSHOT_REQUIRED',
+        'The issued invoice is missing required seller, buyer, payment, tax, or date details.',
+      );
+    }
 
     return {
       sourceType: GeneratedDocumentSource.INVOICE,
@@ -969,6 +987,34 @@ export class DocumentGenerationService {
           clientName: invoice.client.name,
           missionTitle: invoice.recruitmentMission?.title ?? null,
         },
+        seller: {
+          legalName: invoice.sellerLegalName,
+          legalForm: invoice.sellerLegalForm,
+          capital: invoice.sellerCapital,
+          address: invoice.sellerAddress,
+          ice: invoice.sellerIce,
+          taxId: invoice.sellerTaxId,
+          registrationNumber: invoice.sellerRegistrationNumber,
+          email: invoice.sellerEmail,
+          website: invoice.sellerWebsite,
+        },
+        buyer: {
+          legalName: invoice.buyerLegalName,
+          address: invoice.buyerAddress,
+          ice: invoice.buyerIce,
+          taxId: invoice.buyerTaxId,
+          billingContact: invoice.buyerBillingContact,
+        },
+        customerReference: invoice.customerReference,
+        paymentTerms: invoice.paymentTerms,
+        paymentMethod: invoice.paymentMethod,
+        bankDetails: invoice.bankDetails,
+        taxTreatment: invoice.taxTreatment,
+        commercialReferences: {
+          quotation: invoice.quotation?.reference ?? null,
+          contract: invoice.contract?.reference ?? null,
+          purchaseOrder: invoice.purchaseOrder?.reference ?? null,
+        },
       },
       fingerprint: invoiceSourceFingerprint(invoice),
       stabilize: (tx) => this.stabilizeCommercial(tx, 'Invoice', invoice),
@@ -978,6 +1024,9 @@ export class DocumentGenerationService {
           include: {
             client: { select: { name: true } },
             recruitmentMission: { select: { title: true } },
+            quotation: { select: { reference: true } },
+            contract: { select: { reference: true } },
+            purchaseOrder: { select: { reference: true } },
             lines: { orderBy: { sortOrder: 'asc' } },
           },
         });
