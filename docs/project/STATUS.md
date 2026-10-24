@@ -3,6 +3,28 @@
 Last updated: 2026-10-24
 Status owner: repository maintainer
 
+## Login Page v2
+
+- Work is isolated on `feat/login-page-v2` from merged `main`
+  `4c3d85aec7b89b80322889a539b7857b9a58250e`. The public login surface now uses the existing HireMe
+  tokens and teal accent with bilingual copy, explicit labels, visible keyboard focus, an accessible
+  password visibility control, safe localized authentication failures, a synchronous duplicate-submit
+  guard, and responsive desktop/tablet/mobile composition.
+- Authentication contracts and behavior are unchanged: access tokens remain memory-only, refresh uses
+  the existing HTTP-only cookie flow, and session restoration, refresh single-flight, cross-tab
+  coordination, logout, permissions, and backend authorization retain their existing owners. The login
+  page reports only a localized ready/loading/unavailable health state and never renders service names,
+  response bodies, or operational diagnostics.
+- Focused login (7/7), authenticated session (4/4), cross-tab (10/10), shell integration (2/2),
+  translation (21/21), and localization integration (12/12) tests pass. The existing App suite passes
+  44/44; format, architecture/style/contrast, lint (one pre-existing warning), typecheck, and production
+  build pass. Installed Chrome evidence covers EN desktop/tablet and FR mobile layouts, exact keyboard
+  order, visibility toggling, Enter submission, duplicate prevention, and zero horizontal overflow.
+  Evidence: [Login Page v2 browser acceptance](../audit/login-page-v2/README.md).
+- The repository-wide web suite passes the changed login tests but retains the known Windows-only
+  literal-LF stylesheet assertion; exact-head Linux CI is the authoritative complete-suite gate. The
+  focused draft PR must remain unmerged and undeployed until review and all four exact-head jobs pass.
+
 ## Issue #237 — P0 invoice weekend delivery
 
 - The existing Commercial invoice workflow has been audited end to end. Draft creation, server-owned integer monetary calculations, scoped authorization, lifecycle history, unique caller-supplied references, row-locked idempotent issuance, immutable generated versions, protected download, and durable reload already worked.

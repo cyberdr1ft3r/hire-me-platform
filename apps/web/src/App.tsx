@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
 
-import { fetchHealthStatus, fetchMe, login, logout, restoreSession } from './api.js';
+import {
+  fetchHealthStatus,
+  fetchMe,
+  login,
+  LoginRequestError,
+  logout,
+  restoreSession,
+} from './api.js';
 import { subscribeAuthSession } from './auth/authenticated-request.js';
 import { pathToRoute, type InternalRoute } from './navigation/internal-navigation.js';
 import {
@@ -16,6 +23,8 @@ import { useMessagingUnreadSummary } from './messages/index.js';
 import { RouteModuleBoundary } from './navigation/RouteModuleBoundary.js';
 import { ConsoleProvider } from './console/ConsoleProvider.js';
 import { AuthenticatedWorkspace } from './console/AuthenticatedWorkspace.js';
+import { Button, FieldFrame, InlineMessage } from './ui/index.js';
+import { LanguageSelect } from './ui/shell/LanguageSelect.js';
 import {
   LazyPublicOpportunitiesPanel,
   LazyPublicOpportunityDetailPanel,
@@ -30,6 +39,8 @@ interface AppLocation {
   route: InternalRoute;
   search: string;
 }
+
+type LoginErrorState = 'invalid-credentials' | 'unavailable';
 
 /**
  * One localization provider wraps the whole application, so the public
@@ -50,7 +61,10 @@ function AppRoutes() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const userIdRef = useRef<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<LoginErrorState | null>(null);
+  const [isLoginPending, setIsLoginPending] = useState(false);
+  const loginPendingRef = useRef(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [location, setLocation] = useState<AppLocation>(() => ({
     route: pathToRoute(window.location.pathname),
@@ -147,6 +161,11 @@ function AppRoutes() {
 
   async function handleLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (loginPendingRef.current) {
+      return;
+    }
+    loginPendingRef.current = true;
+    setIsLoginPending(true);
     setAuthError(null);
 
     const formData = new FormData(event.currentTarget);
@@ -161,8 +180,16 @@ function AppRoutes() {
       setAccessToken(auth.accessToken);
       userIdRef.current = auth.user.id;
       setUser(auth.user);
-    } catch {
-      setAuthError(t('auth.failed'));
+      setPasswordVisible(false);
+    } catch (error) {
+      setAuthError(
+        error instanceof LoginRequestError && error.reason === 'invalid-credentials'
+          ? 'invalid-credentials'
+          : 'unavailable',
+      );
+    } finally {
+      loginPendingRef.current = false;
+      setIsLoginPending(false);
     }
   }
 
@@ -226,36 +253,125 @@ function AppRoutes() {
   }
 
   if (!user || !accessToken) {
+    const apiLabel =
+      apiState.status === 'loading'
+        ? t('auth.apiChecking')
+        : apiState.status === 'ready'
+          ? t('auth.apiReady')
+          : t('auth.apiUnavailable');
+
     return (
-      <main className="shell login-shell">
-        <section className="intro" aria-labelledby="page-title">
-          <p className="eyebrow">Hire Me Platform</p>
-          <h1 id="page-title">{t('auth.title')}</h1>
-          <p>{t('auth.subtitle')}</p>
-        </section>
-        <form
-          className="auth-panel"
-          aria-label={t('auth.formRegion')}
-          onSubmit={(event) => {
-            void handleLogin(event);
-          }}
-        >
-          <h2>{t('auth.heading')}</h2>
-          <label>
-            {t('auth.email')}
-            <input name="email" type="email" autoComplete="username" required />
-          </label>
-          <label>
-            {t('auth.password')}
-            <input name="password" type="password" autoComplete="current-password" required />
-          </label>
-          <button type="submit">{t('auth.submit')}</button>
-          {authError ? <p role="alert">{authError}</p> : null}
-        </form>
-        <div className="login-health" aria-live="polite" aria-label={t('auth.apiStatusRegion')}>
-          <span aria-hidden="true" className={`status-dot status-dot--${apiState.status}`} />
-          <span>{apiState.status === 'loading' ? t('auth.checkingApi') : apiState.message}</span>
+      <main className="login-page" data-density="public-spacious">
+        <header className="login-page__header">
+          <span className="login-wordmark" aria-label="HireMe">
+            <span>Hire</span>
+            <span>Me</span>
+          </span>
+          <LanguageSelect classPrefix="login-language" />
+        </header>
+
+        <div className="login-page__layout">
+          <section className="login-page__intro" aria-labelledby="page-title">
+            <p className="login-page__eyebrow">{t('auth.eyebrow')}</p>
+            <h1 id="page-title">{t('auth.title')}</h1>
+            <p>{t('auth.subtitle')}</p>
+            <div className="login-page__brand-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </section>
+
+          <section className="login-card" aria-labelledby="login-heading">
+            <div className="login-card__heading">
+              <p className="login-card__eyebrow">{t('auth.internalAccess')}</p>
+              <h2 id="login-heading">{t('auth.heading')}</h2>
+              <p>{t('auth.instructions')}</p>
+            </div>
+
+            <form
+              className="login-form"
+              aria-busy={isLoginPending || undefined}
+              aria-label={t('auth.formRegion')}
+              onSubmit={(event) => {
+                void handleLogin(event);
+              }}
+            >
+              <FieldFrame label={t('auth.email')}>
+                {({ controlId, describedBy }) => (
+                  <input
+                    aria-describedby={describedBy}
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    className="ui-field__control"
+                    disabled={isLoginPending}
+                    id={controlId}
+                    inputMode="email"
+                    name="email"
+                    required
+                    type="email"
+                  />
+                )}
+              </FieldFrame>
+
+              <FieldFrame label={t('auth.password')}>
+                {({ controlId, describedBy }) => (
+                  <div className="login-password">
+                    <input
+                      aria-describedby={describedBy}
+                      autoComplete="current-password"
+                      className="ui-field__control login-password__input"
+                      disabled={isLoginPending}
+                      id={controlId}
+                      name="password"
+                      required
+                      type={passwordVisible ? 'text' : 'password'}
+                    />
+                    <button
+                      aria-label={passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+                      aria-pressed={passwordVisible}
+                      className="login-password__toggle"
+                      disabled={isLoginPending}
+                      onClick={() => setPasswordVisible((visible) => !visible)}
+                      type="button"
+                    >
+                      {passwordVisible ? t('auth.hide') : t('auth.show')}
+                    </button>
+                  </div>
+                )}
+              </FieldFrame>
+
+              {authError ? (
+                <InlineMessage announce title={t('auth.failedTitle')} tone="danger">
+                  {authError === 'invalid-credentials'
+                    ? t('auth.invalidCredentials')
+                    : t('auth.unavailable')}
+                </InlineMessage>
+              ) : null}
+
+              <Button
+                className="login-form__submit"
+                loading={isLoginPending}
+                loadingLabel={t('auth.submitting')}
+                type="submit"
+              >
+                {t('auth.submit')}
+              </Button>
+            </form>
+
+            <div
+              className="login-health"
+              data-api-status={apiState.status}
+              role="status"
+              aria-label={t('auth.apiStatusRegion')}
+            >
+              <span aria-hidden="true" className={`status-dot status-dot--${apiState.status}`} />
+              <span>{apiLabel}</span>
+            </div>
+          </section>
         </div>
+
+        <footer className="login-page__footer">{t('auth.authorizedOnly')}</footer>
       </main>
     );
   }

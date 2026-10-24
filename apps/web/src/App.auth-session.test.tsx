@@ -98,7 +98,7 @@ async function signIn(): Promise<void> {
   fireEvent.change(await screen.findByLabelText(/email/i), {
     target: { value: 'session@example.test' },
   });
-  fireEvent.change(screen.getByLabelText(/password/i), {
+  fireEvent.change(screen.getByLabelText(/^password$/i), {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));

@@ -8,6 +8,7 @@
 @import './ui/workspace.css';
 @import './ui/page-system.css';
 @import './ui/drawer.css';
+@import './auth/login.css';
 @import './reporting/reporting.css';
 @import './candidates/candidate.css';
 @import './clients/client.css';

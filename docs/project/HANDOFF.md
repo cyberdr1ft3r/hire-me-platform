@@ -4,50 +4,36 @@ Last updated: 2026-10-24
 
 ## Current situation
 
-- Issue #236 terminology alignment was squash-merged through PR #239 at
-  `e74d47a1d70e4c44f88edfad0e47006ca699d05a`. The merged EN/FR presentation vocabulary keeps
-  **General candidate pool / Vivier général** distinct from **Mission candidates / Candidats de la
-  mission**, preserves the three Recrutement / Formation / Accompagnement pillars, and changes no
-  backend enum, schema, API contract, workflow, permission, navigation destination, Training record,
-  or `INDIVIDUAL_COACHING` semantic. The unidentified sixth official document remains R-060.
-- Issue #237 remains the active P0 on draft PR #240. The invoice workflow captures an immutable
-  issuance business snapshot and branded template v4 renders it in FR/EN with localized dates and
-  money, explicit tax rate, HT line totals, framed identity blocks, emphasized totals, and only the
-  approved `Hire`/`Me` spacing refinement. Authorization, lifecycle, concurrency protection,
-  reload, generation, protected download, and duplicate prevention are covered.
-- `Référence client` is an optional customer-provided reconciliation value. It is preserved in the
-  immutable issuance snapshot, omitted from generated documents when absent, and remains distinct
-  from invoice/customer/tax/internal identifiers. The synthetic acceptance invoice uses
-  `BC-TEST-2026-0042`.
-- Under D-093, standard 20% TVA invoices omit a dedicated fiscal-treatment block while retaining the
-  rate, amount, and TTC in the financial table. Optional approved exceptional wording is snapshotted,
-  fingerprinted, immutable, and rendered only when supplied; internal test or owner-confirmation
-  notes never appear in customer output.
-- The owner prototype was compared side by side with the generated 20% sample. Seller legal form,
-  capital, address, ICE, RC, email, and site come from the prototype; missing IF and bank/RIB were
-  not invented. Real invoicing remains blocked under R-061 until the owner approves production
-  legal, tax, bank, customer, payment, numbering, and any historical-backfill information.
-- PR #240 has incorporated the merged terminology work from `main`. Format,
-  architecture/style/contrast, lint, typecheck, production build, focused Commercial/Missions/i18n
-  tests (129/129), contracts (6/6), PostgreSQL Commercial/document generation (68/68), authorization
-  catalog (5/5), and the authenticated browser create → issue → reload → generate → protected-download
-  flow pass on the reconciled tree. All 26 migrations apply from empty and the invoice migrations
-  remain additive. Exact-head CI is the remaining technical merge gate. Keep the PR draft and do not
-  deploy.
+- PRs #239 and #240 are merged in base `main` at
+  `4c3d85aec7b89b80322889a539b7857b9a58250e`. Their terminology and invoice decisions remain intact;
+  Login Page v2 changes no invoice code, schema, permission, lifecycle, numbering, calculation, or PDF
+  template.
+- The active work is `feat/login-page-v2`. It refines only the public login presentation and safe
+  client-side failure classification. Existing authentication endpoints, request bodies, memory-only
+  access tokens, HTTP-only refresh-cookie flow, refresh single-flight, session restoration, cross-tab
+  coordination, logout, permission filtering, and backend authorization are unchanged.
+- Login is bilingual and responsive, with explicit field labels, browser autofill hints, visible focus,
+  a labelled pressed-state password visibility button, pending state, synchronous duplicate-submit
+  prevention, safe credential/network errors, and a discreet localized health state. It introduces no
+  password-reset link, registration path, or nonfunctional authentication control.
+- Local verification passes for focused authentication/localization tests, the 44-case App regression,
+  formatting, architecture/style/contrast, lint (one pre-existing warning), typecheck, and production
+  build. Installed Chrome evidence covers 1440 × 900 EN desktop, 800 × 1000 EN tablet, and 390 × 844
+  FR mobile, keyboard order, visibility toggling, Enter submission, and horizontal overflow. The full
+  Windows web run retains the known literal-LF stylesheet failure; exact-head Linux CI remains the
+  authoritative full-suite gate.
 
 ## Next concrete action
 
-1. Complete the four-job exact-head CI gate for draft PR #240.
-2. Review the regenerated 20% sample and obtain owner business/legal approval before any real invoice
-   is issued.
-3. Keep PR #240 draft, unmerged, and undeployed until explicit approval.
+1. Review the draft PR titled `feat: refine HireMe login experience` and its desktop/mobile evidence.
+2. Require all four exact-head CI jobs to remain green before any merge approval.
+3. Keep the PR draft, unmerged, and undeployed until explicit approval.
 
 ## Completion conditions
 
-- The merged terminology vocabulary and Issue #237 invoice behavior coexist without regression.
-- Authorized users can create, issue, reload, generate, and download an invoice with server-owned
-  totals and an immutable validated snapshot; duplicate issue/generation remains prevented.
-- Additive migrations apply cleanly from latest `main`, focused commercial/invoice PostgreSQL tests
-  and the browser acceptance flow pass, and all four exact-head CI jobs are green.
-- Missing business/legal inputs remain explicit blockers; no merge, deployment, or real invoice
-  issuance occurs without approval.
+- Successful, invalid-credential, unavailable-service, pending/duplicate, restored-session, cross-tab,
+  password visibility, keyboard, EN/FR, and responsive cases are covered without changing auth
+  contracts or authorization.
+- Desktop and mobile evidence is attached, and all four exact-head CI jobs are green on the reported
+  final SHA.
+- The focused PR remains draft; no merge or deployment occurs.

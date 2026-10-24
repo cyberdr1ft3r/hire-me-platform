@@ -30,10 +30,8 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(
-      screen.getByRole('heading', { name: /recruitment operations workspace/i }),
-    ).toBeVisible();
-    expect(await screen.findByText('hire-me-api is ok')).toBeVisible();
+    expect(screen.getByRole('heading', { name: /welcome back/i })).toBeVisible();
+    expect(await screen.findByText('Service available')).toBeVisible();
   });
 
   it('logs in without storing tokens in browser storage and logs out', async () => {
@@ -93,7 +91,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -166,7 +164,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'limited@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -223,7 +221,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'no-task@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -319,7 +317,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'readonly@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -489,7 +487,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'tasks@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -648,7 +646,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -806,7 +804,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'client-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -938,7 +936,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'candidate-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -1267,7 +1265,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'document-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -1332,7 +1330,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'no-commercial@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -1515,7 +1513,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -1535,7 +1533,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -1580,7 +1578,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -2478,7 +2476,7 @@ async function openCommercialWorkspace(displayName: string): Promise<void> {
   fireEvent.change(screen.getByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
-  fireEvent.change(screen.getByLabelText(/password/i), {
+  fireEvent.change(screen.getByLabelText(/^password$/i), {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -2719,7 +2717,7 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
   fireEvent.change(screen.getByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
-  fireEvent.change(screen.getByLabelText(/password/i), {
+  fireEvent.change(screen.getByLabelText(/^password$/i), {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
@@ -3036,7 +3034,7 @@ function jsonResponse(body: unknown): Response {
 
 async function loginAs(email: string): Promise<void> {
   fireEvent.change(await screen.findByLabelText(/email/i), { target: { value: email } });
-  fireEvent.change(screen.getByLabelText(/password/i), {
+  fireEvent.change(screen.getByLabelText(/^password$/i), {
     target: { value: 'Synthetic-password-123!' },
   });
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
