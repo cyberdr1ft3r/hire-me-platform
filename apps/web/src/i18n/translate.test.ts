@@ -278,6 +278,18 @@ describe('translation lookup', () => {
   it('keeps the validated métier scopes distinct in English and French', () => {
     expect(en('candidate.directory.title')).toBe('General candidate pool');
     expect(fr('candidate.directory.title')).toBe('Vivier général');
+    expect(en('missions.header.description')).toBe(
+      'Run recruitment missions from intake to placement: team, mission candidates, interviews, offers, and the public opportunity.',
+    );
+    expect(fr('missions.header.description')).toBe(
+      'Pilotez les missions de recrutement de la prise de besoin au placement : équipe, candidats de la mission, entretiens, offres et annonce publique.',
+    );
+    expect(en('missions.detail.selectPrompt')).toBe(
+      'Select a mission to review its profile, team, mission candidates, and public opportunity.',
+    );
+    expect(fr('missions.detail.selectPrompt')).toBe(
+      'Sélectionnez une mission pour consulter sa fiche, son équipe, les candidats de la mission et son annonce publique.',
+    );
     expect(en('missions.pipeline.title')).toBe('Mission candidates');
     expect(fr('missions.pipeline.title')).toBe('Candidats de la mission');
     expect(en('missions.detail.nav.pipeline')).toBe('Mission candidates');

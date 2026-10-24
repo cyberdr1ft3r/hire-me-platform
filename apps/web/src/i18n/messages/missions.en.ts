@@ -12,7 +12,7 @@ export const missionsEn = {
   region: 'Missions workspace',
   header: {
     description:
-      'Run recruitment missions from intake to placement: team, candidate pipeline, interviews, offers, and the public opportunity.',
+      'Run recruitment missions from intake to placement: team, mission candidates, interviews, offers, and the public opportunity.',
     eyebrow: 'Recruitment',
     title: 'Missions',
   },
@@ -97,7 +97,7 @@ export const missionsEn = {
     },
     region: 'Selected mission',
     selectPrompt:
-      'Select a mission to review its profile, team, candidate pipeline, and public opportunity.',
+      'Select a mission to review its profile, team, mission candidates, and public opportunity.',
     selectPromptTitle: 'No mission selected',
     terminalNotice: 'This mission is closed. Its records are read-only.',
     terminalNoticeTitle: 'Closed mission',

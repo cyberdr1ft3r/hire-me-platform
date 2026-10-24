@@ -6,7 +6,7 @@ export const missionsFr: Messages['missions'] = {
   region: 'Espace missions',
   header: {
     description:
-      'Pilotez les missions de recrutement de la prise de besoin au placement : équipe, vivier de candidats, entretiens, offres et annonce publique.',
+      'Pilotez les missions de recrutement de la prise de besoin au placement : équipe, candidats de la mission, entretiens, offres et annonce publique.',
     eyebrow: 'Recrutement',
     title: 'Missions',
   },
@@ -96,7 +96,7 @@ export const missionsFr: Messages['missions'] = {
     },
     region: 'Mission sélectionnée',
     selectPrompt:
-      'Sélectionnez une mission pour consulter sa fiche, son équipe, son vivier de candidats et son annonce publique.',
+      'Sélectionnez une mission pour consulter sa fiche, son équipe, les candidats de la mission et son annonce publique.',
     selectPromptTitle: 'Aucune mission sélectionnée',
     terminalNotice: 'Cette mission est clôturée. Ses données sont en lecture seule.',
     terminalNoticeTitle: 'Mission clôturée',
