@@ -1,0 +1,101 @@
+{
+  "checks": [
+    {
+      "label": "desktop-en-1440x900",
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "card": {
+        "x": 734,
+        "y": 111,
+        "width": 576,
+        "height": 677,
+        "top": 111,
+        "right": 1310,
+        "bottom": 788,
+        "left": 734
+      },
+      "intro": {
+        "x": 130,
+        "y": 111,
+        "width": 580,
+        "height": 677,
+        "top": 111,
+        "right": 710,
+        "bottom": 788,
+        "left": 130
+      }
+    },
+    {
+      "label": "keyboard-order",
+      "focusOrder": [
+        "SELECT:",
+        "INPUT:email",
+        "INPUT:password",
+        "BUTTON:button",
+        "BUTTON:submit"
+      ]
+    },
+    {
+      "label": "password-toggle",
+      "result": "pass"
+    },
+    {
+      "label": "keyboard-submit",
+      "loginRequests": 1
+    },
+    {
+      "label": "tablet-en-800x1000",
+      "documentWidth": 800,
+      "viewportWidth": 800,
+      "viewportHeight": 1000,
+      "card": {
+        "x": 412,
+        "y": 111,
+        "width": 356,
+        "height": 777,
+        "top": 111,
+        "right": 768,
+        "bottom": 888,
+        "left": 412
+      },
+      "intro": {
+        "x": 32,
+        "y": 111,
+        "width": 356,
+        "height": 777,
+        "top": 111,
+        "right": 388,
+        "bottom": 888,
+        "left": 32
+      }
+    },
+    {
+      "label": "mobile-fr-390x844",
+      "documentWidth": 390,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "card": {
+        "x": 16,
+        "y": 325.125,
+        "width": 358,
+        "height": 471.703125,
+        "top": 325.125,
+        "right": 374,
+        "bottom": 796.828125,
+        "left": 16
+      },
+      "intro": {
+        "x": 16,
+        "y": 87,
+        "width": 358,
+        "height": 222.125,
+        "top": 87,
+        "right": 374,
+        "bottom": 309.125,
+        "left": 16
+      }
+    }
+  ],
+  "consoleErrors": []
+}

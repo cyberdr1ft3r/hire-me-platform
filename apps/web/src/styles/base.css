@@ -55,20 +55,6 @@ a:hover {
   outline-offset: var(--space-0-5);
 }
 
-.shell {
-  display: grid;
-  gap: var(--space-6);
-  min-height: 100vh;
-  padding: var(--space-page-y) var(--space-page-x);
-  place-content: center;
-}
-
-.intro,
-.status-panel,
-.auth-panel {
-  max-width: var(--layout-public-max);
-}
-
 .eyebrow {
   color: var(--color-text-muted);
   font-size: var(--font-size-3);
@@ -78,8 +64,6 @@ a:hover {
   text-transform: uppercase;
 }
 
-.status-panel,
-.auth-panel,
 .admin-panel {
   align-items: center;
   background: var(--color-surface);
@@ -90,21 +74,10 @@ a:hover {
   padding: var(--space-5);
 }
 
-.auth-panel {
-  align-items: stretch;
-  display: grid;
-}
-
-.auth-panel label,
 .stacked-form,
 .inline-form label {
   display: grid;
   gap: var(--space-2);
-}
-
-.auth-panel label {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-3);
 }
 
 .admin-panel {
@@ -224,10 +197,6 @@ th {
 
 .status-dot--error {
   background: var(--color-danger);
-}
-
-.status-panel p {
-  margin-bottom: 0;
 }
 
 [role='alert'] {

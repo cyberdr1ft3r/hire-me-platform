@@ -375,23 +375,53 @@ export async function fetchHealthStatus(apiBaseUrl = getApiBaseUrl()): Promise<H
   return HealthResponseSchema.parse(await response.json());
 }
 
+export type LoginFailureReason = 'invalid-credentials' | 'unavailable';
+
+/**
+ * A deliberately small, presentation-safe login failure contract.
+ *
+ * The UI may distinguish credentials the API rejected from a service or
+ * network failure, but it never receives or renders arbitrary backend text.
+ */
+export class LoginRequestError extends Error {
+  constructor(readonly reason: LoginFailureReason) {
+    super(
+      reason === 'invalid-credentials' ? 'Authentication failed' : 'Authentication unavailable',
+    );
+    this.name = 'LoginRequestError';
+  }
+}
+
 export async function login(
   email: string,
   password: string,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<AuthResponse> {
-  const response = await fetch(`${apiBaseUrl}/auth/login`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Authentication failed');
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new LoginRequestError('unavailable');
   }
 
-  const auth = AuthResponseSchema.parse(await response.json());
+  if (response.status === 401 || response.status === 403) {
+    throw new LoginRequestError('invalid-credentials');
+  }
+  if (!response.ok) {
+    throw new LoginRequestError('unavailable');
+  }
+
+  let auth: AuthResponse;
+  try {
+    auth = AuthResponseSchema.parse(await response.json());
+  } catch {
+    throw new LoginRequestError('unavailable');
+  }
   startAuthSession(auth);
   return auth;
 }

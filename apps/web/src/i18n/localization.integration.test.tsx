@@ -271,8 +271,8 @@ describe('locale reach beyond the authenticated shell', () => {
 
     expect(await screen.findByRole('form', { name: 'Connexion' })).toBeVisible();
     expect(document.documentElement.lang).toBe('fr');
-    // The API's own health text is never machine-translated.
-    expect(await screen.findByText('hire-me-api is ok')).toBeVisible();
+    // Login exposes only the localized availability state, never raw service diagnostics.
+    expect(await screen.findByText('Service disponible')).toBeVisible();
   });
 
   it('renders the public opportunities in the active language under the shared provider', async () => {
