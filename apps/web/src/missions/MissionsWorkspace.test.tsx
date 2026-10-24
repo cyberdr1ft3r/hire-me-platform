@@ -281,7 +281,9 @@ describe('Missions detail navigation (#118)', () => {
       permissions: MANAGE,
     });
 
-    expect(await screen.findByRole('tab', { name: 'Pipeline', selected: true })).toBeVisible();
+    expect(
+      await screen.findByRole('tab', { name: 'Mission candidates', selected: true }),
+    ).toBeVisible();
     expect(await screen.findByRole('region', { name: 'Alex Candidate' })).toBeVisible();
     expect(await screen.findByText('Alpha contract')).toBeVisible();
   });
@@ -293,7 +295,7 @@ describe('Missions detail navigation (#118)', () => {
     await selectMission('Mission Alpha');
     expect(await screen.findByRole('region', { name: 'Lifecycle' })).toBeVisible();
     await openProcess('Alex Candidate');
-    expect(screen.getByRole('tab', { name: 'Pipeline', selected: true })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Mission candidates', selected: true })).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Lifecycle' })).toBeNull();
   });
 });
@@ -717,7 +719,7 @@ describe('Missions candidate pipeline pagination', () => {
   }
 
   function pipeline(): HTMLElement {
-    return screen.getByRole('region', { name: 'Candidate pipeline' });
+    return screen.getByRole('region', { name: 'Mission candidates' });
   }
 
   function shownCandidates(): string[] {
@@ -887,7 +889,7 @@ describe('Missions candidate pipeline pagination', () => {
       await sessionPage.promise;
     });
     await flush();
-    expect(screen.queryByRole('region', { name: 'Candidate pipeline' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Mission candidates' })).toBeNull();
     expect(screen.queryByText('Candidate 21')).toBeNull();
   });
 
@@ -962,7 +964,7 @@ describe('Missions candidate pipeline pagination', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle locale' }));
 
-    const frenchPipeline = await screen.findByRole('region', { name: 'Vivier de candidats' });
+    const frenchPipeline = await screen.findByRole('region', { name: 'Candidats de la mission' });
     expect(within(frenchPipeline).getByText('Page 2 sur 2')).toBeVisible();
     expect(within(frenchPipeline).getByText('21–25 sur 25')).toBeVisible();
     expect(
@@ -989,7 +991,7 @@ describe('Stacked master-detail reveal', () => {
     renderWorkspace({ permissions: VIEW });
     await openMissionRecord(/Mission Alpha/);
     await showMissionDetailTab('pipeline');
-    const pipelineRegion = await screen.findByRole('region', { name: 'Candidate pipeline' });
+    const pipelineRegion = await screen.findByRole('region', { name: 'Mission candidates' });
     forceStackedMissionsLayout();
     fireEvent.click(within(pipelineRegion).getByRole('button', { name: 'Alex Candidate' }));
     await waitFor(() =>

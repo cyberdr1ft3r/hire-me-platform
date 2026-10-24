@@ -392,7 +392,7 @@ export const frMessages: Messages = {
         candidate: 'Candidat',
       },
       order: 'Plus récents d’abord',
-      title: 'Répertoire des candidats',
+      title: 'Vivier général',
     },
     education: {
       add: 'Ajouter une formation',
@@ -523,7 +523,7 @@ export const frMessages: Messages = {
       moveTo: {
         ACTIVE: 'Marquer comme actif',
         INACTIVE: 'Marquer comme inactif',
-        TALENT_POOL: 'Placer dans le vivier',
+        TALENT_POOL: 'Placer dans le vivier général',
       },
     },
     list: {
@@ -534,8 +534,8 @@ export const frMessages: Messages = {
         range: '{first} à {last} sur {total}',
         region: 'Pages de candidats',
       },
-      region: 'Liste des candidats',
-      title: 'Liste des candidats',
+      region: 'Vivier général',
+      title: 'Vivier général',
       updated: 'Mis à jour le {date}',
     },
     preview: {
@@ -958,7 +958,7 @@ export const frMessages: Messages = {
         client: 'Client',
         document: 'Document',
         mission: 'Mission',
-        missionCandidate: 'Candidat de mission',
+        missionCandidate: 'Candidat de la mission',
       },
       none: 'Aucun lien',
       record: 'Élément lié',
@@ -1274,7 +1274,7 @@ export const frMessages: Messages = {
       ACTIVE: 'Actif',
       ARCHIVED: 'Archivé',
       INACTIVE: 'Inactif',
-      TALENT_POOL: 'Vivier de talents',
+      TALENT_POOL: 'Vivier général',
     },
     consentStatus: {
       EXPIRED: 'Expiré',
@@ -1300,7 +1300,7 @@ export const frMessages: Messages = {
       PRESENTED_TO_CLIENT: 'Présenté au client',
       PROBATION_COMPLETED: 'Période d’essai validée',
       PROCESS_COMPLETED: 'Processus terminé',
-      TALENT_POOL: 'Vivier de talents',
+      TALENT_POOL: 'Vivier général',
       TECHNICAL_TEST: 'Test technique',
       WAITING: 'En attente',
       WITHDRAWN: 'Retiré',

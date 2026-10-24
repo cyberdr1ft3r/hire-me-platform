@@ -1,7 +1,23 @@
 # Project Status
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 Status owner: repository maintainer
+
+## Issue #236 — HireMe métier terminology alignment
+
+- Work is in progress on `feat/issue-236-metier-alignment`, based on `main`
+  `685e28990ddd5b2fdd3f05044b8fd84af579e6a9` after merged PR #238.
+- The consolidated glossary records the validated questionnaire terms and keeps Recrutement,
+  Formation, and Accompagnement distinct. Unresolved translations, the exact shortlist-to-state
+  mapping, the sixth source-document identity, client-presentation operational details, and the
+  Accompagnement data model remain explicitly pending.
+- Presentation-only EN/FR corrections distinguish the general candidate pool from candidates of a
+  specific mission. No backend enum, database column, API contract, workflow transition,
+  permission, navigation destination, B2 tab, Training record, or `INDIVIDUAL_COACHING` semantic is
+  changed.
+- The before/after key matrix and verification results live in
+  [Issue #236 terminology evidence](../audit/issue-236-terminology-matrix.md). A dedicated draft PR
+  must remain open and unmerged; no deployment is authorized.
 
 ## Issue #234 — Approved top application navigation
 

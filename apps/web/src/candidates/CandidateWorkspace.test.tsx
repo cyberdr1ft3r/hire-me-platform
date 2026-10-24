@@ -109,7 +109,7 @@ describe('Candidate workspace action permissions', () => {
       'Edit profile',
       'Mark active',
       'Mark inactive',
-      'Move to talent pool',
+      'Move to general candidate pool',
       'More actions',
       'Add skill',
       'Add language',
@@ -157,10 +157,10 @@ describe('Candidate workspace action permissions', () => {
     fireEvent.click(moreActions());
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Mark inactive',
-      'Move to talent pool',
+      'Move to general candidate pool',
     ]);
 
-    fireEvent.click(recordAction('Move to talent pool'));
+    fireEvent.click(recordAction('Move to general candidate pool'));
     expect(props.onChangeStatus).toHaveBeenCalledWith('TALENT_POOL');
     // Choosing closes the menu and returns focus to its button.
     expect(screen.queryByRole('menu')).toBeNull();
@@ -181,7 +181,7 @@ describe('Candidate workspace action permissions', () => {
     const items = within(menu).getAllByRole('menuitem');
     expect(items.map((item) => item.textContent)).toEqual([
       'Mark inactive',
-      'Move to talent pool',
+      'Move to general candidate pool',
       'Archive candidate',
     ]);
     expect(items[0]).toHaveFocus();
@@ -216,7 +216,12 @@ describe('Candidate workspace action permissions', () => {
         }),
       },
     );
-    for (const name of ['Mark active', 'Mark inactive', 'Move to talent pool', 'More actions']) {
+    for (const name of [
+      'Mark active',
+      'Mark inactive',
+      'Move to general candidate pool',
+      'More actions',
+    ]) {
       expect(button(name)).toBeNull();
     }
   });
@@ -311,7 +316,7 @@ describe('Candidate sensitive-data boundaries', () => {
       recordCandidateId: null,
     });
 
-    const list = screen.getByRole('region', { name: 'Candidate directory' });
+    const list = screen.getByRole('region', { name: 'General candidate pool' });
     expect(within(list).getByText('Synthetic Candidate')).toBeVisible();
     expect(list.textContent).not.toMatch(/54,000|EUR|€|Granted|Consent|Salary/);
     // The row carries both areas for this actor, yet the preview shows neither.
@@ -443,14 +448,12 @@ describe('Candidate workspace localization', () => {
       { previewCandidate: shaped, recordCandidateId: null },
       { locale: 'fr' },
     );
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Répertoire des candidats' }),
-    ).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Vivier général' })).toBeVisible();
     expect(screen.getByRole('columnheader', { name: 'Candidat' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Ouvrir le profil complet' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Fermer l’aperçu' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Filtres' }));
-    expect(screen.getByRole('option', { name: 'Vivier de talents' })).toHaveValue('TALENT_POOL');
+    expect(screen.getByRole('option', { name: 'Vivier général' })).toHaveValue('TALENT_POOL');
   });
 
   it('keeps language-neutral values in the status filter options', () => {
@@ -563,7 +566,7 @@ describe('Candidate workspace states', () => {
     // No permanently empty record pane: the directory is the only pane.
     expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
     expect(document.querySelector('.ui-workspace__layout')).toHaveAttribute('data-view', 'list');
-    expect(screen.getByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(screen.getByRole('table', { name: 'General candidate pool' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'No candidate selected' })).toBeNull();
     cleanup();
 
@@ -580,7 +583,7 @@ describe('Candidate workspace states', () => {
   it('marks the previewed candidate with aria-current', () => {
     const shaped = asServerWouldReturn(syntheticCandidate(), [P.view]);
     renderWorkspace([P.view], { previewCandidate: shaped, recordCandidateId: null });
-    const row = within(screen.getByRole('table', { name: 'Candidate directory' })).getByRole(
+    const row = within(screen.getByRole('table', { name: 'General candidate pool' })).getByRole(
       'button',
       { name: 'Synthetic Candidate' },
     );
@@ -750,7 +753,7 @@ describe('Candidate source filter and labels', () => {
       },
       { candidate: fromApplication },
     );
-    const rows = within(screen.getByRole('table', { name: 'Candidate directory' }))
+    const rows = within(screen.getByRole('table', { name: 'General candidate pool' }))
       .getAllByRole('row')
       .slice(1);
     expect(within(rows[0]!).getByText('Public application')).toBeVisible();
@@ -1115,7 +1118,7 @@ describe('Workspace Surface', () => {
     expect(page).toHaveAttribute('data-page-kind', 'directory');
     expect(page).toHaveAttribute('data-page-layout', 'fill');
     expect(within(page as HTMLElement).getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    const list = screen.getByRole('region', { name: 'Candidate directory' });
+    const list = screen.getByRole('region', { name: 'General candidate pool' });
     expect(list).toHaveAttribute('data-pane', 'list');
     expect(list.closest('.ui-workspace')).toHaveAttribute('data-split', 'preview');
     // With a preview open both panes show, so the layout is not one-pane mode.

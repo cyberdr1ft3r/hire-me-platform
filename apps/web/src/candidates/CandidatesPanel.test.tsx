@@ -608,7 +608,7 @@ describe('Candidate mutations keep their exact API behavior', () => {
     await selectCandidate();
     const before = candidateCalls(calls).length;
 
-    fireEvent.click(recordAction('Move to talent pool'));
+    fireEvent.click(recordAction('Move to general candidate pool'));
     fireEvent.click(recordAction('Archive candidate'));
 
     expect(candidateCalls(calls)).toHaveLength(before);
@@ -1060,7 +1060,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
       return call.url.endsWith('/status') ? status.promise : undefined;
     });
     renderPanel(ORDINARY_PERMISSIONS);
-    const list = await screen.findByRole('region', { name: 'Candidate directory' });
+    const list = await screen.findByRole('region', { name: 'General candidate pool' });
     await within(list).findByRole('button', { name: 'Second Candidate' });
 
     // Filter A is applied, and candidate A is selected from its results.
@@ -1077,7 +1077,7 @@ describe('Post-write list refreshes follow the current filters and session', () 
 
     // Back in the directory, Filter B is applied and resolves while the write is pending.
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
-    const directory = await screen.findByRole('region', { name: 'Candidate directory' });
+    const directory = await screen.findByRole('region', { name: 'General candidate pool' });
     holdLists = true;
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Second' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search candidates' }));
@@ -1148,12 +1148,12 @@ describe('Post-write list refreshes follow the current filters and session', () 
     expect(afterSessionB.every((call) => call.token === 'Bearer token-b')).toBe(true);
     expect(afterSessionB.filter(isListCall)).toHaveLength(1);
     // The session-B list stands, and the stale session-A result stays suppressed.
-    const list = screen.getByRole('region', { name: 'Candidate directory' });
+    const list = screen.getByRole('region', { name: 'General candidate pool' });
     expect(within(list).getByRole('button', { name: 'Second Candidate' })).toBeVisible();
     expect(screen.queryByText('Candidate status changed to Inactive.')).toBeNull();
     // Issue #69 review: session A's selected record is not carried into session B.
     expect(screen.queryByRole('button', { name: /More actions|Plus d’actions/ })).toBeNull();
-    expect(screen.getByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(screen.getByRole('table', { name: 'General candidate pool' })).toBeVisible();
   });
 });
 
@@ -1232,7 +1232,7 @@ describe('Candidate list pages and source filter', () => {
     expect(screen.queryByRole('button', { name: 'Candidate 01' })).toBeNull();
     // Focus continues from the top of the new page.
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Candidate directory' })).toHaveFocus(),
+      expect(screen.getByRole('heading', { name: 'General candidate pool' })).toHaveFocus(),
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
@@ -2531,7 +2531,7 @@ function expectNoPrincipalAWorkspace({ atSwitch = false } = {}) {
     /54,000|Granted|Expired|candidate@example\.test|Salary expectation|Consent status/,
   );
   // The new principal starts in the directory (possibly still loading), with no record open.
-  expect(screen.getByRole('region', { name: 'Candidate directory' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'General candidate pool' })).toBeVisible();
   expect(screen.queryByRole('button', { name: /Back to candidates/ })).toBeNull();
 }
 
@@ -2569,7 +2569,7 @@ describe('Candidate workspace session boundary', () => {
     expect(screen.getByLabelText('Search')).toHaveValue('');
 
     // Principal B loads its own list, and only with its own token.
-    const list = screen.getByRole('region', { name: 'Candidate directory' });
+    const list = screen.getByRole('region', { name: 'General candidate pool' });
     await within(list).findByRole('button', { name: 'Nadia Example' });
     expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
 
@@ -2665,9 +2665,12 @@ describe('Candidate workspace session boundary', () => {
     });
 
     expectNoPrincipalAWorkspace();
-    await within(screen.getByRole('region', { name: 'Candidate directory' })).findByRole('button', {
-      name: 'Nadia Example',
-    });
+    await within(screen.getByRole('region', { name: 'General candidate pool' })).findByRole(
+      'button',
+      {
+        name: 'Nadia Example',
+      },
+    );
     expect(screen.queryByRole('heading', { level: 2, name: 'Nadia Example' })).toBeNull();
     expect(
       candidateTokensAfter(calls, switchedAt).every((token) => token === 'Bearer token-b'),
@@ -2812,7 +2815,7 @@ describe('Candidates v2.0: focused record', () => {
     expect(onOpenRecord).toHaveBeenCalledWith(CANDIDATE_ID);
     expect(detailCalls(calls)).toHaveLength(1);
     // The directory is not on screen behind the record.
-    expect(screen.queryByRole('table', { name: 'Candidate directory' })).toBeNull();
+    expect(screen.queryByRole('table', { name: 'General candidate pool' })).toBeNull();
     const listsBefore = listCalls(calls).length;
 
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
@@ -2836,7 +2839,7 @@ describe('Candidates v2.0: focused record', () => {
       </I18nProvider>
     );
     const view = render(panel(null));
-    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'General candidate pool' })).toBeVisible();
 
     view.rerender(panel(SECOND_CANDIDATE_ID));
     expect(
@@ -2844,7 +2847,7 @@ describe('Candidates v2.0: focused record', () => {
     ).toBeVisible();
 
     view.rerender(panel(null));
-    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'General candidate pool' })).toBeVisible();
     expect(detailCalls(calls, SECOND_CANDIDATE_ID)).toHaveLength(1);
   });
 
@@ -2942,7 +2945,7 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(onCloseRecord).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'General candidate pool' })).toBeVisible();
   });
 
   it('leaves without asking when the input leaves the form as it was (Issue #228 RV2)', async () => {
@@ -2958,7 +2961,7 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(confirm).not.toHaveBeenCalled();
-    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'General candidate pool' })).toBeVisible();
   });
 
   it('leaves without asking when no form holds input, or after the input was cancelled', async () => {
@@ -2970,7 +2973,7 @@ describe('Candidates v2.0: unsaved input in the focused record', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     fireEvent.click(screen.getByRole('button', { name: /Back to candidates/ }));
     expect(confirm).not.toHaveBeenCalled();
-    expect(await screen.findByRole('table', { name: 'Candidate directory' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'General candidate pool' })).toBeVisible();
 
     await selectCandidate();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
@@ -3023,7 +3026,9 @@ describe('Candidates v2.0: quick preview as a mobile sheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Open full profile' })).toBeVisible();
     // No side pane while the sheet shows: the directory stays one full-width pane.
     expect(document.querySelectorAll('.ui-workspace__pane')).toHaveLength(1);
-    expect(screen.getByRole('table', { name: 'Candidate directory', hidden: true })).toBeTruthy();
+    expect(
+      screen.getByRole('table', { name: 'General candidate pool', hidden: true }),
+    ).toBeTruthy();
     expect(calls.length).toBe(before);
   });
 

@@ -1749,7 +1749,7 @@ describe('App', () => {
     await loginAs('malformed-candidate@example.test');
     // A malformed intent opens nothing: the directory shows, with no record.
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
+      await screen.findByRole('heading', { level: 2, name: 'General candidate pool' }),
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: /Back to candidates/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Candidates · Record' })).toBeNull();
@@ -1777,7 +1777,7 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/candidates');
     expect(window.location.search).toBe('');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
+      await screen.findByRole('heading', { level: 2, name: 'General candidate pool' }),
     ).toBeVisible();
 
     act(() => window.history.back());
@@ -1792,7 +1792,7 @@ describe('App', () => {
 
     act(() => window.history.forward());
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Candidate directory' }),
+      await screen.findByRole('heading', { level: 2, name: 'General candidate pool' }),
     ).toBeVisible();
     expect(screen.queryByRole('heading', { level: 2, name: 'Deep Link Candidate' })).toBeNull();
   });
@@ -2733,7 +2733,7 @@ async function openMissionWorkspace(displayName: string): Promise<void> {
 }
 
 async function openMissionPipelineTab(): Promise<void> {
-  fireEvent.click(await screen.findByRole('tab', { name: 'Pipeline' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Mission candidates' }));
 }
 
 async function openMissionPublicTab(): Promise<void> {
