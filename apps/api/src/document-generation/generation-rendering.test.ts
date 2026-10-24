@@ -326,4 +326,152 @@ describe('template registry', () => {
     const paragraph = built.blocks.find((block) => block.kind === 'paragraph');
     expect(paragraph && 'text' in paragraph ? paragraph.text : '').toHaveLength(2_000);
   });
+
+  it('applies the approved HireMe presentation only to invoice and quotation outputs', () => {
+    const quotation = resolveTemplate('COMMERCIAL_QUOTATION');
+    const built = quotation.build(
+      {
+        kind: 'COMMERCIAL_QUOTATION',
+        reference: 'DEV-SYN-001',
+        status: 'ACCEPTED',
+        currency: 'MAD',
+        issueDate: new Date('2026-10-23T00:00:00.000Z'),
+        validUntil: new Date('2026-11-23T00:00:00.000Z'),
+        subtotalCents: 10_000,
+        taxCents: 2_000,
+        totalCents: 12_000,
+        lines: [
+          {
+            description: 'Synthetic prestation',
+            quantity: 1,
+            unitPriceCents: 10_000,
+            taxRateBps: 2_000,
+            lineSubtotalCents: 10_000,
+            lineTaxCents: 2_000,
+            lineTotalCents: 12_000,
+          },
+        ],
+        party: { clientName: 'Synthetic Client', missionTitle: 'Synthetic Mission' },
+      },
+      'fr',
+    );
+
+    expect(quotation.version).toBe(2);
+    expect(built.presentation).toEqual({
+      kind: 'hireme-commercial',
+      documentLabel: 'DEVIS',
+      reference: 'DEV-SYN-001',
+      status: 'Accepté',
+      details: [
+        { label: "Date d'émission", value: '23/10/2026' },
+        { label: "Valable jusqu'au", value: '23/11/2026' },
+      ],
+    });
+    expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
+    expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
+    expect(
+      resolveTemplate('COMMERCIAL_CONTRACT').build(
+        {
+          kind: 'COMMERCIAL_CONTRACT',
+          reference: 'CT-SYN-001',
+          businessType: 'RECRUITMENT',
+          status: 'ACTIVE',
+          currency: 'MAD',
+          contractValueCents: 10_000,
+          taxCents: 2_000,
+          totalCents: 12_000,
+          termsSummary: null,
+          effectiveDate: null,
+          startDate: null,
+          endDate: null,
+          party: { clientName: 'Synthetic Client', missionTitle: null },
+        },
+        'fr',
+      ).presentation,
+    ).toBeUndefined();
+  });
+
+  it('renders the complete bilingual invoice business snapshot and commercial references', () => {
+    const template = resolveTemplate('INVOICE');
+    const base = {
+      kind: 'INVOICE' as const,
+      reference: 'INV-SYN-001',
+      status: 'ISSUED',
+      currency: 'MAD',
+      issueDate: new Date('2026-10-23T00:00:00.000Z'),
+      dueDate: new Date('2026-11-23T00:00:00.000Z'),
+      subtotalCents: 10_000,
+      taxCents: 2_000,
+      totalCents: 12_000,
+      lines: [
+        {
+          description: 'Synthetic prestation',
+          quantity: 1,
+          unitPriceCents: 10_000,
+          taxRateBps: 2_000,
+          lineSubtotalCents: 10_000,
+          lineTaxCents: 2_000,
+          lineTotalCents: 12_000,
+        },
+      ],
+      party: { clientName: 'Synthetic Client SA', missionTitle: 'Synthetic Mission' },
+      seller: {
+        legalName: 'Synthetic HireMe SARL',
+        legalForm: 'Synthetic SARL',
+        capital: '100 000 MAD synthetic',
+        address: '1 Synthetic Avenue, Casablanca',
+        ice: 'SYNTHETIC-ICE',
+        taxId: 'SYNTHETIC-IF',
+        registrationNumber: 'SYNTHETIC-RC',
+        email: 'synthetic@example.invalid',
+        website: 'https://example.invalid',
+      },
+      buyer: {
+        legalName: 'Synthetic Client SA',
+        address: '2 Test Street, Rabat',
+        ice: 'CLIENT-ICE',
+        taxId: 'CLIENT-IF',
+        billingContact: 'Synthetic Billing Contact',
+      },
+      customerReference: 'BC-TEST-2026-0042',
+      paymentTerms: 'Bank transfer within 30 days.',
+      paymentMethod: 'Synthetic transfer',
+      bankDetails: 'Synthetic test account only.',
+      taxTreatment: null,
+      commercialReferences: {
+        quotation: 'Q-SYN-001',
+        contract: 'C-SYN-001',
+        purchaseOrder: 'PO-SYN-001',
+      },
+    };
+    for (const language of ['en', 'fr'] as const) {
+      const built = template.build(base, language);
+      const text = JSON.stringify(built);
+      expect(text).toContain('Synthetic HireMe SARL');
+      expect(text).toContain('Synthetic Client SA');
+      expect(text).toContain('Bank transfer within 30 days.');
+      expect(text).toContain('PO-SYN-001');
+      expect(text).toContain('BC-TEST-2026-0042');
+      expect(text).toContain(language === 'fr' ? 'Référence client' : 'Customer reference');
+      expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
+      expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
+      expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
+      expect(template.version).toBe(4);
+      expect(built.presentation?.kind).toBe('hireme-commercial');
+      expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
+      expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
+      expect(text).not.toContain(language === 'fr' ? 'Traitement fiscal' : 'Tax treatment');
+    }
+
+    const exceptional = template.build(
+      { ...base, taxTreatment: 'Approved exceptional tax wording.' },
+      'en',
+    );
+    expect(JSON.stringify(exceptional)).toContain('Tax treatment');
+    expect(JSON.stringify(exceptional)).toContain('Approved exceptional tax wording.');
+
+    const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
+    expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
+    expect(JSON.stringify(withoutCustomerReference)).not.toContain('BC-TEST-2026-0042');
+  });
 });

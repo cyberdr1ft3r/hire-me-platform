@@ -93,7 +93,31 @@ export function CommercialDetailView({
   );
 }
 
-type Confirming = { action: LifecycleAction; reason: string; issueDate: string; dueDate: string };
+type Confirming = {
+  action: LifecycleAction;
+  reason: string;
+  issueDate: string;
+  dueDate: string;
+  sellerLegalName: string;
+  sellerLegalForm: string;
+  sellerCapital: string;
+  sellerAddress: string;
+  sellerIce: string;
+  sellerTaxId: string;
+  sellerRegistrationNumber: string;
+  sellerEmail: string;
+  sellerWebsite: string;
+  buyerLegalName: string;
+  buyerAddress: string;
+  buyerIce: string;
+  buyerTaxId: string;
+  buyerBillingContact: string;
+  customerReference: string;
+  paymentTerms: string;
+  paymentMethod: string;
+  bankDetails: string;
+  taxTreatment: string;
+};
 
 function RecordDetail({
   access,
@@ -117,6 +141,7 @@ function RecordDetail({
   const heading = useRef<HTMLHeadingElement>(null);
   const [confirming, setConfirming] = useState<Confirming | null>(null);
   const [reasonError, setReasonError] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
   const { kind, record } = detail;
   const writesLocked = pending !== null;
   const archived = record.archivedAt !== null || record.status === 'ARCHIVED';
@@ -133,10 +158,39 @@ function RecordDetail({
     : followUpKinds(kind, record.status).filter((target) => access.manage[target]);
   const chain = commercialChain(detail);
 
+  function updateConfirmation(next: Partial<Confirming>): void {
+    setConfirming((current) => (current ? { ...current, ...next } : current));
+  }
+
   function start(action: LifecycleAction): void {
     if (actionNeedsConfirmation(kind, action)) {
       setReasonError(false);
-      setConfirming({ action, dueDate: '', issueDate: '', reason: '' });
+      setIssueError(null);
+      setConfirming({
+        action,
+        dueDate: kind === 'invoice' ? (record.dueDate?.slice(0, 10) ?? '') : '',
+        issueDate: kind === 'invoice' ? (record.issueDate?.slice(0, 10) ?? '') : '',
+        reason: '',
+        sellerLegalName: '',
+        sellerLegalForm: '',
+        sellerCapital: '',
+        sellerAddress: '',
+        sellerIce: '',
+        sellerTaxId: '',
+        sellerRegistrationNumber: '',
+        sellerEmail: '',
+        sellerWebsite: '',
+        buyerLegalName: record.display.clientName,
+        buyerAddress: '',
+        buyerIce: '',
+        buyerTaxId: '',
+        buyerBillingContact: '',
+        customerReference: '',
+        paymentTerms: '',
+        paymentMethod: '',
+        bankDetails: '',
+        taxTreatment: '',
+      });
       return;
     }
     void onAction(action, {});
@@ -149,10 +203,77 @@ function RecordDetail({
       setReasonError(true);
       return;
     }
+    if (kind === 'invoice' && confirming.action === 'issue') {
+      const required = [
+        confirming.issueDate,
+        confirming.dueDate,
+        confirming.sellerLegalName,
+        confirming.sellerAddress,
+        confirming.buyerLegalName,
+        confirming.buyerAddress,
+        confirming.paymentTerms,
+      ];
+      if (required.some((value) => !value.trim())) {
+        setIssueError(t('commercial.detail.confirm.invoiceDetailsRequired'));
+        return;
+      }
+      if (confirming.dueDate < confirming.issueDate) {
+        setIssueError(t('commercial.detail.confirm.invoiceDueDateInvalid'));
+        return;
+      }
+    }
+    setIssueError(null);
     void onAction(confirming.action, {
       dueDate: confirming.dueDate || undefined,
       issueDate: confirming.issueDate || undefined,
       reason: confirming.reason,
+      ...(kind === 'invoice' && confirming.action === 'issue'
+        ? {
+            businessDetails: {
+              sellerLegalName: confirming.sellerLegalName.trim(),
+              ...(confirming.sellerLegalForm.trim()
+                ? { sellerLegalForm: confirming.sellerLegalForm.trim() }
+                : {}),
+              ...(confirming.sellerCapital.trim()
+                ? { sellerCapital: confirming.sellerCapital.trim() }
+                : {}),
+              sellerAddress: confirming.sellerAddress.trim(),
+              ...(confirming.sellerIce.trim() ? { sellerIce: confirming.sellerIce.trim() } : {}),
+              ...(confirming.sellerTaxId.trim()
+                ? { sellerTaxId: confirming.sellerTaxId.trim() }
+                : {}),
+              ...(confirming.sellerRegistrationNumber.trim()
+                ? { sellerRegistrationNumber: confirming.sellerRegistrationNumber.trim() }
+                : {}),
+              ...(confirming.sellerEmail.trim()
+                ? { sellerEmail: confirming.sellerEmail.trim() }
+                : {}),
+              ...(confirming.sellerWebsite.trim()
+                ? { sellerWebsite: confirming.sellerWebsite.trim() }
+                : {}),
+              buyerLegalName: confirming.buyerLegalName.trim(),
+              buyerAddress: confirming.buyerAddress.trim(),
+              ...(confirming.buyerIce.trim() ? { buyerIce: confirming.buyerIce.trim() } : {}),
+              ...(confirming.buyerTaxId.trim() ? { buyerTaxId: confirming.buyerTaxId.trim() } : {}),
+              ...(confirming.buyerBillingContact.trim()
+                ? { buyerBillingContact: confirming.buyerBillingContact.trim() }
+                : {}),
+              ...(confirming.customerReference.trim()
+                ? { customerReference: confirming.customerReference.trim() }
+                : {}),
+              paymentTerms: confirming.paymentTerms.trim(),
+              ...(confirming.paymentMethod.trim()
+                ? { paymentMethod: confirming.paymentMethod.trim() }
+                : {}),
+              ...(confirming.bankDetails.trim()
+                ? { bankDetails: confirming.bankDetails.trim() }
+                : {}),
+              ...(confirming.taxTreatment.trim()
+                ? { taxTreatment: confirming.taxTreatment.trim() }
+                : {}),
+            },
+          }
+        : {}),
     });
   }
 
@@ -224,11 +345,16 @@ function RecordDetail({
               </p>
               {kind === 'invoice' && confirming.action === 'issue' ? (
                 <div className="commercial-form__grid">
+                  {issueError ? (
+                    <p className="ui-field__error" role="alert">
+                      {issueError}
+                    </p>
+                  ) : null}
                   <TextField
                     hint={t('commercial.detail.confirm.issueDateHint')}
                     label={t('commercial.detail.facts.issueDate')}
                     onChange={(event) =>
-                      setConfirming({ ...confirming, issueDate: event.currentTarget.value })
+                      updateConfirmation({ issueDate: event.currentTarget.value })
                     }
                     type="date"
                     value={confirming.issueDate}
@@ -236,11 +362,177 @@ function RecordDetail({
                   <TextField
                     hint={t('commercial.detail.confirm.dueDateHint')}
                     label={t('commercial.detail.facts.dueDate')}
-                    onChange={(event) =>
-                      setConfirming({ ...confirming, dueDate: event.currentTarget.value })
-                    }
+                    onChange={(event) => updateConfirmation({ dueDate: event.currentTarget.value })}
                     type="date"
                     value={confirming.dueDate}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerLegalName')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerLegalName: event.currentTarget.value })
+                    }
+                    required
+                    value={confirming.sellerLegalName}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerLegalForm')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerLegalForm: event.currentTarget.value })
+                    }
+                    value={confirming.sellerLegalForm}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerCapital')}
+                    maxLength={120}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerCapital: event.currentTarget.value })
+                    }
+                    value={confirming.sellerCapital}
+                  />
+                  <TextArea
+                    label={t('commercial.detail.invoice.sellerAddress')}
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerAddress: event.currentTarget.value })
+                    }
+                    required
+                    rows={2}
+                    value={confirming.sellerAddress}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerIce')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerIce: event.currentTarget.value })
+                    }
+                    value={confirming.sellerIce}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerTaxId')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerTaxId: event.currentTarget.value })
+                    }
+                    value={confirming.sellerTaxId}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerRegistrationNumber')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({
+                        sellerRegistrationNumber: event.currentTarget.value,
+                      })
+                    }
+                    value={confirming.sellerRegistrationNumber}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerEmail')}
+                    maxLength={254}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerEmail: event.currentTarget.value })
+                    }
+                    type="email"
+                    value={confirming.sellerEmail}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerWebsite')}
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerWebsite: event.currentTarget.value })
+                    }
+                    type="url"
+                    value={confirming.sellerWebsite}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.buyerLegalName')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ buyerLegalName: event.currentTarget.value })
+                    }
+                    required
+                    value={confirming.buyerLegalName}
+                  />
+                  <TextArea
+                    label={t('commercial.detail.invoice.buyerAddress')}
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateConfirmation({ buyerAddress: event.currentTarget.value })
+                    }
+                    required
+                    rows={2}
+                    value={confirming.buyerAddress}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.buyerIce')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ buyerIce: event.currentTarget.value })
+                    }
+                    value={confirming.buyerIce}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.buyerTaxId')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ buyerTaxId: event.currentTarget.value })
+                    }
+                    value={confirming.buyerTaxId}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.buyerBillingContact')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ buyerBillingContact: event.currentTarget.value })
+                    }
+                    value={confirming.buyerBillingContact}
+                  />
+                  <TextField
+                    hint={t('commercial.detail.invoice.customerReferenceHint')}
+                    label={t('commercial.detail.invoice.customerReference')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ customerReference: event.currentTarget.value })
+                    }
+                    value={confirming.customerReference}
+                  />
+                  <TextArea
+                    label={t('commercial.detail.invoice.paymentTerms')}
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateConfirmation({ paymentTerms: event.currentTarget.value })
+                    }
+                    required
+                    rows={2}
+                    value={confirming.paymentTerms}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.paymentMethod')}
+                    maxLength={180}
+                    onChange={(event) =>
+                      updateConfirmation({ paymentMethod: event.currentTarget.value })
+                    }
+                    value={confirming.paymentMethod}
+                  />
+                  <TextArea
+                    label={t('commercial.detail.invoice.bankDetails')}
+                    maxLength={1000}
+                    onChange={(event) =>
+                      updateConfirmation({ bankDetails: event.currentTarget.value })
+                    }
+                    rows={2}
+                    value={confirming.bankDetails}
+                  />
+                  <TextArea
+                    label={t('commercial.detail.invoice.taxTreatment')}
+                    hint={t('commercial.detail.invoice.taxTreatmentHint')}
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateConfirmation({ taxTreatment: event.currentTarget.value })
+                    }
+                    rows={2}
+                    value={confirming.taxTreatment}
                   />
                 </div>
               ) : null}
@@ -256,7 +548,7 @@ function RecordDetail({
                   maxLength={500}
                   onChange={(event) => {
                     setReasonError(false);
-                    setConfirming({ ...confirming, reason: event.currentTarget.value });
+                    updateConfirmation({ reason: event.currentTarget.value });
                   }}
                   required={actionRequiresReason(kind, confirming.action)}
                   rows={3}
@@ -469,6 +761,107 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
         ) : null}
         <Fact label={t('commercial.detail.facts.created')}>{date(record.createdAt)}</Fact>
       </dl>
+
+      {detail.kind === 'invoice' && detail.record.businessDetails ? (
+        <section aria-labelledby="commercial-invoice-business-title" className="commercial-section">
+          <h3 className="commercial-section__title" id="commercial-invoice-business-title">
+            {t('commercial.detail.invoice.snapshotTitle')}
+          </h3>
+          <dl className="commercial-facts">
+            <Fact label={t('commercial.detail.invoice.sellerLegalName')}>
+              {detail.record.businessDetails.sellerLegalName}
+            </Fact>
+            {detail.record.businessDetails.sellerLegalForm ? (
+              <Fact label={t('commercial.detail.invoice.sellerLegalForm')}>
+                {detail.record.businessDetails.sellerLegalForm}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerCapital ? (
+              <Fact label={t('commercial.detail.invoice.sellerCapital')}>
+                {detail.record.businessDetails.sellerCapital}
+              </Fact>
+            ) : null}
+            <Fact label={t('commercial.detail.invoice.sellerAddress')}>
+              <span className="commercial-break">
+                {detail.record.businessDetails.sellerAddress}
+              </span>
+            </Fact>
+            {detail.record.businessDetails.sellerIce ? (
+              <Fact label={t('commercial.detail.invoice.sellerIce')}>
+                {detail.record.businessDetails.sellerIce}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerTaxId ? (
+              <Fact label={t('commercial.detail.invoice.sellerTaxId')}>
+                {detail.record.businessDetails.sellerTaxId}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerRegistrationNumber ? (
+              <Fact label={t('commercial.detail.invoice.sellerRegistrationNumber')}>
+                {detail.record.businessDetails.sellerRegistrationNumber}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerEmail ? (
+              <Fact label={t('commercial.detail.invoice.sellerEmail')}>
+                {detail.record.businessDetails.sellerEmail}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerWebsite ? (
+              <Fact label={t('commercial.detail.invoice.sellerWebsite')}>
+                {detail.record.businessDetails.sellerWebsite}
+              </Fact>
+            ) : null}
+            <Fact label={t('commercial.detail.invoice.buyerLegalName')}>
+              {detail.record.businessDetails.buyerLegalName}
+            </Fact>
+            <Fact label={t('commercial.detail.invoice.buyerAddress')}>
+              <span className="commercial-break">{detail.record.businessDetails.buyerAddress}</span>
+            </Fact>
+            {detail.record.businessDetails.buyerIce ? (
+              <Fact label={t('commercial.detail.invoice.buyerIce')}>
+                {detail.record.businessDetails.buyerIce}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.buyerTaxId ? (
+              <Fact label={t('commercial.detail.invoice.buyerTaxId')}>
+                {detail.record.businessDetails.buyerTaxId}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.buyerBillingContact ? (
+              <Fact label={t('commercial.detail.invoice.buyerBillingContact')}>
+                {detail.record.businessDetails.buyerBillingContact}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.customerReference ? (
+              <Fact label={t('commercial.detail.invoice.customerReference')}>
+                {detail.record.businessDetails.customerReference}
+              </Fact>
+            ) : null}
+            <Fact label={t('commercial.detail.invoice.paymentTerms')}>
+              <span className="commercial-break">{detail.record.businessDetails.paymentTerms}</span>
+            </Fact>
+            {detail.record.businessDetails.paymentMethod ? (
+              <Fact label={t('commercial.detail.invoice.paymentMethod')}>
+                {detail.record.businessDetails.paymentMethod}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.bankDetails ? (
+              <Fact label={t('commercial.detail.invoice.bankDetails')}>
+                <span className="commercial-break">
+                  {detail.record.businessDetails.bankDetails}
+                </span>
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.taxTreatment ? (
+              <Fact label={t('commercial.detail.invoice.taxTreatment')}>
+                <span className="commercial-break">
+                  {detail.record.businessDetails.taxTreatment}
+                </span>
+              </Fact>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
 
       <section aria-labelledby="commercial-amounts-title" className="commercial-section">
         <h3 className="commercial-section__title" id="commercial-amounts-title">

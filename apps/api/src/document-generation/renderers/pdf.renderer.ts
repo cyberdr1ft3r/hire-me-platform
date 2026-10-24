@@ -44,6 +44,13 @@ const headingSize = 13;
 const titleSize = 18;
 const lineGap = 4;
 const cellPadding = 6;
+const ink = '#102a2e';
+const muted = '#5f7378';
+const brandTeal = '#0d6675';
+const paleTeal = '#dceef1';
+const paleGray = '#edf1f2';
+const panelBorder = '#c8d5d8';
+const statusFill = '#e1f2ea';
 
 /** Fixed metadata keeps identical content byte-identical between renders. */
 const fixedTimestamp = new Date(Date.UTC(2000, 0, 1));
@@ -214,20 +221,124 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     }
   };
 
-  drawText(document.title, 'bold', titleSize);
-  cursor.y += 4;
-  if (document.subtitle) {
-    drawText(document.subtitle, 'regular', bodySize);
+  const drawAbsoluteText = (
+    text: string,
+    weight: FontWeight,
+    size: number,
+    left: number,
+    top: number,
+    available: number,
+    color: string,
+    align: 'left' | 'right' = 'left',
+  ): number => {
+    const sanitized = sanitizeText(text);
+    const rightToLeft = lineIsRtl(sanitized);
+    const base = rightToLeft ? 'rtl' : 'ltr';
+    const lines = layoutLine(writer, sanitized, weight, size, available, base);
+    pdf.fillColor(color);
+    let y = top;
+    for (const laidOut of lines) {
+      let x = align === 'right' ? left + available - laidOut.width : left;
+      const ascent = writer.ascent(fontKey('latin', weight), size);
+      for (const group of laidOut.groups) {
+        writer.draw(fontKey(group.script, weight), size, group.segments, x, y, ascent);
+        x += group.width;
+      }
+      y += lineHeightFor(size);
+    }
+    pdf.fillColor(ink);
+    return y;
+  };
+
+  const branded = document.presentation?.kind === 'hireme-commercial';
+  pdf.fillColor(ink);
+  if (branded && document.presentation) {
+    pdf.rect(margin, 40, contentWidth, 4).fill(brandTeal);
+    const hire = layoutLine(writer, 'HIRE', 'bold', 24, 120, 'ltr')[0]!;
+    drawAbsoluteText('HIRE', 'bold', 24, margin, 66, 120, brandTeal);
+    // The approved wordmark is preserved; only the inter-word gap is tightened to 6 pt.
+    drawAbsoluteText('ME', 'bold', 24, margin + hire.width + 6, 66, 80, brandTeal);
+    drawAbsoluteText('Cabinet de recrutement digital', 'regular', 8, margin, 94, 230, muted);
+    drawAbsoluteText(
+      document.presentation.documentLabel,
+      'bold',
+      22,
+      pageWidth - margin - 230,
+      65,
+      230,
+      ink,
+      'right',
+    );
+    drawAbsoluteText(
+      document.presentation.reference,
+      'bold',
+      11,
+      pageWidth - margin - 230,
+      94,
+      230,
+      brandTeal,
+      'right',
+    );
+    if (document.presentation.status) {
+      const badgeWidth = 92;
+      const badgeLeft = pageWidth - margin - 230 - badgeWidth - 12;
+      pdf.rect(badgeLeft, 113, badgeWidth, 22).fill(statusFill);
+      drawAbsoluteText(
+        document.presentation.status.toUpperCase(),
+        'bold',
+        9,
+        badgeLeft + 7,
+        119,
+        badgeWidth - 14,
+        ink,
+      );
+    }
+    document.presentation.details.forEach((row, index) => {
+      drawAbsoluteText(
+        `${row.label}: ${row.value}`,
+        'regular',
+        8,
+        pageWidth - margin - 230,
+        113 + index * 13,
+        230,
+        muted,
+        'right',
+      );
+    });
+    cursor.y = 151;
+  } else {
+    drawText(document.title, 'bold', titleSize);
+    cursor.y += 4;
+    if (document.subtitle) {
+      drawText(document.subtitle, 'regular', bodySize);
+    }
+    cursor.y += 8;
   }
-  cursor.y += 8;
 
   for (const block of document.blocks) {
-    drawBlock(writer, block, { drawText, ensureSpace, drawLine, cursor });
+    drawBlock(writer, block, {
+      pdf,
+      branded,
+      drawText,
+      ensureSpace,
+      drawLine,
+      drawAbsoluteText,
+      cursor,
+    });
   }
 
   if (document.footer) {
-    cursor.y += 8;
-    drawText(document.footer, 'regular', bodySize - 1);
+    if (branded) {
+      const footerY = pageHeight - 42;
+      pdf
+        .moveTo(margin, footerY - 8)
+        .lineTo(pageWidth - margin, footerY - 8)
+        .stroke(panelBorder);
+      drawAbsoluteText(document.footer, 'regular', 7, margin, footerY, contentWidth - 45, muted);
+    } else {
+      cursor.y += 8;
+      drawText(document.footer, 'regular', bodySize - 1);
+    }
   }
 
   pdf.end();
@@ -236,6 +347,8 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
 }
 
 type DrawContext = {
+  pdf: Pdf;
+  branded: boolean;
   drawText: (text: string, weight: FontWeight, size: number, indent?: number) => void;
   ensureSpace: (needed: number) => void;
   drawLine: (
@@ -246,16 +359,37 @@ type DrawContext = {
     available: number,
     rightToLeft: boolean,
   ) => void;
+  drawAbsoluteText: (
+    text: string,
+    weight: FontWeight,
+    size: number,
+    left: number,
+    top: number,
+    available: number,
+    color: string,
+    align?: 'left' | 'right',
+  ) => number;
   cursor: { y: number };
 };
 
 function drawBlock(writer: ShapedTextWriter, block: RenderableBlock, context: DrawContext): void {
-  const { drawText, ensureSpace, drawLine, cursor } = context;
+  const { pdf, branded, drawText, ensureSpace, drawLine, drawAbsoluteText, cursor } = context;
   switch (block.kind) {
     case 'heading':
-      cursor.y += 6;
-      drawText(block.text, 'bold', headingSize);
-      cursor.y += 2;
+      if (branded) {
+        cursor.y += 7;
+        ensureSpace(24);
+        pdf.rect(margin, cursor.y, contentWidth, 22).fill(paleGray);
+        cursor.y += 5;
+        pdf.fillColor(brandTeal);
+        drawText(block.text.toUpperCase(), 'bold', 10);
+        pdf.fillColor(ink);
+        cursor.y += 5;
+      } else {
+        cursor.y += 6;
+        drawText(block.text, 'bold', headingSize);
+        cursor.y += 2;
+      }
       return;
     case 'paragraph':
       drawText(block.text, 'regular', bodySize);
@@ -263,16 +397,16 @@ function drawBlock(writer: ShapedTextWriter, block: RenderableBlock, context: Dr
       return;
     case 'keyValues':
       for (const row of block.rows) {
-        drawText(`${row.label}: ${row.value}`, 'regular', bodySize);
+        drawText(`${row.label}: ${row.value}`, 'regular', branded ? 9 : bodySize);
       }
-      cursor.y += 4;
+      cursor.y += branded ? 7 : 4;
       return;
     case 'table': {
       const columnCount = Math.max(block.columns.length, 1);
       const columnWidth = contentWidth / columnCount;
       const usableWidth = columnWidth - cellPadding;
 
-      const drawRow = (cells: readonly string[], weight: FontWeight): void => {
+      const drawRow = (cells: readonly string[], weight: FontWeight, isHeader = false): void => {
         const wrapped = cells.map((cell) =>
           textLines(sanitizeText(cell)).flatMap((logicalLine) => {
             const rightToLeft = lineIsRtl(logicalLine);
@@ -294,6 +428,20 @@ function drawBlock(writer: ShapedTextWriter, block: RenderableBlock, context: Dr
           }
           const chunk = Math.min(rowLines - drawn, available);
           const startY = cursor.y;
+          if (branded) {
+            const chunkHeight = chunk * height + 4;
+            pdf
+              .rect(margin, startY - 2, contentWidth, chunkHeight)
+              .fillAndStroke(isHeader ? brandTeal : '#ffffff', panelBorder);
+            for (let index = 1; index < columnCount; index += 1) {
+              const x = margin + index * columnWidth;
+              pdf
+                .moveTo(x, startY - 2)
+                .lineTo(x, startY - 2 + chunkHeight)
+                .stroke(panelBorder);
+            }
+            pdf.fillColor(isHeader ? '#ffffff' : ink);
+          }
           for (let offset = 0; offset < chunk; offset += 1) {
             wrapped.forEach((lines, index) => {
               const entry = lines[drawn + offset];
@@ -313,15 +461,112 @@ function drawBlock(writer: ShapedTextWriter, block: RenderableBlock, context: Dr
           }
           cursor.y = startY + chunk * height;
           drawn += chunk;
+          pdf.fillColor(ink);
         }
-        cursor.y += 2;
+        cursor.y += branded ? 6 : 2;
       };
 
-      drawRow(block.columns, 'bold');
+      drawRow(block.columns, 'bold', true);
       for (const row of block.rows) {
         drawRow(row, 'regular');
       }
+      cursor.y += branded ? 8 : 4;
+      return;
+    }
+    case 'panelGrid': {
+      const panels = block.panels.slice(0, 2);
+      if (panels.length === 0) {
+        return;
+      }
+      const gap = panels.length > 1 ? 4 : 0;
+      const panelWidth = (contentWidth - gap) / panels.length;
+      const innerWidth = panelWidth - 16;
+      const panelLines = panels.map((panel) =>
+        panel.rows.map((row) => {
+          const text = `${row.label}: ${row.value}`;
+          return textLines(sanitizeText(text)).flatMap((logicalLine) => {
+            const rightToLeft = lineIsRtl(logicalLine);
+            return layoutLine(
+              writer,
+              logicalLine,
+              'regular',
+              8,
+              innerWidth,
+              rightToLeft ? 'rtl' : 'ltr',
+            ).map((laidOut) => ({ laidOut, rightToLeft }));
+          });
+        }),
+      );
+      const bodyHeights = panelLines.map(
+        (rows) => rows.reduce((sum, lines) => sum + Math.max(lines.length, 1) * 11, 0) + 12,
+      );
+      const panelHeight = 24 + Math.max(...bodyHeights, 24);
+      cursor.y += 5;
+      ensureSpace(panelHeight + 7);
+      const top = cursor.y;
+      panels.forEach((panel, panelIndex) => {
+        const left = margin + panelIndex * (panelWidth + gap);
+        pdf.rect(left, top, panelWidth, panelHeight).stroke(panelBorder);
+        pdf.rect(left, top, panelWidth, 24).fill(paleTeal);
+        drawAbsoluteText(
+          panel.heading.toUpperCase(),
+          'bold',
+          10,
+          left + 8,
+          top + 7,
+          panelWidth - 16,
+          brandTeal,
+        );
+        let rowY = top + 31;
+        panelLines[panelIndex]!.forEach((lines) => {
+          for (const { laidOut, rightToLeft } of lines) {
+            cursor.y = rowY;
+            pdf.fillColor(ink);
+            drawLine(laidOut, 'regular', 8, left + 8, innerWidth, rightToLeft);
+            rowY += 11;
+          }
+        });
+      });
+      cursor.y = top + panelHeight + 7;
+      pdf.fillColor(ink);
+      return;
+    }
+    case 'totals': {
+      const boxWidth = contentWidth * 0.5;
+      const left = margin + contentWidth - boxWidth;
+      const rowHeight = 26;
       cursor.y += 4;
+      ensureSpace(block.rows.length * rowHeight + 10);
+      const top = cursor.y;
+      block.rows.forEach((row, index) => {
+        const rowTop = top + index * rowHeight;
+        const isTotal = index === block.rows.length - 1;
+        pdf
+          .rect(left, rowTop, boxWidth, rowHeight)
+          .fillAndStroke(isTotal ? brandTeal : paleGray, panelBorder);
+        drawAbsoluteText(
+          row.label,
+          'bold',
+          isTotal ? 11 : 9,
+          left + 10,
+          rowTop + 8,
+          boxWidth * 0.52 - 12,
+          isTotal ? '#ffffff' : ink,
+          'right',
+        );
+        drawAbsoluteText(
+          row.value,
+          'bold',
+          isTotal ? 11 : 9,
+          left + boxWidth * 0.52,
+          rowTop + 8,
+          boxWidth * 0.48 - 10,
+          isTotal ? '#ffffff' : brandTeal,
+          'right',
+        );
+      });
+      cursor.y = top + block.rows.length * rowHeight + 8;
+      pdf.fillColor(ink);
       return;
     }
     default: {
@@ -351,11 +596,32 @@ export function documentStrings(document: RenderableDocument): string[] {
           values.push(...row);
         }
         break;
+      case 'panelGrid':
+        for (const panel of block.panels) {
+          values.push(panel.heading);
+          for (const row of panel.rows) {
+            values.push(row.label, row.value);
+          }
+        }
+        break;
+      case 'totals':
+        for (const row of block.rows) {
+          values.push(row.label, row.value);
+        }
+        break;
       default: {
         const exhaustive: never = block;
         throw new Error(`Unsupported renderable block: ${JSON.stringify(exhaustive)}`);
       }
     }
+  }
+  if (document.presentation) {
+    values.push(
+      document.presentation.documentLabel,
+      document.presentation.reference,
+      document.presentation.status ?? '',
+      ...document.presentation.details.flatMap((row) => [row.label, row.value]),
+    );
   }
   return values;
 }

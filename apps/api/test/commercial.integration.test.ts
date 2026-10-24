@@ -51,6 +51,31 @@ const commercialPermissions = [
   'invoices:manage',
 ];
 
+const invoiceIssueDetails = {
+  issueDate: '2026-10-23T00:00:00.000Z',
+  dueDate: '2026-11-23T00:00:00.000Z',
+  businessDetails: {
+    sellerLegalName: 'Synthetic HireMe SARL',
+    sellerLegalForm: 'Synthetic SARL',
+    sellerCapital: '100 000 MAD synthetic',
+    sellerAddress: '1 Synthetic Avenue, Casablanca',
+    sellerIce: 'SYNTHETIC-ICE',
+    sellerTaxId: 'SYNTHETIC-IF',
+    sellerRegistrationNumber: 'SYNTHETIC-RC',
+    sellerEmail: 'synthetic@example.invalid',
+    sellerWebsite: 'https://example.invalid',
+    buyerLegalName: 'Synthetic Client SA',
+    buyerAddress: '2 Test Street, Rabat',
+    buyerIce: 'CLIENT-ICE',
+    buyerTaxId: 'CLIENT-IF',
+    buyerBillingContact: 'Synthetic Billing Contact',
+    customerReference: 'BC-TEST-2026-0042',
+    paymentTerms: 'Bank transfer within 30 days.',
+    paymentMethod: 'Synthetic transfer',
+    bankDetails: 'Synthetic test account only.',
+  },
+};
+
 async function cleanCommercialTestRecords(): Promise<void> {
   await prisma.invoiceEvent.deleteMany({
     where: { invoice: { reference: { startsWith: 'I38-' } } },
@@ -615,11 +640,36 @@ describe('commercial workflow foundation', () => {
       }),
     });
     const invoice = InvoiceDetailResponseSchema.parse(await created.json()).invoice;
-    await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+    const issued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
       method: 'POST',
       headers: authHeaders(commercialToken),
-      body: JSON.stringify({ reason: 'Issue snapshot.' }),
+      body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Issue snapshot.' }),
     });
+    expect(issued.status).toBe(200);
+
+    const repeatedIssue = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        ...invoiceIssueDetails,
+        businessDetails: {
+          ...invoiceIssueDetails.businessDetails,
+          customerReference: 'BC-CHANGED-AFTER-ISSUE',
+        },
+        reason: 'Attempt to replace issued customer reference.',
+      }),
+    });
+    expect(repeatedIssue.status).toBe(200);
+    const repeatedInvoice = InvoiceDetailResponseSchema.parse(await repeatedIssue.json()).invoice;
+    expect(repeatedInvoice.businessDetails?.customerReference).toBe('BC-TEST-2026-0042');
+    expect(repeatedInvoice.businessDetails?.taxTreatment).toBeNull();
+
+    const updateIssued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({ reference: 'I38-SNAPSHOT-CHANGED' }),
+    });
+    expect(await readErrorCode(updateIssued)).toBe('INVOICE_MUTATION_BLOCKED');
     await prisma.commercialQuotationLine.updateMany({
       where: { quotationId: quotation.id },
       data: { unitPriceCents: 999999, lineSubtotalCents: 999999, lineTotalCents: 999999 },
@@ -630,6 +680,57 @@ describe('commercial workflow foundation', () => {
     const reloadedBody = InvoiceDetailResponseSchema.parse(await reloaded.json());
     expect(reloadedBody.invoice.amounts?.totalCents).toBe(24000);
     expect(reloadedBody.invoice.lines?.[0]?.unitPriceCents).toBe(10000);
+    expect(reloadedBody.invoice.businessDetails).toEqual({
+      ...invoiceIssueDetails.businessDetails,
+      taxTreatment: null,
+    });
+  });
+
+  it('snapshots approved exceptional tax wording and does not replace it after issuance', async () => {
+    const { client } = await createClientAndMission('Issue38 Exceptional Tax', commercialUserId);
+    const quotation = await createQuotation(baseUrl, commercialToken, client.id, 'Q38-TAX');
+    await prisma.commercialQuotation.update({
+      where: { id: quotation.id },
+      data: { status: 'ACCEPTED' },
+    });
+    const created = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify({
+        reference: 'I38-TAX',
+        clientId: client.id,
+        quotationId: quotation.id,
+        currency: 'MAD',
+      }),
+    });
+    const invoice = InvoiceDetailResponseSchema.parse(await created.json()).invoice;
+    const exceptionalDetails = {
+      ...invoiceIssueDetails,
+      businessDetails: {
+        ...invoiceIssueDetails.businessDetails,
+        taxTreatment: 'Approved exceptional tax wording.',
+      },
+    };
+    const issued = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify(exceptionalDetails),
+    });
+    expect(issued.status).toBe(200);
+    expect(
+      InvoiceDetailResponseSchema.parse(await issued.json()).invoice.businessDetails?.taxTreatment,
+    ).toBe('Approved exceptional tax wording.');
+
+    const repeated = await fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
+      method: 'POST',
+      headers: authHeaders(commercialToken),
+      body: JSON.stringify(invoiceIssueDetails),
+    });
+    expect(repeated.status).toBe(200);
+    expect(
+      InvoiceDetailResponseSchema.parse(await repeated.json()).invoice.businessDetails
+        ?.taxTreatment,
+    ).toBe('Approved exceptional tax wording.');
   });
 
   it('requires authoritative eligible placements and rejects accepted-offer-only invoice attempts', async () => {
@@ -936,12 +1037,12 @@ describe('commercial workflow foundation', () => {
       fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
         method: 'POST',
         headers: authHeaders(commercialToken),
-        body: JSON.stringify({ reason: 'Concurrent A' }),
+        body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Concurrent A' }),
       }),
       fetch(`${baseUrl}/v1/commercial/invoices/${invoice.id}/issue`, {
         method: 'POST',
         headers: authHeaders(commercialToken),
-        body: JSON.stringify({ reason: 'Concurrent B' }),
+        body: JSON.stringify({ ...invoiceIssueDetails, reason: 'Concurrent B' }),
       }),
     ]);
     expect(first.status).toBe(200);
@@ -1230,7 +1331,7 @@ describe('commercial workflow foundation', () => {
         updateBody: { dueDate: '2026-10-01T00:00:00.000Z' },
         statusPath: `/v1/commercial/invoices/${hiddenInvoice.id}/issue`,
         missingStatusPath: `/v1/commercial/invoices/${missingId}/issue`,
-        statusBody: { reason: 'Issue' },
+        statusBody: invoiceIssueDetails,
         archivePath: `/v1/commercial/invoices/${hiddenInvoice.id}/archive`,
         missingArchivePath: `/v1/commercial/invoices/${missingId}/archive`,
       },

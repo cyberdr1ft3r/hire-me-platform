@@ -1,11 +1,12 @@
 # Decision Log
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 Use this log for accepted project-level decisions. Detailed architectural decisions may later be promoted into individual ADR files. Do not record unresolved ideas as accepted decisions.
 
 | ID | Date | Status | Decision | Rationale / source |
 | --- | --- | --- | --- | --- |
+| D-093 | 2026-10-24 | Accepted (Issue #237 / PR #240 owner clarification) | A standard invoice subject to 20% TVA carries no dedicated explanatory fiscal-treatment section; its rate, tax amount, and TTC are shown in the financial table. Optional exceptional fiscal wording is captured immutably and rendered only when legally required or explicitly approved and supplied. Internal test explanations and owner-confirmation notes never enter customer-facing output. | Product-owner correction for final invoice PDF acceptance; avoids invented legal wording while preserving calculations, lifecycle, fingerprinting, and issued-invoice immutability. |
 | D-001 | 2026-07-21 | Accepted | GitHub is the project source of truth for issues, pull requests, documentation, goals, status, decisions, risks, and agent handoffs. | Enables persistent human- and agent-readable context across sessions. |
 | D-002 | 2026-07-21 | Accepted | Use a TypeScript monorepo with a modular-monolith backend for the initial implementation. | Keeps the MVP manageable for a single developer while preserving module boundaries; issues #1 and #2. |
 | D-003 | 2026-07-21 | Accepted | Use React + Vite for the web app, NestJS for the API, PostgreSQL for persistence, and Prisma for ORM and migrations. | Required technical direction in issues #1–#3. |
