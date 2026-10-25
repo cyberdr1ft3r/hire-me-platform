@@ -21,13 +21,15 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
-Issue #242 staging delivery preparation is active on `feat/issue-242-cicd` from `main`
-`51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. The bounded design builds API/web images only on
-GitHub-hosted runners, publishes exact-SHA GHCR tags, deploys reviewed digests through a protected
-manual workflow and restricted non-root SSH account, keeps PostgreSQL private, and persists database
-and protected documents separately. Automatic staging deployment, VPS access, installation, DNS,
-merge, and deployment are not authorized. See D-094, R-062, `docs/runbooks/staging-deployment-issue-242.md`,
-and the current status/handoff.
+Issue #245 staging-blocker remediation is active on `fix/issue-245-staging-blockers` from `main`
+`c1bfcaea9511efa9393554471c4f7a088374d8be`, after Issue #242 merged through PR #243. The bounded
+change packages the repository-owned PDF fonts in the final API runtime, proves a synthetic French
+invoice from that container, evaluates the protected Environment auto-deploy variable only after the
+job enters `staging`, and documents the administrative alias's explicit `IdentityFile`. Automatic
+deployment remains exact-lowercase-`true` opt-in and is disabled by default; the immutable GHCR,
+manual review, non-root deploy, and invoice-issuance gates remain unchanged. The 2026-10-25 VPS audit
+was read-only and no deployment or host mutation is authorized. See D-094, R-062,
+`docs/audit/issue-245-staging-blockers.md`, the staging runbook, and the current status/handoff.
 
 Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
 `ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`

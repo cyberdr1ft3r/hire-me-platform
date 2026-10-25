@@ -39,6 +39,32 @@ site configuration.
 4. Obtain separate approval before installing packages, creating users, changing firewall/SSH/DNS,
    starting a proxy, or deploying HireMe.
 
+The approved administrative alias must select its key explicitly. `IdentitiesOnly yes` without an
+`IdentityFile` makes OpenSSH try only its default key names and caused the audited alias to fail even
+though the dedicated key existed. Keep the private key outside the repository and configure the local
+operator workstation as follows, after verifying the host-key file out of band:
+
+```sshconfig
+Host hireme-vps-root
+    HostName 194.195.87.238
+    User root
+    Port 22
+    IdentityFile ~/.ssh/hireme_vps_admin_ed25519
+    IdentitiesOnly yes
+    BatchMode yes
+    PreferredAuthentications publickey
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    HostKeyAlgorithms ssh-ed25519
+    StrictHostKeyChecking yes
+    UserKnownHostsFile ~/.ssh/known_hosts_hireme_staging
+```
+
+Confirm the effective alias with `ssh -G hireme-vps-root` and verify that it reports the explicit
+identity file, strict host-key checking, the dedicated known-hosts file, and no password fallback.
+This alias is for separately approved administration only. CI continues to use the non-root
+`hireme-deploy` account and its independent Environment secret; never reuse the root key in Actions.
+
 ## 3. VPS prerequisites (not assumed)
 
 - Supported Ubuntu host with security updates reviewed and adequate free disk/inodes.
@@ -118,6 +144,14 @@ known_hosts line yields the approved ED25519 fingerprint and keeps strict host-k
 Automatic staging deployment remains inert unless a maintainer explicitly changes
 `STAGING_AUTO_DEPLOY_ENABLED` to `true`. Enable it only after a successful manual deployment, backup
 and restore exercise, rollback exercise, browser acceptance, and security review.
+
+GitHub exposes Environment-level variables only after the protected job starts. The workflow therefore
+checks `STAGING_AUTO_DEPLOY_ENABLED` in its first post-Environment gate step and applies the result to
+every registry, SSH, and deployment step. An absent value, `false`, or any value other than exact
+lowercase `true` succeeds as a no-deploy run. A `workflow_run` may still wait for the Environment's
+required reviewer before that fail-closed gate can execute; this is expected and does not authorize
+SSH or deployment. Manual `workflow_dispatch` remains independently gated by exact `DEPLOY` input and
+the protected Environment review.
 
 ## 6. Backup and restore
 

@@ -32,6 +32,7 @@ jobs:
             docker compose -f deploy/staging/compose.yml config --quiet
           ACME_EMAIL=ops@example.test docker compose -f deploy/proxy/compose.yml config --quiet
           sh -n deploy/staging/bin/hireme-staging-deploy
+          node --test scripts/staging-deploy-gate.test.mjs
 
       - name: Start PostgreSQL
         run: docker compose up -d postgres
@@ -105,6 +106,28 @@ jobs:
 
       - name: Verify compiled generation assets
         run: pnpm --filter @hire-me/api verify:generation-assets
+
+      - name: Build final API runtime image for invoice verification
+        run: >-
+          docker build
+          --file apps/api/Dockerfile
+          --build-arg VCS_REF="$GITHUB_SHA"
+          --tag hire-me-platform-api:invoice-verification
+          .
+
+      - name: Verify French invoice in the actual API runtime container
+        run: |
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:size=16m,mode=1777 \
+            hire-me-platform-api:invoice-verification \
+            node dist/document-generation/container-french-invoice-verification.js \
+            | base64 --decode > "$RUNNER_TEMP/hireme-container-french-invoice.pdf"
+          node apps/api/scripts/verify-container-french-invoice.mjs \
+            "$RUNNER_TEMP/hireme-container-french-invoice.pdf"
 
   signing-pkcs11-lab:
     name: PKCS#11 SoftHSM signing lab (Issue #183)
