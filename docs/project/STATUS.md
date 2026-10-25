@@ -1,7 +1,30 @@
 # Project Status
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 Status owner: repository maintainer
+
+## Issue #242 — GitHub-to-GHCR staging delivery
+
+- Work is isolated on `feat/issue-242-cicd` from `main` `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`.
+  GitHub-hosted CI builds Linux AMD64 API and static-web images only after the four existing gates,
+  and `main` publishes only exact commit-SHA tags to GHCR. A separate protected-environment workflow
+  resolves tags to digests and refuses stale non-head SHAs.
+- The staging Compose design keeps PostgreSQL internal, persists database and private documents in
+  separate volumes, applies resource/security/health controls, and runs forward-only Prisma migrations
+  before API startup. The shared Caddy bundle is conditional: an existing audited proxy remains owner
+  of ports 80/443 and receives only the equivalent HireMe route.
+- Deployment is manual-first and inactive. Automatic `workflow_run` deployment additionally requires
+  exact variable `STAGING_AUTO_DEPLOY_ENABLED=true`. Strict host-key checking and the independently
+  approved ED25519 fingerprint remain mandatory. No VPS connection, installation, DNS edit, deploy,
+  or automatic activation occurred.
+- Production startup now requires an explicit `INVOICE_ISSUANCE_ENABLED` decision. Development/test
+  behavior remains enabled; the staging example is disabled pending business acceptance. Invoice
+  lifecycle, numbering, calculations, permissions, snapshots, document generation, and PDF layout are
+  unchanged.
+- Evidence and operational gates: [Issue #242 CI/CD evidence](../audit/issue-242-cicd.md) and
+  [staging deployment runbook](../runbooks/staging-deployment-issue-242.md). Local container, build,
+  configuration, migration, 68-case invoice/document integration, and five-case catalog gates pass;
+  exact-head GitHub PR CI remains required before merge readiness can be claimed.
 
 ## Login Page v2
 

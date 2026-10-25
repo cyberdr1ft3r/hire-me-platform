@@ -1,0 +1,6 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+import /etc/caddy/sites/*.caddy

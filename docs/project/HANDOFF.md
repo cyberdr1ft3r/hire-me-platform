@@ -1,39 +1,36 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 ## Current situation
 
-- PRs #239 and #240 are merged in base `main` at
-  `4c3d85aec7b89b80322889a539b7857b9a58250e`. Their terminology and invoice decisions remain intact;
-  Login Page v2 changes no invoice code, schema, permission, lifecycle, numbering, calculation, or PDF
-  template.
-- The active work is `feat/login-page-v2`. It refines only the public login presentation and safe
-  client-side failure classification. Existing authentication endpoints, request bodies, memory-only
-  access tokens, HTTP-only refresh-cookie flow, refresh single-flight, session restoration, cross-tab
-  coordination, logout, permission filtering, and backend authorization are unchanged.
-- Login is bilingual and responsive, with explicit field labels, browser autofill hints, visible focus,
-  a labelled pressed-state password visibility button, pending state, synchronous duplicate-submit
-  prevention, safe credential/network errors, and a discreet localized health state. It introduces no
-  password-reset link, registration path, or nonfunctional authentication control.
-- Local verification passes for focused authentication/localization tests, the 44-case App regression,
-  formatting, architecture/style/contrast, lint (one pre-existing warning), typecheck, and production
-  build. Installed Chrome evidence covers 1440 × 900 EN desktop, 800 × 1000 EN tablet, and 390 × 844
-  FR mobile, keyboard order, visibility toggling, Enter submission, and horizontal overflow. The full
-  Windows web run retains the known literal-LF stylesheet failure; exact-head Linux CI remains the
-  authoritative full-suite gate.
+- Active work is Issue #242 on `feat/issue-242-cicd`, based on `main`
+  `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. It introduces GitHub-hosted image builds, immutable
+  SHA-tagged GHCR publication, a secure staging Compose bundle, a conditional shared-Caddy reference,
+  protected manual deployment, and backup/restore/rollback procedures.
+- The deployment workflow refuses a SHA that is not current `main`, resolves both images to registry
+  digests, verifies the exact approved ED25519 fingerprint from a host-specific known_hosts secret,
+  and calls only a root-owned restricted wrapper through a non-root account. Automatic deployment is
+  inert unless the protected environment variable is explicitly set to `true`.
+- The VPS has not been contacted or modified. Its OS, capacity, Docker/Compose, reverse proxy, port
+  owners, workloads, firewall, deploy account, DNS, backups, and monitoring are unverified. The proxy
+  bundle must not be started if another proxy owns 80/443.
+- Staging uses synthetic data only. Invoice issuance is explicitly disabled in the example production
+  environment until business acceptance; the existing invoice implementation is otherwise untouched.
 
 ## Next concrete action
 
-1. Review the draft PR titled `feat: refine HireMe login experience` and its desktop/mobile evidence.
-2. Require all four exact-head CI jobs to remain green before any merge approval.
-3. Keep the PR draft, unmerged, and undeployed until explicit approval.
+1. Open the focused draft PR referencing #242 and require all exact-head jobs, including both image
+   matrix legs, to pass.
+2. Keep the PR unmerged and the deployment workflow unused. After a separately approved read-only VPS
+   audit, provision the documented prerequisites and demonstrate manual deploy, paired backup/restore,
+   rollback, and synthetic browser acceptance before considering automatic staging rollout.
 
 ## Completion conditions
 
-- Successful, invalid-credential, unavailable-service, pending/duplicate, restored-session, cross-tab,
-  password visibility, keyboard, EN/FR, and responsive cases are covered without changing auth
-  contracts or authorization.
-- Desktop and mobile evidence is attached, and all four exact-head CI jobs are green on the reported
-  final SHA.
-- The focused PR remains draft; no merge or deployment occurs.
+- Exact-head CI is green and records immutable SHA tags/digests after merge to main; PR CI performs
+  build-only validation and cannot publish or deploy.
+- GitHub Environment secrets/variables, dedicated SSH access, GHCR pull identity, shared proxy route,
+  private storage, recovery, monitoring, and DNS are independently reviewed and provisioned.
+- No production-readiness claim, real invoice issuance, merge, VPS change, or automatic deployment
+  occurs without the remaining technical, security, recovery, and business approvals.

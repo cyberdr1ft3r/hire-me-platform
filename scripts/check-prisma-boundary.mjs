@@ -78,8 +78,12 @@ assert(
   'apps/api/package.json must own @prisma/client as an API dependency.',
 );
 assert(
-  Object.prototype.hasOwnProperty.call(apiPackage.devDependencies ?? {}, 'prisma'),
-  'apps/api/package.json must own prisma as an API devDependency.',
+  Object.prototype.hasOwnProperty.call(apiPackage.dependencies ?? {}, 'prisma'),
+  'apps/api/package.json must own prisma as an API runtime dependency for reviewed migrations.',
+);
+assert(
+  !Object.prototype.hasOwnProperty.call(apiPackage.devDependencies ?? {}, 'prisma'),
+  'apps/api/package.json must not declare prisma in both dependencies and devDependencies.',
 );
 
 const schemaFiles = walk(repoRoot).filter((file) => file.endsWith('schema.prisma'));
