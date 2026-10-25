@@ -3,6 +3,25 @@
 Last updated: 2026-10-25
 Status owner: repository maintainer
 
+## Issue #245 — staging deployment blocker remediation
+
+- Work is isolated on `fix/issue-245-staging-blockers` from merged Issue #242 / PR #243 `main`
+  `c1bfcaea9511efa9393554471c4f7a088374d8be`. It does not change the VPS, deploy HireMe, or enable
+  automatic deployment.
+- The API production package now includes the repository-owned Noto font assets. CI builds the final
+  runtime image, renders a synthetic French invoice inside it without network or write access, and
+  independently verifies accents, totals, wrapping, embedded font faces, and the absence of active or
+  remote PDF constructs.
+- The staging workflow now reads `STAGING_AUTO_DEPLOY_ENABLED` in its first protected-Environment
+  step. Missing, false, malformed, or mixed-case values skip every registry, SSH, and deployment step;
+  only exact `true` permits a successful-main automatic path. Manual deployment still requires exact
+  `DEPLOY` plus Environment approval.
+- The runbook records an explicit administrative `IdentityFile`, `IdentitiesOnly yes`, strict
+  host-key checking, and disabled password/keyboard-interactive fallback. The administrative root key
+  remains separate from the CI-only non-root deploy identity.
+- Evidence: [Issue #245 staging blockers](../audit/issue-245-staging-blockers.md). Exact-head draft-PR
+  CI and review remain the final implementation gates.
+
 ## Issue #242 — GitHub-to-GHCR staging delivery
 
 - Work is isolated on `feat/issue-242-cicd` from `main` `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`.

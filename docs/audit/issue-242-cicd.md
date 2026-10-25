@@ -14,9 +14,9 @@
 | Backup/rollback | No staging procedure | Quiesced predeploy database/doc recovery set; forward-only migration rollback rule |
 | Invoice acceptance | Business/legal blocker documented | Explicit production issuance switch, disabled in staging example |
 
-No VPS connection or mutation was made. Docker, Compose, reverse proxy, deploy account, services,
-ports, firewall, operating system, capacity, workloads, and backup tooling remain unverified until the
-separately approved read-only audit.
+Issue #242 made no VPS connection or mutation. The separately approved 2026-10-25 read-only audit is
+now complete; Issue #245 records its repository remediations and the remaining host provisioning,
+firewall/reboot, proxy, backup/recovery, and monitoring gates. No deployment was performed.
 
 ## Verification record
 

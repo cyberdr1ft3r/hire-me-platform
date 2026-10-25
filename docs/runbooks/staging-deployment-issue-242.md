@@ -39,6 +39,32 @@ site configuration.
 4. Obtain separate approval before installing packages, creating users, changing firewall/SSH/DNS,
    starting a proxy, or deploying HireMe.
 
+The approved administrative alias must select its key explicitly. `IdentitiesOnly yes` without an
+`IdentityFile` makes OpenSSH try only its default key names and caused the audited alias to fail even
+though the dedicated key existed. Keep the private key outside the repository and configure the local
+operator workstation as follows, after verifying the host-key file out of band:
+
+```sshconfig
+Host hireme-vps-root
+    HostName 194.195.87.238
+    User root
+    Port 22
+    IdentityFile ~/.ssh/hireme_vps_admin_ed25519
+    IdentitiesOnly yes
+    BatchMode yes
+    PreferredAuthentications publickey
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    HostKeyAlgorithms ssh-ed25519
+    StrictHostKeyChecking yes
+    UserKnownHostsFile ~/.ssh/known_hosts_hireme_staging
+```
+
+Confirm the effective alias with `ssh -G hireme-vps-root` and verify that it reports the explicit
+identity file, strict host-key checking, the dedicated known-hosts file, and no password fallback.
+This alias is for separately approved administration only. CI continues to use the non-root
+`hireme-deploy` account and its independent Environment secret; never reuse the root key in Actions.
+
 ## 3. VPS prerequisites (not assumed)
 
 - Supported Ubuntu host with security updates reviewed and adequate free disk/inodes.
@@ -89,7 +115,7 @@ available, and restrict deployments to `main`. Configure:
 | Secret | `STAGING_SSH_HOST_KEY` | Exact host-specific known_hosts ED25519 line for `194.195.87.238` |
 | Variable | `STAGING_SSH_USER` | `hireme-deploy` after independent login verification |
 | Variable | `STAGING_SSH_PORT` | Audited SSH port, normally `22` |
-| Variable | `STAGING_AUTO_DEPLOY_ENABLED` | Keep absent or exactly `false` initially |
+| Environment variable | `STAGING_AUTO_DEPLOY_ENABLED` | Keep absent or exactly `false` initially; second fail-closed gate after Environment approval |\n| Repository variable | `STAGING_AUTO_DEPLOY_REQUESTS_ENABLED` | Keep absent or exactly `false` initially; prevents automatic jobs from requesting Environment approval |
 
 `GITHUB_TOKEN` supplies package write/read inside Actions; no long-lived GitHub token is needed there.
 The VPS pull token is independent and never stored in GitHub Actions. The workflow checks the pinned
@@ -115,9 +141,23 @@ known_hosts line yields the approved ED25519 fingerprint and keeps strict host-k
    unless business acceptance explicitly allows issuance. Never use real customer data.
 9. Copy the backup off-host using an approved encrypted channel and record the restore drill evidence.
 
-Automatic staging deployment remains inert unless a maintainer explicitly changes
-`STAGING_AUTO_DEPLOY_ENABLED` to `true`. Enable it only after a successful manual deployment, backup
-and restore exercise, rollback exercise, browser acceptance, and security review.
+Automatic staging deployment has **two independent explicit switches**. The repository-level
+`STAGING_AUTO_DEPLOY_REQUESTS_ENABLED` must equal exact lowercase `true` for a successful main CI
+`workflow_run` event to start the protected staging job at all. When absent or disabled, automatic
+runs skip the job and **do not request Environment review**. This repository-level switch is only a
+preflight gate; it does not authorize deployment by itself.
+
+After the protected job receives Environment approval, its first step checks the separate
+Environment-scoped `STAGING_AUTO_DEPLOY_ENABLED` variable. Only exact lowercase `true` allows
+registry, SSH, and deployment steps to proceed. Missing, mixed-case, or padded values fail closed.
+A manual `workflow_dispatch` still requires exact `DEPLOY` confirmation and protected Environment
+review; neither automatic switch is required for approved manual deploys.
+
+Keep **both** automatic switches absent or `false` until a verified manual rollout, paired backup
+and restore drill, rollback exercise, browser acceptance, and security review. When approved, enable
+the Environment switch first and the repository switch last. Disable the repository switch first
+to stop new automatic approval requests. Never interpret approval requests alone as deployment.
+
 
 ## 6. Backup and restore
 

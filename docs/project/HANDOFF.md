@@ -4,33 +4,30 @@ Last updated: 2026-10-25
 
 ## Current situation
 
-- Active work is Issue #242 on `feat/issue-242-cicd`, based on `main`
-  `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. It introduces GitHub-hosted image builds, immutable
-  SHA-tagged GHCR publication, a secure staging Compose bundle, a conditional shared-Caddy reference,
-  protected manual deployment, and backup/restore/rollback procedures.
-- The deployment workflow refuses a SHA that is not current `main`, resolves both images to registry
-  digests, verifies the exact approved ED25519 fingerprint from a host-specific known_hosts secret,
-  and calls only a root-owned restricted wrapper through a non-root account. Automatic deployment is
-  inert unless the protected environment variable is explicitly set to `true`.
-- The VPS has not been contacted or modified. Its OS, capacity, Docker/Compose, reverse proxy, port
-  owners, workloads, firewall, deploy account, DNS, backups, and monitoring are unverified. The proxy
-  bundle must not be started if another proxy owns 80/443.
-- Staging uses synthetic data only. Invoice issuance is explicitly disabled in the example production
-  environment until business acceptance; the existing invoice implementation is otherwise untouched.
+- Issue #245 is isolated on `fix/issue-245-staging-blockers`, based on merged Issue #242 / PR #243
+  `main` `c1bfcaea9511efa9393554471c4f7a088374d8be`.
+- The final API runtime now carries the repository-owned Noto fonts and CI proves a synthetic French
+  invoice from the actual image, including accents, totals, multi-line wrapping, embedded faces, and
+  passive-PDF constraints.
+- The protected Environment auto-deploy variable is evaluated after job admission and defaults closed;
+  automatic deployment still requires exact lowercase `true`. Manual exact-`DEPLOY` confirmation and
+  Environment review are unchanged.
+- The runbook requires an explicit administrative `IdentityFile`, strict pinned host verification,
+  and no password fallback. CI still uses a separate restricted non-root identity.
+- No VPS change or deployment occurred. Invoice issuance remains disabled pending business acceptance.
 
 ## Next concrete action
 
-1. Open the focused draft PR referencing #242 and require all exact-head jobs, including both image
-   matrix legs, to pass.
-2. Keep the PR unmerged and the deployment workflow unused. After a separately approved read-only VPS
-   audit, provision the documented prerequisites and demonstrate manual deploy, paired backup/restore,
-   rollback, and synthetic browser acceptance before considering automatic staging rollout.
+1. Review the focused draft PR and require all checks to pass on its exact final head.
+2. Keep automatic deployment disabled and the deployment workflow unused.
+3. With separate approval, prepare the audited host prerequisites: restricted deploy account and
+   wrapper, firewall/reboot decision, directories and isolated network, existing-proxy route, off-host
+   paired backups, monitoring, DNS/TLS, restore/rollback drill, and synthetic browser acceptance.
 
 ## Completion conditions
 
-- Exact-head CI is green and records immutable SHA tags/digests after merge to main; PR CI performs
-  build-only validation and cannot publish or deploy.
-- GitHub Environment secrets/variables, dedicated SSH access, GHCR pull identity, shared proxy route,
-  private storage, recovery, monitoring, and DNS are independently reviewed and provisioned.
-- No production-readiness claim, real invoice issuance, merge, VPS change, or automatic deployment
-  occurs without the remaining technical, security, recovery, and business approvals.
+- Issue #245 exact-head CI and review are green; no merge is implied by this handoff.
+- The first staging rollout remains manual, reviewed, digest-pinned, synthetic-only, recoverable, and
+  monitored.
+- No real invoice issuance, automatic deployment, or production-readiness claim occurs without the
+  remaining security, recovery, infrastructure, and business approvals.
