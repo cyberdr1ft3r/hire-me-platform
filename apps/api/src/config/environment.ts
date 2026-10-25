@@ -10,6 +10,10 @@ const EnvironmentSchema = z.object({
   AUTH_COOKIE_SECURE: z.coerce.boolean().optional(),
   AUTH_REFRESH_TOKEN_PEPPER: z.string().min(32),
   DATABASE_URL: z.string().url(),
+  INVOICE_ISSUANCE_ENABLED: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PRIVATE_UPLOAD_STORAGE_ROOT: z.string().min(1).default('.tmp-runtime/private-uploads'),
   JSON_BODY_LIMIT: z.string().min(1).default(apiDefaultJsonBodyLimit),
@@ -32,11 +36,17 @@ export function loadEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
   const environment = parsed.data;
 
   if (environment.NODE_ENV === 'production') {
+    if (environment.INVOICE_ISSUANCE_ENABLED === undefined) {
+      throw new Error(
+        'Invalid environment configuration: INVOICE_ISSUANCE_ENABLED must be explicitly set in production',
+      );
+    }
     for (const [key, value] of [
       ['AUTH_ACCESS_TOKEN_SECRET', environment.AUTH_ACCESS_TOKEN_SECRET],
       ['AUTH_REFRESH_TOKEN_PEPPER', environment.AUTH_REFRESH_TOKEN_PEPPER],
+      ['DATABASE_URL', environment.DATABASE_URL],
     ] as const) {
-      if (/change_me|development|example|placeholder/i.test(value)) {
+      if (/change_me|development|example|placeholder|replace|url_encoded/i.test(value)) {
         throw new Error(`Invalid environment configuration: ${key} must be production-grade`);
       }
     }

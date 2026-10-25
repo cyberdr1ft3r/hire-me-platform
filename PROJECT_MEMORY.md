@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-23
+Last updated: 2026-10-25
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,14 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Issue #242 staging delivery preparation is active on `feat/issue-242-cicd` from `main`
+`51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. The bounded design builds API/web images only on
+GitHub-hosted runners, publishes exact-SHA GHCR tags, deploys reviewed digests through a protected
+manual workflow and restricted non-root SSH account, keeps PostgreSQL private, and persists database
+and protected documents separately. Automatic staging deployment, VPS access, installation, DNS,
+merge, and deployment are not authorized. See D-094, R-062, `docs/runbooks/staging-deployment-issue-242.md`,
+and the current status/handoff.
 
 Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
 `ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`

@@ -34,6 +34,7 @@ import type {
 
 import { CommercialAuditService } from './commercial-audit.service.js';
 import { COMMERCIAL_PERMISSIONS } from './commercial-permissions.js';
+import { InvoiceIssuancePolicy } from './invoice-issuance-policy.js';
 import {
   type FinancialMissionScope,
   resolveFinancialMissionScope,
@@ -154,6 +155,7 @@ export class CommercialService {
     @Inject(CommercialAuditService) private readonly audit: CommercialAuditService,
     @Inject(PermissionsService) private readonly permissions: PermissionsService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(InvoiceIssuancePolicy) private readonly invoiceIssuancePolicy: InvoiceIssuancePolicy,
   ) {}
 
   async listQuotations(
@@ -1313,6 +1315,7 @@ export class CommercialService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<InvoiceDetailResponse> {
+    this.invoiceIssuancePolicy.assertEnabled();
     const access = await this.resolveAccess(actorUserId);
     this.assertCommercialWrite(access, access.invoicesManage, 'invoices:manage');
     const { invoice } = await this.prisma.$transaction(async (tx) => {

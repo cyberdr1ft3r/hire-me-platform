@@ -1,11 +1,12 @@
 # Decision Log
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 Use this log for accepted project-level decisions. Detailed architectural decisions may later be promoted into individual ADR files. Do not record unresolved ideas as accepted decisions.
 
 | ID | Date | Status | Decision | Rationale / source |
 | --- | --- | --- | --- | --- |
+| D-094 | 2026-10-25 | Accepted for Issue #242 implementation | Staging releases are built only on GitHub-hosted runners, published to GHCR under the exact commit SHA, resolved to immutable digests, and pulled by a root-owned restricted VPS deployment wrapper. Deployment is manual through a protected GitHub Environment until recovery and rollback drills pass and `STAGING_AUTO_DEPLOY_ENABLED` is explicitly enabled. PostgreSQL stays private; database and private documents use separate persistent volumes; invoice issuance requires an explicit production decision and remains disabled in the staging example pending business acceptance. | Issue #242 acceptance and security boundaries; prevents VPS source builds, mutable-release drift, accidental automatic rollout, public database exposure, and premature real invoice issuance. |
 | D-093 | 2026-10-24 | Accepted (Issue #237 / PR #240 owner clarification) | A standard invoice subject to 20% TVA carries no dedicated explanatory fiscal-treatment section; its rate, tax amount, and TTC are shown in the financial table. Optional exceptional fiscal wording is captured immutably and rendered only when legally required or explicitly approved and supplied. Internal test explanations and owner-confirmation notes never enter customer-facing output. | Product-owner correction for final invoice PDF acceptance; avoids invented legal wording while preserving calculations, lifecycle, fingerprinting, and issued-invoice immutability. |
 | D-001 | 2026-07-21 | Accepted | GitHub is the project source of truth for issues, pull requests, documentation, goals, status, decisions, risks, and agent handoffs. | Enables persistent human- and agent-readable context across sessions. |
 | D-002 | 2026-07-21 | Accepted | Use a TypeScript monorepo with a modular-monolith backend for the initial implementation. | Keeps the MVP manageable for a single developer while preserving module boundaries; issues #1 and #2. |

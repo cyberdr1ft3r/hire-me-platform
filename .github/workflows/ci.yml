@@ -12,17 +12,26 @@ permissions:
 jobs:
   postgres-health:
     name: PostgreSQL Docker Compose health
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Copy example environment
         run: cp .env.example .env
 
       - name: Validate Docker Compose configuration
         run: docker compose config
+
+      - name: Validate staging deployment definitions
+        run: |
+          STAGING_ENV_FILE=staging.env.example \
+          API_IMAGE=ghcr.io/cyberdr1ft3r/hire-me-platform-api@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+          WEB_IMAGE=ghcr.io/cyberdr1ft3r/hire-me-platform-web@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            docker compose -f deploy/staging/compose.yml config --quiet
+          ACME_EMAIL=ops@example.test docker compose -f deploy/proxy/compose.yml config --quiet
+          sh -n deploy/staging/bin/hireme-staging-deploy
 
       - name: Start PostgreSQL
         run: docker compose up -d postgres
@@ -44,19 +53,19 @@ jobs:
 
   quality:
     name: Quality checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -99,22 +108,22 @@ jobs:
 
   signing-pkcs11-lab:
     name: PKCS#11 SoftHSM signing lab (Issue #183)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install SoftHSM2
         run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y softhsm2 libsofthsm2
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -137,7 +146,7 @@ jobs:
 
   database-lifecycle:
     name: Database migration, seed, and integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Issue #90: every database command refuses unless NODE_ENV is exactly
       # "test" and its target is this run's provisioned, marked database. The
@@ -148,15 +157,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -237,3 +246,69 @@ jobs:
       - name: Stop Docker Compose services
         if: always()
         run: docker compose down -v
+
+  container-images:
+    name: Container image (${{ matrix.component }})
+    needs: [postgres-health, quality, signing-pkcs11-lab, database-lifecycle]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            file: apps/api/Dockerfile
+            image: hire-me-platform-api
+          - component: web
+            file: apps/web/Dockerfile
+            image: hire-me-platform-web
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether immutable tag already exists
+        if: github.event_name == 'push'
+        id: existing
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}:${GITHUB_SHA}"
+          if docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and optionally publish immutable image
+        if: github.event_name != 'push' || steps.existing.outputs.exists != 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          build-args: |
+            VCS_REF=${{ github.sha }}
+            VITE_API_BASE_URL=https://hire-me.dr1ft3r.dev
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Confirm published SHA tag
+        if: github.event_name == 'push'
+        run: docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}:${GITHUB_SHA}"

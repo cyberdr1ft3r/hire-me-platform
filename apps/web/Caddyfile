@@ -1,0 +1,18 @@
+{
+	auto_https off
+	admin off
+}
+
+:8080 {
+	root * /srv
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	respond /__health 200
+	try_files {path} /index.html
+	file_server
+}

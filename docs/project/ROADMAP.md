@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-10-19
+Last updated: 2026-10-25
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -178,7 +178,7 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 ## Phase 11 - Integrations and migration
 
-**State:** Planned; issues not yet created
+**State:** In progress through Issue #242 staging delivery preparation
 
 - Microsoft 365 authentication and approved email/contact capabilities.
 - Outlook and Google calendar adapters.
@@ -196,6 +196,11 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 - Operational monitoring and logging.
 - Deployment documentation.
 - Client validation and launch checklist.
+
+Issue #242 prepares, but does not activate, the manual-first GitHub Actions → GHCR → VPS staging
+path. Its exit gates include a separately approved VPS audit, protected non-root access, shared HTTPS
+proxy reconciliation, synthetic-only data, paired backup/restore and rollback drills, monitoring, and
+business acceptance before real invoice issuance or automatic deployment.
 
 ## Issue #132 — proposed signing/sealing sequence
 

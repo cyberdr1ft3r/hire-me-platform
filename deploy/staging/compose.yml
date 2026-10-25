@@ -1,0 +1,134 @@
+name: hireme-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36
+    restart: unless-stopped
+    env_file: ${STAGING_ENV_FILE:-/etc/hireme/staging.env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1536M
+          pids: 200
+
+  storage-init:
+    image: alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
+    command: ['sh', '-c', 'install -d -o 1000 -g 1000 -m 0700 /private-documents']
+    volumes:
+      - private-documents:/private-documents
+    networks: []
+    restart: 'no'
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    image: ${API_IMAGE:?API_IMAGE must be an immutable GHCR digest}
+    command: ['./node_modules/.bin/prisma', 'migrate', 'deploy', '--schema', 'prisma/schema.prisma']
+    profiles: ['operations']
+    env_file: ${STAGING_ENV_FILE:-/etc/hireme/staging.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: ['ALL']
+    deploy:
+      resources:
+        limits:
+          pids: 100
+
+  api:
+    image: ${API_IMAGE:?API_IMAGE must be an immutable GHCR digest}
+    restart: unless-stopped
+    env_file: ${STAGING_ENV_FILE:-/etc/hireme/staging.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    volumes:
+      - private-documents:/var/lib/hireme/private-documents
+    networks:
+      backend:
+      shared-edge:
+        aliases: ['hireme-api']
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: ['ALL']
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
+          pids: 200
+
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE must be an immutable GHCR digest}
+    restart: unless-stopped
+    networks:
+      shared-edge:
+        aliases: ['hireme-web']
+    read_only: true
+    tmpfs:
+      - /config:size=16m,uid=10001,gid=10001,mode=0700
+      - /data:size=16m,uid=10001,gid=10001,mode=0700
+      - /tmp:size=16m,uid=10001,gid=10001,mode=1777
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/__health']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: ['ALL']
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+          pids: 100
+
+networks:
+  backend:
+    internal: true
+  shared-edge:
+    external: true
+    name: shared-edge
+
+volumes:
+  postgres-data:
+  private-documents:

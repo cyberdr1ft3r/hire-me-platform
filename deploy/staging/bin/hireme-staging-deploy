@@ -1,0 +1,122 @@
+#!/bin/sh
+set -eu
+
+app_dir=/opt/hireme/staging
+compose_file="$app_dir/compose.yml"
+release_file="$app_dir/release.env"
+releases_dir="$app_dir/releases"
+backups_dir=/var/backups/hireme-staging
+lock_dir=/run/lock/hireme-staging-deploy.lock
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+[ "$(id -u)" -eq 0 ] || fail "This command must run through the restricted sudo rule."
+mkdir "$lock_dir" 2>/dev/null || fail "Another HireMe staging operation is in progress."
+trap 'rmdir "$lock_dir"' EXIT INT TERM
+
+action=${1:-}
+release_sha=${2:-}
+api_image=${3:-}
+web_image=${4:-}
+
+case "$release_sha" in
+  *[!0-9a-f]*|'') fail "Release SHA must be a full lowercase commit SHA." ;;
+esac
+[ "${#release_sha}" -eq 40 ] || fail "Release SHA must contain 40 characters."
+
+case "$api_image" in
+  ghcr.io/cyberdr1ft3r/hire-me-platform-api@sha256:????????????????????????????????????????????????????????????????) ;;
+  *) fail "API image must be the approved GHCR repository pinned by digest." ;;
+esac
+case "$web_image" in
+  ghcr.io/cyberdr1ft3r/hire-me-platform-web@sha256:????????????????????????????????????????????????????????????????) ;;
+  *) fail "Web image must be the approved GHCR repository pinned by digest." ;;
+esac
+api_digest=${api_image##*@sha256:}
+web_digest=${web_image##*@sha256:}
+case "$api_digest$web_digest" in *[!0-9a-f]*) fail "Image digests must be lowercase hexadecimal." ;; esac
+
+[ -r "$compose_file" ] || fail "Missing root-owned Compose bundle."
+[ -r /etc/hireme/staging.env ] || fail "Missing /etc/hireme/staging.env."
+[ -r /etc/hireme/ghcr.env ] || fail "Missing /etc/hireme/ghcr.env."
+[ -r /etc/hireme/ghcr-token ] || fail "Missing /etc/hireme/ghcr-token."
+mkdir -p "$releases_dir" "$backups_dir"
+umask 077
+
+write_release() {
+  target=$1
+  {
+    printf 'RELEASE_SHA=%s\n' "$release_sha"
+    printf 'API_IMAGE=%s\n' "$api_image"
+    printf 'WEB_IMAGE=%s\n' "$web_image"
+  } >"$target"
+}
+
+compose() {
+  docker compose --project-name hireme-staging --env-file "$release_file" -f "$compose_file" "$@"
+}
+
+backup() {
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  backup_dir="$backups_dir/$stamp-$release_sha"
+  mkdir "$backup_dir"
+  compose stop api >/dev/null 2>&1 || true
+  compose up -d postgres
+  backup_deadline=$(( $(date +%s) + 90 ))
+  until compose exec -T postgres sh -c 'pg_isready --username="$POSTGRES_USER" --dbname="$POSTGRES_DB"' >/dev/null 2>&1; do
+    [ "$(date +%s)" -lt "$backup_deadline" ] || fail "PostgreSQL was not ready for the required pre-deployment backup."
+    sleep 3
+  done
+  compose exec -T postgres sh -c 'pg_dump --format=custom --no-owner --no-acl --username="$POSTGRES_USER" "$POSTGRES_DB"' >"$backup_dir/database.dump"
+  docker run --rm --read-only \
+    -v hireme-staging_private-documents:/source:ro \
+    -v "$backup_dir:/backup" \
+    alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f \
+    tar -C /source -czf /backup/private-documents.tar.gz .
+  (cd "$backup_dir" && sha256sum ./* >SHA256SUMS)
+  printf '%s\n' "$backup_dir"
+}
+
+case "$action" in
+  deploy|rollback) ;;
+  *) fail "Usage: hireme-staging-deploy deploy|rollback SHA API_IMAGE_DIGEST WEB_IMAGE_DIGEST" ;;
+esac
+
+docker network inspect shared-edge >/dev/null 2>&1 || fail "External network shared-edge does not exist."
+ghcr_username=$(sed -n 's/^GHCR_USERNAME=//p' /etc/hireme/ghcr.env)
+[ -n "$ghcr_username" ] || fail "GHCR_USERNAME is missing."
+docker login ghcr.io --username "$ghcr_username" \
+  --password-stdin <"/etc/hireme/ghcr-token" >/dev/null
+docker pull "$api_image"
+docker pull "$web_image"
+
+if [ -f "$release_file" ]; then
+  cp "$release_file" "$release_file.previous"
+  cp "$release_file" "$releases_dir/$(sed -n 's/^RELEASE_SHA=//p' "$release_file").env"
+  backup
+fi
+
+write_release "$release_file.next"
+mv "$release_file.next" "$release_file"
+compose up -d postgres
+if [ "$action" = deploy ]; then
+  compose --profile operations run --rm migrate
+fi
+compose up -d --remove-orphans storage-init api web
+
+deadline=$(( $(date +%s) + 180 ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  api_health=$(compose ps --format json api | grep -o '"Health":"[^"]*"' || true)
+  web_health=$(compose ps --format json web | grep -o '"Health":"[^"]*"' || true)
+  [ "$api_health" = '"Health":"healthy"' ] && [ "$web_health" = '"Health":"healthy"' ] && break
+  sleep 3
+done
+[ "${api_health:-}" = '"Health":"healthy"' ] || fail "API did not become healthy."
+[ "${web_health:-}" = '"Health":"healthy"' ] || fail "Web did not become healthy."
+curl --fail --silent --show-error --max-time 15 https://hire-me.dr1ft3r.dev/health >/dev/null
+curl --fail --silent --show-error --max-time 15 https://hire-me.dr1ft3r.dev/ >/dev/null
+cp "$release_file" "$releases_dir/$release_sha.env"
+printf 'HireMe staging now runs %s\n' "$release_sha"

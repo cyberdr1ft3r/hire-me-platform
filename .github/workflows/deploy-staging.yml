@@ -1,0 +1,123 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full commit SHA from a successful main CI run
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY to start the protected staging deployment
+        required: true
+        type: string
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: hireme-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' && vars.STAGING_AUTO_DEPLOY_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    environment:
+      name: staging
+      url: https://hire-me.dr1ft3r.dev
+    env:
+      STAGING_HOST: 194.195.87.238
+      EXPECTED_HOST_FINGERPRINT: SHA256:9iMx/5YGJSoHOywFcbUqc+57p3tepSDGgOZ7axCj7lw
+
+    steps:
+      - name: Select and validate release SHA
+        id: release
+        shell: bash
+        env:
+          MANUAL_SHA: ${{ inputs.release_sha }}
+          AUTOMATIC_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_sha="$MANUAL_SHA"
+          else
+            release_sha="$AUTOMATIC_SHA"
+          fi
+          [[ "$release_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Release SHA must be 40 lowercase hex characters." >&2; exit 1; }
+          remote_main=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          [[ "$release_sha" == "$remote_main" ]] || { echo "Refusing stale release: requested SHA is not current main." >&2; exit 1; }
+          echo "sha=$release_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve immutable image digests
+        id: images
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          api_tag="ghcr.io/$owner/hire-me-platform-api:$RELEASE_SHA"
+          web_tag="ghcr.io/$owner/hire-me-platform-web:$RELEASE_SHA"
+          api_digest=$(docker buildx imagetools inspect "$api_tag" --format '{{.Manifest.Digest}}')
+          web_digest=$(docker buildx imagetools inspect "$web_tag" --format '{{.Manifest.Digest}}')
+          [[ "$api_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+          [[ "$web_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+          echo "api=ghcr.io/$owner/hire-me-platform-api@$api_digest" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/hire-me-platform-web@$web_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Verify pinned SSH host identity
+        shell: bash
+        env:
+          PINNED_HOST_KEY: ${{ secrets.STAGING_SSH_HOST_KEY }}
+        run: |
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$PINNED_HOST_KEY" | tr -d '\r' > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/known_hosts"
+          port=${{ vars.STAGING_SSH_PORT || '22' }}
+          lookup_host="$STAGING_HOST"
+          if [[ "$port" != "22" ]]; then lookup_host="[$STAGING_HOST]:$port"; fi
+          ssh-keygen -F "$lookup_host" -f "$RUNNER_TEMP/ssh/known_hosts" >/dev/null
+          actual=$(ssh-keygen -lf "$RUNNER_TEMP/ssh/known_hosts" -E sha256 | awk '$4 ~ /ED25519/ {print $2}')
+          [[ "$actual" == "$EXPECTED_HOST_FINGERPRINT" ]] || { echo "Pinned SSH fingerprint mismatch." >&2; exit 1; }
+
+      - name: Install ephemeral SSH identity
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$RUNNER_TEMP/ssh/deploy_key"
+          chmod 600 "$RUNNER_TEMP/ssh/deploy_key"
+
+      - name: Deploy reviewed image digests
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          API_IMAGE: ${{ steps.images.outputs.api }}
+          WEB_IMAGE: ${{ steps.images.outputs.web }}
+          SSH_USER: ${{ vars.STAGING_SSH_USER }}
+          SSH_PORT: ${{ vars.STAGING_SSH_PORT }}
+        run: |
+          [[ -n "$SSH_USER" ]] || { echo "STAGING_SSH_USER is required." >&2; exit 1; }
+          port=${SSH_PORT:-22}
+          ssh -i "$RUNNER_TEMP/ssh/deploy_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            -p "$port" \
+            "$SSH_USER@$STAGING_HOST" \
+            sudo -n /usr/local/sbin/hireme-staging-deploy deploy "$RELEASE_SHA" "$API_IMAGE" "$WEB_IMAGE"
