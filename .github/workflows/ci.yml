@@ -12,7 +12,7 @@ permissions:
 jobs:
   postgres-health:
     name: PostgreSQL Docker Compose health
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
 
   quality:
     name: Quality checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
 
   signing-pkcs11-lab:
     name: PKCS#11 SoftHSM signing lab (Issue #183)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -146,7 +146,7 @@ jobs:
 
   database-lifecycle:
     name: Database migration, seed, and integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Issue #90: every database command refuses unless NODE_ENV is exactly
       # "test" and its target is this run's provisioned, marked database. The
@@ -250,7 +250,7 @@ jobs:
   container-images:
     name: Container image (${{ matrix.component }})
     needs: [postgres-health, quality, signing-pkcs11-lab, database-lifecycle]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
