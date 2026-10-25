@@ -29,6 +29,7 @@ import {
   InvoiceIssueRequestSchema,
   InvoiceListQuerySchema,
   InvoiceListResponseSchema,
+  CompanyBillingSettingsResponseSchema,
   InvoiceUpdateRequestSchema,
   PurchaseOrderCreateRequestSchema,
   PurchaseOrderDetailResponseSchema,
@@ -336,6 +337,14 @@ export class CommercialController {
     }
     return InvoiceListResponseSchema.parse(
       await this.commercial.listInvoices(parsed.data, request.user!.id),
+    );
+  }
+
+  @Get('invoice-settings-prefill')
+  @RequirePermissions(COMMERCIAL_PERMISSIONS.INVOICES_MANAGE)
+  async getInvoiceSettingsPrefill(@Req() request: RequestWithUser) {
+    return CompanyBillingSettingsResponseSchema.parse(
+      await this.commercial.getInvoiceSettingsPrefill(request.user!.id),
     );
   }
 

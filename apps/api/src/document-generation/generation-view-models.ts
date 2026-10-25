@@ -85,10 +85,13 @@ export type InvoiceView = {
     ice: string | null;
     taxId: string | null;
     registrationNumber: string | null;
+    patente: string | null;
+    phone: string | null;
     email: string | null;
     website: string | null;
   };
   buyer: {
+    type: 'COMPANY' | 'INDIVIDUAL';
     legalName: string;
     address: string;
     ice: string | null;
@@ -100,6 +103,7 @@ export type InvoiceView = {
   paymentMethod: string | null;
   bankDetails: string | null;
   taxTreatment: string | null;
+  totalAmountInWordsFr: string | null;
   commercialReferences: {
     quotation: string | null;
     contract: string | null;

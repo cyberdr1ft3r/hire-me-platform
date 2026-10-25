@@ -25,8 +25,9 @@ import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 import { Button, PageHeader, StatusBadge, TextField } from '../ui/index.js';
 import { PermissionGroups } from './PermissionGroups.js';
 import { adminStatusTone, formatAdminRoleName } from './role-labels.js';
+import { BillingSettingsPanel } from './BillingSettingsPanel.js';
 
-export function AdminPanel({ accessToken }: { accessToken: string }) {
+function UserAdministrationPanel({ accessToken }: { accessToken: string }) {
   const { t } = useI18n();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -396,6 +397,28 @@ export function AdminPanel({ accessToken }: { accessToken: string }) {
         <PermissionGroups codes={permissions.map((permission) => permission.code)} />
       </section>
     </section>
+  );
+}
+
+export function AdminPanel({
+  accessToken,
+  permissions = ['users:view'],
+}: {
+  accessToken: string;
+  permissions?: readonly string[];
+}) {
+  const canViewUsers = permissions.includes('users:view');
+  const canViewBilling = permissions.includes('billing_settings:view');
+  return (
+    <>
+      {canViewBilling ? (
+        <BillingSettingsPanel
+          accessToken={accessToken}
+          canManage={permissions.includes('billing_settings:manage')}
+        />
+      ) : null}
+      {canViewUsers ? <UserAdministrationPanel accessToken={accessToken} /> : null}
+    </>
   );
 }
 

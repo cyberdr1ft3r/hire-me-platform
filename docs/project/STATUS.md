@@ -3,6 +3,28 @@
 Last updated: 2026-10-25
 Status owner: repository maintainer
 
+## Issue #244 — urgent invoice business alignment
+
+- Work is isolated on `feat/issue-244-invoice-business` from latest `main`. Administration now owns
+  a permission-protected reusable company billing profile for RC, ICE, IF, patente/PT, capital,
+  address, contact, payment terms/method, and optional bank details. The stored singleton begins empty;
+  no unverified business value is a production default. Invoice issuance forms receive a current
+  prefill, while issuance stores a versioned immutable snapshot.
+- Optional automatic numbering uses configurable prefix and width with `PREFIX-YYYY-NNN` formatting.
+  An authorized operator must explicitly confirm the highest externally issued number for the current
+  year before enabling it. PostgreSQL locks the profile and sequence, reserves exactly the next value,
+  and fails closed if the resulting invoice reference is already occupied. Existing manual references
+  and historical issued invoices are unchanged.
+- Individual buyers are supported without corporate ICE/IF. Accompagnement remains an ordinary line
+  description. Optional French MAD amount-in-words is rendered from integer cents; the synthetic
+  acceptance invoice proves HT 991.67, TVA 198.33, and TTC 1190.00 at 20% TVA.
+- Fresh migration/seed/bootstrap, 90 affected PostgreSQL integration tests, five catalog checks,
+  contracts, focused API/web tests, lint, typecheck, build, and a real Chrome issue → reload → generate
+  → protected-download flow are verified locally. The downloaded one-page A4 PDF preserves the
+  approved branded template and contains only synthetic identities. Exact-head CI remains required.
+- Evidence: [Issue #244 browser and PDF acceptance](../audit/issue-244-invoice-business/README.md).
+  No merge, deployment, VPS access, real customer data, or automatic staging activation is authorized.
+
 ## Issue #242 — GitHub-to-GHCR staging delivery
 
 - Work is isolated on `feat/issue-242-cicd` from `main` `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`.

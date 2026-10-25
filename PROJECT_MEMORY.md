@@ -21,13 +21,13 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
-Issue #242 staging delivery preparation is active on `feat/issue-242-cicd` from `main`
-`51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. The bounded design builds API/web images only on
-GitHub-hosted runners, publishes exact-SHA GHCR tags, deploys reviewed digests through a protected
-manual workflow and restricted non-root SSH account, keeps PostgreSQL private, and persists database
-and protected documents separately. Automatic staging deployment, VPS access, installation, DNS,
-merge, and deployment are not authorized. See D-094, R-062, `docs/runbooks/staging-deployment-issue-242.md`,
-and the current status/handoff.
+Issue #244 invoice business alignment is active on `feat/issue-244-invoice-business`. Company billing
+settings are permission-protected, reusable, and empty by default; issued invoices retain versioned
+immutable snapshots. Configurable `PREFIX-YYYY-NNN` numbering requires an explicit annual external
+baseline and uses PostgreSQL serialization with collision refusal. Individual buyers need no corporate
+tax identifiers, and optional French MAD amount-in-words is derived from stored integer cents. See
+D-095, R-063, and the current status/handoff. Issue #242 remains the parallel staging-delivery track:
+invoice issuance stays disabled until business acceptance, and no VPS access or deployment is authorized.
 
 Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
 `ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`

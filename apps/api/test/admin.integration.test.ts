@@ -10,6 +10,8 @@ import {
   AdminUserDetailResponseSchema,
   AdminUserListResponseSchema,
   AuthResponseSchema,
+  CompanyBillingSettingsResponseSchema,
+  InvoiceNumberSequenceResponseSchema,
 } from '@hire-me/contracts';
 import { AppModule } from '../src/app.module.js';
 import { PasswordService } from '../src/auth/password.service.js';
@@ -33,6 +35,8 @@ const adminPermissionCodes = [
   'users:sessions:revoke',
   'roles:view',
   'permissions:view',
+  'billing_settings:view',
+  'billing_settings:manage',
 ] as const;
 
 const ADMIN_FIXTURE_USER = { normalizedEmail: { endsWith: '@admin.test' } };
@@ -232,6 +236,119 @@ describe('administration user access management', () => {
     expect(allowed.status).toBe(200);
     expect(body.users.some((user) => user.email === 'viewer-target@admin.test')).toBe(true);
     expect(denied.status).toBe(403);
+  });
+
+  it('protects, validates, audits, and explicitly baselines company billing settings', async () => {
+    const previousSettings = await prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    const adminToken = await loginAccessToken(
+      baseUrl,
+      await createUserEmail('billing-admin@admin.test', RoleName.ADMIN),
+    );
+    const deniedToken = await loginAccessToken(
+      baseUrl,
+      await createUserEmail('billing-denied@admin.test', RoleName.EMPLOYEE),
+    );
+    const currentYear = new Date().getUTCFullYear();
+    const settingsBody = {
+      sellerLegalName: 'Synthetic HireMe SARL',
+      sellerLegalForm: null,
+      sellerCapital: null,
+      sellerAddress: '1 Synthetic Avenue, Casablanca',
+      sellerIce: null,
+      sellerTaxId: null,
+      sellerRegistrationNumber: null,
+      sellerPatente: 'SYNTHETIC-PT',
+      sellerPhone: null,
+      sellerEmail: null,
+      sellerWebsite: null,
+      paymentTerms: 'Synthetic payment terms.',
+      paymentMethod: 'Synthetic transfer',
+      bankDetails: null,
+      invoicePrefix: 'HMADM',
+      invoiceDigits: 3,
+      invoiceNumberingEnabled: false,
+    };
+    try {
+      const update = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+        method: 'PATCH',
+        headers: authHeaders(adminToken),
+        body: JSON.stringify(settingsBody),
+      });
+      expect(update.status).toBe(200);
+      expect(
+        CompanyBillingSettingsResponseSchema.parse(await update.json()).settings,
+      ).toMatchObject({
+        invoicePrefix: 'HMADM',
+        invoiceNumberingEnabled: false,
+        bankDetails: null,
+      });
+
+      const uncheckedEnable = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+        method: 'PATCH',
+        headers: authHeaders(adminToken),
+        body: JSON.stringify({ ...settingsBody, invoiceNumberingEnabled: true }),
+      });
+      expect(uncheckedEnable.status).toBe(409);
+
+      const baseline = await fetch(`${baseUrl}/v1/admin/billing-settings/numbering-baseline`, {
+        method: 'POST',
+        headers: authHeaders(adminToken),
+        body: JSON.stringify({ year: currentYear, highestExternalNumber: 7, confirmed: true }),
+      });
+      expect(baseline.status).toBe(201);
+      expect(
+        InvoiceNumberSequenceResponseSchema.parse(await baseline.json()).sequence,
+      ).toMatchObject({
+        prefix: 'HMADM',
+        year: currentYear,
+        lastNumber: 7,
+        externalHighestNumber: 7,
+      });
+
+      const enabled = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+        method: 'PATCH',
+        headers: authHeaders(adminToken),
+        body: JSON.stringify({ ...settingsBody, invoiceNumberingEnabled: true }),
+      });
+      expect(enabled.status).toBe(200);
+      expect(
+        CompanyBillingSettingsResponseSchema.parse(await enabled.json()).settings
+          .invoiceNumberingEnabled,
+      ).toBe(true);
+
+      const denied = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+        method: 'PATCH',
+        headers: authHeaders(deniedToken),
+        body: JSON.stringify({}),
+      });
+      expect(denied.status).toBe(403);
+      await expect(
+        prisma.auditLog.count({
+          where: {
+            action: {
+              in: ['admin.billing_settings.updated', 'admin.invoice_number_baseline.confirmed'],
+            },
+            actor: { normalizedEmail: 'billing-admin@admin.test' },
+          },
+        }),
+      ).resolves.toBe(3);
+    } finally {
+      await prisma.invoiceNumberSequence.deleteMany({
+        where: { prefix: 'HMADM', year: currentYear },
+      });
+      if (previousSettings) {
+        const { id, createdAt, updatedAt, ...restored } = previousSettings;
+        await prisma.companyBillingSettings.upsert({
+          where: { id: 'primary' },
+          create: { id, ...restored, createdAt, updatedAt },
+          update: restored,
+        });
+      } else {
+        await prisma.companyBillingSettings.deleteMany({ where: { id: 'primary' } });
+      }
+    }
   });
 
   it('creates users with normalized unique email and Argon2id credentials', async () => {

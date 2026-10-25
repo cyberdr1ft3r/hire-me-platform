@@ -619,6 +619,11 @@ enum InvoiceStatus {
   ARCHIVED @map("archived")
 }
 
+enum InvoiceBuyerType {
+  COMPANY    @map("company")
+  INDIVIDUAL @map("individual")
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   displayName     String
@@ -2326,21 +2331,21 @@ model PurchaseOrderEvent {
 }
 
 model Invoice {
-  id                       String        @id @default(uuid()) @db.Uuid
-  reference                String        @unique
-  clientId                 String        @db.Uuid
-  recruitmentMissionId     String?       @db.Uuid
-  missionPlacementId       String?       @unique @db.Uuid
-  quotationId              String?       @db.Uuid
-  contractId               String?       @db.Uuid
-  purchaseOrderId          String?       @db.Uuid
+  id                       String            @id @default(uuid()) @db.Uuid
+  reference                String            @unique
+  clientId                 String            @db.Uuid
+  recruitmentMissionId     String?           @db.Uuid
+  missionPlacementId       String?           @unique @db.Uuid
+  quotationId              String?           @db.Uuid
+  contractId               String?           @db.Uuid
+  purchaseOrderId          String?           @db.Uuid
   currency                 String
-  status                   InvoiceStatus @default(DRAFT)
+  status                   InvoiceStatus     @default(DRAFT)
   issueDate                DateTime?
   dueDate                  DateTime?
-  subtotalCents            Int           @default(0)
-  taxCents                 Int           @default(0)
-  totalCents               Int           @default(0)
+  subtotalCents            Int               @default(0)
+  taxCents                 Int               @default(0)
+  totalCents               Int               @default(0)
   issuedAt                 DateTime?
   sellerLegalName          String?
   sellerLegalForm          String?
@@ -2349,6 +2354,8 @@ model Invoice {
   sellerIce                String?
   sellerTaxId              String?
   sellerRegistrationNumber String?
+  sellerPatente            String?
+  sellerPhone              String?
   sellerEmail              String?
   sellerWebsite            String?
   buyerLegalName           String?
@@ -2356,20 +2363,23 @@ model Invoice {
   buyerIce                 String?
   buyerTaxId               String?
   buyerBillingContact      String?
+  buyerType                InvoiceBuyerType?
   customerReference        String?
   paymentTerms             String?
   paymentMethod            String?
   bankDetails              String?
   taxTreatment             String?
+  totalAmountInWordsFr     String?
+  businessSnapshotVersion  Int?
   canceledAt               DateTime?
-  canceledByUserId         String?       @db.Uuid
+  canceledByUserId         String?           @db.Uuid
   cancellationReason       String?
-  correctionOfInvoiceId    String?       @db.Uuid
-  createdByUserId          String?       @db.Uuid
-  updatedByUserId          String?       @db.Uuid
+  correctionOfInvoiceId    String?           @db.Uuid
+  createdByUserId          String?           @db.Uuid
+  updatedByUserId          String?           @db.Uuid
   archivedAt               DateTime?
-  createdAt                DateTime      @default(now())
-  updatedAt                DateTime      @updatedAt
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
   recruitmentMission  RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
@@ -2396,6 +2406,47 @@ model Invoice {
   @@index([issueDate])
   @@index([dueDate])
   @@index([archivedAt])
+}
+
+model CompanyBillingSettings {
+  id                       String   @id
+  sellerLegalName          String?
+  sellerLegalForm          String?
+  sellerCapital            String?
+  sellerAddress            String?
+  sellerIce                String?
+  sellerTaxId              String?
+  sellerRegistrationNumber String?
+  sellerPatente            String?
+  sellerPhone              String?
+  sellerEmail              String?
+  sellerWebsite            String?
+  paymentTerms             String?
+  paymentMethod            String?
+  bankDetails              String?
+  invoicePrefix            String?
+  invoiceDigits            Int?
+  invoiceNumberingEnabled  Boolean  @default(false)
+  createdByUserId          String?  @db.Uuid
+  updatedByUserId          String?  @db.Uuid
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model InvoiceNumberSequence {
+  id                    String   @id @default(uuid()) @db.Uuid
+  prefix                String
+  year                  Int
+  digits                Int
+  lastNumber            Int
+  externalHighestNumber Int
+  confirmedByUserId     String?  @db.Uuid
+  confirmedAt           DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([prefix, year])
+  @@index([year])
 }
 
 model InvoiceLine {

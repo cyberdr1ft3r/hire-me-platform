@@ -350,7 +350,7 @@ export function AuthenticatedWorkspace({
   } else {
     switch (route) {
       case 'admin':
-        routeContent = <LazyAdminPanel accessToken={accessToken} />;
+        routeContent = <LazyAdminPanel accessToken={accessToken} permissions={[...permissions]} />;
         break;
       case 'clients':
         routeContent = (

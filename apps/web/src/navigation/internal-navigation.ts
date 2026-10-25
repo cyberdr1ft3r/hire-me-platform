@@ -142,7 +142,7 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
       {
         labelKey: 'navigation.destinations.administration',
         path: '/admin',
-        permissions: ['users:view'],
+        permissions: ['users:view', 'billing_settings:view'],
         route: 'admin',
       },
     ],

@@ -259,6 +259,41 @@ export const frMessages: Messages = {
     deniedTitle: 'Espace protégé',
   },
   admin: {
+    billing: {
+      title: 'Paramètres de facturation',
+      description:
+        'Profil société réutilisable. Les factures émises conservent leur propre instantané immuable.',
+      sellerLegalName: 'Raison sociale',
+      sellerLegalForm: 'Forme juridique',
+      sellerCapital: 'Capital',
+      sellerAddress: 'Adresse du siège',
+      sellerRegistrationNumber: 'Registre du commerce (RC)',
+      sellerIce: 'ICE',
+      sellerTaxId: 'Identifiant fiscal (IF)',
+      sellerPatente: 'Patente / PT',
+      sellerPhone: 'Téléphone',
+      sellerEmail: 'E-mail',
+      sellerWebsite: 'Site web',
+      paymentTerms: 'Conditions de règlement',
+      paymentMethod: 'Mode de règlement',
+      bankDetails: 'Coordonnées bancaires (facultatif)',
+      invoicePrefix: 'Préfixe des factures',
+      invoiceDigits: 'Nombre de chiffres',
+      numberingEnabled:
+        'Activer la numérotation automatique après confirmation de la base annuelle',
+      save: 'Enregistrer les paramètres',
+      loading: 'Chargement des paramètres de facturation…',
+      failed:
+        'Les paramètres de facturation n’ont pas pu être chargés ou enregistrés. Vérifiez les valeurs requises et réessayez.',
+      saved: 'Paramètres de facturation enregistrés.',
+      baselineTitle: 'Base annuelle vérifiée',
+      baselineHelp:
+        'Enregistrez le préfixe avec la numérotation désactivée, renseignez le plus grand numéro déjà émis hors HireMe, puis activez la numérotation. Cette valeur ne sera jamais devinée.',
+      year: 'Année',
+      externalHighest: 'Plus grand numéro externe',
+      confirmBaseline: 'Confirmer la base',
+      baselineConfirmed: 'Base confirmée pour {prefix}-{year} ; prochain numéro après {number}.',
+    },
     roleNames: {
       ADMIN: 'Administrateur',
       CLIENT_USER: 'Utilisateur client',

@@ -144,6 +144,11 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
 
 - Issue #38 implements structured quotations, recruitment and training commercial contracts, purchase orders, invoices, server-calculated VAT/tax totals, lifecycle/history records, permission-aware minimal UI, source-scope authorization with hidden-ID masking, relationship context/currency/status validation, historical read preservation after parent archival, exact contract/PO invoice snapshots, archive filtering, atomic audit, and placement-backed invoice eligibility.
 - Issue #39 implements payments, payment allocations, derived invoice settlement with partial, paid, and overdue behavior, operational expenses, client receivables, overdue receivables, and D-053 issued-invoice profitability. Every aggregate is separated per currency and there is no FX conversion.
+- Issue #244 aligns invoice issuance with real business practice without replacing the financial engine:
+  reusable empty-by-default company billing settings, explicit annual external-number baselines,
+  concurrency-safe configurable references, immutable versioned issuance snapshots, individual buyers,
+  Accompagnement line items, and French MAD amount-in-words. Production values and issuance activation
+  remain business-acceptance gates coordinated with Issue #242.
 
 Remaining accounting scope requires its own approved issues and is not assumed here: Moroccan payroll (Phase 8a), statutory and general-ledger and tax accounting, bank reconciliation, balance-sheet behavior, credit notes and refunds, aging buckets beyond the current overdue outstanding figure, accounting exports, and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 

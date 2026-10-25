@@ -62,6 +62,8 @@ const invoiceIssueDetails = {
     sellerIce: 'SYNTHETIC-ICE',
     sellerTaxId: 'SYNTHETIC-IF',
     sellerRegistrationNumber: 'SYNTHETIC-RC',
+    sellerPatente: 'SYNTHETIC-PT',
+    sellerPhone: '+212 600 000 000',
     sellerEmail: 'synthetic@example.invalid',
     sellerWebsite: 'https://example.invalid',
     buyerLegalName: 'Synthetic Client SA',
@@ -69,11 +71,13 @@ const invoiceIssueDetails = {
     buyerIce: 'CLIENT-ICE',
     buyerTaxId: 'CLIENT-IF',
     buyerBillingContact: 'Synthetic Billing Contact',
+    buyerType: 'COMPANY',
     customerReference: 'BC-TEST-2026-0042',
     paymentTerms: 'Bank transfer within 30 days.',
     paymentMethod: 'Synthetic transfer',
     bankDetails: 'Synthetic test account only.',
   },
+  includeFrenchAmountInWords: true,
 };
 
 async function cleanCommercialTestRecords(): Promise<void> {
@@ -486,6 +490,172 @@ describe('commercial workflow foundation', () => {
     expect(await readErrorCode(denied)).toBe('PERMISSION_DENIED');
   });
 
+  it('atomically issues HM references, supports an individual accompaniment invoice, and freezes settings', async () => {
+    const issue244InvoiceIds: string[] = [];
+    const previousSettings = await prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    await prisma.invoiceNumberSequence.deleteMany({ where: { prefix: 'HMTEST', year: 2026 } });
+    await prisma.companyBillingSettings.upsert({
+      where: { id: 'primary' },
+      create: {
+        id: 'primary',
+        sellerLegalName: 'Synthetic HireMe SARL',
+        sellerAddress: '1 Synthetic Avenue, Casablanca',
+        paymentTerms: 'Synthetic transfer within 30 days.',
+        invoicePrefix: 'HMTEST',
+        invoiceDigits: 3,
+        invoiceNumberingEnabled: true,
+      },
+      update: {
+        sellerLegalName: 'Synthetic HireMe SARL',
+        sellerAddress: '1 Synthetic Avenue, Casablanca',
+        paymentTerms: 'Synthetic transfer within 30 days.',
+        invoicePrefix: 'HMTEST',
+        invoiceDigits: 3,
+        invoiceNumberingEnabled: true,
+      },
+    });
+    try {
+      const { client } = await createClientAndMission(
+        'Issue38 Issue244 Synthetic Accompaniment',
+        commercialUserId,
+      );
+      const createDraft = async (reference: string) => {
+        const response = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+          method: 'POST',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify({
+            reference,
+            clientId: client.id,
+            currency: 'MAD',
+            lines: [
+              {
+                description: 'Synthetic accompaniment service',
+                quantity: 1,
+                unitPriceCents: 99_167,
+                taxRateBps: 2_000,
+              },
+            ],
+          }),
+        });
+        expect(response.status).toBe(201);
+        const invoice = InvoiceDetailResponseSchema.parse(await response.json()).invoice;
+        issue244InvoiceIds.push(invoice.id);
+        return invoice;
+      };
+      const issueBody = {
+        ...invoiceIssueDetails,
+        businessDetails: {
+          ...invoiceIssueDetails.businessDetails,
+          buyerLegalName: 'Synthetic Individual',
+          buyerType: 'INDIVIDUAL' as const,
+          buyerIce: undefined,
+          buyerTaxId: undefined,
+        },
+      };
+      const issue = (id: string) =>
+        fetch(`${baseUrl}/v1/commercial/invoices/${id}/issue`, {
+          method: 'POST',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify(issueBody),
+        });
+
+      const baselineRequiredDraft = await createDraft('I38-ISSUE244-NO-BASELINE');
+      const missingBaseline = await issue(baselineRequiredDraft.id);
+      expect(missingBaseline.status).toBe(409);
+      expect(await readErrorCode(missingBaseline)).toBe('INVOICE_NUMBER_BASELINE_REQUIRED');
+      await prisma.invoiceNumberSequence.create({
+        data: {
+          prefix: 'HMTEST',
+          year: 2026,
+          digits: 3,
+          lastNumber: 41,
+          externalHighestNumber: 41,
+          confirmedByUserId: commercialUserId,
+          confirmedAt: new Date(),
+        },
+      });
+      const [firstDraft, secondDraft] = await Promise.all([
+        createDraft('I38-ISSUE244-A'),
+        createDraft('I38-ISSUE244-B'),
+      ]);
+      expect(firstDraft.amounts).toEqual({
+        currency: 'MAD',
+        subtotalCents: 99_167,
+        taxCents: 19_833,
+        totalCents: 119_000,
+      });
+      const issuedResponses = await Promise.all([issue(firstDraft.id), issue(secondDraft.id)]);
+      expect(issuedResponses.map((response) => response.status)).toEqual([200, 200]);
+      const issued = await Promise.all(
+        issuedResponses.map(
+          async (response) => InvoiceDetailResponseSchema.parse(await response.json()).invoice,
+        ),
+      );
+      expect(issued.map((invoice) => invoice.reference).sort()).toEqual([
+        'HMTEST-2026-042',
+        'HMTEST-2026-043',
+      ]);
+      expect(issued[0]!.businessDetails).toMatchObject({
+        buyerType: 'INDIVIDUAL',
+        buyerIce: null,
+        buyerTaxId: null,
+        totalAmountInWordsFr: 'mille cent quatre-vingt-dix dirhams et zéro centime',
+      });
+
+      const occupiedDraft = await createDraft('I38-ISSUE244-OCCUPIED');
+      const occupiedResponse = await issue(occupiedDraft.id);
+      expect(occupiedResponse.status).toBe(200);
+      expect(
+        InvoiceDetailResponseSchema.parse(await occupiedResponse.json()).invoice.reference,
+      ).toBe('HMTEST-2026-044');
+      await prisma.invoiceNumberSequence.update({
+        where: { prefix_year: { prefix: 'HMTEST', year: 2026 } },
+        data: { lastNumber: 43 },
+      });
+      const collisionDraft = await createDraft('I38-ISSUE244-COLLISION');
+      const collision = await issue(collisionDraft.id);
+      expect(collision.status).toBe(409);
+      expect(await readErrorCode(collision)).toBe('INVOICE_NUMBER_COLLISION');
+      await expect(
+        prisma.invoiceNumberSequence.findUniqueOrThrow({
+          where: { prefix_year: { prefix: 'HMTEST', year: 2026 } },
+          select: { lastNumber: true },
+        }),
+      ).resolves.toEqual({ lastNumber: 43 });
+
+      await prisma.companyBillingSettings.update({
+        where: { id: 'primary' },
+        data: { sellerLegalName: 'Changed synthetic company' },
+      });
+      const reloaded = await fetch(`${baseUrl}/v1/commercial/invoices/${issued[0]!.id}`, {
+        headers: authHeaders(commercialToken),
+      });
+      expect(
+        InvoiceDetailResponseSchema.parse(await reloaded.json()).invoice.businessDetails
+          ?.sellerLegalName,
+      ).toBe('Synthetic HireMe SARL');
+    } finally {
+      await prisma.invoiceEvent.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });
+      await prisma.invoiceLine.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });
+      await prisma.invoice.deleteMany({ where: { id: { in: issue244InvoiceIds } } });
+      await prisma.invoiceNumberSequence.deleteMany({ where: { prefix: 'HMTEST', year: 2026 } });
+      if (previousSettings) {
+        await prisma.companyBillingSettings.update({
+          where: { id: 'primary' },
+          data: {
+            ...previousSettings,
+            createdAt: undefined,
+            updatedAt: undefined,
+          },
+        });
+      } else {
+        await prisma.companyBillingSettings.delete({ where: { id: 'primary' } });
+      }
+    }
+  });
+
   it('enforces quotation lifecycle transitions and blocks terminal mutation without audit noise', async () => {
     const { client } = await createClientAndMission(
       'Issue38 Quotation Lifecycle',
@@ -683,6 +853,7 @@ describe('commercial workflow foundation', () => {
     expect(reloadedBody.invoice.businessDetails).toEqual({
       ...invoiceIssueDetails.businessDetails,
       taxTreatment: null,
+      totalAmountInWordsFr: 'deux cent quarante dirhams et zéro centime',
     });
   });
 

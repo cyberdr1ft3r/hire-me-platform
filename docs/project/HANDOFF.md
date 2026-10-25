@@ -4,33 +4,29 @@ Last updated: 2026-10-25
 
 ## Current situation
 
-- Active work is Issue #242 on `feat/issue-242-cicd`, based on `main`
-  `51759edb82c0646f43f8e4582b224dbbc5b0f4a4`. It introduces GitHub-hosted image builds, immutable
-  SHA-tagged GHCR publication, a secure staging Compose bundle, a conditional shared-Caddy reference,
-  protected manual deployment, and backup/restore/rollback procedures.
-- The deployment workflow refuses a SHA that is not current `main`, resolves both images to registry
-  digests, verifies the exact approved ED25519 fingerprint from a host-specific known_hosts secret,
-  and calls only a root-owned restricted wrapper through a non-root account. Automatic deployment is
-  inert unless the protected environment variable is explicitly set to `true`.
-- The VPS has not been contacted or modified. Its OS, capacity, Docker/Compose, reverse proxy, port
-  owners, workloads, firewall, deploy account, DNS, backups, and monitoring are unverified. The proxy
-  bundle must not be started if another proxy owns 80/443.
-- Staging uses synthetic data only. Invoice issuance is explicitly disabled in the example production
-  environment until business acceptance; the existing invoice implementation is otherwise untouched.
+- Active work is Issue #244 on `feat/issue-244-invoice-business`. It adds a reusable empty-by-default
+  billing profile, explicit external-number baseline confirmation, transactionally serialized
+  `HM-YYYY-NNN` issuance, individual buyers, and optional French MAD amount-in-words while preserving
+  the existing lifecycle, calculation engine, permissions, branded PDF, and historical invoices.
+- Synthetic Chrome acceptance produced `HM-2026-042` from baseline 41 with one Accompagnement line:
+  HT 991.67, TVA 198.33, TTC 1190.00. It verified protected PDF download, reload, individual buyer
+  without ICE/IF, and an unchanged issued snapshot after the Administration profile was edited.
+- Issue #242 remains a parallel delivery concern: staging invoice issuance stays disabled until
+  business acceptance. This branch does not change deployment files, contact the VPS, or activate
+  automation.
 
 ## Next concrete action
 
-1. Open the focused draft PR referencing #242 and require all exact-head jobs, including both image
-   matrix legs, to pass.
-2. Keep the PR unmerged and the deployment workflow unused. After a separately approved read-only VPS
-   audit, provision the documented prerequisites and demonstrate manual deploy, paired backup/restore,
-   rollback, and synthetic browser acceptance before considering automatic staging rollout.
+1. Review the focused draft PR for #244 and require every exact-head CI job to pass.
+2. Before any real issuance, have the owner/accounting approver enter and verify the legal identity,
+   tax applicability, payment/banking details, and actual highest externally issued number for the year.
+3. Keep the PR unmerged and undeployed until review; preserve Issue #242's staging issuance gate.
 
 ## Completion conditions
 
-- Exact-head CI is green and records immutable SHA tags/digests after merge to main; PR CI performs
-  build-only validation and cannot publish or deploy.
-- GitHub Environment secrets/variables, dedicated SSH access, GHCR pull identity, shared proxy route,
-  private storage, recovery, monitoring, and DNS are independently reviewed and provisioned.
-- No production-readiness claim, real invoice issuance, merge, VPS change, or automatic deployment
-  occurs without the remaining technical, security, recovery, and business approvals.
+- Exact-head CI is green on the draft PR head and review confirms the additive migration and immutable
+  snapshot/sequence behavior.
+- Business/legal approval supplies the production billing profile and per-year numbering baseline;
+  no real personal data is committed as fixture or evidence.
+- No production-readiness claim, real invoice issuance, merge, VPS change, or deployment occurs without
+  the remaining approvals.

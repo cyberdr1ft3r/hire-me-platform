@@ -156,6 +156,7 @@ export type LifecycleInput = {
   issueDate?: string;
   dueDate?: string;
   businessDetails?: InvoiceBusinessDetailsInput;
+  includeFrenchAmountInWords?: boolean;
 };
 
 function optionalReason(input: LifecycleInput): string | undefined {
@@ -198,6 +199,7 @@ export async function runCommercialAction(
         issueDate: issueDateIso,
         dueDate: dueDateIso,
         businessDetails,
+        includeFrenchAmountInWords: input.includeFrenchAmountInWords ?? false,
       });
       return { kind, record: response.invoice };
     }

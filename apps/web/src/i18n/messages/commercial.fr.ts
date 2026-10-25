@@ -232,9 +232,14 @@ export const commercialFr: Messages['commercial'] = {
       sellerIce: 'ICE de l’émetteur (facultatif)',
       sellerTaxId: 'Identifiant fiscal de l’émetteur (facultatif)',
       sellerRegistrationNumber: 'RC de l’émetteur (facultatif)',
+      sellerPatente: 'Patente / PT de l’émetteur (facultatif)',
+      sellerPhone: 'Téléphone de l’émetteur (facultatif)',
       sellerEmail: 'E-mail de l’émetteur (facultatif)',
       sellerWebsite: 'Site web de l’émetteur (facultatif)',
-      buyerLegalName: 'Raison sociale du client facturé',
+      buyerLegalName: 'Nom du client facturé',
+      buyerType: 'Type de client',
+      buyerCompany: 'Entreprise',
+      buyerIndividual: 'Particulier',
       buyerAddress: 'Adresse du client facturé',
       buyerIce: 'ICE du client facturé (facultatif)',
       buyerTaxId: 'IF du client facturé (facultatif)',
@@ -248,6 +253,7 @@ export const commercialFr: Messages['commercial'] = {
       taxTreatment: 'Mention fiscale exceptionnelle (facultatif)',
       taxTreatmentHint:
         'À renseigner uniquement avec une mention légale approuvée pour une exonération, une autoliquidation ou un autre traitement exceptionnel. Laisser vide pour une facture standard soumise à la TVA.',
+      amountInWords: 'Inclure le total en lettres françaises',
     },
     facts: {
       client: 'Client',

@@ -87,7 +87,9 @@ describe('foundational Prisma schema', () => {
     expect(migrations.map((row) => row.name).sort()).toEqual(expected);
     expect(expected).toContain('20260925120000_public_opportunity_content_language');
     await expect(prisma.role.count()).resolves.toBe(0);
-    await expect(prisma.permission.count()).resolves.toBe(0);
+    await expect(
+      prisma.permission.findMany({ select: { code: true }, orderBy: { code: 'asc' } }),
+    ).resolves.toEqual([{ code: 'billing_settings:manage' }, { code: 'billing_settings:view' }]);
     await expect(prisma.rolePermission.count()).resolves.toBe(0);
     await expect(prisma.user.count()).resolves.toBe(0);
   });

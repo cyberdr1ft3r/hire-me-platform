@@ -105,6 +105,8 @@ type Confirming = {
   sellerIce: string;
   sellerTaxId: string;
   sellerRegistrationNumber: string;
+  sellerPatente: string;
+  sellerPhone: string;
   sellerEmail: string;
   sellerWebsite: string;
   buyerLegalName: string;
@@ -112,11 +114,13 @@ type Confirming = {
   buyerIce: string;
   buyerTaxId: string;
   buyerBillingContact: string;
+  buyerType: 'COMPANY' | 'INDIVIDUAL';
   customerReference: string;
   paymentTerms: string;
   paymentMethod: string;
   bankDetails: string;
   taxTreatment: string;
+  includeFrenchAmountInWords: boolean;
 };
 
 function RecordDetail({
@@ -164,6 +168,7 @@ function RecordDetail({
 
   function start(action: LifecycleAction): void {
     if (actionNeedsConfirmation(kind, action)) {
+      const prefill = detail.kind === 'invoice' ? detail.record.issuancePrefill : null;
       setReasonError(false);
       setIssueError(null);
       setConfirming({
@@ -171,25 +176,29 @@ function RecordDetail({
         dueDate: kind === 'invoice' ? (record.dueDate?.slice(0, 10) ?? '') : '',
         issueDate: kind === 'invoice' ? (record.issueDate?.slice(0, 10) ?? '') : '',
         reason: '',
-        sellerLegalName: '',
-        sellerLegalForm: '',
-        sellerCapital: '',
-        sellerAddress: '',
-        sellerIce: '',
-        sellerTaxId: '',
-        sellerRegistrationNumber: '',
-        sellerEmail: '',
-        sellerWebsite: '',
+        sellerLegalName: prefill?.sellerLegalName ?? '',
+        sellerLegalForm: prefill?.sellerLegalForm ?? '',
+        sellerCapital: prefill?.sellerCapital ?? '',
+        sellerAddress: prefill?.sellerAddress ?? '',
+        sellerIce: prefill?.sellerIce ?? '',
+        sellerTaxId: prefill?.sellerTaxId ?? '',
+        sellerRegistrationNumber: prefill?.sellerRegistrationNumber ?? '',
+        sellerPatente: prefill?.sellerPatente ?? '',
+        sellerPhone: prefill?.sellerPhone ?? '',
+        sellerEmail: prefill?.sellerEmail ?? '',
+        sellerWebsite: prefill?.sellerWebsite ?? '',
         buyerLegalName: record.display.clientName,
         buyerAddress: '',
         buyerIce: '',
         buyerTaxId: '',
         buyerBillingContact: '',
+        buyerType: 'COMPANY',
         customerReference: '',
-        paymentTerms: '',
-        paymentMethod: '',
-        bankDetails: '',
+        paymentTerms: prefill?.paymentTerms ?? '',
+        paymentMethod: prefill?.paymentMethod ?? '',
+        bankDetails: prefill?.bankDetails ?? '',
         taxTreatment: '',
+        includeFrenchAmountInWords: true,
       });
       return;
     }
@@ -245,6 +254,12 @@ function RecordDetail({
               ...(confirming.sellerRegistrationNumber.trim()
                 ? { sellerRegistrationNumber: confirming.sellerRegistrationNumber.trim() }
                 : {}),
+              ...(confirming.sellerPatente.trim()
+                ? { sellerPatente: confirming.sellerPatente.trim() }
+                : {}),
+              ...(confirming.sellerPhone.trim()
+                ? { sellerPhone: confirming.sellerPhone.trim() }
+                : {}),
               ...(confirming.sellerEmail.trim()
                 ? { sellerEmail: confirming.sellerEmail.trim() }
                 : {}),
@@ -252,6 +267,7 @@ function RecordDetail({
                 ? { sellerWebsite: confirming.sellerWebsite.trim() }
                 : {}),
               buyerLegalName: confirming.buyerLegalName.trim(),
+              buyerType: confirming.buyerType,
               buyerAddress: confirming.buyerAddress.trim(),
               ...(confirming.buyerIce.trim() ? { buyerIce: confirming.buyerIce.trim() } : {}),
               ...(confirming.buyerTaxId.trim() ? { buyerTaxId: confirming.buyerTaxId.trim() } : {}),
@@ -272,6 +288,7 @@ function RecordDetail({
                 ? { taxTreatment: confirming.taxTreatment.trim() }
                 : {}),
             },
+            includeFrenchAmountInWords: confirming.includeFrenchAmountInWords,
           }
         : {}),
     });
@@ -428,6 +445,22 @@ function RecordDetail({
                     value={confirming.sellerRegistrationNumber}
                   />
                   <TextField
+                    label={t('commercial.detail.invoice.sellerPatente')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerPatente: event.currentTarget.value })
+                    }
+                    value={confirming.sellerPatente}
+                  />
+                  <TextField
+                    label={t('commercial.detail.invoice.sellerPhone')}
+                    maxLength={80}
+                    onChange={(event) =>
+                      updateConfirmation({ sellerPhone: event.currentTarget.value })
+                    }
+                    value={confirming.sellerPhone}
+                  />
+                  <TextField
                     label={t('commercial.detail.invoice.sellerEmail')}
                     maxLength={254}
                     onChange={(event) =>
@@ -454,6 +487,22 @@ function RecordDetail({
                     required
                     value={confirming.buyerLegalName}
                   />
+                  <label className="ui-field">
+                    <span>{t('commercial.detail.invoice.buyerType')}</span>
+                    <select
+                      value={confirming.buyerType}
+                      onChange={(event) =>
+                        updateConfirmation({
+                          buyerType: event.currentTarget.value as 'COMPANY' | 'INDIVIDUAL',
+                        })
+                      }
+                    >
+                      <option value="COMPANY">{t('commercial.detail.invoice.buyerCompany')}</option>
+                      <option value="INDIVIDUAL">
+                        {t('commercial.detail.invoice.buyerIndividual')}
+                      </option>
+                    </select>
+                  </label>
                   <TextArea
                     label={t('commercial.detail.invoice.buyerAddress')}
                     maxLength={500}
@@ -534,6 +583,20 @@ function RecordDetail({
                     rows={2}
                     value={confirming.taxTreatment}
                   />
+                  <label className="ui-field">
+                    <span>
+                      <input
+                        type="checkbox"
+                        checked={confirming.includeFrenchAmountInWords}
+                        onChange={(event) =>
+                          updateConfirmation({
+                            includeFrenchAmountInWords: event.currentTarget.checked,
+                          })
+                        }
+                      />{' '}
+                      {t('commercial.detail.invoice.amountInWords')}
+                    </span>
+                  </label>
                 </div>
               ) : null}
               {actionAcceptsReason(kind, confirming.action) ? (
@@ -801,6 +864,16 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
                 {detail.record.businessDetails.sellerRegistrationNumber}
               </Fact>
             ) : null}
+            {detail.record.businessDetails.sellerPatente ? (
+              <Fact label={t('commercial.detail.invoice.sellerPatente')}>
+                {detail.record.businessDetails.sellerPatente}
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.sellerPhone ? (
+              <Fact label={t('commercial.detail.invoice.sellerPhone')}>
+                {detail.record.businessDetails.sellerPhone}
+              </Fact>
+            ) : null}
             {detail.record.businessDetails.sellerEmail ? (
               <Fact label={t('commercial.detail.invoice.sellerEmail')}>
                 {detail.record.businessDetails.sellerEmail}
@@ -813,6 +886,13 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
             ) : null}
             <Fact label={t('commercial.detail.invoice.buyerLegalName')}>
               {detail.record.businessDetails.buyerLegalName}
+            </Fact>
+            <Fact label={t('commercial.detail.invoice.buyerType')}>
+              {t(
+                detail.record.businessDetails.buyerType === 'INDIVIDUAL'
+                  ? 'commercial.detail.invoice.buyerIndividual'
+                  : 'commercial.detail.invoice.buyerCompany',
+              )}
             </Fact>
             <Fact label={t('commercial.detail.invoice.buyerAddress')}>
               <span className="commercial-break">{detail.record.businessDetails.buyerAddress}</span>
@@ -857,6 +937,11 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
                 <span className="commercial-break">
                   {detail.record.businessDetails.taxTreatment}
                 </span>
+              </Fact>
+            ) : null}
+            {detail.record.businessDetails.totalAmountInWordsFr ? (
+              <Fact label={t('commercial.detail.invoice.amountInWords')}>
+                {detail.record.businessDetails.totalAmountInWordsFr}
               </Fact>
             ) : null}
           </dl>

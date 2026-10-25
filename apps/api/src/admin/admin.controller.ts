@@ -21,6 +21,10 @@ import {
   AdminSessionListResponseSchema,
   AdminUpdateUserRequestSchema,
   AdminUpdateUserStatusRequestSchema,
+  CompanyBillingSettingsResponseSchema,
+  CompanyBillingSettingsUpdateRequestSchema,
+  InvoiceNumberBaselineRequestSchema,
+  InvoiceNumberSequenceResponseSchema,
   AdminUserDetailResponseSchema,
   AdminUserListQuerySchema,
   AdminUserListResponseSchema,
@@ -30,6 +34,7 @@ import { z } from 'zod';
 import { ADMIN_PERMISSIONS } from './admin.constants.js';
 import { badRequest } from './admin.errors.js';
 import { AdminService } from './admin.service.js';
+import { BillingSettingsService } from './billing-settings.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { RequestContext, RequestWithUser } from '../auth/auth.types.js';
 import { PermissionGuard } from '../auth/permission.guard.js';
@@ -41,9 +46,48 @@ const UuidParamSchema = z.string().uuid();
 @UseGuards(AuthGuard, PermissionGuard)
 export class AdminController {
   private readonly admin: AdminService;
+  private readonly billingSettings: BillingSettingsService;
 
-  constructor(@Inject(AdminService) admin: AdminService) {
+  constructor(
+    @Inject(AdminService) admin: AdminService,
+    @Inject(BillingSettingsService) billingSettings: BillingSettingsService,
+  ) {
     this.admin = admin;
+    this.billingSettings = billingSettings;
+  }
+
+  @Get('billing-settings')
+  @RequirePermissions(ADMIN_PERMISSIONS.BILLING_SETTINGS_VIEW)
+  async getBillingSettings() {
+    return CompanyBillingSettingsResponseSchema.parse(await this.billingSettings.get());
+  }
+
+  @Patch('billing-settings')
+  @RequirePermissions(ADMIN_PERMISSIONS.BILLING_SETTINGS_MANAGE)
+  async updateBillingSettings(@Body() body: unknown, @Req() request: RequestWithUser) {
+    const parsed = CompanyBillingSettingsUpdateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_BILLING_SETTINGS', 'Invalid company billing settings.');
+    }
+    return CompanyBillingSettingsResponseSchema.parse(
+      await this.billingSettings.update(parsed.data, request.user!.id, this.getContext(request)),
+    );
+  }
+
+  @Post('billing-settings/numbering-baseline')
+  @RequirePermissions(ADMIN_PERMISSIONS.BILLING_SETTINGS_MANAGE)
+  async confirmInvoiceNumberBaseline(@Body() body: unknown, @Req() request: RequestWithUser) {
+    const parsed = InvoiceNumberBaselineRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw badRequest('INVALID_INVOICE_NUMBER_BASELINE', 'Invalid invoice number baseline.');
+    }
+    return InvoiceNumberSequenceResponseSchema.parse(
+      await this.billingSettings.confirmBaseline(
+        parsed.data,
+        request.user!.id,
+        this.getContext(request),
+      ),
+    );
   }
 
   @Get('users')

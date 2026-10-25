@@ -75,6 +75,8 @@ type LabelKey =
   | 'ice'
   | 'taxId'
   | 'registrationNumber'
+  | 'patente'
+  | 'phone'
   | 'email'
   | 'website'
   | 'billingContact'
@@ -89,7 +91,8 @@ type LabelKey =
   | 'purchaseOrderReference'
   | 'invoiceSubtotal'
   | 'invoiceTax'
-  | 'invoiceTotal';
+  | 'invoiceTotal'
+  | 'amountInWords';
 
 const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
   en: {
@@ -135,6 +138,8 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     ice: 'ICE',
     taxId: 'Tax identifier',
     registrationNumber: 'Commercial register',
+    patente: 'Business tax (PT)',
+    phone: 'Phone',
     email: 'Email',
     website: 'Website',
     billingContact: 'Billing contact',
@@ -150,6 +155,7 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     invoiceSubtotal: 'Subtotal excl. tax',
     invoiceTax: 'Tax',
     invoiceTotal: 'Total incl. tax',
+    amountInWords: 'Amount in words',
   },
   fr: {
     quotation: 'Devis',
@@ -194,6 +200,8 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     ice: 'ICE',
     taxId: 'Identifiant fiscal',
     registrationNumber: 'Registre du commerce',
+    patente: 'Patente / PT',
+    phone: 'Téléphone',
     email: 'E-mail',
     website: 'Site web',
     billingContact: 'Contact facturation',
@@ -209,6 +217,7 @@ const labels: Record<GenerationLanguage, Record<LabelKey, string>> = {
     invoiceSubtotal: 'Sous-total HT',
     invoiceTax: 'TVA / taxe',
     invoiceTotal: 'Total TTC',
+    amountInWords: 'Arrêtée la présente facture à la somme de',
   },
 };
 
@@ -233,6 +242,29 @@ function invoiceMoney(cents: number, currency: string, language: GenerationLangu
   );
   const minor = String(absolute % 100).padStart(2, '0');
   return `${negative ? '-' : ''}${major}${language === 'fr' ? ',' : '.'}${minor} ${sanitizeText(currency)}`;
+}
+
+function invoiceFooter(
+  view: InvoiceView,
+  language: GenerationLanguage,
+  defaultFooter: string,
+): string {
+  const identifiers = [
+    view.seller.legalName,
+    view.seller.legalForm,
+    view.seller.capital
+      ? `${language === 'fr' ? 'Capital' : 'Capital'}: ${view.seller.capital}`
+      : null,
+    view.seller.registrationNumber
+      ? `${language === 'fr' ? 'RC' : 'CR'}: ${view.seller.registrationNumber}`
+      : null,
+    view.seller.taxId ? `${language === 'fr' ? 'IF' : 'Tax ID'}: ${view.seller.taxId}` : null,
+    view.seller.ice ? `ICE: ${view.seller.ice}` : null,
+    view.seller.patente ? `PT: ${view.seller.patente}` : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map(sanitizeText);
+  return identifiers.length > 0 ? `${defaultFooter} ${identifiers.join(' · ')}` : defaultFooter;
 }
 
 function commercialStatus(status: string, language: GenerationLanguage): string {
@@ -422,7 +454,7 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 4,
+  version: 5,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
@@ -447,6 +479,12 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
               value: sanitizeText(view.seller.registrationNumber),
             },
           ]
+        : []),
+      ...(view.seller.patente
+        ? [{ label: label.patente, value: sanitizeText(view.seller.patente) }]
+        : []),
+      ...(view.seller.phone
+        ? [{ label: label.phone, value: sanitizeText(view.seller.phone) }]
         : []),
       ...(view.seller.email
         ? [{ label: label.email, value: sanitizeText(view.seller.email) }]
@@ -546,6 +584,12 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
             },
           ],
         },
+        ...(language === 'fr' && view.totalAmountInWordsFr
+          ? [
+              { kind: 'heading' as const, text: label.amountInWords },
+              { kind: 'paragraph' as const, text: sanitizeText(view.totalAmountInWordsFr) },
+            ]
+          : []),
         ...(view.taxTreatment
           ? [
               { kind: 'heading' as const, text: label.taxTreatment },
@@ -573,7 +617,7 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
           ],
         },
       ],
-      footer: label.footer,
+      footer: invoiceFooter(view, language, label.footer),
       presentation: {
         kind: 'hireme-commercial',
         documentLabel: label.invoice.toUpperCase(),
