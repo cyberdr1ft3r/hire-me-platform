@@ -2,7 +2,7 @@ import type { QuotationDetail } from '@hire-me/contracts';
 
 type CommercialHistoryEvent = QuotationDetail['history'][number];
 type CommercialLine = NonNullable<QuotationDetail['lines']>[number];
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button, InlineMessage, Skeleton, StatusBadge, TextArea, TextField } from '../ui/index.js';
 import type { CommercialAccess } from './commercial-access.js';
@@ -150,7 +150,7 @@ function RecordDetail({
   const writesLocked = pending !== null;
   const archived = record.archivedAt !== null || record.status === 'ARCHIVED';
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focusToken > 0) heading.current?.focus();
   }, [focusToken]);
 
