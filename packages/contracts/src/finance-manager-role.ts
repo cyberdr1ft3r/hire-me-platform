@@ -16,6 +16,8 @@ export const FINANCE_MANAGER_PERMISSION_CODES = [
   'purchase_orders:manage',
   'invoices:view',
   'invoices:manage',
+  'billing_settings:view',
+  'billing_settings:manage',
   'payments:view',
   'payments:manage',
   'payments:correct',

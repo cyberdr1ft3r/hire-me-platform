@@ -166,6 +166,8 @@ export function invoiceSourceFingerprint(invoice: {
   sellerIce: string | null;
   sellerTaxId: string | null;
   sellerRegistrationNumber: string | null;
+  sellerPatente: string | null;
+  sellerPhone: string | null;
   sellerEmail: string | null;
   sellerWebsite: string | null;
   buyerLegalName: string | null;
@@ -173,11 +175,14 @@ export function invoiceSourceFingerprint(invoice: {
   buyerIce: string | null;
   buyerTaxId: string | null;
   buyerBillingContact: string | null;
+  buyerType: string | null;
   customerReference: string | null;
   paymentTerms: string | null;
   paymentMethod: string | null;
   bankDetails: string | null;
   taxTreatment: string | null;
+  totalAmountInWordsFr: string | null;
+  businessSnapshotVersion: number | null;
   subtotalCents: number;
   taxCents: number;
   totalCents: number;
@@ -228,6 +233,16 @@ export function invoiceSourceFingerprint(invoice: {
     invoice.paymentMethod,
     invoice.bankDetails,
     invoice.taxTreatment,
+    ...(invoice.businessSnapshotVersion && invoice.businessSnapshotVersion >= 2
+      ? [
+          'BUSINESS_SNAPSHOT_V2',
+          invoice.businessSnapshotVersion,
+          invoice.sellerPatente,
+          invoice.sellerPhone,
+          invoice.buyerType,
+          invoice.totalAmountInWordsFr,
+        ]
+      : []),
     invoice.subtotalCents,
     invoice.taxCents,
     invoice.totalCents,

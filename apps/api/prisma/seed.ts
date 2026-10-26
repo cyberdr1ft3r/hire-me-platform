@@ -638,6 +638,16 @@ const permissions = [
     scopeType: PermissionScopeType.EXPLICIT,
   },
   {
+    code: 'billing_settings:view',
+    description: 'View reusable company billing and invoice numbering settings.',
+    scopeType: PermissionScopeType.GLOBAL,
+  },
+  {
+    code: 'billing_settings:manage',
+    description: 'Manage audited company billing settings and invoice numbering baselines.',
+    scopeType: PermissionScopeType.GLOBAL,
+  },
+  {
     code: 'payments:view',
     description: 'View payment records within an explicitly authorized client scope.',
     scopeType: PermissionScopeType.EXPLICIT,
@@ -836,6 +846,8 @@ async function main(): Promise<void> {
       'users:sessions:revoke',
       'roles:view',
       'permissions:view',
+      'billing_settings:view',
+      'billing_settings:manage',
       'clients:view',
       'clients:create',
       'clients:update',

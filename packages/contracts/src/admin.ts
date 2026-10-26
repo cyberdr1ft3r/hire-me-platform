@@ -1,5 +1,75 @@
 import { z } from 'zod';
 
+const OptionalBillingTextSchema = z.string().trim().min(1).max(1000).nullable();
+
+export const CompanyBillingSettingsSchema = z.object({
+  sellerLegalName: OptionalBillingTextSchema,
+  sellerLegalForm: OptionalBillingTextSchema,
+  sellerCapital: OptionalBillingTextSchema,
+  sellerAddress: OptionalBillingTextSchema,
+  sellerIce: OptionalBillingTextSchema,
+  sellerTaxId: OptionalBillingTextSchema,
+  sellerRegistrationNumber: OptionalBillingTextSchema,
+  sellerPatente: OptionalBillingTextSchema,
+  sellerPhone: OptionalBillingTextSchema,
+  sellerEmail: z.string().trim().email().max(254).nullable(),
+  sellerWebsite: z.string().trim().url().max(500).nullable(),
+  paymentTerms: OptionalBillingTextSchema,
+  paymentMethod: OptionalBillingTextSchema,
+  bankDetails: OptionalBillingTextSchema,
+  invoicePrefix: z
+    .string()
+    .trim()
+    .regex(/^[A-Z][A-Z0-9]{1,9}$/)
+    .nullable(),
+  invoiceDigits: z.number().int().min(3).max(8).nullable(),
+  invoiceNumberingEnabled: z.boolean(),
+  updatedAt: z.string().datetime().nullable(),
+});
+
+export const CompanyBillingSettingsResponseSchema = z.object({
+  settings: CompanyBillingSettingsSchema,
+});
+
+export const CompanyBillingSettingsUpdateRequestSchema = CompanyBillingSettingsSchema.omit({
+  updatedAt: true,
+}).superRefine((value, context) => {
+  if (value.invoiceNumberingEnabled && (!value.invoicePrefix || !value.invoiceDigits)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'A prefix and digit width are required before invoice numbering can be enabled.',
+      path: ['invoiceNumberingEnabled'],
+    });
+  }
+});
+
+export const InvoiceNumberBaselineRequestSchema = z.object({
+  year: z.number().int().min(2000).max(2200),
+  highestExternalNumber: z.number().int().min(0),
+  confirmed: z.literal(true),
+});
+
+export const InvoiceNumberSequenceSchema = z.object({
+  prefix: z.string(),
+  year: z.number().int(),
+  digits: z.number().int(),
+  lastNumber: z.number().int().nonnegative(),
+  externalHighestNumber: z.number().int().nonnegative(),
+  confirmedAt: z.string().datetime(),
+});
+
+export const InvoiceNumberSequenceResponseSchema = z.object({
+  sequence: InvoiceNumberSequenceSchema,
+});
+
+export type CompanyBillingSettings = z.infer<typeof CompanyBillingSettingsSchema>;
+export type CompanyBillingSettingsResponse = z.infer<typeof CompanyBillingSettingsResponseSchema>;
+export type CompanyBillingSettingsUpdateRequest = z.infer<
+  typeof CompanyBillingSettingsUpdateRequestSchema
+>;
+export type InvoiceNumberBaselineRequest = z.infer<typeof InvoiceNumberBaselineRequestSchema>;
+export type InvoiceNumberSequenceResponse = z.infer<typeof InvoiceNumberSequenceResponseSchema>;
+
 export const AdminUserStatusSchema = z.enum(['ACTIVE', 'SUSPENDED', 'ARCHIVED']);
 export const AdminUserTypeSchema = z.enum(['INTERNAL', 'CLIENT', 'GUEST']);
 export const AdminRoleNameSchema = z.enum([

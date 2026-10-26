@@ -11,6 +11,8 @@ import {
   AdminSessionListResponseSchema,
   AdminUserDetailResponseSchema,
   AdminUserListResponseSchema,
+  CompanyBillingSettingsResponseSchema,
+  InvoiceNumberSequenceResponseSchema,
   ClientContactDetailResponseSchema,
   ClientContactListResponseSchema,
   ClientDetailResponseSchema,
@@ -119,6 +121,10 @@ import {
   type AdminUpdateUserStatusRequest,
   type AdminUserDetailResponse,
   type AdminUserListResponse,
+  type CompanyBillingSettingsResponse,
+  type CompanyBillingSettingsUpdateRequest,
+  type InvoiceNumberBaselineRequest,
+  type InvoiceNumberSequenceResponse,
   type ClientContactCreateRequest,
   type ClientContactDetailResponse,
   type ClientContactListResponse,
@@ -661,6 +667,42 @@ export async function getAdminEffectivePermissions(
     apiBaseUrl,
   );
   return AdminEffectivePermissionsResponseSchema.parse(await response.json());
+}
+
+export async function getCompanyBillingSettings(
+  accessToken: string,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CompanyBillingSettingsResponse> {
+  const response = await adminRequest(accessToken, '/billing-settings', {}, apiBaseUrl);
+  return CompanyBillingSettingsResponseSchema.parse(await response.json());
+}
+
+export async function updateCompanyBillingSettings(
+  accessToken: string,
+  input: CompanyBillingSettingsUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<CompanyBillingSettingsResponse> {
+  const response = await adminRequest(
+    accessToken,
+    '/billing-settings',
+    { method: 'PATCH', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return CompanyBillingSettingsResponseSchema.parse(await response.json());
+}
+
+export async function confirmInvoiceNumberBaseline(
+  accessToken: string,
+  input: InvoiceNumberBaselineRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceNumberSequenceResponse> {
+  const response = await adminRequest(
+    accessToken,
+    '/billing-settings/numbering-baseline',
+    { method: 'POST', body: JSON.stringify(input) },
+    apiBaseUrl,
+  );
+  return InvoiceNumberSequenceResponseSchema.parse(await response.json());
 }
 
 type ClientListOptions = {

@@ -620,7 +620,7 @@ describe('CommercialPanel: lifecycle', () => {
       [/^Seller address/, '1 Synthetic Avenue, Casablanca'],
       [/^Seller email/, 'synthetic@example.invalid'],
       [/^Seller website/, 'https://example.invalid'],
-      [/^Billed client legal name/, 'Synthetic Client SA'],
+      [/^Billed customer name/, 'Synthetic Client SA'],
       [/^Billed client address/, '2 Test Street, Rabat'],
       [/^Billing contact/, 'Synthetic Billing Contact'],
       [/^Customer reference/, 'BC-TEST-2026-0042'],
@@ -647,7 +647,9 @@ describe('CommercialPanel: lifecycle', () => {
       customerReference: 'BC-TEST-2026-0042',
       paymentTerms: 'Bank transfer within 30 days.',
       paymentMethod: 'Synthetic transfer',
+      buyerType: 'COMPANY',
     });
+    expect(body?.includeFrenchAmountInWords).toBe(true);
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
   });
 

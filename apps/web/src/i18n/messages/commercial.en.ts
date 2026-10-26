@@ -230,9 +230,14 @@ export const commercialEn = {
       sellerIce: 'Seller ICE (optional)',
       sellerTaxId: 'Seller tax identifier (optional)',
       sellerRegistrationNumber: 'Seller commercial register (optional)',
+      sellerPatente: 'Seller business tax / PT (optional)',
+      sellerPhone: 'Seller phone (optional)',
       sellerEmail: 'Seller email (optional)',
       sellerWebsite: 'Seller website (optional)',
-      buyerLegalName: 'Billed client legal name',
+      buyerLegalName: 'Billed customer name',
+      buyerType: 'Customer type',
+      buyerCompany: 'Company',
+      buyerIndividual: 'Individual',
       buyerAddress: 'Billed client address',
       buyerIce: 'Billed client ICE (optional)',
       buyerTaxId: 'Billed client tax identifier (optional)',
@@ -246,6 +251,7 @@ export const commercialEn = {
       taxTreatment: 'Exceptional tax wording (optional)',
       taxTreatmentHint:
         'Enter only approved legal wording for an exemption, reverse charge, or another exceptional treatment. Leave blank for a standard VAT invoice.',
+      amountInWords: 'Include the French total in words',
     },
     facts: {
       client: 'Client',

@@ -7,6 +7,8 @@ export const ADMIN_PERMISSIONS = {
   USERS_SESSIONS_REVOKE: 'users:sessions:revoke',
   ROLES_VIEW: 'roles:view',
   PERMISSIONS_VIEW: 'permissions:view',
+  BILLING_SETTINGS_VIEW: 'billing_settings:view',
+  BILLING_SETTINGS_MANAGE: 'billing_settings:manage',
 } as const;
 
 export const ADMIN_PERMISSION_CODES = Object.values(ADMIN_PERMISSIONS);

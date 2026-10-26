@@ -305,6 +305,8 @@ export const InvoiceBusinessDetailsSchema = z.object({
   sellerIce: z.string().nullable(),
   sellerTaxId: z.string().nullable(),
   sellerRegistrationNumber: z.string().nullable(),
+  sellerPatente: z.string().nullable(),
+  sellerPhone: z.string().nullable(),
   sellerEmail: z.string().nullable(),
   sellerWebsite: z.string().nullable(),
   buyerLegalName: z.string(),
@@ -312,17 +314,38 @@ export const InvoiceBusinessDetailsSchema = z.object({
   buyerIce: z.string().nullable(),
   buyerTaxId: z.string().nullable(),
   buyerBillingContact: z.string().nullable(),
+  buyerType: z.enum(['COMPANY', 'INDIVIDUAL']),
   customerReference: z.string().nullable(),
   paymentTerms: z.string(),
   paymentMethod: z.string().nullable(),
   bankDetails: z.string().nullable(),
   taxTreatment: z.string().nullable(),
+  totalAmountInWordsFr: z.string().nullable(),
+});
+
+export const InvoiceIssuancePrefillSchema = z.object({
+  sellerLegalName: z.string().nullable(),
+  sellerLegalForm: z.string().nullable(),
+  sellerCapital: z.string().nullable(),
+  sellerAddress: z.string().nullable(),
+  sellerIce: z.string().nullable(),
+  sellerTaxId: z.string().nullable(),
+  sellerRegistrationNumber: z.string().nullable(),
+  sellerPatente: z.string().nullable(),
+  sellerPhone: z.string().nullable(),
+  sellerEmail: z.string().nullable(),
+  sellerWebsite: z.string().nullable(),
+  paymentTerms: z.string().nullable(),
+  paymentMethod: z.string().nullable(),
+  bankDetails: z.string().nullable(),
+  automaticNumbering: z.boolean(),
 });
 
 export const InvoiceDetailSchema = InvoiceSummarySchema.extend({
   lines: z.array(CommercialLineSchema).nullable(),
   businessDetails: InvoiceBusinessDetailsSchema.nullable(),
   history: z.array(CommercialHistoryEventSchema),
+  issuancePrefill: InvoiceIssuancePrefillSchema.nullable().optional(),
 });
 
 export const InvoiceListQuerySchema = z.object({
@@ -378,6 +401,8 @@ export const InvoiceBusinessDetailsInputSchema = z.object({
   sellerIce: OptionalInvoiceIdentifierSchema,
   sellerTaxId: OptionalInvoiceIdentifierSchema,
   sellerRegistrationNumber: OptionalInvoiceIdentifierSchema,
+  sellerPatente: OptionalInvoiceIdentifierSchema,
+  sellerPhone: z.string().trim().min(1).max(80).optional(),
   sellerEmail: z.string().trim().email().max(254).optional(),
   sellerWebsite: z.string().trim().url().max(500).optional(),
   buyerLegalName: z.string().trim().min(1).max(180),
@@ -385,6 +410,7 @@ export const InvoiceBusinessDetailsInputSchema = z.object({
   buyerIce: OptionalInvoiceIdentifierSchema,
   buyerTaxId: OptionalInvoiceIdentifierSchema,
   buyerBillingContact: z.string().trim().min(1).max(180).optional(),
+  buyerType: z.enum(['COMPANY', 'INDIVIDUAL']).default('COMPANY'),
   customerReference: z.string().trim().min(1).max(180).optional(),
   paymentTerms: RequiredInvoiceTextSchema,
   paymentMethod: z.string().trim().min(1).max(180).optional(),
@@ -397,6 +423,7 @@ export const InvoiceIssueRequestSchema = z
     issueDate: z.string().datetime(),
     dueDate: z.string().datetime(),
     businessDetails: InvoiceBusinessDetailsInputSchema,
+    includeFrenchAmountInWords: z.boolean().default(false),
     reason: z.string().trim().min(1).max(500).optional(),
   })
   .refine((value) => Date.parse(value.dueDate) >= Date.parse(value.issueDate), {
@@ -531,6 +558,7 @@ export type InvoiceSummary = z.infer<typeof InvoiceSummarySchema>;
 export type InvoiceDetail = z.infer<typeof InvoiceDetailSchema>;
 export type InvoiceBusinessDetails = z.infer<typeof InvoiceBusinessDetailsSchema>;
 export type InvoiceBusinessDetailsInput = z.infer<typeof InvoiceBusinessDetailsInputSchema>;
+export type InvoiceIssuancePrefill = z.infer<typeof InvoiceIssuancePrefillSchema>;
 export type InvoiceListQuery = z.infer<typeof InvoiceListQuerySchema>;
 export type InvoiceCreateRequest = z.infer<typeof InvoiceCreateRequestSchema>;
 export type InvoiceUpdateRequest = z.infer<typeof InvoiceUpdateRequestSchema>;

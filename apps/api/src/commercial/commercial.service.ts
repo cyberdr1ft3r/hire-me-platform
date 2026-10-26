@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   CommercialContractCreateRequest,
+  CompanyBillingSettingsResponse,
   CommercialContractDetailResponse,
   CommercialContractListQuery,
   CommercialContractListResponse,
@@ -14,6 +15,7 @@ import type {
   InvoiceCancelRequest,
   InvoiceCreateRequest,
   InvoiceDetailResponse,
+  InvoiceIssuancePrefill,
   InvoiceIssueRequest,
   InvoiceListQuery,
   InvoiceListResponse,
@@ -35,6 +37,7 @@ import type {
 import { CommercialAuditService } from './commercial-audit.service.js';
 import { COMMERCIAL_PERMISSIONS } from './commercial-permissions.js';
 import { InvoiceIssuancePolicy } from './invoice-issuance-policy.js';
+import { frenchMadAmountInWords } from './french-amount-in-words.js';
 import {
   type FinancialMissionScope,
   resolveFinancialMissionScope,
@@ -1164,7 +1167,62 @@ export class CommercialService {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.invoicesView, 'invoices:view', 'INVOICES_VIEW_REQUIRED');
     const invoice = await this.getScopedInvoice(id, actorUserId, access);
-    return { invoice: this.toInvoiceDetail(invoice, access) };
+    const settings = access.invoicesManage
+      ? await this.prisma.companyBillingSettings.findUnique({ where: { id: 'primary' } })
+      : null;
+    return {
+      invoice: this.toInvoiceDetail(
+        invoice,
+        access,
+        settings
+          ? {
+              sellerLegalName: settings.sellerLegalName,
+              sellerLegalForm: settings.sellerLegalForm,
+              sellerCapital: settings.sellerCapital,
+              sellerAddress: settings.sellerAddress,
+              sellerIce: settings.sellerIce,
+              sellerTaxId: settings.sellerTaxId,
+              sellerRegistrationNumber: settings.sellerRegistrationNumber,
+              sellerPatente: settings.sellerPatente,
+              sellerPhone: settings.sellerPhone,
+              sellerEmail: settings.sellerEmail,
+              sellerWebsite: settings.sellerWebsite,
+              paymentTerms: settings.paymentTerms,
+              paymentMethod: settings.paymentMethod,
+              bankDetails: settings.bankDetails,
+              automaticNumbering: settings.invoiceNumberingEnabled,
+            }
+          : null,
+      ),
+    };
+  }
+
+  async getInvoiceSettingsPrefill(actorUserId: string): Promise<CompanyBillingSettingsResponse> {
+    const access = await this.resolveAccess(actorUserId);
+    this.assertCommercialWrite(access, access.invoicesManage, 'invoices:manage');
+    const row = await this.prisma.companyBillingSettings.findUnique({ where: { id: 'primary' } });
+    return {
+      settings: {
+        sellerLegalName: row?.sellerLegalName ?? null,
+        sellerLegalForm: row?.sellerLegalForm ?? null,
+        sellerCapital: row?.sellerCapital ?? null,
+        sellerAddress: row?.sellerAddress ?? null,
+        sellerIce: row?.sellerIce ?? null,
+        sellerTaxId: row?.sellerTaxId ?? null,
+        sellerRegistrationNumber: row?.sellerRegistrationNumber ?? null,
+        sellerPatente: row?.sellerPatente ?? null,
+        sellerPhone: row?.sellerPhone ?? null,
+        sellerEmail: row?.sellerEmail ?? null,
+        sellerWebsite: row?.sellerWebsite ?? null,
+        paymentTerms: row?.paymentTerms ?? null,
+        paymentMethod: row?.paymentMethod ?? null,
+        bankDetails: row?.bankDetails ?? null,
+        invoicePrefix: row?.invoicePrefix ?? null,
+        invoiceDigits: row?.invoiceDigits ?? null,
+        invoiceNumberingEnabled: row?.invoiceNumberingEnabled ?? false,
+        updatedAt: row?.updatedAt.toISOString() ?? null,
+      },
+    };
   }
 
   async createInvoice(
@@ -1327,10 +1385,17 @@ export class CommercialService {
       if (existing.status !== InvoiceStatus.DRAFT) {
         throw conflict('INVOICE_INVALID_TRANSITION', 'Only draft invoices can be issued.');
       }
+      const issuedReference = await this.reserveInvoiceReference(
+        new Date(input.issueDate),
+        existing.id,
+        existing.reference,
+        tx,
+      );
       await tx.invoice.update({
         where: { id },
         data: {
           status: InvoiceStatus.ISSUED,
+          reference: issuedReference,
           issuedAt: new Date(),
           issueDate: new Date(input.issueDate),
           dueDate: new Date(input.dueDate),
@@ -1341,6 +1406,8 @@ export class CommercialService {
           sellerIce: input.businessDetails.sellerIce ?? null,
           sellerTaxId: input.businessDetails.sellerTaxId ?? null,
           sellerRegistrationNumber: input.businessDetails.sellerRegistrationNumber ?? null,
+          sellerPatente: input.businessDetails.sellerPatente ?? null,
+          sellerPhone: input.businessDetails.sellerPhone ?? null,
           sellerEmail: input.businessDetails.sellerEmail ?? null,
           sellerWebsite: input.businessDetails.sellerWebsite ?? null,
           buyerLegalName: input.businessDetails.buyerLegalName,
@@ -1348,11 +1415,16 @@ export class CommercialService {
           buyerIce: input.businessDetails.buyerIce ?? null,
           buyerTaxId: input.businessDetails.buyerTaxId ?? null,
           buyerBillingContact: input.businessDetails.buyerBillingContact ?? null,
+          buyerType: input.businessDetails.buyerType,
           customerReference: input.businessDetails.customerReference ?? null,
           paymentTerms: input.businessDetails.paymentTerms,
           paymentMethod: input.businessDetails.paymentMethod ?? null,
           bankDetails: input.businessDetails.bankDetails ?? null,
           taxTreatment: input.businessDetails.taxTreatment ?? null,
+          totalAmountInWordsFr: input.includeFrenchAmountInWords
+            ? frenchMadAmountInWords(existing.totalCents)
+            : null,
+          businessSnapshotVersion: 2,
           updatedByUserId: actorUserId,
         },
       });
@@ -2148,6 +2220,62 @@ export class CommercialService {
     return invoice;
   }
 
+  private async reserveInvoiceReference(
+    issueDate: Date,
+    invoiceId: string,
+    fallbackReference: string,
+    tx: Tx,
+  ): Promise<string> {
+    await tx.$queryRaw`SELECT id FROM "CompanyBillingSettings" WHERE id = 'primary' FOR UPDATE`;
+    const settings = await tx.companyBillingSettings.findUnique({ where: { id: 'primary' } });
+    if (!settings?.invoiceNumberingEnabled) {
+      return fallbackReference;
+    }
+    if (!settings.invoicePrefix || !settings.invoiceDigits) {
+      throw conflict(
+        'INVOICE_NUMBERING_CONFIGURATION_REQUIRED',
+        'Invoice numbering is enabled but its prefix or width is missing.',
+      );
+    }
+    const year = issueDate.getUTCFullYear();
+    await tx.$queryRaw`SELECT id FROM "InvoiceNumberSequence" WHERE prefix = ${settings.invoicePrefix} AND year = ${year} FOR UPDATE`;
+    const sequence = await tx.invoiceNumberSequence.findUnique({
+      where: { prefix_year: { prefix: settings.invoicePrefix, year } },
+    });
+    if (!sequence) {
+      throw conflict(
+        'INVOICE_NUMBER_BASELINE_REQUIRED',
+        'Confirm the highest externally issued invoice number for this year before issuing.',
+      );
+    }
+    if (sequence.digits !== settings.invoiceDigits) {
+      throw conflict(
+        'INVOICE_NUMBER_CONFIGURATION_CHANGED',
+        'The configured digit width differs from the confirmed sequence baseline.',
+      );
+    }
+    const nextNumber = sequence.lastNumber + 1;
+    if (nextNumber >= 10 ** settings.invoiceDigits) {
+      throw conflict('INVOICE_NUMBER_RANGE_EXCEEDED', 'The configured invoice sequence is full.');
+    }
+    const candidate = `${settings.invoicePrefix}-${year}-${String(nextNumber).padStart(settings.invoiceDigits, '0')}`;
+    const collision = await tx.invoice.findFirst({
+      where: { reference: candidate, id: { not: invoiceId } },
+      select: { id: true },
+    });
+    if (collision) {
+      throw conflict(
+        'INVOICE_NUMBER_COLLISION',
+        'The next configured invoice number already exists. Reconcile the external baseline.',
+      );
+    }
+    await tx.invoiceNumberSequence.update({
+      where: { id: sequence.id },
+      data: { lastNumber: nextNumber },
+    });
+    return candidate;
+  }
+
   private async getScopedQuotation(
     id: string,
     actorUserId: string,
@@ -2456,12 +2584,17 @@ export class CommercialService {
     };
   }
 
-  private toInvoiceDetail(invoice: InvoiceRecord, access: CommercialAccess) {
+  private toInvoiceDetail(
+    invoice: InvoiceRecord,
+    access: CommercialAccess,
+    issuancePrefill: InvoiceIssuancePrefill | null = null,
+  ) {
     return {
       ...this.toInvoiceSummary(invoice, access),
       lines: access.commercialData ? invoice.lines.map(toLine) : null,
       businessDetails: access.commercialData ? invoiceBusinessDetails(invoice) : null,
       history: invoice.events.map((event) => toEvent(event, access)),
+      issuancePrefill,
     };
   }
 }
@@ -2484,6 +2617,8 @@ function invoiceBusinessDetails(invoice: InvoiceRecord) {
     sellerIce: invoice.sellerIce,
     sellerTaxId: invoice.sellerTaxId,
     sellerRegistrationNumber: invoice.sellerRegistrationNumber,
+    sellerPatente: invoice.sellerPatente,
+    sellerPhone: invoice.sellerPhone,
     sellerEmail: invoice.sellerEmail,
     sellerWebsite: invoice.sellerWebsite,
     buyerLegalName: invoice.buyerLegalName,
@@ -2491,11 +2626,13 @@ function invoiceBusinessDetails(invoice: InvoiceRecord) {
     buyerIce: invoice.buyerIce,
     buyerTaxId: invoice.buyerTaxId,
     buyerBillingContact: invoice.buyerBillingContact,
+    buyerType: invoice.buyerType ?? 'COMPANY',
     customerReference: invoice.customerReference,
     paymentTerms: invoice.paymentTerms,
     paymentMethod: invoice.paymentMethod,
     bankDetails: invoice.bankDetails,
     taxTreatment: invoice.taxTreatment,
+    totalAmountInWordsFr: invoice.totalAmountInWordsFr,
   };
 }
 

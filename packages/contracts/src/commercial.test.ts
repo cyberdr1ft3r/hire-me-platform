@@ -83,4 +83,31 @@ describe('invoice issue contract', () => {
     });
     expect(parsed.businessDetails.taxTreatment).toBe('Approved exceptional tax wording.');
   });
+
+  it('accepts an individual customer without corporate tax identifiers', () => {
+    const parsed = InvoiceIssueRequestSchema.parse({
+      issueDate: '2026-10-23T00:00:00.000Z',
+      dueDate: '2026-11-23T00:00:00.000Z',
+      businessDetails: {
+        ...businessDetails,
+        buyerType: 'INDIVIDUAL',
+        buyerIce: undefined,
+        buyerTaxId: undefined,
+      },
+      includeFrenchAmountInWords: true,
+    });
+    expect(parsed.businessDetails.buyerType).toBe('INDIVIDUAL');
+    expect(parsed.businessDetails.buyerIce).toBeUndefined();
+    expect(parsed.includeFrenchAmountInWords).toBe(true);
+  });
+
+  it('keeps compatible defaults for existing company issue callers', () => {
+    const parsed = InvoiceIssueRequestSchema.parse({
+      issueDate: '2026-10-23T00:00:00.000Z',
+      dueDate: '2026-11-23T00:00:00.000Z',
+      businessDetails,
+    });
+    expect(parsed.businessDetails.buyerType).toBe('COMPANY');
+    expect(parsed.includeFrenchAmountInWords).toBe(false);
+  });
 });

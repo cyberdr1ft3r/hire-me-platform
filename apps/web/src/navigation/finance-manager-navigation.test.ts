@@ -6,7 +6,7 @@ import { canAccessInternalRoute, visibleInternalNavigation } from './internal-na
 describe('Finance Manager navigation (Issue #125)', () => {
   const permissions = [...FINANCE_MANAGER_PERMISSION_CODES];
 
-  it('shows finance-related destinations and hides recruitment/admin modules', () => {
+  it('shows finance and billing-administration destinations while hiding recruitment modules', () => {
     const groups = visibleInternalNavigation(permissions);
     const routes = groups.flatMap((group) => group.items.map((item) => item.route));
     expect(routes).toContain('commercial');
@@ -17,12 +17,13 @@ describe('Finance Manager navigation (Issue #125)', () => {
     expect(routes).not.toContain('candidates');
     expect(routes).not.toContain('training');
     expect(routes).not.toContain('reporting');
-    expect(routes).not.toContain('admin');
+    expect(routes).toContain('admin');
   });
 
   it('allows direct route checks for finance destinations', () => {
     expect(canAccessInternalRoute('commercial', permissions)).toBe(true);
     expect(canAccessInternalRoute('accounting', permissions)).toBe(true);
+    expect(canAccessInternalRoute('admin', permissions)).toBe(true);
     expect(canAccessInternalRoute('missions', permissions)).toBe(false);
     expect(canAccessInternalRoute('candidates', permissions)).toBe(false);
   });

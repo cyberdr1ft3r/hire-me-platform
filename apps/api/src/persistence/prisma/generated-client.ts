@@ -19,6 +19,7 @@ export {
   DocumentVersionSource,
   DocumentVisibility,
   GeneratedDocumentSource,
+  InvoiceBuyerType,
   InvoiceStatus,
   OutputFamily,
   AssignmentStatus,
@@ -82,3 +83,5 @@ export {
   UserStatus,
   UserType,
 } from '../../../prisma/generated/client/index.js';
+
+export type { CompanyBillingSettings } from '../../../prisma/generated/client/index.js';

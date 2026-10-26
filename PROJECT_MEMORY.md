@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -21,15 +21,17 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
-Issue #245 staging-blocker remediation is active on `fix/issue-245-staging-blockers` from `main`
-`c1bfcaea9511efa9393554471c4f7a088374d8be`, after Issue #242 merged through PR #243. The bounded
-change packages the repository-owned PDF fonts in the final API runtime, proves a synthetic French
-invoice from that container, evaluates the protected Environment auto-deploy variable only after the
-job enters `staging`, and documents the administrative alias's explicit `IdentityFile`. Automatic
-deployment remains exact-lowercase-`true` opt-in and is disabled by default; the immutable GHCR,
-manual review, non-root deploy, and invoice-issuance gates remain unchanged. The 2026-10-25 VPS audit
-was read-only and no deployment or host mutation is authorized. See D-094, R-062,
-`docs/audit/issue-245-staging-blockers.md`, the staging runbook, and the current status/handoff.
+Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
+`d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.
+Company billing settings remain permission-protected, reusable, and empty by default; issued invoices
+retain versioned immutable snapshots. Configurable `PREFIX-YYYY-NNN` numbering requires an explicit
+annual external baseline and uses PostgreSQL serialization with collision refusal. Individual buyers
+need no corporate tax identifiers, and optional French MAD amount-in-words is derived from stored
+integer cents. The final API runtime also carries the repository-owned Noto fonts and CI verifies a
+synthetic French invoice inside the container. Automatic deployment remains exact-lowercase-`true`
+opt-in and disabled by default; manual review, non-root deployment, and invoice-issuance gates remain
+unchanged. No VPS access, deployment, or real invoice issuance is authorized. See D-094, D-095, R-062,
+R-063, the staging runbook, and the current status/handoff.
 
 Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
 `ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`

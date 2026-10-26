@@ -25,6 +25,7 @@ export {
   InvoiceDetailResponseSchema,
   InvoiceDetailSchema,
   InvoiceIssueRequestSchema,
+  InvoiceIssuancePrefillSchema,
   InvoiceListQuerySchema,
   InvoiceListResponseSchema,
   InvoiceStatusSchema,
@@ -76,6 +77,7 @@ export type {
   InvoiceDetail,
   InvoiceDetailResponse,
   InvoiceIssueRequest,
+  InvoiceIssuancePrefill,
   InvoiceListQuery,
   InvoiceListResponse,
   InvoiceStatus,
@@ -116,6 +118,12 @@ export type {
 } from './auth.js';
 export {
   AdminAssignRoleRequestSchema,
+  CompanyBillingSettingsResponseSchema,
+  CompanyBillingSettingsSchema,
+  CompanyBillingSettingsUpdateRequestSchema,
+  InvoiceNumberBaselineRequestSchema,
+  InvoiceNumberSequenceResponseSchema,
+  InvoiceNumberSequenceSchema,
   AdminCreateUserRequestSchema,
   AdminEffectivePermissionsResponseSchema,
   AdminPermissionListResponseSchema,
@@ -137,6 +145,13 @@ export {
   AdminUserStatusSchema,
   AdminUserSummarySchema,
   AdminUserTypeSchema,
+} from './admin.js';
+export type {
+  CompanyBillingSettings,
+  CompanyBillingSettingsResponse,
+  CompanyBillingSettingsUpdateRequest,
+  InvoiceNumberBaselineRequest,
+  InvoiceNumberSequenceResponse,
 } from './admin.js';
 export {
   FINANCE_MANAGER_PERMISSION_CODES,

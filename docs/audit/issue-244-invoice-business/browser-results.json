@@ -1,0 +1,15 @@
+{
+  "browser": "chrome.exe",
+  "invoiceReference": "HM-2026-042",
+  "amounts": {
+    "currency": "MAD",
+    "subtotalCents": 99167,
+    "taxCents": 19833,
+    "totalCents": 119000
+  },
+  "buyerType": "INDIVIDUAL",
+  "buyerTaxIdentifiersAbsent": true,
+  "immutableAfterSettingsChange": true,
+  "protectedPdfDownload": true,
+  "pageErrors": []
+}

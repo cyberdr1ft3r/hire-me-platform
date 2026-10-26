@@ -515,7 +515,7 @@ describe('messaging foundation migration safety gate', () => {
     expect(await foreignLocksOnSchema(client)).toBe(0);
   }, 180_000);
 
-  it('reconciles only the CLIENT_USER and FINANCE_MANAGER messaging grants', async () => {
+  it('reconciles messaging grants while preserving later additive catalog grants', async () => {
     const schema = await atPreviousMigration();
     const { client } = schema;
     await insertPreCorrectionCatalog(client);
@@ -535,6 +535,8 @@ describe('messaging foundation migration safety gate', () => {
     }
     const added = after.filter((row) => !before.some((old) => old.id === row.id));
     expect(added.map(key).sort()).toEqual([
+      'finance_manager:billing_settings:manage',
+      'finance_manager:billing_settings:view',
       'finance_manager:messages:create',
       'finance_manager:messages:view',
     ]);

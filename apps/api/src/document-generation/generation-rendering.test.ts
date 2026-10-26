@@ -423,10 +423,13 @@ describe('template registry', () => {
         ice: 'SYNTHETIC-ICE',
         taxId: 'SYNTHETIC-IF',
         registrationNumber: 'SYNTHETIC-RC',
+        patente: 'SYNTHETIC-PT',
+        phone: '+212 600 000 000',
         email: 'synthetic@example.invalid',
         website: 'https://example.invalid',
       },
       buyer: {
+        type: 'COMPANY' as const,
         legalName: 'Synthetic Client SA',
         address: '2 Test Street, Rabat',
         ice: 'CLIENT-ICE',
@@ -438,6 +441,7 @@ describe('template registry', () => {
       paymentMethod: 'Synthetic transfer',
       bankDetails: 'Synthetic test account only.',
       taxTreatment: null,
+      totalAmountInWordsFr: 'cent vingt dirhams et zéro centime',
       commercialReferences: {
         quotation: 'Q-SYN-001',
         contract: 'C-SYN-001',
@@ -456,11 +460,18 @@ describe('template registry', () => {
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
-      expect(template.version).toBe(4);
+      expect(template.version).toBe(5);
       expect(built.presentation?.kind).toBe('hireme-commercial');
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
       expect(text).not.toContain(language === 'fr' ? 'Traitement fiscal' : 'Tax treatment');
+      expect(text).toContain('SYNTHETIC-PT');
+      expect(built.footer).toContain('PT: SYNTHETIC-PT');
+      if (language === 'fr') {
+        expect(text).toContain('cent vingt dirhams et zéro centime');
+      } else {
+        expect(text).not.toContain('cent vingt dirhams et zéro centime');
+      }
     }
 
     const exceptional = template.build(

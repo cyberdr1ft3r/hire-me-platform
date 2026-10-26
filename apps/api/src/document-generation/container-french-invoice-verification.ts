@@ -48,10 +48,13 @@ const view: InvoiceView = {
     ice: 'ICE-SYNTHETIQUE',
     taxId: 'IF-SYNTHETIQUE',
     registrationNumber: 'RC-SYNTHETIQUE',
+    patente: 'PT-SYNTHETIQUE',
+    phone: null,
     email: 'facturation@example.invalid',
     website: 'https://example.invalid',
   },
   buyer: {
+    type: 'INDIVIDUAL',
     legalName: 'Cliente Synthétique',
     address: '2 rue de l’Exemple, Rabat',
     ice: null,
@@ -63,6 +66,7 @@ const view: InvoiceView = {
   paymentMethod: 'Virement synthétique',
   bankDetails: null,
   taxTreatment: null,
+  totalAmountInWordsFr: 'mille cent quatre-vingt-dix dirhams et zéro centime',
   commercialReferences: {
     quotation: 'DEV-SYN-001',
     contract: null,
@@ -84,6 +88,7 @@ for (const expected of [
   '198,33 MAD',
   'Total TTC',
   '1 190,00 MAD',
+  'mille cent quatre-vingt-dix dirhams et zéro centime',
 ]) {
   if (!renderedStrings.includes(expected)) {
     throw new Error(`French invoice template omitted ${JSON.stringify(expected)}.`);

@@ -995,10 +995,13 @@ export class DocumentGenerationService {
           ice: invoice.sellerIce,
           taxId: invoice.sellerTaxId,
           registrationNumber: invoice.sellerRegistrationNumber,
+          patente: invoice.sellerPatente,
+          phone: invoice.sellerPhone,
           email: invoice.sellerEmail,
           website: invoice.sellerWebsite,
         },
         buyer: {
+          type: invoice.buyerType ?? 'COMPANY',
           legalName: invoice.buyerLegalName,
           address: invoice.buyerAddress,
           ice: invoice.buyerIce,
@@ -1010,6 +1013,7 @@ export class DocumentGenerationService {
         paymentMethod: invoice.paymentMethod,
         bankDetails: invoice.bankDetails,
         taxTreatment: invoice.taxTreatment,
+        totalAmountInWordsFr: invoice.totalAmountInWordsFr,
         commercialReferences: {
           quotation: invoice.quotation?.reference ?? null,
           contract: invoice.contract?.reference ?? null,

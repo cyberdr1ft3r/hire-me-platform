@@ -12,6 +12,8 @@ describe('FINANCE_MANAGER contract (Issue #125)', () => {
     expect(FINANCE_MANAGER_PERMISSION_CODES.length).toBeGreaterThan(10);
     expect(FINANCE_MANAGER_PERMISSION_CODES).not.toContain('missions:view');
     expect(FINANCE_MANAGER_PERMISSION_CODES).not.toContain('users:view');
+    expect(FINANCE_MANAGER_PERMISSION_CODES).toContain('billing_settings:view');
+    expect(FINANCE_MANAGER_PERMISSION_CODES).toContain('billing_settings:manage');
   });
 
   it('grants only the bounded D-086 recruitment financial context (Issue #168)', () => {
