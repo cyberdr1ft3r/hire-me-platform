@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -21,13 +21,17 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
-Issue #244 invoice business alignment is active on `feat/issue-244-invoice-business`. Company billing
-settings are permission-protected, reusable, and empty by default; issued invoices retain versioned
-immutable snapshots. Configurable `PREFIX-YYYY-NNN` numbering requires an explicit annual external
-baseline and uses PostgreSQL serialization with collision refusal. Individual buyers need no corporate
-tax identifiers, and optional French MAD amount-in-words is derived from stored integer cents. See
-D-095, R-063, and the current status/handoff. Issue #242 remains the parallel staging-delivery track:
-invoice issuance stays disabled until business acceptance, and no VPS access or deployment is authorized.
+Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
+`d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.
+Company billing settings remain permission-protected, reusable, and empty by default; issued invoices
+retain versioned immutable snapshots. Configurable `PREFIX-YYYY-NNN` numbering requires an explicit
+annual external baseline and uses PostgreSQL serialization with collision refusal. Individual buyers
+need no corporate tax identifiers, and optional French MAD amount-in-words is derived from stored
+integer cents. The final API runtime also carries the repository-owned Noto fonts and CI verifies a
+synthetic French invoice inside the container. Automatic deployment remains exact-lowercase-`true`
+opt-in and disabled by default; manual review, non-root deployment, and invoice-issuance gates remain
+unchanged. No VPS access, deployment, or real invoice issuance is authorized. See D-094, D-095, R-062,
+R-063, the staging runbook, and the current status/handoff.
 
 Phase B2 of Issue #232 is underway on `feat/issue-232-b2-console-tabs`, based on latest `main`
 `ce4dad61b0c89499b94a8558c1483b09c67f3ea2` after PR #233. Main's post-merge run `39445963478`

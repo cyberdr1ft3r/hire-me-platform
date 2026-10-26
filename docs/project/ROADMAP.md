@@ -183,7 +183,7 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 ## Phase 11 - Integrations and migration
 
-**State:** In progress through Issue #242 staging delivery preparation
+**State:** In progress through Issue #245 staging blocker remediation
 
 - Microsoft 365 authentication and approved email/contact capabilities.
 - Outlook and Google calendar adapters.
@@ -203,9 +203,10 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 - Client validation and launch checklist.
 
 Issue #242 prepares, but does not activate, the manual-first GitHub Actions → GHCR → VPS staging
-path. Its exit gates include a separately approved VPS audit, protected non-root access, shared HTTPS
-proxy reconciliation, synthetic-only data, paired backup/restore and rollback drills, monitoring, and
-business acceptance before real invoice issuance or automatic deployment.
+path. Issue #245 resolves the audited repository blockers without changing the host or enabling the
+automatic path. Exit gates remain protected non-root access, firewall/reboot review, shared HTTPS
+proxy reconciliation, synthetic-only data, paired off-host backup/restore and rollback drills,
+monitoring, and business acceptance before real invoice issuance or automatic deployment.
 
 ## Issue #132 — proposed signing/sealing sequence
 

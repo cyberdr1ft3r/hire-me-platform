@@ -1,11 +1,12 @@
 # Project Status
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 Status owner: repository maintainer
 
 ## Issue #244 — urgent invoice business alignment
 
-- Work is isolated on `feat/issue-244-invoice-business` from latest `main`. Administration now owns
+- Draft PR #247 is integrated with current `main` `d745de9295220c6e9c30116488ed76f783ace18b`.
+  Administration owns
   a permission-protected reusable company billing profile for RC, ICE, IF, patente/PT, capital,
   address, contact, payment terms/method, and optional bank details. The stored singleton begins empty;
   no unverified business value is a production default. Invoice issuance forms receive a current
@@ -21,9 +22,27 @@ Status owner: repository maintainer
 - Fresh migration/seed/bootstrap, 90 affected PostgreSQL integration tests, five catalog checks,
   contracts, focused API/web tests, lint, typecheck, build, and a real Chrome issue → reload → generate
   → protected-download flow are verified locally. The downloaded one-page A4 PDF preserves the
-  approved branded template and contains only synthetic identities. Exact-head CI remains required.
+  approved branded template and contains only synthetic identities. Exact-head CI on the integrated
+  head and human review remain required.
 - Evidence: [Issue #244 browser and PDF acceptance](../audit/issue-244-invoice-business/README.md).
   No merge, deployment, VPS access, real customer data, or automatic staging activation is authorized.
+## Issue #245 — staging deployment blocker remediation
+
+- Issue #245 is merged on current `main` as `d745de9295220c6e9c30116488ed76f783ace18b`.
+  It did not change the VPS, deploy HireMe, or enable automatic deployment.
+- The API production package now includes the repository-owned Noto font assets. CI builds the final
+  runtime image, renders a synthetic French invoice inside it without network or write access, and
+  independently verifies accents, totals, wrapping, embedded font faces, and the absence of active or
+  remote PDF constructs.
+- The staging workflow now reads `STAGING_AUTO_DEPLOY_ENABLED` in its first protected-Environment
+  step. Missing, false, malformed, or mixed-case values skip every registry, SSH, and deployment step;
+  only exact `true` permits a successful-main automatic path. Manual deployment still requires exact
+  `DEPLOY` plus Environment approval.
+- The runbook records an explicit administrative `IdentityFile`, `IdentitiesOnly yes`, strict
+  host-key checking, and disabled password/keyboard-interactive fallback. The administrative root key
+  remains separate from the CI-only non-root deploy identity.
+- Evidence: [Issue #245 staging blockers](../audit/issue-245-staging-blockers.md). These safeguards are
+  carried into PR #247 and remain subject to its exact-head CI.
 
 ## Issue #242 — GitHub-to-GHCR staging delivery
 

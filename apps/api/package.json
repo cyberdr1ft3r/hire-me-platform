@@ -5,6 +5,7 @@
   "type": "module",
   "main": "./dist/main.js",
   "files": [
+    "assets/fonts",
     "dist",
     "prisma/generated",
     "prisma/migrations",
