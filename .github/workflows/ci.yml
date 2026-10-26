@@ -335,3 +335,34 @@ jobs:
       - name: Confirm published SHA tag
         if: github.event_name == 'push'
         run: docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}:${GITHUB_SHA}"
+
+      - name: Smoke-test web runtime security profile
+        if: matrix.component == 'web'
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}:${GITHUB_SHA}"
+          if [[ "${GITHUB_EVENT_NAME}" != "push" ]]; then
+            image="hireme-web-runtime-smoke:${GITHUB_SHA}"
+            docker buildx build \
+              --file apps/web/Dockerfile \
+              --platform linux/amd64 \
+              --load \
+              --tag "$image" \
+              --build-arg "VCS_REF=${GITHUB_SHA}" \
+              --build-arg VITE_API_BASE_URL=https://hire-me.dr1ft3r.dev \
+              --cache-from type=gha,scope=web \
+              .
+          fi
+          cid=$(docker run -d \
+            --read-only \
+            --tmpfs /config:size=16m,uid=10001,gid=10001,mode=0700 \
+            --tmpfs /data:size=16m,uid=10001,gid=10001,mode=0700 \
+            --tmpfs /tmp:size=16m,uid=10001,gid=10001,mode=1777 \
+            --security-opt no-new-privileges \
+            --cap-drop ALL \
+            --cap-add NET_BIND_SERVICE \
+            "$image")
+          trap 'docker logs "$cid"; docker rm -f "$cid" >/dev/null' EXIT
+          timeout 30 bash -c \
+            'until docker exec "$1" wget -q --spider http://127.0.0.1:8080/__health; do sleep 1; done' \
+            _ "$cid"
