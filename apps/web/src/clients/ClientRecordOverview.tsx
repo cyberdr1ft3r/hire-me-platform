@@ -1,5 +1,12 @@
 import type { ClientStatus, ClientSummary } from '@hire-me/contracts';
-import { useEffect, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
 import {
   CandidateActionMenu,
@@ -63,7 +70,7 @@ export function ClientRecordOverview({
   const canEdit = access.canUpdateClients && !archived;
   const headline = formatClientHeadline(client);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setEditing(false);
   }, [client.id, detailRevealToken]);
 

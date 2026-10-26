@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Root CI runs the API and web Vitest projects concurrently. Keep the
+    // jsdom suite bounded so asynchronous rendering and focus effects are not
+    // starved by competing workers on the GitHub-hosted runner.
+    maxWorkers: 2,
     setupFiles: './src/test/setup.ts',
   },
 });

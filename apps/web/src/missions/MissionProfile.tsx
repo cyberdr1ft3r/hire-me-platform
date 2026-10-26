@@ -1,5 +1,5 @@
 import type { MissionSummary } from '@hire-me/contracts';
-import { Fragment, useEffect, useState, type FormEvent } from 'react';
+import { Fragment, useLayoutEffect, useState, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, Select, TextField } from '../ui/index.js';
@@ -50,7 +50,7 @@ export function MissionProfile({
         .map((value) => formatCents(value, commercial.salaryCurrency, formatCurrency, formatNumber))
     : [];
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setEditing(false);
   }, [mission.id]);
 

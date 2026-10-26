@@ -3,6 +3,20 @@
 Last updated: 2026-10-26
 Status owner: repository maintainer
 
+## Main CI frontend stabilization
+
+- Current `main` `af348bb96b489d76df79c334349aaecc1377e9ff` failed four CI attempts in
+  different timing-sensitive tests while the same cases passed on other attempts. The failures covered
+  an asynchronous message save, an API PDF timeout, Commercial detail focus, and Clients/Missions edit
+  form rendering.
+- The focused stabilization branch moves record focus and record-change edit resets into React layout
+  effects, preventing a visible Edit action from racing a delayed passive reset. The web Vitest project
+  is capped at two workers because root CI already runs API and web projects concurrently on the same
+  GitHub-hosted runner. Assertions, session guards, permissions, and product workflows are unchanged.
+- The Commercial, Clients, and Missions suites pass three consecutive post-fix runs (93 tests per run).
+  Exact-head Linux CI remains required before the resulting SHA may publish GHCR images or resume the
+  protected manual staging deployment. No VPS or deployment setting is changed by this work.
+
 ## Issue #244 — urgent invoice business alignment
 
 - Draft PR #247 is integrated with current `main` `d745de9295220c6e9c30116488ed76f783ace18b`.
