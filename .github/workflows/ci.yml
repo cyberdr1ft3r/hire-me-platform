@@ -360,7 +360,6 @@ jobs:
             --tmpfs /tmp:size=16m,uid=10001,gid=10001,mode=1777 \
             --security-opt no-new-privileges \
             --cap-drop ALL \
-            --cap-add NET_BIND_SERVICE \
             "$image")
           trap 'docker logs "$cid"; docker rm -f "$cid" >/dev/null' EXIT
           timeout 30 bash -c \

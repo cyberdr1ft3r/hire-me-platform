@@ -18,6 +18,9 @@ RUN test -n "$VITE_API_BASE_URL" \
   && pnpm --filter @hire-me/web build
 
 FROM caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d AS runtime
+RUN apk add --no-cache --virtual .captools libcap \
+  && setcap -r /usr/bin/caddy \
+  && apk del .captools
 COPY apps/web/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /workspace/apps/web/dist /srv
 ARG VCS_REF=unknown
