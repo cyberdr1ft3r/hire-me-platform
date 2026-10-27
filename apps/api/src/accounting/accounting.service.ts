@@ -654,6 +654,9 @@ export class AccountingService {
       throw accountingNotFound();
     }
     await this.assertInvoiceScope(invoice, actorUserId, access, this.prisma);
+    if (!invoice.clientId) {
+      throw accountingNotFound();
+    }
 
     const allocations = await this.prisma.paymentAllocation.findMany({
       where: { invoiceId },
@@ -1031,6 +1034,7 @@ export class AccountingService {
     const where: Prisma.InvoiceWhereInput = {
       status: InvoiceStatus.ISSUED,
       archivedAt: null,
+      clientId: { not: null },
       dueDate: { lt: now },
       ...(query.clientId ? { clientId: query.clientId } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
@@ -1045,6 +1049,9 @@ export class AccountingService {
 
     const rows = [];
     for (const invoice of candidates) {
+      if (!invoice.clientId || !invoice.client) {
+        continue;
+      }
       const allocated = await this.allocatedForInvoice(invoice.id, this.prisma);
       const derived = deriveSettlement(invoice, allocated, now);
       if (!derived.overdue) {
@@ -1569,11 +1576,14 @@ export class AccountingService {
   }
 
   private async assertInvoiceScope(
-    invoice: { clientId: string; recruitmentMissionId: string | null },
+    invoice: { clientId: string | null; recruitmentMissionId: string | null },
     actorUserId: string,
     access: AccountingAccess,
     prisma: PrismaLike,
   ): Promise<void> {
+    if (!invoice.clientId) {
+      throw accountingNotFound();
+    }
     await this.assertClientScope(invoice.clientId, access, prisma);
     if (invoice.recruitmentMissionId) {
       await this.assertMissionScope(invoice.recruitmentMissionId, actorUserId, access, prisma);

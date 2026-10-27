@@ -984,7 +984,7 @@ export class DocumentGenerationService {
           lineTotalCents: line.lineTotalCents,
         })),
         party: {
-          clientName: invoice.client.name,
+          clientName: invoice.client?.name ?? invoice.buyerLegalName,
           missionTitle: invoice.recruitmentMission?.title ?? null,
         },
         seller: {
@@ -1358,13 +1358,19 @@ export class DocumentGenerationService {
 
   /** The merged commercial source-scope rule, reused verbatim. */
   private async assertCommercialSourceScope(
-    record: { clientId: string; recruitmentMissionId: string | null },
+    record: { clientId: string | null; recruitmentMissionId: string | null },
     actorUserId: string,
     access: GenerationAccess,
     prisma: PrismaLike,
   ): Promise<void> {
     if (!access.clientsView) {
       throw generationSourceNotFound();
+    }
+    if (!record.clientId) {
+      if (record.recruitmentMissionId) {
+        throw generationSourceNotFound();
+      }
+      return;
     }
     const client = await prisma.client.findUnique({ where: { id: record.clientId } });
     if (!client) {
@@ -1469,9 +1475,9 @@ export class DocumentGenerationService {
   private async stabilizeCommercial(
     tx: Tx,
     table: CommercialRootTable,
-    record: { id: string; clientId: string; recruitmentMissionId: string | null },
+    record: { id: string; clientId: string | null; recruitmentMissionId: string | null },
   ): Promise<void> {
-    await this.lockRowsForShare(tx, 'Client', [record.clientId]);
+    await this.lockRowsForShare(tx, 'Client', record.clientId ? [record.clientId] : []);
     await this.lockRowsForShare(
       tx,
       'RecruitmentMission',

@@ -1,6 +1,68 @@
 import { describe, expect, it } from 'vitest';
 
-import { InvoiceIssueRequestSchema } from './commercial.js';
+import { InvoiceCreateRequestSchema, InvoiceIssueRequestSchema } from './commercial.js';
+
+const invoiceLine = {
+  description: 'Synthetic historical service',
+  quantity: 1,
+  unitPriceCents: 10_000,
+  taxRateBps: 2000,
+};
+
+describe('invoice client selection contract', () => {
+  it('keeps the registered-client request compatible', () => {
+    const parsed = InvoiceCreateRequestSchema.parse({
+      reference: 'INV-REGISTERED-001',
+      clientId: '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a',
+      currency: 'MAD',
+      lines: [invoiceLine],
+    });
+    expect(parsed.clientId).toBe('2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a');
+    expect(parsed.manualClient).toBeUndefined();
+  });
+
+  it('accepts a manual client with only a name and optional billing details', () => {
+    const minimal = InvoiceCreateRequestSchema.parse({
+      reference: 'INV-MANUAL-001',
+      manualClient: { name: '  Synthetic Walk-in Client  ' },
+      currency: 'MAD',
+      lines: [invoiceLine],
+    });
+    expect(minimal.manualClient).toEqual({ name: 'Synthetic Walk-in Client' });
+
+    const detailed = InvoiceCreateRequestSchema.parse({
+      reference: 'INV-MANUAL-002',
+      manualClient: {
+        name: 'Synthetic Historical Client',
+        address: '1 Archive Street, Rabat',
+        ice: 'SYNTHETIC-ICE',
+        taxId: 'SYNTHETIC-IF',
+      },
+      currency: 'MAD',
+      lines: [invoiceLine],
+    });
+    expect(detailed.manualClient?.address).toBe('1 Archive Street, Rabat');
+  });
+
+  it('rejects missing, ambiguous, or linked manual-client selections', () => {
+    const base = { reference: 'INV-INVALID', currency: 'MAD', lines: [invoiceLine] };
+    expect(InvoiceCreateRequestSchema.safeParse(base).success).toBe(false);
+    expect(
+      InvoiceCreateRequestSchema.safeParse({
+        ...base,
+        clientId: '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a',
+        manualClient: { name: 'Synthetic Client' },
+      }).success,
+    ).toBe(false);
+    expect(
+      InvoiceCreateRequestSchema.safeParse({
+        ...base,
+        manualClient: { name: 'Synthetic Client' },
+        recruitmentMissionId: '2b2b2b2b-2b2b-42b2-82b2-2b2b2b2b2b2b',
+      }).success,
+    ).toBe(false);
+  });
+});
 
 const businessDetails = {
   sellerLegalName: 'Synthetic HireMe SARL',

@@ -278,7 +278,7 @@ export const PurchaseOrderStatusActionRequestSchema = z.object({
 export const InvoiceSummarySchema = z.object({
   id: z.string().uuid(),
   reference: z.string(),
-  clientId: z.string().uuid(),
+  clientId: z.string().uuid().nullable(),
   recruitmentMissionId: z.string().uuid().nullable(),
   missionPlacementId: z.string().uuid().nullable(),
   quotationId: z.string().uuid().nullable(),
@@ -341,9 +341,18 @@ export const InvoiceIssuancePrefillSchema = z.object({
   automaticNumbering: z.boolean(),
 });
 
+export const InvoiceBillingClientSchema = z.object({
+  mode: z.enum(['REGISTERED', 'MANUAL']),
+  name: z.string(),
+  address: z.string().nullable(),
+  ice: z.string().nullable(),
+  taxId: z.string().nullable(),
+});
+
 export const InvoiceDetailSchema = InvoiceSummarySchema.extend({
   lines: z.array(CommercialLineSchema).nullable(),
   businessDetails: InvoiceBusinessDetailsSchema.nullable(),
+  billingClient: InvoiceBillingClientSchema.nullable(),
   history: z.array(CommercialHistoryEventSchema),
   issuancePrefill: InvoiceIssuancePrefillSchema.nullable().optional(),
 });
@@ -364,20 +373,53 @@ export const InvoiceListQuerySchema = z.object({
   includeArchived: ExplicitBooleanQuerySchema,
 });
 
-export const InvoiceCreateRequestSchema = z.object({
-  reference: ReferenceSchema,
-  clientId: z.string().uuid(),
-  recruitmentMissionId: z.string().uuid().optional(),
-  missionPlacementId: z.string().uuid().optional(),
-  quotationId: z.string().uuid().optional(),
-  contractId: z.string().uuid().optional(),
-  purchaseOrderId: z.string().uuid().optional(),
-  currency: CurrencySchema,
-  issueDate: OptionalIsoDateSchema,
-  dueDate: OptionalIsoDateSchema,
-  correctionOfInvoiceId: z.string().uuid().optional(),
-  lines: z.array(CommercialLineInputSchema).min(1).max(100).optional(),
+export const ManualInvoiceClientInputSchema = z.object({
+  name: z.string().trim().min(1).max(180),
+  address: z.string().trim().min(1).max(500).optional(),
+  ice: z.string().trim().min(1).max(80).optional(),
+  taxId: z.string().trim().min(1).max(80).optional(),
 });
+
+export const InvoiceCreateRequestSchema = z
+  .object({
+    reference: ReferenceSchema,
+    clientId: z.string().uuid().optional(),
+    manualClient: ManualInvoiceClientInputSchema.optional(),
+    recruitmentMissionId: z.string().uuid().optional(),
+    missionPlacementId: z.string().uuid().optional(),
+    quotationId: z.string().uuid().optional(),
+    contractId: z.string().uuid().optional(),
+    purchaseOrderId: z.string().uuid().optional(),
+    currency: CurrencySchema,
+    issueDate: OptionalIsoDateSchema,
+    dueDate: OptionalIsoDateSchema,
+    correctionOfInvoiceId: z.string().uuid().optional(),
+    lines: z.array(CommercialLineInputSchema).min(1).max(100).optional(),
+  })
+  .superRefine((value, context) => {
+    if (Boolean(value.clientId) === Boolean(value.manualClient)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Choose exactly one registered or manual client.',
+        path: ['clientId'],
+      });
+    }
+    if (
+      value.manualClient &&
+      (value.recruitmentMissionId ||
+        value.missionPlacementId ||
+        value.quotationId ||
+        value.contractId ||
+        value.purchaseOrderId ||
+        value.correctionOfInvoiceId)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A manual client invoice cannot link registered-client records.',
+        path: ['manualClient'],
+      });
+    }
+  });
 
 export const InvoiceUpdateRequestSchema = z
   .object({
@@ -559,6 +601,8 @@ export type InvoiceDetail = z.infer<typeof InvoiceDetailSchema>;
 export type InvoiceBusinessDetails = z.infer<typeof InvoiceBusinessDetailsSchema>;
 export type InvoiceBusinessDetailsInput = z.infer<typeof InvoiceBusinessDetailsInputSchema>;
 export type InvoiceIssuancePrefill = z.infer<typeof InvoiceIssuancePrefillSchema>;
+export type InvoiceBillingClient = z.infer<typeof InvoiceBillingClientSchema>;
+export type ManualInvoiceClientInput = z.infer<typeof ManualInvoiceClientInputSchema>;
 export type InvoiceListQuery = z.infer<typeof InvoiceListQuerySchema>;
 export type InvoiceCreateRequest = z.infer<typeof InvoiceCreateRequestSchema>;
 export type InvoiceUpdateRequest = z.infer<typeof InvoiceUpdateRequestSchema>;
