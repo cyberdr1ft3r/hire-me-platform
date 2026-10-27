@@ -325,6 +325,58 @@ describe('linked sources and derived context', () => {
     expect(values.reference).toBe('');
   });
 
+  it('submits only the active manual-client fields and keeps registered mode compatible', () => {
+    const values = {
+      ...emptyCreateForm(),
+      reference: 'INV-MANUAL-001',
+      client,
+      invoiceClientMode: 'MANUAL' as const,
+      manualClientName: ' Synthetic Historical Client ',
+      manualClientAddress: ' Archive Street, Rabat ',
+      manualClientIce: ' TEST-ICE ',
+      manualClientTaxId: ' TEST-IF ',
+      quotation: quotationOption,
+      lines: [
+        {
+          key: 101,
+          description: 'Historical service',
+          quantity: '1',
+          unitPrice: '1000,00',
+          taxRate: '20',
+        },
+      ],
+    };
+    const manual = toCreateRequest('invoice', values);
+    expect(manual.ok && manual.value.request).toEqual({
+      reference: 'INV-MANUAL-001',
+      manualClient: {
+        name: 'Synthetic Historical Client',
+        address: 'Archive Street, Rabat',
+        ice: 'TEST-ICE',
+        taxId: 'TEST-IF',
+      },
+      currency: 'MAD',
+      lines: [
+        {
+          description: 'Historical service',
+          quantity: 1,
+          unitPriceCents: 100_000,
+          taxRateBps: 2000,
+        },
+      ],
+    });
+
+    const registered = toCreateRequest('invoice', {
+      ...values,
+      invoiceClientMode: 'REGISTERED',
+      quotation: null,
+    });
+    expect(registered.ok && registered.value.request).toMatchObject({
+      clientId: CLIENT_ID,
+    });
+    expect(registered.ok && 'manualClient' in registered.value.request).toBe(false);
+  });
+
   it('keeps the whole chain when following up a purchase order, by reference only', () => {
     const purchaseOrder = syntheticPurchaseOrder({
       contractId: CONTRACT_ID,

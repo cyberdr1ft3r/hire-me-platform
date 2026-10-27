@@ -169,6 +169,7 @@ function RecordDetail({
   function start(action: LifecycleAction): void {
     if (actionNeedsConfirmation(kind, action)) {
       const prefill = detail.kind === 'invoice' ? detail.record.issuancePrefill : null;
+      const billingClient = detail.kind === 'invoice' ? detail.record.billingClient : null;
       setReasonError(false);
       setIssueError(null);
       setConfirming({
@@ -187,10 +188,10 @@ function RecordDetail({
         sellerPhone: prefill?.sellerPhone ?? '',
         sellerEmail: prefill?.sellerEmail ?? '',
         sellerWebsite: prefill?.sellerWebsite ?? '',
-        buyerLegalName: record.display.clientName,
-        buyerAddress: '',
-        buyerIce: '',
-        buyerTaxId: '',
+        buyerLegalName: billingClient?.name ?? record.display.clientName,
+        buyerAddress: billingClient?.address ?? '',
+        buyerIce: billingClient?.ice ?? '',
+        buyerTaxId: billingClient?.taxId ?? '',
         buyerBillingContact: '',
         buyerType: 'COMPANY',
         customerReference: '',
@@ -198,7 +199,7 @@ function RecordDetail({
         paymentMethod: prefill?.paymentMethod ?? '',
         bankDetails: prefill?.bankDetails ?? '',
         taxTreatment: '',
-        includeFrenchAmountInWords: true,
+        includeFrenchAmountInWords: record.amounts?.currency === 'MAD',
       });
       return;
     }

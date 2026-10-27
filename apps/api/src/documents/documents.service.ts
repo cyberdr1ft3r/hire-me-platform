@@ -1214,7 +1214,7 @@ export class DocumentsService {
 
     const commercialRecord = async (
       granted: boolean,
-      record: { clientId: string; recruitmentMissionId: string | null } | null,
+      record: { clientId: string | null; recruitmentMissionId: string | null } | null,
     ): Promise<void> => {
       if (
         !granted ||
@@ -1228,6 +1228,12 @@ export class DocumentsService {
       }
       if (!this.hasPermission(permissions, CLIENT_PERMISSIONS.CLIENTS_VIEW)) {
         deny();
+      }
+      if (!record.clientId) {
+        if (record.recruitmentMissionId) {
+          deny();
+        }
+        return;
       }
       if (!record.recruitmentMissionId) {
         return;

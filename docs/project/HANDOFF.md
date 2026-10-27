@@ -1,27 +1,22 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Current situation
 
-- `main` is `af348bb96b489d76df79c334349aaecc1377e9ff`. Its main CI run failed four
-  attempts in different timing-sensitive tests, so the SHA-tagged API and web images were not published.
-- A focused branch stabilizes Commercial focus and Clients/Missions edit resets before paint and caps
-  the web Vitest project at two workers while root CI runs API and web tests concurrently.
-- Existing assertions, authentication/session guards, permissions, invoice behavior, and deployment
-  safeguards are unchanged. No VPS change or deployment occurred; automatic deployment and real invoice
-  issuance remain disabled.
+- `feat/client-libre-invoices` is based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements standalone manual-client invoice creation without creating a CRM client.
+- The UI preserves both registered and manual form values while switching. Manual name is required; address, ICE, and IF are optional at draft creation. Existing issuance requirements still require the complete approved buyer/seller/payment snapshot before issue.
+- Invoice `clientId` is nullable only for standalone records with a stored buyer legal name. Manual invoices cannot link registered-client sources. Generated PDFs and protected generated-document reads use the immutable invoice buyer snapshot.
+- Focused contract, UI, PostgreSQL create/issue/reload, and real-PDF tests pass. No deployment or real invoice issuance occurred.
 
 ## Next concrete action
 
-1. Require all four exact-head CI jobs to pass on the focused draft PR.
-2. Review and merge only with explicit approval.
-3. After merge, use the new verified `main` SHA to publish both immutable GHCR images and resume the
-   protected manual staging deployment through its normal Environment approval.
+1. Review the final diff and exact-head CI for the standalone invoice branch.
+2. Confirm that excluding manual-client invoices from registered-client allocations/balances is the intended accounting boundary.
+3. Merge only with explicit approval; deployment and production invoice issuance remain separate protected decisions.
 
 ## Completion conditions
 
-- The focused PR remains open and unmerged until review and exact-head CI are green.
-- Both SHA-tagged GHCR images exist before any deployment workflow is triggered.
-- No environment gate is bypassed, automatic deployment remains disabled, and real invoice issuance
-  remains disabled.
+- The review branch remains unmerged until exact-head CI and review are green.
+- Registered-client invoice behavior and existing authorization/numbering/legal rules remain unchanged.
+- No environment gate is bypassed, automatic deployment remains disabled, and real invoice issuance remains disabled.

@@ -479,7 +479,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       status?: InvoiceStatus;
       mission?: string | null;
       referenceValue?: string;
-      client?: string;
+      client?: string | null;
       buyerLegalName?: string;
       customerReference?: string | null;
       taxTreatment?: string | null;
@@ -488,7 +488,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
     return prisma.invoice.create({
       data: {
         reference: options.referenceValue ?? reference('INV'),
-        clientId: options.client ?? clientId,
+        clientId: options.client === undefined ? clientId : options.client,
         recruitmentMissionId: options.mission === undefined ? null : options.mission,
         currency: 'MAD',
         status: options.status ?? InvoiceStatus.ISSUED,
@@ -828,6 +828,27 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(stored.subtotalCents).toBe(30_000);
     expect(stored.taxCents).toBe(6_000);
     expect(stored.totalCents).toBe(36_000);
+  });
+
+  it('renders a standalone manual-client invoice from its immutable buyer snapshot', async () => {
+    const invoice = await createInvoice({
+      client: null,
+      buyerLegalName: 'Synthetic Walk-in Client',
+    });
+    const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`);
+    expect(response.status).toBe(201);
+
+    const result = generated(response.body);
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    const text = await pdfText(await storage.get(version.storageKey));
+    expect(text).toContain('Synthetic Walk-in Client');
+    expect(text).toContain('2 Test Street, Rabat');
+
+    const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    expect(stored.clientId).toBeNull();
+    expect(stored.buyerLegalName).toBe('Synthetic Walk-in Client');
   });
 
   it('renders only approved exceptional tax wording in a dedicated fiscal section', async () => {

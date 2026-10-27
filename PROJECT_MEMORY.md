@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,13 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Issue #252 standalone manual-client invoices are implemented for review on `feat/client-libre-invoices` from
+`main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` under D-096. An invoice chooses exactly one registered
+client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
+registered-client source, and remains durable in history and generated PDF output. Existing issue,
+numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
+and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
 
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.

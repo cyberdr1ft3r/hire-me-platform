@@ -120,6 +120,11 @@ export type LineValues = {
 export type CreateFormValues = {
   reference: string;
   client: CommercialPickerOption | null;
+  invoiceClientMode: 'REGISTERED' | 'MANUAL';
+  manualClientName: string;
+  manualClientAddress: string;
+  manualClientIce: string;
+  manualClientTaxId: string;
   mission: CommercialPickerOption | null;
   quotation: CommercialPickerOption | null;
   contract: CommercialPickerOption | null;
@@ -152,6 +157,11 @@ export function emptyCreateForm(): CreateFormValues {
   return {
     reference: '',
     client: null,
+    invoiceClientMode: 'REGISTERED',
+    manualClientName: '',
+    manualClientAddress: '',
+    manualClientIce: '',
+    manualClientTaxId: '',
     mission: null,
     quotation: null,
     contract: null,
@@ -207,6 +217,7 @@ export function sourceOption(summary: CommercialSummary): CommercialPickerOption
 export function followUpForm(source: CommercialDetail): CreateFormValues {
   const field = sourceFieldFor(source.kind);
   const values = emptyCreateForm();
+  if (!source.record.clientId) return values;
   values.client = {
     id: source.record.clientId,
     label: source.record.display.clientName,
@@ -375,6 +386,7 @@ function parseQuantity(value: string): number | null {
 export type FormErrorKey =
   | 'commercial.form.errors.reference'
   | 'commercial.form.errors.client'
+  | 'commercial.form.errors.manualClientName'
   | 'commercial.form.errors.currency'
   | 'commercial.form.errors.amount'
   | 'commercial.form.errors.tax'
@@ -439,8 +451,12 @@ export function toCreateRequest(
   const errors: FormErrors = {};
   const reference = values.reference.trim();
   if (!reference || reference.length > 80) errors.reference = 'commercial.form.errors.reference';
-  if (!values.client) errors.client = 'commercial.form.errors.client';
-  const derived = deriveContext(kind, values);
+  const manualInvoice = kind === 'invoice' && values.invoiceClientMode === 'MANUAL';
+  if (!manualInvoice && !values.client) errors.client = 'commercial.form.errors.client';
+  if (manualInvoice && !values.manualClientName.trim()) {
+    errors.manualClientName = 'commercial.form.errors.manualClientName';
+  }
+  const derived = manualInvoice ? ({ status: 'none' } as const) : deriveContext(kind, values);
   if (derived.status === 'conflict') errors.context = 'commercial.form.errors.context';
   const derivedCurrency = derived.status === 'derived' ? derived.currency : null;
   const currency = (derivedCurrency ?? values.currency).trim().toUpperCase();
@@ -523,19 +539,35 @@ export function toCreateRequest(
       break;
     }
     case 'invoice': {
-      const usesSourceLines = invoiceHasLineSource(values) && values.useSourceLines;
+      const usesSourceLines =
+        !manualInvoice && invoiceHasLineSource(values) && values.useSourceLines;
       const lines = usesSourceLines ? undefined : toLines(values.lines, errors);
       if (lines && lines.length === 0) errors.lines = 'commercial.form.errors.lines';
       value = {
         kind,
         request: {
           reference,
-          clientId,
-          ...(recruitmentMissionId ? { recruitmentMissionId } : {}),
-          ...(values.placement ? { missionPlacementId: values.placement.id } : {}),
-          ...(values.quotation ? { quotationId: values.quotation.id } : {}),
-          ...(values.contract ? { contractId: values.contract.id } : {}),
-          ...(values.purchaseOrder ? { purchaseOrderId: values.purchaseOrder.id } : {}),
+          ...(manualInvoice
+            ? {
+                manualClient: {
+                  name: values.manualClientName.trim(),
+                  ...(values.manualClientAddress.trim()
+                    ? { address: values.manualClientAddress.trim() }
+                    : {}),
+                  ...(values.manualClientIce.trim() ? { ice: values.manualClientIce.trim() } : {}),
+                  ...(values.manualClientTaxId.trim()
+                    ? { taxId: values.manualClientTaxId.trim() }
+                    : {}),
+                },
+              }
+            : {
+                clientId,
+                ...(recruitmentMissionId ? { recruitmentMissionId } : {}),
+                ...(values.placement ? { missionPlacementId: values.placement.id } : {}),
+                ...(values.quotation ? { quotationId: values.quotation.id } : {}),
+                ...(values.contract ? { contractId: values.contract.id } : {}),
+                ...(values.purchaseOrder ? { purchaseOrderId: values.purchaseOrder.id } : {}),
+              }),
           currency,
           issueDate: optionalDate(values.issueDate),
           dueDate: optionalDate(values.dueDate),

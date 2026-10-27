@@ -310,6 +310,32 @@ describe('CommercialPanel: presentation and localization', () => {
 });
 
 describe('CommercialPanel: personas and permissions', () => {
+  it('switches invoice client modes without losing either mode values', async () => {
+    standardApi();
+    render(<Panel permissions={OPERATOR} />);
+    await openKind('Invoices');
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+    const form = createForm();
+
+    fireEvent.click(within(form).getByRole('radio', { name: 'Manual client' }));
+    fireEvent.change(within(form).getByLabelText(/^Name \/ Legal name/), {
+      target: { value: 'Synthetic Walk-in Client' },
+    });
+    expect(within(form).queryByRole('combobox', { name: /^Client/ })).toBeNull();
+
+    fireEvent.click(within(form).getByRole('radio', { name: 'Registered client' }));
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    fireEvent.click(within(form).getByRole('radio', { name: 'Manual client' }));
+
+    expect(within(form).getByLabelText(/^Name \/ Legal name/)).toHaveValue(
+      'Synthetic Walk-in Client',
+    );
+    fireEvent.click(within(form).getByRole('radio', { name: 'Registered client' }));
+    expect(within(form).getByRole('combobox', { name: /^Client/ })).toHaveTextContent(
+      'Synthetic Client',
+    );
+  });
+
   it('gives the Finance Manager D-086 mission and placement sources without recruitment APIs', async () => {
     const calls = standardApi();
     render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
