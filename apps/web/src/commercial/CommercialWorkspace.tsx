@@ -20,6 +20,7 @@ import {
 import { Button, EmptyState, InlineMessage, PageHeader } from '../ui/index.js';
 import { CommercialCreateForm } from './CommercialCreateForm.js';
 import { CommercialDetailView } from './CommercialDetail.js';
+import type { ManualInvoiceClientUpdate } from './commercial-api.js';
 import type { GenerationActions } from './CommercialGeneration.js';
 import { CommercialFilters, CommercialList } from './CommercialList.js';
 import type { CommercialWriteAction, CreateDraft } from './CommercialPanel.js';
@@ -52,6 +53,7 @@ export type DetailPane = {
   state: DetailState<CommercialDetail>;
   generation: GenerationActions;
   onAction: (action: LifecycleAction, input: LifecycleInput) => Promise<boolean>;
+  onUpdateManualInvoiceClient: (input: ManualInvoiceClientUpdate) => Promise<boolean>;
   onRetry: () => void;
 };
 
@@ -209,6 +211,7 @@ export function CommercialWorkspace({
                 detail={detail}
                 kind={kind}
                 onFollowUp={(target, from) => create.onOpen(target, from)}
+                onUpdateManualInvoiceClient={detail.onUpdateManualInvoiceClient}
                 pending={pending}
                 selectedId={list.selectedId}
               />

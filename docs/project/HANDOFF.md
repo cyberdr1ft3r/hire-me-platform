@@ -8,9 +8,14 @@ Last updated: 2026-10-28
   `5919c8a2ee230afd3dac062b13bd314e9c90b686` and includes the unmerged Client libre implementation so
   the requested PR can target `main` without changing PR #253.
 - Draft manual-client input requires the billed client name and accepts an omitted, empty, or whitespace-only
-  address. Reopening the draft returns a null address and no CRM `Client` is created.
+  address. Authorized operators can edit the manual-client snapshot while the invoice is `DRAFT`, clear the
+  address back to null, and reload it; the change is audited and no CRM `Client` is created. Registered-client
+  invoices cannot use this path.
 - Final issuance still requires a non-blank buyer address. Existing numbering, calculation, permission,
   lifecycle, registered-client, and generated-document rules are unchanged.
+- The invoice renderer now omits the buyer-address row if an explicitly authorized view supplies no address,
+  but the current generator remains issued-only and still rejects incomplete historical issued snapshots.
+  A draft preview or historical no-address document remains a separate product/legal workflow.
 - Focused tests, lint, typecheck, architecture/style checks, Prisma validation, and builds pass locally.
   Docker Desktop was unavailable, so exact-head CI must supply the PostgreSQL migration/integration evidence.
 - No deployment, merge, production change, or invoice issuance occurred.

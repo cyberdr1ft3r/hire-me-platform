@@ -460,7 +460,7 @@ describe('template registry', () => {
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
-      expect(template.version).toBe(5);
+      expect(template.version).toBe(6);
       expect(built.presentation?.kind).toBe('hireme-commercial');
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
@@ -484,5 +484,17 @@ describe('template registry', () => {
     const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('BC-TEST-2026-0042');
+
+    const withoutBuyerAddress = template.build(
+      { ...base, buyer: { ...base.buyer, address: null } },
+      'en',
+    );
+    const buyerPanel = withoutBuyerAddress.blocks
+      .filter((block) => block.kind === 'panelGrid')
+      .flatMap((block) => block.panels)
+      .find((panel) => panel.heading === 'Billed client');
+    expect(buyerPanel?.rows).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ label: 'Address' })]),
+    );
   });
 });

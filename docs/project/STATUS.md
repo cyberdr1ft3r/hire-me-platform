@@ -9,12 +9,18 @@ Status owner: repository maintainer
   `main` `5919c8a2ee230afd3dac062b13bd314e9c90b686` without modifying PR #253.
 - A manual-client draft still requires the billed client name, but an omitted, empty, or whitespace-only
   address is normalized to no address. The bilingual field label explicitly marks the address optional
-  at draft stage. Final issuance continues to require a non-blank buyer address through the unchanged
-  issuance contract and form validation.
+  at draft stage. PR #262 now extends that rule through draft editing: authorized operators can update the
+  manual name/address/ICE/IF snapshot, clear the address back to null, reload it, and retain audited history.
+  Registered-client invoices cannot be converted through this update path. Final issuance continues to
+  require a non-blank buyer address through the unchanged issuance contract and form validation.
+- The invoice template omits its buyer-address row when a separately authorized view has no address, without
+  fabricating a placeholder. Current generation remains issued-only and incomplete historical issued rows
+  still fail closed. Any no-address historical or non-issued document workflow requires separate legal and
+  product approval.
 - Focused contract and web regressions pass, as do repository lint, typecheck, architecture/style checks,
   and production builds. Prisma validation passes. PostgreSQL integration execution remains for exact-head
-  CI because Docker Desktop was unavailable locally; the regression now creates and reloads a name-only
-  manual-client draft and proves no CRM client is created.
+  CI because Docker Desktop was unavailable locally; the regression now creates, edits, clears, and reloads
+  a manual-client draft, verifies audit history, and proves no CRM client is created.
 - This branch does not deploy, merge, issue an invoice, or modify production data.
 
 ## Issue #254 — protected pre-merge staging releases

@@ -454,7 +454,7 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 5,
+  version: 6,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
@@ -495,7 +495,9 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
     ];
     const buyerRows = [
       { label: label.billedClient, value: sanitizeText(view.buyer.legalName) },
-      { label: label.address, value: sanitizeText(view.buyer.address) },
+      ...(view.buyer.address
+        ? [{ label: label.address, value: sanitizeText(view.buyer.address) }]
+        : []),
       ...(view.buyer.ice ? [{ label: label.ice, value: sanitizeText(view.buyer.ice) }] : []),
       ...(view.buyer.taxId ? [{ label: label.taxId, value: sanitizeText(view.buyer.taxId) }] : []),
       ...(view.buyer.billingContact

@@ -253,6 +253,13 @@ export const commercialEn = {
         'Enter only approved legal wording for an exemption, reverse charge, or another exceptional treatment. Leave blank for a standard VAT invoice.',
       amountInWords: 'Include the French total in words',
     },
+    manualClient: {
+      address: 'Billed client address (optional for draft)',
+      edit: 'Edit manual client',
+      nameRequired: 'Enter the billed client name.',
+      save: 'Save client',
+      title: 'Manual client',
+    },
     facts: {
       client: 'Client',
       correctionOf: 'Corrects invoice',
@@ -496,5 +503,8 @@ export const commercialEn = {
     received: 'Purchase order marked received.',
     rejected: 'Quotation marked rejected.',
     successTitle: 'Done',
+    updated: {
+      invoiceClient: 'Manual client updated.',
+    },
   },
 } as const;

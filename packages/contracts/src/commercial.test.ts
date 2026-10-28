@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { InvoiceCreateRequestSchema, InvoiceIssueRequestSchema } from './commercial.js';
+import {
+  InvoiceCreateRequestSchema,
+  InvoiceIssueRequestSchema,
+  InvoiceUpdateRequestSchema,
+} from './commercial.js';
 
 const invoiceLine = {
   description: 'Synthetic historical service',
@@ -42,6 +46,16 @@ describe('invoice client selection contract', () => {
       lines: [invoiceLine],
     });
     expect(detailed.manualClient?.address).toBe('1 Archive Street, Rabat');
+  });
+
+  it('allows a draft manual client to be saved with a name and a cleared address', () => {
+    const parsed = InvoiceUpdateRequestSchema.parse({
+      manualClient: { name: '  Synthetic Walk-in Client  ', address: '   ' },
+    });
+    expect(parsed.manualClient).toEqual({ name: 'Synthetic Walk-in Client' });
+    expect(
+      InvoiceUpdateRequestSchema.safeParse({ manualClient: { name: '   ', address: '' } }).success,
+    ).toBe(false);
   });
 
   it('rejects missing, ambiguous, or linked manual-client selections', () => {

@@ -431,6 +431,7 @@ export const InvoiceUpdateRequestSchema = z
     reference: ReferenceSchema.optional(),
     issueDate: NullableIsoDateSchema,
     dueDate: NullableIsoDateSchema,
+    manualClient: ManualInvoiceClientInputSchema.optional(),
     lines: z.array(CommercialLineInputSchema).min(1).max(100).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

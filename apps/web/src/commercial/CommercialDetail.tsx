@@ -26,6 +26,7 @@ import {
   type CommercialFormat,
 } from './commercial-labels.js';
 import { CommercialGeneration } from './CommercialGeneration.js';
+import type { ManualInvoiceClientUpdate } from './commercial-api.js';
 import type { CommercialWriteAction } from './CommercialPanel.js';
 import type { DetailPane } from './CommercialWorkspace.js';
 
@@ -41,6 +42,7 @@ export function CommercialDetailView({
   detail,
   kind,
   onFollowUp,
+  onUpdateManualInvoiceClient,
   pending,
   selectedId,
 }: {
@@ -48,6 +50,7 @@ export function CommercialDetailView({
   detail: DetailPane;
   kind: CommercialKind;
   onFollowUp: (target: CommercialKind, from: CommercialDetail) => void;
+  onUpdateManualInvoiceClient: (input: ManualInvoiceClientUpdate) => Promise<boolean>;
   pending: CommercialWriteAction | null;
   selectedId: string | null;
 }) {
@@ -88,6 +91,7 @@ export function CommercialDetailView({
       key={`${record.id}:${record.status}:${record.updatedAt}`}
       onAction={detail.onAction}
       onFollowUp={onFollowUp}
+      onUpdateManualInvoiceClient={onUpdateManualInvoiceClient}
       pending={pending}
     />
   );
@@ -130,6 +134,7 @@ function RecordDetail({
   generation,
   onAction,
   onFollowUp,
+  onUpdateManualInvoiceClient,
   pending,
 }: {
   access: CommercialAccess;
@@ -138,6 +143,7 @@ function RecordDetail({
   generation: DetailPane['generation'];
   onAction: DetailPane['onAction'];
   onFollowUp: (target: CommercialKind, from: CommercialDetail) => void;
+  onUpdateManualInvoiceClient: (input: ManualInvoiceClientUpdate) => Promise<boolean>;
   pending: CommercialWriteAction | null;
 }) {
   const format = useCommercialFormat();
@@ -146,6 +152,9 @@ function RecordDetail({
   const [confirming, setConfirming] = useState<Confirming | null>(null);
   const [reasonError, setReasonError] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
+  const [editingManualClient, setEditingManualClient] = useState(false);
+  const [manualClient, setManualClient] = useState({ name: '', address: '', ice: '', taxId: '' });
+  const [manualClientNameError, setManualClientNameError] = useState(false);
   const { kind, record } = detail;
   const writesLocked = pending !== null;
   const archived = record.archivedAt !== null || record.status === 'ARCHIVED';
@@ -204,6 +213,34 @@ function RecordDetail({
       return;
     }
     void onAction(action, {});
+  }
+
+  function startManualClientEdit(): void {
+    if (detail.kind !== 'invoice' || detail.record.billingClient?.mode !== 'MANUAL') return;
+    setManualClient({
+      name: detail.record.billingClient.name,
+      address: detail.record.billingClient.address ?? '',
+      ice: detail.record.billingClient.ice ?? '',
+      taxId: detail.record.billingClient.taxId ?? '',
+    });
+    setManualClientNameError(false);
+    setEditingManualClient(true);
+  }
+
+  async function saveManualClient(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const name = manualClient.name.trim();
+    if (!name) {
+      setManualClientNameError(true);
+      return;
+    }
+    const saved = await onUpdateManualInvoiceClient({
+      name,
+      ...(manualClient.address.trim() ? { address: manualClient.address.trim() } : {}),
+      ...(manualClient.ice.trim() ? { ice: manualClient.ice.trim() } : {}),
+      ...(manualClient.taxId.trim() ? { taxId: manualClient.taxId.trim() } : {}),
+    });
+    if (saved) setEditingManualClient(false);
   }
 
   function confirm(event: FormEvent<HTMLFormElement>): void {
@@ -318,6 +355,98 @@ function RecordDetail({
       </header>
 
       <RecordFacts detail={detail} format={format} />
+
+      {detail.kind === 'invoice' &&
+      detail.record.status === 'DRAFT' &&
+      detail.record.billingClient?.mode === 'MANUAL' &&
+      access.manage.invoice ? (
+        <section aria-labelledby="commercial-manual-client-title" className="commercial-section">
+          <h3 className="commercial-section__title" id="commercial-manual-client-title">
+            {t('commercial.detail.manualClient.title')}
+          </h3>
+          {editingManualClient ? (
+            <form
+              className="commercial-form commercial-form--panel"
+              noValidate
+              onSubmit={(event) => void saveManualClient(event)}
+            >
+              <div className="commercial-form__grid">
+                <TextField
+                  error={
+                    manualClientNameError
+                      ? t('commercial.detail.manualClient.nameRequired')
+                      : undefined
+                  }
+                  label={t('commercial.detail.invoice.buyerLegalName')}
+                  maxLength={180}
+                  onChange={(event) => {
+                    const name = event.currentTarget.value;
+                    setManualClientNameError(false);
+                    setManualClient((current) => ({ ...current, name }));
+                  }}
+                  required
+                  value={manualClient.name}
+                />
+                <TextArea
+                  label={t('commercial.detail.manualClient.address')}
+                  maxLength={500}
+                  onChange={(event) => {
+                    const address = event.currentTarget.value;
+                    setManualClient((current) => ({ ...current, address }));
+                  }}
+                  rows={2}
+                  value={manualClient.address}
+                />
+                <TextField
+                  label={t('commercial.detail.invoice.buyerIce')}
+                  maxLength={80}
+                  onChange={(event) => {
+                    const ice = event.currentTarget.value;
+                    setManualClient((current) => ({ ...current, ice }));
+                  }}
+                  value={manualClient.ice}
+                />
+                <TextField
+                  label={t('commercial.detail.invoice.buyerTaxId')}
+                  maxLength={80}
+                  onChange={(event) => {
+                    const taxId = event.currentTarget.value;
+                    setManualClient((current) => ({ ...current, taxId }));
+                  }}
+                  value={manualClient.taxId}
+                />
+              </div>
+              <div className="commercial-actions">
+                <Button
+                  disabled={writesLocked}
+                  loading={pending === 'update'}
+                  loadingLabel={t('common.status.working')}
+                  size="compact"
+                  type="submit"
+                >
+                  {t('commercial.detail.manualClient.save')}
+                </Button>
+                <Button
+                  onClick={() => setEditingManualClient(false)}
+                  size="compact"
+                  variant="quiet"
+                >
+                  {t('common.actions.cancel')}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <Button
+              disabled={writesLocked}
+              onClick={startManualClientEdit}
+              size="compact"
+              variant="secondary"
+            >
+              {t('commercial.detail.manualClient.edit')}
+            </Button>
+          )}
+        </section>
+      ) : null}
 
       {chain.length > 1 ? (
         <section aria-labelledby="commercial-chain-title" className="commercial-section">

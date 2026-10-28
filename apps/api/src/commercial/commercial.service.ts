@@ -1305,6 +1305,12 @@ export class CommercialService {
         if (existing.status !== InvoiceStatus.DRAFT) {
           throw conflict('INVOICE_MUTATION_BLOCKED', 'Only draft invoices can change.');
         }
+        if (input.manualClient && existing.clientId) {
+          throw conflict(
+            'INVOICE_REGISTERED_CLIENT_IMMUTABLE',
+            'A registered-client invoice cannot be changed to a manual client.',
+          );
+        }
         const calculated = input.lines ? calculateLines(input.lines) : null;
         if (calculated) {
           await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
@@ -1318,6 +1324,14 @@ export class CommercialService {
               : {}),
             ...(input.dueDate !== undefined
               ? { dueDate: input.dueDate ? new Date(input.dueDate) : null }
+              : {}),
+            ...(input.manualClient
+              ? {
+                  buyerLegalName: input.manualClient.name,
+                  buyerAddress: input.manualClient.address ?? null,
+                  buyerIce: input.manualClient.ice ?? null,
+                  buyerTaxId: input.manualClient.taxId ?? null,
+                }
               : {}),
             ...(calculated
               ? {

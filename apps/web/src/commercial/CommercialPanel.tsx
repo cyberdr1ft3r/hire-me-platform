@@ -24,6 +24,8 @@ import {
   fetchCommercialList,
   generateCommercialDocument,
   runCommercialAction,
+  updateManualInvoiceClient,
+  type ManualInvoiceClientUpdate,
   type LifecycleInput,
 } from './commercial-api.js';
 import type {
@@ -56,7 +58,7 @@ import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 /** Which selection a response must still match before it may update the screen. */
 type Scope = 'workspace' | 'record';
 
-export type CommercialWriteAction = 'create' | 'lifecycle' | 'generate';
+export type CommercialWriteAction = 'create' | 'lifecycle' | 'generate' | 'update';
 
 export type CreateDraft = { kind: CommercialKind; values: CreateFormValues; focusToken: number };
 
@@ -483,6 +485,40 @@ export function CommercialPanel({
     }
   }
 
+  async function updateManualClient(input: ManualInvoiceClientUpdate): Promise<boolean> {
+    if (detail.status !== 'ready' || detail.detail.kind !== 'invoice') return false;
+    const { record } = detail.detail;
+    if (
+      !access.manage.invoice ||
+      record.status !== 'DRAFT' ||
+      record.billingClient?.mode !== 'MANUAL'
+    ) {
+      return false;
+    }
+    const owner = beginWrite('update');
+    if (owner === null) return false;
+    const isCurrent = captureContext('record');
+    const sameSession = captureContext('workspace');
+    setFeedback(null);
+    try {
+      const next = await updateManualInvoiceClient(sessionToken.current, record.id, input);
+      if (sameSession() && kindRef.current === 'invoice') {
+        void loadList('invoice', queryRef.current, true);
+      }
+      if (!isCurrent() || selectedRef.current !== record.id) return false;
+      setDetail({ status: 'ready', detail: next });
+      setFeedback({ tone: 'success', messageKey: 'commercial.feedback.updated.invoiceClient' });
+      return true;
+    } catch (error) {
+      if (!isCurrent() || selectedRef.current !== record.id) return false;
+      setFeedback({ tone: 'danger', messageKey: commercialFailureKey(error) });
+      void refreshDetail('invoice', record.id);
+      return false;
+    } finally {
+      endWrite(owner);
+    }
+  }
+
   async function refreshDetail(forKind: CommercialKind, id: string): Promise<void> {
     const request = ++detailRequest.current;
     const isCurrent = captureContext('record');
@@ -580,6 +616,7 @@ export function CommercialPanel({
           state: detail,
           generation: { onDownload: download, onGenerate: generate, onLoadVersions: loadVersions },
           onAction: runAction,
+          onUpdateManualInvoiceClient: updateManualClient,
           onRetry: () => {
             const id = selectedRef.current;
             if (id) void loadDetail(kindRef.current, id);

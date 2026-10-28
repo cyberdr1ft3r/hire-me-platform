@@ -255,6 +255,13 @@ export const commercialFr: Messages['commercial'] = {
         'À renseigner uniquement avec une mention légale approuvée pour une exonération, une autoliquidation ou un autre traitement exceptionnel. Laisser vide pour une facture standard soumise à la TVA.',
       amountInWords: 'Inclure le total en lettres françaises',
     },
+    manualClient: {
+      address: 'Adresse du client facturé (facultative pour le brouillon)',
+      edit: 'Modifier le Client libre',
+      nameRequired: 'Renseignez le nom du client facturé.',
+      save: 'Enregistrer le client',
+      title: 'Client libre',
+    },
     facts: {
       client: 'Client',
       correctionOf: 'Corrige la facture',
@@ -501,5 +508,8 @@ export const commercialFr: Messages['commercial'] = {
     received: 'Bon de commande marqué comme reçu.',
     rejected: 'Devis marqué comme refusé.',
     successTitle: 'C’est fait',
+    updated: {
+      invoiceClient: 'Client libre mis à jour.',
+    },
   },
 };

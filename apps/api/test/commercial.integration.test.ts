@@ -722,6 +722,53 @@ describe('commercial workflow foundation', () => {
         address: null,
       });
 
+      const addressedUpdateResponse = await fetch(
+        `${baseUrl}/v1/commercial/invoices/${created.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify({
+            manualClient: {
+              name: 'Synthetic Historical Client Updated',
+              address: 'Temporary Draft Address, Rabat',
+              ice: 'SYNTHETIC-MANUAL-ICE',
+              taxId: 'SYNTHETIC-MANUAL-IF',
+            },
+          }),
+        },
+      );
+      expect(addressedUpdateResponse.status).toBe(200);
+      const addressed = InvoiceDetailResponseSchema.parse(
+        await addressedUpdateResponse.json(),
+      ).invoice;
+      expect(addressed.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client Updated',
+        address: 'Temporary Draft Address, Rabat',
+      });
+
+      const clearedUpdateResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          manualClient: {
+            name: 'Synthetic Historical Client Updated',
+            address: '   ',
+            ice: 'SYNTHETIC-MANUAL-ICE',
+            taxId: 'SYNTHETIC-MANUAL-IF',
+          },
+        }),
+      });
+      expect(clearedUpdateResponse.status).toBe(200);
+      const cleared = InvoiceDetailResponseSchema.parse(await clearedUpdateResponse.json()).invoice;
+      expect(cleared.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client Updated',
+        address: null,
+      });
+      expect(cleared.history.filter((event) => event.action === 'UPDATED')).toHaveLength(2);
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+
       const issuedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}/issue`, {
         method: 'POST',
         headers: authHeaders(commercialToken),
@@ -731,7 +778,7 @@ describe('commercial workflow foundation', () => {
           dueDate: '2026-02-15T00:00:00.000Z',
           businessDetails: {
             ...invoiceIssueDetails.businessDetails,
-            buyerLegalName: 'Synthetic Historical Client',
+            buyerLegalName: 'Synthetic Historical Client Updated',
             buyerAddress: '9 Archive Street, Rabat',
             buyerIce: 'SYNTHETIC-MANUAL-ICE',
             buyerTaxId: 'SYNTHETIC-MANUAL-IF',
@@ -741,7 +788,7 @@ describe('commercial workflow foundation', () => {
       expect(issuedResponse.status).toBe(200);
       const issued = InvoiceDetailResponseSchema.parse(await issuedResponse.json()).invoice;
       expect(issued.businessDetails).toMatchObject({
-        buyerLegalName: 'Synthetic Historical Client',
+        buyerLegalName: 'Synthetic Historical Client Updated',
         buyerAddress: '9 Archive Street, Rabat',
       });
 

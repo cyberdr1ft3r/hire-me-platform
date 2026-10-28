@@ -337,6 +337,69 @@ describe('CommercialPanel: personas and permissions', () => {
     );
   });
 
+  it('edits a draft manual client while keeping its address optional', async () => {
+    let current = syntheticInvoice({
+      clientId: null,
+      quotationId: null,
+      purchaseOrderId: null,
+      display: { ...invoice.display, clientName: 'Synthetic Walk-in Client' },
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Walk-in Client',
+        address: 'Temporary Draft Address',
+        ice: null,
+        taxId: null,
+      },
+    });
+    const calls = standardApi((call) => {
+      if (call.path === paths.invoice && call.method === 'GET') {
+        return jsonResponse(page('invoices', [summary(current)]));
+      }
+      if (call.path === `${paths.invoice}/${INVOICE_ID}` && call.method === 'GET') {
+        return jsonResponse({ invoice: current });
+      }
+      if (call.path === `${paths.invoice}/${INVOICE_ID}` && call.method === 'PATCH') {
+        const manualClient = call.body?.manualClient as
+          { name: string; address?: string; ice?: string; taxId?: string } | undefined;
+        current = syntheticInvoice({
+          ...current,
+          updatedAt: '2026-10-28T10:00:00.000Z',
+          display: { ...current.display, clientName: manualClient?.name ?? '' },
+          billingClient: {
+            mode: 'MANUAL',
+            name: manualClient?.name ?? '',
+            address: manualClient?.address ?? null,
+            ice: manualClient?.ice ?? null,
+            taxId: manualClient?.taxId ?? null,
+          },
+        });
+        return jsonResponse({ invoice: current });
+      }
+      return undefined;
+    });
+    render(<Panel permissions={OPERATOR} />);
+
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit manual client' }));
+    fireEvent.change(await screen.findByDisplayValue('Synthetic Walk-in Client'), {
+      target: { value: 'Synthetic Walk-in Client Updated' },
+    });
+    const address = screen.getByDisplayValue('Temporary Draft Address');
+    expect(address).not.toBeRequired();
+    fireEvent.change(address, { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save client' }));
+
+    await waitFor(() =>
+      expect(callsTo(calls, `${paths.invoice}/${INVOICE_ID}`, 'PATCH')).toHaveLength(1),
+    );
+    expect(callsTo(calls, `${paths.invoice}/${INVOICE_ID}`, 'PATCH')[0]?.body).toEqual({
+      manualClient: { name: 'Synthetic Walk-in Client Updated' },
+    });
+    expect(await screen.findByText('Manual client updated.')).toBeVisible();
+    expect(screen.getAllByText('Synthetic Walk-in Client Updated')).toHaveLength(2);
+  });
+
   it('gives the Finance Manager D-086 mission and placement sources without recruitment APIs', async () => {
     const calls = standardApi();
     render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);

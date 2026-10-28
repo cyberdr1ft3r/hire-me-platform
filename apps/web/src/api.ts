@@ -37,6 +37,7 @@ import {
   InvoiceCreateRequestSchema,
   InvoiceDetailResponseSchema,
   InvoiceIssueRequestSchema,
+  InvoiceUpdateRequestSchema,
   InvoiceListQuerySchema,
   InvoiceListResponseSchema,
   CandidateEducationDetailResponseSchema,
@@ -157,6 +158,7 @@ import {
   type InvoiceCreateRequest,
   type InvoiceDetailResponse,
   type InvoiceIssueRequest,
+  type InvoiceUpdateRequest,
   type InvoiceListQuery,
   type InvoiceListResponse,
   type CandidateDetailResponse,
@@ -1309,6 +1311,22 @@ export async function createInvoice(
     accessToken,
     '/invoices',
     { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateInvoice(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceUpdateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
     apiBaseUrl,
   );
   return InvoiceDetailResponseSchema.parse(await response.json());

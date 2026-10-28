@@ -678,6 +678,8 @@ Task lifecycle rules:
 - Due reminder workers discover pending or failed due reminder IDs, then serialize each delivery through parent `Task` and `TaskReminder` row locks with state rechecks, and create task notifications through idempotency keys so concurrent workers create at most one notification.
 - Overdue task notifications are task-generated in-app notifications and must not include confidential candidate, salary, client, commercial, HR note, or comment-body payloads.
 - Issue #38 commercial workflows keep quotations, recruitment/training commercial contracts, purchase orders, and invoices as structured records. Totals are calculated server-side; linked records must belong to the same client, business context, and currency; accepted or terminal quotations are not silently mutated; issued invoice lines and totals are immutable snapshots. Issue #237 makes invoice issuance capture the validated issue/due dates, seller and billed-client identity, tax treatment, payment terms, optional bank details, and commercial references in that same row-locked transaction. Invoice snapshots derived from contracts or purchase orders preserve the exact source subtotal, tax, and total cents instead of recalculating from rounded rates. Generation uses the persisted issued snapshot and fails closed for historical rows that lack required business data. Historical reads remain available from the commercial record's durable authorized scope after parent archival, while new upstream commercial creation can require currently writable source context. Placement-backed invoices require an eligible confirmed `MissionPlacement`; `CLOSED_WITH_RECRUITMENT` does not by itself block invoicing that locked placement when its eligibility remains valid.
+- A standalone manual-client invoice draft requires the billed-client name, but its address, ICE, and IF are optional during creation and draft editing. Empty or whitespace-only optional values are stored as absent, can be reloaded without fabrication, and do not create or mutate a CRM `Client`. The draft client snapshot can change only while the invoice is `DRAFT`; a registered-client invoice cannot be converted through this path.
+- Final invoice issuance still requires a non-blank billed-client address and stores it in the immutable issued snapshot. This is the conservative product control for the buyer-address requirement in Moroccan CGI Article 145-III; it is not relaxed by draft optionality. The current document-generation route remains limited to complete issued invoices and fails closed for incomplete historical issued snapshots. A preview, historical-record output, or other explicitly non-issued document without an address requires a separately reviewed workflow that clearly identifies the artifact as non-issued.
 
 ## Accounting Workflow
 
@@ -790,6 +792,10 @@ source of truth.
   Only an issued, non-canceled, non-archived invoice produces an invoice output. A
   certificate reuses the training readiness boundary, so `not_applicable` is refused and
   generating a file never transitions the enrollment.
+- Invoice templates omit the buyer-address row when a separately authorized non-issued or
+  historical view supplies no address; they never render an empty placeholder or invented value.
+  This defensive template behavior does not change current generation eligibility or the
+  issuance requirement above.
 - The renderer receives one authoritative server-side snapshot and never queries the
   database itself. Issued invoice lines and totals are copied exactly as persisted; no
   amount is recomputed and placement eligibility is never re-evaluated.

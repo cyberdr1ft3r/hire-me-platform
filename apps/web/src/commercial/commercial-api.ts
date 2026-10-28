@@ -27,6 +27,7 @@ import {
   getPurchaseOrder,
   getQuotation,
   issueInvoice,
+  updateInvoice,
   listCommercialContracts,
   listInvoices,
   listPurchaseOrders,
@@ -158,6 +159,24 @@ export type LifecycleInput = {
   businessDetails?: InvoiceBusinessDetailsInput;
   includeFrenchAmountInWords?: boolean;
 };
+
+export type ManualInvoiceClientUpdate = {
+  name: string;
+  address?: string;
+  ice?: string;
+  taxId?: string;
+};
+
+export async function updateManualInvoiceClient(
+  accessToken: string,
+  invoiceId: string,
+  manualClient: ManualInvoiceClientUpdate,
+): Promise<CommercialDetail> {
+  return {
+    kind: 'invoice',
+    record: (await updateInvoice(accessToken, invoiceId, { manualClient })).invoice,
+  };
+}
 
 function optionalReason(input: LifecycleInput): string | undefined {
   const reason = input.reason?.trim();
