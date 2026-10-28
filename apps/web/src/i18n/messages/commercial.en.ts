@@ -396,7 +396,7 @@ export const commercialEn = {
     manualClient: {
       name: 'Name / Legal name',
       namePlaceholder: 'For example Atlas Conseil or Sara Amrani',
-      address: 'Billing address (optional at draft stage)',
+      address: 'Billed client address (optional at draft stage)',
       addressPlaceholder: 'Street, city and country',
       ice: 'ICE (optional)',
       icePlaceholder: 'Customer ICE',

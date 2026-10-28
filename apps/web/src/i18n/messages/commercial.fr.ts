@@ -399,7 +399,7 @@ export const commercialFr: Messages['commercial'] = {
     manualClient: {
       name: 'Nom / Raison sociale',
       namePlaceholder: 'Par exemple Atlas Conseil ou Sara Amrani',
-      address: 'Adresse de facturation (facultative au brouillon)',
+      address: 'Adresse du client facturé (facultative au brouillon)',
       addressPlaceholder: 'Rue, ville et pays',
       ice: 'ICE (facultatif)',
       icePlaceholder: 'ICE du client',

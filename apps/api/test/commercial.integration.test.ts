@@ -676,7 +676,6 @@ describe('commercial workflow foundation', () => {
           reference,
           manualClient: {
             name: 'Synthetic Historical Client',
-            address: '9 Archive Street, Rabat',
             ice: 'SYNTHETIC-MANUAL-ICE',
             taxId: 'SYNTHETIC-MANUAL-IF',
           },
@@ -702,12 +701,26 @@ describe('commercial workflow foundation', () => {
         billingClient: {
           mode: 'MANUAL',
           name: 'Synthetic Historical Client',
-          address: '9 Archive Street, Rabat',
+          address: null,
           ice: 'SYNTHETIC-MANUAL-ICE',
           taxId: 'SYNTHETIC-MANUAL-IF',
         },
       });
       await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+
+      const draftReloadResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        headers: authHeaders(commercialToken),
+      });
+      expect(draftReloadResponse.status).toBe(200);
+      const draftReloaded = InvoiceDetailResponseSchema.parse(
+        await draftReloadResponse.json(),
+      ).invoice;
+      expect(draftReloaded.status).toBe('DRAFT');
+      expect(draftReloaded.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client',
+        address: null,
+      });
 
       const issuedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}/issue`, {
         method: 'POST',

@@ -375,7 +375,12 @@ export const InvoiceListQuerySchema = z.object({
 
 export const ManualInvoiceClientInputSchema = z.object({
   name: z.string().trim().min(1).max(180),
-  address: z.string().trim().min(1).max(500).optional(),
+  address: z
+    .string()
+    .trim()
+    .max(500)
+    .transform((value) => value || undefined)
+    .optional(),
   ice: z.string().trim().min(1).max(80).optional(),
   taxId: z.string().trim().min(1).max(80).optional(),
 });

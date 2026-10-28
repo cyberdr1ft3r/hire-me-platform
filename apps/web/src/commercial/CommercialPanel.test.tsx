@@ -321,6 +321,7 @@ describe('CommercialPanel: personas and permissions', () => {
     fireEvent.change(within(form).getByLabelText(/^Name \/ Legal name/), {
       target: { value: 'Synthetic Walk-in Client' },
     });
+    expect(within(form).getByLabelText(/^Billed client address/)).not.toBeRequired();
     expect(within(form).queryByRole('combobox', { name: /^Client/ })).toBeNull();
 
     fireEvent.click(within(form).getByRole('radio', { name: 'Registered client' }));

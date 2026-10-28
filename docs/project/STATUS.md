@@ -3,6 +3,20 @@
 Last updated: 2026-10-28
 Status owner: repository maintainer
 
+## Client libre address hotfix
+
+- Branch `hotfix/client-address-optional` carries the Client libre implementation onto protected
+  `main` `5919c8a2ee230afd3dac062b13bd314e9c90b686` without modifying PR #253.
+- A manual-client draft still requires the billed client name, but an omitted, empty, or whitespace-only
+  address is normalized to no address. The bilingual field label explicitly marks the address optional
+  at draft stage. Final issuance continues to require a non-blank buyer address through the unchanged
+  issuance contract and form validation.
+- Focused contract and web regressions pass, as do repository lint, typecheck, architecture/style checks,
+  and production builds. Prisma validation passes. PostgreSQL integration execution remains for exact-head
+  CI because Docker Desktop was unavailable locally; the regression now creates and reloads a name-only
+  manual-client draft and proves no CRM client is created.
+- This branch does not deploy, merge, issue an invoice, or modify production data.
+
 ## Issue #254 — protected pre-merge staging releases
 
 - Branch `feat/secure-premerge-staging` starts from `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements D-097 as a separate review unit. It does not modify Issue #252 / PR #253.

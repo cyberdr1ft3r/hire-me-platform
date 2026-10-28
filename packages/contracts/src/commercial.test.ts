@@ -24,7 +24,7 @@ describe('invoice client selection contract', () => {
   it('accepts a manual client with only a name and optional billing details', () => {
     const minimal = InvoiceCreateRequestSchema.parse({
       reference: 'INV-MANUAL-001',
-      manualClient: { name: '  Synthetic Walk-in Client  ' },
+      manualClient: { name: '  Synthetic Walk-in Client  ', address: '   ' },
       currency: 'MAD',
       lines: [invoiceLine],
     });
@@ -102,6 +102,16 @@ describe('invoice issue contract', () => {
         issueDate: '2026-10-23T00:00:00.000Z',
         dueDate: '2026-10-22T00:00:00.000Z',
         businessDetails,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('still requires the billed client address at final issuance', () => {
+    expect(
+      InvoiceIssueRequestSchema.safeParse({
+        issueDate: '2026-10-23T00:00:00.000Z',
+        dueDate: '2026-11-23T00:00:00.000Z',
+        businessDetails: { ...businessDetails, buyerAddress: '   ' },
       }).success,
     ).toBe(false);
   });

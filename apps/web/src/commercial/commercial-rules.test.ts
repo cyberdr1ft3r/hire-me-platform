@@ -325,16 +325,16 @@ describe('linked sources and derived context', () => {
     expect(values.reference).toBe('');
   });
 
-  it('submits only the active manual-client fields and keeps registered mode compatible', () => {
+  it('submits a name-only manual client and keeps registered mode compatible', () => {
     const values = {
       ...emptyCreateForm(),
       reference: 'INV-MANUAL-001',
       client,
       invoiceClientMode: 'MANUAL' as const,
       manualClientName: ' Synthetic Historical Client ',
-      manualClientAddress: ' Archive Street, Rabat ',
-      manualClientIce: ' TEST-ICE ',
-      manualClientTaxId: ' TEST-IF ',
+      manualClientAddress: '   ',
+      manualClientIce: '',
+      manualClientTaxId: '',
       quotation: quotationOption,
       lines: [
         {
@@ -351,9 +351,6 @@ describe('linked sources and derived context', () => {
       reference: 'INV-MANUAL-001',
       manualClient: {
         name: 'Synthetic Historical Client',
-        address: 'Archive Street, Rabat',
-        ice: 'TEST-ICE',
-        taxId: 'TEST-IF',
       },
       currency: 'MAD',
       lines: [
