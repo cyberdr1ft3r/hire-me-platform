@@ -1,7 +1,15 @@
 # Project Status
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 Status owner: repository maintainer
+
+## Issue #254 — protected pre-merge staging releases
+
+- Branch `feat/secure-premerge-staging` starts from `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements D-097 as a separate review unit. It does not modify Issue #252 / PR #253.
+- The new manual workflow must itself be dispatched from trusted `main`. A protected `staging` Environment review authorizes one explicit same-repository PR number and exact current head SHA after all six exact-head CI jobs pass. The existing Environment branch policy stays `main`; no feature-branch wildcard is added.
+- PRs that alter `.github/`, `deploy/`, Dockerfiles, `.dockerignore`, or the pre-merge/main release gates are refused. Application images build without staging secrets or persisted checkout credentials, publish under the exact SHA, receive SLSA provenance plus a custom PR/SHA/CI binding, and are re-resolved and re-verified by digest before the existing pinned-SSH wrapper runs.
+- Existing concurrency, host-key pinning, restricted deploy identity, paired backup, `prisma migrate deploy`, health gates, rollback records, staging isolation, and disabled invoice issuance remain unchanged. The workflow never merges or marks the selected PR ready and has no production path.
+- Review and exact-head CI are still required. No new mechanism has been used and PR #253 is not deployed by this implementation task.
 
 ## Main CI frontend stabilization
 

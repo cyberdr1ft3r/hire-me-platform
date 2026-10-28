@@ -1,27 +1,24 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 
 ## Current situation
 
-- `main` is `af348bb96b489d76df79c334349aaecc1377e9ff`. Its main CI run failed four
-  attempts in different timing-sensitive tests, so the SHA-tagged API and web images were not published.
-- A focused branch stabilizes Commercial focus and Clients/Missions edit resets before paint and caps
-  the web Vitest project at two workers while root CI runs API and web tests concurrently.
-- Existing assertions, authentication/session guards, permissions, invoice behavior, and deployment
-  safeguards are unchanged. No VPS change or deployment occurred; automatic deployment and real invoice
-  issuance remain disabled.
+- Issue #254 implements the separately reviewed D-097 pre-merge staging path on `feat/secure-premerge-staging`, based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a`.
+- The workflow is manual, main-defined, same-repository-only, exact-head-CI-gated, Environment-reviewed, protected-path-restricted, digest-pinned, and doubly attested. The feature build never receives staging SSH secrets.
+- Existing staging deployment, backup, migration, health, rollback, and isolation controls are reused without server or Environment-policy changes. Production is unreachable from this workflow.
+- PR #253 remains draft, unmerged, and undeployed. Its target SHA can be released only after Issue #254 merges with green exact-head CI and the protected Environment reviewer approves the explicit PR/SHA dispatch.
 
 ## Next concrete action
 
-1. Require all four exact-head CI jobs to pass on the focused draft PR.
-2. Review and merge only with explicit approval.
-3. After merge, use the new verified `main` SHA to publish both immutable GHCR images and resume the
-   protected manual staging deployment through its normal Environment approval.
+1. Complete security/engineering review and exact-head CI for the Issue #254 PR.
+2. Merge Issue #254 only with explicit approval; keep the staging Environment branch policy `main`.
+3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve the protected Environment only after comparing both values.
+4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance.
 
 ## Completion conditions
 
-- The focused PR remains open and unmerged until review and exact-head CI are green.
-- Both SHA-tagged GHCR images exist before any deployment workflow is triggered.
-- No environment gate is bypassed, automatic deployment remains disabled, and real invoice issuance
-  remains disabled.
+- Issue #254 exact-head CI and review are green before merge.
+- The selected feature SHA has successful exact-head CI and verified provenance plus PR-binding attestations before deployment.
+- The existing Environment review, backup, migration, health, and rollback gates all succeed.
+- PR #253 stays open and unmerged; production and real invoice issuance remain untouched.

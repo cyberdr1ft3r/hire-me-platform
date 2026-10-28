@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,13 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
+same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,
+release-control path refusal, credential-separated builds, immutable SHA images, GitHub OIDC provenance,
+custom PR/SHA/CI attestations, digest re-verification, and the existing D-094 backup/migration/health/
+rollback wrapper. It creates no feature-branch Environment wildcard, production path, automatic merge,
+or invoice-issuance approval. The mechanism is inactive until its separate PR is reviewed and merged.
 
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.
