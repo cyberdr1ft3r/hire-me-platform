@@ -12,17 +12,18 @@ Last updated: 2026-10-28
   address back to null, and reload it; the change is audited and no CRM `Client` is created. Registered-client
   invoices cannot use this path.
 - Final issuance still requires a non-blank buyer address. Existing numbering, calculation, permission,
-  lifecycle, registered-client, and generated-document rules are unchanged.
-- The invoice renderer now omits the buyer-address row if an explicitly authorized view supplies no address,
-  but the current generator remains issued-only and still rejects incomplete historical issued snapshots.
-  A draft preview or historical no-address document remains a separate product/legal workflow.
-- Focused tests, lint, typecheck, architecture/style checks, Prisma validation, and builds pass locally.
-  Docker Desktop was unavailable, so exact-head CI must supply the PostgreSQL migration/integration evidence.
+  lifecycle, and registered-client rules are unchanged.
+- The existing renderer now supports an explicit PDF-only draft-preview purpose. Its separate immutable document
+  identity is marked `BROUILLON` / non-issued, omits the absent buyer-address row, uses no final invoice number,
+  and is refused by the financial signing path. Generation does not issue, number, account, allocate payment,
+  or create a CRM client. Issued generation remains unchanged and fail-closed for incomplete historical rows.
+- Focused contract and web tests plus all package typechecks pass locally. The focused PostgreSQL regression is
+  implemented; exact-head CI must supply authoritative database integration evidence.
 - No deployment, merge, production change, or invoice issuance occurred.
 
 ## Next concrete action
 
-1. Review the dedicated hotfix PR and its exact-head CI, especially the PostgreSQL integration job.
+1. Review the dedicated hotfix PR and its exact-head CI, especially the draft-preview PostgreSQL integration.
 2. Confirm the branch relationship with PR #253 before merging; do not merge either PR automatically.
 3. Keep deployment and business acceptance behind the protected staging workflow and Environment approval.
 

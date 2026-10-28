@@ -275,6 +275,7 @@ export function generateCommercialDocument(
   kind: CommercialKind,
   id: string,
   body: DocumentGenerationRequest,
+  invoicePurpose: 'ISSUED' | 'DRAFT_PREVIEW' = 'ISSUED',
 ): Promise<DocumentGenerationResponse> {
   switch (kind) {
     case 'quotation':
@@ -284,6 +285,6 @@ export function generateCommercialDocument(
     case 'purchaseOrder':
       return generatePurchaseOrderDocument(accessToken, id, body);
     case 'invoice':
-      return generateInvoiceDocument(accessToken, id, body);
+      return generateInvoiceDocument(accessToken, id, { ...body, purpose: invoicePurpose });
   }
 }

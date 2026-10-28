@@ -220,7 +220,7 @@ describe('lifecycle rules', () => {
     expect(followUpKinds('invoice', 'ISSUED')).toEqual([]);
     expect(generationEligible('quotation', 'DRAFT')).toBe(false);
     expect(generationEligible('quotation', 'ISSUED')).toBe(true);
-    expect(generationEligible('invoice', 'DRAFT')).toBe(false);
+    expect(generationEligible('invoice', 'DRAFT')).toBe(true);
     expect(generationEligible('invoice', 'ISSUED')).toBe(true);
     expect(generationEligible('contract', 'CANCELED')).toBe(false);
     expect(generationEligible('purchaseOrder', 'RECEIVED')).toBe(true);

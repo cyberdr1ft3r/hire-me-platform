@@ -17,6 +17,7 @@ const wrappedDescription =
 
 const view: InvoiceView = {
   kind: 'INVOICE',
+  documentState: 'ISSUED',
   reference: 'INV-CONTAINER-SYN-001',
   status: 'ISSUED',
   currency: 'MAD',

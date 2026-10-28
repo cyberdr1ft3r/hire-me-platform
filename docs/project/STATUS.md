@@ -13,14 +13,15 @@ Status owner: repository maintainer
   manual name/address/ICE/IF snapshot, clear the address back to null, reload it, and retain audited history.
   Registered-client invoices cannot be converted through this update path. Final issuance continues to
   require a non-blank buyer address through the unchanged issuance contract and form validation.
-- The invoice template omits its buyer-address row when a separately authorized view has no address, without
-  fabricating a placeholder. Current generation remains issued-only and incomplete historical issued rows
-  still fail closed. Any no-address historical or non-issued document workflow requires separate legal and
-  product approval.
-- Focused contract and web regressions pass, as do repository lint, typecheck, architecture/style checks,
-  and production builds. Prisma validation passes. PostgreSQL integration execution remains for exact-head
-  CI because Docker Desktop was unavailable locally; the regression now creates, edits, clears, and reloads
-  a manual-client draft, verifies audit history, and proves no CRM client is created.
+- A draft invoice can now produce a protected PDF-only preview through the existing renderer. The artifact is
+  separately keyed from an issued invoice, prominently marked `BROUILLON` and `DOCUMENT NON ÉMIS`, labels its
+  reference as a draft reference, omits an absent buyer-address row, and cannot enter the signing workflow.
+  Generation reads current protected company billing settings but does not issue the invoice, reserve a number,
+  create a CRM client, write invoice lifecycle history, or change accounting/payment state. Final issuance and
+  issued generation keep their existing address and immutable-snapshot controls.
+- Focused contract, web, typecheck, and formatting checks pass locally. The new PostgreSQL regression covers the
+  no-address PDF bytes and lifecycle/CRM/accounting invariants; exact-head CI remains required for authoritative
+  database integration evidence.
 - This branch does not deploy, merge, issue an invoice, or modify production data.
 
 ## Issue #254 — protected pre-merge staging releases

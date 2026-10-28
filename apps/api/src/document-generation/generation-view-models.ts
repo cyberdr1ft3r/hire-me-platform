@@ -67,6 +67,7 @@ export type ContractView = {
 
 export type InvoiceView = {
   kind: 'INVOICE';
+  documentState: 'ISSUED' | 'DRAFT_PREVIEW';
   reference: string;
   status: string;
   currency: string;

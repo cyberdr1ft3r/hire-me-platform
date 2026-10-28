@@ -542,11 +542,17 @@ export function CommercialPanel({
     const isCurrent = captureContext('record');
     setFeedback(null);
     try {
-      const result = await generateCommercialDocument(sessionToken.current, recordKind, record.id, {
-        idempotencyKey: generationIdempotencyKey(),
-        language,
-        outputFamily,
-      });
+      const result = await generateCommercialDocument(
+        sessionToken.current,
+        recordKind,
+        record.id,
+        {
+          idempotencyKey: generationIdempotencyKey(),
+          language,
+          outputFamily,
+        },
+        recordKind === 'invoice' && record.status === 'DRAFT' ? 'DRAFT_PREVIEW' : 'ISSUED',
+      );
       if (!isCurrent() || selectedRef.current !== record.id) return null;
       setFeedback({ tone: 'success', messageKey: 'commercial.feedback.generated' });
       return result.generated;

@@ -1037,6 +1037,71 @@ describe('CommercialPanel: document generation', () => {
     expect(calls.some((call) => call.path.endsWith('/generate'))).toBe(false);
   });
 
+  it('requests a PDF-only non-issued preview for a Client libre draft', async () => {
+    const manualDraft = syntheticInvoice({
+      clientId: null,
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Individual Customer',
+        address: null,
+        ice: null,
+        taxId: null,
+      },
+    });
+    const generatePath = `${paths.invoice}/${INVOICE_ID}/generate`;
+    const calls = standardApi((call) => {
+      if (call.method === 'GET' && call.path === paths.invoice) {
+        return jsonResponse(page('invoices', [summary(manualDraft)]));
+      }
+      if (call.method === 'GET' && call.path === `${paths.invoice}/${INVOICE_ID}`) {
+        return jsonResponse({ invoice: manualDraft });
+      }
+      if (call.method === 'POST' && call.path === generatePath) {
+        return jsonResponse(
+          {
+            generated: {
+              documentId: DOCUMENT_ID,
+              versionId: VERSION_ID,
+              versionNumber: 1,
+              sourceType: 'INVOICE',
+              sourceId: INVOICE_ID,
+              documentType: 'INVOICE',
+              outputFamily: 'PDF',
+              language: 'en',
+              templateId: 'commercial.invoice',
+              templateVersion: 7,
+              filename: 'invoice-draft-v1.pdf',
+              mimeType: 'application/pdf',
+              sizeBytes: 2048,
+              checksumSha256: 'a'.repeat(64),
+              generatedByUserId: ACTOR_ID,
+              generatedAt: TIMESTAMP,
+              replayed: false,
+            },
+          },
+          201,
+        );
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+
+    expect(
+      screen.getByText('The PDF will be marked DRAFT and will not issue the invoice.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Generate Word' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PDF' }));
+
+    expect(await screen.findByText('PDF version 1 generated in English.')).toBeVisible();
+    expect(callsTo(calls, generatePath, 'POST')[0]?.body).toMatchObject({
+      language: 'en',
+      outputFamily: 'PDF',
+      purpose: 'DRAFT_PREVIEW',
+    });
+  });
+
   it('generates in the chosen language, lists versions, and downloads through the protected endpoint', async () => {
     const generatePath = `${paths.quotation}/${QUOTATION_ID}/generate`;
     const calls = standardApi((call) => {

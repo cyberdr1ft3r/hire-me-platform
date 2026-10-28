@@ -653,6 +653,11 @@ export class DocumentsService {
         if (!this.hasPermission(permissions, COMMERCIAL_PERMISSIONS.INVOICES_MANAGE)) {
           deny();
         }
+        // A draft preview remains non-issued even if its source invoice is later issued.
+        // It must never enter the financial signing workflow as an invoice artifact.
+        if (document.generatedDocumentKey?.endsWith(':draft-preview')) {
+          deny();
+        }
         break;
       default:
         deny();

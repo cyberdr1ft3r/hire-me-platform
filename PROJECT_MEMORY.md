@@ -34,7 +34,9 @@ workflow trust anchor through an explicitly reviewed repository policy change.
 Issue #252 standalone manual-client invoices are implemented for review on `feat/client-libre-invoices` from
 `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` under D-096. An invoice chooses exactly one registered
 client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
-registered-client source, and remains durable in history and generated PDF output. Existing issue,
+registered-client source, and remains durable in history and generated PDF output. A draft may generate a
+separately keyed PDF-only preview marked `BROUILLON` / non-issued without allocating a final number or changing
+invoice, CRM, accounting, payment, or signing state. Final issuance still requires the buyer address. Existing issue,
 numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
 and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
 

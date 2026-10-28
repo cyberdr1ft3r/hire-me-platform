@@ -851,6 +851,133 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(stored.buyerLegalName).toBe('Synthetic Walk-in Client');
   });
 
+  it('renders a non-issued Client libre PDF without a buyer address or lifecycle side effects', async () => {
+    const previousSettings = await prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    await prisma.companyBillingSettings.upsert({
+      where: { id: 'primary' },
+      create: {
+        id: 'primary',
+        sellerLegalName: 'Synthetic HireMe SARL',
+        sellerAddress: '1 Synthetic Avenue, Casablanca',
+        paymentTerms: 'Bank transfer within 30 days.',
+        paymentMethod: 'Synthetic transfer',
+        bankDetails: 'Synthetic test account only.',
+      },
+      update: {
+        sellerLegalName: 'Synthetic HireMe SARL',
+        sellerAddress: '1 Synthetic Avenue, Casablanca',
+        paymentTerms: 'Bank transfer within 30 days.',
+        paymentMethod: 'Synthetic transfer',
+        bankDetails: 'Synthetic test account only.',
+      },
+    });
+
+    try {
+      const created = await createInvoice({
+        status: InvoiceStatus.DRAFT,
+        client: null,
+        buyerLegalName: 'Synthetic Individual Customer',
+      });
+      const invoice = await prisma.invoice.update({
+        where: { id: created.id },
+        data: {
+          issuedAt: null,
+          sellerLegalName: null,
+          sellerAddress: null,
+          buyerAddress: null,
+          buyerIce: null,
+          buyerTaxId: null,
+          paymentTerms: null,
+          paymentMethod: null,
+          bankDetails: null,
+          businessSnapshotVersion: null,
+        },
+      });
+      const clientCountBefore = await prisma.client.count();
+      const allocationCountBefore = await prisma.paymentAllocation.count({
+        where: { invoiceId: invoice.id },
+      });
+      const sequencesBefore = await prisma.invoiceNumberSequence.findMany({
+        orderBy: { id: 'asc' },
+        select: { id: true, lastNumber: true },
+      });
+
+      const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`, {
+        purpose: 'DRAFT_PREVIEW',
+      });
+      expect(response.status).toBe(201);
+      const result = generated(response.body);
+      expect(result.outputFamily).toBe('PDF');
+      expect(result.templateVersion).toBe(7);
+
+      const version = await prisma.documentVersion.findUniqueOrThrow({
+        where: { id: result.versionId },
+      });
+      const document = await prisma.document.findUniqueOrThrow({
+        where: { id: result.documentId },
+      });
+      expect(document.generatedDocumentKey).toBe(`INVOICE:${invoice.id}:PDF:fr:draft-preview`);
+      const text = await pdfText(await storage.get(version.storageKey));
+      expect(text).toContain('BROUILLON');
+      expect(text).toContain('DOCUMENT NON ÉMIS');
+      expect(text).toContain('Synthetic Individual Customer');
+      expect(text).toContain('Référence brouillon');
+      expect(text.match(/Adresse/g)).toHaveLength(1);
+      const download = await fetch(
+        `${baseUrl}/v1/documents/${result.documentId}/versions/${result.versionId}/download`,
+        { headers: { authorization: `Bearer ${generatorToken}` } },
+      );
+      expect(download.status).toBe(200);
+      expect(
+        Buffer.from(await download.arrayBuffer())
+          .subarray(0, 4)
+          .toString(),
+      ).toBe('%PDF');
+
+      const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+      expect(stored.status).toBe(InvoiceStatus.DRAFT);
+      expect(stored.issuedAt).toBeNull();
+      expect(stored.reference).toBe(invoice.reference);
+      expect(stored.clientId).toBeNull();
+      expect(stored.buyerAddress).toBeNull();
+      expect(await prisma.client.count()).toBe(clientCountBefore);
+      expect(await prisma.invoiceEvent.count({ where: { invoiceId: invoice.id } })).toBe(0);
+      expect(await prisma.paymentAllocation.count({ where: { invoiceId: invoice.id } })).toBe(
+        allocationCountBefore,
+      );
+      expect(
+        await prisma.invoiceNumberSequence.findMany({
+          orderBy: { id: 'asc' },
+          select: { id: true, lastNumber: true },
+        }),
+      ).toEqual(sequencesBefore);
+
+      const wordPreview = await generate(`/v1/commercial/invoices/${invoice.id}/generate`, {
+        outputFamily: 'WORD',
+        purpose: 'DRAFT_PREVIEW',
+      });
+      expect(wordPreview.status).toBe(400);
+      expect(errorCode(wordPreview.body)).toBe('INVALID_DOCUMENT_GENERATION_REQUEST');
+    } finally {
+      if (previousSettings) {
+        await prisma.companyBillingSettings.update({
+          where: { id: 'primary' },
+          data: {
+            sellerLegalName: previousSettings.sellerLegalName,
+            sellerAddress: previousSettings.sellerAddress,
+            paymentTerms: previousSettings.paymentTerms,
+            paymentMethod: previousSettings.paymentMethod,
+            bankDetails: previousSettings.bankDetails,
+          },
+        });
+      } else {
+        await prisma.companyBillingSettings.deleteMany({ where: { id: 'primary' } });
+      }
+    }
+  });
+
   it('renders only approved exceptional tax wording in a dedicated fiscal section', async () => {
     const invoice = await createInvoice({
       taxTreatment: 'Approved exceptional tax wording.',

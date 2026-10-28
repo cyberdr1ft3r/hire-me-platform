@@ -14,6 +14,7 @@ import type {
   DocumentGenerationResponse,
   GenerationLanguage,
   GenerationOutputFamily,
+  InvoiceDocumentGenerationRequest,
 } from '@hire-me/contracts';
 
 import { GENERATION_PERMISSIONS } from './document-generation-permissions.js';
@@ -76,6 +77,8 @@ type ResolvedSource = {
   view: GenerationView;
   title: string;
   filenameStem: string;
+  /** Separates distinct logical artifacts rendered from the same source record. */
+  logicalVariant?: string;
   /**
    * Business context copied onto the logical document.
    *
@@ -151,7 +154,8 @@ type LockableTable =
   | 'Candidate'
   | 'ClientContact'
   | 'User'
-  | 'ExternalTrainingParticipant';
+  | 'ExternalTrainingParticipant'
+  | 'CompanyBillingSettings';
 
 /** One shared row lock, with the row id parameterized and the table statically chosen. */
 async function lockRowForShare(tx: Tx, table: LockableTable, id: string): Promise<void> {
@@ -192,6 +196,9 @@ async function lockRowForShare(tx: Tx, table: LockableTable, id: string): Promis
     case 'ExternalTrainingParticipant':
       await tx.$queryRaw`SELECT id FROM "ExternalTrainingParticipant" WHERE id = ${id}::uuid FOR SHARE`;
       return;
+    case 'CompanyBillingSettings':
+      await tx.$queryRaw`SELECT id FROM "CompanyBillingSettings" WHERE id = ${id} FOR SHARE`;
+      return;
     default: {
       const exhaustive: never = table;
       throw new Error(`Unlockable table: ${String(exhaustive)}`);
@@ -219,8 +226,9 @@ async function lockRowForShare(tx: Tx, table: LockableTable, id: string): Promis
  *
  * 1. **source stabilization** — a shared lock on every row whose values the output
  *    renders, parent-first within its family: `Client`, then the optional
- *    `RecruitmentMission`, then the commercial root; or `Client`, `TrainingProgram`,
- *    `TrainingEnrollment`, then the participant row;
+ *    `RecruitmentMission`, then the commercial root, followed by
+ *    `CompanyBillingSettings` for an invoice draft preview; or `Client`,
+ *    `TrainingProgram`, `TrainingEnrollment`, then the participant row;
  * 2. **fingerprint** — the source is re-read under those locks and its fingerprint
  *    compared with the one the rendered bytes were built from;
  * 3. **`Document`** — the logical document row is locked or created;
@@ -290,12 +298,15 @@ export class DocumentGenerationService {
 
   async generateInvoice(
     invoiceId: string,
-    input: DocumentGenerationRequest,
+    input: InvoiceDocumentGenerationRequest,
     actorUserId: string,
     context: RequestContext,
   ): Promise<DocumentGenerationResponse> {
     return this.generate(
-      (access) => this.resolveInvoice(invoiceId, actorUserId, access),
+      (access) =>
+        input.purpose === 'DRAFT_PREVIEW'
+          ? this.resolveInvoiceDraftPreview(invoiceId, actorUserId, access)
+          : this.resolveInvoice(invoiceId, actorUserId, access),
       input,
       actorUserId,
       context,
@@ -378,6 +389,7 @@ export class DocumentGenerationService {
       source.sourceId,
       input.outputFamily,
       input.language,
+      source.logicalVariant,
     );
     const storageKey = this.buildStorageKey(logicalKey, input.outputFamily);
     const checksum = createHash('sha256').update(bytes).digest('hex');
@@ -652,6 +664,14 @@ export class DocumentGenerationService {
     const matches =
       document.generatedSourceType === source.sourceType &&
       this.sourceIdOf(document) === source.sourceId &&
+      document.generatedDocumentKey ===
+        this.logicalDocumentKey(
+          source.sourceType,
+          source.sourceId,
+          input.outputFamily,
+          input.language,
+          source.logicalVariant,
+        ) &&
       existing.outputFamily === this.outputFamily(input.outputFamily) &&
       existing.generationLanguage === input.language &&
       existing.templateId === templateId &&
@@ -966,6 +986,7 @@ export class DocumentGenerationService {
       // placement eligibility is never re-evaluated.
       view: {
         kind: 'INVOICE',
+        documentState: 'ISSUED',
         reference: invoice.reference,
         status: invoice.status,
         currency: invoice.currency,
@@ -1039,6 +1060,162 @@ export class DocumentGenerationService {
         }
         this.assertInvoiceEligible(current.status, current.archivedAt);
         return invoiceSourceFingerprint(current);
+      },
+    };
+  }
+
+  /**
+   * Builds a clearly non-issued PDF snapshot from a mutable invoice draft. Company
+   * billing settings provide the seller/payment panel, but no numbering, issuance,
+   * accounting, CRM, or payment state is touched.
+   */
+  private async resolveInvoiceDraftPreview(
+    invoiceId: string,
+    actorUserId: string,
+    access: GenerationAccess,
+  ): Promise<ResolvedSource> {
+    this.assertCommercialRead(access, access.invoicesView);
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        client: { select: { name: true } },
+        recruitmentMission: { select: { title: true } },
+        quotation: { select: { reference: true } },
+        contract: { select: { reference: true } },
+        purchaseOrder: { select: { reference: true } },
+        lines: { orderBy: { sortOrder: 'asc' } },
+      },
+    });
+    if (!invoice) {
+      throw generationSourceNotFound();
+    }
+    await this.assertCommercialSourceScope(invoice, actorUserId, access, this.prisma);
+    this.assertInvoiceDraftPreviewEligible(invoice.status, invoice.archivedAt);
+    const settings = await this.prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    if (
+      !invoice.buyerLegalName ||
+      !settings?.sellerLegalName ||
+      !settings.sellerAddress ||
+      !settings.paymentTerms
+    ) {
+      throw generationBadRequest(
+        'INVOICE_DRAFT_PREVIEW_DETAILS_REQUIRED',
+        'A customer name and configured seller, payment, and address details are required for a draft preview.',
+      );
+    }
+
+    const previewFingerprint = (record: typeof invoice, billing: typeof settings) =>
+      fingerprintOf([
+        'INVOICE_DRAFT_PREVIEW',
+        invoiceSourceFingerprint(record),
+        billing?.sellerLegalName ?? null,
+        billing?.sellerLegalForm ?? null,
+        billing?.sellerCapital ?? null,
+        billing?.sellerAddress ?? null,
+        billing?.sellerIce ?? null,
+        billing?.sellerTaxId ?? null,
+        billing?.sellerRegistrationNumber ?? null,
+        billing?.sellerPatente ?? null,
+        billing?.sellerPhone ?? null,
+        billing?.sellerEmail ?? null,
+        billing?.sellerWebsite ?? null,
+        billing?.paymentTerms ?? null,
+        billing?.paymentMethod ?? null,
+        billing?.bankDetails ?? null,
+      ]);
+
+    return {
+      sourceType: GeneratedDocumentSource.INVOICE,
+      sourceId: invoice.id,
+      documentType: DocumentType.INVOICE,
+      title: 'Invoice draft preview',
+      filenameStem: `invoice-draft-${invoice.id}`,
+      logicalVariant: 'draft-preview',
+      context: { clientId: invoice.clientId, trainingEnrollmentId: null },
+      view: {
+        kind: 'INVOICE',
+        documentState: 'DRAFT_PREVIEW',
+        reference: invoice.reference,
+        status: invoice.status,
+        currency: invoice.currency,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        subtotalCents: invoice.subtotalCents,
+        taxCents: invoice.taxCents,
+        totalCents: invoice.totalCents,
+        lines: invoice.lines.map((line) => ({
+          description: line.description,
+          quantity: line.quantity,
+          unitPriceCents: line.unitPriceCents,
+          taxRateBps: line.taxRateBps,
+          lineSubtotalCents: line.lineSubtotalCents,
+          lineTaxCents: line.lineTaxCents,
+          lineTotalCents: line.lineTotalCents,
+        })),
+        party: {
+          clientName: invoice.client?.name ?? invoice.buyerLegalName,
+          missionTitle: invoice.recruitmentMission?.title ?? null,
+        },
+        seller: {
+          legalName: settings.sellerLegalName,
+          legalForm: settings.sellerLegalForm,
+          capital: settings.sellerCapital,
+          address: settings.sellerAddress,
+          ice: settings.sellerIce,
+          taxId: settings.sellerTaxId,
+          registrationNumber: settings.sellerRegistrationNumber,
+          patente: settings.sellerPatente,
+          phone: settings.sellerPhone,
+          email: settings.sellerEmail,
+          website: settings.sellerWebsite,
+        },
+        buyer: {
+          type: invoice.buyerType ?? 'INDIVIDUAL',
+          legalName: invoice.buyerLegalName,
+          address: invoice.buyerAddress,
+          ice: invoice.buyerIce,
+          taxId: invoice.buyerTaxId,
+          billingContact: invoice.buyerBillingContact,
+        },
+        customerReference: invoice.customerReference,
+        paymentTerms: settings.paymentTerms,
+        paymentMethod: settings.paymentMethod,
+        bankDetails: settings.bankDetails,
+        taxTreatment: invoice.taxTreatment,
+        totalAmountInWordsFr: null,
+        commercialReferences: {
+          quotation: invoice.quotation?.reference ?? null,
+          contract: invoice.contract?.reference ?? null,
+          purchaseOrder: invoice.purchaseOrder?.reference ?? null,
+        },
+      },
+      fingerprint: previewFingerprint(invoice, settings),
+      stabilize: async (tx) => {
+        await this.stabilizeCommercial(tx, 'Invoice', invoice);
+        await this.lockRowsForShare(tx, 'CompanyBillingSettings', ['primary']);
+      },
+      resnapshot: async (tx) => {
+        const current = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: {
+            client: { select: { name: true } },
+            recruitmentMission: { select: { title: true } },
+            quotation: { select: { reference: true } },
+            contract: { select: { reference: true } },
+            purchaseOrder: { select: { reference: true } },
+            lines: { orderBy: { sortOrder: 'asc' } },
+          },
+        });
+        const currentSettings = await tx.companyBillingSettings.findUnique({
+          where: { id: 'primary' },
+        });
+        if (!current || !currentSettings) {
+          throw generationSourceNotFound();
+        }
+        this.assertInvoiceDraftPreviewEligible(current.status, current.archivedAt);
+        return previewFingerprint(current, currentSettings);
       },
     };
   }
@@ -1287,6 +1464,15 @@ export class DocumentGenerationService {
     }
   }
 
+  private assertInvoiceDraftPreviewEligible(status: InvoiceStatus, archivedAt: Date | null): void {
+    if (archivedAt || status !== InvoiceStatus.DRAFT) {
+      throw generationConflict(
+        'GENERATION_SOURCE_NOT_ELIGIBLE',
+        'Only a non-archived draft invoice can produce a draft preview.',
+      );
+    }
+  }
+
   /**
    * Certificate readiness reuses the merged training boundary rather than approximating
    * it: completed, not withdrawn, not archived, and explicitly `PENDING`.
@@ -1491,8 +1677,9 @@ export class DocumentGenerationService {
     sourceId: string,
     outputFamily: GenerationOutputFamily,
     language: GenerationLanguage,
+    variant?: string,
   ): string {
-    return `${sourceType}:${sourceId}:${outputFamily}:${language}`;
+    return `${sourceType}:${sourceId}:${outputFamily}:${language}${variant ? `:${variant}` : ''}`;
   }
 
   /**

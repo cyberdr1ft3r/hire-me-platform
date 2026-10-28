@@ -1014,6 +1014,8 @@ export {
   GenerationIdempotencyKeySchema,
   GenerationLanguageSchema,
   GenerationOutputFamilySchema,
+  InvoiceDocumentGenerationRequestSchema,
+  InvoiceGenerationPurposeSchema,
 } from './document-generation.js';
 
 export type {
@@ -1023,6 +1025,8 @@ export type {
   GeneratedVersionProvenance,
   GenerationLanguage,
   GenerationOutputFamily,
+  InvoiceDocumentGenerationRequest,
+  InvoiceGenerationPurpose,
 } from './document-generation.js';
 export {
   CONVERSATION_PAGE_SIZE,

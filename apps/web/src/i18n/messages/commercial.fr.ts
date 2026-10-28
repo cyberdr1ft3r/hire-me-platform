@@ -342,6 +342,8 @@ export const commercialFr: Messages['commercial'] = {
       quotation: 'Les documents peuvent être générés une fois le devis émis.',
     },
     pdf: 'Générer le PDF',
+    draftPreviewNotice:
+      'Le PDF sera marqué BROUILLON et ne déclenchera pas l’émission de la facture.',
     provenance: 'modèle version {template}',
     provenanceBy: 'modèle version {template}, généré par {name}',
     regeneratePdf: 'Régénérer le PDF',
