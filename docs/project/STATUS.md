@@ -13,6 +13,13 @@ Status owner: repository maintainer
 - The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
 - No new mechanism has been used and PR #253 is not deployed by this implementation task.
 
+## Issue #252 — standalone manual-client invoices
+
+- Branch `feat/client-libre-invoices` adds a bilingual Registered client / Manual client choice to invoice creation. A manual invoice requires a name, accepts optional address, ICE, and IF, stores those values in the invoice buyer snapshot, and never creates a CRM `Client`.
+- Standalone manual invoices cannot link missions, placements, quotations, contracts, purchase orders, or correction sources. Registered-client behavior, invoice dates, lifecycle, numbering, immutable issuance snapshots, and issuance validation remain unchanged.
+- The database permits a nullable invoice `clientId` only when a non-blank buyer legal name is stored. Authorization remains fail-closed under the existing invoice, commercial-data, and client-view capabilities. Client balances, payment allocation, and profitability remain registered-client accounting paths; standalone invoices are excluded rather than attributed to a synthetic client.
+- Focused PostgreSQL regressions prove create, issue, reload, history persistence, no CRM-client creation, and real PDF rendering from the stored manual buyer snapshot. Contracts, Prisma validation, typecheck, lint, architecture/style checks, and focused web behavior are green locally. Review and exact-head CI remain required; the branch is unmerged and undeployed.
+
 ## Main CI frontend stabilization
 
 - Current `main` `af348bb96b489d76df79c334349aaecc1377e9ff` failed four CI attempts in

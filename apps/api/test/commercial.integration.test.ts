@@ -656,6 +656,107 @@ describe('commercial workflow foundation', () => {
     }
   });
 
+  it('creates, issues, and reloads a manual-client invoice without creating a CRM client', async () => {
+    const reference = 'I38-MANUAL-CLIENT';
+    const previousSettings = await prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    const clientsBefore = await prisma.client.count();
+    let invoiceId: string | null = null;
+    await prisma.companyBillingSettings.upsert({
+      where: { id: 'primary' },
+      create: { id: 'primary', invoiceNumberingEnabled: false },
+      update: { invoiceNumberingEnabled: false },
+    });
+    try {
+      const createdResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          reference,
+          manualClient: {
+            name: 'Synthetic Historical Client',
+            address: '9 Archive Street, Rabat',
+            ice: 'SYNTHETIC-MANUAL-ICE',
+            taxId: 'SYNTHETIC-MANUAL-IF',
+          },
+          currency: 'MAD',
+          issueDate: '2026-01-15T00:00:00.000Z',
+          dueDate: '2026-02-15T00:00:00.000Z',
+          lines: [
+            {
+              description: 'Synthetic historical service',
+              quantity: 1,
+              unitPriceCents: 10_000,
+              taxRateBps: 2_000,
+            },
+          ],
+        }),
+      });
+      expect(createdResponse.status).toBe(201);
+      const created = InvoiceDetailResponseSchema.parse(await createdResponse.json()).invoice;
+      invoiceId = created.id;
+      expect(created).toMatchObject({
+        clientId: null,
+        display: { clientName: 'Synthetic Historical Client' },
+        billingClient: {
+          mode: 'MANUAL',
+          name: 'Synthetic Historical Client',
+          address: '9 Archive Street, Rabat',
+          ice: 'SYNTHETIC-MANUAL-ICE',
+          taxId: 'SYNTHETIC-MANUAL-IF',
+        },
+      });
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+
+      const issuedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}/issue`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          ...invoiceIssueDetails,
+          issueDate: '2026-01-15T00:00:00.000Z',
+          dueDate: '2026-02-15T00:00:00.000Z',
+          businessDetails: {
+            ...invoiceIssueDetails.businessDetails,
+            buyerLegalName: 'Synthetic Historical Client',
+            buyerAddress: '9 Archive Street, Rabat',
+            buyerIce: 'SYNTHETIC-MANUAL-ICE',
+            buyerTaxId: 'SYNTHETIC-MANUAL-IF',
+          },
+        }),
+      });
+      expect(issuedResponse.status).toBe(200);
+      const issued = InvoiceDetailResponseSchema.parse(await issuedResponse.json()).invoice;
+      expect(issued.businessDetails).toMatchObject({
+        buyerLegalName: 'Synthetic Historical Client',
+        buyerAddress: '9 Archive Street, Rabat',
+      });
+
+      const reloadedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        headers: authHeaders(commercialToken),
+      });
+      expect(reloadedResponse.status).toBe(200);
+      const reloaded = InvoiceDetailResponseSchema.parse(await reloadedResponse.json()).invoice;
+      expect(reloaded.clientId).toBeNull();
+      expect(reloaded.businessDetails?.buyerTaxId).toBe('SYNTHETIC-MANUAL-IF');
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+    } finally {
+      if (invoiceId) {
+        await prisma.invoiceEvent.deleteMany({ where: { invoiceId } });
+        await prisma.invoiceLine.deleteMany({ where: { invoiceId } });
+        await prisma.invoice.delete({ where: { id: invoiceId } });
+      }
+      if (previousSettings) {
+        await prisma.companyBillingSettings.update({
+          where: { id: 'primary' },
+          data: { ...previousSettings, createdAt: undefined, updatedAt: undefined },
+        });
+      } else {
+        await prisma.companyBillingSettings.delete({ where: { id: 'primary' } });
+      }
+    }
+  });
+
   it('enforces quotation lifecycle transitions and blocks terminal mutation without audit noise', async () => {
     const { client } = await createClientAndMission(
       'Issue38 Quotation Lifecycle',

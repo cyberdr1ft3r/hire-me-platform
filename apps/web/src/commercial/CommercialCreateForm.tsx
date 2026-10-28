@@ -47,7 +47,8 @@ export function CommercialCreateForm({
   const heading = useRef<HTMLHeadingElement>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const { kind, values } = draft;
-  const clientId = values.client?.id ?? null;
+  const manualInvoice = kind === 'invoice' && values.invoiceClientMode === 'MANUAL';
+  const clientId = manualInvoice ? null : (values.client?.id ?? null);
   const derived = deriveContext(kind, values);
   const trainingContract = kind === 'contract' && values.businessType === 'TRAINING';
 
@@ -93,7 +94,8 @@ export function CommercialCreateForm({
   const hasErrors = Object.keys(errors).length > 0;
   const showLines =
     kind === 'quotation' ||
-    (kind === 'invoice' && !(invoiceHasLineSource(values) && values.useSourceLines));
+    (kind === 'invoice' &&
+      (manualInvoice || !(invoiceHasLineSource(values) && values.useSourceLines)));
   const pickableSources = SOURCE_FIELDS[kind].filter((field) =>
     field === 'placement' ? access.pickPlacements : access.view[field],
   );
@@ -152,7 +154,33 @@ export function CommercialCreateForm({
               </Select>
             ) : null}
           </div>
-          {access.pickClients ? (
+          {kind === 'invoice' ? (
+            <div
+              aria-label={t('commercial.form.clientMode.label')}
+              className="commercial-segmented"
+              role="radiogroup"
+            >
+              <button
+                aria-checked={!manualInvoice}
+                className="commercial-segmented__option"
+                onClick={() => update({ invoiceClientMode: 'REGISTERED' })}
+                role="radio"
+                type="button"
+              >
+                {t('commercial.form.clientMode.registered')}
+              </button>
+              <button
+                aria-checked={manualInvoice}
+                className="commercial-segmented__option"
+                onClick={() => update({ invoiceClientMode: 'MANUAL' })}
+                role="radio"
+                type="button"
+              >
+                {t('commercial.form.clientMode.manual')}
+              </button>
+            </div>
+          ) : null}
+          {access.pickClients && !manualInvoice ? (
             <CommercialOptionPicker
               error={error('client')}
               hint={t('commercial.form.clientHint')}
@@ -163,14 +191,52 @@ export function CommercialCreateForm({
               sourceKey={`${sessionKey}:create-clients`}
               value={values.client}
             />
-          ) : (
+          ) : !access.pickClients ? (
             <InlineMessage title={t('commercial.form.noClientSourceTitle')} tone="warning">
               <p className="commercial-message__text">{t('commercial.form.noClientSource')}</p>
             </InlineMessage>
-          )}
+          ) : null}
+          {manualInvoice ? (
+            <div className="commercial-form__grid">
+              <TextField
+                autoComplete="organization"
+                error={error('manualClientName')}
+                label={t('commercial.form.manualClient.name')}
+                maxLength={180}
+                onChange={(event) => update({ manualClientName: event.currentTarget.value })}
+                placeholder={t('commercial.form.manualClient.namePlaceholder')}
+                required
+                value={values.manualClientName}
+              />
+              <TextArea
+                label={t('commercial.form.manualClient.address')}
+                maxLength={500}
+                onChange={(event) => update({ manualClientAddress: event.currentTarget.value })}
+                placeholder={t('commercial.form.manualClient.addressPlaceholder')}
+                rows={2}
+                value={values.manualClientAddress}
+              />
+              <TextField
+                autoComplete="off"
+                label={t('commercial.form.manualClient.ice')}
+                maxLength={80}
+                onChange={(event) => update({ manualClientIce: event.currentTarget.value })}
+                placeholder={t('commercial.form.manualClient.icePlaceholder')}
+                value={values.manualClientIce}
+              />
+              <TextField
+                autoComplete="off"
+                label={t('commercial.form.manualClient.taxId')}
+                maxLength={80}
+                onChange={(event) => update({ manualClientTaxId: event.currentTarget.value })}
+                placeholder={t('commercial.form.manualClient.taxIdPlaceholder')}
+                value={values.manualClientTaxId}
+              />
+            </div>
+          ) : null}
         </fieldset>
 
-        {pickableSources.length > 0 || access.pickMissions ? (
+        {!manualInvoice && (pickableSources.length > 0 || access.pickMissions) ? (
           <fieldset className="commercial-fieldset">
             <legend>{t('commercial.form.sections.links')}</legend>
             {!clientId ? (
@@ -345,7 +411,7 @@ export function CommercialCreateForm({
           ) : null}
         </fieldset>
 
-        {kind === 'invoice' && invoiceHasLineSource(values) ? (
+        {kind === 'invoice' && !manualInvoice && invoiceHasLineSource(values) ? (
           <Checkbox
             checked={values.useSourceLines}
             hint={t('commercial.form.useSourceLinesHint')}

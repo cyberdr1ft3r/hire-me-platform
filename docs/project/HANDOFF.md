@@ -23,3 +23,9 @@ Last updated: 2026-10-28
 - The selected feature SHA has successful exact-head CI and verified provenance plus PR-binding attestations before deployment.
 - The existing Environment review, backup, migration, health, and rollback gates all succeed.
 - PR #253 stays open and unmerged; production and real invoice issuance remain untouched.
+
+## Client libre hotfix context
+
+- `hotfix/client-address-optional` carries the reviewed Client libre implementation on top of current protected `main` so the address-only correction can target `main` without modifying PR #253.
+- Draft manual-client creation already accepts a required name with an optional address; the hotfix must close remaining regression gaps while preserving issuance-time buyer-address validation.
+- No deployment, production data change, or invoice issuance is part of this branch.

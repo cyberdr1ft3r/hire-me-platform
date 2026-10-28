@@ -31,6 +31,13 @@ invoice-issuance approval. The mechanism is inactive until its separate PR is re
 Before first use, disable administrator bypass for the `staging` Environment and protect `main` as the
 workflow trust anchor through an explicitly reviewed repository policy change.
 
+Issue #252 standalone manual-client invoices are implemented for review on `feat/client-libre-invoices` from
+`main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` under D-096. An invoice chooses exactly one registered
+client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
+registered-client source, and remains durable in history and generated PDF output. Existing issue,
+numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
+and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
+
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.
 Company billing settings remain permission-protected, reusable, and empty by default; issued invoices

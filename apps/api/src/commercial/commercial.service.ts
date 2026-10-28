@@ -51,6 +51,7 @@ import {
   AssignmentStatus,
   CommercialContractBusinessType,
   CommercialContractStatus,
+  InvoiceBuyerType,
   InvoiceStatus,
   PaymentAllocationStatus,
   PlacementStatus,
@@ -1167,34 +1168,7 @@ export class CommercialService {
     const access = await this.resolveAccess(actorUserId);
     this.assertPermission(access.invoicesView, 'invoices:view', 'INVOICES_VIEW_REQUIRED');
     const invoice = await this.getScopedInvoice(id, actorUserId, access);
-    const settings = access.invoicesManage
-      ? await this.prisma.companyBillingSettings.findUnique({ where: { id: 'primary' } })
-      : null;
-    return {
-      invoice: this.toInvoiceDetail(
-        invoice,
-        access,
-        settings
-          ? {
-              sellerLegalName: settings.sellerLegalName,
-              sellerLegalForm: settings.sellerLegalForm,
-              sellerCapital: settings.sellerCapital,
-              sellerAddress: settings.sellerAddress,
-              sellerIce: settings.sellerIce,
-              sellerTaxId: settings.sellerTaxId,
-              sellerRegistrationNumber: settings.sellerRegistrationNumber,
-              sellerPatente: settings.sellerPatente,
-              sellerPhone: settings.sellerPhone,
-              sellerEmail: settings.sellerEmail,
-              sellerWebsite: settings.sellerWebsite,
-              paymentTerms: settings.paymentTerms,
-              paymentMethod: settings.paymentMethod,
-              bankDetails: settings.bankDetails,
-              automaticNumbering: settings.invoiceNumberingEnabled,
-            }
-          : null,
-      ),
-    };
+    return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
   }
 
   async getInvoiceSettingsPrefill(actorUserId: string): Promise<CompanyBillingSettingsResponse> {
@@ -1234,27 +1208,38 @@ export class CommercialService {
     this.assertCommercialWrite(access, access.invoicesManage, 'invoices:manage');
     try {
       const invoice = await this.prisma.$transaction(async (tx) => {
-        await this.lockWritableClient(input.clientId, access, tx);
-        if (!input.missionPlacementId) {
-          await this.assertMissionContext(
-            input.clientId,
-            input.recruitmentMissionId,
-            actorUserId,
-            access,
-            tx,
-          );
+        if (input.clientId) {
+          await this.lockWritableClient(input.clientId, access, tx);
+          if (!input.missionPlacementId) {
+            await this.assertMissionContext(
+              input.clientId,
+              input.recruitmentMissionId,
+              actorUserId,
+              access,
+              tx,
+            );
+          }
         }
-        const sourceLines = await this.validateInvoiceSourcesAndBuildLines(
-          input,
-          tx,
-          access,
-          actorUserId,
-        );
+        const sourceLines = input.clientId
+          ? await this.validateInvoiceSourcesAndBuildLines(
+              input as InvoiceCreateRequest & { clientId: string },
+              tx,
+              access,
+              actorUserId,
+            )
+          : input.lines
+            ? calculateLines(input.lines)
+            : (() => {
+                throw conflict(
+                  'INVOICE_SOURCE_OR_LINES_REQUIRED',
+                  'Invoice requires source lines or input lines.',
+                );
+              })();
         const calculated = input.lines ? calculateLines(input.lines) : sourceLines;
         const created = await tx.invoice.create({
           data: {
             reference: input.reference,
-            clientId: input.clientId,
+            clientId: input.clientId ?? null,
             recruitmentMissionId: input.recruitmentMissionId,
             missionPlacementId: input.missionPlacementId,
             quotationId: input.quotationId,
@@ -1267,6 +1252,11 @@ export class CommercialService {
             taxCents: calculated.taxCents,
             totalCents: calculated.totalCents,
             correctionOfInvoiceId: input.correctionOfInvoiceId,
+            buyerLegalName: input.manualClient?.name,
+            buyerAddress: input.manualClient?.address,
+            buyerIce: input.manualClient?.ice,
+            buyerTaxId: input.manualClient?.taxId,
+            buyerType: input.manualClient ? InvoiceBuyerType.COMPANY : undefined,
             createdByUserId: actorUserId,
             updatedByUserId: actorUserId,
             lines: { create: calculated.lines },
@@ -1294,7 +1284,7 @@ export class CommercialService {
         );
         return tx.invoice.findUniqueOrThrow({ where: { id: created.id }, include: invoiceInclude });
       });
-      return { invoice: this.toInvoiceDetail(invoice, access) };
+      return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
     } catch (error: unknown) {
       this.rethrowKnownCreateError(error, 'INVOICE_REFERENCE_OR_SOURCE_EXISTS');
     }
@@ -1361,7 +1351,7 @@ export class CommercialService {
         );
         return this.reloadInvoice(id, tx);
       });
-      return { invoice: this.toInvoiceDetail(invoice, access) };
+      return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
     } catch (error: unknown) {
       this.rethrowKnownCreateError(error, 'INVOICE_REFERENCE_OR_SOURCE_EXISTS');
     }
@@ -1421,9 +1411,10 @@ export class CommercialService {
           paymentMethod: input.businessDetails.paymentMethod ?? null,
           bankDetails: input.businessDetails.bankDetails ?? null,
           taxTreatment: input.businessDetails.taxTreatment ?? null,
-          totalAmountInWordsFr: input.includeFrenchAmountInWords
-            ? frenchMadAmountInWords(existing.totalCents)
-            : null,
+          totalAmountInWordsFr:
+            input.includeFrenchAmountInWords && existing.currency === 'MAD'
+              ? frenchMadAmountInWords(existing.totalCents)
+              : null,
           businessSnapshotVersion: 2,
           updatedByUserId: actorUserId,
         },
@@ -1452,7 +1443,7 @@ export class CommercialService {
       );
       return { invoice: await this.reloadInvoice(id, tx), changed: true };
     });
-    return { invoice: this.toInvoiceDetail(invoice, access) };
+    return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
   }
 
   async cancelInvoice(
@@ -1521,7 +1512,7 @@ export class CommercialService {
       );
       return { invoice: await this.reloadInvoice(id, tx), changed: true };
     });
-    return { invoice: this.toInvoiceDetail(invoice, access) };
+    return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
   }
 
   async archiveInvoice(
@@ -1574,7 +1565,7 @@ export class CommercialService {
       );
       return { invoice: await this.reloadInvoice(id, tx), changed: true };
     });
-    return { invoice: this.toInvoiceDetail(invoice, access) };
+    return { invoice: await this.toInvoiceDetailWithPrefill(invoice, access) };
   }
 
   /**
@@ -1737,7 +1728,7 @@ export class CommercialService {
   }
 
   private async validateInvoiceSourcesAndBuildLines(
-    input: InvoiceCreateRequest,
+    input: InvoiceCreateRequest & { clientId: string },
     tx: Tx,
     access: CommercialAccess,
     actorUserId: string,
@@ -2105,7 +2096,11 @@ export class CommercialService {
   }
 
   private async assertRecordSourceScope(
-    record: { clientId: string; recruitmentMissionId: string | null; archivedAt?: Date | null },
+    record: {
+      clientId: string | null;
+      recruitmentMissionId: string | null;
+      archivedAt?: Date | null;
+    },
     actorUserId: string,
     access: CommercialAccess,
     prisma: Tx | PrismaService,
@@ -2115,6 +2110,12 @@ export class CommercialService {
     const notFoundMessage = options.notFoundMessage ?? 'Commercial record was not found.';
     if (!access.clientsView) {
       throw notFound(notFoundCode, notFoundMessage);
+    }
+    if (!record.clientId) {
+      if (record.recruitmentMissionId) {
+        throw notFound(notFoundCode, notFoundMessage);
+      }
+      return;
     }
     const client = await prisma.client.findUnique({ where: { id: record.clientId } });
     if (!client) {
@@ -2411,7 +2412,7 @@ export class CommercialService {
     }
   }
 
-  private assertSameClient(actual: string, expected: string, code: string): void {
+  private assertSameClient(actual: string | null, expected: string, code: string): void {
     if (actual !== expected) {
       throw conflict(code, 'Linked commercial records must belong to the same client.');
     }
@@ -2593,9 +2594,48 @@ export class CommercialService {
       ...this.toInvoiceSummary(invoice, access),
       lines: access.commercialData ? invoice.lines.map(toLine) : null,
       businessDetails: access.commercialData ? invoiceBusinessDetails(invoice) : null,
+      billingClient: access.commercialData
+        ? {
+            mode: invoice.clientId ? ('REGISTERED' as const) : ('MANUAL' as const),
+            name: invoice.buyerLegalName ?? invoice.client?.name ?? '',
+            address: invoice.buyerAddress,
+            ice: invoice.buyerIce,
+            taxId: invoice.buyerTaxId,
+          }
+        : null,
       history: invoice.events.map((event) => toEvent(event, access)),
       issuancePrefill,
     };
+  }
+
+  private async toInvoiceDetailWithPrefill(invoice: InvoiceRecord, access: CommercialAccess) {
+    const settings =
+      access.invoicesManage && access.commercialData
+        ? await this.prisma.companyBillingSettings.findUnique({ where: { id: 'primary' } })
+        : null;
+    return this.toInvoiceDetail(
+      invoice,
+      access,
+      settings
+        ? {
+            sellerLegalName: settings.sellerLegalName,
+            sellerLegalForm: settings.sellerLegalForm,
+            sellerCapital: settings.sellerCapital,
+            sellerAddress: settings.sellerAddress,
+            sellerIce: settings.sellerIce,
+            sellerTaxId: settings.sellerTaxId,
+            sellerRegistrationNumber: settings.sellerRegistrationNumber,
+            sellerPatente: settings.sellerPatente,
+            sellerPhone: settings.sellerPhone,
+            sellerEmail: settings.sellerEmail,
+            sellerWebsite: settings.sellerWebsite,
+            paymentTerms: settings.paymentTerms,
+            paymentMethod: settings.paymentMethod,
+            bankDetails: settings.bankDetails,
+            automaticNumbering: settings.invoiceNumberingEnabled,
+          }
+        : null,
+    );
   }
 }
 
@@ -2672,8 +2712,9 @@ const invoiceInclude = {
 } satisfies Prisma.InvoiceInclude;
 
 type DisplaySource = {
-  client: { name: string };
+  client: { name: string } | null;
   recruitmentMission: { title: string } | null;
+  buyerLegalName?: string | null;
 };
 
 /**
@@ -2696,7 +2737,7 @@ function recordDisplay(
     (access.placementsView && access.placementCommercialEligibility) ||
     access.recruitmentFinancialContext;
   return {
-    clientName: record.client.name,
+    clientName: record.client?.name ?? record.buyerLegalName ?? '',
     missionTitle: record.recruitmentMission?.title ?? null,
     linkedQuotationReference: access.quotationsView ? (links.quotation?.reference ?? null) : null,
     linkedContractReference: access.contractsView ? (links.contract?.reference ?? null) : null,
