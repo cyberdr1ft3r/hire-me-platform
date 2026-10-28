@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -14,6 +15,18 @@ import {
 const repository = 'cyberdr1ft3r/hire-me-platform';
 const releaseSha = '6ff6698791577d337ea05792fdfcf3009eed2142';
 const expected = { repository, prNumber: 253, releaseSha };
+
+test('pins privileged actions and builds with the trusted main Dockerfile', () => {
+  const workflow = readFileSync('.github/workflows/deploy-pr-staging.yml', 'utf8');
+  const actionRefs = [...workflow.matchAll(/^\s*uses:\s+[^@\s]+@([^\s#]+)/gm)].map(
+    (match) => match[1],
+  );
+  assert.ok(actionRefs.length > 0);
+  assert.ok(actionRefs.every((ref) => /^[0-9a-f]{40}$/.test(ref)));
+  assert.match(workflow, /file: trusted\/\$\{\{ matrix\.file \}\}/);
+  assert.doesNotMatch(workflow, /file: source\/\$\{\{ matrix\.file \}\}/);
+  assert.equal(workflow.match(/--source-digest "\$GITHUB_SHA"/g)?.length, 4);
+});
 
 test('accepts only an exact main-defined dispatch and confirmation', () => {
   assert.deepEqual(

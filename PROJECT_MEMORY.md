@@ -24,9 +24,12 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,
 release-control path refusal, credential-separated builds, immutable SHA images, GitHub OIDC provenance,
-custom PR/SHA/CI attestations, digest re-verification, and the existing D-094 backup/migration/health/
-rollback wrapper. It creates no feature-branch Environment wildcard, production path, automatic merge,
-or invoice-issuance approval. The mechanism is inactive until its separate PR is reviewed and merged.
+custom PR/SHA/CI attestations, exact trusted-workflow digest verification, commit-pinned Actions,
+main-owned Dockerfiles, digest re-verification, and the existing D-094 backup/migration/health/rollback
+wrapper. It creates no feature-branch Environment wildcard, production path, automatic merge, or
+invoice-issuance approval. The mechanism is inactive until its separate PR is reviewed and merged.
+Before first use, disable administrator bypass for the `staging` Environment and protect `main` as the
+workflow trust anchor through an explicitly reviewed repository policy change.
 
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.

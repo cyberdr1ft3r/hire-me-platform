@@ -43,8 +43,9 @@ commit; it does not approve or merge the PR.
 1. The workflow file and verifier come from `main`.
 2. GitHub confirms the same-repository PR, base, open state, current head, protected paths, exact CI run,
    and required jobs.
-3. API and web images build on GitHub-hosted runners without staging SSH secrets and publish under the
-   exact SHA.
+3. API and web images build from the exact feature source with commit-pinned Actions and Dockerfiles
+   supplied by trusted `main`; the build receives no staging SSH secrets and publishes under the exact
+   SHA.
 4. GitHub OIDC signs build provenance and the PR/SHA/CI binding for each digest.
 5. The deploy job resolves and verifies both digests and attestations.
 6. The existing pinned host key, restricted deploy account, digest allow-list, paired database/document
@@ -63,6 +64,15 @@ commit; it does not approve or merge the PR.
 
 Post the sanitized evidence on the feature PR. Never post credentials, cookies, environment values,
 document contents, database dumps, or customer data.
+
+### PR #253 rollback compatibility
+
+PR #253 makes `Invoice.clientId` nullable. The migration is additive/forward-only and preserves
+existing rows, but a standalone invoice created afterward is not compatible with the previous API's
+required Prisma relation. Before any null-client invoice is created, the recorded application rollback
+remains usable. After one exists, do not rely on an image-only rollback: prefer a reviewed roll-forward
+fix or restore the paired pre-deployment recovery set into isolated volumes and validate it before
+promotion.
 
 ## Failure and recovery
 

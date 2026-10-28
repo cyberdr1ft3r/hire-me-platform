@@ -11,14 +11,15 @@ Last updated: 2026-10-28
 
 ## Next concrete action
 
-1. Complete security/engineering review and exact-head CI for the Issue #254 PR.
-2. Merge Issue #254 only with explicit approval; keep the staging Environment branch policy `main`.
-3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve the protected Environment only after comparing both values.
-4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance.
+1. Require green exact-head CI and maintainer review for PR #255; merge only with explicit approval.
+2. Before first use, disable administrator bypass on the `staging` Environment and protect `main` with an explicitly reviewed ruleset while retaining the exact `main` deployment branch policy. Add a second trusted reviewer before enabling prevent-self-review.
+3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve only after comparing both values.
+4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance. After a null-client invoice exists, use roll-forward or isolated paired restore rather than relying on the previous API image alone.
 
 ## Completion conditions
 
-- Issue #254 exact-head CI and review are green before merge.
+- PR #255 exact-head CI and maintainer review are green before merge.
+- Administrator bypass is disabled for `staging`, and `main` is protected as the workflow trust anchor.
 - The selected feature SHA has successful exact-head CI and verified provenance plus PR-binding attestations before deployment.
 - The existing Environment review, backup, migration, health, and rollback gates all succeed.
 - PR #253 stays open and unmerged; production and real invoice issuance remain untouched.

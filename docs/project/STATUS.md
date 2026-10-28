@@ -9,7 +9,9 @@ Status owner: repository maintainer
 - The new manual workflow must itself be dispatched from trusted `main`. A protected `staging` Environment review authorizes one explicit same-repository PR number and exact current head SHA after all six exact-head CI jobs pass. The existing Environment branch policy stays `main`; no feature-branch wildcard is added.
 - PRs that alter `.github/`, `deploy/`, Dockerfiles, `.dockerignore`, or the pre-merge/main release gates are refused. Application images build without staging secrets or persisted checkout credentials, publish under the exact SHA, receive SLSA provenance plus a custom PR/SHA/CI binding, and are re-resolved and re-verified by digest before the existing pinned-SSH wrapper runs.
 - Existing concurrency, host-key pinning, restricted deploy identity, paired backup, `prisma migrate deploy`, health gates, rollback records, staging isolation, and disabled invoice issuance remain unchanged. The workflow never merges or marks the selected PR ready and has no production path.
-- Review and exact-head CI are still required. No new mechanism has been used and PR #253 is not deployed by this implementation task.
+- Final review pinned every privileged Action by commit, moved Dockerfile authority to trusted `main`, bound attestation verification to the exact trusted workflow commit, and validates SSH user/port values before shell use. Exact-head CI is still required after these changes.
+- The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
+- No new mechanism has been used and PR #253 is not deployed by this implementation task.
 
 ## Main CI frontend stabilization
 

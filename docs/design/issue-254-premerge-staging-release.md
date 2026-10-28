@@ -18,7 +18,7 @@ keeps its existing `main`-only branch policy; no branch wildcard is required.
 | PR selection | GitHub REST response | Feature code | Open, same-repository PR targeting `main`; selected SHA must still be its current head |
 | CI evidence | GitHub Actions API | PR workflow result | Exact SHA, associated PR, completed successful CI, and all six required job names must pass |
 | Release controls | Files from trusted `main` | PR diff | Refuse `.github/`, `deploy/`, Dockerfile, `.dockerignore`, and release-gate changes |
-| Image build | Trusted Dockerfiles and workflow | Application source and dependencies | Checkout has no persisted credentials; publish job has no staging secrets; dedicated GitHub-hosted runner |
+| Image build | Main-owned Dockerfiles and workflow, with Actions pinned by commit | Application source and dependencies | The selected commit supplies the build context but not the Dockerfile; checkout has no persisted credentials; publish job has no staging secrets; dedicated GitHub-hosted runner |
 | Artifact identity | GitHub OIDC certificate and GHCR digest | Mutable registry tag | Resolve digest, verify SLSA provenance, and verify a custom attestation binding repository, PR, SHA, and CI run |
 | Deployment | Main-owned workflow, pinned host key, restricted wrapper | Attested image contents | Protected Environment, digest-only images, non-root deploy identity, wrapper allow-list, backup, migration, health gates |
 | Runtime | Isolated staging stack | Review-authorized feature behavior | Internal PostgreSQL network, staging-only secrets/data, issuance remains disabled unless separately approved |
@@ -51,8 +51,8 @@ Images use the existing commit-specific tags:
 
 The workflow never overwrites an existing tag. It may reuse one only after both attestations verify:
 
-1. SLSA build provenance signed by `.github/workflows/deploy-pr-staging.yml` from `main` on a
-   GitHub-hosted runner.
+1. SLSA build provenance signed by `.github/workflows/deploy-pr-staging.yml` from the exact trusted
+   `main` workflow commit on a GitHub-hosted runner.
 2. `https://hire-me.dr1ft3r.dev/attestations/premerge-staging/v1`, binding the image digest to the
    repository, PR number, exact release SHA, and successful CI run ID.
 
@@ -71,7 +71,7 @@ version through separately reviewed package administration before retrying.
 | --- | --- | --- | --- |
 | Fork submits code and requests staging | External code reaches staging secrets/data | Same-repository head check; Environment review; no fork accepted | Mitigated |
 | PR advances after approval or CI | Untested code is deployed | Input SHA must equal current head; checkout and attest exact immutable SHA | Mitigated |
-| PR weakens CI/deploy/Dockerfile | Self-approved checks or credential theft | Protected-path refusal; trusted workflow checkout from `main` | Mitigated for this path |
+| PR weakens CI/deploy/Dockerfile | Self-approved checks or credential theft | Protected-path refusal; workflow and Dockerfile come from `main`; privileged Actions are commit-pinned | Mitigated for this path |
 | Malicious build reads SSH or staging secrets | Host/database compromise | Publish job has no Environment secrets; target checkout persists no credentials; SSH exists only in trusted deploy job | Mitigated |
 | Registry tag is replaced | Different bytes deploy under approved SHA label | Digest resolution plus signer/source/custom-attestation verification before deployment | Mitigated unless repository Actions authority is compromised |
 | Unsafe migration breaks staging or rollback | Outage or incompatible previous API | Exact CI migration suite, human migration review, paired backup, forward-only migration policy, digest-pinned rollback | Medium residual risk |
