@@ -185,6 +185,8 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 **State:** In progress through Issue #245 staging blocker remediation
 
+- Issue #254 adds the review-gated D-097 pre-merge staging exception required for UAT of an exact PR commit. It reuses the existing staging host and D-094 protections; it creates no preview environment and no production path.
+
 - Microsoft 365 authentication and approved email/contact capabilities.
 - Outlook and Google calendar adapters.
 - Automated email and WhatsApp Business reminders.
@@ -207,6 +209,8 @@ path. Issue #245 resolves the audited repository blockers without changing the h
 automatic path. Exit gates remain protected non-root access, firewall/reboot review, shared HTTPS
 proxy reconciliation, synthetic-only data, paired off-host backup/restore and rollback drills,
 monitoring, and business acceptance before real invoice issuance or automatic deployment.
+Issue #254 adds a separate manual pre-merge UAT path only after its own review and merge. The selected
+feature PR remains unmerged, and acceptance evidence never promotes it automatically.
 
 ## Issue #132 — proposed signing/sealing sequence
 

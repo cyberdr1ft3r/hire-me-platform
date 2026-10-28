@@ -4,6 +4,10 @@ This runbook prepares `hire-me.dr1ft3r.dev` for a manual-first staging deploymen
 authorize access to `194.195.87.238`, installation, DNS changes, deployment, or automatic rollout.
 Staging contains synthetic data only.
 
+For the separately approved, review-gated exception that deploys one exact same-repository PR commit
+before merge, see `docs/runbooks/premerge-staging-deployment.md` and D-097. That path keeps this
+runbook's host, Environment, backup, migration, health, and rollback controls.
+
 ## 1. Release architecture
 
 GitHub-hosted runners execute all tests and build the API and web images. A successful `main` CI run

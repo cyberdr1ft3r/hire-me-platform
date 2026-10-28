@@ -1,0 +1,347 @@
+name: Deploy reviewed PR to staging
+run-name: 'Deploy PR #${{ inputs.pr_number }} at ${{ inputs.release_sha }} to staging'
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository PR number targeting main
+        required: true
+        type: string
+      release_sha:
+        description: Exact 40-character current PR head SHA with successful CI
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY PR-<number> <full-sha>
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hireme-staging
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Authorize selected PR release
+    runs-on: ubuntu-24.04
+    environment:
+      name: staging
+      url: https://hire-me.dr1ft3r.dev
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      pr_number: ${{ steps.gate.outputs.pr_number }}
+      release_sha: ${{ steps.gate.outputs.release_sha }}
+      ci_run_id: ${{ steps.gate.outputs.ci_run_id }}
+    steps:
+      - name: Checkout trusted release gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify PR, exact head, protected paths, and CI
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/premerge-staging-release.mjs authorize
+
+  publish:
+    name: Publish and attest image (${{ matrix.component }})
+    needs: authorize
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            file: apps/api/Dockerfile
+            image: hire-me-platform-api
+          - component: web
+            file: apps/web/Dockerfile
+            image: hire-me-platform-web
+    env:
+      CI_RUN_ID: ${{ needs.authorize.outputs.ci_run_id }}
+      PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+      RELEASE_SHA: ${{ needs.authorize.outputs.release_sha }}
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+    steps:
+      - name: Checkout trusted verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Revalidate authorization before package write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: node trusted/scripts/premerge-staging-release.mjs authorize
+
+      - name: Checkout exact reviewed PR commit without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          path: source
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse overwrite or identify an already attested image
+        id: existing
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$REGISTRY_IMAGE:$RELEASE_SHA"
+          if digest=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish immutable SHA tag
+        if: steps.existing.outputs.exists != 'true'
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: source
+          file: trusted/${{ matrix.file }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ env.RELEASE_SHA }}
+          build-args: |
+            VCS_REF=${{ env.RELEASE_SHA }}
+            VITE_API_BASE_URL=https://hire-me.dr1ft3r.dev
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Resolve published digest
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest=$(docker buildx imagetools inspect "$REGISTRY_IMAGE:$RELEASE_SHA" --format '{{.Manifest.Digest}}')
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          if [[ "${{ steps.existing.outputs.exists }}" != "true" ]]; then
+            [[ "$digest" == "${{ steps.build.outputs.digest }}" ]]
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        if: steps.existing.outputs.exists != 'true'
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ${{ env.REGISTRY_IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest selected PR, SHA, and successful CI
+        if: steps.existing.outputs.exists != 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.REGISTRY_IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          predicate-type: https://hire-me.dr1ft3r.dev/attestations/premerge-staging/v1
+          predicate: >-
+            {"schemaVersion":1,"repository":"${{ github.repository }}","pullRequest":${{ env.PR_NUMBER }},"releaseSha":"${{ env.RELEASE_SHA }}","ciRunId":${{ env.CI_RUN_ID }}}
+          push-to-registry: true
+
+      - name: Verify provenance and selected-commit attestation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          subject="oci://$REGISTRY_IMAGE@${{ steps.image.outputs.digest }}"
+          signer="$GITHUB_REPOSITORY/.github/workflows/deploy-pr-staging.yml"
+          gh attestation verify "$subject" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$signer" \
+            --source-ref refs/heads/main \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners >/dev/null
+          gh attestation verify "$subject" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$signer" \
+            --source-ref refs/heads/main \
+            --source-digest "$GITHUB_SHA" \
+            --predicate-type https://hire-me.dr1ft3r.dev/attestations/premerge-staging/v1 \
+            --deny-self-hosted-runners \
+            --format json \
+            | node trusted/scripts/premerge-staging-release.mjs verify-attestation
+
+  deploy:
+    name: Deploy attested PR images
+    needs: [authorize, publish]
+    runs-on: ubuntu-24.04
+    environment:
+      name: staging
+      url: https://hire-me.dr1ft3r.dev
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      packages: read
+      pull-requests: read
+    env:
+      CI_RUN_ID: ${{ needs.authorize.outputs.ci_run_id }}
+      PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+      RELEASE_SHA: ${{ needs.authorize.outputs.release_sha }}
+      STAGING_HOST: 194.195.87.238
+      EXPECTED_HOST_FINGERPRINT: SHA256:9iMx/5YGJSoHOywFcbUqc+57p3tepSDGgOZ7axCj7lw
+    steps:
+      - name: Checkout trusted deployment verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Revalidate authorization before staging access
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/premerge-staging-release.mjs authorize
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve and verify immutable images
+        id: images
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          signer="$GITHUB_REPOSITORY/.github/workflows/deploy-pr-staging.yml"
+          for component in api web; do
+            image="ghcr.io/$owner/hire-me-platform-$component"
+            digest=$(docker buildx imagetools inspect "$image:$RELEASE_SHA" --format '{{.Manifest.Digest}}')
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            subject="oci://$image@$digest"
+            gh attestation verify "$subject" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$signer" \
+              --source-ref refs/heads/main \
+              --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners >/dev/null
+            gh attestation verify "$subject" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$signer" \
+              --source-ref refs/heads/main \
+              --source-digest "$GITHUB_SHA" \
+              --predicate-type https://hire-me.dr1ft3r.dev/attestations/premerge-staging/v1 \
+              --deny-self-hosted-runners \
+              --format json \
+              | node scripts/premerge-staging-release.mjs verify-attestation
+            echo "$component=$image@$digest" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Verify pinned SSH host identity
+        shell: bash
+        env:
+          PINNED_HOST_KEY: ${{ secrets.STAGING_SSH_HOST_KEY }}
+          SSH_PORT: ${{ vars.STAGING_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$PINNED_HOST_KEY" | tr -d '\r' > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/known_hosts"
+          port=${SSH_PORT:-22}
+          [[ "$port" =~ ^[0-9]+$ ]]
+          port=$((10#$port))
+          (( port >= 1 && port <= 65535 ))
+          lookup_host="$STAGING_HOST"
+          if [[ "$port" != "22" ]]; then lookup_host="[$STAGING_HOST]:$port"; fi
+          ssh-keygen -F "$lookup_host" -f "$RUNNER_TEMP/ssh/known_hosts" >/dev/null
+          actual=$(ssh-keygen -lf "$RUNNER_TEMP/ssh/known_hosts" -E sha256 | awk '$4 ~ /ED25519/ {print $2}')
+          [[ "$actual" == "$EXPECTED_HOST_FINGERPRINT" ]]
+
+      - name: Install ephemeral SSH identity
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$RUNNER_TEMP/ssh/deploy_key"
+          chmod 600 "$RUNNER_TEMP/ssh/deploy_key"
+
+      - name: Deploy through the protected staging wrapper
+        shell: bash
+        env:
+          API_IMAGE: ${{ steps.images.outputs.api }}
+          SSH_PORT: ${{ vars.STAGING_SSH_PORT }}
+          SSH_USER: ${{ vars.STAGING_SSH_USER }}
+          WEB_IMAGE: ${{ steps.images.outputs.web }}
+        run: |
+          set -euo pipefail
+          [[ "$SSH_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+          port=${SSH_PORT:-22}
+          [[ "$port" =~ ^[0-9]+$ ]]
+          port=$((10#$port))
+          (( port >= 1 && port <= 65535 ))
+          ssh -i "$RUNNER_TEMP/ssh/deploy_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            -p "$port" \
+            "$SSH_USER@$STAGING_HOST" \
+            sudo -n /usr/local/sbin/hireme-staging-deploy \
+              deploy "$RELEASE_SHA" "$API_IMAGE" "$WEB_IMAGE"
+
+      - name: Record deployment evidence
+        shell: bash
+        env:
+          API_IMAGE: ${{ steps.images.outputs.api }}
+          WEB_IMAGE: ${{ steps.images.outputs.web }}
+        run: |
+          {
+            echo '## Pre-merge staging deployment complete'
+            echo
+            echo "- PR: #$PR_NUMBER"
+            echo "- SHA: \`$RELEASE_SHA\`"
+            echo "- CI run: $CI_RUN_ID"
+            echo "- API: \`$API_IMAGE\`"
+            echo "- Web: \`$WEB_IMAGE\`"
+            echo '- Environment: https://hire-me.dr1ft3r.dev'
+            echo '- The selected PR was not merged by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"

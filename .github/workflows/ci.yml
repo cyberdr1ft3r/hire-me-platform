@@ -33,6 +33,7 @@ jobs:
           ACME_EMAIL=ops@example.test docker compose -f deploy/proxy/compose.yml config --quiet
           sh -n deploy/staging/bin/hireme-staging-deploy
           node --test scripts/staging-deploy-gate.test.mjs
+          node --test scripts/premerge-staging-release.test.mjs
 
       - name: Start PostgreSQL
         run: docker compose up -d postgres
