@@ -454,7 +454,7 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 5,
+  version: 6,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
@@ -531,6 +531,42 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         ? [{ label: label.customerReference, value: sanitizeText(view.customerReference) }]
         : []),
     ];
+    const pdfFooter = [
+      view.seller.legalName,
+      view.seller.legalForm,
+      view.seller.registrationNumber ? `RC : ${view.seller.registrationNumber}` : null,
+      view.seller.taxId ? `IF : ${view.seller.taxId}` : null,
+      view.seller.patente ? `PT : ${view.seller.patente}` : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map(sanitizeText)
+      .join(' · ');
+    const paymentLines = [
+      ...(view.paymentMethod
+        ? [`${language === 'fr' ? 'Mode de règlement' : 'Payment method'} : ${view.paymentMethod}`]
+        : []),
+      ...(view.paymentTerms &&
+      !(
+        view.paymentMethod &&
+        view.paymentTerms.toLowerCase().includes(view.paymentMethod.toLowerCase())
+      )
+        ? [
+            `${language === 'fr' ? 'Conditions de règlement' : 'Payment terms'} : ${view.paymentTerms}`,
+          ]
+        : []),
+      ...(view.bankDetails
+        ? [`${language === 'fr' ? 'Coordonnées bancaires' : 'Bank details'} : ${view.bankDetails}`]
+        : []),
+      ...referenceRows.map((row) => `${row.label} : ${row.value}`),
+    ].map(sanitizeText);
+    // Historical imports encode a service date in each designation. Move it only when
+    // every line agrees, and label it separately from the immutable invoice issue date.
+    const serviceDatePattern = /\s+—\s+Date de prestation\s*:\s*(\d{2}\/\d{2}\/\d{4})(?=\s+—|$)/;
+    const serviceDates = view.lines.map((line) => line.description.match(serviceDatePattern)?.[1]);
+    const serviceDate =
+      serviceDates.length > 0 && serviceDates.every(Boolean) && new Set(serviceDates).size === 1
+        ? serviceDates[0]
+        : null;
     return {
       title: `${label.invoice} ${sanitizeText(view.reference)}`,
       subtitle: commercialStatus(view.status, language),
@@ -618,20 +654,84 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         },
       ],
       footer: invoiceFooter(view, language, label.footer),
+      pdfInvoice: {
+        clientHeading: label.billedClient,
+        amountHeading:
+          language === 'fr'
+            ? 'ARRÊTÉE LA PRÉSENTE FACTURE À LA SOMME DE'
+            : 'INVOICE TOTAL IN WORDS',
+        paymentHeading: language === 'fr' ? 'RÈGLEMENT ET RÉFÉRENCE' : 'PAYMENT AND REFERENCES',
+        sellerLines: [
+          view.seller.address,
+          view.seller.capital
+            ? `${language === 'fr' ? 'Capital social' : 'Share capital'} : ${view.seller.capital}`
+            : null,
+          view.seller.ice ? `ICE : ${view.seller.ice}` : null,
+          view.seller.email,
+          view.seller.website,
+        ]
+          .filter((value): value is string => Boolean(value))
+          .map(sanitizeText),
+        clientLines: [
+          view.buyer.legalName,
+          view.buyer.address,
+          view.buyer.ice ? `ICE : ${view.buyer.ice}` : null,
+          view.buyer.taxId ? `IF : ${view.buyer.taxId}` : null,
+          view.buyer.billingContact,
+        ]
+          .filter((value): value is string => Boolean(value))
+          .map(sanitizeText),
+        columns: [
+          language === 'fr' ? 'Désignation' : label.description,
+          language === 'fr' ? 'Qté' : label.quantity,
+          language === 'fr' ? 'Prix unit. HT' : 'Unit price excl. tax',
+          language === 'fr' ? 'TVA' : 'Tax',
+          language === 'fr' ? 'Total HT' : 'Total excl. tax',
+        ],
+        rows: view.lines.map((line) => [
+          sanitizeText(
+            serviceDate ? line.description.replace(serviceDatePattern, '') : line.description,
+          ),
+          String(line.quantity),
+          invoiceMoney(line.unitPriceCents, view.currency, language),
+          `${(line.taxRateBps / 100).toFixed(2).replace('.00', '')}${language === 'fr' ? ' %' : '%'}`,
+          invoiceMoney(line.lineSubtotalCents, view.currency, language),
+        ]),
+        totals: [
+          {
+            label: label.invoiceSubtotal,
+            value: invoiceMoney(view.subtotalCents, view.currency, language),
+          },
+          {
+            label: invoiceTaxLabel(view, language),
+            value: invoiceMoney(view.taxCents, view.currency, language),
+          },
+          {
+            label: label.invoiceTotal,
+            value: invoiceMoney(view.totalCents, view.currency, language),
+          },
+        ],
+        amountInWords:
+          language === 'fr' && view.totalAmountInWordsFr
+            ? sanitizeText(view.totalAmountInWordsFr)
+            : null,
+        paymentLines,
+        taxTreatment: view.taxTreatment ? sanitizeText(view.taxTreatment) : null,
+        footer: pdfFooter,
+      },
       presentation: {
         kind: 'hireme-commercial',
         documentLabel: label.invoice.toUpperCase(),
         reference: sanitizeText(view.reference),
-        status: commercialStatus(view.status, language),
+        status: view.status === 'ISSUED' ? null : commercialStatus(view.status, language),
         details: [
           {
             label: language === 'fr' ? 'Facturée le' : label.issueDate,
             value: invoiceDate(view.issueDate, language),
           },
-          {
-            label: language === 'fr' ? 'Échéance' : label.dueDate,
-            value: invoiceDate(view.dueDate, language),
-          },
+          ...(serviceDate
+            ? [{ label: language === 'fr' ? 'Prestation du' : 'Service date', value: serviceDate }]
+            : []),
         ],
       },
     };

@@ -391,7 +391,7 @@ describe('template registry', () => {
     ).toBeUndefined();
   });
 
-  it('renders the complete bilingual invoice business snapshot and commercial references', () => {
+  it('renders the complete bilingual invoice business snapshot and commercial references', async () => {
     const template = resolveTemplate('INVOICE');
     const base = {
       kind: 'INVOICE' as const,
@@ -460,7 +460,7 @@ describe('template registry', () => {
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
-      expect(template.version).toBe(5);
+      expect(template.version).toBe(6);
       expect(built.presentation?.kind).toBe('hireme-commercial');
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
@@ -484,5 +484,84 @@ describe('template registry', () => {
     const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('BC-TEST-2026-0042');
+
+    const noAddress = template.build(
+      { ...base, reference: 'FAC-2026-0010', buyer: { ...base.buyer, address: '' } },
+      'fr',
+    );
+    expect(noAddress.presentation).toMatchObject({
+      reference: 'FAC-2026-0010',
+      status: null,
+      details: [{ label: 'Facturée le', value: '23/10/2026' }],
+    });
+    expect(noAddress.pdfInvoice?.clientLines).toEqual([
+      'Synthetic Client SA',
+      'ICE : CLIENT-ICE',
+      'IF : CLIENT-IF',
+      'Synthetic Billing Contact',
+    ]);
+    expect(noAddress.pdfInvoice?.sellerLines).toContain('Capital social : 100 000 MAD synthetic');
+    expect(noAddress.pdfInvoice?.footer).toContain('RC : SYNTHETIC-RC');
+    expect(noAddress.pdfInvoice?.footer).not.toContain('SYNTHETIC-ICE');
+    expect(noAddress.pdfInvoice?.footer).not.toContain('100 000 MAD');
+    expect(noAddress.pdfInvoice?.paymentLines).toContain('Référence client : BC-TEST-2026-0042');
+    const rendered = await pdfText(await renderPdf(noAddress));
+    expect(rendered).toContain('Facturée le: 23/10/2026');
+    expect(rendered).toContain('CLIENT FACTURÉ');
+    expect(rendered).toContain('Synthetic Client SA');
+    expect(rendered).toContain('SYNTHETIC-RC');
+    expect(rendered).not.toContain('ÉCHÉANCE');
+    expect(rendered).not.toContain('ÉMISE');
+    expect(rendered).not.toContain('ÉMETTEUR');
+    expect(rendered).not.toContain('Adresse:');
+
+    const singlePayment = template.build(
+      {
+        ...base,
+        paymentTerms: 'Règlement par virement bancaire.',
+        paymentMethod: 'Virement bancaire',
+      },
+      'fr',
+    );
+    expect(
+      singlePayment.pdfInvoice?.paymentLines.filter((line) =>
+        line.toLowerCase().includes('virement'),
+      ),
+    ).toHaveLength(1);
+
+    const historical = template.build(
+      {
+        ...base,
+        lines: [
+          {
+            ...base.lines[0]!,
+            description: 'Préparation de CV — Date de prestation : 15/09/2026 — Note conservée',
+          },
+        ],
+      },
+      'fr',
+    );
+    expect(historical.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV — Note conservée');
+    expect(historical.presentation?.details).toContainEqual({
+      label: 'Prestation du',
+      value: '15/09/2026',
+    });
+    expect(JSON.stringify(historical.blocks)).toContain('Date de prestation : 15/09/2026');
+
+    const mixedServiceDates = template.build(
+      {
+        ...base,
+        lines: [
+          { ...base.lines[0]!, description: 'Service A — Date de prestation : 15/09/2026' },
+          { ...base.lines[0]!, description: 'Service B — Date de prestation : 16/09/2026' },
+        ],
+      },
+      'fr',
+    );
+    expect(mixedServiceDates.pdfInvoice?.rows.map((row) => row[0])).toEqual([
+      'Service A — Date de prestation : 15/09/2026',
+      'Service B — Date de prestation : 16/09/2026',
+    ]);
+    expect(mixedServiceDates.presentation?.details).toHaveLength(1);
   });
 });
