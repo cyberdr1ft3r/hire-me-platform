@@ -12,6 +12,7 @@ import {
 import {
   DocumentGenerationRequestSchema,
   DocumentGenerationResponseSchema,
+  InvoiceDocumentGenerationRequestSchema,
 } from '@hire-me/contracts';
 import { z } from 'zod';
 
@@ -104,7 +105,7 @@ export class DocumentGenerationController {
     return DocumentGenerationResponseSchema.parse(
       await this.generation.generateInvoice(
         this.uuid(invoiceId),
-        this.request(body),
+        this.invoiceRequest(body),
         request.user!.id,
         this.context(request),
       ),
@@ -137,6 +138,17 @@ export class DocumentGenerationController {
       throw generationBadRequest(
         'INVALID_DOCUMENT_GENERATION_REQUEST',
         'Invalid document generation request.',
+      );
+    }
+    return parsed.data;
+  }
+
+  private invoiceRequest(body: unknown) {
+    const parsed = InvoiceDocumentGenerationRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw generationBadRequest(
+        'INVALID_DOCUMENT_GENERATION_REQUEST',
+        'Invalid invoice document generation request.',
       );
     }
     return parsed.data;

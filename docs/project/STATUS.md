@@ -3,6 +3,28 @@
 Last updated: 2026-10-28
 Status owner: repository maintainer
 
+## Client libre address hotfix
+
+- Branch `hotfix/client-address-optional` carries the Client libre implementation onto protected
+  `main` `5919c8a2ee230afd3dac062b13bd314e9c90b686` without modifying PR #253.
+- A manual-client draft still requires the billed client name, but an omitted, empty, or whitespace-only
+  address is normalized to no address. The bilingual field label explicitly marks the address optional
+  at draft stage. PR #262 now extends that rule through draft editing: authorized operators can update the
+  manual name/address/ICE/IF snapshot, clear the address back to null, reload it, and retain audited history.
+  Registered-client invoices cannot be converted through this update path. The PR #262 maintainer
+  clarification requires final issuance for standalone manual-client invoices without an address;
+  registered-client issuance keeps its address requirement. Legal/accounting acceptance is unresolved.
+- A draft invoice can now produce a protected PDF-only preview through the existing renderer. The artifact is
+  separately keyed from an issued invoice, prominently marked `BROUILLON` and `DOCUMENT NON ÉMIS`, labels its
+  reference as a draft reference, omits an absent buyer-address row, and cannot enter the signing workflow.
+  Generation reads current protected company billing settings but does not issue the invoice, reserve a number,
+  create a CRM client, write invoice lifecycle history, or change accounting/payment state. Final issuance
+  now permits a null address for standalone clients and still freezes the immutable business snapshot.
+- Focused contract, web, typecheck, and formatting checks pass locally. The new PostgreSQL regression covers the
+  no-address PDF bytes and lifecycle/CRM/accounting invariants; exact-head CI remains required for authoritative
+  database integration evidence.
+- This branch does not deploy, merge, issue an invoice, or modify production data.
+
 ## Issue #254 — protected pre-merge staging releases
 
 - Branch `feat/secure-premerge-staging` starts from `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements D-097 as a separate review unit. It does not modify Issue #252 / PR #253.
@@ -12,6 +34,13 @@ Status owner: repository maintainer
 - Final review pinned every privileged Action by commit, moved Dockerfile authority to trusted `main`, bound attestation verification to the exact trusted workflow commit, and validates SSH user/port values before shell use. Exact-head CI is still required after these changes.
 - The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
 - No new mechanism has been used and PR #253 is not deployed by this implementation task.
+
+## Issue #252 — standalone manual-client invoices
+
+- Branch `feat/client-libre-invoices` adds a bilingual Registered client / Manual client choice to invoice creation. A manual invoice requires a name, accepts optional address, ICE, and IF, stores those values in the invoice buyer snapshot, and never creates a CRM `Client`.
+- Standalone manual invoices cannot link missions, placements, quotations, contracts, purchase orders, or correction sources. Registered-client behavior, invoice dates, lifecycle, numbering, immutable issuance snapshots, and issuance validation remain unchanged.
+- The database permits a nullable invoice `clientId` only when a non-blank buyer legal name is stored. Authorization remains fail-closed under the existing invoice, commercial-data, and client-view capabilities. Client balances, payment allocation, and profitability remain registered-client accounting paths; standalone invoices are excluded rather than attributed to a synthetic client.
+- Focused PostgreSQL regressions prove create, issue, reload, history persistence, no CRM-client creation, and real PDF rendering from the stored manual buyer snapshot. Contracts, Prisma validation, typecheck, lint, architecture/style checks, and focused web behavior are green locally. Review and exact-head CI remain required; the branch is unmerged and undeployed.
 
 ## Main CI frontend stabilization
 

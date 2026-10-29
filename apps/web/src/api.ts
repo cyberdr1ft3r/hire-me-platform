@@ -31,12 +31,14 @@ import {
   DocumentDetailResponseSchema,
   DocumentGenerationRequestSchema,
   DocumentGenerationResponseSchema,
+  InvoiceDocumentGenerationRequestSchema,
   DocumentListResponseSchema,
   DocumentVersionListResponseSchema,
   InvoiceCancelRequestSchema,
   InvoiceCreateRequestSchema,
   InvoiceDetailResponseSchema,
   InvoiceIssueRequestSchema,
+  InvoiceUpdateRequestSchema,
   InvoiceListQuerySchema,
   InvoiceListResponseSchema,
   CandidateEducationDetailResponseSchema,
@@ -157,6 +159,7 @@ import {
   type InvoiceCreateRequest,
   type InvoiceDetailResponse,
   type InvoiceIssueRequest,
+  type InvoiceUpdateRequest,
   type InvoiceListQuery,
   type InvoiceListResponse,
   type CandidateDetailResponse,
@@ -352,6 +355,7 @@ import {
   type ProfitabilitySummaryResponse,
   type DocumentGenerationRequest,
   type DocumentGenerationResponse,
+  type InvoiceDocumentGenerationRequest,
 } from '@hire-me/contracts';
 
 import {
@@ -1309,6 +1313,22 @@ export async function createInvoice(
     accessToken,
     '/invoices',
     { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateInvoice(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceUpdateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
     apiBaseUrl,
   );
   return InvoiceDetailResponseSchema.parse(await response.json());
@@ -4299,8 +4319,11 @@ export async function listAccountingFinancialPlacementOptions(
 async function generationRequest(
   accessToken: string,
   path: string,
-  body: DocumentGenerationRequest,
+  body: DocumentGenerationRequest | InvoiceDocumentGenerationRequest,
   apiBaseUrl = getApiBaseUrl(),
+  parseBody: (value: unknown) => DocumentGenerationRequest | InvoiceDocumentGenerationRequest = (
+    value,
+  ) => DocumentGenerationRequestSchema.parse(value),
 ): Promise<DocumentGenerationResponse> {
   const headers = new Headers();
   headers.set('Content-Type', 'application/json');
@@ -4309,7 +4332,7 @@ async function generationRequest(
     method: 'POST',
     credentials: 'include',
     headers,
-    body: JSON.stringify(DocumentGenerationRequestSchema.parse(body)),
+    body: JSON.stringify(parseBody(body)),
   });
   if (!response.ok) {
     throw new Error(`Generation request failed with status ${response.status}`);
@@ -4362,7 +4385,7 @@ export async function generateContractDocument(
 export async function generateInvoiceDocument(
   accessToken: string,
   invoiceId: string,
-  body: DocumentGenerationRequest,
+  body: InvoiceDocumentGenerationRequest,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<DocumentGenerationResponse> {
   return generationRequest(
@@ -4370,6 +4393,7 @@ export async function generateInvoiceDocument(
     `/commercial/invoices/${invoiceId}/generate`,
     body,
     apiBaseUrl,
+    (value) => InvoiceDocumentGenerationRequestSchema.parse(value),
   );
 }
 

@@ -45,6 +45,7 @@ export function CommercialGeneration({
 
   if (!access.generate[detail.kind]) return null;
   const eligible = generationEligible(detail.kind, detail.record.status);
+  const draftInvoicePreview = detail.kind === 'invoice' && detail.record.status === 'DRAFT';
 
   function generate(outputFamily: GenerationOutputFamily): void {
     void actions.onGenerate(outputFamily, language).then((result) => {
@@ -89,17 +90,22 @@ export function CommercialGeneration({
                 ? t('commercial.generation.regeneratePdf')
                 : t('commercial.generation.pdf')}
             </Button>
-            <Button
-              disabled={writesLocked}
-              onClick={() => generate('WORD')}
-              size="compact"
-              variant="secondary"
-            >
-              {generated?.outputFamily === 'WORD'
-                ? t('commercial.generation.regenerateWord')
-                : t('commercial.generation.word')}
-            </Button>
+            {draftInvoicePreview ? null : (
+              <Button
+                disabled={writesLocked}
+                onClick={() => generate('WORD')}
+                size="compact"
+                variant="secondary"
+              >
+                {generated?.outputFamily === 'WORD'
+                  ? t('commercial.generation.regenerateWord')
+                  : t('commercial.generation.word')}
+              </Button>
+            )}
           </div>
+          {draftInvoicePreview ? (
+            <p className="commercial-muted">{t('commercial.generation.draftPreviewNotice')}</p>
+          ) : null}
         </div>
       ) : (
         <p className="commercial-muted">{t(`commercial.generation.notEligible.${detail.kind}`)}</p>

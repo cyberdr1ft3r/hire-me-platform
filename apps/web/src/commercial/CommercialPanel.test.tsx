@@ -310,6 +310,96 @@ describe('CommercialPanel: presentation and localization', () => {
 });
 
 describe('CommercialPanel: personas and permissions', () => {
+  it('switches invoice client modes without losing either mode values', async () => {
+    standardApi();
+    render(<Panel permissions={OPERATOR} />);
+    await openKind('Invoices');
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+    const form = createForm();
+
+    fireEvent.click(within(form).getByRole('radio', { name: 'Manual client' }));
+    fireEvent.change(within(form).getByLabelText(/^Name \/ Legal name/), {
+      target: { value: 'Synthetic Walk-in Client' },
+    });
+    expect(within(form).getByLabelText(/^Billed client address/)).not.toBeRequired();
+    expect(within(form).queryByRole('combobox', { name: /^Client/ })).toBeNull();
+
+    fireEvent.click(within(form).getByRole('radio', { name: 'Registered client' }));
+    await chooseOption(form, /^Client/, /Synthetic Client/);
+    fireEvent.click(within(form).getByRole('radio', { name: 'Manual client' }));
+
+    expect(within(form).getByLabelText(/^Name \/ Legal name/)).toHaveValue(
+      'Synthetic Walk-in Client',
+    );
+    fireEvent.click(within(form).getByRole('radio', { name: 'Registered client' }));
+    expect(within(form).getByRole('combobox', { name: /^Client/ })).toHaveTextContent(
+      'Synthetic Client',
+    );
+  });
+
+  it('edits a draft manual client while keeping its address optional', async () => {
+    let current = syntheticInvoice({
+      clientId: null,
+      quotationId: null,
+      purchaseOrderId: null,
+      display: { ...invoice.display, clientName: 'Synthetic Walk-in Client' },
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Walk-in Client',
+        address: 'Temporary Draft Address',
+        ice: null,
+        taxId: null,
+      },
+    });
+    const calls = standardApi((call) => {
+      if (call.path === paths.invoice && call.method === 'GET') {
+        return jsonResponse(page('invoices', [summary(current)]));
+      }
+      if (call.path === `${paths.invoice}/${INVOICE_ID}` && call.method === 'GET') {
+        return jsonResponse({ invoice: current });
+      }
+      if (call.path === `${paths.invoice}/${INVOICE_ID}` && call.method === 'PATCH') {
+        const manualClient = call.body?.manualClient as
+          { name: string; address?: string; ice?: string; taxId?: string } | undefined;
+        current = syntheticInvoice({
+          ...current,
+          updatedAt: '2026-10-28T10:00:00.000Z',
+          display: { ...current.display, clientName: manualClient?.name ?? '' },
+          billingClient: {
+            mode: 'MANUAL',
+            name: manualClient?.name ?? '',
+            address: manualClient?.address ?? null,
+            ice: manualClient?.ice ?? null,
+            taxId: manualClient?.taxId ?? null,
+          },
+        });
+        return jsonResponse({ invoice: current });
+      }
+      return undefined;
+    });
+    render(<Panel permissions={OPERATOR} />);
+
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit manual client' }));
+    fireEvent.change(await screen.findByDisplayValue('Synthetic Walk-in Client'), {
+      target: { value: 'Synthetic Walk-in Client Updated' },
+    });
+    const address = screen.getByDisplayValue('Temporary Draft Address');
+    expect(address).not.toBeRequired();
+    fireEvent.change(address, { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save client' }));
+
+    await waitFor(() =>
+      expect(callsTo(calls, `${paths.invoice}/${INVOICE_ID}`, 'PATCH')).toHaveLength(1),
+    );
+    expect(callsTo(calls, `${paths.invoice}/${INVOICE_ID}`, 'PATCH')[0]?.body).toEqual({
+      manualClient: { name: 'Synthetic Walk-in Client Updated' },
+    });
+    expect(await screen.findByText('Manual client updated.')).toBeVisible();
+    expect(screen.getAllByText('Synthetic Walk-in Client Updated')).toHaveLength(2);
+  });
+
   it('gives the Finance Manager D-086 mission and placement sources without recruitment APIs', async () => {
     const calls = standardApi();
     render(<Panel permissions={FINANCE_MANAGER_PERMISSION_CODES} />);
@@ -653,6 +743,58 @@ describe('CommercialPanel: lifecycle', () => {
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
   });
 
+  it('submits final issuance for a Client libre with name and no address', async () => {
+    const manualDraft = syntheticInvoice({
+      clientId: null,
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Individual',
+        address: null,
+        ice: null,
+        taxId: null,
+      },
+    });
+    const issuePath = `${paths.invoice}/${INVOICE_ID}/issue`;
+    const calls = standardApi((call) => {
+      if (call.method === 'GET' && call.path === paths.invoice) {
+        return jsonResponse(page('invoices', [summary(manualDraft)]));
+      }
+      if (call.method === 'GET' && call.path === `${paths.invoice}/${INVOICE_ID}`) {
+        return jsonResponse({ invoice: manualDraft });
+      }
+      if (call.method === 'POST' && call.path === issuePath) {
+        return jsonResponse({ invoice: { ...manualDraft, status: 'ISSUED', issuedAt: TIMESTAMP } });
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Issue' }));
+    const confirm = screen.getByRole('form', { name: 'Confirm issue' });
+    fireEvent.change(within(confirm).getByLabelText(/^Customer type/), {
+      target: { value: 'INDIVIDUAL' },
+    });
+    for (const [label, value] of [
+      [/^Issue date/, '2026-10-23'],
+      [/^Due date/, '2026-11-30'],
+      [/^Seller legal name/, 'Synthetic HireMe SARL'],
+      [/^Seller address/, '1 Synthetic Avenue, Casablanca'],
+      [/^Billed customer name/, 'Synthetic Individual'],
+      [/^Payment terms/, 'Transfer within 30 days'],
+    ] as const) {
+      fireEvent.change(within(confirm).getByLabelText(label), { target: { value } });
+    }
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Issue invoice' }));
+    expect(await screen.findByText('Record issued.')).toBeVisible();
+    expect(callsTo(calls, issuePath, 'POST')[0]?.body?.businessDetails).toMatchObject({
+      buyerLegalName: 'Synthetic Individual',
+      buyerAddress: null,
+      buyerType: 'INDIVIDUAL',
+    });
+  });
+
   it('explains that the optional customer reference comes from the customer', async () => {
     standardApi();
     render(<Panel />);
@@ -945,6 +1087,71 @@ describe('CommercialPanel: document generation', () => {
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Generate PDF' })).toBeNull();
     expect(calls.some((call) => call.path.endsWith('/generate'))).toBe(false);
+  });
+
+  it('requests a PDF-only non-issued preview for a Client libre draft', async () => {
+    const manualDraft = syntheticInvoice({
+      clientId: null,
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Individual Customer',
+        address: null,
+        ice: null,
+        taxId: null,
+      },
+    });
+    const generatePath = `${paths.invoice}/${INVOICE_ID}/generate`;
+    const calls = standardApi((call) => {
+      if (call.method === 'GET' && call.path === paths.invoice) {
+        return jsonResponse(page('invoices', [summary(manualDraft)]));
+      }
+      if (call.method === 'GET' && call.path === `${paths.invoice}/${INVOICE_ID}`) {
+        return jsonResponse({ invoice: manualDraft });
+      }
+      if (call.method === 'POST' && call.path === generatePath) {
+        return jsonResponse(
+          {
+            generated: {
+              documentId: DOCUMENT_ID,
+              versionId: VERSION_ID,
+              versionNumber: 1,
+              sourceType: 'INVOICE',
+              sourceId: INVOICE_ID,
+              documentType: 'INVOICE',
+              outputFamily: 'PDF',
+              language: 'en',
+              templateId: 'commercial.invoice',
+              templateVersion: 7,
+              filename: 'invoice-draft-v1.pdf',
+              mimeType: 'application/pdf',
+              sizeBytes: 2048,
+              checksumSha256: 'a'.repeat(64),
+              generatedByUserId: ACTOR_ID,
+              generatedAt: TIMESTAMP,
+              replayed: false,
+            },
+          },
+          201,
+        );
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+
+    expect(
+      screen.getByText('The PDF will be marked DRAFT and will not issue the invoice.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Generate Word' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PDF' }));
+
+    expect(await screen.findByText('PDF version 1 generated in English.')).toBeVisible();
+    expect(callsTo(calls, generatePath, 'POST')[0]?.body).toMatchObject({
+      language: 'en',
+      outputFamily: 'PDF',
+      purpose: 'DRAFT_PREVIEW',
+    });
   });
 
   it('generates in the chosen language, lists versions, and downloads through the protected endpoint', async () => {

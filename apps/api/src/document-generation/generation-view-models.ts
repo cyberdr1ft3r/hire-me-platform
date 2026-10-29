@@ -67,6 +67,7 @@ export type ContractView = {
 
 export type InvoiceView = {
   kind: 'INVOICE';
+  documentState: 'ISSUED' | 'DRAFT_PREVIEW';
   reference: string;
   status: string;
   currency: string;
@@ -93,7 +94,7 @@ export type InvoiceView = {
   buyer: {
     type: 'COMPANY' | 'INDIVIDUAL';
     legalName: string;
-    address: string;
+    address: string | null;
     ice: string | null;
     taxId: string | null;
     billingContact: string | null;

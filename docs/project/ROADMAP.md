@@ -149,6 +149,7 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
   concurrency-safe configurable references, immutable versioned issuance snapshots, individual buyers,
   Accompagnement line items, and French MAD amount-in-words. Production values and issuance activation
   remain business-acceptance gates coordinated with Issue #242.
+- Issue #252 / D-096 adds standalone manual-client invoices: one required buyer name plus optional address, ICE, and IF are stored in the invoice snapshot without creating a CRM client. Registered-client source links and accounting attribution remain unavailable for these records until separately modeled.
 
 Remaining accounting scope requires its own approved issues and is not assumed here: Moroccan payroll (Phase 8a), statutory and general-ledger and tax accounting, bank reconciliation, balance-sheet behavior, credit notes and refunds, aging buckets beyond the current overdue outstanding figure, accounting exports, and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 

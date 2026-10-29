@@ -454,11 +454,14 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 5,
+  version: 7,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
     const label = labels[language];
+    const draftPreview = view.documentState === 'DRAFT_PREVIEW';
+    const draftLabel = language === 'fr' ? 'BROUILLON' : 'DRAFT';
+    const nonIssuedLabel = language === 'fr' ? 'DOCUMENT NON ÉMIS' : 'NON-ISSUED DOCUMENT';
     const sellerRows = [
       { label: label.seller, value: sanitizeText(view.seller.legalName) },
       ...(view.seller.legalForm
@@ -495,7 +498,9 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
     ];
     const buyerRows = [
       { label: label.billedClient, value: sanitizeText(view.buyer.legalName) },
-      { label: label.address, value: sanitizeText(view.buyer.address) },
+      ...(view.buyer.address
+        ? [{ label: label.address, value: sanitizeText(view.buyer.address) }]
+        : []),
       ...(view.buyer.ice ? [{ label: label.ice, value: sanitizeText(view.buyer.ice) }] : []),
       ...(view.buyer.taxId ? [{ label: label.taxId, value: sanitizeText(view.buyer.taxId) }] : []),
       ...(view.buyer.billingContact
@@ -532,8 +537,10 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         : []),
     ];
     return {
-      title: `${label.invoice} ${sanitizeText(view.reference)}`,
-      subtitle: commercialStatus(view.status, language),
+      title: draftPreview
+        ? `${draftLabel} — ${label.invoice.toUpperCase()}`
+        : `${label.invoice} ${sanitizeText(view.reference)}`,
+      subtitle: draftPreview ? nonIssuedLabel : commercialStatus(view.status, language),
       blocks: [
         {
           kind: 'panelGrid',
@@ -620,18 +627,36 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
       footer: invoiceFooter(view, language, label.footer),
       presentation: {
         kind: 'hireme-commercial',
-        documentLabel: label.invoice.toUpperCase(),
-        reference: sanitizeText(view.reference),
-        status: commercialStatus(view.status, language),
+        documentLabel: draftPreview
+          ? `${draftLabel} — ${label.invoice.toUpperCase()}`
+          : label.invoice.toUpperCase(),
+        reference: draftPreview ? nonIssuedLabel : sanitizeText(view.reference),
+        status: draftPreview ? draftLabel : commercialStatus(view.status, language),
         details: [
-          {
-            label: language === 'fr' ? 'Facturée le' : label.issueDate,
-            value: invoiceDate(view.issueDate, language),
-          },
-          {
-            label: language === 'fr' ? 'Échéance' : label.dueDate,
-            value: invoiceDate(view.dueDate, language),
-          },
+          ...(draftPreview
+            ? [
+                {
+                  label: language === 'fr' ? 'Référence brouillon' : 'Draft reference',
+                  value: sanitizeText(view.reference),
+                },
+              ]
+            : []),
+          ...(view.issueDate
+            ? [
+                {
+                  label: language === 'fr' ? 'Facturée le' : label.issueDate,
+                  value: invoiceDate(view.issueDate, language),
+                },
+              ]
+            : []),
+          ...(view.dueDate
+            ? [
+                {
+                  label: language === 'fr' ? 'Échéance' : label.dueDate,
+                  value: invoiceDate(view.dueDate, language),
+                },
+              ]
+            : []),
         ],
       },
     };
