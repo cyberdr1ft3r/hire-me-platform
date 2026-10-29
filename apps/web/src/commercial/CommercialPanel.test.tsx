@@ -743,6 +743,58 @@ describe('CommercialPanel: lifecycle', () => {
     expect(await screen.findByRole('button', { name: 'Cancel record' })).toBeVisible();
   });
 
+  it('submits final issuance for a Client libre with name and no address', async () => {
+    const manualDraft = syntheticInvoice({
+      clientId: null,
+      billingClient: {
+        mode: 'MANUAL',
+        name: 'Synthetic Individual',
+        address: null,
+        ice: null,
+        taxId: null,
+      },
+    });
+    const issuePath = `${paths.invoice}/${INVOICE_ID}/issue`;
+    const calls = standardApi((call) => {
+      if (call.method === 'GET' && call.path === paths.invoice) {
+        return jsonResponse(page('invoices', [summary(manualDraft)]));
+      }
+      if (call.method === 'GET' && call.path === `${paths.invoice}/${INVOICE_ID}`) {
+        return jsonResponse({ invoice: manualDraft });
+      }
+      if (call.method === 'POST' && call.path === issuePath) {
+        return jsonResponse({ invoice: { ...manualDraft, status: 'ISSUED', issuedAt: TIMESTAMP } });
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await screen.findByRole('table', { name: 'Quotations' });
+    await openKind('Invoices');
+    await openRecord('INV-SYN-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Issue' }));
+    const confirm = screen.getByRole('form', { name: 'Confirm issue' });
+    fireEvent.change(within(confirm).getByLabelText(/^Customer type/), {
+      target: { value: 'INDIVIDUAL' },
+    });
+    for (const [label, value] of [
+      [/^Issue date/, '2026-10-23'],
+      [/^Due date/, '2026-11-30'],
+      [/^Seller legal name/, 'Synthetic HireMe SARL'],
+      [/^Seller address/, '1 Synthetic Avenue, Casablanca'],
+      [/^Billed customer name/, 'Synthetic Individual'],
+      [/^Payment terms/, 'Transfer within 30 days'],
+    ] as const) {
+      fireEvent.change(within(confirm).getByLabelText(label), { target: { value } });
+    }
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Issue invoice' }));
+    expect(await screen.findByText('Record issued.')).toBeVisible();
+    expect(callsTo(calls, issuePath, 'POST')[0]?.body?.businessDetails).toMatchObject({
+      buyerLegalName: 'Synthetic Individual',
+      buyerAddress: null,
+      buyerType: 'INDIVIDUAL',
+    });
+  });
+
   it('explains that the optional customer reference comes from the customer', async () => {
     standardApi();
     render(<Panel />);

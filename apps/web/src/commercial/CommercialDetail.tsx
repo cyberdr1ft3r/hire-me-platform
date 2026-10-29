@@ -257,7 +257,7 @@ function RecordDetail({
         confirming.sellerLegalName,
         confirming.sellerAddress,
         confirming.buyerLegalName,
-        confirming.buyerAddress,
+        ...(record.clientId ? [confirming.buyerAddress] : []),
         confirming.paymentTerms,
       ];
       if (required.some((value) => !value.trim())) {
@@ -639,7 +639,7 @@ function RecordDetail({
                     onChange={(event) =>
                       updateConfirmation({ buyerAddress: event.currentTarget.value })
                     }
-                    required
+                    required={Boolean(record.clientId)}
                     rows={2}
                     value={confirming.buyerAddress}
                   />
@@ -1024,9 +1024,13 @@ function RecordFacts({ detail, format }: { detail: CommercialDetail; format: Com
                   : 'commercial.detail.invoice.buyerCompany',
               )}
             </Fact>
-            <Fact label={t('commercial.detail.invoice.buyerAddress')}>
-              <span className="commercial-break">{detail.record.businessDetails.buyerAddress}</span>
-            </Fact>
+            {detail.record.businessDetails.buyerAddress ? (
+              <Fact label={t('commercial.detail.invoice.buyerAddress')}>
+                <span className="commercial-break">
+                  {detail.record.businessDetails.buyerAddress}
+                </span>
+              </Fact>
+            ) : null}
             {detail.record.businessDetails.buyerIce ? (
               <Fact label={t('commercial.detail.invoice.buyerIce')}>
                 {detail.record.businessDetails.buyerIce}

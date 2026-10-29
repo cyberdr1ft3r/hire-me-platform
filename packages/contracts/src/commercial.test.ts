@@ -120,14 +120,20 @@ describe('invoice issue contract', () => {
     ).toBe(false);
   });
 
-  it('still requires the billed client address at final issuance', () => {
+  it('normalizes an omitted or blank billed client address to null at issuance', () => {
+    const parsed = InvoiceIssueRequestSchema.parse({
+      issueDate: '2026-10-23T00:00:00.000Z',
+      dueDate: '2026-11-23T00:00:00.000Z',
+      businessDetails: { ...businessDetails, buyerAddress: '   ' },
+    });
+    expect(parsed.businessDetails.buyerAddress).toBeNull();
     expect(
-      InvoiceIssueRequestSchema.safeParse({
+      InvoiceIssueRequestSchema.parse({
         issueDate: '2026-10-23T00:00:00.000Z',
         dueDate: '2026-11-23T00:00:00.000Z',
-        businessDetails: { ...businessDetails, buyerAddress: '   ' },
-      }).success,
-    ).toBe(false);
+        businessDetails: { ...businessDetails, buyerAddress: undefined },
+      }).businessDetails.buyerAddress,
+    ).toBeNull();
   });
 
   it('rejects malformed optional seller contact data', () => {

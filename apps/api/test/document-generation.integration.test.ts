@@ -1009,6 +1009,26 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(text).not.toContain('BC-TEST-2026-0042');
   });
 
+  it('renders a final French standalone invoice PDF without a buyer address', async () => {
+    const invoice = await createInvoice({ client: null, buyerLegalName: 'Personne synthétique' });
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { buyerAddress: null, buyerIce: null, buyerTaxId: null, buyerType: 'INDIVIDUAL' },
+    });
+    const response = await generate(`/v1/commercial/invoices/${invoice.id}/generate`);
+    expect(response.status).toBe(201);
+    const result = generated(response.body);
+    const version = await prisma.documentVersion.findUniqueOrThrow({
+      where: { id: result.versionId },
+    });
+    const text = await pdfText(await storage.get(version.storageKey));
+    expect(text).toContain('Personne synthétique');
+    expect(text).toContain(invoice.reference);
+    expect(text).not.toContain('BROUILLON');
+    expect(text).not.toContain('DOCUMENT NON ÉMIS');
+    expect(text.match(/Adresse/g) ?? []).toHaveLength(1);
+  });
+
   it('fails closed when a historical issued invoice has no immutable business snapshot', async () => {
     const invoice = await createInvoice();
     await prisma.invoice.update({

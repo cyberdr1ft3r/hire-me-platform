@@ -36,7 +36,7 @@ Issue #252 standalone manual-client invoices are implemented for review on `feat
 client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
 registered-client source, and remains durable in history and generated PDF output. A draft may generate a
 separately keyed PDF-only preview marked `BROUILLON` / non-issued without allocating a final number or changing
-invoice, CRM, accounting, payment, or signing state. Final issuance still requires the buyer address. Existing issue,
+invoice, CRM, accounting, payment, or signing state. Under the PR #262 maintainer clarification, final issuance for a standalone manual client accepts a missing buyer address. Legal/accounting acceptance remains unresolved. Existing issue,
 numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
 and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
 

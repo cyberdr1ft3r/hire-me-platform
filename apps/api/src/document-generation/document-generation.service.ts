@@ -959,13 +959,18 @@ export class DocumentGenerationService {
     }
     await this.assertCommercialSourceScope(invoice, actorUserId, access, this.prisma);
     this.assertInvoiceEligible(invoice.status, invoice.archivedAt);
+    if (invoice.clientId && !invoice.buyerAddress) {
+      throw generationBadRequest(
+        'INVOICE_BUSINESS_SNAPSHOT_REQUIRED',
+        'The issued registered-client invoice is missing its billed client address.',
+      );
+    }
     if (
       !invoice.issueDate ||
       !invoice.dueDate ||
       !invoice.sellerLegalName ||
       !invoice.sellerAddress ||
       !invoice.buyerLegalName ||
-      !invoice.buyerAddress ||
       !invoice.paymentTerms
     ) {
       throw generationBadRequest(

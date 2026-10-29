@@ -521,13 +521,15 @@ describe('commercial workflow foundation', () => {
         'Issue38 Issue244 Synthetic Accompaniment',
         commercialUserId,
       );
-      const createDraft = async (reference: string) => {
+      const createDraft = async (reference: string, manual = false) => {
         const response = await fetch(`${baseUrl}/v1/commercial/invoices`, {
           method: 'POST',
           headers: authHeaders(commercialToken),
           body: JSON.stringify({
             reference,
-            clientId: client.id,
+            ...(manual
+              ? { manualClient: { name: 'Synthetic Individual' } }
+              : { clientId: client.id }),
             currency: 'MAD',
             lines: [
               {
@@ -554,14 +556,36 @@ describe('commercial workflow foundation', () => {
           buyerTaxId: undefined,
         },
       };
-      const issue = (id: string) =>
+      const issue = (id: string, manual = false) =>
         fetch(`${baseUrl}/v1/commercial/invoices/${id}/issue`, {
           method: 'POST',
           headers: authHeaders(commercialToken),
-          body: JSON.stringify(issueBody),
+          body: JSON.stringify(
+            manual
+              ? {
+                  ...issueBody,
+                  businessDetails: { ...issueBody.businessDetails, buyerAddress: undefined },
+                }
+              : issueBody,
+          ),
         });
 
       const baselineRequiredDraft = await createDraft('I38-ISSUE244-NO-BASELINE');
+      const registeredWithoutAddress = await fetch(
+        `${baseUrl}/v1/commercial/invoices/${baselineRequiredDraft.id}/issue`,
+        {
+          method: 'POST',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify({
+            ...issueBody,
+            businessDetails: { ...issueBody.businessDetails, buyerAddress: '   ' },
+          }),
+        },
+      );
+      expect(registeredWithoutAddress.status).toBe(409);
+      expect(await readErrorCode(registeredWithoutAddress)).toBe(
+        'REGISTERED_CLIENT_ADDRESS_REQUIRED',
+      );
       const missingBaseline = await issue(baselineRequiredDraft.id);
       expect(missingBaseline.status).toBe(409);
       expect(await readErrorCode(missingBaseline)).toBe('INVOICE_NUMBER_BASELINE_REQUIRED');
@@ -577,7 +601,7 @@ describe('commercial workflow foundation', () => {
         },
       });
       const [firstDraft, secondDraft] = await Promise.all([
-        createDraft('I38-ISSUE244-A'),
+        createDraft('I38-ISSUE244-A', true),
         createDraft('I38-ISSUE244-B'),
       ]);
       expect(firstDraft.amounts).toEqual({
@@ -586,7 +610,10 @@ describe('commercial workflow foundation', () => {
         taxCents: 19_833,
         totalCents: 119_000,
       });
-      const issuedResponses = await Promise.all([issue(firstDraft.id), issue(secondDraft.id)]);
+      const issuedResponses = await Promise.all([
+        issue(firstDraft.id, true),
+        issue(secondDraft.id),
+      ]);
       expect(issuedResponses.map((response) => response.status)).toEqual([200, 200]);
       const issued = await Promise.all(
         issuedResponses.map(
@@ -599,10 +626,12 @@ describe('commercial workflow foundation', () => {
       ]);
       expect(issued[0]!.businessDetails).toMatchObject({
         buyerType: 'INDIVIDUAL',
+        buyerAddress: null,
         buyerIce: null,
         buyerTaxId: null,
         totalAmountInWordsFr: 'mille cent quatre-vingt-dix dirhams et zéro centime',
       });
+      expect(issued[0]!.clientId).toBeNull();
 
       const occupiedDraft = await createDraft('I38-ISSUE244-OCCUPIED');
       const occupiedResponse = await issue(occupiedDraft.id);
@@ -779,9 +808,10 @@ describe('commercial workflow foundation', () => {
           businessDetails: {
             ...invoiceIssueDetails.businessDetails,
             buyerLegalName: 'Synthetic Historical Client Updated',
-            buyerAddress: '9 Archive Street, Rabat',
-            buyerIce: 'SYNTHETIC-MANUAL-ICE',
-            buyerTaxId: 'SYNTHETIC-MANUAL-IF',
+            buyerAddress: '   ',
+            buyerType: 'INDIVIDUAL',
+            buyerIce: undefined,
+            buyerTaxId: undefined,
           },
         }),
       });
@@ -789,7 +819,8 @@ describe('commercial workflow foundation', () => {
       const issued = InvoiceDetailResponseSchema.parse(await issuedResponse.json()).invoice;
       expect(issued.businessDetails).toMatchObject({
         buyerLegalName: 'Synthetic Historical Client Updated',
-        buyerAddress: '9 Archive Street, Rabat',
+        buyerAddress: null,
+        buyerType: 'INDIVIDUAL',
       });
 
       const reloadedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
@@ -798,7 +829,13 @@ describe('commercial workflow foundation', () => {
       expect(reloadedResponse.status).toBe(200);
       const reloaded = InvoiceDetailResponseSchema.parse(await reloadedResponse.json()).invoice;
       expect(reloaded.clientId).toBeNull();
-      expect(reloaded.businessDetails?.buyerTaxId).toBe('SYNTHETIC-MANUAL-IF');
+      expect(reloaded.businessDetails?.buyerAddress).toBeNull();
+      expect(reloaded.businessDetails?.buyerIce).toBeNull();
+      expect(reloaded.businessDetails?.buyerTaxId).toBeNull();
+      expect(reloaded.status).toBe('ISSUED');
+      expect(reloaded.issuedAt).not.toBeNull();
+      expect(reloaded.history.some((event) => event.action === 'ISSUED')).toBe(true);
+      expect(reloaded.reference).toBe(issued.reference);
       await expect(prisma.client.count()).resolves.toBe(clientsBefore);
     } finally {
       if (invoiceId) {

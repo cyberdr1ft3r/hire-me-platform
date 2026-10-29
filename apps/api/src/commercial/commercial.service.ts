@@ -1389,6 +1389,12 @@ export class CommercialService {
       if (existing.status !== InvoiceStatus.DRAFT) {
         throw conflict('INVOICE_INVALID_TRANSITION', 'Only draft invoices can be issued.');
       }
+      if (existing.clientId && !input.businessDetails.buyerAddress) {
+        throw conflict(
+          'REGISTERED_CLIENT_ADDRESS_REQUIRED',
+          'A registered-client invoice requires the billed client address at issuance.',
+        );
+      }
       const issuedReference = await this.reserveInvoiceReference(
         new Date(input.issueDate),
         existing.id,
@@ -2658,7 +2664,6 @@ function invoiceBusinessDetails(invoice: InvoiceRecord) {
     !invoice.sellerLegalName ||
     !invoice.sellerAddress ||
     !invoice.buyerLegalName ||
-    !invoice.buyerAddress ||
     !invoice.paymentTerms
   ) {
     return null;

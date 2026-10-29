@@ -11,7 +11,7 @@ Last updated: 2026-10-28
   address. Authorized operators can edit the manual-client snapshot while the invoice is `DRAFT`, clear the
   address back to null, and reload it; the change is audited and no CRM `Client` is created. Registered-client
   invoices cannot use this path.
-- Final issuance still requires a non-blank buyer address. Existing numbering, calculation, permission,
+- Final issuance accepts a null buyer address for standalone manual-client invoices under the PR #262 maintainer clarification. Existing numbering, calculation, permission,
   lifecycle, and registered-client rules are unchanged.
 - The existing renderer now supports an explicit PDF-only draft-preview purpose. Its separate immutable document
   identity is marked `BROUILLON` / non-issued, omits the absent buyer-address row, uses no final invoice number,
@@ -30,5 +30,6 @@ Last updated: 2026-10-28
 ## Completion conditions
 
 - Exact-head CI passes every required check, including database migration and integration tests.
-- Human review confirms blank draft addresses are accepted while issuance still rejects them.
+- Human review confirms final issuance and French issued PDF generation for a name-only standalone client,
+  while the company's legal/accounting decision on address-free tax invoices remains open.
 - The PR remains open and unmerged until an authorized maintainer decides otherwise.

@@ -11,14 +11,15 @@ Status owner: repository maintainer
   address is normalized to no address. The bilingual field label explicitly marks the address optional
   at draft stage. PR #262 now extends that rule through draft editing: authorized operators can update the
   manual name/address/ICE/IF snapshot, clear the address back to null, reload it, and retain audited history.
-  Registered-client invoices cannot be converted through this update path. Final issuance continues to
-  require a non-blank buyer address through the unchanged issuance contract and form validation.
+  Registered-client invoices cannot be converted through this update path. The PR #262 maintainer
+  clarification requires final issuance for standalone manual-client invoices without an address;
+  registered-client issuance keeps its address requirement. Legal/accounting acceptance is unresolved.
 - A draft invoice can now produce a protected PDF-only preview through the existing renderer. The artifact is
   separately keyed from an issued invoice, prominently marked `BROUILLON` and `DOCUMENT NON ÉMIS`, labels its
   reference as a draft reference, omits an absent buyer-address row, and cannot enter the signing workflow.
   Generation reads current protected company billing settings but does not issue the invoice, reserve a number,
-  create a CRM client, write invoice lifecycle history, or change accounting/payment state. Final issuance and
-  issued generation keep their existing address and immutable-snapshot controls.
+  create a CRM client, write invoice lifecycle history, or change accounting/payment state. Final issuance
+  now permits a null address for standalone clients and still freezes the immutable business snapshot.
 - Focused contract, web, typecheck, and formatting checks pass locally. The new PostgreSQL regression covers the
   no-address PDF bytes and lifecycle/CRM/accounting invariants; exact-head CI remains required for authoritative
   database integration evidence.

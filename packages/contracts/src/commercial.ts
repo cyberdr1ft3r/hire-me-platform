@@ -310,7 +310,7 @@ export const InvoiceBusinessDetailsSchema = z.object({
   sellerEmail: z.string().nullable(),
   sellerWebsite: z.string().nullable(),
   buyerLegalName: z.string(),
-  buyerAddress: z.string(),
+  buyerAddress: z.string().nullable(),
   buyerIce: z.string().nullable(),
   buyerTaxId: z.string().nullable(),
   buyerBillingContact: z.string().nullable(),
@@ -454,7 +454,12 @@ export const InvoiceBusinessDetailsInputSchema = z.object({
   sellerEmail: z.string().trim().email().max(254).optional(),
   sellerWebsite: z.string().trim().url().max(500).optional(),
   buyerLegalName: z.string().trim().min(1).max(180),
-  buyerAddress: RequiredInvoiceTextSchema,
+  buyerAddress: z
+    .string()
+    .trim()
+    .max(500)
+    .nullish()
+    .transform((value) => value || null),
   buyerIce: OptionalInvoiceIdentifierSchema,
   buyerTaxId: OptionalInvoiceIdentifierSchema,
   buyerBillingContact: z.string().trim().min(1).max(180).optional(),
