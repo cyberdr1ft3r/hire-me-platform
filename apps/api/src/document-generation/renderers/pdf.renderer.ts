@@ -586,8 +586,29 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
       cursor.y += height + 15;
     }
     if (invoice.taxTreatment) {
-      ensureSpace(35 + measuredHeight(invoice.taxTreatment, 9, contentWidth, 'regular'));
-      drawText(invoice.taxTreatment, 'regular', 9);
+      const height = 29 + measuredHeight(invoice.taxTreatment, 9, contentWidth - 20, 'regular');
+      ensureSpace(height + 15);
+      pdf.rect(margin, cursor.y, contentWidth, height).stroke(panelBorder);
+      pdf.rect(margin, cursor.y, contentWidth, 23).fill(paleTeal);
+      drawAbsoluteText(
+        (invoice.taxHeading ?? '').toUpperCase(),
+        'bold',
+        10,
+        margin + 10,
+        cursor.y + 6,
+        contentWidth - 20,
+        brandTeal,
+      );
+      drawAbsoluteText(
+        invoice.taxTreatment,
+        'regular',
+        9,
+        margin + 10,
+        cursor.y + 29,
+        contentWidth - 20,
+        ink,
+      );
+      cursor.y += height + 15;
     }
   } else {
     for (const block of document.blocks) {
@@ -914,6 +935,7 @@ export function documentStrings(document: RenderableDocument): string[] {
       ...document.pdfInvoice.totals.flatMap((row) => [row.label, row.value]),
       document.pdfInvoice.amountInWords ?? '',
       ...document.pdfInvoice.paymentLines,
+      document.pdfInvoice.taxHeading ?? '',
       document.pdfInvoice.taxTreatment ?? '',
       document.pdfInvoice.footer,
     );

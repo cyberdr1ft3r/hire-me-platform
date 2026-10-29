@@ -481,6 +481,14 @@ describe('template registry', () => {
     expect(JSON.stringify(exceptional)).toContain('Tax treatment');
     expect(JSON.stringify(exceptional)).toContain('Approved exceptional tax wording.');
 
+    const exceptionalFr = template.build(
+      { ...base, taxTreatment: 'Mention fiscale exceptionnelle approuvée.' },
+      'fr',
+    );
+    const exceptionalPdf = await pdfText(await renderPdf(exceptionalFr));
+    expect(exceptionalPdf).toContain('TRAITEMENT FISCAL');
+    expect(exceptionalPdf).toContain('Mention fiscale exceptionnelle approuvée.');
+
     const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('BC-TEST-2026-0042');

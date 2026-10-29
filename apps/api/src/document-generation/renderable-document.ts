@@ -47,6 +47,7 @@ export type RenderableDocument = {
     totals: RenderableKeyValue[];
     amountInWords: string | null;
     paymentLines: string[];
+    taxHeading: string | null;
     taxTreatment: string | null;
     footer: string;
   };

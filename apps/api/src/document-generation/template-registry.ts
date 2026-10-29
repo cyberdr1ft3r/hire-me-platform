@@ -721,6 +721,7 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
             ? sanitizeText(view.totalAmountInWordsFr)
             : null,
         paymentLines,
+        taxHeading: view.taxTreatment ? label.taxTreatment : null,
         taxTreatment: view.taxTreatment ? sanitizeText(view.taxTreatment) : null,
         footer: pdfFooter,
       },
