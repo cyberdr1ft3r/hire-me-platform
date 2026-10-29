@@ -265,6 +265,30 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
         sellerBottom = drawAbsoluteText(line, 'regular', 9, margin, sellerBottom, 285, ink);
         sellerBottom += 2;
       }
+      const contact = (label: string, target: string | null, color: string) => {
+        const top = sellerBottom;
+        sellerBottom = drawAbsoluteText(label, 'regular', 9, margin, top, 285, color);
+        if (target) {
+          pdf.link(margin, top, 285, sellerBottom - top, target);
+        }
+        sellerBottom += 2;
+      };
+      const email = document.pdfInvoice.sellerEmail;
+      if (email) {
+        contact(email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : null, ink);
+      }
+      const website = document.pdfInvoice.sellerWebsite;
+      if (website) {
+        let target: string | null = null;
+        try {
+          const parsed = new URL(website.url);
+          target =
+            ['https:', 'http:'].includes(parsed.protocol) && parsed.hostname ? parsed.href : null;
+        } catch {
+          // Show the saved text without creating an invalid or unsafe PDF link.
+        }
+        contact(website.label, target, brandTeal);
+      }
     }
     drawAbsoluteText(
       document.presentation.documentLabel,
@@ -882,6 +906,8 @@ export function documentStrings(document: RenderableDocument): string[] {
       document.pdfInvoice.amountHeading,
       document.pdfInvoice.paymentHeading,
       ...document.pdfInvoice.sellerLines,
+      document.pdfInvoice.sellerEmail ?? '',
+      document.pdfInvoice.sellerWebsite?.label ?? '',
       ...document.pdfInvoice.clientLines,
       ...document.pdfInvoice.columns,
       ...document.pdfInvoice.rows.flat(),

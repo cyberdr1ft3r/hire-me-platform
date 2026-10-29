@@ -559,8 +559,8 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         : []),
       ...referenceRows.map((row) => `${row.label} : ${row.value}`),
     ].map(sanitizeText);
-    // Historical imports encode a service date in each designation. Move it only when
-    // every line agrees, and label it separately from the immutable invoice issue date.
+    // Historical imports encode the billed service date in each designation. Use it for
+    // the requested PDF billing label only when every line agrees; never edit issueDate.
     const serviceDatePattern = /\s+—\s+Date de prestation\s*:\s*(\d{2}\/\d{2}\/\d{4})(?=\s+—|$)/;
     const serviceDates = view.lines.map((line) => line.description.match(serviceDatePattern)?.[1]);
     const serviceDate =
@@ -667,11 +667,16 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
             ? `${language === 'fr' ? 'Capital social' : 'Share capital'} : ${view.seller.capital}`
             : null,
           view.seller.ice ? `ICE : ${view.seller.ice}` : null,
-          view.seller.email,
-          view.seller.website,
         ]
           .filter((value): value is string => Boolean(value))
           .map(sanitizeText),
+        sellerEmail: view.seller.email ? sanitizeText(view.seller.email) : null,
+        sellerWebsite: view.seller.website
+          ? {
+              label: sanitizeText(view.seller.website.replace(/^https?:\/\//i, '')),
+              url: sanitizeText(view.seller.website),
+            }
+          : null,
         clientLines: [
           view.buyer.legalName,
           view.buyer.address,
@@ -727,11 +732,8 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         details: [
           {
             label: language === 'fr' ? 'Facturée le' : label.issueDate,
-            value: invoiceDate(view.issueDate, language),
+            value: serviceDate ?? invoiceDate(view.issueDate, language),
           },
-          ...(serviceDate
-            ? [{ label: language === 'fr' ? 'Prestation du' : 'Service date', value: serviceDate }]
-            : []),
         ],
       },
     };

@@ -39,6 +39,8 @@ export type RenderableDocument = {
     amountHeading: string;
     paymentHeading: string;
     sellerLines: string[];
+    sellerEmail: string | null;
+    sellerWebsite: { label: string; url: string } | null;
     clientLines: string[];
     columns: string[];
     rows: string[][];
