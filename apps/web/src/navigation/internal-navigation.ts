@@ -142,7 +142,7 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
       {
         labelKey: 'navigation.destinations.administration',
         path: '/admin',
-        permissions: ['users:view', 'billing_settings:view'],
+        permissions: ['users:view', 'billing_settings:view', 'roles:view', 'permissions:view'],
         route: 'admin',
       },
     ],
@@ -159,7 +159,7 @@ const internalNavigationGroups: readonly InternalNavigationGroup[] = [
  * Commercial, and Accounting have left it: these surfaces are fully translated, so none
  * may be announced as English inside a French document.
  */
-export const deferredEnglishRoutes: readonly InternalRoute[] = ['admin'];
+export const deferredEnglishRoutes: readonly InternalRoute[] = [];
 
 export function isDeferredEnglishRoute(route: InternalRoute): boolean {
   return deferredEnglishRoutes.includes(route);

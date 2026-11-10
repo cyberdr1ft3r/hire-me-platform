@@ -259,6 +259,116 @@ export const frMessages: Messages = {
     deniedTitle: 'Espace protégé',
   },
   admin: {
+    header: {
+      description:
+        'Gérez la facturation de l’entreprise, les utilisateurs internes et les accès approuvés dans des sections ciblées et sécurisées.',
+      eyebrow: 'Système',
+      title: 'Administration',
+    },
+    navigation: {
+      label: 'Sections d’administration',
+    },
+    sections: {
+      billing: {
+        description:
+          'Gérez le profil de facturation existant, les modalités de paiement et la numérotation protégée des factures.',
+        title: 'Facturation',
+      },
+      users: {
+        description:
+          'Gérez les comptes internes, les rôles attribués, le statut des comptes et les sessions actives.',
+        title: 'Utilisateurs',
+      },
+      access: {
+        description:
+          'Consultez les catalogues approuvés des rôles et permissions. Cette section est en lecture seule.',
+        title: 'Rôles et permissions',
+      },
+    },
+    denied: {
+      message: 'Vous n’avez pas la permission de consulter cette section d’administration.',
+      title: 'Section indisponible',
+    },
+    access: {
+      empty: 'Aucun accès approuvé n’est disponible.',
+      errorMessage: 'Les catalogues approuvés des rôles et permissions n’ont pas pu être chargés.',
+      errorTitle: 'Vue des accès indisponible',
+      loading: 'Chargement des rôles et permissions…',
+      permissionsTitle: 'Catalogue des permissions',
+      rolesTitle: 'Rôles approuvés',
+    },
+    users: {
+      actions: {
+        archive: 'Archiver',
+        assignRole: 'Attribuer le rôle',
+        reactivate: 'Réactiver',
+        removeRole: 'Retirer',
+        statusRegion: 'Actions sur le statut du compte',
+        suspend: 'Suspendre',
+        update: 'Mettre à jour le profil',
+      },
+      columns: {
+        name: 'Nom',
+        roles: 'Rôles',
+        sessions: 'Sessions',
+        status: 'Statut',
+      },
+      confirmAllSessions: 'Révoquer toutes les sessions actives de cet utilisateur ?',
+      confirmRemoveRole: 'Retirer ce rôle de l’utilisateur ?',
+      confirmSession: 'Révoquer la session sélectionnée ?',
+      confirmStatus: 'Changer le statut de cet utilisateur en « {status} » ?',
+      create: {
+        submit: 'Créer l’utilisateur',
+        title: 'Créer un utilisateur interne',
+      },
+      detailRegion: 'Détail de l’utilisateur sélectionné',
+      effectivePermissions: 'Permissions effectives',
+      emptyMessage: 'Modifiez la recherche ou le filtre de statut, puis réessayez.',
+      emptyTitle: 'Aucun utilisateur trouvé',
+      errorMessage: 'Vérifiez votre connexion et vos permissions, puis réessayez.',
+      errorTitle: 'Utilisateurs indisponibles',
+      feedback: {
+        created: 'Utilisateur créé.',
+        failed: 'L’action d’administration n’a pas pu être effectuée.',
+        roleAssigned: 'Rôle attribué.',
+        roleRemoved: 'Rôle retiré.',
+        sessionRevoked: 'Session révoquée.',
+        sessionsRevoked: 'Toutes les sessions ont été révoquées.',
+        statusChanged: 'Statut du compte mis à jour.',
+        updated: 'Utilisateur mis à jour.',
+      },
+      fields: {
+        displayName: 'Nom affiché',
+        email: 'E-mail',
+        initialPassword: 'Mot de passe initial',
+        locale: 'Langue',
+        role: 'Rôle',
+      },
+      filters: {
+        anyStatus: 'Tous les statuts',
+        region: 'Filtres des utilisateurs',
+        search: 'Rechercher',
+        status: 'Statut',
+        submit: 'Rechercher des utilisateurs',
+      },
+      listRegion: 'Utilisateurs',
+      loading: 'Chargement des utilisateurs…',
+      none: 'Aucun',
+      selectMessage:
+        'Choisissez un utilisateur dans la liste pour consulter son profil sécurisé et ses accès.',
+      selectTitle: 'Sélectionnez un utilisateur',
+      sessions: {
+        empty: 'Aucune session active.',
+        revoke: 'Révoquer',
+        revokeAll: 'Révoquer toutes les sessions',
+        title: 'Sessions actives',
+      },
+      status: {
+        ACTIVE: 'Actif',
+        ARCHIVED: 'Archivé',
+        SUSPENDED: 'Suspendu',
+      },
+    },
     billing: {
       title: 'Paramètres de facturation',
       description:

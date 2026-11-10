@@ -557,7 +557,7 @@ describe('App', () => {
                 id: userId,
                 displayName: 'Admin User',
                 email: 'admin@example.test',
-                permissions: ['users:view'],
+                permissions: ['users:view', 'users:create', 'roles:view', 'permissions:view'],
               },
             }),
             { headers: { 'Content-Type': 'application/json' } },
@@ -661,15 +661,22 @@ describe('App', () => {
     ).toHaveAttribute('aria-current', 'page');
 
     expect(await screen.findByRole('heading', { name: /administration/i })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Users' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Roles and permissions' }));
     expect(await screen.findByText('users:view')).toBeVisible();
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeVisible();
 
-    fireEvent.change(screen.getByPlaceholderText(/display name/i), {
+    fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: 'Created User' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/email/i), {
+    fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'created@example.test' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/initial password/i), {
+    fireEvent.change(screen.getByLabelText(/initial password/i), {
       target: { value: 'Synthetic-password-123!' },
     });
     fireEvent.click(screen.getByRole('button', { name: /create user/i }));
