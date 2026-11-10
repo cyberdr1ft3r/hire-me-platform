@@ -6,8 +6,9 @@ import {
   getCompanyBillingSettings,
   updateCompanyBillingSettings,
 } from '../api.js';
-import { Button, PageHeader, TextField } from '../ui/index.js';
+import { Button, PageState, TextField } from '../ui/index.js';
 import { useI18n } from '../i18n/index.js';
+import { UnsavedInputScope } from '../navigation/UnsavedInputScope.js';
 
 const fields = [
   ['sellerLegalName', 'admin.billing.sellerLegalName'],
@@ -37,6 +38,10 @@ export function BillingSettingsPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [profileSaves, setProfileSaves] = useState(0);
+  const [profileFailures, setProfileFailures] = useState(0);
+  const [baselineSaves, setBaselineSaves] = useState(0);
+  const [baselineFailures, setBaselineFailures] = useState(0);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -57,10 +62,10 @@ export function BillingSettingsPanel({
   }, [accessToken]);
 
   if (!settings) {
-    return (
-      <p role={error ? 'alert' : 'status'}>
-        {t(error ? 'admin.billing.failed' : 'admin.billing.loading')}
-      </p>
+    return error ? (
+      <PageState kind="error" title={t('admin.billing.failed')} />
+    ) : (
+      <PageState kind="loading" title={t('admin.billing.loading')} />
     );
   }
 
@@ -75,9 +80,11 @@ export function BillingSettingsPanel({
       void updatedAt;
       setSettings(editable);
       setMessage(t('admin.billing.saved'));
+      setProfileSaves((count) => count + 1);
     } catch {
       setMessage(null);
       setError(true);
+      setProfileFailures((count) => count + 1);
     } finally {
       setBusy(false);
     }
@@ -102,89 +109,106 @@ export function BillingSettingsPanel({
           number: response.sequence.lastNumber,
         }),
       );
+      setBaselineSaves((count) => count + 1);
     } catch {
       setMessage(null);
       setError(true);
+      setBaselineFailures((count) => count + 1);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section className="stack-lg" aria-labelledby="billing-settings-title">
-      <PageHeader title={t('admin.billing.title')} description={t('admin.billing.description')} />
-      <form className="form-grid" onSubmit={(event) => void save(event)}>
-        {fields.map(([name, label]) => (
+    <section className="admin-section" aria-labelledby="billing-settings-title">
+      <div className="admin-section__heading">
+        <h2 id="billing-settings-title">{t('admin.sections.billing.title')}</h2>
+        <p>{t('admin.sections.billing.description')}</p>
+      </div>
+      <UnsavedInputScope
+        failureSignal={profileFailures || null}
+        savedSignal={profileSaves || null}
+        writePending={busy}
+      >
+        <form className="form-grid" onSubmit={(event) => void save(event)}>
+          {fields.map(([name, label]) => (
+            <TextField
+              key={name}
+              label={t(label)}
+              value={settings[name] ?? ''}
+              disabled={!canManage}
+              onChange={(event) => setSettings({ ...settings, [name]: event.target.value || null })}
+            />
+          ))}
           <TextField
-            key={name}
-            label={t(label)}
-            value={settings[name] ?? ''}
-            disabled={!canManage}
-            onChange={(event) => setSettings({ ...settings, [name]: event.target.value || null })}
-          />
-        ))}
-        <TextField
-          label={t('admin.billing.invoicePrefix')}
-          value={settings.invoicePrefix ?? ''}
-          disabled={!canManage}
-          onChange={(event) =>
-            setSettings({ ...settings, invoicePrefix: event.target.value.toUpperCase() || null })
-          }
-        />
-        <TextField
-          label={t('admin.billing.invoiceDigits')}
-          type="number"
-          min={3}
-          max={8}
-          value={settings.invoiceDigits ?? ''}
-          disabled={!canManage}
-          onChange={(event) =>
-            setSettings({
-              ...settings,
-              invoiceDigits: event.target.value ? Number(event.target.value) : null,
-            })
-          }
-        />
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.invoiceNumberingEnabled}
+            label={t('admin.billing.invoicePrefix')}
+            value={settings.invoicePrefix ?? ''}
             disabled={!canManage}
             onChange={(event) =>
-              setSettings({ ...settings, invoiceNumberingEnabled: event.target.checked })
+              setSettings({ ...settings, invoicePrefix: event.target.value.toUpperCase() || null })
             }
-          />{' '}
-          {t('admin.billing.numberingEnabled')}
-        </label>
-        {canManage ? (
-          <Button type="submit" disabled={busy}>
-            {t('admin.billing.save')}
-          </Button>
-        ) : null}
-      </form>
-      {canManage ? (
-        <form className="form-grid" onSubmit={(event) => void confirmBaseline(event)}>
-          <h3>{t('admin.billing.baselineTitle')}</h3>
-          <p>{t('admin.billing.baselineHelp')}</p>
-          <TextField
-            name="year"
-            label={t('admin.billing.year')}
-            type="number"
-            min={2000}
-            max={2200}
-            required
           />
           <TextField
-            name="highestExternalNumber"
-            label={t('admin.billing.externalHighest')}
+            label={t('admin.billing.invoiceDigits')}
             type="number"
-            min={0}
-            required
+            min={3}
+            max={8}
+            value={settings.invoiceDigits ?? ''}
+            disabled={!canManage}
+            onChange={(event) =>
+              setSettings({
+                ...settings,
+                invoiceDigits: event.target.value ? Number(event.target.value) : null,
+              })
+            }
           />
-          <Button type="submit" disabled={busy}>
-            {t('admin.billing.confirmBaseline')}
-          </Button>
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.invoiceNumberingEnabled}
+              disabled={!canManage}
+              onChange={(event) =>
+                setSettings({ ...settings, invoiceNumberingEnabled: event.target.checked })
+              }
+            />{' '}
+            {t('admin.billing.numberingEnabled')}
+          </label>
+          {canManage ? (
+            <Button type="submit" disabled={busy}>
+              {t('admin.billing.save')}
+            </Button>
+          ) : null}
         </form>
+      </UnsavedInputScope>
+      {canManage ? (
+        <UnsavedInputScope
+          failureSignal={baselineFailures || null}
+          savedSignal={baselineSaves || null}
+          writePending={busy}
+        >
+          <form className="form-grid" onSubmit={(event) => void confirmBaseline(event)}>
+            <h3>{t('admin.billing.baselineTitle')}</h3>
+            <p>{t('admin.billing.baselineHelp')}</p>
+            <TextField
+              name="year"
+              label={t('admin.billing.year')}
+              type="number"
+              min={2000}
+              max={2200}
+              required
+            />
+            <TextField
+              name="highestExternalNumber"
+              label={t('admin.billing.externalHighest')}
+              type="number"
+              min={0}
+              required
+            />
+            <Button type="submit" disabled={busy}>
+              {t('admin.billing.confirmBaseline')}
+            </Button>
+          </form>
+        </UnsavedInputScope>
       ) : null}
       {message ? <p role="status">{message}</p> : null}
       {error ? <p role="alert">{t('admin.billing.failed')}</p> : null}

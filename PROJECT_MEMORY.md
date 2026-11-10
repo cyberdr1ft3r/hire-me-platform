@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-28
+Last updated: 2026-11-10
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,14 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Issue #257 restructures the existing Administration workspace on
+`feat/issue-257-administration-navigation`. One Console tab now exposes permission-safe Billing, Users,
+and read-only Roles & Permissions subsections through stable `/admin?section=` intent. Existing API
+contracts, backend authorization, one history authority, unsaved-change guard, and business workflows
+remain unchanged. The surface uses the Unified Page System with complete EN/FR copy and responsive,
+accessible section navigation. The draft must remain unmerged and undeployed; Issues #258–#261 own the
+deeper subsection redesigns and final E2E acceptance.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,

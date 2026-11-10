@@ -56,6 +56,7 @@ import {
   type TabId,
 } from './console-state.js';
 import { useConsole } from './ConsoleProvider.js';
+import { adminSectionFromSearch, adminSectionPath } from '../admin/admin-sections.js';
 
 type ApiState =
   | { status: 'loading' }
@@ -350,7 +351,14 @@ export function AuthenticatedWorkspace({
   } else {
     switch (route) {
       case 'admin':
-        routeContent = <LazyAdminPanel accessToken={accessToken} permissions={[...permissions]} />;
+        routeContent = (
+          <LazyAdminPanel
+            accessToken={accessToken}
+            onNavigateSection={(section) => navigateToPath(adminSectionPath(section))}
+            permissions={[...permissions]}
+            section={adminSectionFromSearch(location.search)}
+          />
+        );
         break;
       case 'clients':
         routeContent = (

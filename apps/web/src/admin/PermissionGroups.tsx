@@ -1,6 +1,12 @@
 /** Read-only grouping of the existing authorized catalog; codes remain authoritative. */
-export function PermissionGroups({ codes }: { codes: readonly string[] }) {
-  if (codes.length === 0) return <p>None</p>;
+export function PermissionGroups({
+  codes,
+  emptyLabel = 'None',
+}: {
+  codes: readonly string[];
+  emptyLabel?: string;
+}) {
+  if (codes.length === 0) return <p>{emptyLabel}</p>;
   const groups = new Map<string, string[]>();
   for (const code of codes) {
     const group = code.split(':')[0] ?? code;

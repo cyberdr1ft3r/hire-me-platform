@@ -236,6 +236,114 @@ export const enMessages = {
     deniedTitle: 'Protected workspace',
   },
   admin: {
+    header: {
+      description:
+        'Manage company billing, internal users, and approved access from focused permission-safe sections.',
+      eyebrow: 'System',
+      title: 'Administration',
+    },
+    navigation: {
+      label: 'Administration sections',
+    },
+    sections: {
+      billing: {
+        description:
+          'Maintain the existing company billing profile, payment details, and protected invoice numbering settings.',
+        title: 'Billing',
+      },
+      users: {
+        description:
+          'Manage internal accounts, assigned roles, account status, and active sessions.',
+        title: 'Users',
+      },
+      access: {
+        description: 'Review the approved role and permission catalogs. This section is read-only.',
+        title: 'Roles and permissions',
+      },
+    },
+    denied: {
+      message: 'You do not have permission to view this Administration section.',
+      title: 'Section unavailable',
+    },
+    access: {
+      empty: 'No approved access entries are available.',
+      errorMessage: 'The approved role and permission catalogs could not be loaded.',
+      errorTitle: 'Access overview unavailable',
+      loading: 'Loading roles and permissions…',
+      permissionsTitle: 'Permission catalog',
+      rolesTitle: 'Approved roles',
+    },
+    users: {
+      actions: {
+        archive: 'Archive',
+        assignRole: 'Assign role',
+        reactivate: 'Reactivate',
+        removeRole: 'Remove',
+        statusRegion: 'Account status actions',
+        suspend: 'Suspend',
+        update: 'Update profile',
+      },
+      columns: {
+        name: 'Name',
+        roles: 'Roles',
+        sessions: 'Sessions',
+        status: 'Status',
+      },
+      confirmAllSessions: 'Revoke all active refresh sessions for this user?',
+      confirmRemoveRole: 'Remove this role from the user?',
+      confirmSession: 'Revoke this selected refresh session?',
+      confirmStatus: 'Change this user status to {status}?',
+      create: {
+        submit: 'Create user',
+        title: 'Create internal user',
+      },
+      detailRegion: 'Selected user detail',
+      effectivePermissions: 'Effective permissions',
+      emptyMessage: 'Adjust the search or status filter and try again.',
+      emptyTitle: 'No users found',
+      errorMessage: 'Check your connection and permission, then try again.',
+      errorTitle: 'Users unavailable',
+      feedback: {
+        created: 'User created.',
+        failed: 'The administration action could not be completed.',
+        roleAssigned: 'Role assigned.',
+        roleRemoved: 'Role removed.',
+        sessionRevoked: 'Session revoked.',
+        sessionsRevoked: 'All sessions revoked.',
+        statusChanged: 'Account status updated.',
+        updated: 'User updated.',
+      },
+      fields: {
+        displayName: 'Display name',
+        email: 'Email',
+        initialPassword: 'Initial password',
+        locale: 'Locale',
+        role: 'Role',
+      },
+      filters: {
+        anyStatus: 'Any status',
+        region: 'User filters',
+        search: 'Search',
+        status: 'Status',
+        submit: 'Search users',
+      },
+      listRegion: 'Users',
+      loading: 'Loading users…',
+      none: 'None',
+      selectMessage: 'Choose a user from the list to inspect their safe profile and access.',
+      selectTitle: 'Select a user',
+      sessions: {
+        empty: 'No active sessions.',
+        revoke: 'Revoke',
+        revokeAll: 'Revoke all sessions',
+        title: 'Active sessions',
+      },
+      status: {
+        ACTIVE: 'Active',
+        ARCHIVED: 'Archived',
+        SUSPENDED: 'Suspended',
+      },
+    },
     billing: {
       title: 'Billing settings',
       description: 'Reusable company profile. Issued invoices keep their own immutable snapshot.',

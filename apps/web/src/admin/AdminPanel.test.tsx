@@ -72,7 +72,11 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     mockAdminApi();
     render(
       <I18nProvider initialLocale="en">
-        <AdminPanel accessToken="synthetic-token" />
+        <AdminPanel
+          accessToken="synthetic-token"
+          permissions={['users:view', 'users:update']}
+          section="users"
+        />
       </I18nProvider>,
     );
 
@@ -94,5 +98,46 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     expect(await screen.findByText('User updated.')).toBeVisible();
     expect(displayName).toHaveValue('Renamed Admin');
     expect(leavingAsks()).toBe(false);
+  });
+
+  it('shows only authorized section links and delegates navigation without loading inactive data', async () => {
+    const onNavigateSection = vi.fn();
+    mockAdminApi();
+    render(
+      <I18nProvider initialLocale="en">
+        <AdminPanel
+          accessToken="synthetic-token"
+          onNavigateSection={onNavigateSection}
+          permissions={['users:view', 'permissions:view']}
+          section="users"
+        />
+      </I18nProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Billing' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Roles and permissions' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/v1/admin/permissions'),
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'Roles and permissions' }));
+    expect(onNavigateSection).toHaveBeenCalledWith('access');
+  });
+
+  it('shows a localized denial for an unauthorized direct section', () => {
+    render(
+      <I18nProvider initialLocale="fr">
+        <AdminPanel accessToken="synthetic-token" permissions={['users:view']} section="billing" />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText('Section indisponible')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Utilisateurs' })).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', { name: 'Facturation' })).not.toBeInTheDocument();
   });
 });
