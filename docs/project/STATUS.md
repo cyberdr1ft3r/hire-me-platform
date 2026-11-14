@@ -1,29 +1,30 @@
 # Project Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 Status owner: repository maintainer
 
-## Client libre address hotfix
+## Invoice consolidation
 
-- Branch `hotfix/client-address-optional` carries the Client libre implementation onto protected
-  `main` `5919c8a2ee230afd3dac062b13bd314e9c90b686` without modifying PR #253.
-- A manual-client draft still requires the billed client name, but an omitted, empty, or whitespace-only
-  address is normalized to no address. The bilingual field label explicitly marks the address optional
-  at draft stage. PR #262 now extends that rule through draft editing: authorized operators can update the
-  manual name/address/ICE/IF snapshot, clear the address back to null, reload it, and retain audited history.
-  Registered-client invoices cannot be converted through this update path. The PR #262 maintainer
-  clarification requires final issuance for standalone manual-client invoices without an address;
-  registered-client issuance keeps its address requirement. Legal/accounting acceptance is unresolved.
-- A draft invoice can now produce a protected PDF-only preview through the existing renderer. The artifact is
-  separately keyed from an issued invoice, prominently marked `BROUILLON` and `DOCUMENT NON ÉMIS`, labels its
-  reference as a draft reference, omits an absent buyer-address row, and cannot enter the signing workflow.
-  Generation reads current protected company billing settings but does not issue the invoice, reserve a number,
-  create a CRM client, write invoice lifecycle history, or change accounting/payment state. Final issuance
-  now permits a null address for standalone clients and still freezes the immutable business snapshot.
-- Focused contract, web, typecheck, and formatting checks pass locally. The new PostgreSQL regression covers the
-  no-address PDF bytes and lifecycle/CRM/accounting invariants; exact-head CI remains required for authoritative
-  database integration evidence.
-- This branch does not deploy, merge, issue an invoice, or modify production data.
+- Branch `feat/invoice-consolidation` starts from PR #262 head
+  `4622314a27945d47e705a3963e4de81128cb77b1` and semantically integrates stabilized PR #263 head
+  `7a951806610cadad1723cd8489ae3f8f1beef1c7`. The original draft PRs remain open and unmerged.
+- The combined invoice template is version 8. It retains registered and standalone client workflows,
+  optional manual-client address/ICE/IF, separately identified draft previews, final numbering,
+  immutable issuance snapshots, authorization, audit history, signing restrictions and standalone
+  accounting isolation while adopting the revised PDF renderer and its stabilized Documents test.
+- The proposed date presentation always labels the stored invoice issue date as `Date d’émission`.
+  A common reliable line-level date is shown separately as `Date de prestation`; differing line dates
+  remain in their line descriptions and an absent service date produces no service-date field. This is
+  a review proposal, not accounting approval, and no historical invoice row or document was changed.
+- The October 29 VPS record is represented by its documented application behaviors and repository
+  changes, but the unavailable VPS-only commit still prevents any claim of exact source parity.
+- Local validation includes template/renderer 25/25, Documents 25/25, document-generation PostgreSQL
+  49/49, authorization catalog 5/5, clean application of all 28 migrations, repository format/lint/
+  typecheck/build, compiled assets, four visually reviewed synthetic A4 PDFs and final-container PDF
+  verification. The Windows full suites retain known host-only constraints: CRLF style text, unavailable
+  PKCS#11 native binding, loopback denial and two fixed-timeout reminder subprocesses; exact-head Linux
+  CI remains authoritative. No Administration redesign, merge, deploy, VPS/configuration change,
+  live-data change, invoice regeneration or official issuance is included.
 
 ## Issue #254 — protected pre-merge staging releases
 

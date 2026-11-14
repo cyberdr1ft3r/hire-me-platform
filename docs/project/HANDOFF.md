@@ -1,35 +1,44 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 ## Current situation
 
-- `hotfix/client-address-optional` is based on protected `main`
-  `5919c8a2ee230afd3dac062b13bd314e9c90b686` and includes the unmerged Client libre implementation so
-  the requested PR can target `main` without changing PR #253.
-- Draft manual-client input requires the billed client name and accepts an omitted, empty, or whitespace-only
-  address. Authorized operators can edit the manual-client snapshot while the invoice is `DRAFT`, clear the
-  address back to null, and reload it; the change is audited and no CRM `Client` is created. Registered-client
-  invoices cannot use this path.
-- Final issuance accepts a null buyer address for standalone manual-client invoices under the PR #262 maintainer clarification. Existing numbering, calculation, permission,
-  lifecycle, and registered-client rules are unchanged.
-- The existing renderer now supports an explicit PDF-only draft-preview purpose. Its separate immutable document
-  identity is marked `BROUILLON` / non-issued, omits the absent buyer-address row, uses no final invoice number,
-  and is refused by the financial signing path. Generation does not issue, number, account, allocate payment,
-  or create a CRM client. Issued generation remains unchanged and fail-closed for incomplete historical rows.
-- Focused contract and web tests plus all package typechecks pass locally. The focused PostgreSQL regression is
-  implemented; exact-head CI must supply authoritative database integration evidence.
-- No deployment, merge, production change, or invoice issuance occurred.
+- `feat/invoice-consolidation` is based exactly on PR #262
+  `4622314a27945d47e705a3963e4de81128cb77b1` and integrates stabilized PR #263
+  `7a951806610cadad1723cd8489ae3f8f1beef1c7`. Keep #253, #262 and #263 open and unmerged.
+- Template v8 combines the optional manual-buyer fields and draft/non-issued identity with the revised
+  PDF layout. Final issuance still uses the stored issue date, numbering, immutable business snapshot,
+  authorization and audit paths; standalone invoices remain outside registered-client accounting.
+- The review policy labels the stored issue date separately from a reliable common service date and
+  preserves differing line dates. It does not modify historical rows or replace historical document bytes.
+- The unavailable VPS-only recovery commit means exact VPS source parity remains unverified even though
+  its documented invoice behaviors and source-controlled hotfixes are accounted for.
+- Local invoice evidence is green: renderer 25/25, Documents 25/25, PostgreSQL document generation
+  49/49, catalog 5/5, clean 28-migration provisioning, build/assets and a networkless read-only final
+  container render. Four synthetic one-page A4 samples cover draft/issued, full/minimal buyer data and
+  common/differing/absent service dates. Exact-head Linux CI is still required.
+
+## Unresolved decisions
+
+1. Accounting must approve or reject the proposed separate `Date d’émission` and
+   `Date de prestation` presentation. Do not change stored dates or regenerate official PDFs first.
+2. The company must accept or reject the legal/accounting risk of final tax invoices for a standalone
+   buyer with a required name but no address. The technical implementation is not compliance approval.
 
 ## Next concrete action
 
-1. Review the dedicated hotfix PR and its exact-head CI, especially the draft-preview PostgreSQL integration.
-2. Confirm the branch relationship with PR #253 before merging; do not merge either PR automatically.
-3. Keep deployment and business acceptance behind the protected staging workflow and Environment approval.
+1. Validate the consolidation from a clean database and run all six exact-head CI jobs.
+2. Review the generated synthetic PDFs only; do not regenerate official invoices or replace historical
+   `DocumentVersion` bytes.
+3. Review the successor draft PR; keep #253, #262 and #263 open/unmerged until an authorized maintainer
+   selects the consolidation PR as their successor.
 
 ## Completion conditions
 
-- Exact-head CI passes every required check, including database migration and integration tests.
-- Human review confirms final issuance and French issued PDF generation for a name-only standalone client,
-  while the company's legal/accounting decision on address-free tax invoices remains open.
-- The PR remains open and unmerged until an authorized maintainer decides otherwise.
+- The consolidation branch has no unresolved conflicts and proves numbering, snapshots,
+  authorization, audit history, document immutability, draft/final separation and optional-address
+  behavior.
+- Accounting decisions on invoice-date presentation and optional buyer addresses are recorded before
+  merge, deployment, official regeneration or live-data correction.
+- No Administration redesign, deployment, VPS change, live-data mutation or invoice regeneration is included.

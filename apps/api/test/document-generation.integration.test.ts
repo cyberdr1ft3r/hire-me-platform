@@ -910,7 +910,7 @@ describe('document output generation', { timeout: 60_000 }, () => {
       expect(response.status).toBe(201);
       const result = generated(response.body);
       expect(result.outputFamily).toBe('PDF');
-      expect(result.templateVersion).toBe(7);
+      expect(result.templateVersion).toBe(8);
 
       const version = await prisma.documentVersion.findUniqueOrThrow({
         where: { id: result.versionId },
@@ -924,7 +924,8 @@ describe('document output generation', { timeout: 60_000 }, () => {
       expect(text).toContain('DOCUMENT NON ÉMIS');
       expect(text).toContain('Synthetic Individual Customer');
       expect(text).toContain('Référence brouillon');
-      expect(text.match(/Adresse/g)).toHaveLength(1);
+      expect(text).toContain('1 Synthetic Avenue, Casablanca');
+      expect(text).not.toContain('2 Test Street, Rabat');
       const download = await fetch(
         `${baseUrl}/v1/documents/${result.documentId}/versions/${result.versionId}/download`,
         { headers: { authorization: `Bearer ${generatorToken}` } },
@@ -1026,7 +1027,8 @@ describe('document output generation', { timeout: 60_000 }, () => {
     expect(text).toContain(invoice.reference);
     expect(text).not.toContain('BROUILLON');
     expect(text).not.toContain('DOCUMENT NON ÉMIS');
-    expect(text.match(/Adresse/g) ?? []).toHaveLength(1);
+    expect(text).toContain('1 Synthetic Avenue, Casablanca');
+    expect(text).not.toContain('2 Test Street, Rabat');
   });
 
   it('fails closed when a historical issued invoice has no immutable business snapshot', async () => {

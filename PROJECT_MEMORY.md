@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,20 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Invoice consolidation is active on `feat/invoice-consolidation`, based exactly on PR #262
+`4622314a27945d47e705a3963e4de81128cb77b1` and semantically integrating stabilized PR #263
+`7a951806610cadad1723cd8489ae3f8f1beef1c7`. Template v8 preserves registered and standalone
+clients, optional manual-buyer address/ICE/IF, draft/non-issued identity, final numbering, immutable
+issued snapshots and document history, authorization, audit, signing restrictions and standalone
+accounting isolation while adopting the revised PDF layout. The proposed presentation always shows
+the stored issue date as `Date d’émission`, promotes only a valid common line date to a separate
+`Date de prestation`, and preserves differing or invalid dates on their lines. Accounting approval of
+that policy and the legal/accounting acceptability of address-free standalone invoices remain open.
+The October 29 staging recovery is documented and its stated application behaviors are represented,
+but exact byte-for-byte parity with the unavailable VPS-only commit remains unverified. The original
+PRs stay open and unmerged; no deployment, official regeneration, live-data change or Administration
+redesign is authorized.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,

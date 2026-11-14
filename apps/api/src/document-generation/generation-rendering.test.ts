@@ -391,7 +391,7 @@ describe('template registry', () => {
     ).toBeUndefined();
   });
 
-  it('renders the complete bilingual invoice business snapshot and commercial references', () => {
+  it('renders the complete bilingual invoice business snapshot and commercial references', async () => {
     const template = resolveTemplate('INVOICE');
     const base = {
       kind: 'INVOICE' as const,
@@ -461,7 +461,7 @@ describe('template registry', () => {
       expect(text).toContain(language === 'fr' ? 'Sous-total HT' : 'Subtotal excl. tax');
       expect(text).toContain(language === 'fr' ? 'TVA (20 %)' : 'Tax (20%)');
       expect(text).toContain(language === 'fr' ? '100,00 MAD' : '100.00 MAD');
-      expect(template.version).toBe(7);
+      expect(template.version).toBe(8);
       expect(built.presentation?.kind).toBe('hireme-commercial');
       expect(built.blocks.some((block) => block.kind === 'panelGrid')).toBe(true);
       expect(built.blocks.some((block) => block.kind === 'totals')).toBe(true);
@@ -481,6 +481,14 @@ describe('template registry', () => {
     );
     expect(JSON.stringify(exceptional)).toContain('Tax treatment');
     expect(JSON.stringify(exceptional)).toContain('Approved exceptional tax wording.');
+
+    const exceptionalFr = template.build(
+      { ...base, taxTreatment: 'Mention fiscale exceptionnelle approuvée.' },
+      'fr',
+    );
+    const exceptionalPdf = await pdfText(await renderPdf(exceptionalFr));
+    expect(exceptionalPdf).toContain('TRAITEMENT FISCAL');
+    expect(exceptionalPdf).toContain('Mention fiscale exceptionnelle approuvée.');
 
     const withoutCustomerReference = template.build({ ...base, customerReference: null }, 'fr');
     expect(JSON.stringify(withoutCustomerReference)).not.toContain('Référence client');
@@ -518,5 +526,186 @@ describe('template registry', () => {
       label: 'Référence brouillon',
       value: 'INV-SYN-001',
     });
+    const draftWithBuyerDetails = template.build(
+      { ...base, documentState: 'DRAFT_PREVIEW', status: 'DRAFT' },
+      'fr',
+    );
+    const draftWithBuyerDetailsText = await pdfText(await renderPdf(draftWithBuyerDetails));
+    expect(draftWithBuyerDetailsText).toContain('2 Test Street, Rabat');
+    expect(draftWithBuyerDetailsText).toContain('CLIENT-ICE');
+    expect(draftWithBuyerDetailsText).toContain('CLIENT-IF');
+    expect(draftWithBuyerDetailsText).toContain('DOCUMENT NON ÉMIS');
+
+    const draftWithoutBuyerDetails = template.build(
+      {
+        ...base,
+        documentState: 'DRAFT_PREVIEW',
+        status: 'DRAFT',
+        buyer: {
+          ...base.buyer,
+          address: null,
+          ice: null,
+          taxId: null,
+          billingContact: null,
+        },
+      },
+      'fr',
+    );
+    expect(draftWithoutBuyerDetails.pdfInvoice?.clientLines).toEqual(['Synthetic Client SA']);
+    const draftWithoutBuyerDetailsText = await pdfText(await renderPdf(draftWithoutBuyerDetails));
+    expect(draftWithoutBuyerDetailsText).toContain('Synthetic Client SA');
+    expect(draftWithoutBuyerDetailsText).not.toContain('CLIENT-ICE');
+    expect(draftWithoutBuyerDetailsText).not.toContain('CLIENT-IF');
+
+    const noAddress = template.build(
+      { ...base, reference: 'FAC-2026-0010', buyer: { ...base.buyer, address: '' } },
+      'fr',
+    );
+    expect(noAddress.presentation).toMatchObject({
+      reference: 'FAC-2026-0010',
+      status: null,
+      details: [{ label: "Date d'émission", value: '23/10/2026' }],
+    });
+    expect(noAddress.pdfInvoice?.clientLines).toEqual([
+      'Synthetic Client SA',
+      'ICE : CLIENT-ICE',
+      'IF : CLIENT-IF',
+      'Synthetic Billing Contact',
+    ]);
+    expect(noAddress.pdfInvoice?.sellerLines).toContain('Capital social : 100 000 MAD synthetic');
+    expect(noAddress.pdfInvoice?.sellerEmail).toBe('synthetic@example.invalid');
+    expect(noAddress.pdfInvoice?.sellerWebsite).toEqual({
+      label: 'example.invalid',
+      url: 'https://example.invalid',
+    });
+    expect(noAddress.pdfInvoice?.footer).toContain('RC : SYNTHETIC-RC');
+    expect(noAddress.pdfInvoice?.footer).not.toContain('SYNTHETIC-ICE');
+    expect(noAddress.pdfInvoice?.footer).not.toContain('100 000 MAD');
+    expect(noAddress.pdfInvoice?.paymentLines).toContain('Référence client : BC-TEST-2026-0042');
+    const pdfBytes = await renderPdf(noAddress);
+    const rendered = await pdfText(pdfBytes);
+    expect(rendered).toContain("Date d'émission: 23/10/2026");
+    expect(rendered).toContain('CLIENT FACTURÉ');
+    expect(rendered).toContain('Synthetic Client SA');
+    expect(rendered).toContain('SYNTHETIC-RC');
+    expect(rendered).not.toContain('ÉCHÉANCE');
+    expect(rendered).not.toContain('ÉMISE');
+    expect(rendered).not.toContain('ÉMETTEUR');
+    expect(rendered).not.toContain('Adresse:');
+    expect(rendered).toContain('synthetic@example.invalid');
+    expect(rendered).toContain('example.invalid');
+    expect(rendered).not.toContain('https://example.invalid');
+    const pdfObjects = pdfBytes.toString('latin1');
+    expect(pdfObjects).toContain('https://example.invalid/');
+    expect(pdfObjects).toContain('mailto:synthetic@example.invalid');
+
+    const issuedWithoutBuyerDetails = template.build(
+      {
+        ...base,
+        buyer: {
+          ...base.buyer,
+          address: null,
+          ice: null,
+          taxId: null,
+          billingContact: null,
+        },
+      },
+      'fr',
+    );
+    expect(issuedWithoutBuyerDetails.pdfInvoice?.clientLines).toEqual(['Synthetic Client SA']);
+    const issuedWithoutBuyerDetailsText = await pdfText(await renderPdf(issuedWithoutBuyerDetails));
+    expect(issuedWithoutBuyerDetailsText).toContain('Synthetic Client SA');
+    expect(issuedWithoutBuyerDetailsText).not.toContain('CLIENT-ICE');
+    expect(issuedWithoutBuyerDetailsText).not.toContain('CLIENT-IF');
+    expect(issuedWithoutBuyerDetailsText).not.toContain('DOCUMENT NON ÉMIS');
+
+    const singlePayment = template.build(
+      {
+        ...base,
+        paymentTerms: 'Règlement par virement bancaire.',
+        paymentMethod: 'Virement bancaire',
+      },
+      'fr',
+    );
+    expect(
+      singlePayment.pdfInvoice?.paymentLines.filter((line) =>
+        line.toLowerCase().includes('virement'),
+      ),
+    ).toHaveLength(1);
+
+    const historical = template.build(
+      {
+        ...base,
+        lines: [
+          {
+            ...base.lines[0]!,
+            description: 'Préparation de CV — Date de prestation : 15/09/2026 — Note conservée',
+          },
+        ],
+      },
+      'fr',
+    );
+    expect(historical.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV — Note conservée');
+    expect(historical.presentation?.details).toEqual([
+      {
+        label: "Date d'émission",
+        value: '23/10/2026',
+      },
+      { label: 'Date de prestation', value: '15/09/2026' },
+    ]);
+    expect(JSON.stringify(historical.blocks)).toContain('Date de prestation : 15/09/2026');
+
+    const correctedDate = template.build(
+      {
+        ...base,
+        issueDate: new Date('2026-09-15T00:00:00.000Z'),
+        lines: [
+          { ...base.lines[0]!, description: 'Préparation de CV — Date de prestation : 15/09/2026' },
+        ],
+      },
+      'fr',
+    );
+    expect(correctedDate.presentation?.details).toEqual([
+      { label: "Date d'émission", value: '15/09/2026' },
+      { label: 'Date de prestation', value: '15/09/2026' },
+    ]);
+    expect(correctedDate.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV');
+
+    const mixedServiceDates = template.build(
+      {
+        ...base,
+        lines: [
+          { ...base.lines[0]!, description: 'Service A — Date de prestation : 15/09/2026' },
+          { ...base.lines[0]!, description: 'Service B — Date de prestation : 16/09/2026' },
+        ],
+      },
+      'fr',
+    );
+    expect(mixedServiceDates.pdfInvoice?.rows.map((row) => row[0])).toEqual([
+      'Service A — Date de prestation : 15/09/2026',
+      'Service B — Date de prestation : 16/09/2026',
+    ]);
+    expect(mixedServiceDates.presentation?.details).toEqual([
+      { label: "Date d'émission", value: '23/10/2026' },
+    ]);
+
+    const withoutServiceDates = template.build(base, 'fr');
+    expect(withoutServiceDates.presentation?.details).toEqual([
+      { label: "Date d'émission", value: '23/10/2026' },
+    ]);
+
+    const invalidCommonServiceDate = template.build(
+      {
+        ...base,
+        lines: [{ ...base.lines[0]!, description: 'Service A — Date de prestation : 31/02/2026' }],
+      },
+      'fr',
+    );
+    expect(invalidCommonServiceDate.presentation?.details).toEqual([
+      { label: "Date d'émission", value: '23/10/2026' },
+    ]);
+    expect(invalidCommonServiceDate.pdfInvoice?.rows[0]?.[0]).toContain(
+      'Date de prestation : 31/02/2026',
+    );
   });
 });

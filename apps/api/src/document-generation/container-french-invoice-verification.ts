@@ -82,6 +82,7 @@ const renderedStrings = documentStrings(document).join('\n');
 for (const expected of [
   'FACTURE',
   'Émise',
+  "Date d'émission",
   wrappedDescription,
   'Sous-total HT',
   '991,67 MAD',
