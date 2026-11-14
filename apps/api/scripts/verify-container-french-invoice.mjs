@@ -56,7 +56,10 @@ const extracted = await extractPdf(bytes);
 const normalized = extracted.text.replaceAll(/\s+/g, ' ').trim();
 for (const expected of [
   'FACTURE',
+  'ÉMISE',
   "Date d'émission",
+  'Échéance',
+  '25/11/2026',
   'synthétique d’accompagnement professionnel approfondi',
   'préparation d’entretiens',
   'suivi personnalisé et compte rendu détaillé',
@@ -70,7 +73,6 @@ for (const expected of [
 ]) {
   assert(normalized.includes(expected), `extracted text omitted ${JSON.stringify(expected)}`);
 }
-assert(!normalized.includes('ÉMISE'), 'the removed issued badge is still visible');
 assert(!normalized.includes('?'), 'a French character was substituted');
 assert(extracted.pageCount >= 1 && extracted.pageCount <= 2, 'unexpected invoice page count');
 
