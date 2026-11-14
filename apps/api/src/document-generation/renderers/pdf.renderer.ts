@@ -259,37 +259,6 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     // The approved wordmark is preserved; only the inter-word gap is tightened to 6 pt.
     drawAbsoluteText('ME', 'bold', 24, margin + hire.width + 6, 66, 80, brandTeal);
     drawAbsoluteText('Cabinet de recrutement digital', 'regular', 8, margin, 94, 230, muted);
-    let sellerBottom = 112;
-    if (document.pdfInvoice) {
-      for (const line of document.pdfInvoice.sellerLines) {
-        sellerBottom = drawAbsoluteText(line, 'regular', 9, margin, sellerBottom, 285, ink);
-        sellerBottom += 2;
-      }
-      const contact = (label: string, target: string | null, color: string) => {
-        const top = sellerBottom;
-        sellerBottom = drawAbsoluteText(label, 'regular', 9, margin, top, 285, color);
-        if (target) {
-          pdf.link(margin, top, 285, sellerBottom - top, target);
-        }
-        sellerBottom += 2;
-      };
-      const email = document.pdfInvoice.sellerEmail;
-      if (email) {
-        contact(email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : null, ink);
-      }
-      const website = document.pdfInvoice.sellerWebsite;
-      if (website) {
-        let target: string | null = null;
-        try {
-          const parsed = new URL(website.url);
-          target =
-            ['https:', 'http:'].includes(parsed.protocol) && parsed.hostname ? parsed.href : null;
-        } catch {
-          // Show the saved text without creating an invalid or unsafe PDF link.
-        }
-        contact(website.label, target, brandTeal);
-      }
-    }
     const documentLabelSize = document.presentation.documentLabel.length > 14 ? 16 : 22;
     drawAbsoluteText(
       document.presentation.documentLabel,
@@ -337,7 +306,7 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
         'right',
       );
     });
-    cursor.y = document.pdfInvoice ? Math.max(174, sellerBottom + 20) : 151;
+    cursor.y = 151;
   } else {
     drawText(document.title, 'bold', titleSize);
     cursor.y += 4;
@@ -357,47 +326,94 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
             lineHeightFor(size),
         0,
       );
-    const clientHeight = Math.max(
-      68,
-      30 +
-        invoice.clientLines.reduce(
-          (total, line, index) =>
-            total +
-            measuredHeight(
-              line,
-              index === 0 ? 13 : 9,
-              contentWidth - 24,
-              index === 0 ? 'bold' : 'regular',
-            ) +
-            2,
-          0,
-        ),
+    const identityGap = 4;
+    const identityWidth = (contentWidth - identityGap) / 2;
+    const identityTextWidth = identityWidth - 16;
+    const sellerEntries = [
+      ...invoice.sellerLines.map((text) => ({ text, target: null, color: ink })),
+      ...(invoice.sellerEmail
+        ? [
+            {
+              text: invoice.sellerEmail,
+              target: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoice.sellerEmail)
+                ? `mailto:${invoice.sellerEmail}`
+                : null,
+              color: ink,
+            },
+          ]
+        : []),
+      ...(invoice.sellerWebsite
+        ? [
+            {
+              text: invoice.sellerWebsite.label,
+              target: invoice.sellerWebsite.url,
+              color: brandTeal,
+            },
+          ]
+        : []),
+    ];
+    const clientEntries = invoice.clientLines.map((text) => ({ text, target: null, color: ink }));
+    const identityBodyHeight = (entries: typeof sellerEntries) =>
+      entries.reduce(
+        (total, entry) => total + measuredHeight(entry.text, 8, identityTextWidth, 'regular') + 2,
+        0,
+      );
+    const identityHeight = Math.max(
+      82,
+      31 + Math.max(identityBodyHeight(sellerEntries), identityBodyHeight(clientEntries)),
     );
-    ensureSpace(clientHeight + 30);
-    pdf.rect(margin, cursor.y, contentWidth, clientHeight).fill(paleTeal);
-    drawAbsoluteText(
-      invoice.clientHeading.toUpperCase(),
-      'bold',
-      10,
-      margin + 12,
-      cursor.y + 10,
-      contentWidth - 24,
-      brandTeal,
-    );
-    let clientY = cursor.y + 30;
-    invoice.clientLines.forEach((line, index) => {
-      clientY =
-        drawAbsoluteText(
-          line,
-          index === 0 ? 'bold' : 'regular',
-          index === 0 ? 13 : 9,
-          margin + 12,
-          clientY,
-          contentWidth - 24,
-          ink,
-        ) + 2;
-    });
-    cursor.y += clientHeight + 26;
+    ensureSpace(identityHeight + 22);
+    const drawIdentityPanel = (
+      left: number,
+      heading: string,
+      entries: typeof sellerEntries,
+    ): void => {
+      const top = cursor.y;
+      pdf.rect(left, top, identityWidth, identityHeight).stroke(panelBorder);
+      pdf.rect(left, top, identityWidth, 24).fill(paleTeal);
+      drawAbsoluteText(
+        heading.toUpperCase(),
+        'bold',
+        10,
+        left + 8,
+        top + 7,
+        identityTextWidth,
+        brandTeal,
+      );
+      let lineY = top + 31;
+      for (const entry of entries) {
+        const lineTop = lineY;
+        lineY =
+          drawAbsoluteText(
+            entry.text,
+            'regular',
+            8,
+            left + 8,
+            lineY,
+            identityTextWidth,
+            entry.color,
+          ) + 2;
+        if (entry.target) {
+          try {
+            const safeTarget = entry.target.startsWith('mailto:')
+              ? entry.target
+              : (() => {
+                  const parsed = new URL(entry.target);
+                  return ['https:', 'http:'].includes(parsed.protocol) && parsed.hostname
+                    ? parsed.href
+                    : null;
+                })();
+            if (safeTarget)
+              pdf.link(left + 8, lineTop, identityTextWidth, lineY - lineTop, safeTarget);
+          } catch {
+            // Preserve saved display text without creating an unsafe or invalid link.
+          }
+        }
+      }
+    };
+    drawIdentityPanel(margin, invoice.sellerHeading, sellerEntries);
+    drawIdentityPanel(margin + identityWidth + identityGap, invoice.clientHeading, clientEntries);
+    cursor.y += identityHeight + 18;
 
     const widths = [220, 42, 91, 52, contentWidth - 405];
     const starts = widths.map(
@@ -514,7 +530,9 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     invoice.totals.forEach((row, index) => {
       const top = cursor.y + index * 31;
       const final = index === invoice.totals.length - 1;
-      pdf.rect(totalsLeft, top, totalsWidth, 31).fill(final ? brandTeal : paleTeal);
+      pdf
+        .rect(totalsLeft, top, totalsWidth, 31)
+        .fillAndStroke(final ? brandTeal : paleGray, panelBorder);
       drawAbsoluteText(
         row.label,
         'bold',
@@ -537,15 +555,15 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     });
     cursor.y += invoice.totals.length * 31 + 22;
     if (invoice.amountInWords) {
-      const height = 26 + measuredHeight(invoice.amountInWords, 9, contentWidth - 20, 'regular');
+      const height = 30 + measuredHeight(invoice.amountInWords, 9, contentWidth - 20, 'regular');
       ensureSpace(height + 15);
-      pdf.rect(margin, cursor.y, contentWidth, height).fill(paleTeal);
+      pdf.rect(margin, cursor.y, contentWidth, 22).fill(paleGray);
       drawAbsoluteText(
         invoice.amountHeading,
         'bold',
         9,
         margin + 10,
-        cursor.y + 7,
+        cursor.y + 6,
         contentWidth - 20,
         brandTeal,
       );
@@ -554,36 +572,46 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
         'regular',
         9,
         margin + 10,
-        cursor.y + 24,
+        cursor.y + 29,
         contentWidth - 20,
         ink,
       );
       cursor.y += height + 18;
     }
-    if (invoice.paymentLines.length > 0) {
-      const height =
-        29 +
-        invoice.paymentLines.reduce(
-          (sum, line) => sum + measuredHeight(line, 9, contentWidth - 20, 'regular') + 2,
-          0,
-        );
+    if (invoice.paymentLines.length > 0 || invoice.referenceLines.length > 0) {
+      const panels = [
+        ...(invoice.paymentLines.length > 0
+          ? [{ heading: invoice.paymentHeading, lines: invoice.paymentLines }]
+          : []),
+        ...(invoice.referenceLines.length > 0
+          ? [{ heading: invoice.referenceHeading, lines: invoice.referenceLines }]
+          : []),
+      ];
+      const gap = panels.length > 1 ? 4 : 0;
+      const panelWidth = (contentWidth - gap) / panels.length;
+      const innerWidth = panelWidth - 16;
+      const bodyHeight = (lines: string[]) =>
+        lines.reduce((sum, line) => sum + measuredHeight(line, 8, innerWidth, 'regular') + 2, 0);
+      const height = 31 + Math.max(...panels.map((panel) => bodyHeight(panel.lines)), 18);
       ensureSpace(height + 15);
-      pdf.rect(margin, cursor.y, contentWidth, height).stroke(panelBorder);
-      pdf.rect(margin, cursor.y, contentWidth, 23).fill(paleTeal);
-      drawAbsoluteText(
-        invoice.paymentHeading,
-        'bold',
-        10,
-        margin + 10,
-        cursor.y + 6,
-        contentWidth - 20,
-        brandTeal,
-      );
-      let lineY = cursor.y + 29;
-      for (const line of invoice.paymentLines) {
-        lineY =
-          drawAbsoluteText(line, 'regular', 9, margin + 10, lineY, contentWidth - 20, ink) + 2;
-      }
+      panels.forEach((panel, index) => {
+        const left = margin + index * (panelWidth + gap);
+        pdf.rect(left, cursor.y, panelWidth, height).stroke(panelBorder);
+        pdf.rect(left, cursor.y, panelWidth, 24).fill(paleTeal);
+        drawAbsoluteText(
+          panel.heading.toUpperCase(),
+          'bold',
+          10,
+          left + 8,
+          cursor.y + 7,
+          innerWidth,
+          brandTeal,
+        );
+        let lineY = cursor.y + 31;
+        for (const line of panel.lines) {
+          lineY = drawAbsoluteText(line, 'regular', 8, left + 8, lineY, innerWidth, ink) + 2;
+        }
+      });
       cursor.y += height + 15;
     }
     if (invoice.taxTreatment) {
@@ -925,8 +953,10 @@ export function documentStrings(document: RenderableDocument): string[] {
   if (document.pdfInvoice) {
     values.push(
       document.pdfInvoice.clientHeading,
+      document.pdfInvoice.sellerHeading,
       document.pdfInvoice.amountHeading,
       document.pdfInvoice.paymentHeading,
+      document.pdfInvoice.referenceHeading,
       ...document.pdfInvoice.sellerLines,
       document.pdfInvoice.sellerEmail ?? '',
       document.pdfInvoice.sellerWebsite?.label ?? '',
@@ -936,6 +966,7 @@ export function documentStrings(document: RenderableDocument): string[] {
       ...document.pdfInvoice.totals.flatMap((row) => [row.label, row.value]),
       document.pdfInvoice.amountInWords ?? '',
       ...document.pdfInvoice.paymentLines,
+      ...document.pdfInvoice.referenceLines,
       document.pdfInvoice.taxHeading ?? '',
       document.pdfInvoice.taxTreatment ?? '',
       document.pdfInvoice.footer,

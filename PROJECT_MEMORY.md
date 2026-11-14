@@ -34,8 +34,11 @@ The October 29 staging recovery is documented and its stated application behavio
 but exact byte-for-byte parity with the unavailable VPS-only commit remains unverified. The original
 PRs stay open and unmerged; no deployment, official regeneration, live-data change or Administration
 redesign is authorized. Successor draft PR #265 opened at merge commit `2558ce3`; all six exact-head
-jobs passed in run `43646481648`. A documentation-only evidence commit follows and must also pass all
-six jobs before final handoff.
+jobs passed in run `43646481648`, and the prior final head passed all six in run `43647422008`.
+The visual-correction follow-up restores the accepted v4 hierarchy and palette inside template v8,
+adds invoice-specific multipage coverage, and regenerates four synthetic PDFs plus an anonymized
+side-by-side comparison. The named owner PDF was not exposed as a workspace artifact, so exact pixel
+parity with that specific copy remains pending; no client PDF or personal information is committed.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,

@@ -573,8 +573,10 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
       ...(view.bankDetails
         ? [`${language === 'fr' ? 'Coordonnées bancaires' : 'Bank details'} : ${view.bankDetails}`]
         : []),
-      ...referenceRows.map((row) => `${row.label} : ${row.value}`),
     ].map(sanitizeText);
+    const referenceLines = referenceRows
+      .map((row) => `${row.label} : ${row.value}`)
+      .map(sanitizeText);
     // Historical imports encode the service date in each designation. Promote it to a
     // separate presentation field only when every line agrees; issueDate remains authoritative.
     const serviceDatePattern = /\s+—\s+Date de prestation\s*:\s*(\d{2}\/\d{2}\/\d{4})(?=\s+—|$)/;
@@ -677,18 +679,30 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
       ],
       footer: invoiceFooter(view, language, label.footer),
       pdfInvoice: {
+        sellerHeading: label.seller,
         clientHeading: label.billedClient,
         amountHeading:
           language === 'fr'
             ? 'ARRÊTÉE LA PRÉSENTE FACTURE À LA SOMME DE'
             : 'INVOICE TOTAL IN WORDS',
-        paymentHeading: language === 'fr' ? 'RÈGLEMENT ET RÉFÉRENCE' : 'PAYMENT AND REFERENCES',
+        paymentHeading: label.payment,
+        referenceHeading: label.commercialReferences,
         sellerLines: [
+          view.seller.legalName,
+          view.seller.legalForm,
           view.seller.address,
           view.seller.capital
             ? `${language === 'fr' ? 'Capital social' : 'Share capital'} : ${view.seller.capital}`
             : null,
           view.seller.ice ? `ICE : ${view.seller.ice}` : null,
+          view.seller.registrationNumber
+            ? `${language === 'fr' ? 'Registre du commerce' : 'Commercial register'} : ${view.seller.registrationNumber}`
+            : null,
+          view.seller.taxId ? `IF : ${view.seller.taxId}` : null,
+          view.seller.patente ? `PT : ${view.seller.patente}` : null,
+          view.seller.phone
+            ? `${language === 'fr' ? 'Téléphone' : 'Phone'} : ${view.seller.phone}`
+            : null,
         ]
           .filter((value): value is string => Boolean(value))
           .map(sanitizeText),
@@ -743,6 +757,7 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
             ? sanitizeText(view.totalAmountInWordsFr)
             : null,
         paymentLines,
+        referenceLines,
         taxHeading: view.taxTreatment ? label.taxTreatment : null,
         taxTreatment: view.taxTreatment ? sanitizeText(view.taxTreatment) : null,
         footer: pdfFooter,

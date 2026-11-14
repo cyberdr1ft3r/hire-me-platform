@@ -5,6 +5,11 @@ Status owner: repository maintainer
 
 ## Invoice consolidation
 
+- PR #265 restores the previously approved invoice visual system without changing template-v8
+  issuance behavior. Synthetic evidence now covers the paired identity cards, five-column table,
+  totals hierarchy, amount in words, split payment/reference panels, legal footer and draft markings;
+  a 24-line regression proves invoice pagination. Exact pixel comparison to the named owner PDF is
+  still pending because that upload was not exposed as a workspace artifact.
 - Branch `feat/invoice-consolidation` starts from PR #262 head
   `4622314a27945d47e705a3963e4de81128cb77b1` and semantically integrates stabilized PR #263 head
   `7a951806610cadad1723cd8489ae3f8f1beef1c7`. The original draft PRs remain open and unmerged.

@@ -4,6 +4,10 @@ Last updated: 2026-11-14
 
 ## Current situation
 
+- The visual correction on PR #265 restores the accepted v4 invoice hierarchy and palette inside
+  template v8. Four synthetic PDFs and an anonymized side-by-side comparison were regenerated; the
+  named owner PDF was not mounted in the workspace, so exact pixel parity with that specific copy
+  must be confirmed when it is made accessible. No client PDF or personal information is committed.
 - `feat/invoice-consolidation` is based exactly on PR #262
   `4622314a27945d47e705a3963e4de81128cb77b1` and integrates stabilized PR #263
   `7a951806610cadad1723cd8489ae3f8f1beef1c7`. Keep #253, #262 and #263 open and unmerged.

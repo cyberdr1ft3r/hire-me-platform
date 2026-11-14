@@ -581,7 +581,7 @@ describe('template registry', () => {
     expect(noAddress.pdfInvoice?.footer).toContain('RC : SYNTHETIC-RC');
     expect(noAddress.pdfInvoice?.footer).not.toContain('SYNTHETIC-ICE');
     expect(noAddress.pdfInvoice?.footer).not.toContain('100 000 MAD');
-    expect(noAddress.pdfInvoice?.paymentLines).toContain('Référence client : BC-TEST-2026-0042');
+    expect(noAddress.pdfInvoice?.referenceLines).toContain('Référence client : BC-TEST-2026-0042');
     const pdfBytes = await renderPdf(noAddress);
     const rendered = await pdfText(pdfBytes);
     expect(rendered).toContain("Date d'émission: 23/10/2026");
@@ -590,7 +590,7 @@ describe('template registry', () => {
     expect(rendered).toContain('SYNTHETIC-RC');
     expect(rendered).not.toContain('ÉCHÉANCE');
     expect(rendered).not.toContain('ÉMISE');
-    expect(rendered).not.toContain('ÉMETTEUR');
+    expect(rendered).toContain('ÉMETTEUR');
     expect(rendered).not.toContain('Adresse:');
     expect(rendered).toContain('synthetic@example.invalid');
     expect(rendered).toContain('example.invalid');
@@ -707,5 +707,21 @@ describe('template registry', () => {
     expect(invalidCommonServiceDate.pdfInvoice?.rows[0]?.[0]).toContain(
       'Date de prestation : 31/02/2026',
     );
+
+    const paginated = template.build(
+      {
+        ...base,
+        lines: Array.from({ length: 24 }, (_, index) => ({
+          ...base.lines[0]!,
+          description: `Ligne ${index + 1} — Description synthétique longue conservée intégralement pour vérifier la pagination du tableau à cinq colonnes`,
+        })),
+      },
+      'fr',
+    );
+    const paginatedBytes = await renderPdf(paginated);
+    const paginatedPdf = await extractPdf(paginatedBytes);
+    expect(paginatedPdf.pageCount).toBeGreaterThan(1);
+    expect(paginatedPdf.text).toContain('Ligne 24');
+    expect(paginatedPdf.text).toContain('RÉFÉRENCES COMMERCIALES');
   });
 });
