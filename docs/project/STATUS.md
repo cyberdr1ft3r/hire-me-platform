@@ -1,7 +1,26 @@
 # Project Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 Status owner: repository maintainer
+
+## Invoice branch stabilization and integration preflight
+
+- Protected `main` remains `5919c8a2ee230afd3dac062b13bd314e9c90b686`. Draft PR #262 is at
+  `4622314a27945d47e705a3963e4de81128cb77b1`; it incorporates PR #253 and passed all six exact-head
+  checks in run `40792069910`. Draft PR #263 started this pass at
+  `706ba46ac279eb400e124be36f3b59e081e9155f`.
+- PR #263 run `42863358894` failed only in the web unit suite: the Documents unsaved-input test read
+  the navigation guard before the post-save React effect had settled. The production save completed;
+  the test now waits for the observable guard state. The focused test passed twelve consecutive runs.
+- PR #262 and #263 overlap in `generation-rendering.test.ts` and `template-registry.ts`; a synthetic
+  merge reports content conflicts in both. PR #262 also has template version 7 while PR #263 uses
+  version 6, so independent merges would risk dropping draft/non-issued semantics or the revised PDF.
+- The October 29 VPS record states that the local recovery commit combined PR #263 baseline
+  `54500b5` with PR #262 `4622314`, used local image overrides, and did not rewrite invoice rows or
+  historical document versions. The VPS-only commit `da77e547...` is not available on GitHub, so the
+  documented application behaviors are accounted for but exact source parity is not verified.
+- No Administration redesign, merge, deploy, VPS/configuration change, live-data change, invoice
+  regeneration, or official issuance is included in this stabilization.
 
 ## Issue #254 — protected pre-merge staging releases
 

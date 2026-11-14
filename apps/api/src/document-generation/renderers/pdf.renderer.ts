@@ -259,6 +259,37 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     // The approved wordmark is preserved; only the inter-word gap is tightened to 6 pt.
     drawAbsoluteText('ME', 'bold', 24, margin + hire.width + 6, 66, 80, brandTeal);
     drawAbsoluteText('Cabinet de recrutement digital', 'regular', 8, margin, 94, 230, muted);
+    let sellerBottom = 112;
+    if (document.pdfInvoice) {
+      for (const line of document.pdfInvoice.sellerLines) {
+        sellerBottom = drawAbsoluteText(line, 'regular', 9, margin, sellerBottom, 285, ink);
+        sellerBottom += 2;
+      }
+      const contact = (label: string, target: string | null, color: string) => {
+        const top = sellerBottom;
+        sellerBottom = drawAbsoluteText(label, 'regular', 9, margin, top, 285, color);
+        if (target) {
+          pdf.link(margin, top, 285, sellerBottom - top, target);
+        }
+        sellerBottom += 2;
+      };
+      const email = document.pdfInvoice.sellerEmail;
+      if (email) {
+        contact(email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : null, ink);
+      }
+      const website = document.pdfInvoice.sellerWebsite;
+      if (website) {
+        let target: string | null = null;
+        try {
+          const parsed = new URL(website.url);
+          target =
+            ['https:', 'http:'].includes(parsed.protocol) && parsed.hostname ? parsed.href : null;
+        } catch {
+          // Show the saved text without creating an invalid or unsafe PDF link.
+        }
+        contact(website.label, target, brandTeal);
+      }
+    }
     drawAbsoluteText(
       document.presentation.documentLabel,
       'bold',
@@ -305,7 +336,7 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
         'right',
       );
     });
-    cursor.y = 151;
+    cursor.y = document.pdfInvoice ? Math.max(174, sellerBottom + 20) : 151;
   } else {
     drawText(document.title, 'bold', titleSize);
     cursor.y += 4;
@@ -315,29 +346,296 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     cursor.y += 8;
   }
 
-  for (const block of document.blocks) {
-    drawBlock(writer, block, {
-      pdf,
-      branded,
-      drawText,
-      ensureSpace,
-      drawLine,
-      drawAbsoluteText,
-      cursor,
+  if (document.pdfInvoice) {
+    const invoice = document.pdfInvoice;
+    const measuredHeight = (value: string, size: number, width: number, weight: FontWeight) =>
+      textLines(sanitizeText(value)).reduce(
+        (total, line) =>
+          total +
+          layoutLine(writer, line, weight, size, width, lineIsRtl(line) ? 'rtl' : 'ltr').length *
+            lineHeightFor(size),
+        0,
+      );
+    const clientHeight = Math.max(
+      68,
+      30 +
+        invoice.clientLines.reduce(
+          (total, line, index) =>
+            total +
+            measuredHeight(
+              line,
+              index === 0 ? 13 : 9,
+              contentWidth - 24,
+              index === 0 ? 'bold' : 'regular',
+            ) +
+            2,
+          0,
+        ),
+    );
+    ensureSpace(clientHeight + 30);
+    pdf.rect(margin, cursor.y, contentWidth, clientHeight).fill(paleTeal);
+    drawAbsoluteText(
+      invoice.clientHeading.toUpperCase(),
+      'bold',
+      10,
+      margin + 12,
+      cursor.y + 10,
+      contentWidth - 24,
+      brandTeal,
+    );
+    let clientY = cursor.y + 30;
+    invoice.clientLines.forEach((line, index) => {
+      clientY =
+        drawAbsoluteText(
+          line,
+          index === 0 ? 'bold' : 'regular',
+          index === 0 ? 13 : 9,
+          margin + 12,
+          clientY,
+          contentWidth - 24,
+          ink,
+        ) + 2;
     });
+    cursor.y += clientHeight + 26;
+
+    const widths = [220, 42, 91, 52, contentWidth - 405];
+    const starts = widths.map(
+      (_, index) => margin + widths.slice(0, index).reduce((sum, width) => sum + width, 0),
+    );
+    const drawCellLine = (
+      line: LaidOutLine,
+      x: number,
+      y: number,
+      available: number,
+      alignRight: boolean,
+      weight: FontWeight,
+      size: number,
+    ) => {
+      let left = alignRight ? x + available - line.width : x;
+      const ascent = writer.ascent(fontKey('latin', weight), size);
+      for (const group of line.groups) {
+        writer.draw(fontKey(group.script, weight), size, group.segments, left, y, ascent);
+        left += group.width;
+      }
+    };
+    const headerHeight = Math.max(
+      30,
+      14 +
+        Math.max(
+          ...invoice.columns.map((column, index) =>
+            measuredHeight(column, 8, widths[index]! - 14, 'bold'),
+          ),
+        ),
+    );
+    const drawTableHeader = () => {
+      ensureSpace(headerHeight + 50);
+      const top = cursor.y;
+      pdf.rect(margin, top, contentWidth, headerHeight).fill(brandTeal);
+      invoice.columns.forEach((column, index) => {
+        const x = starts[index]!;
+        const width = widths[index]!;
+        drawAbsoluteText(
+          column,
+          'bold',
+          8,
+          x + 7,
+          top + 10,
+          width - 14,
+          '#ffffff',
+          index === 0 ? 'left' : 'right',
+        );
+      });
+      cursor.y += headerHeight;
+    };
+    drawTableHeader();
+    for (const row of invoice.rows) {
+      const laidOut = row.map((cell, index) =>
+        textLines(sanitizeText(cell)).flatMap((line) =>
+          layoutLine(
+            writer,
+            line,
+            index === 0 ? 'bold' : 'regular',
+            9,
+            widths[index]! - 14,
+            lineIsRtl(line) ? 'rtl' : 'ltr',
+          ),
+        ),
+      );
+      const lineCount = Math.max(1, ...laidOut.map((lines) => lines.length));
+      let offset = 0;
+      while (offset < lineCount) {
+        const remainingHeight = pageHeight - margin - 15 - cursor.y;
+        if (remainingHeight < 42) {
+          pdf.addPage();
+          cursor.y = margin;
+          drawTableHeader();
+          continue;
+        }
+        const chunk = Math.min(
+          lineCount - offset,
+          Math.max(1, Math.floor((remainingHeight - 14) / 14)),
+        );
+        const rowHeight = Math.max(42, chunk * 14 + 14);
+        const top = cursor.y;
+        pdf.rect(margin, top, contentWidth, rowHeight).fillAndStroke('#ffffff', panelBorder);
+        for (let index = 1; index < widths.length; index += 1) {
+          pdf
+            .moveTo(starts[index]!, top)
+            .lineTo(starts[index]!, top + rowHeight)
+            .stroke(panelBorder);
+        }
+        pdf.fillColor(ink);
+        laidOut.forEach((lines, index) => {
+          const x = starts[index]! + 7;
+          const available = widths[index]! - 14;
+          lines
+            .slice(offset, offset + chunk)
+            .forEach((line, lineIndex) =>
+              drawCellLine(
+                line,
+                x,
+                top + 9 + lineIndex * 14,
+                available,
+                index !== 0,
+                index === 0 ? 'bold' : 'regular',
+                9,
+              ),
+            );
+        });
+        cursor.y += rowHeight;
+        offset += chunk;
+      }
+    }
+    cursor.y += 20;
+    const totalsWidth = 228;
+    const totalsLeft = margin + contentWidth - totalsWidth;
+    ensureSpace(invoice.totals.length * 31 + 16);
+    invoice.totals.forEach((row, index) => {
+      const top = cursor.y + index * 31;
+      const final = index === invoice.totals.length - 1;
+      pdf.rect(totalsLeft, top, totalsWidth, 31).fill(final ? brandTeal : paleTeal);
+      drawAbsoluteText(
+        row.label,
+        'bold',
+        final ? 11 : 9,
+        totalsLeft + 9,
+        top + 9,
+        105,
+        final ? '#ffffff' : ink,
+      );
+      drawAbsoluteText(
+        row.value,
+        'bold',
+        final ? 11 : 9,
+        totalsLeft + 116,
+        top + 9,
+        totalsWidth - 125,
+        final ? '#ffffff' : brandTeal,
+        'right',
+      );
+    });
+    cursor.y += invoice.totals.length * 31 + 22;
+    if (invoice.amountInWords) {
+      const height = 26 + measuredHeight(invoice.amountInWords, 9, contentWidth - 20, 'regular');
+      ensureSpace(height + 15);
+      pdf.rect(margin, cursor.y, contentWidth, height).fill(paleTeal);
+      drawAbsoluteText(
+        invoice.amountHeading,
+        'bold',
+        9,
+        margin + 10,
+        cursor.y + 7,
+        contentWidth - 20,
+        brandTeal,
+      );
+      drawAbsoluteText(
+        invoice.amountInWords,
+        'regular',
+        9,
+        margin + 10,
+        cursor.y + 24,
+        contentWidth - 20,
+        ink,
+      );
+      cursor.y += height + 18;
+    }
+    if (invoice.paymentLines.length > 0) {
+      const height =
+        29 +
+        invoice.paymentLines.reduce(
+          (sum, line) => sum + measuredHeight(line, 9, contentWidth - 20, 'regular') + 2,
+          0,
+        );
+      ensureSpace(height + 15);
+      pdf.rect(margin, cursor.y, contentWidth, height).stroke(panelBorder);
+      pdf.rect(margin, cursor.y, contentWidth, 23).fill(paleTeal);
+      drawAbsoluteText(
+        invoice.paymentHeading,
+        'bold',
+        10,
+        margin + 10,
+        cursor.y + 6,
+        contentWidth - 20,
+        brandTeal,
+      );
+      let lineY = cursor.y + 29;
+      for (const line of invoice.paymentLines) {
+        lineY =
+          drawAbsoluteText(line, 'regular', 9, margin + 10, lineY, contentWidth - 20, ink) + 2;
+      }
+      cursor.y += height + 15;
+    }
+    if (invoice.taxTreatment) {
+      const height = 29 + measuredHeight(invoice.taxTreatment, 9, contentWidth - 20, 'regular');
+      ensureSpace(height + 15);
+      pdf.rect(margin, cursor.y, contentWidth, height).stroke(panelBorder);
+      pdf.rect(margin, cursor.y, contentWidth, 23).fill(paleTeal);
+      drawAbsoluteText(
+        (invoice.taxHeading ?? '').toUpperCase(),
+        'bold',
+        10,
+        margin + 10,
+        cursor.y + 6,
+        contentWidth - 20,
+        brandTeal,
+      );
+      drawAbsoluteText(
+        invoice.taxTreatment,
+        'regular',
+        9,
+        margin + 10,
+        cursor.y + 29,
+        contentWidth - 20,
+        ink,
+      );
+      cursor.y += height + 15;
+    }
+  } else {
+    for (const block of document.blocks) {
+      drawBlock(writer, block, {
+        pdf,
+        branded,
+        drawText,
+        ensureSpace,
+        drawLine,
+        drawAbsoluteText,
+        cursor,
+      });
+    }
   }
 
-  if (document.footer) {
+  const footer = document.pdfInvoice?.footer ?? document.footer;
+  if (footer) {
     if (branded) {
       const footerY = pageHeight - 42;
       pdf
         .moveTo(margin, footerY - 8)
         .lineTo(pageWidth - margin, footerY - 8)
         .stroke(panelBorder);
-      drawAbsoluteText(document.footer, 'regular', 7, margin, footerY, contentWidth - 45, muted);
+      drawAbsoluteText(footer, 'regular', 7, margin, footerY, contentWidth, muted);
     } else {
       cursor.y += 8;
-      drawText(document.footer, 'regular', bodySize - 1);
+      drawText(footer, 'regular', bodySize - 1);
     }
   }
 
@@ -621,6 +919,25 @@ export function documentStrings(document: RenderableDocument): string[] {
       document.presentation.reference,
       document.presentation.status ?? '',
       ...document.presentation.details.flatMap((row) => [row.label, row.value]),
+    );
+  }
+  if (document.pdfInvoice) {
+    values.push(
+      document.pdfInvoice.clientHeading,
+      document.pdfInvoice.amountHeading,
+      document.pdfInvoice.paymentHeading,
+      ...document.pdfInvoice.sellerLines,
+      document.pdfInvoice.sellerEmail ?? '',
+      document.pdfInvoice.sellerWebsite?.label ?? '',
+      ...document.pdfInvoice.clientLines,
+      ...document.pdfInvoice.columns,
+      ...document.pdfInvoice.rows.flat(),
+      ...document.pdfInvoice.totals.flatMap((row) => [row.label, row.value]),
+      document.pdfInvoice.amountInWords ?? '',
+      ...document.pdfInvoice.paymentLines,
+      document.pdfInvoice.taxHeading ?? '',
+      document.pdfInvoice.taxTreatment ?? '',
+      document.pdfInvoice.footer,
     );
   }
   return values;

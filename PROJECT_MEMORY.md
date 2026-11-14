@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -20,6 +20,18 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 `docs/metier/HIREME_METIER_GLOSSARY.md` and D-092.
 
 ## Current Phase
+
+Invoice stabilization is active across draft PRs #262 and #263. PR #262 supersedes the overlapping
+manual-client work in PR #253 and preserves final issuance for a name-only standalone buyer, normal
+number allocation, immutable issued snapshots, authorization, history, and protected generated
+documents while leaving the legal/accounting acceptability of a missing buyer address unresolved.
+PR #263 changes the invoice PDF presentation and currently derives the displayed `Facturée le` value
+from a common service date embedded in every line without changing the stored issue date. That display
+policy is not accounting-approved. The branches conflict in the invoice template and renderer tests;
+they must be consolidated once, with a new template version and combined regressions, rather than
+merged independently. The October 29 staging recovery remains documented as a local-image emergency
+override whose exact local commit is not available on GitHub; PRs #262 and #263 account for the stated
+application behavior, but exact byte-for-byte parity with the VPS-only commit is unverified.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,
