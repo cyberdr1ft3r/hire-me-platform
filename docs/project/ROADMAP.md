@@ -149,6 +149,11 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
   concurrency-safe configurable references, immutable versioned issuance snapshots, individual buyers,
   Accompagnement line items, and French MAD amount-in-words. Production values and issuance activation
   remain business-acceptance gates coordinated with Issue #242.
+- Before further invoice integration, consolidate PR #262 (which incorporates #253) with PR #263 in
+  one review branch. Preserve manual-client final issuance, optional buyer addresses, draft/non-issued
+  separation, numbering, authorization, immutable snapshots and document history; resolve the two
+  invoice-template conflicts semantically and require an accounting decision on service date versus
+  issue date before official PDF regeneration or rollout.
 
 Remaining accounting scope requires its own approved issues and is not assumed here: Moroccan payroll (Phase 8a), statutory and general-ledger and tax accounting, bank reconciliation, balance-sheet behavior, credit notes and refunds, aging buckets beyond the current overdue outstanding figure, accounting exports, and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 

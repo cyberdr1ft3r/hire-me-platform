@@ -1,25 +1,53 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 ## Current situation
 
-- Issue #254 implements the separately reviewed D-097 pre-merge staging path on `feat/secure-premerge-staging`, based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a`.
-- The workflow is manual, main-defined, same-repository-only, exact-head-CI-gated, Environment-reviewed, protected-path-restricted, digest-pinned, and doubly attested. The feature build never receives staging SSH secrets.
-- Existing staging deployment, backup, migration, health, rollback, and isolation controls are reused without server or Environment-policy changes. Production is unreachable from this workflow.
-- PR #253 remains draft, unmerged, and undeployed. Its target SHA can be released only after Issue #254 merges with green exact-head CI and the protected Environment reviewer approves the explicit PR/SHA dispatch.
+- Protected `main` is `5919c8a2ee230afd3dac062b13bd314e9c90b686` and did not advance during
+  this stabilization pass.
+- PR #262 (`hotfix/client-address-optional`) is an open draft at
+  `4622314a27945d47e705a3963e4de81128cb77b1`. It incorporates PR #253 and its exact-head run
+  `40792069910` passed all six checks. It preserves normal final numbering, issued snapshots,
+  authorization and audit history for standalone manual buyers, including a null address.
+- PR #263 (`fix/invoice-pdf-layout`) is an open draft. Its prior run `42863358894` failed one of
+  1,124 web tests because the Documents guard assertion observed state before a React effect settled;
+  database integration, authorization catalog, PostgreSQL health and PKCS#11 jobs passed.
+- The minimal correction waits for the post-save navigation guard to become clean. It does not change
+  invoice behavior or weaken the assertion. Fresh exact-head CI is required for the new branch head.
+- A synthetic merge of #262 and #263 has two content conflicts:
+  `apps/api/src/document-generation/generation-rendering.test.ts` and
+  `apps/api/src/document-generation/template-registry.ts`. PR #262 uses invoice template version 7;
+  PR #263 uses version 6. Both regression sets and a newly incremented combined version are required.
+- The October 29 VPS recovery is documented as combining #262 and #263 through local images without
+  changing invoice rows or existing document versions. The exact VPS-only commit `da77e547...` was
+  never pushed, so its documented behavior is accounted for but exact source parity is unverified.
+
+## Unresolved decisions
+
+1. Accounting must decide whether the PDF may display a service date under `Facturée le` when the
+   immutable issue date differs. Recommended presentation is to label service and issue dates
+   separately; do not change stored dates or regenerate official PDFs before approval.
+2. The company must accept or reject the legal/accounting risk of final tax invoices for a standalone
+   buyer with a required name but no address. The technical implementation is not compliance approval.
 
 ## Next concrete action
 
-1. Require green exact-head CI and maintainer review for PR #255; merge only with explicit approval.
-2. Before first use, disable administrator bypass on the `staging` Environment and protect `main` with an explicitly reviewed ruleset while retaining the exact `main` deployment branch policy. Add a second trusted reviewer before enabling prevent-self-review.
-3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve only after comparing both values.
-4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance. After a null-client invoice exists, use roll-forward or isolated paired restore rather than relying on the previous API image alone.
+1. Require all six checks to pass on the fresh exact PR #263 head and review the minimal test-only fix.
+2. Create a dedicated consolidation branch from PR #262, then semantically apply #263's PDF layout.
+   Preserve #262's draft/non-issued markers and optional-address behavior, assign the next invoice
+   template version, and retain both branches' renderer and PostgreSQL regressions.
+3. Validate the consolidation from a clean database and run exact-head CI. Compare generated synthetic
+   PDFs only; do not regenerate official invoices or replace historical `DocumentVersion` bytes.
+4. Keep #253, #262 and #263 open/unmerged until review selects the consolidation PR as their successor.
 
 ## Completion conditions
 
-- PR #255 exact-head CI and maintainer review are green before merge.
-- Administrator bypass is disabled for `staging`, and `main` is protected as the workflow trust anchor.
-- The selected feature SHA has successful exact-head CI and verified provenance plus PR-binding attestations before deployment.
-- The existing Environment review, backup, migration, health, and rollback gates all succeed.
-- PR #253 stays open and unmerged; production and real invoice issuance remain untouched.
+- Fresh exact-head CI is green for the stabilized #263 branch.
+- The consolidation branch has no unresolved conflicts and proves numbering, snapshots,
+  authorization, audit history, document immutability, draft/final separation and optional-address
+  behavior.
+- Accounting decisions on invoice-date presentation and optional buyer addresses are recorded before
+  merge, deployment, official regeneration or live-data correction.
+- No Administration redesign, deployment, VPS change, live-data mutation or invoice regeneration is
+  included.
