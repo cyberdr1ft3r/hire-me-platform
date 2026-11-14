@@ -25,6 +25,10 @@ Status owner: repository maintainer
   PKCS#11 native binding, loopback denial and two fixed-timeout reminder subprocesses; exact-head Linux
   CI remains authoritative. No Administration redesign, merge, deploy, VPS/configuration change,
   live-data change, invoice regeneration or official issuance is included.
+- Successor draft PR #265 targets `main`. All six jobs passed on consolidation merge commit `2558ce3`
+  in run `43646481648`: PostgreSQL health, quality/container invoice verification, required SoftHSM,
+  two-pass database lifecycle and both container images. The final documentation-only evidence commit
+  still requires its own exact-head run.
 
 ## Issue #254 — protected pre-merge staging releases
 

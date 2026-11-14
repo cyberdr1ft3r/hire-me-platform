@@ -33,7 +33,9 @@ that policy and the legal/accounting acceptability of address-free standalone in
 The October 29 staging recovery is documented and its stated application behaviors are represented,
 but exact byte-for-byte parity with the unavailable VPS-only commit remains unverified. The original
 PRs stay open and unmerged; no deployment, official regeneration, live-data change or Administration
-redesign is authorized.
+redesign is authorized. Successor draft PR #265 opened at merge commit `2558ce3`; all six exact-head
+jobs passed in run `43646481648`. A documentation-only evidence commit follows and must also pass all
+six jobs before final handoff.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,

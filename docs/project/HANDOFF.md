@@ -18,6 +18,8 @@ Last updated: 2026-11-14
   49/49, catalog 5/5, clean 28-migration provisioning, build/assets and a networkless read-only final
   container render. Four synthetic one-page A4 samples cover draft/issued, full/minimal buyer data and
   common/differing/absent service dates. Exact-head Linux CI is still required.
+- Draft PR #265 opened against `main`. Exact consolidation merge commit `2558ce3` passed all six jobs
+  in run `43646481648`; rerun all six on the final documentation-only evidence commit before review.
 
 ## Unresolved decisions
 
