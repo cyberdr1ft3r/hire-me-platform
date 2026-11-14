@@ -563,8 +563,11 @@ describe('template registry', () => {
     );
     expect(noAddress.presentation).toMatchObject({
       reference: 'FAC-2026-0010',
-      status: null,
-      details: [{ label: "Date d'émission", value: '23/10/2026' }],
+      status: 'Émise',
+      details: [
+        { label: "Date d'émission", value: '23/10/2026' },
+        { label: 'Échéance', value: '23/11/2026' },
+      ],
     });
     expect(noAddress.pdfInvoice?.clientLines).toEqual([
       'Synthetic Client SA',
@@ -588,8 +591,8 @@ describe('template registry', () => {
     expect(rendered).toContain('CLIENT FACTURÉ');
     expect(rendered).toContain('Synthetic Client SA');
     expect(rendered).toContain('SYNTHETIC-RC');
-    expect(rendered).not.toContain('ÉCHÉANCE');
-    expect(rendered).not.toContain('ÉMISE');
+    expect(rendered).toContain('Échéance: 23/11/2026');
+    expect(rendered).toContain('ÉMISE');
     expect(rendered).toContain('ÉMETTEUR');
     expect(rendered).not.toContain('Adresse:');
     expect(rendered).toContain('synthetic@example.invalid');
@@ -652,6 +655,7 @@ describe('template registry', () => {
         value: '23/10/2026',
       },
       { label: 'Date de prestation', value: '15/09/2026' },
+      { label: 'Échéance', value: '23/11/2026' },
     ]);
     expect(JSON.stringify(historical.blocks)).toContain('Date de prestation : 15/09/2026');
 
@@ -668,6 +672,7 @@ describe('template registry', () => {
     expect(correctedDate.presentation?.details).toEqual([
       { label: "Date d'émission", value: '15/09/2026' },
       { label: 'Date de prestation', value: '15/09/2026' },
+      { label: 'Échéance', value: '23/11/2026' },
     ]);
     expect(correctedDate.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV');
 
@@ -687,11 +692,13 @@ describe('template registry', () => {
     ]);
     expect(mixedServiceDates.presentation?.details).toEqual([
       { label: "Date d'émission", value: '23/10/2026' },
+      { label: 'Échéance', value: '23/11/2026' },
     ]);
 
     const withoutServiceDates = template.build(base, 'fr');
     expect(withoutServiceDates.presentation?.details).toEqual([
       { label: "Date d'émission", value: '23/10/2026' },
+      { label: 'Échéance', value: '23/11/2026' },
     ]);
 
     const invalidCommonServiceDate = template.build(
@@ -703,6 +710,7 @@ describe('template registry', () => {
     );
     expect(invalidCommonServiceDate.presentation?.details).toEqual([
       { label: "Date d'émission", value: '23/10/2026' },
+      { label: 'Échéance', value: '23/11/2026' },
     ]);
     expect(invalidCommonServiceDate.pdfInvoice?.rows[0]?.[0]).toContain(
       'Date de prestation : 31/02/2026',

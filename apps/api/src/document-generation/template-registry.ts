@@ -768,11 +768,7 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
           ? `${draftLabel} — ${label.invoice.toUpperCase()}`
           : label.invoice.toUpperCase(),
         reference: draftPreview ? nonIssuedLabel : sanitizeText(view.reference),
-        status: draftPreview
-          ? draftLabel
-          : view.status === 'ISSUED'
-            ? null
-            : commercialStatus(view.status, language),
+        status: draftPreview ? draftLabel : commercialStatus(view.status, language),
         details: [
           ...(draftPreview
             ? [
@@ -795,6 +791,14 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
                 {
                   label: language === 'fr' ? 'Date de prestation' : 'Service date',
                   value: serviceDate,
+                },
+              ]
+            : []),
+          ...(!draftPreview && view.dueDate
+            ? [
+                {
+                  label: language === 'fr' ? 'Échéance' : label.dueDate,
+                  value: invoiceDate(view.dueDate, language),
                 },
               ]
             : []),
