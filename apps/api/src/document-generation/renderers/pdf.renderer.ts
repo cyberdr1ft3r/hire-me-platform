@@ -415,7 +415,7 @@ export async function renderPdf(document: RenderableDocument): Promise<Buffer> {
     drawIdentityPanel(margin + identityWidth + identityGap, invoice.clientHeading, clientEntries);
     cursor.y += identityHeight + 18;
 
-    const widths = [220, 42, 91, 52, contentWidth - 405];
+    const widths = invoice.columns.map(() => contentWidth / invoice.columns.length);
     const starts = widths.map(
       (_, index) => margin + widths.slice(0, index).reduce((sum, width) => sum + width, 0),
     );

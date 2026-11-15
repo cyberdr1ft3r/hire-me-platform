@@ -8,15 +8,16 @@ pnpm --filter @hire-me/api exec tsx scripts/generate-invoice-consolidation-sampl
 
 | Sample | Coverage | SHA-256 |
 | --- | --- | --- |
-| `issued-full-common-service-date.pdf` | Issued invoice; address, ICE and IF present; authoritative issue date plus one common service date | `B632EA84EE1BAE964CF5E4686DFD5EBE2E7F99DFDE2B205957F3F8E5CA56AE78` |
-| `issued-minimal-differing-service-dates.pdf` | Issued invoice; optional buyer fields absent; differing service dates retained on their lines | `43EBA767ABCE3E4B4A9D2505765EF0692D47936D2FC7DD76F586CA6BD9371821` |
-| `draft-full-common-service-date.pdf` | Draft preview; optional buyer fields present; non-issued markings; common service date | `8855E74FBBC767C049D0F60A26FD8E0C2D95CA2C64FC0CAB92B2779CC471537C` |
-| `draft-minimal-no-service-date.pdf` | Draft preview; optional buyer fields absent; non-issued markings; no service date | `227AA7A1A782FE37097D2F13D54DADB3CA1BBA294E85572870717722EBC4382A` |
+| `issued-full-common-service-date.pdf` | Issued invoice; address, ICE and IF present; authoritative issue date plus one common service date | `54A8DB7D855A323ED867D0CF73836827C1A5295E64E47B1A39DD8229F865F481` |
+| `issued-minimal-differing-service-dates.pdf` | Issued invoice; optional buyer fields absent; differing service dates retained on their lines | `4F964708911258C26236DCB847783EAA01D613EADE1A7E861675DB6EDE0D52B8` |
+| `draft-full-common-service-date.pdf` | Draft preview; optional buyer fields present; non-issued markings; common service date | `CF399495F79FE72784D1993EAF6734AB39312B730BCB13DE234513ECE97A1923` |
+| `draft-minimal-no-service-date.pdf` | Draft preview; optional buyer fields absent; non-issued markings; no service date | `AAC3F78B233313E3D03C2A09A6DF1ACBFF3E567B191C4CB0870D6163B50545B4` |
 
 All four artifacts are one-page A4 PDFs. Poppler rendering at 120 DPI was inspected for clipping,
 overlap, broken glyphs and table alignment. The visual correction restores the previously accepted
 v4 geometry and palette while retaining template-v8 data behavior: 56 pt margins, the teal wordmark
-and top rule, issued-status badge, stored due date, paired seller/client cards with pale-blue headings, the five-column teal table, gray
+and top rule, issued-status badge, stored due date, paired seller/client cards with pale-blue headings,
+the equal-width five-column teal table, gray
 subtotal/TVA rows, dark-teal TTC row, amount-in-words band, paired payment/reference cards and a
 bottom-aligned legal footer. Drafts use the same visual system with conspicuous non-issued markings.
 
