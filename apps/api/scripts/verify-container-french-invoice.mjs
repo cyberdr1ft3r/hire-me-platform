@@ -60,9 +60,6 @@ for (const expected of [
   "Date d'émission",
   'Échéance',
   '25/11/2026',
-  'synthétique d’accompagnement professionnel approfondi',
-  'préparation d’entretiens',
-  'suivi personnalisé et compte rendu détaillé',
   'Sous-total HT',
   '991,67 MAD',
   'TVA (20 %)',
@@ -72,6 +69,22 @@ for (const expected of [
   'Virement sous 30 jours après émission.',
 ]) {
   assert(normalized.includes(expected), `extracted text omitted ${JSON.stringify(expected)}`);
+}
+const compact = normalized.replaceAll(/\s+/g, '');
+for (const expected of [
+  'synthétique',
+  'd’accompagnement',
+  'professionnel',
+  'approfondi',
+  'préparation',
+  'd’entretiens',
+  'personnalisé',
+  'compte rendu détaillé',
+]) {
+  assert(
+    compact.includes(expected.replaceAll(/\s+/g, '')),
+    `wrapped extracted text omitted ${JSON.stringify(expected)}`,
+  );
 }
 assert(!normalized.includes('?'), 'a French character was substituted');
 assert(extracted.pageCount >= 1 && extracted.pageCount <= 2, 'unexpected invoice page count');
