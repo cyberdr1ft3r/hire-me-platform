@@ -233,6 +233,17 @@ function invoiceDate(value: Date | null | undefined, language: GenerationLanguag
   return `${day}/${month}/${year}`;
 }
 
+function isValidFrenchDisplayDate(value: string): boolean {
+  const [dayText, monthText, yearText] = value.split('/');
+  const day = Number(dayText);
+  const month = Number(monthText);
+  const year = Number(yearText);
+  if (!dayText || !monthText || !yearText || month < 1 || month > 12 || year < 1) {
+    return false;
+  }
+  return day >= 1 && day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 function invoiceMoney(cents: number, currency: string, language: GenerationLanguage): string {
   const negative = cents < 0;
   const absolute = Math.abs(cents);
@@ -454,11 +465,14 @@ const contractTemplate: GenerationTemplate<ContractView> = {
 
 const invoiceTemplate: GenerationTemplate<InvoiceView> = {
   templateId: 'commercial.invoice',
-  version: 5,
+  version: 8,
   sourceType: 'INVOICE',
   languages: ['fr', 'en'],
   build(view, language) {
     const label = labels[language];
+    const draftPreview = view.documentState === 'DRAFT_PREVIEW';
+    const draftLabel = language === 'fr' ? 'BROUILLON' : 'DRAFT';
+    const nonIssuedLabel = language === 'fr' ? 'DOCUMENT NON ÉMIS' : 'NON-ISSUED DOCUMENT';
     const sellerRows = [
       { label: label.seller, value: sanitizeText(view.seller.legalName) },
       ...(view.seller.legalForm
@@ -495,7 +509,9 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
     ];
     const buyerRows = [
       { label: label.billedClient, value: sanitizeText(view.buyer.legalName) },
-      { label: label.address, value: sanitizeText(view.buyer.address) },
+      ...(view.buyer.address
+        ? [{ label: label.address, value: sanitizeText(view.buyer.address) }]
+        : []),
       ...(view.buyer.ice ? [{ label: label.ice, value: sanitizeText(view.buyer.ice) }] : []),
       ...(view.buyer.taxId ? [{ label: label.taxId, value: sanitizeText(view.buyer.taxId) }] : []),
       ...(view.buyer.billingContact
@@ -531,9 +547,50 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         ? [{ label: label.customerReference, value: sanitizeText(view.customerReference) }]
         : []),
     ];
+    const pdfFooter = [
+      view.seller.legalName,
+      view.seller.legalForm,
+      view.seller.registrationNumber ? `RC : ${view.seller.registrationNumber}` : null,
+      view.seller.taxId ? `IF : ${view.seller.taxId}` : null,
+      view.seller.patente ? `PT : ${view.seller.patente}` : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map(sanitizeText)
+      .join(' · ');
+    const paymentLines = [
+      ...(view.paymentMethod
+        ? [`${language === 'fr' ? 'Mode de règlement' : 'Payment method'} : ${view.paymentMethod}`]
+        : []),
+      ...(view.paymentTerms &&
+      !(
+        view.paymentMethod &&
+        view.paymentTerms.toLowerCase().includes(view.paymentMethod.toLowerCase())
+      )
+        ? [
+            `${language === 'fr' ? 'Conditions de règlement' : 'Payment terms'} : ${view.paymentTerms}`,
+          ]
+        : []),
+      ...(view.bankDetails
+        ? [`${language === 'fr' ? 'Coordonnées bancaires' : 'Bank details'} : ${view.bankDetails}`]
+        : []),
+    ].map(sanitizeText);
+    // Historical imports encode the service date in each designation. Promote it to a
+    // separate presentation field only when every line agrees; issueDate remains authoritative.
+    const serviceDatePattern = /\s+—\s+Date de prestation\s*:\s*(\d{2}\/\d{2}\/\d{4})(?=\s+—|$)/;
+    const serviceDates = view.lines.map((line) => line.description.match(serviceDatePattern)?.[1]);
+    const serviceDate =
+      serviceDates.length > 0 &&
+      serviceDates.every(
+        (value): value is string => typeof value === 'string' && isValidFrenchDisplayDate(value),
+      ) &&
+      new Set(serviceDates).size === 1
+        ? serviceDates[0]!
+        : null;
     return {
-      title: `${label.invoice} ${sanitizeText(view.reference)}`,
-      subtitle: commercialStatus(view.status, language),
+      title: draftPreview
+        ? `${draftLabel} — ${label.invoice.toUpperCase()}`
+        : `${label.invoice} ${sanitizeText(view.reference)}`,
+      subtitle: draftPreview ? nonIssuedLabel : commercialStatus(view.status, language),
       blocks: [
         {
           kind: 'panelGrid',
@@ -618,20 +675,112 @@ const invoiceTemplate: GenerationTemplate<InvoiceView> = {
         },
       ],
       footer: invoiceFooter(view, language, label.footer),
+      pdfInvoice: {
+        clientHeading: label.billedClient,
+        amountHeading:
+          language === 'fr'
+            ? 'ARRÊTÉE LA PRÉSENTE FACTURE À LA SOMME DE'
+            : 'INVOICE TOTAL IN WORDS',
+        paymentHeading: language === 'fr' ? 'RÈGLEMENT ET RÉFÉRENCE' : 'PAYMENT AND REFERENCES',
+        sellerLines: [
+          view.seller.address,
+          view.seller.capital
+            ? `${language === 'fr' ? 'Capital social' : 'Share capital'} : ${view.seller.capital}`
+            : null,
+          view.seller.ice ? `ICE : ${view.seller.ice}` : null,
+        ]
+          .filter((value): value is string => Boolean(value))
+          .map(sanitizeText),
+        sellerEmail: view.seller.email ? sanitizeText(view.seller.email) : null,
+        sellerWebsite: view.seller.website
+          ? {
+              label: sanitizeText(view.seller.website.replace(/^https?:\/\//i, '')),
+              url: sanitizeText(view.seller.website),
+            }
+          : null,
+        clientLines: [
+          view.buyer.legalName,
+          view.buyer.address,
+          view.buyer.ice ? `ICE : ${view.buyer.ice}` : null,
+          view.buyer.taxId ? `IF : ${view.buyer.taxId}` : null,
+          view.buyer.billingContact,
+        ]
+          .filter((value): value is string => Boolean(value))
+          .map(sanitizeText),
+        columns: [
+          language === 'fr' ? 'Désignation' : label.description,
+          language === 'fr' ? 'Qté' : label.quantity,
+          language === 'fr' ? 'Prix unit. HT' : 'Unit price excl. tax',
+          language === 'fr' ? 'TVA' : 'Tax',
+          language === 'fr' ? 'Total HT' : 'Total excl. tax',
+        ],
+        rows: view.lines.map((line) => [
+          sanitizeText(
+            serviceDate ? line.description.replace(serviceDatePattern, '') : line.description,
+          ),
+          String(line.quantity),
+          invoiceMoney(line.unitPriceCents, view.currency, language),
+          `${(line.taxRateBps / 100).toFixed(2).replace('.00', '')}${language === 'fr' ? ' %' : '%'}`,
+          invoiceMoney(line.lineSubtotalCents, view.currency, language),
+        ]),
+        totals: [
+          {
+            label: label.invoiceSubtotal,
+            value: invoiceMoney(view.subtotalCents, view.currency, language),
+          },
+          {
+            label: invoiceTaxLabel(view, language),
+            value: invoiceMoney(view.taxCents, view.currency, language),
+          },
+          {
+            label: label.invoiceTotal,
+            value: invoiceMoney(view.totalCents, view.currency, language),
+          },
+        ],
+        amountInWords:
+          language === 'fr' && view.totalAmountInWordsFr
+            ? sanitizeText(view.totalAmountInWordsFr)
+            : null,
+        paymentLines: [
+          ...paymentLines,
+          ...referenceRows.map((row) => `${row.label} : ${row.value}`),
+        ].map(sanitizeText),
+        taxHeading: view.taxTreatment ? label.taxTreatment : null,
+        taxTreatment: view.taxTreatment ? sanitizeText(view.taxTreatment) : null,
+        footer: pdfFooter,
+      },
       presentation: {
         kind: 'hireme-commercial',
-        documentLabel: label.invoice.toUpperCase(),
-        reference: sanitizeText(view.reference),
-        status: commercialStatus(view.status, language),
+        documentLabel: draftPreview
+          ? `${draftLabel} — ${label.invoice.toUpperCase()}`
+          : label.invoice.toUpperCase(),
+        reference: draftPreview ? nonIssuedLabel : sanitizeText(view.reference),
+        status: null,
         details: [
-          {
-            label: language === 'fr' ? 'Facturée le' : label.issueDate,
-            value: invoiceDate(view.issueDate, language),
-          },
-          {
-            label: language === 'fr' ? 'Échéance' : label.dueDate,
-            value: invoiceDate(view.dueDate, language),
-          },
+          ...(draftPreview
+            ? [
+                {
+                  label: language === 'fr' ? 'Référence brouillon' : 'Draft reference',
+                  value: sanitizeText(view.reference),
+                },
+              ]
+            : []),
+          ...(view.issueDate
+            ? [
+                {
+                  label: language === 'fr' ? 'Facturée le' : label.issueDate,
+                  value: invoiceDate(view.issueDate, language),
+                },
+              ]
+            : []),
+          ...(serviceDate
+            ? [
+                {
+                  label: language === 'fr' ? 'Date de prestation' : 'Service date',
+                  value: serviceDate,
+                },
+              ]
+            : []),
         ],
       },
     };

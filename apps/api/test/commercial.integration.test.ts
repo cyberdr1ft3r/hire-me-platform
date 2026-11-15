@@ -521,13 +521,15 @@ describe('commercial workflow foundation', () => {
         'Issue38 Issue244 Synthetic Accompaniment',
         commercialUserId,
       );
-      const createDraft = async (reference: string) => {
+      const createDraft = async (reference: string, manual = false) => {
         const response = await fetch(`${baseUrl}/v1/commercial/invoices`, {
           method: 'POST',
           headers: authHeaders(commercialToken),
           body: JSON.stringify({
             reference,
-            clientId: client.id,
+            ...(manual
+              ? { manualClient: { name: 'Synthetic Individual' } }
+              : { clientId: client.id }),
             currency: 'MAD',
             lines: [
               {
@@ -554,14 +556,36 @@ describe('commercial workflow foundation', () => {
           buyerTaxId: undefined,
         },
       };
-      const issue = (id: string) =>
+      const issue = (id: string, manual = false) =>
         fetch(`${baseUrl}/v1/commercial/invoices/${id}/issue`, {
           method: 'POST',
           headers: authHeaders(commercialToken),
-          body: JSON.stringify(issueBody),
+          body: JSON.stringify(
+            manual
+              ? {
+                  ...issueBody,
+                  businessDetails: { ...issueBody.businessDetails, buyerAddress: undefined },
+                }
+              : issueBody,
+          ),
         });
 
       const baselineRequiredDraft = await createDraft('I38-ISSUE244-NO-BASELINE');
+      const registeredWithoutAddress = await fetch(
+        `${baseUrl}/v1/commercial/invoices/${baselineRequiredDraft.id}/issue`,
+        {
+          method: 'POST',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify({
+            ...issueBody,
+            businessDetails: { ...issueBody.businessDetails, buyerAddress: '   ' },
+          }),
+        },
+      );
+      expect(registeredWithoutAddress.status).toBe(409);
+      expect(await readErrorCode(registeredWithoutAddress)).toBe(
+        'REGISTERED_CLIENT_ADDRESS_REQUIRED',
+      );
       const missingBaseline = await issue(baselineRequiredDraft.id);
       expect(missingBaseline.status).toBe(409);
       expect(await readErrorCode(missingBaseline)).toBe('INVOICE_NUMBER_BASELINE_REQUIRED');
@@ -577,7 +601,7 @@ describe('commercial workflow foundation', () => {
         },
       });
       const [firstDraft, secondDraft] = await Promise.all([
-        createDraft('I38-ISSUE244-A'),
+        createDraft('I38-ISSUE244-A', true),
         createDraft('I38-ISSUE244-B'),
       ]);
       expect(firstDraft.amounts).toEqual({
@@ -586,7 +610,10 @@ describe('commercial workflow foundation', () => {
         taxCents: 19_833,
         totalCents: 119_000,
       });
-      const issuedResponses = await Promise.all([issue(firstDraft.id), issue(secondDraft.id)]);
+      const issuedResponses = await Promise.all([
+        issue(firstDraft.id, true),
+        issue(secondDraft.id),
+      ]);
       expect(issuedResponses.map((response) => response.status)).toEqual([200, 200]);
       const issued = await Promise.all(
         issuedResponses.map(
@@ -599,10 +626,12 @@ describe('commercial workflow foundation', () => {
       ]);
       expect(issued[0]!.businessDetails).toMatchObject({
         buyerType: 'INDIVIDUAL',
+        buyerAddress: null,
         buyerIce: null,
         buyerTaxId: null,
         totalAmountInWordsFr: 'mille cent quatre-vingt-dix dirhams et zéro centime',
       });
+      expect(issued[0]!.clientId).toBeNull();
 
       const occupiedDraft = await createDraft('I38-ISSUE244-OCCUPIED');
       const occupiedResponse = await issue(occupiedDraft.id);
@@ -649,6 +678,175 @@ describe('commercial workflow foundation', () => {
             createdAt: undefined,
             updatedAt: undefined,
           },
+        });
+      } else {
+        await prisma.companyBillingSettings.delete({ where: { id: 'primary' } });
+      }
+    }
+  });
+
+  it('creates, issues, and reloads a manual-client invoice without creating a CRM client', async () => {
+    const reference = 'I38-MANUAL-CLIENT';
+    const previousSettings = await prisma.companyBillingSettings.findUnique({
+      where: { id: 'primary' },
+    });
+    const clientsBefore = await prisma.client.count();
+    let invoiceId: string | null = null;
+    await prisma.companyBillingSettings.upsert({
+      where: { id: 'primary' },
+      create: { id: 'primary', invoiceNumberingEnabled: false },
+      update: { invoiceNumberingEnabled: false },
+    });
+    try {
+      const createdResponse = await fetch(`${baseUrl}/v1/commercial/invoices`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          reference,
+          manualClient: {
+            name: 'Synthetic Historical Client',
+            ice: 'SYNTHETIC-MANUAL-ICE',
+            taxId: 'SYNTHETIC-MANUAL-IF',
+          },
+          currency: 'MAD',
+          issueDate: '2026-01-15T00:00:00.000Z',
+          dueDate: '2026-02-15T00:00:00.000Z',
+          lines: [
+            {
+              description: 'Synthetic historical service',
+              quantity: 1,
+              unitPriceCents: 10_000,
+              taxRateBps: 2_000,
+            },
+          ],
+        }),
+      });
+      expect(createdResponse.status).toBe(201);
+      const created = InvoiceDetailResponseSchema.parse(await createdResponse.json()).invoice;
+      invoiceId = created.id;
+      expect(created).toMatchObject({
+        clientId: null,
+        display: { clientName: 'Synthetic Historical Client' },
+        billingClient: {
+          mode: 'MANUAL',
+          name: 'Synthetic Historical Client',
+          address: null,
+          ice: 'SYNTHETIC-MANUAL-ICE',
+          taxId: 'SYNTHETIC-MANUAL-IF',
+        },
+      });
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+
+      const draftReloadResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        headers: authHeaders(commercialToken),
+      });
+      expect(draftReloadResponse.status).toBe(200);
+      const draftReloaded = InvoiceDetailResponseSchema.parse(
+        await draftReloadResponse.json(),
+      ).invoice;
+      expect(draftReloaded.status).toBe('DRAFT');
+      expect(draftReloaded.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client',
+        address: null,
+      });
+
+      const addressedUpdateResponse = await fetch(
+        `${baseUrl}/v1/commercial/invoices/${created.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(commercialToken),
+          body: JSON.stringify({
+            manualClient: {
+              name: 'Synthetic Historical Client Updated',
+              address: 'Temporary Draft Address, Rabat',
+              ice: 'SYNTHETIC-MANUAL-ICE',
+              taxId: 'SYNTHETIC-MANUAL-IF',
+            },
+          }),
+        },
+      );
+      expect(addressedUpdateResponse.status).toBe(200);
+      const addressed = InvoiceDetailResponseSchema.parse(
+        await addressedUpdateResponse.json(),
+      ).invoice;
+      expect(addressed.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client Updated',
+        address: 'Temporary Draft Address, Rabat',
+      });
+
+      const clearedUpdateResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          manualClient: {
+            name: 'Synthetic Historical Client Updated',
+            address: '   ',
+            ice: 'SYNTHETIC-MANUAL-ICE',
+            taxId: 'SYNTHETIC-MANUAL-IF',
+          },
+        }),
+      });
+      expect(clearedUpdateResponse.status).toBe(200);
+      const cleared = InvoiceDetailResponseSchema.parse(await clearedUpdateResponse.json()).invoice;
+      expect(cleared.billingClient).toMatchObject({
+        mode: 'MANUAL',
+        name: 'Synthetic Historical Client Updated',
+        address: null,
+      });
+      expect(cleared.history.filter((event) => event.action === 'UPDATED')).toHaveLength(2);
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+
+      const issuedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}/issue`, {
+        method: 'POST',
+        headers: authHeaders(commercialToken),
+        body: JSON.stringify({
+          ...invoiceIssueDetails,
+          issueDate: '2026-01-15T00:00:00.000Z',
+          dueDate: '2026-02-15T00:00:00.000Z',
+          businessDetails: {
+            ...invoiceIssueDetails.businessDetails,
+            buyerLegalName: 'Synthetic Historical Client Updated',
+            buyerAddress: '   ',
+            buyerType: 'INDIVIDUAL',
+            buyerIce: undefined,
+            buyerTaxId: undefined,
+          },
+        }),
+      });
+      expect(issuedResponse.status).toBe(200);
+      const issued = InvoiceDetailResponseSchema.parse(await issuedResponse.json()).invoice;
+      expect(issued.businessDetails).toMatchObject({
+        buyerLegalName: 'Synthetic Historical Client Updated',
+        buyerAddress: null,
+        buyerType: 'INDIVIDUAL',
+      });
+
+      const reloadedResponse = await fetch(`${baseUrl}/v1/commercial/invoices/${created.id}`, {
+        headers: authHeaders(commercialToken),
+      });
+      expect(reloadedResponse.status).toBe(200);
+      const reloaded = InvoiceDetailResponseSchema.parse(await reloadedResponse.json()).invoice;
+      expect(reloaded.clientId).toBeNull();
+      expect(reloaded.businessDetails?.buyerAddress).toBeNull();
+      expect(reloaded.businessDetails?.buyerIce).toBeNull();
+      expect(reloaded.businessDetails?.buyerTaxId).toBeNull();
+      expect(reloaded.status).toBe('ISSUED');
+      expect(reloaded.issuedAt).not.toBeNull();
+      expect(reloaded.history.some((event) => event.action === 'ISSUED')).toBe(true);
+      expect(reloaded.reference).toBe(issued.reference);
+      await expect(prisma.client.count()).resolves.toBe(clientsBefore);
+    } finally {
+      if (invoiceId) {
+        await prisma.invoiceEvent.deleteMany({ where: { invoiceId } });
+        await prisma.invoiceLine.deleteMany({ where: { invoiceId } });
+        await prisma.invoice.delete({ where: { id: invoiceId } });
+      }
+      if (previousSettings) {
+        await prisma.companyBillingSettings.update({
+          where: { id: 'primary' },
+          data: { ...previousSettings, createdAt: undefined, updatedAt: undefined },
         });
       } else {
         await prisma.companyBillingSettings.delete({ where: { id: 'primary' } });

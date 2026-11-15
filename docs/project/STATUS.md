@@ -1,7 +1,41 @@
 # Project Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-15
 Status owner: repository maintainer
+
+## Invoice consolidation
+
+- PR #265 restores the business-owner-approved final invoice identity without changing template-v8
+  issuance behavior. The supplied final invoice was accessed and visually inspected locally but was
+  not copied into Git. The approved synthetic issued preview has an unboxed seller header, one
+  full-width client block, weighted five-column table, pale subtotal/TVA rows, teal TTC, full-width
+  amount wording, one combined payment/reference panel and a bottom legal footer. It has no issued
+  badge, displayed due date or duplicate seller block. Drafts add non-issued headings without an
+  overlapping badge; a 24-line regression proves pagination.
+- Branch `feat/invoice-consolidation` starts from PR #262 head
+  `4622314a27945d47e705a3963e4de81128cb77b1` and semantically integrates stabilized PR #263 head
+  `7a951806610cadad1723cd8489ae3f8f1beef1c7`. The original draft PRs remain open and unmerged.
+- The combined invoice template is version 8. It retains registered and standalone client workflows,
+  optional manual-client address/ICE/IF, separately identified draft previews, final numbering,
+  immutable issuance snapshots, authorization, audit history, signing restrictions and standalone
+  accounting isolation while adopting the revised PDF renderer and its stabilized Documents test.
+- The approved visual labels the authoritative stored issue date as `Facturée le`.
+  A common reliable line-level date is shown separately as `Date de prestation`; differing line dates
+  remain in their line descriptions and an absent service date produces no service-date field. This is
+  a review proposal, not accounting approval, and no historical invoice row or document was changed.
+- The October 29 VPS record is represented by its documented application behaviors and repository
+  changes, but the unavailable VPS-only commit still prevents any claim of exact source parity.
+- Current local validation includes template/renderer 25/25, repository format/lint/typecheck/build,
+  the locked-down final API-image render (one-page A4, embedded Noto fonts, safe links and no active
+  PDF constructs), Documents 25/25 and visual inspection of all four regenerated synthetic PDFs.
+  Earlier consolidation evidence retains document-generation PostgreSQL 49/49, authorization catalog
+  5/5 and clean application of all 28 migrations. The Windows full suite retains known host-only CRLF
+  and unavailable native-PKCS#11 constraints; exact-head Linux CI remains authoritative. No
+  Administration redesign, merge, deploy, VPS/configuration change, live-data change, invoice
+  regeneration or official issuance is included.
+- Successor draft PR #265 targets `main`. All six jobs passed on consolidation merge commit `2558ce3`
+  in run `43646481648`; the approved visual correction still requires fresh exact-head CI before
+  technical readiness can be reassessed.
 
 ## Issue #254 — protected pre-merge staging releases
 
@@ -12,6 +46,13 @@ Status owner: repository maintainer
 - Final review pinned every privileged Action by commit, moved Dockerfile authority to trusted `main`, bound attestation verification to the exact trusted workflow commit, and validates SSH user/port values before shell use. Exact-head CI is still required after these changes.
 - The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
 - No new mechanism has been used and PR #253 is not deployed by this implementation task.
+
+## Issue #252 — standalone manual-client invoices
+
+- Branch `feat/client-libre-invoices` adds a bilingual Registered client / Manual client choice to invoice creation. A manual invoice requires a name, accepts optional address, ICE, and IF, stores those values in the invoice buyer snapshot, and never creates a CRM `Client`.
+- Standalone manual invoices cannot link missions, placements, quotations, contracts, purchase orders, or correction sources. Registered-client behavior, invoice dates, lifecycle, numbering, immutable issuance snapshots, and issuance validation remain unchanged.
+- The database permits a nullable invoice `clientId` only when a non-blank buyer legal name is stored. Authorization remains fail-closed under the existing invoice, commercial-data, and client-view capabilities. Client balances, payment allocation, and profitability remain registered-client accounting paths; standalone invoices are excluded rather than attributed to a synthetic client.
+- Focused PostgreSQL regressions prove create, issue, reload, history persistence, no CRM-client creation, and real PDF rendering from the stored manual buyer snapshot. Contracts, Prisma validation, typecheck, lint, architecture/style checks, and focused web behavior are green locally. Review and exact-head CI remain required; the branch is unmerged and undeployed.
 
 ## Main CI frontend stabilization
 

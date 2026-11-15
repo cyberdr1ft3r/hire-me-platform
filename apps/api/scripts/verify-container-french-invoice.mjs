@@ -31,9 +31,16 @@ assert(bytes.subarray(0, 4).toString() === '%PDF', 'artifact is not a PDF');
 assert(bytes.length > 10_000 && bytes.length < 4_000_000, 'artifact size is outside bounds');
 
 const raw = bytes.toString('latin1');
-for (const construct of ['/JavaScript', '/JS', '/OpenAction', '/Launch', '/EmbeddedFile', '/URI']) {
+for (const construct of ['/JavaScript', '/JS', '/OpenAction', '/Launch', '/EmbeddedFile']) {
   assert(!raw.includes(construct), `active or remote PDF construct ${construct} was emitted`);
 }
+const links = [...raw.matchAll(/\/URI\s*\(([^)]*)\)/g)].map((match) => match[1]);
+assert(
+  links.length === 2 &&
+    links.includes('mailto:facturation@example.invalid') &&
+    links.includes('https://example.invalid/'),
+  `unexpected PDF link targets: ${links.join(', ')}`,
+);
 
 const fonts = embeddedFontNames(bytes);
 assert(
@@ -49,10 +56,7 @@ const extracted = await extractPdf(bytes);
 const normalized = extracted.text.replaceAll(/\s+/g, ' ').trim();
 for (const expected of [
   'FACTURE',
-  'ÉMISE',
-  'synthétique d’accompagnement professionnel approfondi',
-  'préparation d’entretiens',
-  'suivi personnalisé et compte rendu détaillé',
+  'Facturée le',
   'Sous-total HT',
   '991,67 MAD',
   'TVA (20 %)',
@@ -62,6 +66,24 @@ for (const expected of [
   'Virement sous 30 jours après émission.',
 ]) {
   assert(normalized.includes(expected), `extracted text omitted ${JSON.stringify(expected)}`);
+}
+assert(!normalized.includes('ÉMISE'), 'the issued-status badge is still visible');
+assert(!normalized.includes('Échéance'), 'the due date is still visible');
+const compact = normalized.replaceAll(/\s+/g, '');
+for (const expected of [
+  'synthétique',
+  'd’accompagnement',
+  'professionnel',
+  'approfondi',
+  'préparation',
+  'd’entretiens',
+  'personnalisé',
+  'compte rendu détaillé',
+]) {
+  assert(
+    compact.includes(expected.replaceAll(/\s+/g, '')),
+    `wrapped extracted text omitted ${JSON.stringify(expected)}`,
+  );
 }
 assert(!normalized.includes('?'), 'a French character was substituted');
 assert(extracted.pageCount >= 1 && extracted.pageCount <= 2, 'unexpected invoice page count');

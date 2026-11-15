@@ -161,6 +161,40 @@
   white-space: normal;
 }
 
+/* Compact registered/manual client choice used only by invoice creation. */
+.commercial-segmented {
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: inline-grid;
+  gap: var(--space-1);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 30rem;
+  padding: var(--space-1);
+}
+
+.commercial-segmented__option {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--hit-target-min);
+  padding: var(--space-2) var(--space-3);
+}
+
+.commercial-segmented__option[aria-checked='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.commercial-segmented__option:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
 /* Option picker */
 
 .commercial-picker {

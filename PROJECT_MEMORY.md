@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -21,6 +21,25 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
+Invoice consolidation is active on `feat/invoice-consolidation`, based exactly on PR #262
+`4622314a27945d47e705a3963e4de81128cb77b1` and semantically integrating stabilized PR #263
+`7a951806610cadad1723cd8489ae3f8f1beef1c7`. Template v8 preserves registered and standalone
+clients, optional manual-buyer address/ICE/IF, draft/non-issued identity, final numbering, immutable
+issued snapshots and document history, authorization, audit, signing restrictions and standalone
+accounting isolation while adopting the revised PDF layout. The proposed presentation always shows
+the stored issue date as `Date d’émission`, promotes only a valid common line date to a separate
+`Date de prestation`, and preserves differing or invalid dates on their lines. Accounting approval of
+that policy and the legal/accounting acceptability of address-free standalone invoices remain open.
+The October 29 staging recovery is documented and its stated application behaviors are represented,
+but exact byte-for-byte parity with the unavailable VPS-only commit remains unverified. The original
+PRs stay open and unmerged; no deployment, official regeneration, live-data change or Administration
+redesign is authorized. Successor draft PR #265 opened at merge commit `2558ce3`; all six exact-head
+jobs passed in run `43646481648`, and the prior final head passed all six in run `43647422008`.
+The visual-correction follow-up restores the accepted v4 hierarchy and palette inside template v8,
+adds invoice-specific multipage coverage, and regenerates four synthetic PDFs plus an anonymized
+side-by-side comparison. The named owner PDF was not exposed as a workspace artifact, so exact pixel
+parity with that specific copy remains pending; no client PDF or personal information is committed.
+
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,
 release-control path refusal, credential-separated builds, immutable SHA images, GitHub OIDC provenance,
@@ -30,6 +49,15 @@ wrapper. It creates no feature-branch Environment wildcard, production path, aut
 invoice-issuance approval. The mechanism is inactive until its separate PR is reviewed and merged.
 Before first use, disable administrator bypass for the `staging` Environment and protect `main` as the
 workflow trust anchor through an explicitly reviewed repository policy change.
+
+Issue #252 standalone manual-client invoices are implemented for review on `feat/client-libre-invoices` from
+`main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` under D-096. An invoice chooses exactly one registered
+client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
+registered-client source, and remains durable in history and generated PDF output. A draft may generate a
+separately keyed PDF-only preview marked `BROUILLON` / non-issued without allocating a final number or changing
+invoice, CRM, accounting, payment, or signing state. Under the PR #262 maintainer clarification, final issuance for a standalone manual client accepts a missing buyer address. Legal/accounting acceptance remains unresolved. Existing issue,
+numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
+and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
 
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.

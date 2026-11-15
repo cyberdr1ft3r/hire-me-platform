@@ -858,7 +858,7 @@ describe('DocumentsPanel unsaved input (Issue #228 B0′)', () => {
     fireEvent.click(within(details).getByRole('button', { name: 'Save details' }));
     expect(await screen.findByText('Details saved.')).toBeVisible();
     expect(screen.getByRole('form', { name: 'Details' })).toBeVisible();
-    expect(leavingAsks()).toBe(false);
+    await waitFor(() => expect(leavingAsks()).toBe(false));
   });
 
   it('keeps asking when saving the details fails', async () => {
