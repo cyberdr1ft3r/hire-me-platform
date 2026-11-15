@@ -56,10 +56,7 @@ const extracted = await extractPdf(bytes);
 const normalized = extracted.text.replaceAll(/\s+/g, ' ').trim();
 for (const expected of [
   'FACTURE',
-  'ÉMISE',
-  "Date d'émission",
-  'Échéance',
-  '25/11/2026',
+  'Facturée le',
   'Sous-total HT',
   '991,67 MAD',
   'TVA (20 %)',
@@ -70,6 +67,8 @@ for (const expected of [
 ]) {
   assert(normalized.includes(expected), `extracted text omitted ${JSON.stringify(expected)}`);
 }
+assert(!normalized.includes('ÉMISE'), 'the issued-status badge is still visible');
+assert(!normalized.includes('Échéance'), 'the due date is still visible');
 const compact = normalized.replaceAll(/\s+/g, '');
 for (const expected of [
   'synthétique',

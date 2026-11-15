@@ -520,7 +520,7 @@ describe('template registry', () => {
     expect(draftPreview.presentation).toMatchObject({
       documentLabel: 'BROUILLON — FACTURE',
       reference: 'DOCUMENT NON ÉMIS',
-      status: 'BROUILLON',
+      status: null,
     });
     expect(draftPreview.presentation?.details).toContainEqual({
       label: 'Référence brouillon',
@@ -563,11 +563,8 @@ describe('template registry', () => {
     );
     expect(noAddress.presentation).toMatchObject({
       reference: 'FAC-2026-0010',
-      status: 'Émise',
-      details: [
-        { label: "Date d'émission", value: '23/10/2026' },
-        { label: 'Échéance', value: '23/11/2026' },
-      ],
+      status: null,
+      details: [{ label: 'Facturée le', value: '23/10/2026' }],
     });
     expect(noAddress.pdfInvoice?.clientLines).toEqual([
       'Synthetic Client SA',
@@ -584,16 +581,16 @@ describe('template registry', () => {
     expect(noAddress.pdfInvoice?.footer).toContain('RC : SYNTHETIC-RC');
     expect(noAddress.pdfInvoice?.footer).not.toContain('SYNTHETIC-ICE');
     expect(noAddress.pdfInvoice?.footer).not.toContain('100 000 MAD');
-    expect(noAddress.pdfInvoice?.referenceLines).toContain('Référence client : BC-TEST-2026-0042');
+    expect(noAddress.pdfInvoice?.paymentLines).toContain('Référence client : BC-TEST-2026-0042');
     const pdfBytes = await renderPdf(noAddress);
     const rendered = await pdfText(pdfBytes);
-    expect(rendered).toContain("Date d'émission: 23/10/2026");
+    expect(rendered).toContain('Facturée le: 23/10/2026');
     expect(rendered).toContain('CLIENT FACTURÉ');
     expect(rendered).toContain('Synthetic Client SA');
     expect(rendered).toContain('SYNTHETIC-RC');
-    expect(rendered).toContain('Échéance: 23/11/2026');
-    expect(rendered).toContain('ÉMISE');
-    expect(rendered).toContain('ÉMETTEUR');
+    expect(rendered).not.toContain('Échéance: 23/11/2026');
+    expect(rendered).not.toContain('ÉMISE');
+    expect(rendered).not.toContain('ÉMETTEUR');
     expect(rendered).not.toContain('Adresse:');
     expect(rendered).toContain('synthetic@example.invalid');
     expect(rendered).toContain('example.invalid');
@@ -651,11 +648,10 @@ describe('template registry', () => {
     expect(historical.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV — Note conservée');
     expect(historical.presentation?.details).toEqual([
       {
-        label: "Date d'émission",
+        label: 'Facturée le',
         value: '23/10/2026',
       },
       { label: 'Date de prestation', value: '15/09/2026' },
-      { label: 'Échéance', value: '23/11/2026' },
     ]);
     expect(JSON.stringify(historical.blocks)).toContain('Date de prestation : 15/09/2026');
 
@@ -670,9 +666,8 @@ describe('template registry', () => {
       'fr',
     );
     expect(correctedDate.presentation?.details).toEqual([
-      { label: "Date d'émission", value: '15/09/2026' },
+      { label: 'Facturée le', value: '15/09/2026' },
       { label: 'Date de prestation', value: '15/09/2026' },
-      { label: 'Échéance', value: '23/11/2026' },
     ]);
     expect(correctedDate.pdfInvoice?.rows[0]?.[0]).toBe('Préparation de CV');
 
@@ -691,14 +686,12 @@ describe('template registry', () => {
       'Service B — Date de prestation : 16/09/2026',
     ]);
     expect(mixedServiceDates.presentation?.details).toEqual([
-      { label: "Date d'émission", value: '23/10/2026' },
-      { label: 'Échéance', value: '23/11/2026' },
+      { label: 'Facturée le', value: '23/10/2026' },
     ]);
 
     const withoutServiceDates = template.build(base, 'fr');
     expect(withoutServiceDates.presentation?.details).toEqual([
-      { label: "Date d'émission", value: '23/10/2026' },
-      { label: 'Échéance', value: '23/11/2026' },
+      { label: 'Facturée le', value: '23/10/2026' },
     ]);
 
     const invalidCommonServiceDate = template.build(
@@ -709,8 +702,7 @@ describe('template registry', () => {
       'fr',
     );
     expect(invalidCommonServiceDate.presentation?.details).toEqual([
-      { label: "Date d'émission", value: '23/10/2026' },
-      { label: 'Échéance', value: '23/11/2026' },
+      { label: 'Facturée le', value: '23/10/2026' },
     ]);
     expect(invalidCommonServiceDate.pdfInvoice?.rows[0]?.[0]).toContain(
       'Date de prestation : 31/02/2026',
@@ -730,6 +722,6 @@ describe('template registry', () => {
     const paginatedPdf = await extractPdf(paginatedBytes);
     expect(paginatedPdf.pageCount).toBeGreaterThan(1);
     expect(paginatedPdf.text).toContain('Ligne 24');
-    expect(paginatedPdf.text).toContain('RÉFÉRENCES COMMERCIALES');
+    expect(paginatedPdf.text).toContain('RÈGLEMENT ET RÉFÉRENCE');
   });
 });

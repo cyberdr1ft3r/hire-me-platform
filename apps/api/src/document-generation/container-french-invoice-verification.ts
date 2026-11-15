@@ -81,8 +81,7 @@ const renderedStrings = documentStrings(document).join('\n');
 
 for (const expected of [
   'FACTURE',
-  'Émise',
-  "Date d'émission",
+  'Facturée le',
   wrappedDescription,
   'Sous-total HT',
   '991,67 MAD',
@@ -94,6 +93,11 @@ for (const expected of [
 ]) {
   if (!renderedStrings.includes(expected)) {
     throw new Error(`French invoice template omitted ${JSON.stringify(expected)}.`);
+  }
+}
+for (const removed of ['ÉMISE', 'Échéance']) {
+  if (renderedStrings.includes(removed)) {
+    throw new Error(`French invoice template retained ${JSON.stringify(removed)}.`);
   }
 }
 
