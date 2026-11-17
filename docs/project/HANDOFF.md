@@ -1,6 +1,12 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-17
+
+## Parallel UI stabilization handoff — 2026-11-17
+
+- Review `docs/audit/toolchain-ui-audit/README.md` and the associated screenshots from `codex/hireme-toolchain`.
+- Recheck the denied-route tab state and long mobile Administration surface on draft PR #264's exact head before implementing either change. Review invoice-specific screens and legal/accounting decisions on draft PR #265's exact head.
+- Windows reruns are recorded in the audit report: API 220 passed (19 skipped), web 1,124 passed, contracts 81 passed, and PostgreSQL integration 593/594 with the sole timeout passing in isolation. Check exact-head CI for the audit branch. Keep the disposable audit database separate from staging and production, and preserve the existing protected-staging sequence below.
 
 ## Current situation
 

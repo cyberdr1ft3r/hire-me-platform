@@ -1,7 +1,17 @@
 # Project Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-17
 Status owner: repository maintainer
+
+## Windows toolchain and UI audit — 2026-11-17
+
+- Branch `codex/hireme-toolchain` starts from `main` `5919c8a`. Frozen pnpm install compiled `pkcs11js` successfully using the installed MSVC C++ workload and Windows 11 SDK; the lockfile is unchanged.
+- A tmpfs-backed, Docker-assigned-loopback PostgreSQL instance received all 27 migrations, role seed, synthetic administrator, and synthetic UI records. NestJS and Vite served the local app; Playwright MCP and Chrome DevTools MCP both reached the development task page.
+- Authenticated browser evidence covers 13 top-level routes at desktop width and nine at mobile width, plus public Opportunities at both sizes. Restricted-employee direct visits to Administration and Candidates were denied. Evidence and follow-up inventory: `docs/audit/toolchain-ui-audit/README.md`.
+- A missing favicon caused a fresh-browser 404 and was fixed across web HTML entries. Administration section density and denied-route tab feedback remain for review against open draft PR #264. Invoice UI remains on open draft PR #265 and was not duplicated.
+- A web foundation test read a CRLF stylesheet on Windows while asserting literal LF text. The test now normalizes line endings before the unchanged selector/declaration check.
+- Three lazy-route `App.test.tsx` headings timed out at the default one-second query while the route still showed its loading state in a parallel run. The heading waits now allow three seconds. The complete one-worker web run passed 86 files and 1,124 tests.
+- The full PostgreSQL integration run passed 593/594; the one candidate lifecycle timeout passed in isolation in 882 ms. The post-suite authorization catalog passed 5/5. The full API unit suite passed with one worker (220 passed, 19 intentionally skipped), contracts passed 81/81, and the complete one-worker web suite passed 1,124/1,124. Concurrent root-unit runs retained a PDF five-second timeout; the initial sandboxed run also hit loopback `EACCES`. Exact-head CI remains required.
 
 ## Issue #254 — protected pre-merge staging releases
 
