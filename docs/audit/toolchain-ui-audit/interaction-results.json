@@ -1,0 +1,23 @@
+{
+  "candidateForm": {
+    "dialogs": 1,
+    "visibleFields": 1
+  },
+  "taskForm": {
+    "dialogs": 0,
+    "visibleFields": 13
+  },
+  "employeeNavigation": [
+    "Home",
+    "Tasks",
+    "Messages"
+  ],
+  "employeeAdmin": {
+    "url": "http://127.0.0.1:5173/admin",
+    "bodyText": "!\nProtected workspace\n\nPermission denied."
+  },
+  "employeeCandidates": {
+    "url": "http://127.0.0.1:5173/candidates",
+    "bodyText": "!\nProtected workspace\n\nPermission denied."
+  }
+}

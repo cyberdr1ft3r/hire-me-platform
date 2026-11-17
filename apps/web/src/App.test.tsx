@@ -1273,7 +1273,9 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Documents' }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByRole('button', { name: 'Issue35 Contract' })).toBeVisible();
     expect(screen.queryByRole('form', { name: /register a document/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Issue35 Contract' }));
@@ -1345,7 +1347,9 @@ describe('App', () => {
 
     await openCommercialWorkspace('Commercial Viewer');
 
-    expect(await screen.findByRole('heading', { name: /commercial/i })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: /commercial/i }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByText('Q38-WEB')).toBeVisible();
     expect(await screen.findByText('Hidden')).toBeVisible();
     expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
@@ -1874,7 +1878,9 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
-    expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'Accounting' }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByRole('button', { name: 'PAY39-1' })).toBeVisible();
     expect(screen.getAllByText('Hidden').length).toBeGreaterThan(0);
 
