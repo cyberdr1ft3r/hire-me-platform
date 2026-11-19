@@ -2,6 +2,11 @@
 
 Last updated: 2026-11-19
 
+## Executive Dashboard V1
+
+Review the Dashboard draft and exact-head CI. Validate the existing role grants with business owners before expanding widget availability. Keep cross-team schedules, customization, and deployments in separate decisions.
+
+
 ## Placement acceptance
 
 Review the placement draft and its exact-head checks. Continue Executive Dashboard V1 from its isolated stack using Issue #234, with permission-aware operational widgets and no financial metrics.
