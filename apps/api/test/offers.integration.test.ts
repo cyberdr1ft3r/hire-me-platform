@@ -528,9 +528,11 @@ describe('offer and placement lifecycle', () => {
         },
       }),
     ).toBe(1);
-    expect(
-      await prisma.missionCandidate.findUniqueOrThrow({ where: { id: process.id } }),
-    ).toMatchObject({ state: 'INTEGRATED', placementConfirmedAt: expect.any(Date) });
+    const closedProcess = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: process.id },
+    });
+    expect(closedProcess.state).toBe('INTEGRATED');
+    expect(closedProcess.placementConfirmedAt).toBeInstanceOf(Date);
     expect(await prisma.missionPlacement.count({ where: { missionCandidateId: process.id } })).toBe(
       1,
     );
