@@ -203,9 +203,10 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Retry loading access' }));
     expect(await screen.findByText('No approved access entries are available.')).toBeVisible();
     expect(fetch.mock.calls).toHaveLength(2);
-    expect(fetch.mock.calls.every(([url]) => String(url).endsWith('/v1/admin/permissions'))).toBe(
-      true,
+    const requestedUrls = fetch.mock.calls.map(([input]) =>
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     );
+    expect(requestedUrls.every((url) => url.endsWith('/v1/admin/permissions'))).toBe(true);
   });
 
   it('shows a localized denial for an unauthorized direct section', () => {
