@@ -257,6 +257,37 @@ jobs:
         env:
           TEST_DATABASE_REFUSAL_EXTRA_URL: postgresql://hire_me:hire_me_dev_password@127.0.0.1:5432/hire_me_dev
 
+      - name: Drop integration database before browser acceptance
+        run: |
+          pnpm --filter @hire-me/api test:db:drop
+          echo "TEST_DATABASE_URL=" >> "$GITHUB_ENV"
+
+      # Integration fixtures may change grants. Browser acceptance starts from the seeded catalog.
+      - name: Provision separate functional browser database
+        run: pnpm --filter @hire-me/api test:db:provision --github-env
+
+      - name: Install Chromium for functional QA
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Functional browser acceptance
+        run: |
+          if node -e 'process.exit(require("./package.json").scripts?.["test:e2e"] ? 0 : 1)'; then
+            pnpm test:e2e
+          else
+            # Main can adopt browser CI before the application regression suite lands.
+            # A partial suite or removed npm script should fail instead of using the baseline.
+            test ! -d scripts/functional-qa
+            bash .github/scripts/run-baseline-browser-smoke.sh
+          fi
+
+      - name: Upload functional browser screenshots
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: functional-browser-evidence
+          path: .tmp-runtime/functional-ui/**/*.png
+          include-hidden-files: true
+
       - name: Drop this run's test database
         if: always()
         run: pnpm --filter @hire-me/api test:db:drop --if-present
