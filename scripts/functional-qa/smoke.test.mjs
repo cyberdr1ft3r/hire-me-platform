@@ -453,10 +453,7 @@ test('record-permissions: nine roles agree on candidate and administration acces
             if (role === 'EMPLOYEE' && route === '/admin') {
               await page.goto(web + route, { waitUntil: 'domcontentloaded' });
               await heading(page, 'Protected workspace').waitFor();
-              console.log(
-                'Restricted Administration selected tabs:',
-                await page.getByRole('tab', { selected: true }).allTextContents(),
-              );
+              assert.equal(await page.getByRole('tab', { selected: true }).count(), 0);
               await page.screenshot({ path: path.join(evidence, 'employee-admin-denied.png') });
             } else {
               // Reuse the authenticated session for the history route check. The API
