@@ -41,7 +41,6 @@ const restrictedMissionCandidatePermissions = [
   'mission_candidates:view',
   'mission_candidates:create',
   'mission_candidates:transition',
-  'mission_candidates:transfer',
   'mission_candidates:present',
   'mission_candidates:integration:confirm',
 ] as const;
@@ -742,6 +741,68 @@ describe('Mission candidate process API', () => {
     expect(create.status).toBe(201);
     const parsed = MissionCandidateDetailResponseSchema.parse(await create.json());
     const processId = parsed.candidateProcess.id;
+    const otherCandidate = await createCandidate('scope-other-owner@mission-candidates.test');
+    const otherOwned = await createProcess(
+      baseUrl,
+      adminToken,
+      missionId,
+      otherCandidate.id,
+      hrUserId,
+    );
+    expect(otherOwned.status).toBe(201);
+    const otherProcessId = MissionCandidateDetailResponseSchema.parse(await otherOwned.json())
+      .candidateProcess.id;
+    const readPeer = await fetch(
+      `${baseUrl}/v1/missions/${missionId}/candidates/${otherProcessId}`,
+      {
+        headers: authHeaders(restrictedToken),
+      },
+    );
+    expect(readPeer.status).toBe(200);
+    expect(
+      (
+        await transitionProcess(
+          baseUrl,
+          restrictedToken,
+          missionId,
+          otherProcessId,
+          MissionCandidateState.CV_TO_REVIEW,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await transitionProcess(
+          baseUrl,
+          restrictedToken,
+          missionId,
+          processId,
+          MissionCandidateState.CV_TO_REVIEW,
+        )
+      ).status,
+    ).toBe(200);
+
+    const unassignedMission = await createIssue21ClientAndMission(
+      'Issue21 Unassigned Scope Mission',
+    );
+    await assignUserToMission(unassignedMission, hrUserId);
+    const unassigned = await createProcess(
+      baseUrl,
+      adminToken,
+      unassignedMission,
+      otherCandidate.id,
+      hrUserId,
+    );
+    expect(unassigned.status).toBe(201);
+    const unassignedId = MissionCandidateDetailResponseSchema.parse(await unassigned.json())
+      .candidateProcess.id;
+    const denied = await fetch(
+      `${baseUrl}/v1/missions/${unassignedMission}/candidates/${unassignedId}`,
+      {
+        headers: authHeaders(restrictedToken),
+      },
+    );
+    expect(denied.status).toBe(403);
     const listed = await fetch(`${baseUrl}/v1/missions/${missionId}/candidates`, {
       headers: authHeaders(restrictedToken),
     });
