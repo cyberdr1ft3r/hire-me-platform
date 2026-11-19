@@ -109,7 +109,7 @@ try {
     },
   );
   await ready(frontend, web, (result) => result.ok);
-  await run(['--test', 'scripts/functional-qa/smoke.test.mjs'], root, {
+  await run(['--test', ...process.argv.slice(2), 'scripts/functional-qa/smoke.test.mjs'], root, {
     ...process.env,
     HIREME_E2E_API: api,
     HIREME_E2E_WEB: web,
