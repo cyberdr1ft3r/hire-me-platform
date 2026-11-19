@@ -2,6 +2,11 @@
 
 Last updated: 2026-11-19
 
+## Executive Dashboard V1
+
+Executive Dashboard V1 uses authoritative Reporting, Agenda and Tasks data for permitted Home sessions. See the [source and scope audit](../audit/executive-dashboard/README.md).
+
+
 ## Placement acceptance
 
 Placement acceptance verifies counted offer-backed placement and mobile mission closure. See the [acceptance evidence](../audit/placement-acceptance/README.md). Dashboard V1 follows the recruitment draft in a separate stack.

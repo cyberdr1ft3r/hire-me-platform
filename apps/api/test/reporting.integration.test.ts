@@ -697,6 +697,36 @@ describe('Recruitment reporting API', () => {
     expect(summary.applications.newInWindow).toBe(1); // only alice (missionA).
   });
 
+  it('returns upcoming deadlines only for open missions within the reporting scope', async () => {
+    const date = new Date(Date.now() + 2 * 86_400_000);
+    const hidden = await createMission(
+      ids.clientB,
+      `${MISSION_TAG} Future unassigned`,
+      RecruitmentMissionState.ACTIVE,
+      1,
+      0,
+      date,
+    );
+    try {
+      await prisma.recruitmentMission.updateMany({
+        where: { id: { in: [ids.missionA, ids.missionB] } },
+        data: { applicationDeadline: date },
+      });
+      const assigned = await summaryOf(await login(`assigned${EMAIL_SUFFIX}`));
+      expect(assigned.upcomingDeadlines?.map((row) => row.missionId)).toEqual([ids.missionA]);
+      const broad = await summaryOf(await login(`broad${EMAIL_SUFFIX}`));
+      expect(broad.upcomingDeadlines?.map((row) => row.missionId)).toEqual(
+        [ids.missionA, hidden].sort((a, b) => a.localeCompare(b)),
+      );
+    } finally {
+      await prisma.recruitmentMission.updateMany({
+        where: { id: { in: [ids.missionA, ids.missionB] } },
+        data: { applicationDeadline: null },
+      });
+      await prisma.recruitmentMission.delete({ where: { id: hidden } });
+    }
+  });
+
   it('does not leak hidden mission existence through an out-of-scope missionId filter', async () => {
     const token = await login(`assigned${EMAIL_SUFFIX}`);
     // No 403/404 difference that would reveal the hidden mission's existence.

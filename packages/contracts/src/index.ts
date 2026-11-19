@@ -490,6 +490,8 @@ export type {
 export { HealthResponseSchema } from './health.js';
 export type { HealthResponse } from './health.js';
 export {
+  REPORTING_REQUIRED_OPERATIONAL_READS,
+  REPORTING_VIEW_REQUIRED_PERMISSIONS,
   ReportingAppliedFiltersSchema,
   ReportingAgingSummarySchema,
   ReportingApplicationsSummarySchema,

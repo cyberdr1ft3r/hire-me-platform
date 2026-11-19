@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import type { AuthenticatedUser } from '@hire-me/contracts';
+import { REPORTING_VIEW_REQUIRED_PERMISSIONS, type AuthenticatedUser } from '@hire-me/contracts';
 
 import { useI18n, LegacyEnglishContent, type PlainMessageKey } from '../i18n/index.js';
 import {
@@ -26,6 +26,7 @@ import {
 import { encodeConsoleHistoryState } from './console-state.js';
 import { AppShell } from '../ui/shell/AppShell.js';
 import { PageShell, PageState } from '../ui/PageSystem.js';
+import { ExecutiveDashboard } from '../ui/shell/ExecutiveDashboard.js';
 import { InternalHome } from '../ui/shell/InternalHome.js';
 import { formatUnreadBadge } from '../messages/index.js';
 import { RouteModuleBoundary } from '../navigation/RouteModuleBoundary.js';
@@ -467,7 +468,17 @@ export function AuthenticatedWorkspace({
         );
         break;
       default:
-        routeContent = <InternalHome user={user} />;
+        routeContent = REPORTING_VIEW_REQUIRED_PERMISSIONS.every((permission) =>
+          permissions.includes(permission),
+        ) ? (
+          <ExecutiveDashboard
+            accessToken={accessToken}
+            permissions={permissions}
+            onNavigate={navigateToPath}
+          />
+        ) : (
+          <InternalHome user={user} />
+        );
     }
   }
   if (canOpenRoute && isDeferredEnglishRoute(route))

@@ -96,6 +96,8 @@ export class ReportingService {
     const missionRows = await this.prisma.recruitmentMission.findMany({
       where: missionWhere,
       select: {
+        id: true,
+        title: true,
         state: true,
         numberOfPositions: true,
         filledPlacementCount: true,
@@ -133,6 +135,28 @@ export class ReportingService {
         overdueMissions += 1;
       }
     }
+
+    const deadlineEnd = now.getTime() + 7 * DAY_MS;
+    const upcomingDeadlines = missionRows
+      .flatMap((mission) => {
+        const deadline = mission.applicationDeadline;
+        return !NON_OPEN_MISSION_STATES.has(mission.state) &&
+          deadline &&
+          deadline >= now &&
+          deadline.getTime() <= deadlineEnd
+          ? [
+              {
+                missionId: mission.id,
+                missionTitle: mission.title,
+                deadline: deadline.toISOString(),
+              },
+            ]
+          : [];
+      })
+      .sort(
+        (a, b) => a.deadline.localeCompare(b.deadline) || a.missionId.localeCompare(b.missionId),
+      )
+      .slice(0, 5);
 
     const processWhere = this.processWhere(scope, filters);
     const [processGroups, presentedToClient, stalePipelineProcesses] = await Promise.all([
@@ -244,6 +268,7 @@ export class ReportingService {
         requestedPositions,
         byStatus: placementByStatus,
       },
+      upcomingDeadlines,
       aging: {
         overdueMissions,
         stalePipelineProcesses,

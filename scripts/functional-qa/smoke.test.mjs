@@ -59,9 +59,157 @@ async function login(page, email = admin) {
   await button(page, 'Login').click();
   const result = await loginResponse;
   assert.equal(result.status(), 201, 'Login status');
-  await heading(page, 'Overview').waitFor();
+  await heading(page, 'Overview').or(heading(page, 'Executive dashboard')).waitFor();
   return (await result.json()).accessToken;
 }
+
+test('executive-dashboard: real widgets, retry, language, drilldown and restricted fallback', async () => {
+  let restrictedEmail;
+  await withPage(async (page) => {
+    const token = await login(page);
+    const dashboard = heading(page, 'Executive dashboard');
+    await dashboard.waitFor();
+    const interviews = page.getByRole('region', { name: 'Your upcoming interviews' });
+    await interviews.getByText('No matching records.').waitFor();
+    const future = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const clientResponse = await request(token, '/v1/clients', 'POST', {
+      name: `Executive client ${run}`,
+    });
+    assert.equal(clientResponse.status, 201);
+    const { client } = await clientResponse.json();
+    const title = `Executive mission ${run}`;
+    const missionResponse = await request(token, '/v1/missions', 'POST', {
+      clientId: client.id,
+      title,
+      applicationDeadline: future,
+      state: 'ACTIVE',
+    });
+    assert.equal(missionResponse.status, 201);
+    const { mission } = await missionResponse.json();
+    const { user } = await (await request(token, '/auth/me')).json();
+    const missionPath = `/v1/missions/${mission.id}`;
+    assert.equal(
+      (
+        await request(token, `${missionPath}/assignments`, 'POST', {
+          role: 'RECRUITER',
+          userId: user.id,
+        })
+      ).status,
+      201,
+    );
+    const candidateResponse = await request(token, '/v1/candidates', 'POST', {
+      displayName: `Executive candidate ${run}`,
+    });
+    assert.equal(candidateResponse.status, 201);
+    const { candidate } = await candidateResponse.json();
+    const processResponse = await request(token, `${missionPath}/candidates`, 'POST', {
+      candidateId: candidate.id,
+      responsibleRecruiterUserId: user.id,
+    });
+    assert.equal(processResponse.status, 201);
+    const { candidateProcess } = await processResponse.json();
+    const processPath = `${missionPath}/candidates/${candidateProcess.id}`;
+    for (const state of ['CV_TO_REVIEW', 'HR_PRESELECTION']) {
+      assert.equal(
+        (await request(token, `${processPath}/transition`, 'POST', { state })).status,
+        200,
+      );
+    }
+    assert.equal(
+      (
+        await request(token, `${processPath}/interviews`, 'POST', {
+          type: 'HR',
+          format: 'PHONE',
+          scheduledStartAt: future,
+          organizerUserId: user.id,
+          timezone: 'UTC',
+        })
+      ).status,
+      201,
+    );
+    const task = `Executive due task ${run}`;
+    assert.equal(
+      (
+        await request(token, '/v1/tasks', 'POST', {
+          title: task,
+          ownerUserId: user.id,
+          dueAt: future,
+        })
+      ).status,
+      201,
+    );
+
+    restrictedEmail = `dashboard-guest-${run}@qa.hireme.test`;
+    const restricted = await request(token, '/v1/admin/users', 'POST', {
+      displayName: 'QA dashboard guest',
+      email: restrictedEmail,
+      initialPassword: password,
+      locale: 'en',
+    });
+    assert.equal(restricted.status, 201);
+    const { user: guest } = await restricted.json();
+    assert.equal(
+      (
+        await request(token, `/v1/admin/users/${guest.id}/roles`, 'POST', {
+          roleName: 'GUEST',
+        })
+      ).status,
+      201,
+    );
+
+    const summaryPath = '**/v1/reporting/recruitment/summary';
+    await page.route(summaryPath, (route) => route.fulfill({ status: 503 }));
+    const restored = response(page, 'POST', '/auth/refresh');
+    restored.catch(() => {});
+    await page.reload();
+    assert.equal((await restored).status(), 201);
+    await dashboard.waitFor();
+    const snapshot = page.getByRole('region', { name: 'Recruitment snapshot' });
+    await snapshot.getByText('This information could not be loaded.').waitFor();
+    await page.getByRole('link', { name: task, exact: true }).waitFor();
+    await page.unroute(summaryPath);
+    await button(snapshot, 'Try again').click();
+    const missionLink = snapshot.getByRole('link', { name: title, exact: true });
+    await missionLink.waitFor();
+    await interviews.getByRole('link', { name: 'Scheduled interview' }).waitFor();
+    await page
+      .getByRole('region', { name: 'Recent pipeline activity' })
+      .getByRole('link', { name: new RegExp(title) })
+      .waitFor();
+    assert.equal(await missionLink.getAttribute('href'), `/missions?mission=${mission.id}`);
+    await page.screenshot({
+      path: path.join(evidence, 'executive-dashboard-desktop.png'),
+      fullPage: true,
+    });
+    await missionLink.click();
+    await heading(page, title).waitFor();
+    await page.goBack();
+    await dashboard.waitFor();
+
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('fr');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await heading(page, 'Tableau de bord exécutif').waitFor();
+    await page.getByRole('link', { name: title, exact: true }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({
+      path: path.join(evidence, 'executive-dashboard-mobile-fr.png'),
+      fullPage: true,
+    });
+  });
+  await withPage(async (page) => {
+    const requests = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname.startsWith('/v1/reporting/'))
+        requests.push(request.url());
+    });
+    const token = await login(page, restrictedEmail);
+    await heading(page, 'Overview').waitFor();
+    assert.equal(await heading(page, 'Executive dashboard').count(), 0);
+    assert.deepEqual(requests, []);
+    assert.equal((await request(token, '/v1/reporting/recruitment/summary')).status, 403);
+    await page.screenshot({ path: path.join(evidence, 'executive-dashboard-restricted.png') });
+  });
+});
 
 test('protected route, refresh on reload, and logout', async () => {
   await withPage(async (page) => {
@@ -89,7 +237,7 @@ test('protected route, refresh on reload, and logout', async () => {
       await page.unroute('**/auth/refresh');
     }
     assert.equal((await refresh).status(), 201);
-    await heading(page, 'Overview').waitFor();
+    await heading(page, 'Overview').or(heading(page, 'Executive dashboard')).waitFor();
     const logout = response(page, 'POST', '/auth/logout');
     logout.catch(() => {});
     await page.getByLabel('Account and session').click();
