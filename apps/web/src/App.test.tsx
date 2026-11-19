@@ -666,7 +666,12 @@ describe('App', () => {
       'page',
     );
     fireEvent.click(screen.getByRole('link', { name: 'Roles and permissions' }));
-    expect(await screen.findByText('users:view')).toBeVisible();
+    const permission = await screen.findByText('users:view');
+    expect(permission).not.toBeVisible();
+    const disclosure = permission.closest('details')?.querySelector('summary');
+    if (!disclosure) throw new Error('Expected a permission disclosure');
+    fireEvent.click(disclosure);
+    expect(permission).toBeVisible();
     fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     expect(await screen.findByRole('heading', { name: 'Users' })).toBeVisible();
 
