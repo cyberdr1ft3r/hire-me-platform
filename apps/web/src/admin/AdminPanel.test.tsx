@@ -129,11 +129,11 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     expect(onNavigateSection).toHaveBeenCalledWith('access');
   });
 
-  it('keeps the localized role permissions collapsed until a role is opened', async () => {
+  it('filters readable roles and keeps technical codes behind functional disclosure', async () => {
     const permission = {
       id: USER_ID,
-      code: 'records:view',
-      description: 'View records',
+      code: 'candidates:view',
+      description: 'View candidates',
       scopeType: 'GLOBAL',
       status: 'ACTIVE',
     };
@@ -160,15 +160,52 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
       </I18nProvider>,
     );
     const description = await screen.findByText('Administration courante de la plateforme.');
-    const details = description.closest('details');
-    expect(details).not.toHaveAttribute('open');
-    expect(screen.getByText('records:view')).not.toBeVisible();
+    expect(description).toBeVisible();
+    const role = description.closest('article');
+    const details = role?.querySelector('details');
+    expect(screen.getByText('candidates:view')).not.toBeVisible();
     expect(screen.queryByText('Raw description')).not.toBeInTheDocument();
     details?.setAttribute('open', '');
-    expect(screen.getByText('records:view')).toBeVisible();
+    expect(screen.getByText('Recrutement · 1 permission')).toBeVisible();
+    expect(screen.getByText('candidates:view')).not.toBeVisible();
+    screen.getByText('Recrutement · 1 permission').closest('details')?.setAttribute('open', '');
+    expect(screen.getByText('candidates:view')).toBeVisible();
+    expect(screen.getByText('View candidates')).toHaveAttribute('lang', 'en');
+
+    const search = screen.getByRole('searchbox', { name: 'Rechercher des rôles et permissions' });
+    fireEvent.change(search, { target: { value: 'does not match' } });
+    expect(screen.getByText('Aucune entrée ne correspond à ces filtres.')).toBeVisible();
+    fireEvent.change(search, { target: { value: 'candidates:view' } });
+    expect(screen.getByRole('heading', { name: 'Administrateur' })).toBeVisible();
+    const area = screen.getByRole('combobox', { name: 'Domaine fonctionnel' });
+    fireEvent.change(area, { target: { value: 'finance' } });
+    expect(screen.queryByRole('heading', { name: 'Administrateur' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Effacer les filtres d’accès' }));
+    expect(screen.getByRole('heading', { name: 'Administrateur' })).toBeVisible();
     expect(
       screen.queryByRole('heading', { name: 'Catalogue des permissions' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('allows a catalog failure to be retried without requesting unauthorized roles', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => json({}, 500));
+    fetch.mockImplementation(() => json({ permissions: [] }));
+    render(
+      <I18nProvider initialLocale="en">
+        <AdminPanel
+          accessToken="synthetic-token"
+          permissions={['permissions:view']}
+          section="access"
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry loading access' }));
+    expect(await screen.findByText('No approved access entries are available.')).toBeVisible();
+    expect(fetch.mock.calls).toHaveLength(2);
+    expect(fetch.mock.calls.every(([url]) => String(url).endsWith('/v1/admin/permissions'))).toBe(
+      true,
+    );
   });
 
   it('shows a localized denial for an unauthorized direct section', () => {

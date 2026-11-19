@@ -287,6 +287,60 @@ test('protected route, refresh on reload, and logout', async () => {
   });
 });
 
+test('administration-access: search, permission disclosure, retry and bilingual narrow layout', async () => {
+  await withPage(async (page) => {
+    const token = await login(page);
+    assert.equal((await request(token, '/v1/admin/roles')).status, 200);
+    assert.equal((await request(token, '/v1/admin/permissions')).status, 200);
+    await page.route('**/v1/admin/permissions', (route) => route.abort());
+    await page.evaluate(() => {
+      history.pushState(null, '', '/admin?section=access');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await heading(page, 'Roles and permissions').waitFor();
+    await button(page, 'Retry loading access').waitFor();
+    await page.unroute('**/v1/admin/permissions');
+    await button(page, 'Retry loading access').click();
+
+    const roles = page.getByRole('region', { name: 'Approved roles' });
+    await roles.getByText('Platform-wide administration.', { exact: true }).waitFor();
+    const query = page.getByRole('searchbox', { name: 'Search roles and permissions' });
+    await query.fill('super administrator');
+    assert.equal(await roles.getByRole('article').count(), 1);
+    await page.getByRole('combobox', { name: 'Functional area' }).selectOption('recruitment');
+
+    const role = roles.getByRole('article');
+    const roleDisclosure = role.locator('summary').first();
+    await roleDisclosure.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(
+      await roleDisclosure.evaluate((summary) => summary.matches(':focus-visible')),
+      true,
+    );
+    const recruitment = role.locator('summary').filter({ hasText: /^Recruitment ·/ });
+    await recruitment.waitFor();
+    const technicalCode = role.locator('code').filter({ hasText: /^candidates:view$/ });
+    assert.equal(await technicalCode.isVisible(), false);
+    await recruitment.focus();
+    await page.keyboard.press('Space');
+    await technicalCode.waitFor();
+
+    await query.fill('no result for this synthetic query');
+    await roles.getByText('No entries match these filters.').waitFor();
+    await button(page, 'Clear access filters').click();
+    await heading(roles, 'Super administrator').waitFor();
+    await page.locator('.app-shell__language-select:visible').selectOption('fr');
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.getByRole('searchbox', { name: 'Rechercher des rôles et permissions' }).waitFor();
+    await heading(page, 'Super-administrateur').waitFor();
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+    );
+    await page.screenshot({ path: path.join(evidence, 'access-overview-fr-360.png') });
+  });
+});
+
 test('candidate validation, network failure, create, edit, and reload persistence', async () => {
   await withPage(async (page) => {
     const token = await login(page);

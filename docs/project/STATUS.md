@@ -2,6 +2,10 @@
 
 Last updated: 2026-11-19
 
+## Internal product UX stabilization
+
+The product UX branch starts from the verified #274 application commit. Issue #260 adds read-only search, functional permission groups, and technical disclosure in Administration. See the [access overview audit](../audit/issue-260-access-overview.md). Issues #258, #259, and #261 remain separate. #274 remains the UAT candidate.
+
 ## Executive Dashboard V1
 
 Executive Dashboard V1 uses authoritative Reporting, Agenda and Tasks data for permitted Home sessions. See the [source and scope audit](../audit/executive-dashboard/README.md).

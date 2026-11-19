@@ -2,6 +2,10 @@
 
 Last updated: 2026-11-19
 
+## Internal product UX stabilization
+
+Review the #260 access overview draft and its real-browser regression. Then address the #259 Users workflow in its own scope. Keep effective privileges and the last-SUPER_ADMIN safeguards unchanged. Run #261 after the remaining scoped Administration UX work.
+
 ## Executive Dashboard V1
 
 Review the Dashboard draft and exact-head CI. Validate the existing role grants with business owners before expanding widget availability. Keep cross-team schedules, customization, and deployments in separate decisions.
