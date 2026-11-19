@@ -177,6 +177,7 @@ export const enMessages = {
     totalProcesses: 'Mission candidate processes',
     deadlineHint: 'Next 7 days · up to 5 missions',
     interviewHint: 'Next 7 days · up to 5 interviews you organize or attend',
+    numberedProcess: '{label} (entry {position} of {total})',
     processLabel: '{mission} — {stage}',
   },
   overview: {

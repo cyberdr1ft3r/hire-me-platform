@@ -127,6 +127,27 @@ test('executive-dashboard: real widgets, retry, language, drilldown and restrict
       ).status,
       201,
     );
+    const secondCandidateResponse = await request(token, '/v1/candidates', 'POST', {
+      displayName: `Second executive candidate ${run}`,
+    });
+    assert.equal(secondCandidateResponse.status, 201);
+    const { candidate: secondCandidate } = await secondCandidateResponse.json();
+    const secondProcessResponse = await request(token, `${missionPath}/candidates`, 'POST', {
+      candidateId: secondCandidate.id,
+      responsibleRecruiterUserId: user.id,
+    });
+    assert.equal(secondProcessResponse.status, 201);
+    const { candidateProcess: secondProcess } = await secondProcessResponse.json();
+    for (const state of ['CV_TO_REVIEW', 'HR_PRESELECTION']) {
+      assert.equal(
+        (
+          await request(token, `${missionPath}/candidates/${secondProcess.id}/transition`, 'POST', {
+            state,
+          })
+        ).status,
+        200,
+      );
+    }
     const task = `Executive due task ${run}`;
     assert.equal(
       (
@@ -172,10 +193,27 @@ test('executive-dashboard: real widgets, retry, language, drilldown and restrict
     const missionLink = snapshot.getByRole('link', { name: title, exact: true });
     await missionLink.waitFor();
     await interviews.getByRole('link', { name: 'Scheduled interview' }).waitFor();
-    await page
-      .getByRole('region', { name: 'Recent pipeline activity' })
-      .getByRole('link', { name: new RegExp(title) })
-      .waitFor();
+    const activity = page.getByRole('region', { name: 'Recent pipeline activity' });
+    const firstEntry = activity.getByRole('link', {
+      name: `${title} — HR preselection (entry 1 of 2)`,
+      exact: true,
+    });
+    const secondEntry = activity.getByRole('link', {
+      name: `${title} — HR preselection (entry 2 of 2)`,
+      exact: true,
+    });
+    await firstEntry.waitFor();
+    await secondEntry.waitFor();
+    const entryPaths = await Promise.all([
+      firstEntry.getAttribute('href'),
+      secondEntry.getAttribute('href'),
+    ]);
+    assert.deepEqual(
+      entryPaths.sort(),
+      [candidateProcess.id, secondProcess.id]
+        .map((id) => `/missions?mission=${mission.id}&process=${id}`)
+        .sort(),
+    );
     assert.equal(await missionLink.getAttribute('href'), `/missions?mission=${mission.id}`);
     await page.screenshot({
       path: path.join(evidence, 'executive-dashboard-desktop.png'),
