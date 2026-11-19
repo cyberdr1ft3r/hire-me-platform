@@ -88,7 +88,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -161,7 +161,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'limited@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -218,7 +218,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'no-task@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -314,7 +314,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'readonly@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -484,7 +484,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'tasks@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -643,7 +643,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -801,7 +801,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'client-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -933,7 +933,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'candidate-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1262,7 +1262,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'document-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1329,7 +1329,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'no-commercial@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1514,7 +1514,7 @@ describe('App', () => {
     mockTrainingWorkspace(['records:view']);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1534,7 +1534,7 @@ describe('App', () => {
     ]);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1579,7 +1579,7 @@ describe('App', () => {
     ]);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -2479,7 +2479,7 @@ async function openCommercialQuotation(displayName: string): Promise<void> {
 
 async function openCommercialWorkspace(displayName: string): Promise<void> {
   render(<App />);
-  fireEvent.change(screen.getByLabelText(/email/i), {
+  fireEvent.change(await screen.findByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
   fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -2720,7 +2720,7 @@ function mockMissionWorkspace(
 
 async function openMissionWorkspace(displayName: string): Promise<void> {
   render(<App />);
-  fireEvent.change(screen.getByLabelText(/email/i), {
+  fireEvent.change(await screen.findByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
   fireEvent.change(screen.getByLabelText(/^password$/i), {

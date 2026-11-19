@@ -206,6 +206,7 @@ export const enMessages = {
     region: 'Meeting',
   },
   auth: {
+    restoringSession: 'Checking your session…',
     apiChecking: 'Service check in progress',
     apiReady: 'Service available',
     apiStatusRegion: 'API status',
