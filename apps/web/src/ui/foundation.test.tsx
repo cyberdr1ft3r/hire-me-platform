@@ -127,7 +127,10 @@ describe('HireMe foundation components', () => {
   });
 
   it('keeps shared field, status, and select presentation fixes from Issue #115', () => {
-    const componentsCss = readFileSync(path.resolve('src/styles/components.css'), 'utf8');
+    const componentsCss = readFileSync(path.resolve('src/styles/components.css'), 'utf8').replace(
+      /\r\n/g,
+      '\n',
+    );
     // The declaration block of a top-level rule written as `selector {`.
     const rule = (selector: string) => {
       const start = componentsCss.indexOf(`\n${selector} {`);

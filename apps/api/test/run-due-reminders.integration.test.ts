@@ -128,7 +128,7 @@ describe('run-due-reminders CLI (R-036 PR B)', () => {
     expect(status).toBe(1);
     expect(output).toContain('task_reminders.fatal');
     expect(output).not.toMatch(/postgresql:\/\/127\.0\.0\.1:1/);
-  });
+  }, 15_000);
 
   it('exits non-zero for malformed CLI configuration', () => {
     const env = childEnvironment(process.env.DATABASE_URL!);

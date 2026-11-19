@@ -72,7 +72,11 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     mockAdminApi();
     render(
       <I18nProvider initialLocale="en">
-        <AdminPanel accessToken="synthetic-token" />
+        <AdminPanel
+          accessToken="synthetic-token"
+          permissions={['users:view', 'users:update']}
+          section="users"
+        />
       </I18nProvider>,
     );
 
@@ -94,5 +98,88 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     expect(await screen.findByText('User updated.')).toBeVisible();
     expect(displayName).toHaveValue('Renamed Admin');
     expect(leavingAsks()).toBe(false);
+  });
+
+  it('shows only authorized section links and delegates navigation without loading inactive data', async () => {
+    const onNavigateSection = vi.fn();
+    mockAdminApi();
+    render(
+      <I18nProvider initialLocale="en">
+        <AdminPanel
+          accessToken="synthetic-token"
+          onNavigateSection={onNavigateSection}
+          permissions={['users:view', 'permissions:view']}
+          section="users"
+        />
+      </I18nProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Billing' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Roles and permissions' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/v1/admin/permissions'),
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'Roles and permissions' }));
+    expect(onNavigateSection).toHaveBeenCalledWith('access');
+  });
+
+  it('keeps the localized role permissions collapsed until a role is opened', async () => {
+    const permission = {
+      id: USER_ID,
+      code: 'records:view',
+      description: 'View records',
+      scopeType: 'GLOBAL',
+      status: 'ACTIVE',
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.endsWith('/v1/admin/roles')) {
+        return json({
+          roles: [
+            {
+              id: USER_ID,
+              name: 'ADMIN',
+              description: 'Raw description',
+              status: 'ACTIVE',
+              permissions: [permission],
+            },
+          ],
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+    render(
+      <I18nProvider initialLocale="fr">
+        <AdminPanel accessToken="synthetic-token" permissions={['roles:view']} section="access" />
+      </I18nProvider>,
+    );
+    const description = await screen.findByText('Administration courante de la plateforme.');
+    const details = description.closest('details');
+    expect(details).not.toHaveAttribute('open');
+    expect(screen.getByText('records:view')).not.toBeVisible();
+    expect(screen.queryByText('Raw description')).not.toBeInTheDocument();
+    details?.setAttribute('open', '');
+    expect(screen.getByText('records:view')).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: 'Catalogue des permissions' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a localized denial for an unauthorized direct section', () => {
+    render(
+      <I18nProvider initialLocale="fr">
+        <AdminPanel accessToken="synthetic-token" permissions={['users:view']} section="billing" />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText('Section indisponible')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Utilisateurs' })).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', { name: 'Facturation' })).not.toBeInTheDocument();
   });
 });

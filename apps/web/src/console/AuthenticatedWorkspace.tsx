@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import type { AuthenticatedUser } from '@hire-me/contracts';
+import { REPORTING_VIEW_REQUIRED_PERMISSIONS, type AuthenticatedUser } from '@hire-me/contracts';
 
 import { useI18n, LegacyEnglishContent, type PlainMessageKey } from '../i18n/index.js';
 import {
@@ -26,6 +26,7 @@ import {
 import { encodeConsoleHistoryState } from './console-state.js';
 import { AppShell } from '../ui/shell/AppShell.js';
 import { PageShell, PageState } from '../ui/PageSystem.js';
+import { ExecutiveDashboard } from '../ui/shell/ExecutiveDashboard.js';
 import { InternalHome } from '../ui/shell/InternalHome.js';
 import { formatUnreadBadge } from '../messages/index.js';
 import { RouteModuleBoundary } from '../navigation/RouteModuleBoundary.js';
@@ -56,6 +57,11 @@ import {
   type TabId,
 } from './console-state.js';
 import { useConsole } from './ConsoleProvider.js';
+import {
+  adminSectionFromSearch,
+  adminSectionPath,
+  canAccessAdminSection,
+} from '../admin/admin-sections.js';
 
 type ApiState =
   | { status: 'loading' }
@@ -338,6 +344,10 @@ export function AuthenticatedWorkspace({
   }
 
   const canOpenRoute = canAccessInternalRoute(route, permissions);
+  const requestedAdminSection = route === 'admin' ? adminSectionFromSearch(location.search) : null;
+  const showTabSelection =
+    canOpenRoute &&
+    (!requestedAdminSection || canAccessAdminSection(requestedAdminSection, permissions));
   let routeContent: ReactNode;
   if (!canOpenRoute) {
     routeContent = (
@@ -350,7 +360,14 @@ export function AuthenticatedWorkspace({
   } else {
     switch (route) {
       case 'admin':
-        routeContent = <LazyAdminPanel accessToken={accessToken} permissions={[...permissions]} />;
+        routeContent = (
+          <LazyAdminPanel
+            accessToken={accessToken}
+            onNavigateSection={(section) => navigateToPath(adminSectionPath(section))}
+            permissions={[...permissions]}
+            section={adminSectionFromSearch(location.search)}
+          />
+        );
         break;
       case 'clients':
         routeContent = (
@@ -467,7 +484,18 @@ export function AuthenticatedWorkspace({
         );
         break;
       default:
-        routeContent = <InternalHome user={user} />;
+        routeContent = REPORTING_VIEW_REQUIRED_PERMISSIONS.every((permission) =>
+          permissions.includes(permission),
+        ) ? (
+          <ExecutiveDashboard
+            key={JSON.stringify([...permissions].sort())}
+            accessToken={accessToken}
+            permissions={permissions}
+            onNavigate={navigateToPath}
+          />
+        ) : (
+          <InternalHome user={user} />
+        );
     }
   }
   if (canOpenRoute && isDeferredEnglishRoute(route))
@@ -488,6 +516,7 @@ export function AuthenticatedWorkspace({
             onContinuePending={() => continuePending(false)}
             onReplacePending={() => continuePending(true)}
             pendingLabel={pendingLabel}
+            showSelection={showTabSelection}
             state={state}
             visibleTabs={visibleTabs}
             dirtyTabId={hasUnsavedChanges ? state.active : null}

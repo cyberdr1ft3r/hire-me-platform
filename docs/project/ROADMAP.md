@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-10-25
+Last updated: 2026-11-10
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -11,7 +11,8 @@ PageHeader, Workspace Surface, feedback, drawers, and EN/FR infrastructure. Over
 merged through #218, Clients v2.1 through #210, and Agenda/Tasks through #220. Issue #221 migrates
 the Messages frame only while preserving PR #215 scroll ownership. Remaining migrations continue
 independently: Candidates/Missions; Reporting; Commercial/Accounting; Training/Documents; Meetings;
-Administration after localization and form-label prerequisites. See
+Administration navigation and localization are implemented for review in Issue #257; the deeper Billing,
+Users, Roles presentation, and cross-section E2E work remain isolated in Issues #258–#261. See
 `docs/design/unified-page-system-foundation.md`; no broad all-workspace rewrite.
 
 ## Phase 0 - Discovery
