@@ -377,6 +377,22 @@ describe('offer and placement lifecycle', () => {
     expect(rejectedWithoutReason.status).toBe(400);
     expect(negotiating.status).toBe(200);
     expect(invalidAudit).toHaveLength(1);
+
+    const rejected = await fetch(
+      `${baseUrl}/v1/missions/${mission.id}/candidates/${process.id}/offers/${versionId}/response`,
+      {
+        method: 'POST',
+        headers: authHeaders(recruiterToken),
+        body: JSON.stringify({
+          status: 'REJECTED',
+          reason: 'Candidate declined after negotiation.',
+        }),
+      },
+    );
+    expect(rejected.status).toBe(200);
+    const offer = OfferDetailResponseSchema.parse(await rejected.json()).offer;
+    expect(offer.versions.find((version) => version.id === versionId)?.status).toBe('REJECTED');
+    expect(offer.history.filter((event) => event.action === 'RESPONSE_RECORDED')).toHaveLength(2);
   });
 
   it('requires an accepted current offer and confirms placement idempotently under concurrency', async () => {

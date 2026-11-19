@@ -210,6 +210,32 @@ test('nine roles agree on candidate and administration access in UI and API', as
   const bootstrap = await request(null, '/auth/login', 'POST', { email: admin, password });
   assert.equal(bootstrap.status, 201);
   const { accessToken } = await bootstrap.json();
+  const bootstrapUser = (await (await request(accessToken, '/auth/me')).json()).user;
+  const fixtures = [];
+  for (const variant of ['North', 'South']) {
+    async function create(url, input) {
+      const result = await request(accessToken, url, 'POST', input);
+      assert.equal(result.status, 201, url);
+      return result.json();
+    }
+    const { client } = await create('/v1/clients', { name: `QA ${variant} client ${run}` });
+    const { mission } = await create('/v1/missions', {
+      clientId: client.id,
+      title: `QA ${variant} mission ${run}`,
+    });
+    const { candidate } = await create('/v1/candidates', {
+      displayName: `QA ${variant} candidate ${run}`,
+    });
+    await create(`/v1/missions/${mission.id}/assignments`, {
+      userId: bootstrapUser.id,
+      role: 'RECRUITER',
+    });
+    const { candidateProcess: process } = await create(`/v1/missions/${mission.id}/candidates`, {
+      candidateId: candidate.id,
+      responsibleRecruiterUserId: bootstrapUser.id,
+    });
+    fixtures.push({ client, mission, candidate, process });
+  }
   for (const [role, candidates, administration, billing = administration] of roles) {
     await t.test(role, async () => {
       const email = role === 'SUPER_ADMIN' ? admin : `${role.toLowerCase()}-${run}@qa.hireme.test`;
@@ -258,6 +284,36 @@ test('nine roles agree on candidate and administration access in UI and API', as
           }
         }
         assert.equal((await request(token, '/v1/admin/users')).status, administration ? 200 : 403);
+        for (const { client, mission, candidate, process } of fixtures) {
+          const clientPath = `/v1/clients/${client.id}`;
+          const missionPath = `/v1/missions/${mission.id}`;
+          const candidatePath = `/v1/candidates/${candidate.id}`;
+          for (const [url, allowed] of [
+            [clientPath, candidates || role === 'FINANCE_MANAGER'],
+            [missionPath, candidates],
+            [candidatePath, candidates],
+            [`${missionPath}/candidates/${process.id}`, candidates],
+          ]) {
+            assert.equal(
+              (await request(token, url)).status,
+              allowed ? 200 : 403,
+              `${role} GET ${url}`,
+            );
+          }
+          for (const [url, payload] of [
+            [clientPath, { name: client.name }],
+            [missionPath, { title: mission.title }],
+            [candidatePath, { displayName: candidate.displayName }],
+          ]) {
+            const allowed = candidates;
+            assert.equal(
+              (await request(token, url, 'PATCH', payload)).status,
+              allowed ? 200 : 403,
+              `${role} PATCH ${url}`,
+            );
+          }
+        }
+
         if (!candidates) {
           const denied = await request(token, '/v1/candidates', 'POST', {
             displayName: `Unexpected QA write ${run}`,
@@ -267,6 +323,166 @@ test('nine roles agree on candidate and administration access in UI and API', as
       });
     });
   }
+});
+
+test('recruitment-lifecycle: interview, evaluation, offer and closure persist', async () => {
+  await withPage(async (page) => {
+    const token = await login(page);
+    async function create(url, input) {
+      const result = await request(token, url, 'POST', input);
+      assert.equal(result.status, 201, url);
+      return result.json();
+    }
+    async function submit(control, url, status, confirm = false) {
+      const pending = response(page, 'POST', url);
+      if (confirm) page.once('dialog', (dialog) => dialog.accept());
+      pending.catch(() => {});
+      await control.click();
+      const result = await pending;
+      assert.equal(result.status(), status, url);
+      return result.json();
+    }
+    const { client } = await create('/v1/clients', { name: `Lifecycle client ${run}` });
+    const title = `Lifecycle mission ${run}`;
+    const { mission } = await create('/v1/missions', { clientId: client.id, title });
+    const missionPath = `/v1/missions/${mission.id}`;
+    const { user } = await (await request(token, '/auth/me')).json();
+    await create(`${missionPath}/assignments`, { userId: user.id, role: 'RECRUITER' });
+    const candidateName = `Lifecycle candidate ${run}`;
+    const { candidate } = await create('/v1/candidates', { displayName: candidateName });
+    const { candidateProcess } = await create(`${missionPath}/candidates`, {
+      candidateId: candidate.id,
+      responsibleRecruiterUserId: user.id,
+    });
+    const processPath = `${missionPath}/candidates/${candidateProcess.id}`;
+    for (const state of ['CV_TO_REVIEW', 'HR_PRESELECTION']) {
+      assert.equal(
+        (await request(token, `${processPath}/transition`, 'POST', { state })).status,
+        200,
+      );
+    }
+    await nav(page, '/missions').click();
+    await button(page, title).click();
+    await button(page, 'Open full record').click();
+    await heading(page, title).waitFor();
+    async function reloadRecord() {
+      const refresh = response(page, 'POST', '/auth/refresh');
+      refresh.catch(() => {});
+      await page.reload();
+      assert.equal((await refresh).status(), 201, 'Restore session on mission record reload');
+      await heading(page, title).waitFor();
+    }
+    async function section(name) {
+      const tab = page.getByRole('tab', { name, exact: true });
+      await ((await tab.count()) ? tab : button(page, name)).click();
+    }
+    async function openProcess() {
+      const open = button(page, `Open the process for ${candidateName}`);
+      if (!(await open.isVisible())) await section('Mission candidates');
+      await open.click();
+    }
+    await openProcess();
+    const schedule = page.getByRole('form', { name: 'Schedule an interview' });
+    await schedule.getByLabel('Format', { exact: true }).selectOption('PHONE');
+    const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    await schedule.getByLabel(/^Start/).fill(`${day}T10:00`);
+    await schedule.getByLabel('Organizer').selectOption(user.id);
+    const interviews = `${processPath}/interviews`;
+    const { interview } = await submit(button(schedule, 'Schedule interview'), interviews, 201);
+    const interviewPath = `${interviews}/${interview.id}`;
+    const interviewRow = page.getByRole('row').filter({ hasText: 'HR interview' });
+    await submit(
+      interviewRow.getByRole('button', { name: /^Mark completed/ }),
+      `${interviewPath}/complete`,
+      200,
+      true,
+    );
+    assert.equal(
+      (
+        await request(token, `${interviewPath}/cancel`, 'POST', {
+          reason: 'Synthetic late cancellation',
+        })
+      ).status,
+      409,
+    );
+    const savedInterview = await request(token, interviewPath);
+    assert.equal(savedInterview.status, 200);
+    const { interview: completed } = await savedInterview.json();
+    assert.equal(completed.status, 'COMPLETED');
+    assert.ok(completed.history.some((event) => event.action === 'COMPLETED'));
+    await interviewRow.getByRole('button', { name: /^Details/ }).click();
+    const evaluation = page.getByRole('form', { name: 'Add an evaluation' });
+    await evaluation.getByLabel('Overall').fill('4');
+    const evaluations = `${interviewPath}/evaluations`;
+    const { evaluation: draft } = await submit(
+      button(evaluation, 'Save evaluation'),
+      evaluations,
+      201,
+    );
+    await submit(button(page, 'Finalize'), `${evaluations}/${draft.id}/finalize`, 200, true);
+    await reloadRecord();
+    await openProcess();
+    await interviewRow.getByRole('button', { name: /^Details/ }).click();
+    await page.getByText('Finalized', { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(evidence, 'interview-evaluation-persisted.png') });
+
+    // Advance through the existing approved transition graph to reach the offer UI.
+    async function advance(state, skip = false) {
+      const result = await request(token, `${processPath}/transition`, 'POST', {
+        state,
+        ...(skip ? { skip, reason: 'Synthetic optional stage bypass' } : {}),
+      });
+      assert.equal(result.status, 200, state);
+    }
+    await advance('HR_INTERVIEW_SCHEDULED');
+    await advance('HR_INTERVIEW_COMPLETED');
+    await advance('INTERNAL_VALIDATION', true);
+    assert.equal((await request(token, `${processPath}/present`, 'POST', {})).status, 200);
+    await advance('CLIENT_INTERVIEW_1');
+    await advance('CLIENT_OFFER', true);
+
+    await reloadRecord();
+    await openProcess();
+    const offerForm = page.getByRole('form', { name: 'Create an offer draft' });
+    await offerForm.getByLabel('Offered salary').fill('invalid');
+    await button(offerForm, 'Create offer draft').press('Enter');
+    await offerForm.getByText('Enter an amount such as 36000 or 36000.50.').waitFor();
+    await offerForm.getByLabel('Offered salary').fill('10000');
+    await offerForm.getByLabel('Contract type').fill('CDI');
+    const offers = `${processPath}/offers`;
+    const { offer } = await submit(button(offerForm, 'Create offer draft'), offers, 201);
+    const version = `${offers}/${offer.currentVersionId}`;
+    assert.equal(
+      (await request(token, `${version}/response`, 'POST', { status: 'ACCEPTED' })).status,
+      409,
+    );
+    await submit(button(page, 'Mark sent'), `${version}/mark-sent`, 200, true);
+    await submit(button(page, 'Record response: Accepted'), `${version}/response`, 200, true);
+    await reloadRecord();
+    await openProcess();
+    const offerRegion = page.getByRole('region', { name: 'Offer', exact: true });
+    await offerRegion.getByText('Accepted', { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(evidence, 'offer-acceptance-persisted.png') });
+
+    const persistedOffer = await request(token, offers);
+    assert.equal(persistedOffer.status, 200);
+    assert.ok(
+      (await persistedOffer.json()).offer.history.some(
+        (event) => event.action === 'RESPONSE_RECORDED',
+      ),
+    );
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await section('Overview');
+    const closure = page.getByRole('form', { name: 'Close mission' });
+    await closure.getByLabel('Closure outcome').selectOption('CANCELED');
+    await submit(button(closure, 'Close mission'), `${missionPath}/close`, 200, true);
+    await reloadRecord();
+    await page.getByText('Canceled', { exact: true }).first().waitFor();
+    const closed = await request(token, missionPath);
+    assert.equal((await closed.json()).mission.state, 'CANCELED');
+    await page.screenshot({ path: path.join(evidence, 'mission-cancellation-mobile.png') });
+  });
 });
 
 // Use the real API to verify records written by the browser and linked across modules.

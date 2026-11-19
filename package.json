@@ -23,7 +23,7 @@
     "prisma:studio": "pnpm --filter @hire-me/api prisma:studio",
     "prisma:validate": "pnpm --filter @hire-me/api prisma:validate",
     "test": "turbo run test",
-    "test:e2e": "node scripts/functional-qa/run.mjs",
+    "test:e2e": "node scripts/functional-qa/run.mjs --test-skip-pattern=recruitment-lifecycle && node scripts/functional-qa/run.mjs --test-name-pattern=recruitment-lifecycle",
     "test:db": "pnpm --filter @hire-me/contracts build && pnpm --filter @hire-me/api test:db",
     "test:db:provision": "pnpm --filter @hire-me/contracts build && pnpm --filter @hire-me/api test:db:provision",
     "test:db:check-catalog": "pnpm --filter @hire-me/api test:db:check-catalog",

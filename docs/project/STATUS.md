@@ -1,6 +1,11 @@
 # Project Status
 
 Last updated: 2026-11-19
+
+## Recruitment lifecycle and external portal readiness
+
+Phase 3 builds from the exact Phase 2 head (`a66c585`). It adds browser coverage for the internal recruitment lifecycle, direct API checks for the nine seeded roles, and a [portal readiness inventory](../audit/recruitment-lifecycle/README.md). External account, organization membership, client demand and candidate data sharing decisions remain open.
+
 Status owner: repository maintainer
 
 ## Functional UI acceptance — 2026-11-19
