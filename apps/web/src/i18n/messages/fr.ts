@@ -346,7 +346,10 @@ export const frMessages: Messages = {
       errorMessage: 'Les catalogues approuvés des rôles et permissions n’ont pas pu être chargés.',
       errorTitle: 'Vue des accès indisponible',
       filters: 'Filtrer les rôles et permissions',
-      groupSummary: { one: '{area} · {count} permission', other: '{area} · {count} permissions' },
+      groupSummary: plural({
+        one: '{area} · {count} permission',
+        other: '{area} · {count} permissions',
+      }),
       loading: 'Chargement des rôles et permissions…',
       noMatches: 'Aucune entrée ne correspond à ces filtres.',
       permissionCount: plural({
@@ -356,10 +359,10 @@ export const frMessages: Messages = {
       permissionsTitle: 'Catalogue des permissions',
       retry: 'Réessayer de charger les accès',
       roleCount: plural({ one: '{count} rôle', other: '{count} rôles' }),
-      roleGrants: {
+      roleGrants: plural({
         one: 'Voir {count} permission du rôle',
         other: 'Voir {count} permissions du rôle',
-      },
+      }),
       rolesTitle: 'Rôles approuvés',
       search: 'Rechercher des rôles et permissions',
     },

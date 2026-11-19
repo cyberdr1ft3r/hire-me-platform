@@ -321,7 +321,10 @@ export const enMessages = {
       errorMessage: 'The approved role and permission catalogs could not be loaded.',
       errorTitle: 'Access overview unavailable',
       filters: 'Filter roles and permissions',
-      groupSummary: { one: '{area} · {count} permission', other: '{area} · {count} permissions' },
+      groupSummary: plural({
+        one: '{area} · {count} permission',
+        other: '{area} · {count} permissions',
+      }),
       loading: 'Loading roles and permissions…',
       noMatches: 'No entries match these filters.',
       permissionCount: plural({
@@ -331,7 +334,7 @@ export const enMessages = {
       permissionsTitle: 'Permission catalog',
       retry: 'Retry loading access',
       roleCount: plural({ one: '{count} role', other: '{count} roles' }),
-      roleGrants: { one: 'View {count} role grant', other: 'View {count} role grants' },
+      roleGrants: plural({ one: 'View {count} role grant', other: 'View {count} role grants' }),
       rolesTitle: 'Approved roles',
       search: 'Search roles and permissions',
     },
