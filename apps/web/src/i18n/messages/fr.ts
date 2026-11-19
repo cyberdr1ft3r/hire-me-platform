@@ -200,6 +200,7 @@ export const frMessages: Messages = {
     deadlineHint: '7 prochains jours · jusqu’à 5 missions',
     interviewHint:
       '7 prochains jours · jusqu’à 5 entretiens que vous organisez ou auxquels vous participez',
+    numberedProcess: '{label} (entrée {position} sur {total})',
     processLabel: '{mission} — {stage}',
   },
   overview: {

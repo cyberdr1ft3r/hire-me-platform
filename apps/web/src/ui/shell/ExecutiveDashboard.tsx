@@ -270,34 +270,49 @@ export function ExecutiveDashboard({ accessToken, permissions, onNavigate }: Das
             load={loadActivity}
             title={t('executiveDashboard.activity')}
           >
-            {(rows) => (
-              <>
-                <p>{t('executiveDashboard.newProcesses')}</p>
-                {rows.length ? (
-                  <ul className="executive-dashboard__list">
-                    {rows.map((row) => {
-                      const label = t('executiveDashboard.processLabel', {
-                        mission: row.missionTitle,
-                        stage: stage(row.pipelineState),
-                      });
-                      return (
-                        <li key={row.processId}>
-                          {canOpenMissions
-                            ? link(
-                                `${missionDeepLink(row.missionId)}&process=${row.processId}`,
+            {(rows) => {
+              const entries = rows.map((row) => ({
+                row,
+                label: t('executiveDashboard.processLabel', {
+                  mission: row.missionTitle,
+                  stage: stage(row.pipelineState),
+                }),
+              }));
+              return (
+                <>
+                  <p>{t('executiveDashboard.newProcesses')}</p>
+                  {entries.length ? (
+                    <ul className="executive-dashboard__list">
+                      {entries.map((entry) => {
+                        const { row, label } = entry;
+                        const matches = entries.filter((other) => other.label === label);
+                        const displayLabel =
+                          matches.length > 1
+                            ? t('executiveDashboard.numberedProcess', {
                                 label,
-                              )
-                            : label}
-                          <time dateTime={row.createdAt}>{date(row.createdAt)}</time>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  empty
-                )}
-              </>
-            )}
+                                position: formatNumber(matches.indexOf(entry) + 1),
+                                total: formatNumber(matches.length),
+                              })
+                            : label;
+                        return (
+                          <li key={row.processId}>
+                            {canOpenMissions
+                              ? link(
+                                  `${missionDeepLink(row.missionId)}&process=${row.processId}`,
+                                  displayLabel,
+                                )
+                              : displayLabel}
+                            <time dateTime={row.createdAt}>{date(row.createdAt)}</time>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    empty
+                  )}
+                </>
+              );
+            }}
           </DashboardWidget>
         </div>
       </div>
