@@ -2,6 +2,11 @@
 
 Last updated: 2026-11-19
 
+## Placement acceptance
+
+Placement acceptance verifies counted offer-backed placement and mobile mission closure. See the [acceptance evidence](../audit/placement-acceptance/README.md). Dashboard V1 follows the recruitment draft in a separate stack.
+
+
 ## Recruitment lifecycle and external portal readiness
 
 Phase 3 builds from the exact Phase 2 head (`a66c585`). It adds browser coverage for the internal recruitment lifecycle, direct API checks for the nine seeded roles, and a [portal readiness inventory](../audit/recruitment-lifecycle/README.md). External account, organization membership, client demand and candidate data sharing decisions remain open.

@@ -485,6 +485,152 @@ test('recruitment-lifecycle: interview, evaluation, offer and closure persist', 
   });
 });
 
+test('recruitment-lifecycle: confirm placement and close a filled mission', async () => {
+  await withPage(async (page) => {
+    const token = await login(page);
+    async function apiResult(method, url, expected, input) {
+      const result = await request(token, url, method, input);
+      assert.equal(result.status, expected, `${method} ${url}`);
+      return result.json();
+    }
+    async function postFromPage(control, url, expected, confirm = false) {
+      const pending = response(page, 'POST', url);
+      pending.catch(() => {});
+      if (confirm) page.once('dialog', (dialog) => dialog.accept());
+      await control.click();
+      const result = await pending;
+      assert.equal(result.status(), expected, url);
+      return result.json();
+    }
+
+    const { user } = await apiResult('GET', '/auth/me', 200);
+    const { client } = await apiResult('POST', '/v1/clients', 201, {
+      name: `Placement client ${run}`,
+    });
+    const title = `Placement mission ${run}`;
+    const { mission } = await apiResult('POST', '/v1/missions', 201, {
+      clientId: client.id,
+      title,
+      state: 'OFFER_SENT',
+      numberOfPositions: 1,
+    });
+    const missionPath = `/v1/missions/${mission.id}`;
+    await apiResult('POST', `${missionPath}/assignments`, 201, {
+      role: 'RECRUITER',
+      userId: user.id,
+    });
+    const name = `Placement candidate ${run}`;
+    const { candidate } = await apiResult('POST', '/v1/candidates', 201, { displayName: name });
+    const { candidateProcess } = await apiResult('POST', `${missionPath}/candidates`, 201, {
+      candidateId: candidate.id,
+      responsibleRecruiterUserId: user.id,
+    });
+    const processPath = `${missionPath}/candidates/${candidateProcess.id}`;
+    async function advance(state, skip = false) {
+      await apiResult('POST', `${processPath}/transition`, 200, {
+        state,
+        ...(skip ? { skip, reason: 'Synthetic optional stage bypass' } : {}),
+      });
+    }
+    for (const state of [
+      'CV_TO_REVIEW',
+      'HR_PRESELECTION',
+      'HR_INTERVIEW_SCHEDULED',
+      'HR_INTERVIEW_COMPLETED',
+    ]) {
+      await advance(state);
+    }
+    await advance('INTERNAL_VALIDATION', true);
+    await apiResult('POST', `${processPath}/present`, 200, {});
+    await advance('CLIENT_INTERVIEW_1');
+    await advance('CLIENT_OFFER', true);
+
+    const { offer } = await apiResult('POST', `${processPath}/offers`, 201, {
+      contractType: 'CDI',
+    });
+    const version = `${processPath}/offers/${offer.currentVersionId}`;
+    const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const placementInput = { integrationStartDate: `${date}T00:00:00.000Z` };
+    await apiResult('POST', `${version}/confirm-placement`, 409, placementInput);
+    await apiResult('POST', `${version}/mark-sent`, 200, {});
+    await apiResult('POST', `${version}/response`, 200, { status: 'ACCEPTED' });
+    assert.equal((await apiResult('GET', missionPath, 200)).mission.filledPlacementCount, 0);
+
+    const detailUrl = `${web}/missions?mission=${mission.id}`;
+    await page.goto(detailUrl);
+    await heading(page, title).waitFor();
+    const missionTab = (label) =>
+      page
+        .getByRole('tablist', { name: 'Mission sections' })
+        .getByRole('tab', { name: label, exact: true });
+    await missionTab('Mission candidates').press('Enter');
+    await button(page, `Open the process for ${name}`).click();
+    await button(page, 'Confirm placement').click();
+    const form = page.getByRole('form', { name: 'Confirm placement' });
+    await form.getByLabel(/^Integration start date/).fill(date);
+    const { placement } = await postFromPage(
+      button(form, 'Confirm placement'),
+      `${version}/confirm-placement`,
+      200,
+    );
+    assert.equal(placement.status, 'CONFIRMED');
+    assert.equal(placement.offerVersionId, offer.currentVersionId);
+    const duplicate = await apiResult('POST', `${version}/confirm-placement`, 200, placementInput);
+    assert.equal(duplicate.placement.id, placement.id);
+    const recorded = await apiResult('GET', `${processPath}/placement`, 200);
+    assert.equal(
+      recorded.placement.history.filter((event) => event.action === 'CONFIRMED').length,
+      1,
+    );
+    const integrated = await apiResult('GET', processPath, 200);
+    assert.equal(integrated.candidateProcess.state, 'INTEGRATED');
+    assert.equal(
+      integrated.candidateProcess.history.filter(
+        (event) => event.action === 'INTEGRATION_CONFIRMED',
+      ).length,
+      1,
+    );
+    assert.equal((await apiResult('GET', missionPath, 200)).mission.filledPlacementCount, 1);
+    await page.getByText('Placement confirmed', { exact: true }).first().waitFor();
+    await page.screenshot({ path: path.join(evidence, 'placement-confirmed.png') });
+
+    for (const state of ['CANDIDATE_INTEGRATED', 'PROBATION_MONITORING']) {
+      await apiResult('PATCH', `${missionPath}/status`, 200, { state });
+    }
+    const closedState = 'CLOSED_WITH_RECRUITMENT';
+    const reason = 'POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED';
+    await apiResult('POST', `${missionPath}/close`, 409, {
+      state: closedState,
+      closureReason: reason,
+      filledPlacementCount: 0,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(detailUrl);
+    await heading(page, title).waitFor();
+    const closure = page.getByRole('form', { name: 'Close mission' });
+    await closure.getByLabel('Closure outcome').selectOption(closedState);
+    await postFromPage(button(closure, 'Close mission'), `${missionPath}/close`, 201, true);
+    await page.reload();
+    await heading(page, title).waitFor();
+    await page.getByText('Closed with recruitment', { exact: true }).first().waitFor();
+    await page.getByText('Closed mission', { exact: true }).waitFor();
+    const closed = (await apiResult('GET', missionPath, 200)).mission;
+    assert.equal(closed.state, closedState);
+    assert.equal(closed.closureReason, reason);
+    assert.equal(closed.filledPlacementCount, closed.numberOfPositions);
+    assert.ok(closed.closedAt);
+    const assignments = await apiResult('GET', `${missionPath}/assignments`, 200);
+    assert.equal(assignments.assignments.find((row) => row.userId === user.id)?.status, 'INACTIVE');
+    assert.equal((await apiResult('GET', processPath, 200)).candidateProcess.state, 'INTEGRATED');
+    assert.equal(
+      (await apiResult('GET', `/v1/candidates/${candidate.id}`, 200)).candidate.status,
+      candidate.status,
+    );
+    await apiResult('PATCH', missionPath, 409, { title: 'Disallowed closed mission edit' });
+    await page.screenshot({ path: path.join(evidence, 'successful-closure-mobile.png') });
+  });
+});
+
 // Use the real API to verify records written by the browser and linked across modules.
 test('client, mission recruitment, linked task, and mobile workspace', async () => {
   await withPage(async (page) => {

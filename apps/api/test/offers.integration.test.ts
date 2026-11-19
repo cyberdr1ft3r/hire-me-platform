@@ -503,6 +503,39 @@ describe('offer and placement lifecycle', () => {
     expect(events.filter((event) => event.action === 'CONFIRMED')).toHaveLength(1);
     expect(audits).toHaveLength(1);
     expect(reloadedMission.state).toBe('DRAFT');
+
+    // Set the preceding lifecycle state in this integration fixture. The browser
+    // covers the ordinary status transitions and submits the closure form.
+    await prisma.recruitmentMission.update({
+      where: { id: mission.id },
+      data: { state: 'PROBATION_MONITORING' },
+    });
+    const close = await fetch(`${baseUrl}/v1/missions/${mission.id}/close`, {
+      method: 'POST',
+      headers: authHeaders(recruiterToken),
+      body: JSON.stringify({
+        state: 'CLOSED_WITH_RECRUITMENT',
+        closureReason: 'POSITIONS_FILLED_AND_CANDIDATES_INTEGRATED',
+      }),
+    });
+    expect(close.status).toBe(201);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityId: mission.id,
+          action: 'missions.mission.closed',
+          actorUserId: recruiterUserId,
+        },
+      }),
+    ).toBe(1);
+    const closedProcess = await prisma.missionCandidate.findUniqueOrThrow({
+      where: { id: process.id },
+    });
+    expect(closedProcess.state).toBe('INTEGRATED');
+    expect(closedProcess.placementConfirmedAt).toBeInstanceOf(Date);
+    expect(await prisma.missionPlacement.count({ where: { missionCandidateId: process.id } })).toBe(
+      1,
+    );
   });
 
   it('keeps the legacy integration endpoint from bypassing offer-backed placements', async () => {
