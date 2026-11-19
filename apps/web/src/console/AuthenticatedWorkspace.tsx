@@ -472,6 +472,7 @@ export function AuthenticatedWorkspace({
           permissions.includes(permission),
         ) ? (
           <ExecutiveDashboard
+            key={JSON.stringify([...permissions].sort())}
             accessToken={accessToken}
             permissions={permissions}
             onNavigate={navigateToPath}

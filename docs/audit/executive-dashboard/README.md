@@ -12,7 +12,7 @@ Product direction: [Issue #234](https://github.com/cyberdr1ft3r/hire-me-platform
 | Tasks requiring attention | Tasks overdue and due-soon filters | Server determines both the status/date classification and which tasks the actor can see. Show at most five per category. |
 | Recent activity | Recruitment reporting drilldown | Most recently created candidate processes within seven days, capped at five. Display mission and stage, not candidate identity. This is a process creation feed; it is not an audit log or a client activity feed. |
 
-Executive home requires the complete existing Reporting view gate (six underlying operational reads and Reporting view). The client and API import the same contract constants. A principal with insufficient access receives the previous Overview; no widget calls are initiated. Each widget has its own loading and retry state and clears displayed data when the session token changes. Deep links use existing route permissions and navigation guards; destination APIs still enforce record scope. No financial, salary, commercial, or profitability metrics are rendered.
+Executive home requires the complete existing Reporting view gate (six underlying operational reads and Reporting view). The client and API import the same contract constants. A principal with insufficient access receives the previous Overview; no widget calls are initiated. Each widget has its own loading and retry state and clears displayed data when the session token or effective permission set changes. Deep links use existing route permissions and navigation guards; destination APIs still enforce record scope. No financial, salary, commercial, or profitability metrics are rendered.
 
 ## Verification and follow-up
 
