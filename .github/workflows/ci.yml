@@ -257,6 +257,16 @@ jobs:
         env:
           TEST_DATABASE_REFUSAL_EXTRA_URL: postgresql://hire_me:hire_me_dev_password@127.0.0.1:5432/hire_me_dev
 
+      - name: Drop integration database before browser acceptance
+        run: |
+          pnpm --filter @hire-me/api test:db:drop
+          echo "TEST_DATABASE_URL=" >> "$GITHUB_ENV"
+
+      # Integration fixtures can add grants beyond the seeded catalog. Browser role
+      # acceptance checks the original role contract on a newly provisioned database.
+      - name: Provision separate functional browser database
+        run: pnpm --filter @hire-me/api test:db:provision --github-env
+
       - name: Install Chromium for functional QA
         run: pnpm exec playwright install --with-deps chromium
 

@@ -6,7 +6,7 @@ QA starts from PR #266 (`47c5218b321530fc0f3563f40b5af41b6503a0f6`). The applica
 
 1. Follow the [disposable database runbook](../../runbooks/disposable-test-database.md) through provisioning. Use a fresh marked database for a clean repeat, `NODE_ENV=test`, and the URL from the run's `.url` file. Unset unrelated `DATABASE_URL` and `DIRECT_URL` values.
 2. Build the contracts and generate Prisma (`pnpm --filter @hire-me/contracts build`, `pnpm prisma:generate`). Install Chromium with `pnpm exec playwright install chromium`, or set `HIREME_E2E_CHROMIUM_CHANNEL=chrome` to use local Chrome. On PowerShell, use `pnpm.cmd` and `$env:NODE_ENV='test'`.
-3. Run `pnpm test:e2e`. The runner checks the database receipt and live marker, starts services on loopback ports 3118 and 5198, disables invoice issuance, and reports the evidence directory under `.tmp-runtime/functional-ui/`. Each run creates uniquely named synthetic records; role grants are not edited. CI publishes the generated PNGs as `functional-browser-evidence` and then drops the job's database.
+3. Run `pnpm test:e2e`. The runner checks the database receipt and live marker, starts services on loopback ports 3118 and 5198, disables invoice issuance, and reports the evidence directory under `.tmp-runtime/functional-ui/`. Each run creates uniquely named synthetic records; role grants are not edited. CI uses a fresh database for browser acceptance after dropping the integration database. It publishes the generated PNGs as `functional-browser-evidence` and drops the browser database.
 4. Drop the marked database and stop the disposable server using the runbook when finished.
 
 ## Functional coverage
@@ -61,6 +61,7 @@ The final local Chrome run passed 14/14 checks, including all nine role cases. I
 ## Local validation
 
 - Production build, format, architecture and design tokens, lint, and typecheck passed. Vite reports a large-bundle warning.
-- The broad PostgreSQL run passed 590/594. While the browser was writing its first fixtures on the same database, one reporting total differed. On a fresh database without browser writers, reporting passed 22/22 and candidates passed 13/13. One reminder CLI check still exceeded five seconds on Windows; with a per-test deadline it passed along with both other reminder CLI checks. One clean end-to-end integration pass on the final head is still required.
+- The clean, standalone PostgreSQL integration run passed 594/594 across 36 suites. An earlier shared run passed 590/594; the rerun used a fresh database without browser writers. The reminder CLI check now allows the observed Windows connection timeout without changing runtime behavior.
 - The database guard refused unmarked and forged targets; the authorization catalog showed no grant or permission drift. The PKCS#11 lab stays on its existing Linux CI job.
-- The parallel web unit run exposed login and shell tests that needed to wait for restore and two timing-sensitive failures in client and message tests. All 85 tests across those files passed with one worker after the test updates.
+- The full serial web unit run passed 1,124/1,124 after updating the session readiness assertions. Contracts passed 81/81; API unit tests passed 220 with 19 Windows skips for the PKCS#11 lab.
+- The first CI browser run reused the database after the integration passes and observed HTTP 200 for the synthetic Guest on the candidate list. A fresh marked database returned the expected 403. CI now provisions a separate database before running browser checks; the assertions and role grants are unchanged.
