@@ -5,7 +5,7 @@ Last updated: 2026-11-19
 ## Functional UI stabilization handoff — 2026-11-19
 
 1. Review the QA branch's exact-head CI and reproduce with `pnpm test:e2e` and a fresh marked database. See `docs/audit/functional-ui-qa/README.md` for coverage and before/after screenshots.
-2. Extend the suite through candidate qualification and rejection within missions, assignment persistence, and record-level denial checks for recruitment and client roles. Require persisted UI results and authoritative API responses for both paths.
+2. Extend the suite through interview scheduling, offer progression, additional rejection outcomes, and record-level denial checks for recruitment and client roles. Require persisted UI results and authoritative API responses for both paths.
 3. Resolve UI-02 and the residual UI-03 issues on the Administration branch. Review synthetic PDF generation on the invoice branch and require accounting and legal sign-off before issuance; see both exact-head reviews in the audit folder.
 
 ## Current situation

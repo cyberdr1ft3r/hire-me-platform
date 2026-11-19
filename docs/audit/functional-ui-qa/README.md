@@ -13,8 +13,8 @@ QA starts from PR #266 (`47c5218b321530fc0f3563f40b5af41b6503a0f6`). The applica
 
 | Area / routes | Browser and API evidence | Next gap |
 | --- | --- | --- |
-| `/`, `/candidates`, session endpoints | Anonymous response 401, login, delayed refresh and reload restore, logout and protected deep link, candidate validation, failed create with preserved values, create/edit/inactivate, reload and API verification | Refresh expiry and multi-tab behavior; candidate qualification and rejection through a mission |
-| `/clients`, `/missions`, `/tasks` | Real client and linked mission creation; real mission task creation; task reload at 390 px and API read | Assignment, transitions, update/cancel, full list operations and error cases |
+| `/`, `/candidates`, session endpoints | Anonymous response 401, login, delayed refresh and reload restore, logout and protected deep link, candidate validation, failed create with preserved values, create/edit/inactivate, reload and API verification | Refresh expiry and multi-tab behavior; exercise additional recruitment outcomes |
+| `/clients`, `/missions`, `/tasks` | Real client and mission creation; recruiter assignment, candidate link, CV review, HR preselection and decline persisted on reload; linked task reload at 390 px and API read | Assignment changes, interviews, offers, task update/cancel, full list operations and error cases |
 | `/reporting` | Recruitment summary 200, CSV export response and real browser download | Reporting filters, export reconciliation and dashboard drilldowns |
 | `/agenda`, `/messages` | Signed-in navigation and rendered views | Create, update and persistence; notes; empty/error cases |
 | `/accounting`, `/commercial`, `/documents` | Signed-in navigation and rendered views | Mutations, draft generation and rendering acceptance; branch-specific work tracked separately |
@@ -47,13 +47,14 @@ This matrix covers the checked endpoints and controls. It does not establish rec
 | UI-02 | P2 | Reproduced on #264 | Sign in as EMPLOYEE and open `/admin` directly. The protected view appears, but Overview is selected in the workspace tab strip. See the [Administration review](PR-264-review.md). |
 | UI-03 | P2 | Partially resolved on #264 | Section navigation isolates Billing and Access. Long French labels initially clip horizontally at mobile width, and Access remains very tall. See the [Administration review](PR-264-review.md). |
 
-No P0 or P1 was verified in the exercised browser paths. Before production sign-off, finish recruitment transitions and mission scope by role, then document and invoice draft acceptance and administration writes. Keep invoice accounting and legal approval separate from UI sign-off. Extend coverage for list controls, unsaved changes, communication flows and adverse inputs after these checks. Separate [invoice review](PR-265-review.md).
+No P0 or P1 was verified in the exercised browser paths. Before production sign-off, extend recruitment through interviews and offers and verify mission scope by role, then document and invoice draft acceptance and administration writes. Keep invoice accounting and legal approval separate from UI sign-off. Extend coverage for list controls, unsaved changes, communication flows and adverse inputs after these checks. Separate [invoice review](PR-265-review.md).
 
 ## Browser evidence
 
 The final local Chrome run passed 14/14 checks, including all nine role cases. Its database catalog gate passed 5/5.
 
 - [Persisted candidate](evidence/candidate-persisted.png)
+- [Persisted recruitment stage](evidence/recruitment-pipeline-persisted.png)
 - [Linked task at 390 px](evidence/mobile-linked-task.png)
 - [Recruitment report](evidence/recruitment-report.png)
 

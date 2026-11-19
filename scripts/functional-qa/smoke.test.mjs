@@ -270,7 +270,7 @@ test('nine roles agree on candidate and administration access in UI and API', as
 });
 
 // Use the real API to verify records written by the browser and linked across modules.
-test('client and mission creation, linked task, and mobile workspace', async () => {
+test('client, mission recruitment, linked task, and mobile workspace', async () => {
   await withPage(async (page) => {
     const token = await login(page);
     const open = async (route) => {
@@ -304,6 +304,69 @@ test('client and mission creation, linked task, and mobile workspace', async () 
     const { mission } = await missionResult.json();
     await heading(page, missionName).waitFor();
     assert.equal(mission.clientId, client.id);
+
+    const openSection = async (name) => {
+      const container = page.getByRole('tab', { name, exact: true });
+      if (await container.count()) await container.click();
+      else await button(page, name).click();
+    };
+    const missionPath = `/v1/missions/${mission.id}`;
+    await openSection('Team');
+    const assignment = page.getByRole('form', { name: 'Assign a team member' });
+    await assignment.getByLabel('Role', { exact: true }).selectOption('RECRUITER');
+    await assignment.getByRole('combobox', { name: /Team member/ }).fill(admin);
+    await page.getByRole('option', { name: new RegExp(admin, 'i') }).click();
+    const assign = response(page, 'POST', `${missionPath}/assignments`);
+    await button(assignment, 'Assign').click();
+    const assigned = await assign;
+    assert.equal(assigned.status(), 201);
+    const { assignment: savedAssignment } = await assigned.json();
+    const pipelineCandidate = `QA Pipeline ${run}`;
+    const seedCandidate = await request(token, '/v1/candidates', 'POST', {
+      displayName: pipelineCandidate,
+    });
+    assert.equal(seedCandidate.status, 201);
+    await openSection('Mission candidates');
+    const linkForm = page.getByRole('form', { name: 'Link a candidate' });
+    await linkForm
+      .getByRole('combobox', { name: 'Candidate', exact: true })
+      .fill(pipelineCandidate);
+    await page.getByRole('option', { name: new RegExp(pipelineCandidate) }).click();
+    await linkForm
+      .getByRole('combobox', { name: /^Responsible recruiter/ })
+      .selectOption(savedAssignment.userId);
+    const linking = response(page, 'POST', `${missionPath}/candidates`);
+    await button(linkForm, 'Link candidate').click();
+    const linked = await linking;
+    assert.equal(linked.status(), 201);
+    const { candidateProcess } = await linked.json();
+    await button(page, `Open the process for ${pipelineCandidate}`).click();
+    for (const [stage, label] of [
+      ['CV_TO_REVIEW', 'CV to review'],
+      ['HR_PRESELECTION', 'HR preselection'],
+      ['CANDIDATE_REJECTED', 'Declined by candidate'],
+    ]) {
+      const changed = response(
+        page,
+        'POST',
+        `${missionPath}/candidates/${candidateProcess.id}/transition`,
+      );
+      page.once('dialog', (dialog) => dialog.accept());
+      await button(page, `Move to ${label}`).click();
+      const stageResult = await changed;
+      assert.equal(stageResult.status(), 200);
+      assert.equal((await stageResult.json()).candidateProcess.state, stage);
+    }
+    await page.reload();
+    await heading(page, missionName).waitFor();
+    const pipeline = page.getByRole('region', { name: 'Mission candidates', exact: true });
+    if (!(await pipeline.isVisible())) await openSection('Mission candidates');
+    await pipeline
+      .getByRole('row')
+      .filter({ hasText: pipelineCandidate })
+      .getByText('Declined by candidate', { exact: true })
+      .waitFor();
+    await page.screenshot({ path: path.join(evidence, 'recruitment-pipeline-persisted.png') });
 
     const taskName = `QA Task ${run}`;
     await open('/tasks');
