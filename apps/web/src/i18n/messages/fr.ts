@@ -404,6 +404,17 @@ export const frMessages: Messages = {
       confirmBaseline: 'Confirmer la base',
       baselineConfirmed: 'Base confirmée pour {prefix}-{year} ; prochain numéro après {number}.',
     },
+    roleDescriptions: {
+      SUPER_ADMIN: 'Administration de l’ensemble de la plateforme.',
+      ADMIN: 'Administration courante de la plateforme.',
+      HR_MANAGER: 'Opérations de recrutement.',
+      MANAGER: 'Opérations dans le périmètre de l’équipe.',
+      TEAM_LEADER: 'Activités dans le périmètre de l’équipe.',
+      EMPLOYEE: 'Travail assigné.',
+      FINANCE_MANAGER: 'Opérations commerciales et comptables dans le périmètre client autorisé.',
+      GUEST: 'Lecture des dossiers partagés individuellement.',
+      CLIENT_USER: 'Réservé aux accès limités au périmètre client.',
+    },
     roleNames: {
       ADMIN: 'Administrateur',
       CLIENT_USER: 'Utilisateur client',

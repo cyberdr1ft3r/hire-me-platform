@@ -129,6 +129,48 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     expect(onNavigateSection).toHaveBeenCalledWith('access');
   });
 
+  it('keeps the localized role permissions collapsed until a role is opened', async () => {
+    const permission = {
+      id: USER_ID,
+      code: 'records:view',
+      description: 'View records',
+      scopeType: 'GLOBAL',
+      status: 'ACTIVE',
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.endsWith('/v1/admin/roles')) {
+        return json({
+          roles: [
+            {
+              id: USER_ID,
+              name: 'ADMIN',
+              description: 'Raw description',
+              status: 'ACTIVE',
+              permissions: [permission],
+            },
+          ],
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+    render(
+      <I18nProvider initialLocale="fr">
+        <AdminPanel accessToken="synthetic-token" permissions={['roles:view']} section="access" />
+      </I18nProvider>,
+    );
+    const description = await screen.findByText('Administration courante de la plateforme.');
+    const details = description.closest('details');
+    expect(details).not.toHaveAttribute('open');
+    expect(screen.getByText('records:view')).not.toBeVisible();
+    expect(screen.queryByText('Raw description')).not.toBeInTheDocument();
+    details?.setAttribute('open', '');
+    expect(screen.getByText('records:view')).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: 'Catalogue des permissions' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows a localized denial for an unauthorized direct section', () => {
     render(
       <I18nProvider initialLocale="fr">

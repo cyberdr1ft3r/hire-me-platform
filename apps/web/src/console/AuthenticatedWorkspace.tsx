@@ -56,7 +56,11 @@ import {
   type TabId,
 } from './console-state.js';
 import { useConsole } from './ConsoleProvider.js';
-import { adminSectionFromSearch, adminSectionPath } from '../admin/admin-sections.js';
+import {
+  adminSectionFromSearch,
+  adminSectionPath,
+  canAccessAdminSection,
+} from '../admin/admin-sections.js';
 
 type ApiState =
   | { status: 'loading' }
@@ -339,6 +343,10 @@ export function AuthenticatedWorkspace({
   }
 
   const canOpenRoute = canAccessInternalRoute(route, permissions);
+  const requestedAdminSection = route === 'admin' ? adminSectionFromSearch(location.search) : null;
+  const showTabSelection =
+    canOpenRoute &&
+    (!requestedAdminSection || canAccessAdminSection(requestedAdminSection, permissions));
   let routeContent: ReactNode;
   if (!canOpenRoute) {
     routeContent = (
@@ -496,6 +504,7 @@ export function AuthenticatedWorkspace({
             onContinuePending={() => continuePending(false)}
             onReplacePending={() => continuePending(true)}
             pendingLabel={pendingLabel}
+            showSelection={showTabSelection}
             state={state}
             visibleTabs={visibleTabs}
             dirtyTabId={hasUnsavedChanges ? state.active : null}

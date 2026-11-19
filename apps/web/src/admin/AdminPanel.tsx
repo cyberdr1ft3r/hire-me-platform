@@ -616,14 +616,14 @@ function AccessAdministrationPanel({
               {roles.length ? (
                 <div className="admin-role-catalog">
                   {roles.map((role) => (
-                    <article key={role.id}>
-                      <h4>{formatAdminRoleName(t, role.name)}</h4>
-                      <p>{role.description}</p>
+                    <details key={role.id} className="admin-access-disclosure">
+                      <summary>{formatAdminRoleName(t, role.name)}</summary>
+                      <p>{t(`admin.roleDescriptions.${role.name}`)}</p>
                       <PermissionGroups
                         codes={role.permissions.map((permission) => permission.code)}
                         emptyLabel={t('admin.access.empty')}
                       />
-                    </article>
+                    </details>
                   ))}
                 </div>
               ) : (
@@ -635,6 +635,7 @@ function AccessAdministrationPanel({
             <section aria-labelledby="admin-permission-catalog-title">
               <h3 id="admin-permission-catalog-title">{t('admin.access.permissionsTitle')}</h3>
               <PermissionGroups
+                collapsible
                 codes={catalog.map((permission) => permission.code)}
                 emptyLabel={t('admin.access.empty')}
               />

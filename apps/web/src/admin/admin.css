@@ -4,11 +4,11 @@
 
 .admin-section-nav {
   border-bottom: var(--border-width) solid var(--color-border);
-  overflow-x: auto;
 }
 
 .admin-section-nav ul {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   list-style: none;
   margin: 0;
@@ -93,6 +93,22 @@
 
 .admin-role-catalog :where(h4, p) {
   margin-top: 0;
+}
+
+.admin-access-disclosure {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.admin-access-disclosure > summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-access-disclosure > summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
 }
 
 @media (max-width: 40rem) {

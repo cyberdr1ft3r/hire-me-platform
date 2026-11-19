@@ -87,6 +87,9 @@ function mockInternalSession(permissions: readonly string[] = shellPermissions) 
         }),
       );
     }
+    if (url.endsWith('/v1/admin/roles')) {
+      return Promise.resolve(jsonResponse({ roles: [] }));
+    }
     if (url.includes('/v1/tasks') || url.includes('/v1/notifications')) {
       const collection = url.includes('/v1/notifications') ? 'notifications' : 'tasks';
       return Promise.resolve(
@@ -209,7 +212,8 @@ describe('Task workspace inside a French shell', () => {
   });
 
   it('applies the boundary to every deferred destination and to nothing else', () => {
-    expect([...deferredEnglishRoutes].sort()).toEqual(['admin']);
+    expect([...deferredEnglishRoutes]).toEqual([]);
+    expect(isDeferredEnglishRoute('admin')).toBe(false);
     expect(isDeferredEnglishRoute('clients')).toBe(false);
     expect(isDeferredEnglishRoute('tasks')).toBe(false);
     // Reporting, Candidates, and Tasks are bilingual since their redesigns, so they left
@@ -240,6 +244,25 @@ describe('translated surfaces carry no English override', () => {
     expect(document.querySelector('.legacy-english-content')).toBeNull();
   });
 
+  it('renders the translated Administration catalog with no English boundary', async () => {
+    restoreLanguage = stubBrowserLanguage('fr-FR');
+    window.history.pushState({}, '', '/admin?section=access');
+    mockInternalSession(['roles:view']);
+    render(<App />);
+
+    const catalogHeading = await screen.findByRole(
+      'heading',
+      { name: 'Rôles approuvés' },
+      { timeout: 5000 },
+    );
+    expect(effectiveLanguage(catalogHeading)).toBe('fr');
+    expect(catalogHeading.closest('[lang="en"]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Rôles et permissions' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('leaves the localized permission denial inside the document language', async () => {
     restoreLanguage = stubBrowserLanguage('fr-FR');
     window.history.pushState({}, '', '/admin');
@@ -248,6 +271,7 @@ describe('translated surfaces carry no English override', () => {
 
     const denial = await screen.findByRole('alert');
     expect(denial).toHaveTextContent('Accès refusé.');
+    expect(screen.queryByRole('tab', { selected: true })).not.toBeInTheDocument();
     expect(effectiveLanguage(denial)).toBe('fr');
     expect(document.querySelector('.legacy-english-content')).toBeNull();
   });

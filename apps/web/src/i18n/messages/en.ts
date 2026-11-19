@@ -377,6 +377,17 @@ export const enMessages = {
       confirmBaseline: 'Confirm baseline',
       baselineConfirmed: 'Baseline confirmed for {prefix}-{year}; next number follows {number}.',
     },
+    roleDescriptions: {
+      SUPER_ADMIN: 'Platform-wide administration.',
+      ADMIN: 'Standard platform administration.',
+      HR_MANAGER: 'Recruitment operations.',
+      MANAGER: 'Scoped team operations.',
+      TEAM_LEADER: 'Team-scoped activity.',
+      EMPLOYEE: 'Assigned work.',
+      FINANCE_MANAGER: 'Commercial and accounting operations within authorized client scope.',
+      GUEST: 'Read-only access to individually shared records.',
+      CLIENT_USER: 'Reserved for client-scoped access.',
+    },
     roleNames: {
       ADMIN: 'Administrator',
       CLIENT_USER: 'Client user',
