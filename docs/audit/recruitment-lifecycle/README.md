@@ -1,6 +1,6 @@
 # Recruitment lifecycle and external portal readiness
 
-Base: PR #267 at `a66c585a744c7c3db8643b44a746599030cc1e20`. Run permanent browser coverage with `pnpm test:e2e` using the [disposable database runbook](../../runbooks/disposable-test-database.md). For a focused local run use `node scripts/functional-qa/run.mjs --test-name-pattern=recruitment-lifecycle` with the same environment. The runner starts separate API processes for the smoke and lifecycle groups so both can use the real per-IP authentication limiter. Screenshots are written to the run directory reported by the harness.
+Base: PR #267 at `a66c585a744c7c3db8643b44a746599030cc1e20`. Run permanent browser coverage with `pnpm test:e2e` using the [disposable database runbook](../../runbooks/disposable-test-database.md). For a focused local run use `node scripts/functional-qa/run.mjs --test-name-pattern=recruitment-lifecycle` with the same environment. The runner starts separate API processes for smoke, role acceptance and lifecycle so all three can use the real per-IP authentication limiter. Screenshots are written to the run directory reported by the harness.
 
 ## Acceptance coverage
 
@@ -34,7 +34,7 @@ The existing candidate-process, interview, and offer integration tests cover sel
 
 | Workflow | Classification | Evidence at the audited base |
 | --- | --- | --- |
-| Anonymous opportunity list, detail and application | Functional | `PublicSite`, `PublicApplicationForm`, and `PublicApplicationsController` provide list/detail and multipart submission. The public site is reachable without a session. |
+| Anonymous opportunity list, detail and application | Functional | `PublicSite`, `PublicApplicationForm`, and `PublicApplicationsController` provide list/detail and application submission with validated file uploads. The public site is reachable without a session. |
 | Opportunity design prototype | Mock-only | `apps/web/public-opportunity.html` and `public-opportunity-preview-data.ts` use preview data; the real public route lives separately in `public-opportunities`. |
 | Staff publishing and application triage | Functional internal flow | `MissionPublicOpportunity` and the internal mission application APIs handle publishing and recruiter review. This is the existing entry point into the pipeline. |
 | Client authentication | Partial foundation | Staff authentication and a seeded `CLIENT_USER` role exist; contact creation defaults portal access to disabled. No verified external client login, membership onboarding, or client portal navigation. |
@@ -57,7 +57,8 @@ Reviewed local and remote refs, repository history matching portal terms, projec
 
 ## Local validation
 
+- Focused web unit run: 115/115 across mission rules, closure, placement, read-only workspace and public opportunities.
 - Focused PostgreSQL run: 77/77 across interviews, offers, missions, candidate processes and public applications. Fresh migrations and a separate database from the browser tests.
 - Format, architecture and design tokens, lint, typecheck, and production build passed. Existing lint and bundle-size warnings remain.
 - Playwright MCP rendered the anonymous opportunities page. Chrome DevTools showed healthy API responses and the expected anonymous session refresh rejection. The list remained accessible without authentication.
-- No recruitment application defect requiring a product patch was verified in this batch. The browser harness isolates the two groups without changing application behavior.
+- No recruitment application defect requiring a product patch was verified in this batch. The browser harness isolates the groups without changing application behavior.

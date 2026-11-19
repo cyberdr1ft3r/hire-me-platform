@@ -206,7 +206,7 @@ const roles = [
   ['GUEST', false, false],
   ['CLIENT_USER', false, false],
 ];
-test('nine roles agree on candidate and administration access in UI and API', async (t) => {
+test('record-permissions: nine roles agree on candidate and administration access in UI and API', async (t) => {
   const bootstrap = await request(null, '/auth/login', 'POST', { email: admin, password });
   assert.equal(bootstrap.status, 201);
   const { accessToken } = await bootstrap.json();
@@ -476,7 +476,7 @@ test('recruitment-lifecycle: interview, evaluation, offer and closure persist', 
     await section('Overview');
     const closure = page.getByRole('form', { name: 'Close mission' });
     await closure.getByLabel('Closure outcome').selectOption('CANCELED');
-    await submit(button(closure, 'Close mission'), `${missionPath}/close`, 200, true);
+    await submit(button(closure, 'Close mission'), `${missionPath}/close`, 201, true);
     await reloadRecord();
     await page.getByText('Canceled', { exact: true }).first().waitFor();
     const closed = await request(token, missionPath);
