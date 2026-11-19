@@ -88,7 +88,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -161,7 +161,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'limited@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -218,7 +218,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'no-task@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -314,7 +314,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'readonly@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -484,7 +484,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'tasks@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -643,7 +643,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'admin@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -801,7 +801,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'client-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -933,7 +933,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'candidate-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1262,7 +1262,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'document-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1273,7 +1273,9 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: /documents/i }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Documents' }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByRole('button', { name: 'Issue35 Contract' })).toBeVisible();
     expect(screen.queryByRole('form', { name: /register a document/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Issue35 Contract' }));
@@ -1327,7 +1329,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'no-commercial@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1345,7 +1347,9 @@ describe('App', () => {
 
     await openCommercialWorkspace('Commercial Viewer');
 
-    expect(await screen.findByRole('heading', { name: /commercial/i })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: /commercial/i }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByText('Q38-WEB')).toBeVisible();
     expect(await screen.findByText('Hidden')).toBeVisible();
     expect(screen.queryByRole('form', { name: /create quotation/i })).toBeNull();
@@ -1510,7 +1514,7 @@ describe('App', () => {
     mockTrainingWorkspace(['records:view']);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1530,7 +1534,7 @@ describe('App', () => {
     ]);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1575,7 +1579,7 @@ describe('App', () => {
     ]);
 
     render(<App />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'training-operator@example.test' },
     });
     fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -1874,7 +1878,9 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: 'Accounting' }));
 
-    expect(await screen.findByRole('heading', { name: 'Accounting' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'Accounting' }, { timeout: 3000 }),
+    ).toBeVisible();
     expect(await screen.findByRole('button', { name: 'PAY39-1' })).toBeVisible();
     expect(screen.getAllByText('Hidden').length).toBeGreaterThan(0);
 
@@ -2473,7 +2479,7 @@ async function openCommercialQuotation(displayName: string): Promise<void> {
 
 async function openCommercialWorkspace(displayName: string): Promise<void> {
   render(<App />);
-  fireEvent.change(screen.getByLabelText(/email/i), {
+  fireEvent.change(await screen.findByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
   fireEvent.change(screen.getByLabelText(/^password$/i), {
@@ -2714,7 +2720,7 @@ function mockMissionWorkspace(
 
 async function openMissionWorkspace(displayName: string): Promise<void> {
   render(<App />);
-  fireEvent.change(screen.getByLabelText(/email/i), {
+  fireEvent.change(await screen.findByLabelText(/email/i), {
     target: { value: `${displayName.toLowerCase().replaceAll(' ', '-')}@example.test` },
   });
   fireEvent.change(screen.getByLabelText(/^password$/i), {

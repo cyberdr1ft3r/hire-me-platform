@@ -1,0 +1,166 @@
+{
+  "results": [
+    {
+      "route": "/",
+      "actualUrl": "http://127.0.0.1:5173/",
+      "headings": [
+        "Overview",
+        "Your HireMe workspace"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "WORKSPACE\n\nOverview\n\nMove between recruitment, operations, and business work from one consistent workspace.\n\nSigned in as admin@example.test\nYour HireMe workspace\n\nChoose an available destination from the navigation. What appears there reflects the permissions attached to this account.",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/candidates",
+      "actualUrl": "http://127.0.0.1:5173/candidates",
+      "headings": [
+        "Candidates",
+        "General candidate pool"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "RECRUITMENT\n\nCandidates\n\nManage candidate profiles and recruitment information.\n\nNew candidate\nGeneral candidate pool\nSearch\nName, email, title, city, or country\n2 candidates\nSearch candidates\nFilters\n\n2 candidates\nNewest first\n\nCandidate\tCurrent title\tLocation\tStatus\tSource\tLast updated\nSynthetic Candidate B\tEngineer\tCasablanca, Morocco\t\nActive\tSy",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/missions",
+      "actualUrl": "http://127.0.0.1:5173/missions",
+      "headings": [
+        "Missions",
+        "Mission directory"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "RECRUITMENT\n\nMissions\n\nRun recruitment missions from intake to placement: team, mission candidates, interviews, offers, and the public opportunity.\n\n+ New mission\nMission directory\nSearch\nTitle, description, requirements, or client name\nApply filters\nFilters\n\n1 mission\nNewest first\n\nMission\tClient\tStatus\tPriority\tPositions\tApplication deadline\tLoca",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/clients",
+      "actualUrl": "http://127.0.0.1:5173/clients",
+      "headings": [
+        "Clients",
+        "Client directory"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "OPERATIONS\n\nClients\n\nManage client organizations and their contacts.\n\n+ New client\nClient directory\nSearch\nName, industry, city, or country\n2 clients\nApply filters\nFilters\nClient\tMain phone\tUpdated\tStatus\n\nSynthetic Meridian Retail\nSoftware · Casablanca, Morocco\n\tNot recorded\t17 Nov 2026\t\nProspect\n\nSynthetic Atlas Hiring\nSoftware · Casablanca, Moro",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/tasks",
+      "actualUrl": "http://127.0.0.1:5173/tasks",
+      "headings": [
+        "Task pipeline",
+        "To do",
+        "In progress",
+        "Waiting",
+        "Blocked",
+        "Completed",
+        "Notifications"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "Task pipeline\n\nMove work through its stages, see what is due, and open any task for details.\n\nNew task\nBoard\nList\nSearch tasks\nShow\nAll tasks I can see\nAssigned to me\nOwned by me\nCreated by me\nDue\nAny due date\nDue soon\nOverdue\nPriority\nAny priority\nLow\nNormal\nHigh\nUrgent\nSort by\nDue date, soonest first\nRecently updated\nPriority, highest first\nApply",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/messages",
+      "actualUrl": "http://127.0.0.1:5173/messages",
+      "headings": [
+        "Messages",
+        "Conversations"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "WORKSPACE\n\nMessages\n\nPrivate conversations and small discussion groups with colleagues. Decisions that belong to a record stay in that record.\n\nNew group\nNew message\nConversations\nAll\nUnread\nArchived\n—\nNo conversations yet\n\nStart a conversation with a colleague, or create a small group.\n\n—\nNo conversation selected\n\nSelect a conversation, or start a"
+    },
+    {
+      "route": "/commercial",
+      "actualUrl": "http://127.0.0.1:5173/commercial",
+      "headings": [
+        "Commercial",
+        "Quotations"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "BUSINESS\n\nCommercial\n\nPrepare quotations, record purchase orders, invoice clients, and keep contracts — each record linked to the one it follows.\n\nNew quotation\nQuotation\nPurchase order\nInvoice\nQuotations\nPurchase orders\nInvoices\nContracts\nQuotations\nReference\nMatches part of the reference.\nStatus\nAny status\nDraft\nIssued\nAccepted\nRejected\nExpired\nC"
+    },
+    {
+      "route": "/agenda",
+      "actualUrl": "http://127.0.0.1:5173/agenda",
+      "headings": [
+        "My Agenda"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "My Agenda\n\nChronological view of your dated work across Hire Me.\n\nView\nToday\nWeek\nMonth\nUpcoming\nOverdue\nPast\nSource\nAll sources\nTasks\nFollow-ups\nMeetings\nInterviews\nTraining\nRefresh\n18 Nov 2026\nSynthetic audit follow-up\nTasks · 18 Nov 2026, 16:06\nOpen"
+    },
+    {
+      "route": "/reporting",
+      "actualUrl": "http://127.0.0.1:5173/reporting",
+      "headings": [
+        "Recruitment reporting",
+        "Pipeline distribution",
+        "Weekly trends",
+        "Candidate process drilldown"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "RECRUITMENT\n\nRecruitment reporting\n\nMonitor recruitment activity, pipeline movement, and placement outcomes.\n\nWindow 19 Aug 2026 to 17 Nov 2026\nReporting on all missions\nExport CSV\nStart date\nEnd date\nClient\nAll clients\nSynthetic Atlas Hiring\nMission\nAll missions\nSynthetic Engineer Search\nRecruiter\nAll recruiters\nDevelopment Administrator\nApply fil",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/accounting",
+      "actualUrl": "http://127.0.0.1:5173/accounting",
+      "headings": [
+        "Accounting",
+        "Payments"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "BUSINESS\n\nAccounting\n\nRecord client payments and settle them against issued invoices, track expenses, and read client balances and profitability.\n\nQuotation\nPurchase order\nInvoice\nPayment\nPayments\nExpenses\nClient balances\nProfitability\nPayments\nRecord payment\n\nEvery payment belongs to one client. Allocate it to that client’s issued invoices; partia",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/training",
+      "actualUrl": "http://127.0.0.1:5173/training",
+      "headings": [
+        "Training",
+        "New training program",
+        "Programs"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "OPERATIONS\n\nTraining\n\nPlan training programs, schedule their sessions, enroll participants, record attendance, and follow certificate readiness.\n\nNew training program\nPrograms\nSearch\nProgram name or reference.\nStatus\nAny status\nDraft\nActive\nClosed\nArchived\nOwner\nAnyone\nOwned by me\nA specific person\nClient\nAny client\nSynthetic Meridian Retail · Casa"
+    },
+    {
+      "route": "/documents",
+      "actualUrl": "http://127.0.0.1:5173/documents",
+      "headings": [
+        "Documents",
+        "Register a document",
+        "Document library"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "RECORDS\n\nDocuments\n\nFind, review, and download managed files with their full version history and the records they belong to.\n\nRegister a document\nDocument library\nSearch\nTitle or file name.\nType\nAny type\nRecruitment contract\nTraining contract\nJob description\nInterview report\nCandidate summary\nTechnical test report\nHR document\nClient file\nQuotation\n",
+      "mobileHorizontalOverflow": false
+    },
+    {
+      "route": "/admin",
+      "actualUrl": "http://127.0.0.1:5173/admin",
+      "headings": [
+        "Billing settings",
+        "Administration",
+        "Users",
+        "Permission catalog"
+      ],
+      "horizontalOverflow": false,
+      "bodyTextExcerpt": "Billing settings\n\nReusable company profile. Issued invoices keep their own immutable snapshot.\n\nLegal company name\nLegal form\nShare capital\nRegistered address\nCommercial register (RC)\nICE\nTax identifier (IF)\nBusiness tax / PT\nPhone\nEmail\nWebsite\nPayment terms\nPayment method\nBank details (optional)\nInvoice prefix\nNumber width\n Enable automatic numbe",
+      "mobileHorizontalOverflow": false
+    }
+  ],
+  "consoleErrors": [
+    {
+      "url": "http://127.0.0.1:5173/",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:5173/",
+      "request": "http://127.0.0.1:3000/auth/refresh",
+      "status": 401
+    }
+  ]
+}
