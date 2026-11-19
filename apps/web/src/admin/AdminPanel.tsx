@@ -1,5 +1,4 @@
 import type {
-  AdminPermission,
   AdminRole,
   AdminRoleName,
   AdminUserDetail,
@@ -12,7 +11,6 @@ import {
   assignAdminRole,
   createAdminUser,
   getAdminUser,
-  listAdminPermissions,
   listAdminRoles,
   listAdminUsers,
   removeAdminRole,
@@ -38,7 +36,8 @@ import {
   type AdminSection,
 } from './admin-sections.js';
 import { BillingSettingsPanel } from './BillingSettingsPanel.js';
-import { PermissionGroups } from './PermissionGroups.js';
+import { AccessAdministrationPanel } from './AccessAdministrationPanel.js';
+import { PermissionGroups } from './AccessPermissionGroups.js';
 import { adminStatusTone, formatAdminRoleName } from './role-labels.js';
 import './admin.css';
 
@@ -532,8 +531,9 @@ function UserAdministrationPanel({
                 )}
 
                 <h3>{t('admin.users.effectivePermissions')}</h3>
+                <p>{t('admin.users.effectivePermissionsHint')}</p>
                 <PermissionGroups
-                  codes={selectedUser.effectivePermissions}
+                  entries={selectedUser.effectivePermissions.map((code) => ({ code }))}
                   emptyLabel={t('admin.users.none')}
                 />
               </>
@@ -544,103 +544,6 @@ function UserAdministrationPanel({
             )}
             {message ? <p role="status">{message}</p> : null}
           </section>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function AccessAdministrationPanel({
-  accessToken,
-  permissions: actorPermissions,
-}: {
-  accessToken: string;
-  permissions: readonly string[];
-}) {
-  const { t } = useI18n();
-  const [roles, setRoles] = useState<AdminRole[]>([]);
-  const [catalog, setCatalog] = useState<AdminPermission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const canViewRoles = actorPermissions.includes('roles:view');
-  const canViewPermissions = actorPermissions.includes('permissions:view');
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(false);
-    const requests: Promise<unknown>[] = [];
-    if (canViewRoles) {
-      requests.push(
-        listAdminRoles(accessToken).then((response) => {
-          if (active) setRoles(response.roles);
-        }),
-      );
-    }
-    if (canViewPermissions) {
-      requests.push(
-        listAdminPermissions(accessToken).then((response) => {
-          if (active) setCatalog(response.permissions);
-        }),
-      );
-    }
-    void Promise.all(requests)
-      .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [accessToken, canViewPermissions, canViewRoles]);
-
-  return (
-    <section aria-labelledby="admin-access-title" className="admin-section">
-      <div className="admin-section__heading">
-        <h2 id="admin-access-title">{t('admin.sections.access.title')}</h2>
-        <p>{t('admin.sections.access.description')}</p>
-      </div>
-      {loading ? <PageState kind="loading" title={t('admin.access.loading')} /> : null}
-      {error ? (
-        <PageState kind="error" title={t('admin.access.errorTitle')}>
-          <p>{t('admin.access.errorMessage')}</p>
-        </PageState>
-      ) : null}
-      {!loading && !error ? (
-        <div className="admin-access-grid">
-          {canViewRoles ? (
-            <section aria-labelledby="admin-role-catalog-title">
-              <h3 id="admin-role-catalog-title">{t('admin.access.rolesTitle')}</h3>
-              {roles.length ? (
-                <div className="admin-role-catalog">
-                  {roles.map((role) => (
-                    <details key={role.id} className="admin-access-disclosure">
-                      <summary>{formatAdminRoleName(t, role.name)}</summary>
-                      <p>{t(`admin.roleDescriptions.${role.name}`)}</p>
-                      <PermissionGroups
-                        codes={role.permissions.map((permission) => permission.code)}
-                        emptyLabel={t('admin.access.empty')}
-                      />
-                    </details>
-                  ))}
-                </div>
-              ) : (
-                <PageState kind="empty" title={t('admin.access.empty')} />
-              )}
-            </section>
-          ) : null}
-          {canViewPermissions ? (
-            <section aria-labelledby="admin-permission-catalog-title">
-              <h3 id="admin-permission-catalog-title">{t('admin.access.permissionsTitle')}</h3>
-              <PermissionGroups
-                collapsible
-                codes={catalog.map((permission) => permission.code)}
-                emptyLabel={t('admin.access.empty')}
-              />
-            </section>
-          ) : null}
         </div>
       ) : null}
     </section>

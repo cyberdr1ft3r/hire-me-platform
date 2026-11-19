@@ -327,12 +327,44 @@ export const frMessages: Messages = {
       title: 'Section indisponible',
     },
     access: {
+      allAreas: 'Tous les domaines',
+      area: 'Domaine fonctionnel',
+      areas: {
+        administration: 'Administration',
+        clients: 'Clients et contacts',
+        collaboration: 'Tâches, agenda et messagerie',
+        documents: 'Documents',
+        finance: 'Commercial et comptabilité',
+        recruitment: 'Recrutement',
+        reporting: 'Rapports',
+        training: 'Formation',
+        uncategorized: 'Autres accès',
+      },
+      clear: 'Effacer les filtres d’accès',
+      deprecated: 'Obsolète',
       empty: 'Aucun accès approuvé n’est disponible.',
       errorMessage: 'Les catalogues approuvés des rôles et permissions n’ont pas pu être chargés.',
       errorTitle: 'Vue des accès indisponible',
+      filters: 'Filtrer les rôles et permissions',
+      groupSummary: plural({
+        one: '{area} · {count} permission',
+        other: '{area} · {count} permissions',
+      }),
       loading: 'Chargement des rôles et permissions…',
+      noMatches: 'Aucune entrée ne correspond à ces filtres.',
+      permissionCount: plural({
+        one: '{count} permission du catalogue',
+        other: '{count} permissions du catalogue',
+      }),
       permissionsTitle: 'Catalogue des permissions',
+      retry: 'Réessayer de charger les accès',
+      roleCount: plural({ one: '{count} rôle', other: '{count} rôles' }),
+      roleGrants: plural({
+        one: 'Voir {count} permission du rôle',
+        other: 'Voir {count} permissions du rôle',
+      }),
       rolesTitle: 'Rôles approuvés',
+      search: 'Rechercher des rôles et permissions',
     },
     users: {
       actions: {
@@ -360,6 +392,8 @@ export const frMessages: Messages = {
       },
       detailRegion: 'Détail de l’utilisateur sélectionné',
       effectivePermissions: 'Permissions effectives',
+      effectivePermissionsHint:
+        'Accès de ce compte indiqués par le serveur. Les rôles attribués figurent ci-dessus.',
       emptyMessage: 'Modifiez la recherche ou le filtre de statut, puis réessayez.',
       emptyTitle: 'Aucun utilisateur trouvé',
       errorMessage: 'Vérifiez votre connexion et vos permissions, puis réessayez.',

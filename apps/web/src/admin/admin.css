@@ -84,16 +84,71 @@
   padding-top: var(--space-5);
 }
 
+.admin-role-catalog {
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.admin-role-summary {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.admin-role-summary :where(h4, p) {
+  margin: 0;
+}
+
+.admin-role-summary p {
+  color: var(--color-text-secondary);
+}
+
+.admin-permission-groups,
+.admin-permission-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-access-disclosure > :where(.admin-permission-groups, .admin-permission-list) {
+  margin-top: var(--space-2);
+}
+
+.admin-permission-list {
+  list-style: none;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.admin-permission-list li {
+  border-top: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.admin-permission-list code {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
 .admin-access-disclosure {
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-small);
-  padding: var(--space-3);
+  padding: 0 var(--space-3);
   overflow-wrap: anywhere;
 }
 
 .admin-access-disclosure > summary {
   cursor: pointer;
   font-weight: var(--font-weight-semibold);
+  min-block-size: var(--control-height-public);
+  padding-block: var(--space-3);
+}
+
+.admin-access-disclosure[open] {
+  padding-bottom: var(--space-3);
 }
 
 .admin-access-disclosure > summary:focus-visible {

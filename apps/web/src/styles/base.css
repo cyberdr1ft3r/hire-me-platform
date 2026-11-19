@@ -259,33 +259,6 @@ th {
 .admin-table-scroll {
   overflow-x: auto;
 }
-.admin-permissions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--space-4);
-  margin-top: var(--space-3);
-}
-.admin-permissions section {
-  min-width: 0;
-  border-top: var(--border-width) solid var(--color-border);
-  padding-top: var(--space-3);
-}
-.admin-permissions h3 {
-  margin: 0 0 var(--space-2);
-  overflow-wrap: anywhere;
-}
-.admin-permissions ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-1);
-}
-.admin-permissions li {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2);
-  overflow-wrap: anywhere;
-}
 @container administration (max-width: 55.999rem) {
   .admin-grid > section + section {
     border-inline-start: 0;
