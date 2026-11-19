@@ -56,3 +56,10 @@ The final local Chrome run passed 14/14 checks, including all nine role cases. I
 - [Persisted candidate](evidence/candidate-persisted.png)
 - [Linked task at 390 px](evidence/mobile-linked-task.png)
 - [Recruitment report](evidence/recruitment-report.png)
+
+## Local validation
+
+- Production build, format, architecture and design tokens, lint, and typecheck passed. Vite reports a large-bundle warning.
+- The broad PostgreSQL run passed 590/594. While the browser was writing its first fixtures on the same database, one reporting total differed. On a fresh database without browser writers, reporting passed 22/22 and candidates passed 13/13. One reminder CLI check still exceeded five seconds on Windows; with a per-test deadline it passed along with both other reminder CLI checks. One clean end-to-end integration pass on the final head is still required.
+- The database guard refused unmarked and forged targets; the authorization catalog showed no grant or permission drift. The PKCS#11 lab stays on its existing Linux CI job.
+- The parallel web unit run exposed login and shell tests that needed to wait for restore and two timing-sensitive failures in client and message tests. All 85 tests across those files passed with one worker after the test updates.

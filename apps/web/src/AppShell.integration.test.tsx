@@ -63,7 +63,7 @@ describe('authenticated AppShell integration', () => {
     mockInternalSession();
     render(<App />);
 
-    expect(screen.getByRole('form', { name: 'Login' })).toBeVisible();
+    expect(await screen.findByRole('form', { name: 'Login' })).toBeVisible();
     expect(
       screen.queryByRole('navigation', { name: 'Primary navigation' }),
     ).not.toBeInTheDocument();
