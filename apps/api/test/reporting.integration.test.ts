@@ -698,9 +698,11 @@ describe('Recruitment reporting API', () => {
   });
 
   it('returns upcoming deadlines only for open missions within the reporting scope', async () => {
+    const { clientB, missionA, missionB } = ids;
+    if (!clientB || !missionA || !missionB) throw new Error('Missing reporting mission fixtures.');
     const date = new Date(Date.now() + 2 * 86_400_000);
     const hidden = await createMission(
-      ids.clientB,
+      clientB,
       `${MISSION_TAG} Future unassigned`,
       RecruitmentMissionState.ACTIVE,
       1,
@@ -709,18 +711,18 @@ describe('Recruitment reporting API', () => {
     );
     try {
       await prisma.recruitmentMission.updateMany({
-        where: { id: { in: [ids.missionA, ids.missionB] } },
+        where: { id: { in: [missionA, missionB] } },
         data: { applicationDeadline: date },
       });
       const assigned = await summaryOf(await login(`assigned${EMAIL_SUFFIX}`));
-      expect(assigned.upcomingDeadlines?.map((row) => row.missionId)).toEqual([ids.missionA]);
+      expect(assigned.upcomingDeadlines?.map((row) => row.missionId)).toEqual([missionA]);
       const broad = await summaryOf(await login(`broad${EMAIL_SUFFIX}`));
       expect(broad.upcomingDeadlines?.map((row) => row.missionId)).toEqual(
-        [ids.missionA, hidden].sort((a, b) => a.localeCompare(b)),
+        [missionA, hidden].sort((a, b) => a.localeCompare(b)),
       );
     } finally {
       await prisma.recruitmentMission.updateMany({
-        where: { id: { in: [ids.missionA, ids.missionB] } },
+        where: { id: { in: [missionA, missionB] } },
         data: { applicationDeadline: null },
       });
       await prisma.recruitmentMission.delete({ where: { id: hidden } });
