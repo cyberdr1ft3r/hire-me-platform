@@ -33,6 +33,27 @@ Status owner: repository maintainer
 - A web foundation test read a CRLF stylesheet on Windows while asserting literal LF text. The test now normalizes line endings before the unchanged selector/declaration check.
 - Three lazy-route `App.test.tsx` headings timed out at the default one-second query while the route still showed its loading state in a parallel run. The heading waits now allow three seconds. The complete one-worker web run passed 86 files and 1,124 tests.
 - The full PostgreSQL integration run passed 593/594; the one candidate lifecycle timeout passed in isolation in 882 ms. The post-suite authorization catalog passed 5/5. The full API unit suite passed with one worker (220 passed, 19 intentionally skipped), contracts passed 81/81, and the complete one-worker web suite passed 1,124/1,124. Concurrent root-unit runs retained a PDF five-second timeout; the initial sandboxed run also hit loopback `EACCES`. Exact-head CI remains required.
+Last updated: 2026-11-10
+Status owner: repository maintainer
+
+## Issue #257 — Administration UX restructuring
+
+- Branch `feat/issue-257-administration-navigation` starts from `main`
+  `5919c8a2ee230afd3dac062b13bd314e9c90b686` and keeps Administration as one Console workspace tab.
+  Stable subsection intent is represented by `/admin?section=billing|users|access`, so direct links and
+  browser Back/Forward work through the existing single history authority and navigation guard.
+- Billing, Users, and read-only Roles & Permissions render independently. Subsection links require their
+  corresponding read permission; mutation controls require the exact existing backend permission. An
+  unauthorized direct subsection shows a local denial and does not request its data.
+- The workspace now uses the Unified Page System, one H1, semantic anchors, active-state semantics,
+  loading/empty/error states, responsive horizontal section navigation, and complete EN/FR copy.
+  Existing APIs, workflows, backend authorization, and destructive confirmations are unchanged.
+- Focused web tests (52), changed-file and full-web lint, architecture/style/contrast checks, and an
+  isolated real-Brave acceptance pass are green. The existing unrelated Commercial TypeScript errors
+  remain on unchanged `main` files. Evidence:
+  [Issue #257 administration navigation](../audit/issue-257-administration-navigation/README.md).
+- The draft PR must remain unmerged and undeployed. Issues #258–#261 retain their separate redesign and
+  end-to-end acceptance scopes.
 
 ## Issue #254 — protected pre-merge staging releases
 
