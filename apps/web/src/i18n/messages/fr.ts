@@ -228,6 +228,7 @@ export const frMessages: Messages = {
     region: 'Réunion',
   },
   auth: {
+    restoringSession: 'Vérification de votre session…',
     apiChecking: 'Vérification du service en cours',
     apiReady: 'Service disponible',
     apiStatusRegion: 'État de l’API',

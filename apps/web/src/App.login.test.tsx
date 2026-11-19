@@ -51,8 +51,8 @@ function mockApi(loginResponse: () => Promise<Response>) {
   return { loginCalls: () => loginCalls };
 }
 
-function fillCredentials() {
-  fireEvent.change(screen.getByLabelText('Email'), {
+async function fillCredentials() {
+  fireEvent.change(await screen.findByLabelText('Email'), {
     target: { value: 'login@example.test' },
   });
   fireEvent.change(screen.getByLabelText('Password'), {
@@ -76,7 +76,7 @@ describe('Login Page v2', () => {
     mockApi(() => Promise.resolve(json(authResponse())));
     render(<App />);
 
-    fillCredentials();
+    await fillCredentials();
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeVisible();
@@ -87,7 +87,7 @@ describe('Login Page v2', () => {
     mockApi(() => Promise.resolve(json({ error: { code: 'AUTHENTICATION_FAILED' } }, 401)));
     render(<App />);
 
-    fillCredentials();
+    await fillCredentials();
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in unsuccessful');
@@ -101,7 +101,7 @@ describe('Login Page v2', () => {
     mockApi(() => Promise.reject(new TypeError('synthetic network detail')));
     render(<App />);
 
-    fillCredentials();
+    await fillCredentials();
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -118,7 +118,7 @@ describe('Login Page v2', () => {
     const api = mockApi(() => pendingLogin);
     render(<App />);
 
-    fillCredentials();
+    await fillCredentials();
     const form = screen.getByRole('form', { name: 'Login' });
     fireEvent.submit(form);
     fireEvent.submit(form);
@@ -137,7 +137,7 @@ describe('Login Page v2', () => {
     render(<App />);
     await screen.findByText('Service available');
 
-    const password = screen.getByLabelText('Password');
+    const password = await screen.findByLabelText('Password');
     const toggle = screen.getByRole('button', { name: 'Show password' });
     expect(password).toHaveAttribute('type', 'password');
     expect(toggle).toHaveAttribute('type', 'button');
@@ -158,8 +158,8 @@ describe('Login Page v2', () => {
     const api = mockApi(() => Promise.resolve(json(authResponse())));
     render(<App />);
 
-    fillCredentials();
-    const password = screen.getByLabelText('Password');
+    await fillCredentials();
+    const password = await screen.findByLabelText('Password');
     password.focus();
     expect(password).toHaveFocus();
     fireEvent.submit(screen.getByRole('form', { name: 'Login' }));

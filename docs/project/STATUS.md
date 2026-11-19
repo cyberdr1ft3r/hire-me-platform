@@ -1,7 +1,13 @@
 # Project Status
 
-Last updated: 2026-11-17
+Last updated: 2026-11-19
 Status owner: repository maintainer
+
+## Functional UI acceptance — 2026-11-19
+
+- QA branch `codex/hireme-functional-qa` is based on draft PR #266 at `47c5218b321530fc0f3563f40b5af41b6503a0f6`. The suite runs the real UI and API against a marked disposable PostgreSQL database and records browser evidence in CI.
+- Fixed the initial session restore state. Browser acceptance covers authentication, candidate edits and status persistence, client/mission/task creation, reporting download and nine roles across selected Candidate and Administration permissions.
+- Reviewed #264 and #265 at their exact heads; track UI-02/UI-03 in Administration and draft preview and business approvals in Invoice. Coverage, reproductions and evidence are in `docs/audit/functional-ui-qa/README.md`.
 
 ## Windows toolchain and UI audit — 2026-11-17
 
