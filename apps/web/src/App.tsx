@@ -62,6 +62,7 @@ function AppRoutes() {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const userIdRef = useRef<string | null>(null);
   const [authError, setAuthError] = useState<LoginErrorState | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [isLoginPending, setIsLoginPending] = useState(false);
   const loginPendingRef = useRef(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -120,16 +121,18 @@ function AppRoutes() {
   useEffect(() => {
     let isMounted = true;
 
-    // A missing or failed restore leaves the signed-out state alone, so it can
-    // never clear a session the user started by signing in meanwhile.
-    void restoreSession().then((auth) => {
-      if (isMounted && auth) {
+    function finishRestore(auth: Awaited<ReturnType<typeof restoreSession>>): void {
+      if (!isMounted) return;
+      if (auth) {
         setSessionEpoch((epoch) => epoch + 1);
         setAccessToken(auth.accessToken);
         userIdRef.current = auth.user.id;
         setUser(auth.user);
       }
-    });
+      setIsRestoringSession(false);
+    }
+
+    void restoreSession().then(finishRestore, () => finishRestore(null));
 
     return () => {
       isMounted = false;
@@ -289,75 +292,81 @@ function AppRoutes() {
               <p>{t('auth.instructions')}</p>
             </div>
 
-            <form
-              className="login-form"
-              aria-busy={isLoginPending || undefined}
-              aria-label={t('auth.formRegion')}
-              onSubmit={(event) => {
-                void handleLogin(event);
-              }}
-            >
-              <FieldFrame label={t('auth.email')}>
-                {({ controlId, describedBy }) => (
-                  <input
-                    aria-describedby={describedBy}
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    className="ui-field__control"
-                    disabled={isLoginPending}
-                    id={controlId}
-                    inputMode="email"
-                    name="email"
-                    required
-                    type="email"
-                  />
-                )}
-              </FieldFrame>
-
-              <FieldFrame label={t('auth.password')}>
-                {({ controlId, describedBy }) => (
-                  <div className="login-password">
+            {isRestoringSession ? (
+              <p role="status">{t('auth.restoringSession')}</p>
+            ) : (
+              <form
+                className="login-form"
+                aria-busy={isLoginPending || undefined}
+                aria-label={t('auth.formRegion')}
+                onSubmit={(event) => {
+                  void handleLogin(event);
+                }}
+              >
+                <FieldFrame label={t('auth.email')}>
+                  {({ controlId, describedBy }) => (
                     <input
                       aria-describedby={describedBy}
-                      autoComplete="current-password"
-                      className="ui-field__control login-password__input"
+                      autoCapitalize="none"
+                      autoComplete="username"
+                      className="ui-field__control"
                       disabled={isLoginPending}
                       id={controlId}
-                      name="password"
+                      inputMode="email"
+                      name="email"
                       required
-                      type={passwordVisible ? 'text' : 'password'}
+                      type="email"
                     />
-                    <button
-                      aria-label={passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
-                      aria-pressed={passwordVisible}
-                      className="login-password__toggle"
-                      disabled={isLoginPending}
-                      onClick={() => setPasswordVisible((visible) => !visible)}
-                      type="button"
-                    >
-                      {passwordVisible ? t('auth.hide') : t('auth.show')}
-                    </button>
-                  </div>
-                )}
-              </FieldFrame>
+                  )}
+                </FieldFrame>
 
-              {authError ? (
-                <InlineMessage announce title={t('auth.failedTitle')} tone="danger">
-                  {authError === 'invalid-credentials'
-                    ? t('auth.invalidCredentials')
-                    : t('auth.unavailable')}
-                </InlineMessage>
-              ) : null}
+                <FieldFrame label={t('auth.password')}>
+                  {({ controlId, describedBy }) => (
+                    <div className="login-password">
+                      <input
+                        aria-describedby={describedBy}
+                        autoComplete="current-password"
+                        className="ui-field__control login-password__input"
+                        disabled={isLoginPending}
+                        id={controlId}
+                        name="password"
+                        required
+                        type={passwordVisible ? 'text' : 'password'}
+                      />
+                      <button
+                        aria-label={
+                          passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')
+                        }
+                        aria-pressed={passwordVisible}
+                        className="login-password__toggle"
+                        disabled={isLoginPending}
+                        onClick={() => setPasswordVisible((visible) => !visible)}
+                        type="button"
+                      >
+                        {passwordVisible ? t('auth.hide') : t('auth.show')}
+                      </button>
+                    </div>
+                  )}
+                </FieldFrame>
 
-              <Button
-                className="login-form__submit"
-                loading={isLoginPending}
-                loadingLabel={t('auth.submitting')}
-                type="submit"
-              >
-                {t('auth.submit')}
-              </Button>
-            </form>
+                {authError ? (
+                  <InlineMessage announce title={t('auth.failedTitle')} tone="danger">
+                    {authError === 'invalid-credentials'
+                      ? t('auth.invalidCredentials')
+                      : t('auth.unavailable')}
+                  </InlineMessage>
+                ) : null}
+
+                <Button
+                  className="login-form__submit"
+                  loading={isLoginPending}
+                  loadingLabel={t('auth.submitting')}
+                  type="submit"
+                >
+                  {t('auth.submit')}
+                </Button>
+              </form>
+            )}
 
             <div
               className="login-health"
