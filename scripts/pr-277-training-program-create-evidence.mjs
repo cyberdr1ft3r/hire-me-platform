@@ -217,27 +217,24 @@ async function signIn(page, locale) {
 async function typeCharByChar(locator, text) {
   await locator.click();
   for (const char of text) {
-    await locator.evaluate(
-      (element, inserted) => {
-        element.focus();
-        const next = `${element.value}${inserted}`;
-        const valueSetter = Object.getOwnPropertyDescriptor(
-          window.HTMLInputElement.prototype,
-          'value',
-        )?.set;
-        valueSetter?.call(element, next);
-        element.dispatchEvent(
-          new InputEvent('input', {
-            bubbles: true,
-            cancelable: true,
-            data: inserted,
-            inputType: 'insertText',
-          }),
-        );
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-      },
-      char,
-    );
+    await locator.evaluate((element, inserted) => {
+      element.focus();
+      const next = `${element.value}${inserted}`;
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )?.set;
+      valueSetter?.call(element, next);
+      element.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          data: inserted,
+          inputType: 'insertText',
+        }),
+      );
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, char);
   }
 }
 
@@ -247,7 +244,9 @@ async function runScenario(browser, locale, viewport) {
   const labels = copy[locale];
   const result = { locale, viewport: viewport.name, steps: [] };
 
-  state.programs = [program('Synthetic Onboarding', 'TRN-A', '3a3a3a3a-3a3a-43a3-83a3-3a3a3a3a3a3a')];
+  state.programs = [
+    program('Synthetic Onboarding', 'TRN-A', '3a3a3a3a-3a3a-43a3-83a3-3a3a3a3a3a3a'),
+  ];
   state.posts = [];
   state.failNextCreate = true;
   state.delayOwnerMs = 450;

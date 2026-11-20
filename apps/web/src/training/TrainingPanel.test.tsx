@@ -710,9 +710,7 @@ describe('TrainingPanel: program create', () => {
 
     await waitFor(() => expect(callsTo(calls, programsPath, 'POST')).toHaveLength(1));
     expect(postBody).toMatchObject({ reference: REFERENCE, name: PROGRAM_NAME });
-    expect(
-      await screen.findByRole('button', { name: 'Synthetic Draft' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Synthetic Draft' })).toBeVisible();
     expect(await screen.findByText('Program created.')).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Synthetic Draft' })).toBeVisible();
   });
