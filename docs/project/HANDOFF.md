@@ -1,10 +1,10 @@
 # Current Agent Handoff
 
-Last updated: 2026-11-19
+Last updated: 2026-11-20
 
 ## Internal product UX stabilization
 
-Review the #260 access overview draft and its real-browser regression. Then address the #259 Users workflow in its own scope. Keep effective privileges and the last-SUPER_ADMIN safeguards unchanged. Run #261 after the remaining scoped Administration UX work.
+Review the #260 access overview draft and its real-browser regression. Review the #277 Training Reference correction, then forward-port the complete patch to UX development. Then address the #259 Users workflow in its own scope. Keep effective privileges and the last-SUPER_ADMIN safeguards unchanged. Run #261 after the remaining scoped Administration UX work.
 
 ## Executive Dashboard V1
 
