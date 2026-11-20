@@ -613,18 +613,44 @@ describe('TrainingPanel: session and stale-response safety', () => {
 });
 
 describe('TrainingPanel: program create', () => {
-  it('keeps every reference character while options load and submits the full code', async () => {
-    const created = syntheticProgram({
-      id: '00000000-0000-4000-8000-000000000099',
-      reference: 'TRN-2026-004',
-      name: 'Synthetic Draft',
-    });
+  const REFERENCE = 'TRN-2026-004';
+  const PROGRAM_NAME = 'Synthetic Draft';
+  const CREATED_ID = '00000000-0000-4000-8000-000000000099';
+
+  function typeRapidly(input: HTMLElement, text: string): void {
+    if (!(input instanceof HTMLInputElement)) throw new Error('expected text input');
+    let current = input.value;
+    for (const char of text) {
+      current += char;
+      fireEvent.input(input, { target: { value: current } });
+      fireEvent.change(input, { target: { value: current } });
+    }
+  }
+
+  it('retains the first reference character when owner and client pickers finish loading', async () => {
     const lateOwners = deferred<Response>();
+    const lateClients = deferred<Response>();
+    let programList = [programA, programB];
+    let postBody: Record<string, unknown> | null = null;
     const calls = standardApi((call) => {
       if (call.method === 'GET' && call.path === '/v1/training/program-owner-user-options') {
         return lateOwners.promise;
       }
+      if (call.method === 'GET' && call.path === '/v1/clients') {
+        return lateClients.promise;
+      }
+      if (call.method === 'GET' && call.path === programsPath) {
+        return jsonResponse(page('programs', programList, { total: programList.length }));
+      }
       if (call.method === 'POST' && call.path === programsPath) {
+        postBody = call.body;
+        const body = call.body ?? {};
+        const created = syntheticProgram({
+          id: CREATED_ID,
+          reference: typeof body.reference === 'string' ? body.reference : '',
+          name: typeof body.name === 'string' ? body.name : '',
+        });
+        programList = [created, ...programList];
         return jsonResponse({ program: created }, 201);
       }
       return undefined;
@@ -638,24 +664,102 @@ describe('TrainingPanel: program create', () => {
     fireEvent.click(screen.getByText('New training program'));
     const reference = within(create).getByLabelText(/^Reference/);
     const name = within(create).getByLabelText(/^Name/);
+
     fireEvent.change(reference, { target: { value: 'T' } });
+    expect(reference).toHaveValue('T');
+
     await act(async () => {
       lateOwners.resolve(
         jsonResponse({
           users: [{ id: OWNER_ID, displayName: 'Synthetic Owner', email: 'owner@example.test' }],
         }),
       );
-      await lateOwners.promise;
+      lateClients.resolve(
+        jsonResponse(
+          page('clients', [
+            {
+              id: CLIENT_ID,
+              name: 'Synthetic Client',
+              normalizedName: 'synthetic client',
+              status: 'ACTIVE',
+              industry: null,
+              website: null,
+              mainPhone: null,
+              country: null,
+              city: 'Synthetic City',
+              commercial: null,
+              archivedAt: null,
+              createdAt: TIMESTAMP,
+              updatedAt: TIMESTAMP,
+            },
+          ]),
+        ),
+      );
+      await Promise.all([lateOwners.promise, lateClients.promise]);
     });
-    fireEvent.change(reference, { target: { value: 'TRN-2026-004' } });
-    fireEvent.change(name, { target: { value: 'Synthetic Draft' } });
-    expect(reference).toHaveValue('TRN-2026-004');
+
+    expect(reference).toHaveValue('T');
+
+    typeRapidly(reference, 'RN-2026-004');
+    expect(reference).toHaveValue(REFERENCE);
+    fireEvent.change(name, { target: { value: PROGRAM_NAME } });
+
+    reference.focus();
+    expect(reference).toHaveFocus();
     fireEvent.click(within(create).getByRole('button', { name: 'Create program' }));
 
     await waitFor(() => expect(callsTo(calls, programsPath, 'POST')).toHaveLength(1));
-    expect(callsTo(calls, programsPath, 'POST')[0]?.body).toMatchObject({
-      reference: 'TRN-2026-004',
-      name: 'Synthetic Draft',
+    expect(postBody).toMatchObject({ reference: REFERENCE, name: PROGRAM_NAME });
+    expect(
+      await screen.findByRole('button', { name: 'Synthetic Draft' }),
+    ).toBeVisible();
+    expect(await screen.findByText('Program created.')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Synthetic Draft' })).toBeVisible();
+  });
+
+  it('recovers from a reference conflict, then creates with the full code', async () => {
+    let postCount = 0;
+    const calls = standardApi((call) => {
+      if (call.method === 'POST' && call.path === programsPath) {
+        postCount += 1;
+        if (postCount === 1) {
+          return errorResponse(409, 'TRAINING_PROGRAM_REFERENCE_TAKEN');
+        }
+        const created = syntheticProgram({
+          id: CREATED_ID,
+          reference: REFERENCE,
+          name: PROGRAM_NAME,
+        });
+        return jsonResponse({ program: created }, 201);
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await screen.findByRole('button', { name: 'Synthetic Onboarding' });
+
+    const create = screen
+      .getByText('New training program')
+      .closest('details') as HTMLDetailsElement;
+    fireEvent.click(screen.getByText('New training program'));
+    const reference = within(create).getByLabelText(/^Reference/);
+    const name = within(create).getByLabelText(/^Name/);
+
+    typeRapidly(reference, REFERENCE);
+    fireEvent.change(name, { target: { value: PROGRAM_NAME } });
+    fireEvent.click(within(create).getByRole('button', { name: 'Create program' }));
+
+    expect(await screen.findByText('Another program already uses this reference.')).toBeVisible();
+    expect(reference).toHaveValue(REFERENCE);
+
+    fireEvent.change(reference, { target: { value: '' } });
+    typeRapidly(reference, REFERENCE);
+    expect(reference).toHaveValue(REFERENCE);
+    fireEvent.click(within(create).getByRole('button', { name: 'Create program' }));
+
+    await waitFor(() => expect(callsTo(calls, programsPath, 'POST')).toHaveLength(2));
+    expect(callsTo(calls, programsPath, 'POST')[1]?.body).toMatchObject({
+      reference: REFERENCE,
+      name: PROGRAM_NAME,
     });
     expect(await screen.findByText('Program created.')).toBeVisible();
   });

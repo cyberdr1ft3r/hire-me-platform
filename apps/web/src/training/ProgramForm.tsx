@@ -1,4 +1,4 @@
-import { useRef, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, TextArea, TextField } from '../ui/index.js';
@@ -9,6 +9,19 @@ import {
   type ProgramFormValues,
 } from './training-state.js';
 import { TrainingOptionPicker } from './TrainingOptionPicker.js';
+
+/** Keeps the first keypress when React reports an empty controlled value (Issue #277). */
+function resolveTextInputValue(
+  event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  previous: string,
+): string {
+  const fromTarget = event.currentTarget.value;
+  if (fromTarget.length > 0) {
+    return fromTarget;
+  }
+  const data = event.nativeEvent instanceof InputEvent ? event.nativeEvent.data : null;
+  return data ? `${previous}${data}` : fromTarget;
+}
 
 /**
  * Program create and edit. The owner comes from the Training owner option
@@ -39,19 +52,41 @@ export function ProgramForm({
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const [localValues, setLocalValues] = useState(values);
   const latest = useRef(values);
-  latest.current = values;
-  const windowInvalid = plannedWindowInvalid(values.plannedStart, values.plannedEnd);
+  const windowInvalid = plannedWindowInvalid(localValues.plannedStart, localValues.plannedEnd);
   const incomplete =
-    values.name.trim().length === 0 || (mode === 'create' && values.reference.trim().length === 0);
+    localValues.name.trim().length === 0 ||
+    (mode === 'create' && localValues.reference.trim().length === 0);
 
   function patch(partial: Partial<ProgramFormValues>): void {
-    onChange({ ...latest.current, ...partial });
+    const next = { ...latest.current, ...partial };
+    latest.current = next;
+    setLocalValues(next);
+    onChange(next);
+  }
+
+  function patchTextField<K extends keyof ProgramFormValues>(
+    key: K,
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ): void {
+    const previousRaw = latest.current[key];
+    const previous = typeof previousRaw === 'string' ? previousRaw : '';
+    const nextValue = resolveTextInputValue(event, previous);
+    const next = { ...latest.current, [key]: nextValue };
+    latest.current = next;
+    setLocalValues(next);
+    onChange(next);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!incomplete && !windowInvalid) onSubmit(latest.current);
+    const current = latest.current;
+    const submitWindowInvalid = plannedWindowInvalid(current.plannedStart, current.plannedEnd);
+    const submitIncomplete =
+      current.name.trim().length === 0 ||
+      (mode === 'create' && current.reference.trim().length === 0);
+    if (!submitIncomplete && !submitWindowInvalid) onSubmit(current);
   }
 
   return (
@@ -62,23 +97,23 @@ export function ProgramForm({
             hint={t('training.programForm.referenceHint')}
             label={t('training.programForm.reference')}
             maxLength={60}
-            onChange={(event) => patch({ reference: event.currentTarget.value })}
+            onChange={(event) => patchTextField('reference', event)}
             required
-            value={values.reference}
+            value={localValues.reference}
           />
         ) : null}
         <TextField
           label={t('training.programForm.name')}
           maxLength={180}
-          onChange={(event) => patch({ name: event.currentTarget.value })}
+          onChange={(event) => patchTextField('name', event)}
           required
-          value={values.name}
+          value={localValues.name}
         />
         <TextField
           label={t('training.programForm.targetAudience')}
           maxLength={500}
-          onChange={(event) => patch({ targetAudience: event.currentTarget.value })}
-          value={values.targetAudience}
+          onChange={(event) => patchTextField('targetAudience', event)}
+          value={localValues.targetAudience}
         />
         {access.pickOwners ? (
           <TrainingOptionPicker
@@ -88,7 +123,7 @@ export function ProgramForm({
             loadOptions={loadOwners}
             onChange={(owner) => patch({ owner })}
             sourceKey={`${sessionKey}:owner-${mode}`}
-            value={values.owner}
+            value={localValues.owner}
           />
         ) : null}
         {mode === 'create' && access.pickClients ? (
@@ -99,29 +134,29 @@ export function ProgramForm({
             loadOptions={loadClients}
             onChange={(client) => patch({ client })}
             sourceKey={`${sessionKey}:client-${mode}`}
-            value={values.client}
+            value={localValues.client}
           />
         ) : null}
         <TextField
           label={t('training.programForm.plannedStart')}
-          onChange={(event) => patch({ plannedStart: event.currentTarget.value })}
+          onChange={(event) => patchTextField('plannedStart', event)}
           type="datetime-local"
-          value={values.plannedStart}
+          value={localValues.plannedStart}
         />
         <TextField
           error={windowInvalid ? t('training.programForm.windowInvalid') : undefined}
           label={t('training.programForm.plannedEnd')}
-          onChange={(event) => patch({ plannedEnd: event.currentTarget.value })}
+          onChange={(event) => patchTextField('plannedEnd', event)}
           type="datetime-local"
-          value={values.plannedEnd}
+          value={localValues.plannedEnd}
         />
       </div>
       <TextArea
         label={t('training.programForm.description')}
         maxLength={4000}
-        onChange={(event) => patch({ description: event.currentTarget.value })}
+        onChange={(event) => patchTextField('description', event)}
         rows={3}
-        value={values.description}
+        value={localValues.description}
       />
       <div className="training-form__actions">
         <Button disabled={writesLocked || incomplete || windowInvalid} type="submit">
