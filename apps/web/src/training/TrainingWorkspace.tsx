@@ -153,6 +153,7 @@ export function TrainingWorkspace({
 }) {
   const { t } = useI18n();
   const createDetailsRef = useRef<HTMLDetailsElement>(null);
+  const [createFormKey, setCreateFormKey] = useState(0);
   const [draft, setDraft] = useState<ProgramFormValues>(EMPTY_PROGRAM_FORM);
   const message = t as (key: TrainingFeedback['messageKey']) => string;
   const program = programs.selected;
@@ -194,6 +195,7 @@ export function TrainingWorkspace({
           </summary>
           <ProgramForm
             access={access}
+            key={createFormKey}
             loadClients={loaders.clients}
             loadOwners={loaders.owners}
             mode="create"
@@ -202,6 +204,7 @@ export function TrainingWorkspace({
               void programs.onCreate(values).then((created) => {
                 if (created) {
                   setDraft(EMPTY_PROGRAM_FORM);
+                  setCreateFormKey((key) => key + 1);
                   if (createDetailsRef.current) createDetailsRef.current.open = false;
                 }
               });
