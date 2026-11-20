@@ -612,6 +612,55 @@ describe('TrainingPanel: session and stale-response safety', () => {
   });
 });
 
+describe('TrainingPanel: program create', () => {
+  it('keeps every reference character while options load and submits the full code', async () => {
+    const created = syntheticProgram({
+      id: '00000000-0000-4000-8000-000000000099',
+      reference: 'TRN-2026-004',
+      name: 'Synthetic Draft',
+    });
+    const lateOwners = deferred<Response>();
+    const calls = standardApi((call) => {
+      if (call.method === 'GET' && call.path === '/v1/training/program-owner-user-options') {
+        return lateOwners.promise;
+      }
+      if (call.method === 'POST' && call.path === programsPath) {
+        return jsonResponse({ program: created }, 201);
+      }
+      return undefined;
+    });
+    render(<Panel />);
+    await screen.findByRole('button', { name: 'Synthetic Onboarding' });
+
+    const create = screen
+      .getByText('New training program')
+      .closest('details') as HTMLDetailsElement;
+    fireEvent.click(screen.getByText('New training program'));
+    const reference = within(create).getByLabelText(/^Reference/);
+    const name = within(create).getByLabelText(/^Name/);
+    fireEvent.change(reference, { target: { value: 'T' } });
+    await act(async () => {
+      lateOwners.resolve(
+        jsonResponse({
+          users: [{ id: OWNER_ID, displayName: 'Synthetic Owner', email: 'owner@example.test' }],
+        }),
+      );
+      await lateOwners.promise;
+    });
+    fireEvent.change(reference, { target: { value: 'TRN-2026-004' } });
+    fireEvent.change(name, { target: { value: 'Synthetic Draft' } });
+    expect(reference).toHaveValue('TRN-2026-004');
+    fireEvent.click(within(create).getByRole('button', { name: 'Create program' }));
+
+    await waitFor(() => expect(callsTo(calls, programsPath, 'POST')).toHaveLength(1));
+    expect(callsTo(calls, programsPath, 'POST')[0]?.body).toMatchObject({
+      reference: 'TRN-2026-004',
+      name: 'Synthetic Draft',
+    });
+    expect(await screen.findByText('Program created.')).toBeVisible();
+  });
+});
+
 describe('TrainingPanel: lifecycle, participation, and certificates', () => {
   it('changes program status and reports a lifecycle conflict with localized copy', async () => {
     const calls = standardApi((call) =>

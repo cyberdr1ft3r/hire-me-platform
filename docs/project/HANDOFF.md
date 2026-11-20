@@ -1,6 +1,6 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-20
 
 ## Current situation
 
@@ -11,7 +11,8 @@ Last updated: 2026-10-28
 
 ## Next concrete action
 
-1. Require green exact-head CI and maintainer review for PR #255; merge only with explicit approval.
+1. Review draft PR for the Training program create **Reference** first-character loss (patch uses `ProgramForm` latest-value patching, submit-time values, and uncontrolled create disclosure); then resume UAT backlog **#259 Users**, **#258 Billing**, **#261 Administration** acceptance on **#274**.
+2. Require green exact-head CI and maintainer review for PR #255; merge only with explicit approval.
 2. Before first use, disable administrator bypass on the `staging` Environment and protect `main` with an explicitly reviewed ruleset while retaining the exact `main` deployment branch policy. Add a second trusted reviewer before enabling prevent-self-review.
 3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve only after comparing both values.
 4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance. After a null-client invoice exists, use roll-forward or isolated paired restore rather than relying on the previous API image alone.

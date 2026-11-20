@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useRef, type FormEvent } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { Button, TextArea, TextField } from '../ui/index.js';
@@ -33,19 +33,25 @@ export function ProgramForm({
   mode: 'create' | 'edit';
   onCancel?: () => void;
   onChange: (values: ProgramFormValues) => void;
-  onSubmit: () => void;
+  onSubmit: (values: ProgramFormValues) => void;
   sessionKey: number;
   values: ProgramFormValues;
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
+  const latest = useRef(values);
+  latest.current = values;
   const windowInvalid = plannedWindowInvalid(values.plannedStart, values.plannedEnd);
   const incomplete =
     values.name.trim().length === 0 || (mode === 'create' && values.reference.trim().length === 0);
 
+  function patch(partial: Partial<ProgramFormValues>): void {
+    onChange({ ...latest.current, ...partial });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!incomplete && !windowInvalid) onSubmit();
+    if (!incomplete && !windowInvalid) onSubmit(latest.current);
   }
 
   return (
@@ -56,7 +62,7 @@ export function ProgramForm({
             hint={t('training.programForm.referenceHint')}
             label={t('training.programForm.reference')}
             maxLength={60}
-            onChange={(event) => onChange({ ...values, reference: event.currentTarget.value })}
+            onChange={(event) => patch({ reference: event.currentTarget.value })}
             required
             value={values.reference}
           />
@@ -64,14 +70,14 @@ export function ProgramForm({
         <TextField
           label={t('training.programForm.name')}
           maxLength={180}
-          onChange={(event) => onChange({ ...values, name: event.currentTarget.value })}
+          onChange={(event) => patch({ name: event.currentTarget.value })}
           required
           value={values.name}
         />
         <TextField
           label={t('training.programForm.targetAudience')}
           maxLength={500}
-          onChange={(event) => onChange({ ...values, targetAudience: event.currentTarget.value })}
+          onChange={(event) => patch({ targetAudience: event.currentTarget.value })}
           value={values.targetAudience}
         />
         {access.pickOwners ? (
@@ -80,7 +86,7 @@ export function ProgramForm({
             hint={t('training.programForm.ownerHint')}
             label={t('training.programForm.owner')}
             loadOptions={loadOwners}
-            onChange={(owner) => onChange({ ...values, owner })}
+            onChange={(owner) => patch({ owner })}
             sourceKey={`${sessionKey}:owner-${mode}`}
             value={values.owner}
           />
@@ -91,21 +97,21 @@ export function ProgramForm({
             hint={t('training.programForm.clientHint')}
             label={t('training.programForm.client')}
             loadOptions={loadClients}
-            onChange={(client) => onChange({ ...values, client })}
+            onChange={(client) => patch({ client })}
             sourceKey={`${sessionKey}:client-${mode}`}
             value={values.client}
           />
         ) : null}
         <TextField
           label={t('training.programForm.plannedStart')}
-          onChange={(event) => onChange({ ...values, plannedStart: event.currentTarget.value })}
+          onChange={(event) => patch({ plannedStart: event.currentTarget.value })}
           type="datetime-local"
           value={values.plannedStart}
         />
         <TextField
           error={windowInvalid ? t('training.programForm.windowInvalid') : undefined}
           label={t('training.programForm.plannedEnd')}
-          onChange={(event) => onChange({ ...values, plannedEnd: event.currentTarget.value })}
+          onChange={(event) => patch({ plannedEnd: event.currentTarget.value })}
           type="datetime-local"
           value={values.plannedEnd}
         />
@@ -113,7 +119,7 @@ export function ProgramForm({
       <TextArea
         label={t('training.programForm.description')}
         maxLength={4000}
-        onChange={(event) => onChange({ ...values, description: event.currentTarget.value })}
+        onChange={(event) => patch({ description: event.currentTarget.value })}
         rows={3}
         value={values.description}
       />
