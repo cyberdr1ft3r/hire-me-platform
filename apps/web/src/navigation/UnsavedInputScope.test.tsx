@@ -9,6 +9,7 @@ import {
   pushHistoryPath,
   requestNavigation,
   resetNavigationGuardForTests,
+  subscribeNavigationGuardState,
 } from './navigation-guard.js';
 import { UnsavedInputScope } from './UnsavedInputScope.js';
 import { useRecordLeaveGuard } from './use-record-leave-guard.js';
@@ -253,6 +254,25 @@ describe('UnsavedInputScope', () => {
   });
 
   describe('what counts as unsaved', () => {
+    it('guards navigation immediately and notifies the shell after the input event', async () => {
+      render(<Screen />);
+      const field = screen.getByLabelText('Title');
+      fireEvent.focusIn(field);
+      const listener = vi.fn();
+      const unsubscribe = subscribeNavigationGuardState(listener);
+
+      try {
+        fireEvent.input(field, { target: { value: 'Changed title' } });
+        expect(leaveAsks()).toBe(true);
+        expect(listener).not.toHaveBeenCalled();
+
+        await nextTask();
+        expect(listener).toHaveBeenCalledTimes(1);
+      } finally {
+        unsubscribe();
+      }
+    });
+
     it('never asks for a form that was focused but not changed', () => {
       render(<Screen />);
       fireEvent.focusIn(screen.getByLabelText('Title'));

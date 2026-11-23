@@ -1,14 +1,24 @@
 # Current Agent Handoff
 
-Last updated: 2026-11-20
+Last updated: 2026-11-23
 
 ## Internal product UX stabilization
 
-Review the #260 access overview draft and its real-browser regression. The #277 Training Reference
-correction is being forward-ported onto the #274/#276 UX stack. After browser verification and CI,
-address #259 Administration Users in its own batch, preserving effective privileges and the
-last-SUPER_ADMIN safeguards. #258 Billing stays separately scoped. Run #261 after the
-remaining Administration UX work.
+Review the Training integration draft against #276 and check the trusted-keyboard evidence
+and all six CI jobs on its head. #274 remains the UAT candidate. Keep #258 Billing and
+#261 cross-section acceptance separately scoped.
+
+Prepare #259 Administration Users from the accepted Training UX base in a separate branch.
+Reuse the existing `/admin?section=users` route and #13 APIs. Start with a searchable and
+filterable directory, then show profile, assigned roles, effective access, status, and
+sessions on selection. Use dedicated EN/FR create and edit flows with validation, explicit
+save/cancel, and focus restoration. Confirm suspend/reactivate, role changes, and one/all
+session revocations with the affected user identified.
+
+Completion for #259 requires desktop and narrow browser flows and existing PostgreSQL
+administration regressions for permission denial, last active SUPER_ADMIN, self-lockout,
+session invalidation, and safe audit records. Use synthetic accounts and clear the initial
+credential after creation.
 
 ## Executive Dashboard V1
 

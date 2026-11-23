@@ -1,10 +1,15 @@
 # Project Status
 
-Last updated: 2026-11-19
+Last updated: 2026-11-23
 
 ## Internal product UX stabilization
 
 The product UX branch starts from the verified #274 application commit. Issue #260 adds read-only search, functional permission groups, and technical disclosure in Administration. See the [access overview audit](../audit/issue-260-access-overview.md). Issues #258, #259, and #261 remain separate. #274 remains the UAT candidate.
+
+The dedicated Training integration branch starts from #276 at `6590673` and carries the
+complete #277 correction plus the Console input timing fix required for trusted Chrome entry.
+See the [Training keyboard audit](../audit/pr-277-training-program-create.md). Issue #259
+Administration Users is the next scoped UX batch after Training review.
 
 ## Executive Dashboard V1
 

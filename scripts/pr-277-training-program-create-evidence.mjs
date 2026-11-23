@@ -1,19 +1,27 @@
 #!/usr/bin/env node
-import { access } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
 const ROOT = process.cwd();
-const WEB = process.env.PR_277_WEB_URL ?? 'http://127.0.0.1:5173';
+const WEB = new URL(process.env.PR_277_WEB_URL ?? 'http://127.0.0.1:5173');
+if (WEB.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(WEB.hostname)) {
+  throw new Error('The keyboard acceptance script requires a loopback URL.');
+}
 const CHROME = process.env.PR_277_CHROME_PATH;
-const OUTPUT = path.join(ROOT, 'docs', 'audit', 'pr-277-training-program-create');
+const OUTPUT = path.resolve(
+  process.env.PR_277_OUTPUT_DIR ?? path.join(tmpdir(), 'hireme-training-reference-keyboard'),
+);
 const REFERENCE = 'TRN-2026-277';
 const PROGRAM_NAME = 'Chrome Synthetic Program';
 const PROGRAM_ID = '00000000-0000-4000-8277-000000000277';
 const CLIENT_ID = '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a';
 const OWNER_ID = '1b1b1b1b-1b1b-41b1-81b1-1b1b1b1b1b1b';
-const VIEWPORTS = [{ height: 800, name: 'narrow', width: 360 }];
+const VIEWPORTS = [
+  { height: 800, name: 'narrow', width: 360 },
+  { height: 900, name: 'desktop', width: 1440 },
+];
 const LOCALES = ['en', 'fr'];
 
 const copy = {
@@ -86,8 +94,6 @@ const state = {
   programs: [program('Synthetic Onboarding', 'TRN-A', '3a3a3a3a-3a3a-43a3-83a3-3a3a3a3a3a3a')],
   posts: [],
   failNextCreate: false,
-  delayOwnerMs: 400,
-  delayClientMs: 400,
 };
 
 function pageJson(key, items, page = 1, pageSize = 20) {
@@ -97,19 +103,6 @@ function pageJson(key, items, page = 1, pageSize = 20) {
   };
 }
 
-async function launchBrowser() {
-  const launch = { headless: true, args: ['--allow-file-access-from-files'] };
-  if (CHROME) {
-    try {
-      await access(CHROME);
-      launch.executablePath = CHROME;
-    } catch {
-      // Fall back to the Playwright-bundled Chromium build when Chrome is unavailable.
-    }
-  }
-  return chromium.launch(launch);
-}
-
 function isApiUrl(url) {
   return (
     url.port === '3000' &&
@@ -117,12 +110,13 @@ function isApiUrl(url) {
   );
 }
 
-async function installApiFixtures(page) {
+async function installApiFixtures(page, pickerGates) {
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (!isApiUrl(url)) {
-      await route.continue();
+      if (url.origin === WEB.origin) await route.continue();
+      else await route.abort();
       return;
     }
     if (url.pathname.endsWith('/health')) {
@@ -145,7 +139,7 @@ async function installApiFixtures(page) {
       return;
     }
     if (url.pathname === '/v1/training/program-owner-user-options') {
-      await new Promise((resolve) => setTimeout(resolve, state.delayOwnerMs));
+      await pickerGates.owner;
       await route.fulfill({
         json: {
           users: [{ id: OWNER_ID, displayName: 'Synthetic Owner', email: 'owner@example.test' }],
@@ -154,7 +148,7 @@ async function installApiFixtures(page) {
       return;
     }
     if (url.pathname === '/v1/clients') {
-      await new Promise((resolve) => setTimeout(resolve, state.delayClientMs));
+      await pickerGates.client;
       await route.fulfill({
         json: pageJson('clients', [
           {
@@ -196,12 +190,13 @@ async function installApiFixtures(page) {
       await route.fulfill({ json: { program: created }, status: 201 });
       return;
     }
+    await route.fulfill({ json: {}, status: 404 });
   });
 }
 
 async function signIn(page, locale) {
   await page.addInitScript((value) => localStorage.setItem('hireme.locale', value), locale);
-  await page.goto(`${WEB}/training`, { waitUntil: 'networkidle' });
+  await page.goto(new URL('/training', WEB).href, { waitUntil: 'networkidle' });
   const trainingHeading = page.getByRole('heading', { level: 1, name: copy[locale].heading });
   if (!(await trainingHeading.isVisible().catch(() => false))) {
     const loginEmail = page.locator('form.login-form input[name="email"]');
@@ -213,34 +208,10 @@ async function signIn(page, locale) {
   await trainingHeading.waitFor({ state: 'visible', timeout: 20_000 });
 }
 
-/** DOM-level per-character input (InputEvent), matching real keyboard insertText. */
-async function typeCharByChar(locator, text) {
-  await locator.click();
-  for (const char of text) {
-    await locator.evaluate((element, inserted) => {
-      element.focus();
-      const next = `${element.value}${inserted}`;
-      const valueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        'value',
-      )?.set;
-      valueSetter?.call(element, next);
-      element.dispatchEvent(
-        new InputEvent('input', {
-          bubbles: true,
-          cancelable: true,
-          data: inserted,
-          inputType: 'insertText',
-        }),
-      );
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-    }, char);
-  }
-}
-
 async function runScenario(browser, locale, viewport) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
+  page.setDefaultTimeout(10_000);
   const labels = copy[locale];
   const result = { locale, viewport: viewport.name, steps: [] };
 
@@ -249,10 +220,10 @@ async function runScenario(browser, locale, viewport) {
   ];
   state.posts = [];
   state.failNextCreate = true;
-  state.delayOwnerMs = 450;
-  state.delayClientMs = 450;
+  const ownerGate = Promise.withResolvers();
+  const clientGate = Promise.withResolvers();
 
-  await installApiFixtures(page);
+  await installApiFixtures(page, { owner: ownerGate.promise, client: clientGate.promise });
   await signIn(page, locale);
 
   await page.getByRole('button', { name: 'Synthetic Onboarding' }).waitFor({ timeout: 20_000 });
@@ -262,31 +233,67 @@ async function runScenario(browser, locale, viewport) {
   const name = create.getByLabel(labels.nameLabel);
   await reference.waitFor({ state: 'visible', timeout: 15_000 });
 
-  await typeCharByChar(reference, 'T');
-  await page.waitForTimeout(50);
-  await expectValue(page, reference, 'T', result, 'first-character-after-T');
+  const ownerOption = page.locator('option', { hasText: 'Synthetic Owner' });
+  const clientOption = page.locator('option', { hasText: 'Synthetic Client' });
+  const owner = create.locator('select').filter({ has: ownerOption });
+  const client = create.locator('select').filter({ has: clientOption });
+  const dirtyMarker = page.locator('[data-dirty="true"]');
+  if ((await create.locator('select[aria-busy="true"]').count()) !== 2) {
+    throw new Error('Both create pickers must be loading before the first keystroke.');
+  }
 
-  await page.waitForTimeout(600);
-  await expectValue(page, reference, 'T', result, 'first-character-after-picker-load');
+  await reference.evaluate((input) => {
+    for (const eventType of ['keydown', 'input']) {
+      input.addEventListener(eventType, (event) => {
+        input.dataset[event.type] = String(event.isTrusted);
+      });
+    }
+  });
+  await reference.pressSequentially('T');
+  await expectValue(reference, 'T', result, 'first-character-while-both-pickers-load');
+  for (const eventType of ['keydown', 'input']) {
+    if ((await reference.getAttribute('data-' + eventType)) !== 'true') {
+      throw new Error('Expected a trusted ' + eventType + ' event from keyboard entry.');
+    }
+  }
+  result.steps.push({ step: 'trusted-keydown-and-input' });
+  await dirtyMarker.first().waitFor({ state: 'attached' });
+  result.steps.push({ step: 'console-marks-form-dirty' });
 
-  await typeCharByChar(reference, 'RN-2026-277');
-  await expectValue(page, reference, REFERENCE, result, 'full-reference');
-  await expectValue(page, name, '', result, 'name-still-empty');
-  await name.fill(PROGRAM_NAME);
+  ownerGate.resolve();
+  await owner.locator(ownerOption).waitFor({ state: 'attached' });
+  await expectValue(reference, 'T', result, 'first-character-after-owner-load');
+  if ((await create.locator('select[aria-busy="true"]').count()) !== 1) {
+    throw new Error('Client picker must still be loading after owner options arrive.');
+  }
+  clientGate.resolve();
+  await client.locator(clientOption).waitFor({ state: 'attached' });
+  await expectValue(reference, 'T', result, 'first-character-after-client-load');
 
-  const focused = await page.evaluate(() => document.activeElement?.id ?? null);
-  result.steps.push({ step: 'reference-focused-before-submit', focusedId: focused });
+  await reference.pressSequentially(REFERENCE.slice(1));
+  await expectValue(reference, REFERENCE, result, 'full-reference');
+  await expectValue(name, '', result, 'name-still-empty');
+  await name.pressSequentially(PROGRAM_NAME);
+  await owner.selectOption(OWNER_ID);
+  await client.selectOption(CLIENT_ID);
+  await expectValue(reference, REFERENCE, result, 'reference-after-picker-selection');
 
   await page.getByRole('button', { name: labels.createButton }).click();
   await page.getByText(labels.duplicate).waitFor({ timeout: 10_000 });
   result.steps.push({ step: 'duplicate-feedback' });
 
-  await reference.clear();
-  await typeCharByChar(reference, REFERENCE);
-  await expectValue(page, reference, REFERENCE, result, 'reference-after-retype');
+  await expectValue(reference, REFERENCE, result, 'reference-after-duplicate');
+  await reference.press('ControlOrMeta+a');
+  await reference.press('Backspace');
+  await expectValue(reference, '', result, 'reference-after-keyboard-clear');
+  await reference.pressSequentially(REFERENCE);
+  await expectValue(reference, REFERENCE, result, 'reference-after-retype');
   await page.getByRole('button', { name: labels.createButton }).click();
   await page.getByText(labels.created).waitFor({ timeout: 10_000 });
   result.steps.push({ step: 'created-success' });
+  await reference.waitFor({ state: 'hidden' });
+  await dirtyMarker.first().waitFor({ state: 'detached' });
+  result.steps.push({ step: 'successful-save-clears-dirty-marker' });
 
   await page.getByRole('button', { name: PROGRAM_NAME }).waitFor({ timeout: 10_000 });
   result.steps.push({ step: 'list-shows-created-program' });
@@ -305,7 +312,7 @@ async function runScenario(browser, locale, viewport) {
   return result;
 }
 
-async function expectValue(page, locator, expected, result, step) {
+async function expectValue(locator, expected, result, step) {
   const value = await locator.inputValue();
   if (value !== expected) {
     throw new Error(`${step}: expected "${expected}", got "${value}"`);
@@ -313,7 +320,8 @@ async function expectValue(page, locator, expected, result, step) {
   result.steps.push({ step, value });
 }
 
-const browser = await launchBrowser();
+const browser = await chromium.launch({ executablePath: CHROME });
+const browserVersion = browser.version();
 await mkdir(OUTPUT, { recursive: true });
 const results = [];
 
@@ -329,7 +337,7 @@ try {
 
 const report = {
   browser: CHROME ? 'Google Chrome' : 'Playwright Chromium',
-  chromeExecutable: CHROME ?? null,
+  browserVersion,
   reference: REFERENCE,
   programName: PROGRAM_NAME,
   results,
@@ -337,10 +345,18 @@ const report = {
 
 await writeFile(path.join(OUTPUT, 'report.json'), JSON.stringify(report, null, 2));
 for (const entry of results) {
-  const lastPost = entry.posts?.at(-1);
-  if (!lastPost || lastPost.reference !== REFERENCE || lastPost.name !== PROGRAM_NAME) {
+  if (
+    entry.posts.length !== 2 ||
+    entry.posts.some(
+      (post) =>
+        post.reference !== REFERENCE ||
+        post.name !== PROGRAM_NAME ||
+        post.ownerUserId !== OWNER_ID ||
+        post.clientId !== CLIENT_ID,
+    )
+  ) {
     throw new Error(
-      `PR #277 Chrome evidence failed for ${entry.locale}/${entry.viewport}: ${JSON.stringify(lastPost)}`,
+      `PR #277 Chrome evidence failed for ${entry.locale}/${entry.viewport}: ${JSON.stringify(entry.posts)}`,
     );
   }
 }
