@@ -341,6 +341,336 @@ test('administration-access: search, permission disclosure, retry and bilingual 
   });
 });
 
+test('administration-users: bilingual directory, account lifecycle and recovery', async () => {
+  const captureDir =
+    process.env.HIREME_CAPTURE_USERS === '1' ? 'docs/audit/issue-259-users' : evidence;
+  await mkdir(captureDir, { recursive: true });
+
+  await withPage(async (page) => {
+    const token = await login(page);
+    const createUser = async (displayName, email) => {
+      const result = await request(token, '/v1/admin/users', 'POST', {
+        displayName,
+        email,
+        initialPassword: password,
+        locale: 'en',
+      });
+      assert.equal(result.status, 201);
+      return (await result.json()).user;
+    };
+    const alex = await createUser('Alex Martin', 'audit-0@users259.test');
+    const camille = await createUser('Camille Renard', 'audit-1@users259.test');
+    const morgan = await createUser('Morgan Lee', 'audit-2@users259.test');
+    const userPath = (user) => '/v1/admin/users/' + user.id;
+    for (const [user, roleName] of [
+      [alex, 'HR_MANAGER'],
+      [camille, 'EMPLOYEE'],
+      [morgan, 'EMPLOYEE'],
+    ]) {
+      assert.equal(
+        (await request(token, userPath(user) + '/roles', 'POST', { roleName })).status,
+        201,
+      );
+    }
+    assert.equal(
+      (await request(token, userPath(camille) + '/status', 'PATCH', { status: 'SUSPENDED' }))
+        .status,
+      200,
+    );
+    const signInTarget = (email) => request(undefined, '/auth/login', 'POST', { email, password });
+    assert.equal((await signInTarget(alex.email)).status, 201);
+    assert.equal((await signInTarget(alex.email)).status, 201);
+    const restricted = await signInTarget(morgan.email);
+    assert.equal(restricted.status, 201);
+    const restrictedToken = (await restricted.json()).accessToken;
+
+    const people = web + '/admin?section=users';
+    await page.goto(people);
+    const setUsersLocale = async (locale) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await button(page, 'Alex Martin').waitFor();
+      const current = await page.locator('html').getAttribute('lang');
+      if (current !== locale) {
+        await page.evaluate((value) => localStorage.setItem('hireme.locale', value), locale);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+      }
+      await page.waitForFunction((value) => document.documentElement.lang === value, locale);
+      await button(page, 'Alex Martin').waitFor();
+    };
+    const widths = [1440, 1024, 768, 390, 360];
+    for (const locale of ['en', 'fr']) {
+      await setUsersLocale(locale);
+      const directory = page.getByRole('region', {
+        name: locale === 'en' ? 'User directory' : 'Annuaire des utilisateurs',
+      });
+      const detail = page.getByRole('region', {
+        name: locale === 'en' ? 'Selected user detail' : 'Détail de l’utilisateur sélectionné',
+      });
+      for (const width of widths) {
+        await page.setViewportSize({ width, height: 900 });
+        await button(directory, 'Alex Martin').waitFor();
+        assert.equal(await detail.count(), 0, 'no vacant detail panel');
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          true,
+        );
+        assert.equal(
+          await directory.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+          true,
+        );
+        if (locale === 'en' || width === 360) {
+          await page.evaluate(() => {
+            document.activeElement?.blur();
+            window.scrollTo(0, 0);
+          });
+          await page.screenshot({
+            animations: 'disabled',
+            path: path.join(
+              captureDir,
+              locale === 'en' ? 'after-' + width + '.png' : 'after-fr-360.png',
+            ),
+            fullPage: true,
+          });
+        }
+        await button(directory, 'Alex Martin').press('Enter');
+        const title = heading(detail, 'Alex Martin');
+        await title.waitFor();
+        assert.equal(await title.evaluate((node) => document.activeElement === node), true);
+        await detail
+          .getByText(locale === 'en' ? 'Assigned roles' : 'Rôles attribués', { exact: true })
+          .waitFor();
+        assert.equal(
+          await detail.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+          true,
+        );
+        if (locale === 'en' && width === 1440) {
+          assert.equal(await button(directory, 'Alex Martin').getAttribute('aria-current'), 'true');
+          await page.screenshot({
+            animations: 'disabled',
+            path: path.join(captureDir, 'after-selected-1440.png'),
+            fullPage: true,
+          });
+        }
+        await button(detail, locale === 'en' ? 'Back to users' : 'Retour aux utilisateurs').press(
+          'Enter',
+        );
+        await page.waitForFunction(() => document.activeElement?.textContent === 'Alex Martin');
+      }
+      if (locale === 'fr') {
+        await button(page, 'Nouvel utilisateur').press('Enter');
+        const localized = page.getByRole('dialog', { name: 'Créer un utilisateur interne' });
+        await button(localized, 'Créer l’utilisateur').press('Enter');
+        await localized.getByText('Saisissez une adresse e-mail valide.').waitFor();
+        assert.equal(
+          await localized.getByLabel('Nom affiché').getAttribute('aria-invalid'),
+          'true',
+        );
+        await page.keyboard.press('Escape');
+        await localized.waitFor({ state: 'detached' });
+        await page.waitForFunction(
+          () => document.activeElement?.textContent === 'Nouvel utilisateur',
+        );
+      }
+    }
+
+    await setUsersLocale('en');
+    await page.route('**/v1/admin/users?*', (route) => route.fulfill({ status: 503, json: {} }));
+    const search = page.getByRole('searchbox', { name: 'Search' });
+    await search.pressSequentially('Camille');
+    assert.equal(await search.inputValue(), 'Camille');
+    await search.press('Enter');
+    await page.getByText('Users unavailable').waitFor();
+    await page.unroute('**/v1/admin/users?*');
+    await button(page, 'Try again').click();
+    assert.equal(await search.inputValue(), 'Camille');
+    await page.getByText('1 user', { exact: true }).waitFor();
+    await page.getByLabel('Status', { exact: true }).selectOption('ACTIVE');
+    await button(page, 'Search users').click();
+    await heading(page, 'No users found').waitFor();
+    await button(page, 'Clear filters').click();
+    await button(page, 'Alex Martin').waitFor();
+
+    const opener = button(page, 'New user');
+    await page.setViewportSize({ width: 390, height: 900 });
+    await opener.press('Enter');
+    let dialog = page.getByRole('dialog', { name: 'Create internal user' });
+    let displayName = dialog.getByLabel('Display name');
+    assert.equal(await displayName.evaluate((node) => document.activeElement === node), true);
+    await page.screenshot({
+      animations: 'disabled',
+      path: path.join(captureDir, 'after-create-390.png'),
+    });
+    await button(dialog, 'Create user').click();
+    await dialog.getByText('Enter a valid email address.').waitFor();
+    assert.equal(await displayName.getAttribute('aria-invalid'), 'true');
+    await displayName.pressSequentially('Taylor Admin Test');
+    await page.keyboard.press('Escape');
+    await button(dialog, 'Keep editing').press('Enter');
+    assert.equal(await displayName.inputValue(), 'Taylor Admin Test');
+    await dialog.getByLabel('Email').fill(alex.email);
+    await dialog.getByLabel('Initial password').fill(password);
+    await button(dialog, 'Create user').click();
+    await dialog.getByText('An account already uses this email address.').waitFor();
+    const email = 'taylor-' + run + '@users259.test';
+    await dialog.getByLabel('Email').fill(email);
+    const created = response(page, 'POST', '/v1/admin/users');
+    await button(dialog, 'Create user').click();
+    const createdResponse = await created;
+    assert.equal(createdResponse.status(), 201);
+    const body = await createdResponse.json();
+    assert.equal(JSON.stringify(body).includes(password), false);
+    assert.ok(!/password|credential|token/i.test(JSON.stringify(body)));
+    const user = body.user;
+    assert.equal(user.email, email);
+    await dialog.waitFor({ state: 'detached' });
+    assert.equal(await page.locator('input[type=password]').count(), 0);
+    await heading(page, 'Taylor Admin Test').waitFor();
+
+    await button(page, 'Edit profile').press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Edit profile for Taylor Admin Test' });
+    displayName = dialog.getByLabel('Display name');
+    await displayName.press('ControlOrMeta+a');
+    await displayName.pressSequentially('Taylor Saved');
+    await page.route(
+      '**/v1/admin/users/' + user.id,
+      (route) => route.fulfill({ status: 503, json: {} }),
+      { times: 1 },
+    );
+    await button(dialog, 'Save').click();
+    await dialog.getByText('The request could not be completed. Try again.').waitFor();
+    assert.equal(await displayName.inputValue(), 'Taylor Saved');
+    await button(dialog, 'Save').press('Enter');
+    await heading(page, 'Taylor Saved').waitFor();
+    assert.equal(
+      await button(page, 'Edit profile').evaluate((node) => document.activeElement === node),
+      true,
+    );
+
+    const detail = page.getByRole('region', { name: 'Selected user detail' });
+    await page.route('**/v1/admin/roles', (route) => route.fulfill({ status: 503, json: {} }));
+    await button(detail, 'Assign role').click();
+    dialog = page.getByRole('dialog', { name: 'Assign role' });
+    await dialog.getByText('Could not load roles').waitFor();
+    await page.unroute('**/v1/admin/roles');
+    await button(dialog, 'Try again').click();
+    const role = dialog.getByRole('combobox', { name: 'Role' });
+    await role.waitFor();
+    assert.equal(await role.inputValue(), '');
+    assert.equal(await button(dialog, 'Assign role').isEnabled(), false);
+    await role.selectOption('EMPLOYEE');
+    await button(dialog, 'Assign role').press('Enter');
+    await detail.getByText('Employee', { exact: true }).waitFor();
+    const effective = detail.getByText('Effective permissions', { exact: true });
+    await effective.press('Enter');
+    assert.ok((await detail.locator('.admin-permission-groups summary').count()) > 0);
+    await detail.getByRole('button', { name: 'Remove role: Employee' }).click();
+    dialog = page.getByRole('dialog', { name: 'Remove role' });
+    await dialog.getByText(/Remove Employee from Taylor Saved/).waitFor();
+    await button(dialog, 'Remove role').click();
+    await detail.getByText('No assigned roles').waitFor();
+
+    for (const [action, cancel] of [
+      ['Suspend', true],
+      ['Suspend', false],
+      ['Reactivate', false],
+    ]) {
+      await button(detail, action).press('Enter');
+      dialog = page.getByRole('dialog', { name: action });
+      await dialog.getByText(new RegExp(action + ' Taylor Saved')).waitFor();
+      await button(dialog, cancel ? 'Cancel' : action).press('Enter');
+      await dialog.waitFor({ state: 'detached' });
+      const persisted = await request(token, userPath(user));
+      assert.equal(
+        (await persisted.json()).user.status,
+        action === 'Suspend' && !cancel ? 'SUSPENDED' : 'ACTIVE',
+      );
+      if (action === 'Suspend' && !cancel) assert.equal((await signInTarget(email)).status, 401);
+    }
+
+    await button(detail, 'Back to users').click();
+    await button(page, 'Alex Martin').press('Enter');
+    const sessions = detail.getByRole('button', { name: /^Revoke session \d+, started/ });
+    await sessions.first().waitFor();
+    assert.equal(await sessions.count(), 2);
+    await sessions.first().press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Revoke session' });
+    await dialog.getByText(/for Alex Martin/).waitFor();
+    await button(dialog, 'Revoke session').press('Enter');
+    await dialog.waitFor({ state: 'detached' });
+    assert.equal(await sessions.count(), 1);
+    await button(detail, 'Revoke all sessions').press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Revoke all sessions' });
+    await button(dialog, 'Revoke all sessions').press('Enter');
+    await detail.getByText('No active sessions.').waitFor();
+    assert.equal(
+      (await (await request(token, userPath(alex) + '/sessions')).json()).sessions.length,
+      0,
+    );
+
+    await page.reload();
+    await button(page, 'Taylor Saved').waitFor();
+    await button(page, 'Taylor Saved').press('Enter');
+    await button(detail, 'Archive').press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Archive' });
+    await button(dialog, 'Archive').press('Enter');
+    await detail.getByText('Archived', { exact: true }).waitFor();
+    assert.equal(await button(detail, 'Reactivate').count(), 0);
+
+    const protectedMutations = [
+      [
+        'POST',
+        '/v1/admin/users',
+        {
+          displayName: 'Denied account',
+          email: 'denied@users259.test',
+          initialPassword: password,
+          locale: 'en',
+        },
+      ],
+      ['PATCH', userPath(user), { displayName: 'Denied edit' }],
+      ['PATCH', userPath(user) + '/status', { status: 'ACTIVE' }],
+      ['POST', userPath(user) + '/roles', { roleName: 'EMPLOYEE' }],
+      ['DELETE', userPath(user) + '/roles/EMPLOYEE'],
+      ['DELETE', userPath(alex) + '/sessions/' + user.id],
+      ['DELETE', userPath(alex) + '/sessions'],
+    ];
+    for (const [method, url, input] of protectedMutations) {
+      assert.equal(
+        (await request(restrictedToken, url, method, input)).status,
+        403,
+        method + ' ' + url,
+      );
+    }
+  });
+});
+
+test('administration-users: Training keeps the first trusted key and blocks Console navigation', async () => {
+  await withPage(async (page) => {
+    await login(page);
+    await page.goto(web + '/training');
+    const create = page.locator('details.training-create');
+    await create.locator('summary').press('Enter');
+    const reference = create.getByLabel(/^Reference/);
+    await reference.pressSequentially('T');
+    assert.equal(await reference.inputValue(), 'T');
+    await page.locator('[data-dirty="true"]').waitFor({ state: 'attached' });
+    const overview = page.getByRole('tab', { name: 'Overview' });
+    const modal = page.waitForEvent('dialog').then(async (dialog) => {
+      const message = dialog.message();
+      await dialog.dismiss();
+      assert.match(message, /unsaved changes/);
+    });
+    await Promise.all([modal, overview.click()]);
+    assert.equal(await reference.inputValue(), 'T');
+    await reference.press('ControlOrMeta+a');
+    await reference.press('Backspace');
+    assert.equal(await reference.inputValue(), '');
+    await page.locator('[data-dirty="true"]').waitFor({ state: 'detached' });
+    await overview.click();
+    await heading(page, 'Overview').or(heading(page, 'Executive dashboard')).waitFor();
+  });
+});
+
 test('candidate validation, network failure, create, edit, and reload persistence', async () => {
   await withPage(async (page) => {
     const token = await login(page);

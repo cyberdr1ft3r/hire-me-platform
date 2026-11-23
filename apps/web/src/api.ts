@@ -466,6 +466,16 @@ type AdminListUsersOptions = {
   apiBaseUrl?: string;
 };
 
+export class AdminRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | null,
+  ) {
+    super(`Administration request failed with status ${status}`);
+    this.name = 'AdminRequestError';
+  }
+}
+
 async function adminRequest(
   accessToken: string,
   path: string,
@@ -489,7 +499,7 @@ async function adminRequest(
   );
 
   if (!response.ok) {
-    throw new Error(`Administration request failed with status ${response.status}`);
+    throw new AdminRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;

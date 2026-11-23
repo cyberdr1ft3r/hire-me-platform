@@ -1,0 +1,209 @@
+.admin-users {
+  container: admin-users / inline-size;
+}
+
+.admin-users__heading,
+.admin-users__result-bar,
+.admin-users__actions,
+.admin-users__pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.admin-users__heading,
+.admin-users__result-bar {
+  justify-content: space-between;
+}
+
+.admin-users__heading > *,
+.admin-users__layout > * {
+  min-inline-size: 0;
+}
+
+.admin-users__heading h2,
+.admin-users__heading h3 {
+  font-size: var(--font-size-5);
+}
+
+.admin-users :where(h2, h3, h4)[tabindex='-1']:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--space-1);
+}
+
+.admin-users__heading :where(h3, p),
+.admin-users__result-bar p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-users__layout,
+.admin-users__list,
+.admin-users__results,
+.admin-users__detail,
+.admin-users__detail-section,
+.admin-users__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.admin-users__layout {
+  align-items: start;
+}
+
+.admin-users__layout[data-detail='true'] > .admin-users__list {
+  display: none;
+}
+
+.admin-users__list .ui-filter-toolbar {
+  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.admin-users__list .ui-filter-toolbar__filters > *,
+.admin-users__list .ui-filter-toolbar__search > * {
+  width: 100%;
+}
+
+.admin-users__list .ui-filter-toolbar__actions {
+  justify-content: flex-start;
+}
+
+.admin-users__rows {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-users__rows li {
+  align-items: center;
+  display: grid;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+  padding: var(--space-3);
+}
+
+.admin-users__rows li + li {
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
+.admin-users__rows li[data-selected='true'] {
+  background: var(--color-table-selected);
+  box-shadow: inset var(--space-1) 0 var(--color-brand);
+}
+
+.admin-users__identity {
+  align-items: start;
+  display: grid;
+  justify-items: start;
+  min-inline-size: 0;
+}
+
+.admin-users__identity button {
+  margin-inline-start: calc(-1 * var(--space-3));
+  max-inline-size: calc(100% + var(--space-3));
+  text-align: start;
+  white-space: normal;
+}
+
+.admin-users__identity > span,
+.admin-users__row-access > span:last-child,
+.admin-users__result-bar,
+.admin-users__metadata dt,
+.admin-session-list small,
+.admin-users__target {
+  color: var(--color-text-secondary);
+}
+
+.admin-users__row-access {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.admin-users__pagination {
+  justify-content: center;
+}
+
+.admin-users__detail {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  overflow-wrap: anywhere;
+  padding: var(--space-4);
+}
+
+.admin-users__detail > button {
+  justify-self: start;
+}
+
+.admin-users__detail-section {
+  border-block-start: var(--border-width) solid var(--color-border);
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+.admin-users__detail-section :where(h4, p, dl, dd),
+.admin-users__detail-section > ul,
+.admin-users__target {
+  margin: 0;
+}
+
+.admin-users__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+}
+
+.admin-users__metadata dt,
+.admin-session-list small,
+.admin-role-list small {
+  font-size: var(--font-size-2);
+}
+
+.admin-users__metadata dd {
+  margin-block-start: var(--space-1);
+}
+
+.admin-session-list small,
+.admin-role-list small {
+  color: var(--color-text-secondary);
+  display: block;
+}
+
+.admin-users__effective > p {
+  margin-block-end: var(--space-3);
+}
+
+@container admin-users (max-width: 34rem) {
+  .admin-users__list .ui-filter-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-users__list .ui-filter-toolbar__search {
+    grid-column: 1 / -1;
+  }
+}
+
+@container admin-users (min-width: 34rem) {
+  .admin-users__rows li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@container admin-users (min-width: 53rem) {
+  .admin-users__layout[data-detail='true'] {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+  }
+
+  .admin-users__layout[data-detail='true'] > .admin-users__list {
+    display: grid;
+  }
+
+  .admin-users__layout[data-detail='true'] .admin-users__rows li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

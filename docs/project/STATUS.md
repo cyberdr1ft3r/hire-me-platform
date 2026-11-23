@@ -9,7 +9,10 @@ The product UX branch starts from the verified #274 application commit. Issue #2
 The dedicated Training integration branch starts from #276 at `6590673` and carries the
 complete #277 correction plus the Console input timing fix required for trusted Chrome entry.
 See the [Training keyboard audit](../audit/pr-277-training-program-create.md). Issue #259
-Administration Users is the next scoped UX batch after Training review.
+Administration Users is stacked on that verified Training head. Its directory, account
+drawers and access confirmations preserve the existing Admin APIs and role catalog. See
+the [Users audit and verification](../audit/issue-259-users/README.md). Issue #258 Billing
+is the next isolated UX batch after Users review. Issue #261 follows the scoped changes.
 
 ## Executive Dashboard V1
 
