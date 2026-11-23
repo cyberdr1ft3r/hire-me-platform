@@ -4,21 +4,19 @@ Last updated: 2026-11-23
 
 ## Internal product UX stabilization
 
-Review the Training integration draft against #276 and check the trusted-keyboard evidence
-and all six CI jobs on its head. #274 remains the UAT candidate. Keep #258 Billing and
-#261 cross-section acceptance separately scoped.
+Review #259 Administration Users on the verified #278 Training stack. Check the browser
+and PostgreSQL evidence, the localized Users flows, and the six CI jobs on the exact draft
+head. #274 remains the UAT candidate.
 
-Prepare #259 Administration Users from the accepted Training UX base in a separate branch.
-Reuse the existing `/admin?section=users` route and #13 APIs. Start with a searchable and
-filterable directory, then show profile, assigned roles, effective access, status, and
-sessions on selection. Use dedicated EN/FR create and edit flows with validation, explicit
-save/cancel, and focus restoration. Confirm suspend/reactivate, role changes, and one/all
-session revocations with the affected user identified.
+Prepare #258 Billing on a separate branch from the verified Users head. Reuse the existing
+`/admin?section=billing` route, Billing APIs and permissions. Group legal identity, contact
+details and payment fields. Place numbering and annual baseline controls in a dedicated
+advanced area with their prerequisites, consequences and explicit confirmation.
 
-Completion for #259 requires desktop and narrow browser flows and existing PostgreSQL
-administration regressions for permission denial, last active SUPER_ADMIN, self-lockout,
-session invalidation, and safe audit records. Use synthetic accounts and clear the initial
-credential after creation.
+Completion for #258 requires responsive EN/FR browser acceptance and coverage for read-only
+access, editing and failure recovery, annual baseline and numbering safeguards, immutable
+issued-invoice snapshots, and safe audit records. Use synthetic data and keep invoice
+issuance disabled. Run #261 after the remaining scoped Administration work.
 
 ## Executive Dashboard V1
 

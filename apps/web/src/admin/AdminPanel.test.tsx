@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
@@ -58,9 +58,8 @@ function leavingAsks(): boolean {
 
 async function openUser(): Promise<HTMLElement> {
   fireEvent.click(await screen.findByRole('button', { name: 'Synthetic Admin' }));
-  return within(screen.getByRole('region', { name: 'Selected user detail' })).findByLabelText(
-    'Display name',
-  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit profile' }));
+  return within(screen.getByRole('dialog')).findByLabelText(/^Display name/);
 }
 
 describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
@@ -68,7 +67,6 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('asks for a changed profile until it is saved, and never for the user search', async () => {
-    const confirmLeave = vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockAdminApi();
     render(
       <I18nProvider initialLocale="en">
@@ -86,18 +84,81 @@ describe('AdminPanel unsaved input (Issue #228 B0′)', () => {
     expect(leavingAsks()).toBe(false);
 
     const displayName = await openUser();
-    fireEvent.focusIn(displayName);
     fireEvent.change(displayName, { target: { value: 'Renamed Admin' } });
-    expect(leavingAsks()).toBe(true);
-    expect(confirmLeave).toHaveBeenCalledWith(
-      'You have unsaved changes on this page. Leave and discard them?',
+    act(() => expect(leavingAsks()).toBe(true));
+    expect(await screen.findByText('You have unsaved changes. Discard them?')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(displayName).toHaveValue('Renamed Admin');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('User updated.')).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Selected user detail' })).getByRole('heading', {
+        name: 'Renamed Admin',
+      }),
+    ).toBeVisible();
+    expect(leavingAsks()).toBe(false);
+  });
+
+  it('keeps the directory usable when a detail fails and retries the selected account', async () => {
+    const adminFetch = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/v1/admin/users?')) {
+        return json({ users: [userSummary], pagination: { page: 1, pageSize: 20, total: 1 } });
+      }
+      if (adminFetch.mock.calls.length === 2) return json({}, 503);
+      return json({ user: { ...userSummary, sessions: [] } });
+    });
+    render(
+      <I18nProvider initialLocale="en">
+        <AdminPanel accessToken="synthetic-token" permissions={['users:view']} section="users" />
+      </I18nProvider>,
     );
 
-    // The profile form stays open after saving, showing the saved value.
-    fireEvent.click(screen.getByRole('button', { name: 'Update profile' }));
-    expect(await screen.findByText('User updated.')).toBeVisible();
-    expect(displayName).toHaveValue('Renamed Admin');
-    expect(leavingAsks()).toBe(false);
+    const row = await screen.findByRole('button', { name: 'Synthetic Admin' });
+    expect(screen.queryByRole('region', { name: 'Selected user detail' })).not.toBeInTheDocument();
+    fireEvent.click(row);
+    expect(await screen.findByText('Could not load the user')).toBeVisible();
+    expect(row).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'Synthetic Admin' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Edit profile' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New user' })).not.toBeInTheDocument();
+  });
+
+  it('requires a confirmation scoped to the selected account before suspending', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/v1/admin/users?')) {
+        return json({ users: [userSummary], pagination: { page: 1, pageSize: 20, total: 1 } });
+      }
+      if (init?.method === 'PATCH') {
+        return json({ user: { ...userSummary, sessions: [], status: 'SUSPENDED' } });
+      }
+      return json({ user: { ...userSummary, sessions: [] } });
+    });
+    render(
+      <I18nProvider initialLocale="en">
+        <AdminPanel
+          accessToken="synthetic-token"
+          permissions={['users:view', 'users:status:manage']}
+          section="users"
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Synthetic Admin' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Suspend' }));
+    let dialog = screen.getByRole('dialog', { name: 'Suspend' });
+    expect(dialog).toHaveAccessibleDescription(/Suspend Synthetic Admin/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    dialog = screen.getByRole('dialog', { name: 'Suspend' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
+    expect(await screen.findByText('Account status updated.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reactivate' })).toBeVisible();
   });
 
   it('shows only authorized section links and delegates navigation without loading inactive data', async () => {
