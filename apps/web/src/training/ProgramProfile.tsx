@@ -177,8 +177,8 @@ export function ProgramProfile({
             mode="edit"
             onCancel={() => setEditing(null)}
             onChange={setEditing}
-            onSubmit={() => {
-              void onSave(editing).then((saved) => {
+            onSubmit={(values) => {
+              void onSave(values).then((saved) => {
                 if (saved) setEditing(null);
               });
             }}
