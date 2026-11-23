@@ -6,7 +6,7 @@ import { I18nProvider } from '../i18n/index.js';
 import { BillingSettingsPanel } from './BillingSettingsPanel.js';
 
 vi.mock('../api.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../api.js')>()),
+  ...(await importOriginal<typeof api>()),
   getCompanyBillingSettings: vi.fn(),
   updateCompanyBillingSettings: vi.fn(),
   confirmInvoiceNumberBaseline: vi.fn(),
