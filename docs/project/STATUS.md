@@ -12,7 +12,9 @@ See the [Training keyboard audit](../audit/pr-277-training-program-create.md). I
 Administration Users is stacked on that verified Training head. Its directory, account
 drawers and access confirmations preserve the existing Admin APIs and role catalog. See
 the [Users audit and verification](../audit/issue-259-users/README.md). Issue #258 Billing
-is the next isolated UX batch after Users review. Issue #261 follows the scoped changes.
+is stacked on #279 and separates company profile editing from numbering and baseline review.
+See the [Billing audit and verification](../audit/issue-258-billing/README.md). Issue #261
+is the combined Administration acceptance batch.
 
 ## Executive Dashboard V1
 

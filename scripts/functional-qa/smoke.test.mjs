@@ -341,6 +341,233 @@ test('administration-access: search, permission disclosure, retry and bilingual 
   });
 });
 
+test('administration-billing: localized profile and guarded numbering on the real API', async () => {
+  const output =
+    process.env.HIREME_CAPTURE_BILLING === '1' ? 'docs/audit/issue-258-billing' : evidence;
+  await mkdir(output, { recursive: true });
+  const settingsPath = '/v1/admin/billing-settings';
+  const baselinePath = settingsPath + '/numbering-baseline';
+  const currentYear = new Date().getUTCFullYear();
+  await withPage(async (page) => {
+    const token = await login(page);
+    const read = async () => {
+      const result = await request(token, settingsPath);
+      assert.equal(result.status, 200);
+      const {
+        settings: { updatedAt, ...settings },
+      } = await result.json();
+      return settings;
+    };
+    const original = await read();
+    try {
+      const seeded = await request(token, settingsPath, 'PATCH', {
+        ...original,
+        sellerLegalName: 'Synthetic Demo Company',
+        sellerLegalForm: 'SARL',
+        sellerAddress: '100 Example Avenue',
+        sellerEmail: 'billing@example.test',
+        paymentTerms: 'Synthetic terms',
+        invoicePrefix: 'DEMO',
+        invoiceDigits: 4,
+        invoiceNumberingEnabled: false,
+      });
+      assert.equal(seeded.status, 200);
+      await page.goto(web + '/admin?section=billing');
+      const setBillingLocale = async (locale) => {
+        await page.getByText('Synthetic Demo Company', { exact: true }).waitFor();
+        if ((await page.locator('html').getAttribute('lang')) !== locale) {
+          await page.evaluate((value) => localStorage.setItem('hireme.locale', value), locale);
+          await page.reload({ waitUntil: 'domcontentloaded' });
+        }
+        await page.waitForFunction((value) => document.documentElement.lang === value, locale);
+      };
+      for (const locale of ['en', 'fr']) {
+        await setBillingLocale(locale);
+        const labels =
+          locale === 'en'
+            ? [
+                'Legal identity',
+                'Company contact details',
+                'Payment information',
+                'Invoice numbering and annual baseline',
+              ]
+            : ['Identité légale', 'Coordonnées', 'Paiement', 'Numérotation / base annuelle'];
+        for (const width of [1440, 1024, 768, 390, 360]) {
+          await page.setViewportSize({ width, height: 900 });
+          for (const label of labels) await heading(page, label).waitFor();
+          assert.equal(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+            true,
+          );
+          assert.equal(
+            await page.locator('.billing-settings__numbering').getAttribute('open'),
+            null,
+          );
+          if (locale === 'en' || width === 360) {
+            await page.screenshot({
+              animations: 'disabled',
+              fullPage: true,
+              path: path.join(
+                output,
+                locale === 'en' ? 'after-' + width + '.png' : 'after-fr-360.png',
+              ),
+            });
+          }
+          const edit = button(
+            page,
+            locale === 'en' ? 'Edit company profile' : 'Modifier le profil société',
+          );
+          await edit.press('Enter');
+          const drawer = page.getByRole('dialog');
+          const legalName = drawer.getByLabel(
+            locale === 'en' ? 'Legal company name' : 'Raison sociale',
+          );
+          await legalName.waitFor();
+          assert.equal(await legalName.evaluate((node) => document.activeElement === node), true);
+          assert.equal(
+            await drawer.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+            true,
+          );
+          assert.equal(
+            await drawer
+              .getByLabel(locale === 'en' ? 'Invoice prefix' : 'Préfixe des factures')
+              .count(),
+            0,
+          );
+          if (locale === 'en' && width === 390) {
+            await page.screenshot({
+              animations: 'disabled',
+              path: path.join(output, 'after-profile-390.png'),
+            });
+          }
+          await page.keyboard.press('Escape');
+          await drawer.waitFor({ state: 'detached' });
+          assert.equal(await edit.evaluate((node) => document.activeElement === node), true);
+        }
+      }
+      await setBillingLocale('en');
+      await page.getByRole('link', { name: 'Users', exact: true }).click();
+      await heading(page, 'Users').waitFor();
+      await page.getByRole('link', { name: 'Billing', exact: true }).click();
+      await page.getByText('Synthetic Demo Company', { exact: true }).waitFor();
+      await page.setViewportSize({ width: 390, height: 900 });
+      await button(page, 'Edit company profile').press('Enter');
+      let dialog = page.getByRole('dialog');
+      const name = dialog.getByLabel('Legal company name');
+      await name.press('End');
+      await name.pressSequentially(' Updated');
+      await page.keyboard.press('Escape');
+      await button(dialog, 'Keep editing').press('Enter');
+      assert.equal(await name.inputValue(), 'Synthetic Demo Company Updated');
+      await page.evaluate(() => history.back());
+      await button(dialog, 'Keep editing').press('Enter');
+      await page.waitForURL('**/admin?section=billing');
+      assert.equal(await name.inputValue(), 'Synthetic Demo Company Updated');
+      const email = dialog.getByLabel('Email');
+      await email.fill('not-an-email');
+      await button(dialog, 'Save company profile').press('Enter');
+      await dialog.getByText('Enter a valid email address.').waitFor();
+      assert.equal(await email.getAttribute('aria-invalid'), 'true');
+      await email.fill('updated@example.test');
+      await page.route('**/v1/admin/billing-settings', (route) =>
+        route.request().method() === 'PATCH'
+          ? route.fulfill({ status: 503, json: {} })
+          : route.continue(),
+      );
+      await button(dialog, 'Save company profile').press('Enter');
+      await dialog.getByText(/Your entries are still available/).waitFor();
+      assert.equal(await name.inputValue(), 'Synthetic Demo Company Updated');
+      assert.equal(await email.inputValue(), 'updated@example.test');
+      await page.unroute('**/v1/admin/billing-settings');
+      await button(dialog, 'Save company profile').press('Enter');
+      await dialog.waitFor({ state: 'detached' });
+      await page.getByText('Billing settings saved.').waitFor();
+      const updated = await read();
+      assert.equal(updated.sellerEmail, 'updated@example.test');
+      assert.equal(updated.invoicePrefix, 'DEMO');
+      assert.equal(updated.invoiceNumberingEnabled, false);
+
+      await page.setViewportSize({ width: 1024, height: 900 });
+      const disclosure = page.locator('.billing-settings__numbering > summary');
+      await disclosure.press('Enter');
+      const stageNumbering = async () => {
+        await button(page, 'Edit invoice numbering').press('Enter');
+        const numbering = page.getByRole('dialog');
+        await numbering.getByRole('checkbox', { name: 'Use automatic invoice numbering' }).check();
+        await button(numbering, 'Review numbering change').press('Enter');
+        const review = heading(numbering, 'Review the change');
+        await review.waitFor();
+        assert.equal(await review.evaluate((node) => document.activeElement === node), true);
+        assert.equal((await read()).invoiceNumberingEnabled, false);
+        return numbering;
+      };
+      dialog = await stageNumbering();
+      await button(dialog, 'Confirm numbering change').press('Enter');
+      await dialog.getByText(/Confirm the current UTC year/).waitFor();
+      assert.equal(await dialog.evaluate((node) => node.contains(document.activeElement)), true);
+      assert.equal((await read()).invoiceNumberingEnabled, false);
+      await page.keyboard.press('Escape');
+      await button(dialog, 'Discard changes').press('Enter');
+
+      await button(page, 'Set annual baseline').press('Enter');
+      dialog = page.getByRole('dialog');
+      await dialog.getByLabel(/^Year/).fill(String(currentYear));
+      await button(dialog, 'Review baseline').press('Enter');
+      await dialog.getByText('Enter a non-negative whole number.').waitFor();
+      await dialog.getByLabel(/^Highest externally issued number/).fill('18');
+      let baselinePosts = 0;
+      const countWrite = (req) => {
+        if (req.method() === 'POST' && new URL(req.url()).pathname === baselinePath)
+          baselinePosts++;
+      };
+      page.on('request', countWrite);
+      await button(dialog, 'Review baseline').press('Enter');
+      await dialog
+        .getByText(
+          'The next automatic reference would be DEMO-' +
+            currentYear +
+            '-0019 if the series is used.',
+        )
+        .waitFor();
+      assert.equal(baselinePosts, 0);
+      await page.screenshot({
+        animations: 'disabled',
+        path: path.join(output, 'after-baseline-review.png'),
+      });
+      await button(dialog, 'Back to edit').press('Enter');
+      assert.equal(await dialog.getByLabel(/^Highest externally issued number/).inputValue(), '18');
+      await button(dialog, 'Review baseline').press('Enter');
+      await button(dialog, 'Confirm annual baseline').press('Enter');
+      await page.getByText('Baseline confirmed for DEMO-' + currentYear + ' at 18.').waitFor();
+      assert.equal(baselinePosts, 1);
+      page.off('request', countWrite);
+      assert.equal((await read()).invoiceNumberingEnabled, false);
+
+      dialog = await stageNumbering();
+      await button(dialog, 'Confirm numbering change').press('Enter');
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal((await read()).invoiceNumberingEnabled, true);
+      await page.reload();
+      await page.getByText('Synthetic Demo Company Updated', { exact: true }).waitFor();
+      await disclosure.press('Enter');
+      await page
+        .locator('.billing-settings__numbering')
+        .getByText('Enabled', { exact: true })
+        .waitFor();
+
+      const lower = await request(token, baselinePath, 'POST', {
+        year: currentYear,
+        highestExternalNumber: 17,
+        confirmed: true,
+      });
+      assert.equal(lower.status, 409);
+      assert.equal((await lower.json()).error.code, 'INVOICE_NUMBER_BASELINE_REGRESSION');
+    } finally {
+      assert.equal((await request(token, settingsPath, 'PATCH', original)).status, 200);
+    }
+  });
+});
+
 test('administration-users: bilingual directory, account lifecycle and recovery', async () => {
   const captureDir =
     process.env.HIREME_CAPTURE_USERS === '1' ? 'docs/audit/issue-259-users' : evidence;

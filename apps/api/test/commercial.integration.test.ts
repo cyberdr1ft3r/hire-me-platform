@@ -632,10 +632,10 @@ describe('commercial workflow foundation', () => {
       const reloaded = await fetch(`${baseUrl}/v1/commercial/invoices/${issued[0]!.id}`, {
         headers: authHeaders(commercialToken),
       });
-      expect(
-        InvoiceDetailResponseSchema.parse(await reloaded.json()).invoice.businessDetails
-          ?.sellerLegalName,
-      ).toBe('Synthetic HireMe SARL');
+      const frozen = InvoiceDetailResponseSchema.parse(await reloaded.json()).invoice;
+      expect(frozen.reference).toBe(issued[0]!.reference);
+      expect(frozen.businessDetails).toEqual(issued[0]!.businessDetails);
+      expect(frozen.businessDetails?.sellerLegalName).toBe('Synthetic HireMe SARL');
     } finally {
       await prisma.invoiceEvent.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });
       await prisma.invoiceLine.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });

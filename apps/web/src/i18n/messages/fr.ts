@@ -500,8 +500,6 @@ export const frMessages: Messages = {
     },
     billing: {
       title: 'Paramètres de facturation',
-      description:
-        'Profil société réutilisable. Les factures émises conservent leur propre instantané immuable.',
       sellerLegalName: 'Raison sociale',
       sellerLegalForm: 'Forme juridique',
       sellerCapital: 'Capital',
@@ -515,23 +513,77 @@ export const frMessages: Messages = {
       sellerWebsite: 'Site web',
       paymentTerms: 'Conditions de règlement',
       paymentMethod: 'Mode de règlement',
-      bankDetails: 'Coordonnées bancaires (facultatif)',
       invoicePrefix: 'Préfixe des factures',
       invoiceDigits: 'Nombre de chiffres',
-      numberingEnabled:
-        'Activer la numérotation automatique après confirmation de la base annuelle',
       save: 'Enregistrer les paramètres',
       loading: 'Chargement des paramètres de facturation…',
       failed:
         'Les paramètres de facturation n’ont pas pu être chargés ou enregistrés. Vérifiez les valeurs requises et réessayez.',
       saved: 'Paramètres de facturation enregistrés.',
-      baselineTitle: 'Base annuelle vérifiée',
-      baselineHelp:
-        'Enregistrez le préfixe avec la numérotation désactivée, renseignez le plus grand numéro déjà émis hors HireMe, puis activez la numérotation. Cette valeur ne sera jamais devinée.',
       year: 'Année',
-      externalHighest: 'Plus grand numéro externe',
-      confirmBaseline: 'Confirmer la base',
-      baselineConfirmed: 'Base confirmée pour {prefix}-{year} ; prochain numéro après {number}.',
+      description:
+        'Modifiez les données de la société utilisées pour préparer les prochaines factures. Chaque facture émise conserve son propre instantané immuable.',
+      legal: 'Identité légale',
+      contact: 'Coordonnées',
+      payment: 'Paiement',
+      numberingTitle: 'Numérotation / base annuelle',
+      bankDetails: 'Coordonnées bancaires',
+      editProfile: 'Modifier le profil société',
+      saveProfile: 'Enregistrer le profil société',
+      profileOptional:
+        'Tous les champs de ce profil sont facultatifs. La raison sociale, l’adresse du siège et les conditions de règlement peuvent préremplir les données requises lors de la préparation d’une prochaine facture.',
+      readOnly: 'Vous avez accès à ces paramètres en lecture seule.',
+      lastSaved: 'Dernier enregistrement le {date}',
+      missing: 'Non renseigné',
+      loadFailed: 'Impossible de charger les paramètres de facturation.',
+      writeFailed:
+        'Impossible d’enregistrer la modification. Vos saisies sont conservées. Réessayez.',
+      denied: 'Vos permissions ne vous autorisent pas à effectuer cette modification.',
+      emailInvalid: 'Saisissez une adresse e-mail valide.',
+      websiteInvalid: 'Saisissez une URL complète.',
+      textInvalid: 'Saisissez jusqu’à 1 000 caractères.',
+      numberingEnabled: 'Utiliser la numérotation automatique',
+      numberingHelp:
+        'Ce réglage détermine comment la référence est attribuée lors de l’émission des prochaines factures.',
+      state: 'Numérotation automatique',
+      enabled: 'Activée',
+      disabled: 'Désactivée',
+      editNumbering: 'Modifier la numérotation',
+      openBaseline: 'Définir la base annuelle',
+      baselineTitle: 'Définir la base annuelle',
+      baselineHelp:
+        'Pour une nouvelle série, enregistrez le préfixe et le nombre de chiffres avec la numérotation automatique désactivée. Vérifiez le plus grand numéro de facture émis hors HireMe pour cette série et cette année avant de le confirmer.',
+      externalHighest: 'Plus grand numéro émis hors HireMe',
+      highestHelp:
+        'Saisissez uniquement le suffixe numérique. Saisissez 0 uniquement après avoir vérifié qu’aucune facture n’a été émise dans cette série pour l’année choisie.',
+      reviewBaseline: 'Vérifier la base',
+      reviewNumbering: 'Vérifier la modification',
+      reviewTitle: 'Vérifier la modification',
+      backToEdit: 'Revenir à la saisie',
+      confirmBaseline: 'Confirmer la base annuelle',
+      confirmNumbering: 'Confirmer la numérotation',
+      savedSeries: 'La série enregistrée {prefix} utilise {digits} chiffres.',
+      nextReference:
+        'Si la série est utilisée, la prochaine référence automatique serait {reference}.',
+      exhausted:
+        'Cette base utilise le dernier numéro disponible avec le nombre de chiffres enregistré.',
+      enableConsequence:
+        'L’activation exige une base confirmée pour {year} (UTC) avec le même préfixe et le même nombre de chiffres.',
+      disableConsequence:
+        'La numérotation automatique sera désactivée. Les références et les instantanés des factures existantes sont conservés.',
+      prefixInvalid: 'Utilisez 2 à 10 lettres ou chiffres, en commençant par une lettre.',
+      digitsInvalid: 'Saisissez un entier entre 3 et 8.',
+      yearInvalid: 'Saisissez une année entre 2000 et 2200.',
+      highestInvalid: 'Saisissez un entier positif ou nul.',
+      baselineRequired:
+        'Confirmez la base de l’année UTC en cours pour ce préfixe et ce nombre de chiffres avant l’activation.',
+      seriesRequired:
+        'Enregistrez un préfixe et un nombre de chiffres avant de confirmer une base ou d’activer la numérotation.',
+      rangeExceeded: 'Le numéro dépasse le nombre de chiffres enregistré pour cette série.',
+      baselineRegression: 'La base ne peut pas être inférieure à un numéro déjà réservé.',
+      seriesChanged:
+        'La série enregistrée a changé pendant votre saisie. Fermez ce panneau puis rouvrez-le pour consulter les derniers paramètres.',
+      baselineConfirmed: 'Base confirmée pour {prefix}-{year} au numéro {number}.',
     },
     roleDescriptions: {
       SUPER_ADMIN: 'Administration de l’ensemble de la plateforme.',
