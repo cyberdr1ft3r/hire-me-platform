@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nProvider } from '../i18n/index.js';
@@ -60,10 +60,20 @@ describe('ConsoleTabBar', () => {
 
   it('uses arrow-key tab navigation to activate a workspace and preserves the close action', () => {
     const { onActivate, onClose, state } = renderBar();
-    const overview = screen.getByRole('tab', { name: 'Overview' });
+    const tablist = within(screen.getByRole('tablist', { name: 'Workspace tabs' }));
+    const overview = tablist.getByRole('tab', { name: 'Overview' });
     fireEvent.keyDown(overview, { key: 'ArrowRight' });
     expect(onActivate).toHaveBeenCalledWith(state.tabs[1], true);
-    fireEvent.click(screen.getByRole('button', { name: 'Close Clients' }));
+    const clients = tablist.getByRole('tab', { name: 'Clients' });
+    expect(clients).toHaveAttribute('aria-keyshortcuts', 'Delete');
+    expect(tablist.queryByRole('button', { name: 'Close Clients' })).toBeNull();
+    fireEvent.keyDown(clients, { key: 'Delete' });
+    expect(onClose).toHaveBeenCalledWith('ws:clients' satisfies TabId);
+
+    onClose.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'More tabs' }));
+    const switcher = within(screen.getByRole('dialog', { name: 'Open workspaces' }));
+    fireEvent.click(switcher.getByRole('button', { name: 'Close Clients' }));
     expect(onClose).toHaveBeenCalledWith('ws:clients' satisfies TabId);
   });
 

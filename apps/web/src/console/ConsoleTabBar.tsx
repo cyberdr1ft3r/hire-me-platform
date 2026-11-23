@@ -185,7 +185,7 @@ export function ConsoleTabBar({
             const active = showSelection && state.active === tab.id;
             const dirty = dirtyTabId === tab.id;
             return (
-              <div className="console-tabs__item" key={tab.id}>
+              <div className="console-tabs__item" key={tab.id} role="presentation">
                 <button
                   aria-selected={active}
                   className="console-tabs__tab"
@@ -199,6 +199,7 @@ export function ConsoleTabBar({
                     else tabRefs.current.delete(tab.id);
                   }}
                   role="tab"
+                  aria-keyshortcuts={tab.id !== 'ws:home' ? 'Delete' : undefined}
                   tabIndex={state.active === tab.id ? 0 : -1}
                   title={title}
                   type="button"
@@ -213,17 +214,6 @@ export function ConsoleTabBar({
                     ) : null}
                   </span>
                 </button>
-                {tab.id !== 'ws:home' ? (
-                  <button
-                    aria-label={t('consoleTabs.closeTab', { title })}
-                    className="console-tabs__close"
-                    onClick={() => onClose(tab.id)}
-                    tabIndex={0}
-                    type="button"
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
-                ) : null}
               </div>
             );
           })}

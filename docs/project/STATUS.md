@@ -14,7 +14,8 @@ drawers and access confirmations preserve the existing Admin APIs and role catal
 the [Users audit and verification](../audit/issue-259-users/README.md). Issue #258 Billing
 is stacked on #279 and separates company profile editing from numbering and baseline review.
 See the [Billing audit and verification](../audit/issue-258-billing/README.md). Issue #261
-is the combined Administration acceptance batch.
+uses the exact #280 head for [combined Administration engineering acceptance](../audit/issue-261-administration/README.md).
+Assistive-technology, physical-device and business-user approvals remain separate gates.
 
 ## Executive Dashboard V1
 
@@ -29,6 +30,9 @@ Placement acceptance verifies counted offer-backed placement and mobile mission 
 ## Recruitment lifecycle and external portal readiness
 
 Phase 3 builds from the exact Phase 2 head (`a66c585`). It adds browser coverage for the internal recruitment lifecycle, direct API checks for the nine seeded roles, and a [portal readiness inventory](../audit/recruitment-lifecycle/README.md). External account, organization membership, client demand and candidate data sharing decisions remain open.
+
+The [#236 portal preflight](../design/issue-236-authenticated-portals-preflight.md) records the proposed
+identity, ownership and data-sharing contracts for review. External account implementation depends on their approval.
 
 Status owner: repository maintainer
 

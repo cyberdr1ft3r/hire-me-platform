@@ -4,16 +4,10 @@ Last updated: 2026-11-23
 
 ## Internal product UX stabilization
 
-Review the #258 Billing draft on #279. Check the grouped profile, explicit numbering and
-baseline review, browser evidence, PostgreSQL safeguards, and all six CI jobs on the draft
-head. #274 remains the UAT candidate and #265 stays separate.
-
-Run #261 combined acceptance after review of the scoped changes. Use the [Billing audit
-plan](../audit/issue-258-billing/README.md#proposed-combined-acceptance-for-261) to cover
-Billing, Users and Roles and Permissions on one verified stack. Completion requires
-synthetic browser and API evidence, keyboard and assistive-technology checks, prioritized
-follow-up defects, exact-head CI, and separately authorized staging and business-user
-acceptance. Keep invoice issuance disabled.
+Review the [#261 acceptance evidence](../audit/issue-261-administration/README.md) and exact-head CI on
+the draft stacked on #280. Review any open defects, then use the [human-testing record](../audit/issue-261-administration/HUMAN-TESTING.md)
+for authorized synthetic staging, screen-reader use, physical devices and separately recorded business-user UAT.
+#274 remains the designated UAT candidate, #265 stays separate and invoice issuance stays disabled.
 
 ## Executive Dashboard V1
 
@@ -27,7 +21,9 @@ Review the placement draft and its exact-head checks. Continue Executive Dashboa
 
 ## Recruitment and external portal handoff
 
-Review the draft and its exact-head CI. Next, cover successful offer-backed placement and mission closure, then broaden the assigned-recruiter matrix. Obtain approval on external identity, organization membership and sharing rules before making client recruitment demands or authenticated candidate profile changes available. See the [readiness audit](../audit/recruitment-lifecycle/README.md).
+Review the [#236 portal preflight](../design/issue-236-authenticated-portals-preflight.md) with product and privacy owners.
+Approve external identity, organization and candidate ownership, and anonymized sharing contracts before opening
+implementation work. The [readiness audit](../audit/recruitment-lifecycle/README.md) records the existing runtime.
 
 
 ## Functional UI stabilization handoff — 2026-11-19
