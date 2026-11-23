@@ -6,8 +6,10 @@ Last updated: 2026-11-24
 
 Branch `integration/hireme-dev-v1` is the single authoritative development integration. It starts from
 verified #281 (`b293ddd`) and now includes #284 public applications, #265 invoice consolidation, and
-pending #282 portal documentation. Invoice issuance remains disabled; external portal implementation
-(EP-01) remains blocked pending E01–E07 approvals.
+#282 portal documentation (proposed/pending approvals). Invoice issuance remains disabled; external
+portal implementation (EP-01) remains blocked pending E01–E07 approvals recorded in the
+[#236 decision register](../design/external-portals/README.md). The
+[delivery plan](../design/external-portals/delivery.md) defines first-PR and pilot acceptance gates.
 
 ## Next concrete action
 

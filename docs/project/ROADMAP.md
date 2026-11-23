@@ -185,6 +185,7 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 - Any client portal or client account experience requires a separate product and security issue.
 - Existing `clientVisible` terms mean approved for external sharing, not current portal visibility.
+- The [#236 implementation readiness package](../design/external-portals/README.md) proposes Client Portal V1 recruitment demands first, with a separately gated Candidate Portal lane. Scope, decision owners and dependencies are pending review.
 
 ## Phase 11 - Integrations and migration
 

@@ -13,6 +13,15 @@ Status owner: repository maintainer
 - External portal implementation (EP-01) remains blocked pending E01–E07 owner decisions in
   [external portal readiness](../design/external-portals/README.md).
 
+## External portals implementation readiness
+
+- Integrated from PR #282 (`43e910b`). The [#236 readiness package](../design/external-portals/README.md)
+  proposes Client Portal V1 from named invitations through scoped recruitment demands and auditable
+  conversion. Candidate contracts and backlog have their own gates. This is documentation pending product,
+  security and privacy approval.
+- The proposed first implementation PR is EP-01, the disabled authority boundary and synthetic scope tests.
+  Proceed only after applicable E01–E07 approval. See the [delivery plan](../design/external-portals/delivery.md).
+
 ## Internal product UX stabilization
 
 The product UX branch starts from the verified #274 application commit. Issue #260 adds read-only search, functional permission groups, and technical disclosure in Administration. See the [access overview audit](../audit/issue-260-access-overview.md). Issues #258, #259, and #261 remain separate. #274 remains the UAT candidate.
