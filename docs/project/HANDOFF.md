@@ -4,19 +4,16 @@ Last updated: 2026-11-23
 
 ## Internal product UX stabilization
 
-Review #259 Administration Users on the verified #278 Training stack. Check the browser
-and PostgreSQL evidence, the localized Users flows, and the six CI jobs on the exact draft
-head. #274 remains the UAT candidate.
+Review the #258 Billing draft on #279. Check the grouped profile, explicit numbering and
+baseline review, browser evidence, PostgreSQL safeguards, and all six CI jobs on the draft
+head. #274 remains the UAT candidate and #265 stays separate.
 
-Prepare #258 Billing on a separate branch from the verified Users head. Reuse the existing
-`/admin?section=billing` route, Billing APIs and permissions. Group legal identity, contact
-details and payment fields. Place numbering and annual baseline controls in a dedicated
-advanced area with their prerequisites, consequences and explicit confirmation.
-
-Completion for #258 requires responsive EN/FR browser acceptance and coverage for read-only
-access, editing and failure recovery, annual baseline and numbering safeguards, immutable
-issued-invoice snapshots, and safe audit records. Use synthetic data and keep invoice
-issuance disabled. Run #261 after the remaining scoped Administration work.
+Run #261 combined acceptance after review of the scoped changes. Use the [Billing audit
+plan](../audit/issue-258-billing/README.md#proposed-combined-acceptance-for-261) to cover
+Billing, Users and Roles and Permissions on one verified stack. Completion requires
+synthetic browser and API evidence, keyboard and assistive-technology checks, prioritized
+follow-up defects, exact-head CI, and separately authorized staging and business-user
+acceptance. Keep invoice issuance disabled.
 
 ## Executive Dashboard V1
 
