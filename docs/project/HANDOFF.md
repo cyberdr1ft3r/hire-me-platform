@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-28
 
+## Public application UX review
+
+Review the #283 draft and exact-head CI with the [Chrome and API evidence](../audit/issue-283-public-application/README.md). Keep apply-first anonymous. Follow up separately on physical-device and screen-reader evidence and any independently approved Candidate Portal work.
+
 ## Current situation
 
 - Issue #254 implements the separately reviewed D-097 pre-merge staging path on `feat/secure-premerge-staging`, based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a`.

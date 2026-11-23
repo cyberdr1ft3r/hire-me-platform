@@ -1186,7 +1186,7 @@ export const frMessages: Messages = {
   publicOpportunity: {
     application: {
       consent: 'J’accepte que HireMe traite cette candidature.',
-      description: 'Les champs marqués d’un * sont obligatoires.',
+      description: 'Aucun compte nécessaire. Les champs marqués d’un * sont obligatoires.',
       fields: {
         availability: 'Disponibilité',
         city: 'Ville',
@@ -1206,6 +1206,9 @@ export const frMessages: Messages = {
       files: {
         choose: 'Choisir un fichier',
         none: 'Aucun fichier sélectionné',
+        optional: '(facultatif)',
+        remove: 'Retirer le fichier',
+        removeLabel: 'Retirer le fichier pour {document}',
       },
       hints: {
         availability: 'Par exemple, votre préavis ou votre date de disponibilité',
@@ -1215,11 +1218,14 @@ export const frMessages: Messages = {
         salaryAmount: 'Par exemple 36000 ou 36000,50, sans espace ni symbole',
         salaryCurrency: 'Code à trois lettres, par exemple EUR ou MAD',
       },
+      optionalDetails: 'Ajouter des informations facultatives',
       sections: {
-        about: 'À propos de vous',
+        about: 'Coordonnées',
         documents: 'Documents',
         experience: 'Expérience',
+        moreContact: 'Coordonnées complémentaires',
         motivation: 'Liens et motivation',
+        optionalDocuments: 'Documents facultatifs',
         salary: 'Prétentions salariales',
       },
       submit: 'Envoyer ma candidature',
@@ -1241,18 +1247,22 @@ export const frMessages: Messages = {
     feedback: {
       browseRoles: 'Voir les autres postes à pourvoir',
       failure: {
-        failed: 'Votre candidature n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.',
+        failed:
+          'Vos fichiers n’ont pas pu être préparés. Sélectionnez-les à nouveau, puis réessayez.',
         invalid:
           'Certaines informations n’ont pas pu être acceptées. Vérifiez vos informations et vos documents, puis réessayez.',
         payloadTooLarge:
           'Vos documents et vos réponses dépassent la taille maximale pour une candidature. Retirez ou compressez des fichiers, puis réessayez.',
         rateLimited: 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.',
         unavailable: 'Cette offre n’accepte plus de candidatures.',
+        unconfirmed:
+          'Nous n’avons pas pu confirmer la réception de votre candidature. Vos informations et fichiers sont toujours ici. Réessayez avec la même adresse e-mail et les mêmes fichiers.',
       },
       failureTitle: 'Candidature non envoyée',
       receivedBody:
-        'Merci. Votre candidature a bien été reçue et sera examinée si cette offre est toujours disponible.',
+        'Merci pour votre candidature. Aucun compte ni autre démarche n’est nécessaire.',
       receivedTitle: 'Candidature reçue',
+      unconfirmedTitle: 'Réception non confirmée',
     },
     fields: {
       company: 'Entreprise',
