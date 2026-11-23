@@ -14,6 +14,7 @@ describe('classifySubmissionFailure', () => {
     expect(classifySubmissionFailure(new PublicRequestError('x', 400))).toBe('invalid');
     expect(classifySubmissionFailure(new PublicRequestError('x', 404))).toBe('unavailable');
     expect(classifySubmissionFailure(new PublicRequestError('x', 429))).toBe('rateLimited');
-    expect(classifySubmissionFailure(new PublicRequestError('x', 503))).toBe('failed');
+    expect(classifySubmissionFailure(new PublicRequestError('x', 503))).toBe('unconfirmed');
+    expect(classifySubmissionFailure(new TypeError('Network failure'))).toBe('unconfirmed');
   });
 });

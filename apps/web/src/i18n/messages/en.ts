@@ -1443,7 +1443,7 @@ export const enMessages = {
   publicOpportunity: {
     application: {
       consent: 'I consent to HireMe processing this application.',
-      description: 'Fields marked * are required.',
+      description: 'No account needed. Fields marked * are required.',
       fields: {
         availability: 'Availability',
         city: 'City',
@@ -1463,6 +1463,9 @@ export const enMessages = {
       files: {
         choose: 'Choose a file',
         none: 'No file selected',
+        optional: '(optional)',
+        remove: 'Remove file',
+        removeLabel: 'Remove file for {document}',
       },
       hints: {
         availability: 'For example, your notice period or earliest start date',
@@ -1471,11 +1474,14 @@ export const enMessages = {
         salaryAmount: 'For example 36000 or 36000.50, without spaces or symbols',
         salaryCurrency: 'Three-letter code, for example EUR or MAD',
       },
+      optionalDetails: 'Add optional details',
       sections: {
-        about: 'About you',
+        about: 'Contact details',
         documents: 'Documents',
         experience: 'Experience',
+        moreContact: 'Additional contact details',
         motivation: 'Links and motivation',
+        optionalDocuments: 'Optional documents',
         salary: 'Salary expectation',
       },
       submit: 'Submit application',
@@ -1497,18 +1503,20 @@ export const enMessages = {
     feedback: {
       browseRoles: 'Browse other open roles',
       failure: {
-        failed: 'Your application could not be sent. Check your connection and try again.',
+        failed: 'Your files could not be prepared. Choose them again, then retry.',
         invalid:
           'Some information could not be accepted. Check your details and documents, then try again.',
         payloadTooLarge:
           'Your documents and answers together exceed the size limit for one application. Remove or compress files, then try again.',
         rateLimited: 'Too many attempts in a short time. Wait a minute, then try again.',
         unavailable: 'This opportunity is no longer accepting applications.',
+        unconfirmed:
+          'We couldn’t confirm whether your application was received. Your details and files are still here. Try again with the same email and files.',
       },
       failureTitle: 'Application not sent',
-      receivedBody:
-        'Thank you. Your application has been received and will be reviewed if this opportunity is still available.',
+      receivedBody: 'Thank you for applying. No account or further action is needed.',
       receivedTitle: 'Application received',
+      unconfirmedTitle: 'Receipt unconfirmed',
     },
     fields: {
       company: 'Company',
@@ -1558,7 +1566,7 @@ export const enMessages = {
         'Enter an amount with at most two decimals, without spaces or symbols, for example 36000 or 36000.50.',
       salaryCurrency:
         'Enter a three-letter currency code, for example EUR or MAD, or leave it empty.',
-      summary: 'Correct the highlighted fields, then submit again.',
+      summary: 'Check the highlighted fields and any document errors, then submit again.',
       summaryTitle: 'Check your application',
     },
     values: {

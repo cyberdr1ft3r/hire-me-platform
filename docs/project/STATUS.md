@@ -36,6 +36,10 @@ identity, ownership and data-sharing contracts for review. External account impl
 
 Status owner: repository maintainer
 
+## Issue #283 — public application UX
+
+- Integrated on `integration/hireme-dev-v1` from PR #284 (`9e043837`). The flow shortens the initial bilingual application, keeps configured requirements visible, and verifies unlisted direct links, anonymous receipt and retry behavior in real Chrome with disposable PostgreSQL. Portal accounts and ownership are outside this flow. [Evidence](../audit/issue-283-public-application/README.md)
+
 ## Functional UI acceptance — 2026-11-19
 
 - QA branch `codex/hireme-functional-qa` is based on draft PR #266 at `47c5218b321530fc0f3563f40b5af41b6503a0f6`. The suite runs the real UI and API against a marked disposable PostgreSQL database and records browser evidence in CI.

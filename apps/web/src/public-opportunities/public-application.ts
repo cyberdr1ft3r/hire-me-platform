@@ -95,7 +95,7 @@ export type ApplicationFieldError =
 export type ApplicationErrorTarget = ApplicationTextField | ApplicationFileSlot | 'consentGranted';
 
 export interface ApplicationValidation {
-  /** Field errors in form order, so the first key is the first invalid control. */
+  /** The form locates these errors in the current DOM reading order. */
   fields: Partial<Record<ApplicationErrorTarget, ApplicationFieldError>>;
   /** Set when every file is individually acceptable but together they exceed the total. */
   totalLimitBytes: number | null;

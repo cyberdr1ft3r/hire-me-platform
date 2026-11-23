@@ -33,6 +33,10 @@ implementation work. The [readiness audit](../audit/recruitment-lifecycle/README
 3. Resolve UI-02 and the residual UI-03 issues on the Administration branch. Review synthetic PDF generation on the invoice branch and require accounting and legal sign-off before issuance; see both exact-head reviews in the audit folder.
 Last updated: 2026-11-10
 
+## Public application UX review
+
+Review the #283 draft and exact-head CI with the [Chrome and API evidence](../audit/issue-283-public-application/README.md). Keep apply-first anonymous. Follow up separately on physical-device and screen-reader evidence and any independently approved Candidate Portal work.
+
 ## Current situation
 
 - Issue #257 is implemented on `feat/issue-257-administration-navigation`, based on `main`

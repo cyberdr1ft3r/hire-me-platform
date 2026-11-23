@@ -579,6 +579,31 @@
   margin: 0;
 }
 
+.public-form__optional {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  min-width: 0;
+}
+
+.public-form__optional summary {
+  color: var(--color-brand-pressed);
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--hit-target-min);
+  padding: var(--space-3) var(--space-4);
+}
+
+.public-form__optional summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--space-0-5);
+}
+
+.public-form__optional-body {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-3) var(--space-4) var(--space-5);
+}
+
 .public-form__group {
   border: 0;
   margin: 0;
@@ -684,6 +709,11 @@
   font-size: var(--font-size-3);
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.public-file__optional {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .public-consent {
