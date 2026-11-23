@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-28
 
+## External portals approval
+
+Review the [#236 decision register](../design/external-portals/README.md) with product, security and privacy owners. Record choices and approvers for identity, organization membership, demand sharing and staff authority before starting EP-01. Candidate ownership, claims and visibility require their own signoff. The [delivery plan](../design/external-portals/delivery.md) defines first-PR and pilot acceptance.
+
 ## Current situation
 
 - Issue #254 implements the separately reviewed D-097 pre-merge staging path on `feat/secure-premerge-staging`, based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a`.
