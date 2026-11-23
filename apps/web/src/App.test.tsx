@@ -675,18 +675,23 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     expect(await screen.findByRole('heading', { name: 'Users' })).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText(/display name/i), {
+    fireEvent.click(screen.getByRole('button', { name: 'New user' }));
+    const createDialog = await screen.findByRole('dialog', { name: 'Create internal user' });
+    const fields = within(createDialog);
+    fireEvent.change(fields.getByLabelText(/display name/i), {
       target: { value: 'Created User' },
     });
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(fields.getByLabelText(/email/i), {
       target: { value: 'created@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/initial password/i), {
+    fireEvent.change(fields.getByLabelText(/initial password/i), {
       target: { value: 'Synthetic-password-123!' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /create user/i }));
+    fireEvent.click(fields.getByRole('button', { name: /create user/i }));
 
     expect(await screen.findByText('User created.')).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Create internal user' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/initial password/i)).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/v1/admin/users',
       expect.objectContaining({ method: 'POST', credentials: 'include' }),

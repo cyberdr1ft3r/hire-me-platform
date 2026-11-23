@@ -105,6 +105,7 @@ describe('dictionary contract', () => {
       'admin.access.permissionCount',
       'admin.access.roleCount',
       'admin.access.roleGrants',
+      'admin.users.results',
       'candidate.record.documents.count',
       'candidate.record.tasks.count',
       'clients.filters.filtersActive',
