@@ -140,6 +140,8 @@ describe('public opportunity list', () => {
     openList();
 
     const link = await screen.findByRole('link', { name: 'Synthetic public role' });
+    expect(callsTo(fetchMock, `${API}/auth/refresh`)).toHaveLength(0);
+    expect(callsTo(fetchMock, `${API}/health`)).toHaveLength(0);
     expect(link).toHaveAttribute('href', '/opportunities/synthetic-role');
     expect(screen.getByRole('link', { name: 'Second synthetic role' })).toHaveAttribute(
       'href',
@@ -434,7 +436,10 @@ describe('public opportunity detail', () => {
     const form = applicationForm('Postuler à cette offre');
     expect(within(form).getByLabelText(/^Nom complet/)).toBeRequired();
     expect(within(form).getByLabelText(/^Adresse e-mail/)).toBeRequired();
-    expect(within(form).getByLabelText('Années d’expérience')).toBeVisible();
+    const experience = within(form).getByLabelText('Années d’expérience');
+    expect(experience).not.toBeVisible();
+    fireEvent.click(within(form).getByText('Ajouter des informations facultatives'));
+    expect(experience).toBeVisible();
     expect(within(form).getByText('Choisir un fichier', { selector: 'label' })).toBeVisible();
     expect(within(form).getByText('Aucun fichier sélectionné')).toBeVisible();
     expect(within(form).getByText(/Formats acceptés\s: PDF ou texte brut\./)).toBeVisible();
@@ -627,7 +632,7 @@ describe('public application', () => {
     });
   }
 
-  it('offers exactly the existing fields, with visible labels', async () => {
+  it('keeps all existing fields and presents the shortest application first', async () => {
     mockDetailAndSubmit(() => Promise.resolve(jsonResponse(RECEIVED)));
     openDetail();
     await screen.findByRole('heading', { level: 1, name: 'Synthetic public role' });
@@ -639,6 +644,7 @@ describe('public application', () => {
     expect(names).toEqual([
       'fullName',
       'email',
+      'cv',
       'phone',
       'city',
       'country',
@@ -651,10 +657,14 @@ describe('public application', () => {
       'salaryExpectationCurrency',
       'professionalLinks',
       'motivation',
-      'cv',
       'consentGranted',
       'website',
     ]);
+    expect(screen.getByLabelText(/^CV/)).toBeVisible();
+    expect(screen.getByLabelText('Phone')).not.toBeVisible();
+    const optional = within(form).getByText('Add optional details');
+    fireEvent.click(optional);
+    expect(screen.getByLabelText('Phone')).toBeVisible();
     for (const control of form.querySelectorAll<HTMLElement>(
       'input:not([name="website"]), textarea',
     )) {
@@ -869,7 +879,7 @@ describe('public application', () => {
     const heading = await screen.findByRole('heading', { level: 3, name: 'Application received' });
     expect(heading).toHaveFocus();
     expect(heading.closest('[role="status"]')).toHaveTextContent(
-      'Thank you. Your application has been received and will be reviewed if this opportunity is still available.',
+      'Thank you for applying. No account or further action is needed.',
     );
     expect(screen.queryByRole('form')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Apply now' })).toBeNull();
@@ -883,8 +893,8 @@ describe('public application', () => {
     ],
     [404, 'This opportunity is no longer accepting applications.'],
     [429, 'Too many attempts in a short time. Wait a minute, then try again.'],
-    [500, 'Your application could not be sent. Check your connection and try again.'],
-    [503, 'Your application could not be sent. Check your connection and try again.'],
+    [500, 'We couldn’t confirm whether your application was received.'],
+    [503, 'We couldn’t confirm whether your application was received.'],
   ])('shows safe localized feedback for HTTP %i and keeps the form', async (status, copy) => {
     mockDetailAndSubmit(() =>
       Promise.resolve(
@@ -898,7 +908,7 @@ describe('public application', () => {
     fireEvent.submit(applicationForm());
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Application not sent');
+    expect(alert).toHaveTextContent(status >= 500 ? 'Receipt unconfirmed' : 'Application not sent');
     expect(alert).toHaveTextContent(copy);
     expect(document.body.innerHTML).not.toContain('RAW-BACKEND-DETAIL');
     expect(screen.getByLabelText(/^Full name/)).toHaveValue('Ada Example');
@@ -936,9 +946,9 @@ describe('public application', () => {
     fireEvent.submit(applicationForm('Postuler à cette offre'));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Candidature non envoyée');
+    expect(alert).toHaveTextContent('Réception non confirmée');
     expect(alert).toHaveTextContent(
-      'Votre candidature n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.',
+      'Nous n’avons pas pu confirmer la réception de votre candidature.',
     );
     expect(document.body.innerHTML).not.toContain('INTERNAL-STAFFING-DETAIL-MUST-NOT-RENDER');
     expect(screen.getByLabelText(/^Nom complet/)).toHaveValue('Ada Example');
@@ -954,7 +964,7 @@ describe('public application', () => {
     fireEvent.submit(applicationForm());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Your application could not be sent. Check your connection and try again.',
+      'We couldn’t confirm whether your application was received.',
     );
     expect(document.body.innerHTML).not.toContain('RAW-NETWORK-DETAIL');
   });

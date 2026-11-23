@@ -175,6 +175,11 @@ function OpportunityContent({
           <h2 className="public-facts__title" id={factsId}>
             {t('publicOpportunity.detail.keyDetails')}
           </h2>
+          {submission.status === 'received' ? null : (
+            <a className="public-link-button public-link-button--primary" href="#apply">
+              {t('publicOpportunity.detail.apply')}
+            </a>
+          )}
           <dl className="public-facts__list">
             {/* A hidden client name has always read as confidential, never as blank. */}
             <Fact label={t('publicOpportunity.fields.company')}>
@@ -211,11 +216,6 @@ function OpportunityContent({
               </Fact>
             ) : null}
           </dl>
-          {submission.status === 'received' ? null : (
-            <a className="public-link-button public-link-button--primary" href="#apply">
-              {t('publicOpportunity.detail.apply')}
-            </a>
-          )}
         </aside>
 
         <div className="public-opportunity__content">
@@ -235,8 +235,8 @@ function OpportunityContent({
               </p>
             </section>
           ) : null}
-          <section aria-labelledby={applyId} className="public-apply" id="apply">
-            <h2 className="public-apply__title" id={applyId} tabIndex={-1}>
+          <section aria-labelledby={applyId} className="public-apply" id="apply" tabIndex={-1}>
+            <h2 className="public-apply__title" id={applyId}>
               {t('publicOpportunity.application.title')}
             </h2>
             {submission.status === 'received' ? (

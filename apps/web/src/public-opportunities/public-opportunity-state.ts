@@ -27,7 +27,7 @@ export type PublicDetailState =
 
 /** Safe, language-neutral categories for a submission the server refused. */
 export type PublicSubmissionFailure =
-  'failed' | 'invalid' | 'payloadTooLarge' | 'rateLimited' | 'unavailable';
+  'failed' | 'invalid' | 'payloadTooLarge' | 'rateLimited' | 'unavailable' | 'unconfirmed';
 
 /**
  * `received` is shown only after the server has answered `RECEIVED`. The server
@@ -47,7 +47,7 @@ export function isNotFound(error: unknown): boolean {
 /** Only the HTTP status is read; the server's message text never reaches the page. */
 export function classifySubmissionFailure(error: unknown): PublicSubmissionFailure {
   if (!(error instanceof PublicRequestError)) {
-    return 'failed';
+    return 'unconfirmed';
   }
   switch (error.status) {
     case 400:
@@ -59,6 +59,6 @@ export function classifySubmissionFailure(error: unknown): PublicSubmissionFailu
     case 429:
       return 'rateLimited';
     default:
-      return 'failed';
+      return 'unconfirmed';
   }
 }

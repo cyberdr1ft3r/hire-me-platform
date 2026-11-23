@@ -56,6 +56,26 @@ export function App() {
 }
 
 function AppRoutes() {
+  const pathname = window.location.pathname;
+  const slug = pathname.match(/^\/opportunities\/([^/]+)$/)?.[1];
+  if (pathname === '/opportunities') {
+    return (
+      <RouteModuleBoundary>
+        <LazyPublicOpportunitiesPanel />
+      </RouteModuleBoundary>
+    );
+  }
+  if (slug) {
+    return (
+      <RouteModuleBoundary>
+        <LazyPublicOpportunityDetailPanel key={slug} publicSlug={slug} />
+      </RouteModuleBoundary>
+    );
+  }
+  return <InternalAppRoutes />;
+}
+
+function InternalAppRoutes() {
   const { t } = useI18n();
   const [apiState, setApiState] = useState<ApiState>({ status: 'loading' });
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -227,29 +247,6 @@ function AppRoutes() {
     // Signing out ends the session; the active unsaved guard has already asked.
     replaceHistoryPath('/');
     setLocation({ route: 'home', search: '' });
-  }
-
-  // The public opportunity pages are bilingual and share the locale provider and
-  // the saved preference, so they carry no English boundary. They stay outside
-  // the internal shell and are matched on the same URLs as always.
-  const publicOpportunityMatch = window.location.pathname.match(/^\/opportunities\/([^/]+)$/);
-  if (window.location.pathname === '/opportunities') {
-    return (
-      <RouteModuleBoundary>
-        <LazyPublicOpportunitiesPanel />
-      </RouteModuleBoundary>
-    );
-  }
-  if (publicOpportunityMatch?.[1]) {
-    // Keyed by slug, so a different opportunity never inherits another's form.
-    return (
-      <RouteModuleBoundary>
-        <LazyPublicOpportunityDetailPanel
-          key={publicOpportunityMatch[1]}
-          publicSlug={publicOpportunityMatch[1]}
-        />
-      </RouteModuleBoundary>
-    );
   }
 
   if (!user || !accessToken) {

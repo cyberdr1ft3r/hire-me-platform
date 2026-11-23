@@ -3,6 +3,10 @@
 Last updated: 2026-10-28
 Status owner: repository maintainer
 
+## Issue #283 — public application UX
+
+- The isolated issue branch shortens the initial bilingual application, keeps configured requirements visible, and verifies unlisted direct links, anonymous receipt and retry behavior in real Chrome with disposable PostgreSQL. Portal accounts and ownership are outside this flow. [Evidence](../audit/issue-283-public-application/README.md)
+
 ## Issue #254 — protected pre-merge staging releases
 
 - Branch `feat/secure-premerge-staging` starts from `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements D-097 as a separate review unit. It does not modify Issue #252 / PR #253.

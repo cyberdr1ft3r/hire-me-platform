@@ -75,15 +75,21 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
     submitting.current = true;
     const owner = session.current;
     setSubmission({ status: 'submitting' });
+    let requestStarted = false;
     try {
       const files = await encodeApplicationFiles(snapshot);
-      await submitPublicApplication(publicSlug, buildApplicationRequest(snapshot, files));
+      const request = buildApplicationRequest(snapshot, files);
+      requestStarted = true;
+      await submitPublicApplication(publicSlug, request);
       if (owner === session.current) {
         setSubmission({ status: 'received' });
       }
     } catch (error: unknown) {
       if (owner === session.current) {
-        setSubmission({ failure: classifySubmissionFailure(error), status: 'failed' });
+        setSubmission({
+          failure: requestStarted ? classifySubmissionFailure(error) : 'failed',
+          status: 'failed',
+        });
       }
     } finally {
       if (owner === session.current) {
