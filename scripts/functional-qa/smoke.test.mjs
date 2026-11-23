@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { chromium } from 'playwright';
@@ -10,10 +10,12 @@ const {
   HIREME_E2E_API: api,
   HIREME_E2E_EVIDENCE: evidence,
   HIREME_E2E_CHROMIUM_CHANNEL: channel,
+  HIREME_AXE_SCRIPT: axeScript,
 } = process.env;
 const admin = 'bootstrap-admin@test-db.hireme.test';
 const password = 'CiSyntheticAdminPassphrase123!';
 const run = randomUUID().slice(0, 8);
+const adminWidths = [1440, 1280, 1024, 768, 390, 360];
 let browser;
 before(async () => {
   assert.ok(web && api && evidence, 'Start with pnpm test:e2e.');
@@ -37,6 +39,21 @@ async function withPage(operation, viewport = { width: 1440, height: 900 }) {
 const button = (scope, name) => scope.getByRole('button', { name, exact: true });
 const heading = (scope, name) => scope.getByRole('heading', { name, exact: true });
 const nav = (page, route) => page.locator(`nav a[href="${route}"]`);
+async function scanAccessibility(page) {
+  if (!(await page.evaluate(() => Boolean(window.axe)))) {
+    await page.addScriptTag({ path: axeScript });
+  }
+  return page.evaluate(async () => {
+    const { violations } = await window.axe.run({
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+    });
+    return violations.map(({ id, impact, nodes }) => ({
+      id,
+      impact,
+      targets: nodes.map(({ target }) => target),
+    }));
+  });
+}
 const response = (page, method, pathname) =>
   page.waitForResponse(
     (value) => new URL(value.url()).pathname === pathname && value.request().method() === method,
@@ -287,6 +304,82 @@ test('protected route, refresh on reload, and logout', async () => {
   });
 });
 
+test('administration-acceptance: one Console tab, bilingual sections and accessibility', async () => {
+  await withPage(async (page) => {
+    await login(page);
+    const findings = [];
+    await page.goto(web + '/admin?section=billing');
+    const sectionNav = page.locator('.admin-section-nav');
+    const tab = page.getByRole('tab', { name: 'Administration', exact: true });
+    for (const locale of ['en', 'fr']) {
+      if (locale === 'fr') {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.locator('.app-shell__language-select:visible').selectOption('fr');
+      }
+      await page.waitForFunction((lang) => document.documentElement.lang === lang, locale);
+      for (const width of adminWidths) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const [section, en, fr] of [
+          ['billing', 'Legal identity', 'Identité légale'],
+          ['users', 'User directory', 'Annuaire des utilisateurs'],
+          ['access', 'Approved roles', 'Rôles approuvés'],
+        ]) {
+          const link = sectionNav.locator(`a[href="/admin?section=${section}"]`);
+          await link.press('Enter');
+          await page
+            .getByRole(section === 'billing' ? 'heading' : 'region', {
+              name: locale === 'en' ? en : fr,
+              exact: true,
+            })
+            .waitFor();
+          if (section === 'users') await button(page, 'Development Administrator').waitFor();
+          assert.equal(new URL(page.url()).search, `?section=${section}`);
+          assert.equal(await link.getAttribute('aria-current'), 'page');
+          if (width >= 900) {
+            assert.equal(await tab.count(), 1);
+            assert.equal(await tab.getAttribute('aria-selected'), 'true');
+          } else {
+            const switcher = button(page, locale === 'en' ? 'Tabs' : 'Onglets');
+            await switcher.press('Enter');
+            const workspaces = page.getByRole('dialog', {
+              name: locale === 'en' ? 'Open workspaces' : 'Espaces ouverts',
+            });
+            const administration = button(workspaces, 'Administration');
+            assert.equal(await administration.count(), 1);
+            assert.equal(await administration.getAttribute('aria-current'), 'true');
+            await page.keyboard.press('Escape');
+            await workspaces.waitFor({ state: 'detached' });
+          }
+          assert.equal(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+            true,
+          );
+          if (axeScript && (width === 360 || width === 1440)) {
+            const violations = await scanAccessibility(page);
+            findings.push({ locale, width, section, violations });
+            await writeFile(
+              path.join(evidence, 'admin-261-axe.json'),
+              JSON.stringify(findings, null, 2),
+            );
+          }
+          if ((locale === 'fr' && width === 360) || (locale === 'en' && width === 1440)) {
+            await page.screenshot({
+              animations: 'disabled',
+              path: path.join(evidence, `admin-261-${section}-${locale}-${width}.png`),
+            });
+          }
+        }
+      }
+    }
+    if (axeScript) {
+      assert.deepEqual(
+        findings.flatMap(({ violations }) => violations),
+        [],
+      );
+    }
+  });
+});
+
 test('administration-access: search, permission disclosure, retry and bilingual narrow layout', async () => {
   await withPage(async (page) => {
     const token = await login(page);
@@ -392,7 +485,7 @@ test('administration-billing: localized profile and guarded numbering on the rea
                 'Invoice numbering and annual baseline',
               ]
             : ['Identité légale', 'Coordonnées', 'Paiement', 'Numérotation / base annuelle'];
-        for (const width of [1440, 1024, 768, 390, 360]) {
+        for (const width of adminWidths) {
           await page.setViewportSize({ width, height: 900 });
           for (const label of labels) await heading(page, label).waitFor();
           assert.equal(
@@ -534,6 +627,7 @@ test('administration-billing: localized profile and guarded numbering on the rea
         animations: 'disabled',
         path: path.join(output, 'after-baseline-review.png'),
       });
+      if (axeScript) assert.deepEqual(await scanAccessibility(page), [], 'Billing baseline dialog');
       await button(dialog, 'Back to edit').press('Enter');
       assert.equal(await dialog.getByLabel(/^Highest externally issued number/).inputValue(), '18');
       await button(dialog, 'Review baseline').press('Enter');
@@ -554,6 +648,26 @@ test('administration-billing: localized profile and guarded numbering on the rea
         .locator('.billing-settings__numbering')
         .getByText('Enabled', { exact: true })
         .waitFor();
+
+      const date = new Date().toISOString();
+      const issuance = await request(
+        token,
+        `/v1/commercial/invoices/${randomUUID()}/issue`,
+        'POST',
+        {
+          issueDate: date,
+          dueDate: date,
+          businessDetails: {
+            sellerLegalName: 'Synthetic Demo Company',
+            sellerAddress: '100 Example Avenue',
+            buyerLegalName: 'Synthetic Buyer',
+            buyerAddress: '200 Example Avenue',
+            paymentTerms: 'Synthetic terms',
+          },
+        },
+      );
+      assert.equal(issuance.status, 403);
+      assert.equal((await issuance.json()).error.code, 'INVOICE_ISSUANCE_DISABLED');
 
       const lower = await request(token, baselinePath, 'POST', {
         year: currentYear,
@@ -605,8 +719,14 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
       200,
     );
     const signInTarget = (email) => request(undefined, '/auth/login', 'POST', { email, password });
-    assert.equal((await signInTarget(alex.email)).status, 201);
-    assert.equal((await signInTarget(alex.email)).status, 201);
+    const alexSessions = [];
+    for (let index = 0; index < 2; index++) {
+      const session = await signInTarget(alex.email);
+      assert.equal(session.status, 201);
+      const cookie = session.headers.getSetCookie()[0]?.split(';', 1)[0];
+      assert.ok(cookie, 'target login sets a refresh cookie');
+      alexSessions.push({ cookie, ...(await session.json()) });
+    }
     const restricted = await signInTarget(morgan.email);
     assert.equal(restricted.status, 201);
     const restrictedToken = (await restricted.json()).accessToken;
@@ -624,7 +744,6 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
       await page.waitForFunction((value) => document.documentElement.lang === value, locale);
       await button(page, 'Alex Martin').waitFor();
     };
-    const widths = [1440, 1024, 768, 390, 360];
     for (const locale of ['en', 'fr']) {
       await setUsersLocale(locale);
       const directory = page.getByRole('region', {
@@ -633,7 +752,7 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
       const detail = page.getByRole('region', {
         name: locale === 'en' ? 'Selected user detail' : 'Détail de l’utilisateur sélectionné',
       });
-      for (const width of widths) {
+      for (const width of adminWidths) {
         await page.setViewportSize({ width, height: 900 });
         await button(directory, 'Alex Martin').waitFor();
         assert.equal(await detail.count(), 0, 'no vacant detail panel');
@@ -723,10 +842,18 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
     let dialog = page.getByRole('dialog', { name: 'Create internal user' });
     let displayName = dialog.getByLabel('Display name');
     assert.equal(await displayName.evaluate((node) => document.activeElement === node), true);
+    await page.keyboard.press('Tab');
+    assert.equal(
+      await dialog.getByLabel('Email').evaluate((node) => document.activeElement === node),
+      true,
+    );
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await displayName.evaluate((node) => document.activeElement === node), true);
     await page.screenshot({
       animations: 'disabled',
       path: path.join(captureDir, 'after-create-390.png'),
     });
+    if (axeScript) assert.deepEqual(await scanAccessibility(page), [], 'User creation drawer');
     await button(dialog, 'Create user').click();
     await dialog.getByText('Enter a valid email address.').waitFor();
     assert.equal(await displayName.getAttribute('aria-invalid'), 'true');
@@ -825,10 +952,31 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
     await button(dialog, 'Revoke session').press('Enter');
     await dialog.waitFor({ state: 'detached' });
     assert.equal(await sessions.count(), 1);
+    // The remaining session must stay active until the administrator revokes it below.
     await button(detail, 'Revoke all sessions').press('Enter');
     dialog = page.getByRole('dialog', { name: 'Revoke all sessions' });
     await button(dialog, 'Revoke all sessions').press('Enter');
     await detail.getByText('No active sessions.').waitFor();
+    for (const { cookie, accessToken } of alexSessions) {
+      const refresh = await fetch(api + '/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: cookie },
+      });
+      assert.equal(refresh.status, 401, 'revoked refresh cookie cannot renew the session');
+      // Session revocation blocks renewal. Suspension also blocks unexpired bearer tokens.
+      assert.equal((await request(accessToken, '/auth/me')).status, 200);
+    }
+    await button(detail, 'Suspend').press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Suspend' });
+    await button(dialog, 'Suspend').press('Enter');
+    await dialog.waitFor({ state: 'detached' });
+    for (const { accessToken } of alexSessions) {
+      assert.equal((await request(accessToken, '/auth/me')).status, 401);
+    }
+    await button(detail, 'Reactivate').press('Enter');
+    dialog = page.getByRole('dialog', { name: 'Reactivate' });
+    await button(dialog, 'Reactivate').press('Enter');
+    await dialog.waitFor({ state: 'detached' });
     assert.equal(
       (await (await request(token, userPath(alex) + '/sessions')).json()).sessions.length,
       0,
@@ -868,12 +1016,25 @@ test('administration-users: bilingual directory, account lifecycle and recovery'
         method + ' ' + url,
       );
     }
+    const apiLog = await readFile(path.join(evidence, 'api.log'), 'utf8');
+    const secrets = [
+      password,
+      ...alexSessions.flatMap(({ cookie, accessToken }) => [
+        cookie.slice(cookie.indexOf('=') + 1),
+        accessToken,
+      ]),
+    ];
+    assert.equal(
+      secrets.some((secret) => apiLog.includes(secret)),
+      false,
+      'API log leaks a QA credential',
+    );
   });
 });
 
-test('administration-users: Training keeps the first trusted key and blocks Console navigation', async () => {
+test('administration-users: Training keeps the first trusted key, guards Console and saves', async () => {
   await withPage(async (page) => {
-    await login(page);
+    const token = await login(page);
     await page.goto(web + '/training');
     const create = page.locator('details.training-create');
     await create.locator('summary').press('Enter');
@@ -895,6 +1056,20 @@ test('administration-users: Training keeps the first trusted key and blocks Cons
     await page.locator('[data-dirty="true"]').waitFor({ state: 'detached' });
     await overview.click();
     await heading(page, 'Overview').or(heading(page, 'Executive dashboard')).waitFor();
+    await page.getByRole('tab', { name: 'Training' }).press('Enter');
+    await create.locator('summary').press('Enter');
+    const programReference = `QA-${run}`;
+    await reference.pressSequentially(programReference);
+    await create.getByLabel(/^Name/).pressSequentially(`QA Training ${run}`);
+    const saved = response(page, 'POST', '/v1/training/programs');
+    await button(create, 'Create program').press('Enter');
+    const savedResponse = await saved;
+    assert.equal(savedResponse.status(), 201);
+    const { program } = await savedResponse.json();
+    const persisted = await request(token, `/v1/training/programs/${program.id}`);
+    assert.equal(persisted.status, 200);
+    assert.equal((await persisted.json()).program.reference, programReference);
+    await page.locator('[data-dirty="true"]').waitFor({ state: 'detached' });
   });
 });
 
@@ -1078,6 +1253,40 @@ test('record-permissions: nine roles agree on candidate and administration acces
           }
         }
         assert.equal((await request(token, '/v1/admin/users')).status, administration ? 200 : 403);
+        const otherUser = `/v1/admin/users/${bootstrapUser.id}`;
+        for (const endpoint of [
+          '/v1/admin/roles',
+          '/v1/admin/permissions',
+          otherUser,
+          otherUser + '/effective-permissions',
+          otherUser + '/sessions',
+        ]) {
+          assert.equal(
+            (await request(token, endpoint)).status,
+            administration ? 200 : 403,
+            endpoint,
+          );
+        }
+        if (!billing) {
+          for (const [method, endpoint] of [
+            ['PATCH', '/v1/admin/billing-settings'],
+            ['POST', '/v1/admin/billing-settings/numbering-baseline'],
+          ]) {
+            assert.equal((await request(token, endpoint, method, {})).status, 403, endpoint);
+          }
+        }
+        if (billing) {
+          await nav(page, '/admin').filter({ visible: true }).click();
+          const sectionNav = page.locator('.admin-section-nav');
+          await sectionNav.getByRole('link', { name: 'Billing' }).waitFor();
+          assert.equal(await sectionNav.getByRole('link').count(), administration ? 3 : 1);
+          if (!administration) {
+            for (const section of ['users', 'access']) {
+              await page.goto(web + `/admin?section=${section}`, { waitUntil: 'domcontentloaded' });
+              await page.getByText('Section unavailable', { exact: true }).waitFor();
+            }
+          }
+        }
         for (const { client, mission, candidate, process } of fixtures) {
           const clientPath = `/v1/clients/${client.id}`;
           const missionPath = `/v1/missions/${mission.id}`;

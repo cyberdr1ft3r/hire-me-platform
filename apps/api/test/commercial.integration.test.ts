@@ -625,6 +625,20 @@ describe('commercial workflow foundation', () => {
         }),
       ).resolves.toEqual({ lastNumber: 43 });
 
+      const issuedId = issued[0]!.id;
+      const readHistory = () =>
+        Promise.all([
+          prisma.invoiceEvent.findMany({ where: { invoiceId: issuedId }, orderBy: { id: 'asc' } }),
+          prisma.auditLog.findMany({
+            where: { entityType: 'Invoice', entityId: issuedId },
+            orderBy: { id: 'asc' },
+          }),
+        ]);
+      const history = await readHistory();
+      expect(history[0]).not.toHaveLength(0);
+      expect(history[1]).toEqual(
+        expect.arrayContaining([expect.objectContaining({ action: 'commercial.invoice.issued' })]),
+      );
       await prisma.companyBillingSettings.update({
         where: { id: 'primary' },
         data: { sellerLegalName: 'Changed synthetic company' },
@@ -636,6 +650,7 @@ describe('commercial workflow foundation', () => {
       expect(frozen.reference).toBe(issued[0]!.reference);
       expect(frozen.businessDetails).toEqual(issued[0]!.businessDetails);
       expect(frozen.businessDetails?.sellerLegalName).toBe('Synthetic HireMe SARL');
+      await expect(readHistory()).resolves.toEqual(history);
     } finally {
       await prisma.invoiceEvent.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });
       await prisma.invoiceLine.deleteMany({ where: { invoiceId: { in: issue244InvoiceIds } } });
