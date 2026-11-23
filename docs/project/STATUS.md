@@ -3,6 +3,11 @@
 Last updated: 2026-10-28
 Status owner: repository maintainer
 
+## External portals implementation readiness
+
+- The [#236 readiness package](../design/external-portals/README.md) proposes Client Portal V1 from named invitations through scoped recruitment demands and auditable conversion. Candidate contracts and backlog have their own gates. This is documentation pending product, security and privacy approval.
+- The proposed first implementation PR is EP-01, the disabled authority boundary and synthetic scope tests. Proceed only after applicable approval. See the [delivery plan](../design/external-portals/delivery.md).
+
 ## Issue #254 — protected pre-merge staging releases
 
 - Branch `feat/secure-premerge-staging` starts from `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` and implements D-097 as a separate review unit. It does not modify Issue #252 / PR #253.
