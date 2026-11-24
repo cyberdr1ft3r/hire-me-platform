@@ -869,6 +869,8 @@ model Client {
   expenses             Expense[]
   meetings             Meeting[]
 
+  portalPublications ClientPortalPublication[]
+
   @@index([normalizedName])
   @@index([status])
   @@index([industry])
@@ -898,6 +900,9 @@ model ClientContact {
   trainingEnrollments   TrainingEnrollment[]   @relation("ClientContactTrainingEnrollment")
   tasks                 Task[]
 
+  portalMember ClientPortalMember?
+
+  @@unique([id, clientId])
   @@unique([clientId, normalizedEmail])
   @@index([clientId])
   @@index([portalStatus])
@@ -940,6 +945,8 @@ model Candidate {
   publicApplicationFiles PublicCandidateApplicationFile[]
   trainingEnrollments    TrainingEnrollment[]             @relation("CandidateTrainingEnrollment")
   tasks                  Task[]
+
+  portalPublications ClientPortalPublication[]
 
   @@unique([normalizedEmail])
   @@index([status])
@@ -1282,6 +1289,9 @@ model RecruitmentMission {
   invoices               Invoice[]
   expenses               Expense[]
 
+  portalDemand ClientPortalDemand?
+
+  @@unique([id, clientId])
   @@index([clientId])
   @@index([state])
   @@index([priority])
@@ -1348,6 +1358,8 @@ model MissionCandidate {
   documents              Document[]
   tasks                  Task[]
   notifications          Notification[]
+
+  portalPublications ClientPortalPublication[]
 
   @@unique([missionId, candidateId])
   @@index([candidateId])
@@ -3172,4 +3184,114 @@ model SigningEvent {
   @@index([signingRequestId])
   @@index([actorUserId])
   @@index([occurredAt])
+}
+
+enum ClientPortalDemandStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum ClientPortalTokenPurpose {
+  INVITE
+  RESET
+}
+
+model ClientPortalMember {
+  id           String                @id @default(uuid()) @db.Uuid
+  clientId     String                @db.Uuid
+  contactId    String                @unique @db.Uuid
+  email        String                @unique
+  passwordHash String?
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime              @default(now())
+  contact      ClientContact         @relation(fields: [contactId, clientId], references: [id, clientId], onDelete: Restrict)
+  sessions     ClientPortalSession[]
+  tokens       ClientPortalToken[]
+  demands      ClientPortalDemand[]
+
+  @@unique([contactId, clientId])
+  @@unique([id, clientId])
+  @@index([clientId])
+}
+
+model ClientPortalSession {
+  tokenHash String             @id
+  memberId  String             @db.Uuid
+  expiresAt DateTime
+  member    ClientPortalMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+}
+
+model ClientPortalToken {
+  tokenHash String                   @id
+  memberId  String                   @db.Uuid
+  purpose   ClientPortalTokenPurpose
+  expiresAt DateTime
+  member    ClientPortalMember       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, purpose])
+}
+
+model ClientPortalDemand {
+  id                String                    @id @default(uuid()) @db.Uuid
+  clientId          String                    @db.Uuid
+  creatorId         String                    @db.Uuid
+  title             String
+  description       String
+  location          String?
+  numberOfPositions Int
+  status            ClientPortalDemandStatus  @default(DRAFT)
+  submittedSnapshot Json?
+  revision          Int                       @default(1)
+  missionId         String?                   @unique @db.Uuid
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  creator           ClientPortalMember        @relation(fields: [creatorId, clientId], references: [id, clientId], onDelete: Restrict)
+  mission           RecruitmentMission?       @relation(fields: [missionId, clientId], references: [id, clientId], onDelete: Restrict)
+  history           ClientPortalDemandEvent[]
+  publications      ClientPortalPublication[] @relation("DemandPublication")
+
+  @@unique([id, clientId])
+  @@unique([missionId, clientId])
+  @@index([clientId, updatedAt, id])
+}
+
+model ClientPortalDemandEvent {
+  id        String                   @id @default(uuid()) @db.Uuid
+  demandId  String                   @db.Uuid
+  status    ClientPortalDemandStatus
+  reason    String?
+  createdAt DateTime                 @default(now())
+  demand    ClientPortalDemand       @relation(fields: [demandId], references: [id], onDelete: Restrict)
+
+  @@index([demandId, createdAt])
+}
+
+model ClientPortalPublication {
+  id                 String              @id @default(uuid()) @db.Uuid
+  clientId           String              @db.Uuid
+  demandId           String?             @db.Uuid
+  missionCandidateId String?             @db.Uuid
+  candidateId        String              @db.Uuid
+  title              String
+  city               String?
+  country            String?
+  summaryDocument    Boolean             @default(false)
+  publishedAt        DateTime            @default(now())
+  revokedAt          DateTime?
+  client             Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  demand             ClientPortalDemand? @relation("DemandPublication", fields: [demandId, clientId], references: [id, clientId], onDelete: Restrict)
+  candidate          Candidate           @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  missionCandidate   MissionCandidate?   @relation(fields: [missionCandidateId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, demandId, publishedAt])
+  @@index([missionCandidateId])
+  @@index([candidateId])
 }

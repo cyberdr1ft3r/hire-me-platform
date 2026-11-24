@@ -1128,3 +1128,4 @@ export type {
 } from './messaging.js';
 
 export * from './candidate-portal.js';
+export * from './client-portal.js';

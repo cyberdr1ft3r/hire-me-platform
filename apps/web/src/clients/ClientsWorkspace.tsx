@@ -103,11 +103,13 @@ export function ClientsWorkspace({
   clientDetailRevealToken,
   contactDetailRevealToken,
   previewClient,
+  portalAccess,
   recordClientId,
   selectedContact,
   writesLocked,
 }: {
   access: ClientAccess;
+  portalAccess?: { accessToken: string; permissions: readonly string[] };
   appliedClientFilters: ClientFilterValues;
   appliedContactFilters: ContactFilterValues;
   clientDetail: ClientDetailState;
@@ -271,6 +273,7 @@ export function ClientsWorkspace({
         <RecordPage {...pageProps} className="clients ui-workspace-page" data-view="record">
           <ClientFocusedRecord
             access={access}
+            portalAccess={portalAccess}
             appliedContactFilters={appliedContactFilters}
             clientDetail={clientDetail}
             clientHeadingRef={clientHeadingRef}

@@ -41,6 +41,9 @@ interface AppLocation {
 }
 
 type LoginErrorState = 'invalid-credentials' | 'unavailable';
+const LazyClientPortal = lazy(() =>
+  import('./client-portal/ClientPortal.js').then((module) => ({ default: module.ClientPortal })),
+);
 const LazyCandidatePortal = lazy(() =>
   import('./candidate-portal/CandidatePortal.js').then((module) => ({
     default: module.CandidatePortal,
@@ -62,6 +65,13 @@ export function App() {
 
 function AppRoutes() {
   const pathname = window.location.pathname;
+  if (pathname === '/client' || pathname.startsWith('/client/')) {
+    return (
+      <RouteModuleBoundary>
+        <LazyClientPortal pathname={pathname} />
+      </RouteModuleBoundary>
+    );
+  }
   if (pathname.startsWith('/candidate/')) {
     return (
       <RouteModuleBoundary>

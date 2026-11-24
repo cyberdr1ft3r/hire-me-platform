@@ -2,6 +2,8 @@ import type { ClientContactSummary, ClientStatus } from '@hire-me/contracts';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+import { ClientPortalStaff } from '../client-portal/ClientPortalStaff.js';
+import { clientCopy } from '../client-portal/copy.js';
 import { useI18n } from '../i18n/index.js';
 import { useRecordLeaveGuard } from '../navigation/use-record-leave-guard.js';
 import { Button, InlineMessage, StatusBadge } from '../ui/index.js';
@@ -60,6 +62,7 @@ export function ClientFocusedRecord({
   contactDetailRevealToken,
   contactHeadingRef,
   onNavigatePath,
+  portalAccess,
   renderClientFields,
   renderContactFields,
   selectedContact,
@@ -105,6 +108,7 @@ export function ClientFocusedRecord({
     onChange: (values: ClientProfileValues) => void;
     values: ClientProfileValues;
   }) => ReactNode;
+  portalAccess?: { accessToken: string; permissions: readonly string[] };
   onNavigatePath?: (path: string) => void;
   renderContactFields: (props: {
     disabled?: boolean;
@@ -114,7 +118,7 @@ export function ClientFocusedRecord({
   selectedContact: ClientContactSummary | null;
   writesLocked: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   useRecordLeaveGuard(containerRef, t('clients.record.discardPrompt'), writesLocked, {
     clearOnSubmit: true,
@@ -197,6 +201,21 @@ export function ClientFocusedRecord({
       id: 'missions',
       label: t('clients.record.sections.missions'),
       render: () => <ClientRelatedMissions load={loadMissions} onNavigatePath={onNavigatePath} />,
+    });
+  }
+
+  if (portalAccess && detailClient.status === 'ACTIVE') {
+    sections.push({
+      id: 'client-portal',
+      label: clientCopy[locale].portal,
+      render: () => (
+        <ClientPortalStaff
+          key={detailClient.id}
+          clientId={detailClient.id}
+          {...portalAccess}
+          onNavigatePath={onNavigatePath}
+        />
+      ),
     });
   }
 

@@ -25,10 +25,12 @@ const webPort = 5198;
 const api = base(apiPort);
 const web = base(webPort);
 const candidatePortal = process.argv.includes('--candidate-portal');
+const clientPortal = process.argv.includes('--client-portal');
 const evidenceRoot = path.join(root, '.tmp-runtime/issue283');
 await mkdir(evidenceRoot, { recursive: true });
 const evidence = await mkdtemp(path.join(evidenceRoot, 'run-'));
 const candidateOutbox = path.join(evidence, 'candidate-mail');
+const clientOutbox = path.join(evidence, 'client-mail');
 
 function start(args, cwd, env, stdio = 'inherit') {
   const child = spawn(process.execPath, args, { cwd, env, stdio });
@@ -90,6 +92,8 @@ try {
     ...(candidatePortal
       ? { CANDIDATE_MAIL_OUTBOX: candidateOutbox, CANDIDATE_GOOGLE_CLIENT_ID: undefined }
       : {}),
+    CLIENT_PORTAL_ENABLED: clientPortal ? 'true' : 'false',
+    ...(clientPortal ? { CLIENT_PORTAL_MAIL_OUTBOX: clientOutbox } : {}),
     INVOICE_ISSUANCE_ENABLED: 'false',
     PRIVATE_UPLOAD_STORAGE_ROOT: path.join(evidence, 'private-uploads'),
   });
@@ -118,9 +122,12 @@ try {
   await run(
     [
       '--test',
-      candidatePortal
-        ? 'scripts/candidate-portal.test.mjs'
-        : 'scripts/issue-283-public-application.test.mjs',
+      '--test-concurrency=1',
+      ...(candidatePortal ? ['scripts/candidate-portal.test.mjs'] : []),
+      ...(clientPortal ? ['scripts/client-portal.test.mjs'] : []),
+      ...(!candidatePortal && !clientPortal
+        ? ['scripts/issue-283-public-application.test.mjs']
+        : []),
     ],
     root,
     {
@@ -129,6 +136,7 @@ try {
       HIREME_E2E_WEB: web,
       HIREME_E2E_EVIDENCE: evidence,
       ...(candidatePortal ? { CANDIDATE_MAIL_OUTBOX: candidateOutbox } : {}),
+      ...(clientPortal ? { CLIENT_PORTAL_MAIL_OUTBOX: clientOutbox } : {}),
     },
   );
 } finally {

@@ -5,6 +5,7 @@ import { AgendaModule } from './agenda/agenda.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CandidatesModule } from './candidates/candidates.module.js';
+import { ClientPortalModule } from './client-portal/client-portal.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { CommercialModule } from './commercial/commercial.module.js';
 import { DocumentGenerationModule } from './document-generation/document-generation.module.js';
@@ -26,6 +27,7 @@ import { TrainingModule } from './training/training.module.js';
     AuthModule,
     CandidatesModule,
     ClientsModule,
+    ClientPortalModule,
     CommercialModule,
     DocumentsModule,
     DocumentGenerationModule,

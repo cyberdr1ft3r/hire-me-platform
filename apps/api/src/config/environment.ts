@@ -14,6 +14,10 @@ const EnvironmentSchema = z.object({
   CANDIDATE_MAIL_OUTBOX: z.string().min(1).optional(),
   CANDIDATE_RESEND_API_KEY: z.string().min(1).optional(),
   CANDIDATE_MAIL_FROM: z.string().min(1).optional(),
+  CLIENT_PORTAL_ENABLED: z.enum(['true', 'false']).default('false'),
+  CLIENT_PORTAL_MAIL_OUTBOX: z.string().min(1).optional(),
+  CLIENT_PORTAL_RESEND_API_KEY: z.string().min(1).optional(),
+  CLIENT_PORTAL_MAIL_FROM: z.string().min(1).optional(),
   DATABASE_URL: z.string().url(),
   INVOICE_ISSUANCE_ENABLED: z
     .enum(['true', 'false'])
@@ -39,6 +43,18 @@ export function loadEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
   }
 
   const environment = parsed.data;
+
+  if (environment.CLIENT_PORTAL_ENABLED === 'true') {
+    if (environment.NODE_ENV === 'production') {
+      throw new Error('Client Portal is approved for isolated development and test only');
+    }
+    if (
+      !environment.CLIENT_PORTAL_MAIL_OUTBOX &&
+      !(environment.CLIENT_PORTAL_RESEND_API_KEY && environment.CLIENT_PORTAL_MAIL_FROM)
+    ) {
+      throw new Error('Client Portal requires an invitation email delivery configuration');
+    }
+  }
 
   if (environment.CANDIDATE_PORTAL_ENABLED === 'true') {
     if (environment.NODE_ENV === 'production') {

@@ -11,6 +11,7 @@ import { PrismaModule } from '../persistence/prisma/prisma.module.js';
 
 @Module({
   imports: [AuthModule, PrismaModule],
+  exports: [MissionsService, MissionCandidatesService],
   controllers: [MissionsController],
   providers: [
     MissionAuditService,

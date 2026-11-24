@@ -14,7 +14,11 @@ Status owner: repository maintainer
 - Candidate registration, isolated sessions and authenticated job applications are implemented on
   draft PR #285 under the maintainer's [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7134325337).
   See the [development runbook](../runbooks/candidate-portal-development.md) for configuration, test coverage and rollout limits.
-- External portal implementation (EP-01) remains blocked pending E01–E07 owner decisions in
+- Client Portal V1 is implemented for isolated development on draft PR #285, including invitation
+  and recovery, organization-scoped demand review and consented profile publication. See the
+  [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7135744378)
+  and [development runbook](../runbooks/client-portal-development.md).
+- Production portal rollout and the separately planned EP-01 work remain subject to the owner decisions in
   [external portal readiness](../design/external-portals/README.md).
 
 ## External portals implementation readiness
