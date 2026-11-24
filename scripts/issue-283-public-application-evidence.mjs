@@ -24,7 +24,8 @@ const apiPort = 3118;
 const webPort = 5198;
 const api = base(apiPort);
 const web = base(webPort);
-const candidatePortal = process.argv.includes('--candidate-portal');
+const candidateWorkspace = process.argv.includes('--candidate-workspace');
+const candidatePortal = candidateWorkspace || process.argv.includes('--candidate-portal');
 const clientPortal = process.argv.includes('--client-portal');
 const evidenceRoot = path.join(root, '.tmp-runtime/issue283');
 await mkdir(evidenceRoot, { recursive: true });
@@ -124,6 +125,7 @@ try {
       '--test',
       '--test-concurrency=1',
       ...(candidatePortal ? ['scripts/candidate-portal.test.mjs'] : []),
+      ...(candidateWorkspace ? ['scripts/candidate-workspace.test.mjs'] : []),
       ...(clientPortal ? ['scripts/client-portal.test.mjs'] : []),
       ...(!candidatePortal && !clientPortal
         ? ['scripts/issue-283-public-application.test.mjs']

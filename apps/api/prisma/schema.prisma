@@ -948,6 +948,8 @@ model Candidate {
 
   portalPublications ClientPortalPublication[]
 
+  portalIntakeIdentity CandidateIdentity?
+
   @@unique([normalizedEmail])
   @@index([status])
   @@index([source])
@@ -1127,6 +1129,8 @@ model PublicCandidateApplication {
   ownerIdentityId                    String?                 @db.Uuid
   ownerIdentity                      CandidateIdentity?      @relation(fields: [ownerIdentityId], references: [id], onDelete: Restrict)
   @@index([ownerIdentityId, submittedAt, id])
+  selectedPortalCvVersionId String? @db.Uuid
+  selectedPortalCvVersion CandidatePortalCvVersion? @relation(fields: [selectedPortalCvVersionId], references: [id], onDelete: Restrict)
   publicOpportunityId                String                  @db.Uuid
   missionId                          String                  @db.Uuid
   candidateId                        String                  @db.Uuid
@@ -1180,6 +1184,10 @@ model CandidateIdentity {
   sessions      CandidatePortalSession[]
   tokens        CandidatePortalEmailToken[]
   applications  PublicCandidateApplication[]
+  profile CandidatePortalProfile?
+  cvs CandidatePortalCv[]
+  intakeCandidateId String? @unique @db.Uuid
+  intakeCandidate Candidate? @relation(fields: [intakeCandidateId], references: [id], onDelete: Restrict)
 }
 
 model CandidatePortalSession {
@@ -3294,4 +3302,39 @@ model ClientPortalPublication {
   @@index([clientId, demandId, publishedAt])
   @@index([missionCandidateId])
   @@index([candidateId])
+}
+
+model CandidatePortalProfile {
+  identityId String @id @db.Uuid
+  identity CandidateIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  data Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model CandidatePortalCv {
+  id String @id @default(uuid()) @db.Uuid
+  identityId String @db.Uuid
+  identity CandidateIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  preferred Boolean @default(false)
+  removedAt DateTime?
+  createdAt DateTime @default(now())
+  versions CandidatePortalCvVersion[]
+
+  @@index([identityId, removedAt, createdAt])
+}
+
+model CandidatePortalCvVersion {
+  id String @id @default(uuid()) @db.Uuid
+  cvId String @db.Uuid
+  cv CandidatePortalCv @relation(fields: [cvId], references: [id], onDelete: Restrict)
+  version Int
+  filename String
+  sizeBytes Int
+  storageKey String @unique
+  sha256 String
+  scannedAt DateTime
+  applications PublicCandidateApplication[]
+
+  @@unique([cvId, version])
 }

@@ -1,4 +1,4 @@
-import type { PublicOpportunity } from '@hire-me/contracts';
+import type { CandidateCv, CandidateProfileFields, PublicOpportunity } from '@hire-me/contracts';
 
 import { PublicRequestError } from '../api.js';
 
@@ -26,10 +26,19 @@ export type PublicDetailState =
   | { opportunity: PublicOpportunity; status: 'ready'; candidateAccess?: CandidateAccess };
 
 export type CandidateAccess =
-  { status: 'checking' | 'guest' | 'error' } | { status: 'signedIn'; email: string };
+  | { status: 'checking' | 'guest' | 'error' }
+  | {
+      status: 'signedIn';
+      email: string;
+      profile: CandidateProfileFields | null;
+      cvs: CandidateCv[];
+    };
 
 /** Safe, language-neutral categories for a submission the server refused. */
 export type PublicSubmissionFailure =
+  | 'cvUnavailable'
+  | 'unsafeFile'
+  | 'scannerUnavailable'
   | 'failed'
   | 'invalid'
   | 'payloadTooLarge'
@@ -58,6 +67,9 @@ export function classifySubmissionFailure(error: unknown): PublicSubmissionFailu
   if (!(error instanceof PublicRequestError)) {
     return 'unconfirmed';
   }
+  if (error.code === 'CANDIDATE_CV_UNAVAILABLE') return 'cvUnavailable';
+  if (error.code === 'CANDIDATE_FILE_UNSAFE') return 'unsafeFile';
+  if (error.code === 'CANDIDATE_SCAN_UNAVAILABLE') return 'scannerUnavailable';
   switch (error.status) {
     case 401:
       return 'signIn';

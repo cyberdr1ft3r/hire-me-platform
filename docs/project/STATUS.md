@@ -18,7 +18,10 @@ Status owner: repository maintainer
   and recovery, organization-scoped demand review and consented profile publication. See the
   [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7135744378)
   and [development runbook](../runbooks/client-portal-development.md).
-- Production portal rollout and the separately planned EP-01 work remain subject to the owner decisions in
+- Candidate profiles and the private, scanned CV library are implemented on draft PR #285.
+  New applications prefill from the candidate profile and retain their own fields and exact CV copy.
+  See the [Candidate Portal runbook](../runbooks/candidate-portal-development.md).
+- Production portal rollout remains subject to the owner decisions in
   [external portal readiness](../design/external-portals/README.md).
 
 ## External portals implementation readiness

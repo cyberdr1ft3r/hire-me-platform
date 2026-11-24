@@ -277,6 +277,12 @@ function OpportunityContent({
               </div>
             ) : (
               <PublicApplicationForm
+                candidateProfile={
+                  candidateAccess?.status === 'signedIn' ? candidateAccess.profile : undefined
+                }
+                candidateCvs={
+                  candidateAccess?.status === 'signedIn' ? candidateAccess.cvs : undefined
+                }
                 candidateEmail={
                   candidateAccess?.status === 'signedIn' ? candidateAccess.email : undefined
                 }

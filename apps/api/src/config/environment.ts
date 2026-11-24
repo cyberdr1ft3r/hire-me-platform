@@ -9,6 +9,8 @@ const EnvironmentSchema = z.object({
   AUTH_ACCESS_TOKEN_SECRET: z.string().min(32),
   AUTH_COOKIE_SECURE: z.coerce.boolean().optional(),
   AUTH_REFRESH_TOKEN_PEPPER: z.string().min(32),
+  CANDIDATE_CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  CANDIDATE_CLAMAV_SOCKET: z.string().min(1).optional(),
   CANDIDATE_PORTAL_ENABLED: z.enum(['true', 'false']).default('false'),
   CANDIDATE_GOOGLE_CLIENT_ID: z.string().endsWith('.apps.googleusercontent.com').optional(),
   CANDIDATE_MAIL_OUTBOX: z.string().min(1).optional(),

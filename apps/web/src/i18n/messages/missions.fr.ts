@@ -503,6 +503,9 @@ export const missionsFr: Messages['missions'] = {
       submittedAt: 'Envoyée le',
     },
     empty: 'Aucune candidature publique n’a été envoyée pour cette mission.',
+    downloadCv: 'Télécharger le CV soumis',
+    cvDownloadError:
+      'Le CV soumis n’a pas pu être téléchargé. Vérifiez l’accès ou réessayez plus tard.',
     files: plural({
       many: '{count} de fichiers',
       one: '{count} fichier',

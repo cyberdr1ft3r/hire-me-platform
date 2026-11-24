@@ -9,7 +9,7 @@ verified #281 (`b293ddd`) and now includes #284 public applications, #265 invoic
 #282 portal documentation (proposed/pending approvals). The maintainer approved Candidate Portal
 account registration and authenticated applications for isolated development on [PR #285](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7134325337).
 The maintainer also approved Client Portal V1 for isolated development on [PR #285](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7135744378).
-Invoice issuance remains disabled. Production portal rollout and separate EP-01 work remain subject to their applicable approvals in the
+Invoice issuance remains disabled. Production portal rollout remains subject to applicable approvals in the
 [#236 decision register](../design/external-portals/README.md). The
 [delivery plan](../design/external-portals/delivery.md) defines first-PR and pilot acceptance gates.
 
@@ -20,8 +20,9 @@ Invoice issuance remains disabled. Production portal rollout and separate EP-01 
    environment using the [Candidate Portal runbook](../runbooks/candidate-portal-development.md) and [Client Portal runbook](../runbooks/client-portal-development.md).
 3. Record accounting decisions on invoice date presentation and optional standalone buyer addresses
    before any issuance enablement or official PDF regeneration.
-4. Review [#236 external portal readiness](../design/external-portals/README.md) with product, security
-   and privacy owners; do not implement EP-01 until applicable E01–E07 decisions are recorded.
+4. Run a combined staff → client request → internal mission → candidate application → staff review →
+   client shortlist walkthrough. Review [#236 external portal readiness](../design/external-portals/README.md) with product, security
+   and privacy owners before production release.
 5. Use [#261 Administration acceptance](../audit/issue-261-administration/README.md) and
    [#283 public application evidence](../audit/issue-283-public-application/README.md) for controlled
    internal UAT; screen-reader, physical-device and business-user signoff remain separate.

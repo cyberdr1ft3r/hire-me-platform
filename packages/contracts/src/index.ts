@@ -1129,3 +1129,4 @@ export type {
 
 export * from './candidate-portal.js';
 export * from './client-portal.js';
+export * from './candidate-workspace.js';

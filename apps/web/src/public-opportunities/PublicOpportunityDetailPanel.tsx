@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { getPublicOpportunity, submitPublicApplication } from '../api.js';
-import { candidateSession } from '../candidate-portal/api.js';
+import { candidateCvs, candidateProfile, candidateSession } from '../candidate-portal/api.js';
 import {
   buildApplicationRequest,
   encodeApplicationFiles,
@@ -63,12 +63,21 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
           setDetail({ ...next, candidateAccess: { status: 'checking' } });
           try {
             const candidate = await candidateSession();
+            const workspace = candidate
+              ? await Promise.all([candidateProfile(), candidateCvs()])
+              : null;
             if (request === latestLoad.current) {
               setDetail({
                 ...next,
-                candidateAccess: candidate
-                  ? { status: 'signedIn', email: candidate.email }
-                  : { status: 'guest' },
+                candidateAccess:
+                  candidate && workspace
+                    ? {
+                        status: 'signedIn',
+                        email: candidate.email,
+                        profile: workspace[0].profile,
+                        cvs: workspace[1],
+                      }
+                    : { status: 'guest' },
               });
             }
           } catch {

@@ -7,10 +7,11 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
-import type { PublicOpportunity } from '@hire-me/contracts';
+import type { CandidateCv, CandidateProfileFields, PublicOpportunity } from '@hire-me/contracts';
 
+import { workspaceCopy } from '../candidate-portal/workspace-copy.js';
 import { LOCALE_METADATA, useI18n, type PlainMessageKey } from '../i18n/index.js';
-import { Button, InlineMessage, TextArea, TextField } from '../ui/index.js';
+import { Button, InlineMessage, Select, TextArea, TextField } from '../ui/index.js';
 import {
   APPLICATION_FIELD_LIMITS,
   hasValidationErrors,
@@ -90,6 +91,8 @@ function focusFirstInvalid(form: HTMLFormElement, validation: ApplicationValidat
  */
 export function PublicApplicationForm({
   candidateEmail,
+  candidateProfile,
+  candidateCvs,
   signInHref,
   labelledBy,
   onSubmit,
@@ -97,6 +100,8 @@ export function PublicApplicationForm({
   submission,
 }: {
   candidateEmail?: string;
+  candidateProfile?: CandidateProfileFields | null;
+  candidateCvs?: CandidateCv[];
   signInHref?: string;
   labelledBy: string;
   onSubmit: (snapshot: ApplicationSnapshot) => void;
@@ -105,6 +110,16 @@ export function PublicApplicationForm({
 }) {
   const { formatNumber, locale, t } = useI18n();
   const requirements = opportunity.uploadRequirements;
+  const copy = workspaceCopy[locale];
+  const [selectedCvId, setSelectedCvId] = useState(
+    () => candidateCvs?.find((cv) => cv.preferred)?.versions[0]?.id ?? '',
+  );
+  const cvOptions = candidateCvs?.flatMap((cv) => cv.versions.slice(0, 1)) ?? [];
+  const savedCv = cvOptions.find((version) => version.id === selectedCvId);
+  const read = (form: HTMLFormElement): ApplicationSnapshot => ({
+    ...readApplicationForm(form),
+    savedCv,
+  });
   const [validation, setValidation] = useState<ApplicationValidation | null>(null);
   const documentsHintId = useId();
   const formRef = useRef<HTMLFormElement>(null);
@@ -126,11 +141,7 @@ export function PublicApplicationForm({
 
   function updateValidation(form: HTMLFormElement): void {
     if (!validation) return;
-    const result = validateApplication(
-      readApplicationForm(form),
-      requirements,
-      badNumberInputs(form),
-    );
+    const result = validateApplication(read(form), requirements, badNumberInputs(form));
     setValidation(hasValidationErrors(result) ? result : null);
   }
 
@@ -140,7 +151,7 @@ export function PublicApplicationForm({
       return;
     }
     const form = event.currentTarget;
-    const snapshot = readApplicationForm(form);
+    const snapshot = read(form);
     const result = validateApplication(snapshot, requirements, badNumberInputs(form));
     if (hasValidationErrors(result)) {
       focusInvalid.current = true;
@@ -165,10 +176,10 @@ export function PublicApplicationForm({
 
   const accept = requirements.allowedMimeTypes.join(',');
   const fileSlots = visibleFileSlots(requirements);
-  const primaryFiles = fileSlots.filter(
-    (name) => name === 'cv' || isFileRequired(name, requirements),
-  );
-  const optionalFiles = fileSlots.filter((name) => !primaryFiles.includes(name));
+  const primaryFiles = fileSlots
+    .filter((name) => !savedCv || name !== 'cv')
+    .filter((name) => name === 'cv' || isFileRequired(name, requirements));
+  const optionalFiles = fileSlots.filter((name) => name !== 'cv' && !primaryFiles.includes(name));
 
   function renderFiles(slots: ApplicationFileSlot[]): ReactNode {
     return slots.map((name) => (
@@ -209,6 +220,7 @@ export function PublicApplicationForm({
           label={t('publicOpportunity.application.fields.fullName')}
           maxLength={APPLICATION_FIELD_LIMITS.fullName}
           name="fullName"
+          defaultValue={candidateProfile?.fullName}
           required
         />
         <TextField
@@ -240,6 +252,25 @@ export function PublicApplicationForm({
             ),
           })}
         </p>
+        {cvOptions.length ? (
+          <Select
+            name={savedCv ? 'cv' : 'savedCv'}
+            label={copy.savedCv}
+            value={selectedCvId}
+            error={savedCv ? errorFor('cv') : undefined}
+            onChange={(event) => {
+              setSelectedCvId(event.target.value);
+              setValidation(null);
+            }}
+          >
+            <option value="">{copy.newCv}</option>
+            {cvOptions.map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.filename} · {copy.version} {version.version}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         {renderFiles(primaryFiles)}
         {validation?.totalLimitBytes ? (
           <p className="ui-field__error" role="alert">
@@ -268,6 +299,7 @@ export function PublicApplicationForm({
               label={t('publicOpportunity.application.fields.phone')}
               maxLength={APPLICATION_FIELD_LIMITS.text}
               name="phone"
+              defaultValue={candidateProfile?.phone}
               type="tel"
             />
             <TextField
@@ -275,12 +307,14 @@ export function PublicApplicationForm({
               label={t('publicOpportunity.application.fields.city')}
               maxLength={APPLICATION_FIELD_LIMITS.text}
               name="city"
+              defaultValue={candidateProfile?.city}
             />
             <TextField
               autoComplete="country-name"
               label={t('publicOpportunity.application.fields.country')}
               maxLength={APPLICATION_FIELD_LIMITS.text}
               name="country"
+              defaultValue={candidateProfile?.country}
             />
           </FormGroup>
 
@@ -290,6 +324,7 @@ export function PublicApplicationForm({
               label={t('publicOpportunity.application.fields.currentPosition')}
               maxLength={APPLICATION_FIELD_LIMITS.text}
               name="currentPosition"
+              defaultValue={candidateProfile?.currentPosition}
             />
             <TextField
               error={errorFor('experienceYears')}
@@ -307,6 +342,7 @@ export function PublicApplicationForm({
                 label={t('publicOpportunity.application.fields.availability')}
                 maxLength={APPLICATION_FIELD_LIMITS.text}
                 name="availability"
+                defaultValue={candidateProfile?.availability}
               />
             </Wide>
             <Wide>
@@ -314,6 +350,7 @@ export function PublicApplicationForm({
                 label={t('publicOpportunity.application.fields.skills')}
                 maxLength={APPLICATION_FIELD_LIMITS.text}
                 name="skills"
+                defaultValue={candidateProfile?.skills}
                 rows={3}
               />
             </Wide>
@@ -322,6 +359,7 @@ export function PublicApplicationForm({
                 label={t('publicOpportunity.application.fields.languages')}
                 maxLength={APPLICATION_FIELD_LIMITS.text}
                 name="languages"
+                defaultValue={candidateProfile?.languages}
                 rows={2}
               />
             </Wide>
@@ -353,6 +391,7 @@ export function PublicApplicationForm({
                 label={t('publicOpportunity.application.fields.professionalLinks')}
                 maxLength={APPLICATION_FIELD_LIMITS.text}
                 name="professionalLinks"
+                defaultValue={candidateProfile?.professionalLinks}
                 rows={2}
               />
             </Wide>

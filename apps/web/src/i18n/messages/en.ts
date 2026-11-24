@@ -1520,6 +1520,9 @@ export const enMessages = {
           'Your documents and answers together exceed the size limit for one application. Remove or compress files, then try again.',
         rateLimited: 'Too many attempts in a short time. Wait a minute, then try again.',
         unavailable: 'This opportunity is no longer accepting applications.',
+        cvUnavailable: 'The selected CV is unavailable. Choose another CV or upload a new file.',
+        unsafeFile: 'One of your files could not be accepted. Choose a different file.',
+        scannerUnavailable: 'File scanning is temporarily unavailable. Try again later.',
         signIn: 'Your candidate session has expired. Sign in again to apply.',
         unconfirmed:
           'We couldn’t confirm whether your application was received. Your details and files are still here. Try again with the same email and files.',

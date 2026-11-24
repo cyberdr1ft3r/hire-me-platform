@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   CandidateGoogleResultSchema,
   candidateReturnPath,
@@ -14,6 +14,13 @@ import {
   candidateRequest,
   candidateSession,
 } from './api.js';
+import {
+  CandidateDocumentsPage,
+  CandidateProfilePage,
+  CandidateSubmittedDetails,
+  CandidateWorkspaceNavigation,
+} from './CandidateWorkspace.js';
+import { workspaceCopy } from './workspace-copy.js';
 import { CandidateGoogleButton } from './CandidateGoogleButton.js';
 
 const labels = {
@@ -82,14 +89,19 @@ const routes = {
   '/candidate/verify': 'verify',
   '/candidate/reset': 'reset',
   '/candidate/applications': 'applications',
+  '/candidate/profile': 'profile',
+  '/candidate/documents': 'documents',
 } as const;
 type Mode = (typeof routes)[keyof typeof routes];
+type AccessMode = Exclude<Mode, 'applications' | 'profile' | 'documents'>;
 type Copy = typeof labels.en;
 
 export function CandidatePortal({ pathname }: { pathname: string }) {
   const { locale } = useI18n();
   const copy = labels[locale];
+  const workspace = workspaceCopy[locale];
   const mode: Mode = routes[pathname as keyof typeof routes] ?? 'login';
+  const account = mode === 'profile' || mode === 'documents' || mode === 'applications';
   const [config, setConfig] = useState<Awaited<ReturnType<typeof candidateConfig>> | null>(null);
   const [configError, setConfigError] = useState(false);
   useEffect(() => {
@@ -110,16 +122,24 @@ export function CandidatePortal({ pathname }: { pathname: string }) {
   return (
     <PublicSite>
       <section className="public-page public-apply">
-        <h1>{copy[mode]}</h1>
-        <nav aria-label={copy.applications}>
-          <a href="/opportunities">{copy.jobs}</a>
-        </nav>
+        <h1>{mode === 'profile' || mode === 'documents' ? workspace[mode] : copy[mode]}</h1>
+        {account && config?.enabled ? (
+          <CandidateWorkspaceNavigation copy={workspace} page={mode} />
+        ) : !account ? (
+          <nav aria-label={copy.applications}>
+            <a href="/opportunities">{copy.jobs}</a>
+          </nav>
+        ) : null}
         {!config ? (
           <p role="status">{configError ? copy.disabled : copy.working}</p>
         ) : !config.enabled ? (
           <p role="status">{copy.disabled}</p>
         ) : mode === 'applications' ? (
           <Applications copy={copy} locale={locale} />
+        ) : mode === 'profile' ? (
+          <CandidateProfilePage copy={workspace} />
+        ) : mode === 'documents' ? (
+          <CandidateDocumentsPage copy={workspace} locale={locale} />
         ) : (
           <SignIn mode={mode} copy={copy} locale={locale} clientId={config.googleClientId} />
         )}
@@ -134,7 +154,7 @@ function SignIn({
   locale,
   clientId,
 }: {
-  mode: Exclude<Mode, 'applications'>;
+  mode: AccessMode;
   copy: Copy;
   locale: string;
   clientId: string | null;
@@ -241,7 +261,7 @@ function SignIn({
   );
 }
 
-function Applications({ copy, locale }: { copy: Copy; locale: string }) {
+function Applications({ copy, locale }: { copy: Copy; locale: 'en' | 'fr' }) {
   const [items, setItems] = useState<CandidateApplication[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -270,16 +290,11 @@ function Applications({ copy, locale }: { copy: Copy; locale: string }) {
     };
   }, [attempt]);
 
-  async function change(action: 'logout' | 'more') {
+  async function loadMore() {
     if (busy) return;
     setBusy(true);
     setFailed(false);
     try {
-      if (action === 'logout') {
-        await candidateRequest('logout', {});
-        window.location.replace('/candidate/sign-in');
-        return;
-      }
       if (!next) return;
       const result = await candidateApplications(next);
       setItems((value) => [...(value ?? []), ...result.applications]);
@@ -320,19 +335,17 @@ function Applications({ copy, locale }: { copy: Copy; locale: string }) {
                   {copy[item.status]} ·{' '}
                   <time dateTime={item.submittedAt}>{date.format(new Date(item.submittedAt))}</time>
                 </p>
+                <CandidateSubmittedDetails copy={workspaceCopy[locale]} id={item.id} />
               </article>
             </li>
           ))}
         </ul>
       )}
       {next ? (
-        <Button disabled={busy} onClick={() => void change('more')}>
+        <Button disabled={busy} onClick={() => void loadMore()}>
           {copy.more}
         </Button>
       ) : null}
-      <Button disabled={busy} variant="secondary" onClick={() => void change('logout')}>
-        {copy.logout}
-      </Button>
     </>
   );
 }

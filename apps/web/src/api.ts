@@ -2677,7 +2677,11 @@ export async function finalizeEvaluation(
 export class PublicRequestError extends Error {
   readonly status: number;
 
-  constructor(message: string, status: number) {
+  constructor(
+    message: string,
+    status: number,
+    readonly code?: string,
+  ) {
     super(message);
     this.name = 'PublicRequestError';
     this.status = status;
@@ -2724,9 +2728,16 @@ export async function submitPublicApplication(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
+    const data: unknown = authenticatedCandidate ? await response.json().catch(() => null) : null;
+    const error = data && typeof data === 'object' && 'error' in data ? data.error : null;
+    const code =
+      error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : undefined;
     throw new PublicRequestError(
       `Public application request failed with status ${response.status}`,
       response.status,
+      code,
     );
   }
   return PublicApplicationSubmitResponseSchema.parse(await response.json());
@@ -2773,6 +2784,22 @@ export async function listInternalPublicApplications(
     apiBaseUrl,
   );
   return InternalPublicApplicationListResponseSchema.parse(await response.json());
+}
+
+export async function downloadSubmittedCv(
+  accessToken: string,
+  missionId: string,
+  applicationId: string,
+) {
+  const response = await missionRequest(
+    accessToken,
+    '/' + missionId + '/public-opportunity/applications/' + applicationId + '/cv',
+    { cache: 'no-store' },
+  );
+  return {
+    blob: await response.blob(),
+    mimeType: response.headers.get('content-type')?.split(';')[0],
+  };
 }
 
 async function taskRequest(

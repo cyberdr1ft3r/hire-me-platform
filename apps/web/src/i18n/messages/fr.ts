@@ -1568,6 +1568,11 @@ export const frMessages: Messages = {
           'Vos documents et vos réponses dépassent la taille maximale pour une candidature. Retirez ou compressez des fichiers, puis réessayez.',
         rateLimited: 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.',
         unavailable: 'Cette offre n’accepte plus de candidatures.',
+        cvUnavailable:
+          'Le CV sélectionné n’est plus disponible. Choisissez un autre CV ou téléversez un fichier.',
+        unsafeFile: 'Un fichier n’a pas été accepté. Choisissez un autre fichier.',
+        scannerUnavailable:
+          'L’analyse des fichiers est temporairement indisponible. Réessayez plus tard.',
         signIn: 'Votre session candidat a expiré. Reconnectez-vous pour postuler.',
         unconfirmed:
           'Nous n’avons pas pu confirmer la réception de votre candidature. Vos informations et fichiers sont toujours ici. Réessayez avec la même adresse e-mail et les mêmes fichiers.',
