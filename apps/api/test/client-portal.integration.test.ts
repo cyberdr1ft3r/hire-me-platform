@@ -214,7 +214,7 @@ it('gates access and keeps organization demands, invitations and sessions isolat
   const draft = ClientDemandSchema.parse(
     await (await request(external + 'demands', 201, { cookie: firstCookie, body: fields })).json(),
   );
-  const id = draft.id as string;
+  const id = draft.id;
   const demandPath = external + 'demands/' + id;
   const decision = a + '/demands/' + id + '/decision';
   await request(demandPath, 404, { cookie: peerCookie });
