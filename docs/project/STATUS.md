@@ -7,7 +7,8 @@ Status owner: repository maintainer
 
 - Branch `integration/hireme-dev-v1` preserves the verified #281 Administration stack (#274–#281),
   integrates PR #284 public application UX, PR #265 invoice consolidation (superseding #253, #262, #263),
-  and PR #282 portal documentation. Exact-head CI on the integrated head is required before review.
+  and PR #282 portal documentation. Exact-head CI passed all six jobs on head `aff3ca7` in run
+  [45377110525](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/45377110525) (2026-11-24).
 - Invoice issuance remains disabled. Accounting approval of issue/service-date presentation and
   address-free standalone invoices remains open. See [invoice consolidation evidence](../audit/invoice-consolidation/README.md).
 - External portal implementation (EP-01) remains blocked pending E01–E07 owner decisions in
