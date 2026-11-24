@@ -181,6 +181,13 @@ export function syntheticInvoice(overrides: Partial<InvoiceDetail> = {}): Invoic
     updatedAt: TIMESTAMP,
     lines: [syntheticLine()],
     businessDetails: null,
+    billingClient: {
+      mode: 'REGISTERED',
+      name: 'Synthetic Client',
+      address: null,
+      ice: null,
+      taxId: null,
+    },
     history: [],
     ...overrides,
   };

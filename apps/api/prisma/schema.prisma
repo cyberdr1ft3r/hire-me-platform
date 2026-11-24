@@ -2333,7 +2333,7 @@ model PurchaseOrderEvent {
 model Invoice {
   id                       String            @id @default(uuid()) @db.Uuid
   reference                String            @unique
-  clientId                 String            @db.Uuid
+  clientId                 String?           @db.Uuid
   recruitmentMissionId     String?           @db.Uuid
   missionPlacementId       String?           @unique @db.Uuid
   quotationId              String?           @db.Uuid
@@ -2381,7 +2381,7 @@ model Invoice {
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt
 
-  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: Restrict)
   recruitmentMission  RecruitmentMission?  @relation(fields: [recruitmentMissionId], references: [id], onDelete: Restrict)
   missionPlacement    MissionPlacement?    @relation(fields: [missionPlacementId], references: [id], onDelete: Restrict)
   quotation           CommercialQuotation? @relation(fields: [quotationId], references: [id], onDelete: Restrict)

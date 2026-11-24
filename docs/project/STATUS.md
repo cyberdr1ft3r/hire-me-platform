@@ -1,6 +1,17 @@
 # Project Status
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
+Status owner: repository maintainer
+
+## HIRE ME v1.0-dev integration (PR #285)
+
+- Branch `integration/hireme-dev-v1` preserves the verified #281 Administration stack (#274–#281),
+  integrates PR #284 public application UX, PR #265 invoice consolidation (superseding #253, #262, #263),
+  and PR #282 portal documentation. Exact-head CI on the integrated head is required before review.
+- Invoice issuance remains disabled. Accounting approval of issue/service-date presentation and
+  address-free standalone invoices remains open. See [invoice consolidation evidence](../audit/invoice-consolidation/README.md).
+- External portal implementation (EP-01) remains blocked pending E01–E07 owner decisions in
+  [external portal readiness](../design/external-portals/README.md).
 
 ## Internal product UX stabilization
 
@@ -17,65 +28,24 @@ See the [Billing audit and verification](../audit/issue-258-billing/README.md). 
 uses the exact #280 head for [combined Administration engineering acceptance](../audit/issue-261-administration/README.md).
 Assistive-technology, physical-device and business-user approvals remain separate gates.
 
-## Executive Dashboard V1
+## Issue #283 — public application UX
 
-Executive Dashboard V1 uses authoritative Reporting, Agenda and Tasks data for permitted Home sessions. See the [source and scope audit](../audit/executive-dashboard/README.md).
+- Integrated on `integration/hireme-dev-v1` from PR #284 (`9e043837`). The flow shortens the initial bilingual application, keeps configured requirements visible, and verifies unlisted direct links, anonymous receipt and retry behavior in real Chrome with disposable PostgreSQL. Portal accounts and ownership are outside this flow. [Evidence](../audit/issue-283-public-application/README.md)
 
+## Invoice consolidation (integrated via PR #265)
 
-## Placement acceptance
-
-Placement acceptance verifies counted offer-backed placement and mobile mission closure. See the [acceptance evidence](../audit/placement-acceptance/README.md). Dashboard V1 follows the recruitment draft in a separate stack.
-
+- Template v8 combines standalone manual clients (#253), optional buyer address and draft preview (#262),
+  and revised issued PDF layout with separate issue and service dates (#263). PR #285 integrates the
+  consolidated branch without duplicating the source PRs. Official issuance, historical PDF regeneration
+  and live-data correction remain unauthorized.
 
 ## Recruitment lifecycle and external portal readiness
 
 Phase 3 builds from the exact Phase 2 head (`a66c585`). It adds browser coverage for the internal recruitment lifecycle, direct API checks for the nine seeded roles, and a [portal readiness inventory](../audit/recruitment-lifecycle/README.md). External account, organization membership, client demand and candidate data sharing decisions remain open.
 
-The [#236 portal preflight](../design/issue-236-authenticated-portals-preflight.md) records the proposed
-identity, ownership and data-sharing contracts for review. External account implementation depends on their approval.
-
-Status owner: repository maintainer
-
-## Issue #283 — public application UX
-
-- Integrated on `integration/hireme-dev-v1` from PR #284 (`9e043837`). The flow shortens the initial bilingual application, keeps configured requirements visible, and verifies unlisted direct links, anonymous receipt and retry behavior in real Chrome with disposable PostgreSQL. Portal accounts and ownership are outside this flow. [Evidence](../audit/issue-283-public-application/README.md)
-
-## Functional UI acceptance — 2026-11-19
-
-- QA branch `codex/hireme-functional-qa` is based on draft PR #266 at `47c5218b321530fc0f3563f40b5af41b6503a0f6`. The suite runs the real UI and API against a marked disposable PostgreSQL database and records browser evidence in CI.
-- Fixed the initial session restore state. Browser acceptance covers authentication, candidate edits and status persistence, client/mission/task creation, reporting download and nine roles across selected Candidate and Administration permissions.
-- Reviewed #264 and #265 at their exact heads; track UI-02/UI-03 in Administration and draft preview and business approvals in Invoice. Coverage, reproductions and evidence are in `docs/audit/functional-ui-qa/README.md`.
-
-## Windows toolchain and UI audit — 2026-11-17
-
-- Branch `codex/hireme-toolchain` starts from `main` `5919c8a`. Frozen pnpm install compiled `pkcs11js` successfully using the installed MSVC C++ workload and Windows 11 SDK; the lockfile is unchanged.
-- A tmpfs-backed, Docker-assigned-loopback PostgreSQL instance received all 27 migrations, role seed, synthetic administrator, and synthetic UI records. NestJS and Vite served the local app; Playwright MCP and Chrome DevTools MCP both reached the development task page.
-- Authenticated browser evidence covers 13 top-level routes at desktop width and nine at mobile width, plus public Opportunities at both sizes. Restricted-employee direct visits to Administration and Candidates were denied. Evidence and follow-up inventory: `docs/audit/toolchain-ui-audit/README.md`.
-- A missing favicon caused a fresh-browser 404 and was fixed across web HTML entries. Administration section density and denied-route tab feedback remain for review against open draft PR #264. Invoice UI remains on open draft PR #265 and was not duplicated.
-- A web foundation test read a CRLF stylesheet on Windows while asserting literal LF text. The test now normalizes line endings before the unchanged selector/declaration check.
-- Three lazy-route `App.test.tsx` headings timed out at the default one-second query while the route still showed its loading state in a parallel run. The heading waits now allow three seconds. The complete one-worker web run passed 86 files and 1,124 tests.
-- The full PostgreSQL integration run passed 593/594; the one candidate lifecycle timeout passed in isolation in 882 ms. The post-suite authorization catalog passed 5/5. The full API unit suite passed with one worker (220 passed, 19 intentionally skipped), contracts passed 81/81, and the complete one-worker web suite passed 1,124/1,124. Concurrent root-unit runs retained a PDF five-second timeout; the initial sandboxed run also hit loopback `EACCES`. Exact-head CI remains required.
-Last updated: 2026-11-10
-Status owner: repository maintainer
-
-## Issue #257 — Administration UX restructuring
-
-- Branch `feat/issue-257-administration-navigation` starts from `main`
-  `5919c8a2ee230afd3dac062b13bd314e9c90b686` and keeps Administration as one Console workspace tab.
-  Stable subsection intent is represented by `/admin?section=billing|users|access`, so direct links and
-  browser Back/Forward work through the existing single history authority and navigation guard.
-- Billing, Users, and read-only Roles & Permissions render independently. Subsection links require their
-  corresponding read permission; mutation controls require the exact existing backend permission. An
-  unauthorized direct subsection shows a local denial and does not request its data.
-- The workspace now uses the Unified Page System, one H1, semantic anchors, active-state semantics,
-  loading/empty/error states, responsive horizontal section navigation, and complete EN/FR copy.
-  Existing APIs, workflows, backend authorization, and destructive confirmations are unchanged.
-- Focused web tests (52), changed-file and full-web lint, architecture/style/contrast checks, and an
-  isolated real-Brave acceptance pass are green. The existing unrelated Commercial TypeScript errors
-  remain on unchanged `main` files. Evidence:
-  [Issue #257 administration navigation](../audit/issue-257-administration-navigation/README.md).
-- The draft PR must remain unmerged and undeployed. Issues #258–#261 retain their separate redesign and
-  end-to-end acceptance scopes.
+The [#236 portal preflight](../design/issue-236-authenticated-portals-preflight.md) and
+[implementation readiness package](../design/external-portals/README.md) record proposed contracts for
+review. External account implementation depends on their approval.
 
 ## Issue #254 — protected pre-merge staging releases
 
@@ -86,6 +56,13 @@ Status owner: repository maintainer
 - Final review pinned every privileged Action by commit, moved Dockerfile authority to trusted `main`, bound attestation verification to the exact trusted workflow commit, and validates SSH user/port values before shell use. Exact-head CI is still required after these changes.
 - The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
 - No new mechanism has been used and PR #253 is not deployed by this implementation task.
+
+## Issue #252 — standalone manual-client invoices
+
+- Branch `feat/client-libre-invoices` adds a bilingual Registered client / Manual client choice to invoice creation. A manual invoice requires a name, accepts optional address, ICE, and IF, stores those values in the invoice buyer snapshot, and never creates a CRM `Client`.
+- Standalone manual invoices cannot link missions, placements, quotations, contracts, purchase orders, or correction sources. Registered-client behavior, invoice dates, lifecycle, numbering, immutable issuance snapshots, and issuance validation remain unchanged.
+- The database permits a nullable invoice `clientId` only when a non-blank buyer legal name is stored. Authorization remains fail-closed under the existing invoice, commercial-data, and client-view capabilities. Client balances, payment allocation, and profitability remain registered-client accounting paths; standalone invoices are excluded rather than attributed to a synthetic client.
+- Focused PostgreSQL regressions prove create, issue, reload, history persistence, no CRM-client creation, and real PDF rendering from the stored manual buyer snapshot. Contracts, Prisma validation, typecheck, lint, architecture/style checks, and focused web behavior are green locally. Review and exact-head CI remain required; the branch is unmerged and undeployed.
 
 ## Main CI frontend stabilization
 

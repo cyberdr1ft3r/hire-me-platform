@@ -1,6 +1,6 @@
 # Hire Me Platform - Project Memory
 
-Last updated: 2026-11-10
+Last updated: 2026-11-24
 
 This file is the fastest context-rehydration entry point for humans and coding agents. It records stable facts, current goals, active work, and the project operating protocol. Detailed product and architecture documents remain under `docs/`.
 
@@ -21,13 +21,14 @@ backend enums, columns, API contracts, recruitment transitions, Training records
 
 ## Current Phase
 
-Issue #257 restructures the existing Administration workspace on
-`feat/issue-257-administration-navigation`. One Console tab now exposes permission-safe Billing, Users,
-and read-only Roles & Permissions subsections through stable `/admin?section=` intent. Existing API
-contracts, backend authorization, one history authority, unsaved-change guard, and business workflows
-remain unchanged. The surface uses the Unified Page System with complete EN/FR copy and responsive,
-accessible section navigation. The draft must remain unmerged and undeployed; Issues #258–#261 own the
-deeper subsection redesigns and final E2E acceptance.
+`integration/hireme-dev-v1` (draft PR #285) is the authoritative internal development integration branch.
+It preserves the verified #281 Administration acceptance stack (#274–#281), integrates PR #284 public
+application UX, PR #265 invoice consolidation (superseding #253, #262, and #263 without duplicate
+implementations), and PR #282 external-portal documentation with approvals still pending. Template v8
+adds standalone manual clients, optional buyer address/ICE/IF, draft/non-issued PDF identity, revised
+issued PDF layout, separate issue and service dates, and unchanged issuance guards. Accounting approval
+of date presentation and address-free standalone invoices remains open; invoice issuance stays disabled.
+No merge, deployment, portal activation, or live-data change is authorized on this branch.
 
 Issue #254 implements accepted D-097 on `feat/secure-premerge-staging`: a manual, trusted-main,
 same-repository-only pre-merge staging release path with exact-head CI, protected Environment review,
@@ -38,6 +39,15 @@ wrapper. It creates no feature-branch Environment wildcard, production path, aut
 invoice-issuance approval. The mechanism is inactive until its separate PR is reviewed and merged.
 Before first use, disable administrator bypass for the `staging` Environment and protect `main` as the
 workflow trust anchor through an explicitly reviewed repository policy change.
+
+Issue #252 standalone manual-client invoices are implemented for review on `feat/client-libre-invoices` from
+`main` `a46458b852aa4a8ad275100e47a9a2a1057a270a` under D-096. An invoice chooses exactly one registered
+client or an inline buyer snapshot; the latter requires a name, creates no CRM client, links no
+registered-client source, and remains durable in history and generated PDF output. A draft may generate a
+separately keyed PDF-only preview marked `BROUILLON` / non-issued without allocating a final number or changing
+invoice, CRM, accounting, payment, or signing state. Under the PR #262 maintainer clarification, final issuance for a standalone manual client accepts a missing buyer address. Legal/accounting acceptance remains unresolved. Existing issue,
+numbering, authorization, and immutable snapshot rules remain unchanged. Registered-client allocations
+and aggregates exclude standalone invoices pending a separately approved accounting model (R-064).
 
 Issue #244 invoice business alignment is active on draft PR #247 after integrating current `main`
 `d745de9295220c6e9c30116488ed76f783ace18b`, which includes the Issue #245 staging-blocker fixes.

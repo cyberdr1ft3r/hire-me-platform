@@ -255,6 +255,13 @@ export const commercialFr: Messages['commercial'] = {
         'À renseigner uniquement avec une mention légale approuvée pour une exonération, une autoliquidation ou un autre traitement exceptionnel. Laisser vide pour une facture standard soumise à la TVA.',
       amountInWords: 'Inclure le total en lettres françaises',
     },
+    manualClient: {
+      address: 'Adresse du client facturé (facultative pour le brouillon)',
+      edit: 'Modifier le Client libre',
+      nameRequired: 'Renseignez le nom du client facturé.',
+      save: 'Enregistrer le client',
+      title: 'Client libre',
+    },
     facts: {
       client: 'Client',
       correctionOf: 'Corrige la facture',
@@ -335,6 +342,8 @@ export const commercialFr: Messages['commercial'] = {
       quotation: 'Les documents peuvent être générés une fois le devis émis.',
     },
     pdf: 'Générer le PDF',
+    draftPreviewNotice:
+      'Le PDF sera marqué BROUILLON et ne déclenchera pas l’émission de la facture.',
     provenance: 'modèle version {template}',
     provenanceBy: 'modèle version {template}, généré par {name}',
     regeneratePdf: 'Régénérer le PDF',
@@ -351,6 +360,11 @@ export const commercialFr: Messages['commercial'] = {
     chooseClientFirst: 'Choisissez un client pour lier des pièces ou une mission.',
     client: 'Client',
     clientHint: 'Recherchez un client actif par son nom.',
+    clientMode: {
+      label: 'Sélection du client',
+      registered: 'Client enregistré',
+      manual: 'Client libre',
+    },
     contractValue: 'Valeur du contrat HT',
     currency: 'Devise',
     currencyHint: 'Code à trois lettres, par exemple MAD ou EUR.',
@@ -363,6 +377,7 @@ export const commercialFr: Messages['commercial'] = {
     errors: {
       amount: 'Saisissez un montant avec deux décimales au plus.',
       client: 'Choisissez un client.',
+      manualClientName: 'Saisissez le nom ou la raison sociale du client.',
       context:
         'Les pièces liées appartiennent à des missions, des devises ou des chaînes différentes.',
       currency: 'Saisissez un code de devise à trois lettres.',
@@ -390,6 +405,16 @@ export const commercialFr: Messages['commercial'] = {
     mission: 'Mission de recrutement',
     missionAssignedHint: 'Missions de ce client auxquelles vous êtes activement affecté·e.',
     missionHint: 'Missions ouvertes de ce client.',
+    manualClient: {
+      name: 'Nom / Raison sociale',
+      namePlaceholder: 'Par exemple Atlas Conseil ou Sara Amrani',
+      address: 'Adresse du client facturé (facultative au brouillon)',
+      addressPlaceholder: 'Rue, ville et pays',
+      ice: 'ICE (facultatif)',
+      icePlaceholder: 'ICE du client',
+      taxId: 'Identifiant fiscal / IF (facultatif)',
+      taxIdPlaceholder: 'Identifiant fiscal du client',
+    },
     noClientSource:
       'Votre compte ne peut pas rechercher dans l’annuaire des clients ; il ne peut donc pas créer de pièce.',
     noClientSourceTitle: 'Annuaire des clients indisponible',
@@ -485,5 +510,8 @@ export const commercialFr: Messages['commercial'] = {
     received: 'Bon de commande marqué comme reçu.',
     rejected: 'Devis marqué comme refusé.',
     successTitle: 'C’est fait',
+    updated: {
+      invoiceClient: 'Client libre mis à jour.',
+    },
   },
 };

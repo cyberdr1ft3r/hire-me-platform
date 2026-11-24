@@ -153,7 +153,7 @@ export function invoiceSourceFingerprint(invoice: {
   id: string;
   reference: string;
   status: string;
-  clientId: string;
+  clientId: string | null;
   recruitmentMissionId: string | null;
   currency: string;
   issueDate: Date | null;
@@ -187,7 +187,7 @@ export function invoiceSourceFingerprint(invoice: {
   taxCents: number;
   totalCents: number;
   archivedAt: Date | null;
-  client: { name: string };
+  client: { name: string } | null;
   recruitmentMission: { title: string } | null;
   quotation: { reference: string } | null;
   contract: { reference: string } | null;
@@ -247,7 +247,7 @@ export function invoiceSourceFingerprint(invoice: {
     invoice.taxCents,
     invoice.totalCents,
     invoice.archivedAt,
-    invoice.client.name,
+    invoice.client?.name ?? null,
     invoice.recruitmentMission?.title ?? null,
     invoice.quotation?.reference ?? null,
     invoice.contract?.reference ?? null,

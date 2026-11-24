@@ -220,7 +220,7 @@ describe('lifecycle rules', () => {
     expect(followUpKinds('invoice', 'ISSUED')).toEqual([]);
     expect(generationEligible('quotation', 'DRAFT')).toBe(false);
     expect(generationEligible('quotation', 'ISSUED')).toBe(true);
-    expect(generationEligible('invoice', 'DRAFT')).toBe(false);
+    expect(generationEligible('invoice', 'DRAFT')).toBe(true);
     expect(generationEligible('invoice', 'ISSUED')).toBe(true);
     expect(generationEligible('contract', 'CANCELED')).toBe(false);
     expect(generationEligible('purchaseOrder', 'RECEIVED')).toBe(true);
@@ -323,6 +323,55 @@ describe('linked sources and derived context', () => {
     expect(values.quotation?.id).toBe(QUOTATION_ID);
     expect(values.currency).toBe('MAD');
     expect(values.reference).toBe('');
+  });
+
+  it('submits a name-only manual client and keeps registered mode compatible', () => {
+    const values = {
+      ...emptyCreateForm(),
+      reference: 'INV-MANUAL-001',
+      client,
+      invoiceClientMode: 'MANUAL' as const,
+      manualClientName: ' Synthetic Historical Client ',
+      manualClientAddress: '   ',
+      manualClientIce: '',
+      manualClientTaxId: '',
+      quotation: quotationOption,
+      lines: [
+        {
+          key: 101,
+          description: 'Historical service',
+          quantity: '1',
+          unitPrice: '1000,00',
+          taxRate: '20',
+        },
+      ],
+    };
+    const manual = toCreateRequest('invoice', values);
+    expect(manual.ok && manual.value.request).toEqual({
+      reference: 'INV-MANUAL-001',
+      manualClient: {
+        name: 'Synthetic Historical Client',
+      },
+      currency: 'MAD',
+      lines: [
+        {
+          description: 'Historical service',
+          quantity: 1,
+          unitPriceCents: 100_000,
+          taxRateBps: 2000,
+        },
+      ],
+    });
+
+    const registered = toCreateRequest('invoice', {
+      ...values,
+      invoiceClientMode: 'REGISTERED',
+      quotation: null,
+    });
+    expect(registered.ok && registered.value.request).toMatchObject({
+      clientId: CLIENT_ID,
+    });
+    expect(registered.ok && 'manualClient' in registered.value.request).toBe(false);
   });
 
   it('keeps the whole chain when following up a purchase order, by reference only', () => {
