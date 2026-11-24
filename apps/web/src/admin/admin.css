@@ -1,0 +1,162 @@
+.admin-workspace {
+  max-width: var(--layout-content-max);
+}
+
+.admin-section-nav {
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.admin-section-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-section-nav a {
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-secondary);
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--control-height-public);
+  padding: var(--space-3) var(--space-4);
+  text-decoration: none;
+}
+
+.admin-section-nav a:hover {
+  color: var(--color-brand);
+}
+
+.admin-section-nav a[aria-current='page'] {
+  border-bottom-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.admin-section-nav a:focus-visible {
+  border-radius: var(--radius-small);
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.admin-section,
+.admin-section__heading,
+.admin-access-grid,
+.admin-role-catalog {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.admin-section__heading {
+  gap: var(--space-2);
+}
+
+.admin-section__heading :where(h2, p) {
+  margin: 0;
+}
+
+.admin-grid {
+  align-items: start;
+}
+
+.admin-role-list,
+.admin-session-list {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-3) 0;
+  padding: 0;
+}
+
+.admin-role-list li,
+.admin-session-list li {
+  align-items: center;
+  border-bottom: var(--border-width) solid var(--color-border);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding-block: var(--space-2);
+}
+
+.admin-access-grid > section + section {
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-5);
+}
+
+.admin-role-catalog {
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.admin-role-summary {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.admin-role-summary :where(h4, p) {
+  margin: 0;
+}
+
+.admin-role-summary p {
+  color: var(--color-text-secondary);
+}
+
+.admin-permission-groups,
+.admin-permission-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-access-disclosure > :where(.admin-permission-groups, .admin-permission-list) {
+  margin-top: var(--space-2);
+}
+
+.admin-permission-list {
+  list-style: none;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.admin-permission-list li {
+  border-top: var(--border-width) solid var(--color-border);
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.admin-permission-list code {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.admin-access-disclosure {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  padding: 0 var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.admin-access-disclosure > summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  min-block-size: var(--control-height-public);
+  padding-block: var(--space-3);
+}
+
+.admin-access-disclosure[open] {
+  padding-bottom: var(--space-3);
+}
+
+.admin-access-disclosure > summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+}
+
+@media (max-width: 40rem) {
+  .admin-section-nav a {
+    padding-inline: var(--space-3);
+  }
+}

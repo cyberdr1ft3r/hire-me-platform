@@ -1,0 +1,56 @@
+.client-portal,
+.client-portal__section,
+.client-portal__form {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.client-portal__section {
+  padding-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.client-portal__section :where(h2, h3, p),
+.client-portal__cards :where(h3, p) {
+  margin: 0;
+}
+.client-portal__form {
+  width: min(100%, 34rem);
+}
+.client-portal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.client-portal__section > button {
+  justify-self: start;
+}
+.client-portal__list,
+.client-portal__cards {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.client-portal__cards {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+.client-portal__cards > li,
+.client-portal__record {
+  border: 1px solid currentColor;
+  border-radius: 0.65rem;
+  min-width: 0;
+  padding: 0.9rem;
+}
+.client-portal__record {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: start;
+  font: inherit;
+}
+.client-portal__description {
+  white-space: pre-wrap;
+}

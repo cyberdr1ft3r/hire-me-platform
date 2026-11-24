@@ -499,8 +499,11 @@ export class MissionCandidatesService {
     );
   }
 
-  private async resolveAccess(actorUserId: string): Promise<MissionCandidateAccess> {
-    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+  private async resolveAccess(
+    actorUserId: string,
+    db: PrismaTransaction = this.prisma,
+  ): Promise<MissionCandidateAccess> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId, db);
     return {
       compensationView: permissions.includes('candidate_compensation:view'),
       consentView: permissions.includes('candidate_consent:view'),
@@ -667,7 +670,7 @@ export class MissionCandidatesService {
 
   private async assertActorHasProcessControl(
     missionId: string,
-    process: MissionCandidateRecord,
+    process: Pick<MissionCandidateRecord, 'responsibleRecruiterUserId'>,
     actorUserId: string,
     access: MissionCandidateAccess,
     transaction: PrismaTransaction,
@@ -702,9 +705,19 @@ export class MissionCandidatesService {
     );
   }
 
+  async assertPortalPresentationScope(
+    missionId: string,
+    process: Pick<MissionCandidateRecord, 'responsibleRecruiterUserId'>,
+    actorUserId: string,
+    transaction: PrismaTransaction,
+  ): Promise<void> {
+    const access = await this.resolveAccess(actorUserId, transaction);
+    await this.assertActorCanPresent(missionId, process, actorUserId, access, transaction);
+  }
+
   private async assertActorCanPresent(
     missionId: string,
-    process: MissionCandidateRecord,
+    process: Pick<MissionCandidateRecord, 'responsibleRecruiterUserId'>,
     actorUserId: string,
     access: MissionCandidateAccess,
     transaction: PrismaTransaction,

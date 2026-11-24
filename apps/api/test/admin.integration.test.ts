@@ -292,6 +292,29 @@ describe('administration user access management', () => {
       });
       expect(uncheckedEnable.status).toBe(409);
 
+      const writeBaseline = (input: {
+        year: number;
+        highestExternalNumber: number;
+        confirmed: boolean;
+      }) =>
+        fetch(`${baseUrl}/v1/admin/billing-settings/numbering-baseline`, {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify(input),
+        });
+      const unconfirmed = await writeBaseline({
+        year: currentYear,
+        highestExternalNumber: 7,
+        confirmed: false,
+      });
+      expect(unconfirmed.status).toBe(400);
+      const tooLarge = await writeBaseline({
+        year: currentYear,
+        highestExternalNumber: 1000,
+        confirmed: true,
+      });
+      expect(tooLarge.status).toBe(409);
+
       const baseline = await fetch(`${baseUrl}/v1/admin/billing-settings/numbering-baseline`, {
         method: 'POST',
         headers: authHeaders(adminToken),
@@ -317,6 +340,48 @@ describe('administration user access management', () => {
         CompanyBillingSettingsResponseSchema.parse(await enabled.json()).settings
           .invoiceNumberingEnabled,
       ).toBe(true);
+      const regression = await writeBaseline({
+        year: currentYear,
+        highestExternalNumber: 6,
+        confirmed: true,
+      });
+      expect(regression.status).toBe(409);
+
+      // Exercise the existing view/manage split with an in-place, disposable grant fixture.
+      const manageGrant = await prisma.rolePermission.findFirstOrThrow({
+        where: {
+          role: { name: RoleName.ADMIN },
+          permission: { code: 'billing_settings:manage' },
+          archivedAt: null,
+        },
+      });
+      try {
+        await prisma.rolePermission.update({
+          where: { id: manageGrant.id },
+          data: { archivedAt: new Date() },
+        });
+        const view = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+          headers: authHeaders(adminToken),
+        });
+        expect(view.status).toBe(200);
+        const forbiddenUpdate = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+          method: 'PATCH',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify(settingsBody),
+        });
+        expect(forbiddenUpdate.status).toBe(403);
+        const forbiddenBaseline = await writeBaseline({
+          year: currentYear,
+          highestExternalNumber: 8,
+          confirmed: true,
+        });
+        expect(forbiddenBaseline.status).toBe(403);
+      } finally {
+        await prisma.rolePermission.update({
+          where: { id: manageGrant.id },
+          data: { archivedAt: manageGrant.archivedAt },
+        });
+      }
 
       const denied = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
         method: 'PATCH',
@@ -324,6 +389,10 @@ describe('administration user access management', () => {
         body: JSON.stringify({}),
       });
       expect(denied.status).toBe(403);
+      const deniedRead = await fetch(`${baseUrl}/v1/admin/billing-settings`, {
+        headers: authHeaders(deniedToken),
+      });
+      expect(deniedRead.status).toBe(403);
       await expect(
         prisma.auditLog.count({
           where: {

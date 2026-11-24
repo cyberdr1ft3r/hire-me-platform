@@ -1,4 +1,4 @@
-import type { PublicOpportunity } from '@hire-me/contracts';
+import type { CandidateCv, CandidateProfileFields, PublicOpportunity } from '@hire-me/contracts';
 
 import { PublicRequestError } from '../api.js';
 
@@ -9,7 +9,7 @@ import { PublicRequestError } from '../api.js';
 export type PublicListState =
   | { status: 'error' }
   | { status: 'loading' }
-  | { opportunities: PublicOpportunity[]; status: 'ready' };
+  | { opportunities: PublicOpportunity[]; status: 'ready'; candidateAuthenticationRequired?: true };
 
 /**
  * `notFound` is every 404 the API returns. The server answers an unknown slug,
@@ -23,11 +23,29 @@ export type PublicDetailState =
   | { status: 'error' }
   | { status: 'loading' }
   | { status: 'notFound' }
-  | { opportunity: PublicOpportunity; status: 'ready' };
+  | { opportunity: PublicOpportunity; status: 'ready'; candidateAccess?: CandidateAccess };
+
+export type CandidateAccess =
+  | { status: 'checking' | 'guest' | 'error' }
+  | {
+      status: 'signedIn';
+      email: string;
+      profile: CandidateProfileFields | null;
+      cvs: CandidateCv[];
+    };
 
 /** Safe, language-neutral categories for a submission the server refused. */
 export type PublicSubmissionFailure =
-  'failed' | 'invalid' | 'payloadTooLarge' | 'rateLimited' | 'unavailable';
+  | 'cvUnavailable'
+  | 'unsafeFile'
+  | 'scannerUnavailable'
+  | 'failed'
+  | 'invalid'
+  | 'payloadTooLarge'
+  | 'rateLimited'
+  | 'unavailable'
+  | 'unconfirmed'
+  | 'signIn';
 
 /**
  * `received` is shown only after the server has answered `RECEIVED`. The server
@@ -47,9 +65,14 @@ export function isNotFound(error: unknown): boolean {
 /** Only the HTTP status is read; the server's message text never reaches the page. */
 export function classifySubmissionFailure(error: unknown): PublicSubmissionFailure {
   if (!(error instanceof PublicRequestError)) {
-    return 'failed';
+    return 'unconfirmed';
   }
+  if (error.code === 'CANDIDATE_CV_UNAVAILABLE') return 'cvUnavailable';
+  if (error.code === 'CANDIDATE_FILE_UNSAFE') return 'unsafeFile';
+  if (error.code === 'CANDIDATE_SCAN_UNAVAILABLE') return 'scannerUnavailable';
   switch (error.status) {
+    case 401:
+      return 'signIn';
     case 400:
       return 'invalid';
     case 404:
@@ -59,6 +82,6 @@ export function classifySubmissionFailure(error: unknown): PublicSubmissionFailu
     case 429:
       return 'rateLimited';
     default:
-      return 'failed';
+      return 'unconfirmed';
   }
 }

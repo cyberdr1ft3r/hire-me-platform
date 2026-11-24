@@ -14,6 +14,7 @@ interface ConsoleTabBarProps {
   canReplacePending: boolean;
   dirtyTabId: TabId | null;
   pendingLabel?: string;
+  showSelection?: boolean;
   state: ConsoleState;
   visibleTabs: readonly ConsoleTab[];
 }
@@ -40,6 +41,13 @@ function tabTitle(tab: ConsoleTab, t: (key: PlainMessageKey) => string): string 
   return tab.kind === 'workspace' ? moduleTitle : `${moduleTitle} · ${t('consoleTabs.record')}`;
 }
 
+function focusDialogTab(dialog: HTMLDivElement | null): void {
+  const target =
+    dialog?.querySelector<HTMLElement>('[data-console-dialog-active="true"]') ??
+    dialog?.querySelector<HTMLElement>('.console-tabs__dialog-tab');
+  target?.focus();
+}
+
 export function ConsoleTabBar({
   onActivate,
   onClose,
@@ -49,6 +57,7 @@ export function ConsoleTabBar({
   canReplacePending,
   dirtyTabId,
   pendingLabel,
+  showSelection = true,
   state,
   visibleTabs,
 }: ConsoleTabBarProps) {
@@ -76,7 +85,7 @@ export function ConsoleTabBar({
   useEffect(() => {
     if (!isDialogOpen) return;
     const dialog = dialogRef.current;
-    dialog?.querySelector<HTMLElement>('[data-console-dialog-active="true"]')?.focus();
+    focusDialogTab(dialog);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -94,7 +103,7 @@ export function ConsoleTabBar({
 
   useEffect(() => {
     if (isDialogOpen) {
-      dialogRef.current?.querySelector<HTMLElement>('[data-console-dialog-active="true"]')?.focus();
+      focusDialogTab(dialogRef.current);
       return;
     }
     const active = tabRefs.current.get(state.active);
@@ -173,10 +182,10 @@ export function ConsoleTabBar({
         >
           {visibleTabs.map((tab, index) => {
             const title = tabTitle(tab, t);
-            const active = state.active === tab.id;
+            const active = showSelection && state.active === tab.id;
             const dirty = dirtyTabId === tab.id;
             return (
-              <div className="console-tabs__item" key={tab.id}>
+              <div className="console-tabs__item" key={tab.id} role="presentation">
                 <button
                   aria-selected={active}
                   className="console-tabs__tab"
@@ -190,7 +199,8 @@ export function ConsoleTabBar({
                     else tabRefs.current.delete(tab.id);
                   }}
                   role="tab"
-                  tabIndex={active ? 0 : -1}
+                  aria-keyshortcuts={tab.id !== 'ws:home' ? 'Delete' : undefined}
+                  tabIndex={state.active === tab.id ? 0 : -1}
                   title={title}
                   type="button"
                 >
@@ -204,17 +214,6 @@ export function ConsoleTabBar({
                     ) : null}
                   </span>
                 </button>
-                {tab.id !== 'ws:home' ? (
-                  <button
-                    aria-label={t('consoleTabs.closeTab', { title })}
-                    className="console-tabs__close"
-                    onClick={() => onClose(tab.id)}
-                    tabIndex={0}
-                    type="button"
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
-                ) : null}
               </div>
             );
           })}
@@ -302,7 +301,7 @@ export function ConsoleTabBar({
             <div className="console-tabs__dialog-tabs">
               {visibleTabs.map((tab) => {
                 const title = tabTitle(tab, t);
-                const active = state.active === tab.id;
+                const active = showSelection && state.active === tab.id;
                 const dirty = dirtyTabId === tab.id;
                 return (
                   <div className="console-tabs__dialog-item" key={tab.id}>

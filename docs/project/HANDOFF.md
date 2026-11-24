@@ -1,25 +1,35 @@
 # Current Agent Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-24
 
-## Current situation
+## HIRE ME v1.0-dev consolidation (PR #285)
 
-- Issue #254 implements the separately reviewed D-097 pre-merge staging path on `feat/secure-premerge-staging`, based on `main` `a46458b852aa4a8ad275100e47a9a2a1057a270a`.
-- The workflow is manual, main-defined, same-repository-only, exact-head-CI-gated, Environment-reviewed, protected-path-restricted, digest-pinned, and doubly attested. The feature build never receives staging SSH secrets.
-- Existing staging deployment, backup, migration, health, rollback, and isolation controls are reused without server or Environment-policy changes. Production is unreachable from this workflow.
-- PR #253 remains draft, unmerged, and undeployed. Its target SHA can be released only after Issue #254 merges with green exact-head CI and the protected Environment reviewer approves the explicit PR/SHA dispatch.
+Branch `integration/hireme-dev-v1` is the single authoritative development integration. It starts from
+verified #281 (`b293ddd`) and now includes #284 public applications, #265 invoice consolidation, and
+#282 portal documentation (proposed/pending approvals). The maintainer approved Candidate Portal
+account registration and authenticated applications for isolated development on [PR #285](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7134325337).
+The maintainer also approved Client Portal V1 for isolated development on [PR #285](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7135744378).
+Invoice issuance remains disabled. Production portal rollout remains subject to applicable approvals in the
+[#236 decision register](../design/external-portals/README.md). The
+[delivery plan](../design/external-portals/delivery.md) defines first-PR and pilot acceptance gates.
 
 ## Next concrete action
 
-1. Require green exact-head CI and maintainer review for PR #255; merge only with explicit approval.
-2. Before first use, disable administrator bypass on the `staging` Environment and protect `main` with an explicitly reviewed ruleset while retaining the exact `main` deployment branch policy. Add a second trusted reviewer before enabling prevent-self-review.
-3. Dispatch `deploy-pr-staging.yml` from `main` for PR #253 and exact SHA `6ff6698791577d337ea05792fdfcf3009eed2142`; approve only after comparing both values.
-4. Record backup, migration, health, smoke, rollback, and pending-Soukaina evidence on PR #253. Do not merge it or enable invoice issuance. After a null-client invoice exists, use roll-forward or isolated paired restore rather than relying on the previous API image alone.
+1. Require green exact-head CI on the integrated head and maintainer review of draft PR #285.
+2. Exercise live Google sign-in and email delivery with approved test credentials in an isolated
+   environment using the [Candidate Portal runbook](../runbooks/candidate-portal-development.md) and [Client Portal runbook](../runbooks/client-portal-development.md).
+3. Record accounting decisions on invoice date presentation and optional standalone buyer addresses
+   before any issuance enablement or official PDF regeneration.
+4. Run a combined staff → client request → internal mission → candidate application → staff review →
+   client shortlist walkthrough. Review [#236 external portal readiness](../design/external-portals/README.md) with product, security
+   and privacy owners before production release.
+5. Use [#261 Administration acceptance](../audit/issue-261-administration/README.md) and
+   [#283 public application evidence](../audit/issue-283-public-application/README.md) for controlled
+   internal UAT; screen-reader, physical-device and business-user signoff remain separate.
 
 ## Completion conditions
 
-- PR #255 exact-head CI and maintainer review are green before merge.
-- Administrator bypass is disabled for `staging`, and `main` is protected as the workflow trust anchor.
-- The selected feature SHA has successful exact-head CI and verified provenance plus PR-binding attestations before deployment.
-- The existing Environment review, backup, migration, health, and rollback gates all succeed.
-- PR #253 stays open and unmerged; production and real invoice issuance remain untouched.
+- PR #285 exact-head CI and maintainer review are green before merge consideration.
+- Source draft PRs (#253–#265, #281–#284) remain open until maintainers explicitly supersede them after
+  verification.
+- Client and Candidate Portal use is limited to isolated development. Deployment, production access and real invoice issuance require separate approval.

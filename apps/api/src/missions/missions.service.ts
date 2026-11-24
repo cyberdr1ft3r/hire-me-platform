@@ -291,43 +291,57 @@ export class MissionsService {
     actorUserId: string,
     context: RequestContext,
   ): Promise<MissionDetailResponse> {
-    const access = await this.resolveMissionAccess(actorUserId);
+    return this.prisma.$transaction((transaction) =>
+      this.createMissionInTransaction(input, actorUserId, context, transaction),
+    );
+  }
+
+  async createMissionInTransaction(
+    input: MissionCreateRequest,
+    actorUserId: string,
+    context: RequestContext,
+    transaction: PrismaTransaction,
+  ): Promise<MissionDetailResponse> {
+    const access = await this.resolveMissionAccess(actorUserId, transaction);
     this.assertCommercialInputAllowed(input, access);
     this.assertPlacementCounts(input.numberOfPositions ?? 1, input.filledPlacementCount ?? 0);
     this.assertNonTerminalCreateState(input.state);
 
-    const mission = await this.prisma.$transaction(async (transaction) => {
-      await this.lockWritableClient(input.clientId, transaction);
-      return transaction.recruitmentMission.create({
-        data: {
-          clientId: input.clientId,
-          title: input.title,
-          description: optional(input.description),
-          requirements: optional(input.requirements),
-          state: input.state ?? RecruitmentMissionState.DRAFT,
-          priority: input.priority ?? 'NORMAL',
-          numberOfPositions: input.numberOfPositions ?? 1,
-          filledPlacementCount: input.filledPlacementCount ?? 0,
-          location: optional(input.location),
-          workArrangement: optional(input.workArrangement),
-          engagementType: optional(input.engagementType),
-          targetStartDate: dateOrUndefined(input.targetStartDate),
-          applicationDeadline: dateOrUndefined(input.applicationDeadline),
-          salaryMinCents: input.salaryMinCents,
-          salaryMaxCents: input.salaryMaxCents,
-          salaryCurrency: optional(input.salaryCurrency),
-          commercialSummary: optional(input.commercialSummary),
-        },
-        include: missionInclude,
-      });
+    await this.lockWritableClient(input.clientId, transaction);
+    const mission = await transaction.recruitmentMission.create({
+      data: {
+        clientId: input.clientId,
+        title: input.title,
+        description: optional(input.description),
+        requirements: optional(input.requirements),
+        state: input.state ?? RecruitmentMissionState.DRAFT,
+        priority: input.priority ?? 'NORMAL',
+        numberOfPositions: input.numberOfPositions ?? 1,
+        filledPlacementCount: input.filledPlacementCount ?? 0,
+        location: optional(input.location),
+        workArrangement: optional(input.workArrangement),
+        engagementType: optional(input.engagementType),
+        targetStartDate: dateOrUndefined(input.targetStartDate),
+        applicationDeadline: dateOrUndefined(input.applicationDeadline),
+        salaryMinCents: input.salaryMinCents,
+        salaryMaxCents: input.salaryMaxCents,
+        salaryCurrency: optional(input.salaryCurrency),
+        commercialSummary: optional(input.commercialSummary),
+      },
+      include: missionInclude,
     });
 
-    await this.audit.record('missions.mission.created', context, {
-      actorUserId,
-      entityType: 'RecruitmentMission',
-      entityId: mission.id,
-      metadataSummary: 'Recruitment mission created.',
-    });
+    await this.audit.record(
+      'missions.mission.created',
+      context,
+      {
+        actorUserId,
+        entityType: 'RecruitmentMission',
+        entityId: mission.id,
+        metadataSummary: 'Recruitment mission created.',
+      },
+      transaction,
+    );
 
     return { mission: this.toMissionSummary(mission, access) };
   }
@@ -768,8 +782,11 @@ export class MissionsService {
     return { assignment: this.toAssignmentSummary(assignment) };
   }
 
-  private async resolveMissionAccess(actorUserId: string): Promise<MissionAccess> {
-    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId);
+  private async resolveMissionAccess(
+    actorUserId: string,
+    db: PrismaTransaction = this.prisma,
+  ): Promise<MissionAccess> {
+    const permissions = await this.permissions.getEffectivePermissionCodes(actorUserId, db);
     return {
       commercialView: permissions.includes(MISSION_PERMISSIONS.MISSION_COMMERCIAL_DATA_VIEW),
       commercialUpdate: permissions.includes(MISSION_PERMISSIONS.MISSION_COMMERCIAL_DATA_UPDATE),

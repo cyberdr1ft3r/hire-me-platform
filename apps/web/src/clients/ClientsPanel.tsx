@@ -1,3 +1,4 @@
+import { clientPortalPermissions } from '@hire-me/contracts';
 import type { ClientContactSummary, ClientStatus, ClientSummary } from '@hire-me/contracts';
 import type { FormEvent } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -843,6 +844,11 @@ export function ClientsPanel({
       onSelectContact={selectContact}
       previewClient={previewClient}
       recordClientId={selectedClientId}
+      portalAccess={
+        clientPortalPermissions.staff.every((permission) => permissions.includes(permission))
+          ? { accessToken, permissions }
+          : undefined
+      }
       selectedContact={selectedContact}
       writesLocked={pending !== null}
     />

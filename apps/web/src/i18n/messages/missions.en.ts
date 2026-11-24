@@ -496,6 +496,8 @@ export const missionsEn = {
       submittedAt: 'Submitted',
     },
     empty: 'No public application has been submitted for this mission.',
+    downloadCv: 'Download submitted CV',
+    cvDownloadError: 'The submitted CV could not be downloaded. Check access or try again later.',
     files: plural({ one: '{count} file', other: '{count} files' }),
     region: 'Public applications',
     title: 'Public applications',

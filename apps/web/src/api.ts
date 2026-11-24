@@ -31,12 +31,14 @@ import {
   DocumentDetailResponseSchema,
   DocumentGenerationRequestSchema,
   DocumentGenerationResponseSchema,
+  InvoiceDocumentGenerationRequestSchema,
   DocumentListResponseSchema,
   DocumentVersionListResponseSchema,
   InvoiceCancelRequestSchema,
   InvoiceCreateRequestSchema,
   InvoiceDetailResponseSchema,
   InvoiceIssueRequestSchema,
+  InvoiceUpdateRequestSchema,
   InvoiceListQuerySchema,
   InvoiceListResponseSchema,
   CandidateEducationDetailResponseSchema,
@@ -157,6 +159,7 @@ import {
   type InvoiceCreateRequest,
   type InvoiceDetailResponse,
   type InvoiceIssueRequest,
+  type InvoiceUpdateRequest,
   type InvoiceListQuery,
   type InvoiceListResponse,
   type CandidateDetailResponse,
@@ -352,6 +355,7 @@ import {
   type ProfitabilitySummaryResponse,
   type DocumentGenerationRequest,
   type DocumentGenerationResponse,
+  type InvoiceDocumentGenerationRequest,
 } from '@hire-me/contracts';
 
 import {
@@ -466,6 +470,16 @@ type AdminListUsersOptions = {
   apiBaseUrl?: string;
 };
 
+export class AdminRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | null,
+  ) {
+    super(`Administration request failed with status ${status}`);
+    this.name = 'AdminRequestError';
+  }
+}
+
 async function adminRequest(
   accessToken: string,
   path: string,
@@ -489,7 +503,7 @@ async function adminRequest(
   );
 
   if (!response.ok) {
-    throw new Error(`Administration request failed with status ${response.status}`);
+    throw new AdminRequestError(response.status, await readStableErrorCode(response));
   }
 
   return response;
@@ -1309,6 +1323,22 @@ export async function createInvoice(
     accessToken,
     '/invoices',
     { method: 'POST', body: JSON.stringify(parsed) },
+    apiBaseUrl,
+  );
+  return InvoiceDetailResponseSchema.parse(await response.json());
+}
+
+export async function updateInvoice(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceUpdateRequest,
+  apiBaseUrl = getApiBaseUrl(),
+): Promise<InvoiceDetailResponse> {
+  const parsed = InvoiceUpdateRequestSchema.parse(input);
+  const response = await commercialRequest(
+    accessToken,
+    `/invoices/${invoiceId}`,
+    { method: 'PATCH', body: JSON.stringify(parsed) },
     apiBaseUrl,
   );
   return InvoiceDetailResponseSchema.parse(await response.json());
@@ -2647,7 +2677,11 @@ export async function finalizeEvaluation(
 export class PublicRequestError extends Error {
   readonly status: number;
 
-  constructor(message: string, status: number) {
+  constructor(
+    message: string,
+    status: number,
+    readonly code?: string,
+  ) {
     super(message);
     this.name = 'PublicRequestError';
     this.status = status;
@@ -2685,16 +2719,25 @@ export async function submitPublicApplication(
   publicSlug: string,
   input: PublicApplicationSubmitRequest,
   apiBaseUrl = getApiBaseUrl(),
+  authenticatedCandidate = false,
 ): Promise<PublicApplicationSubmitResponse> {
   const response = await fetch(`${apiBaseUrl}/v1/public/opportunities/${publicSlug}/applications`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(authenticatedCandidate ? { credentials: 'include' } : {}),
     body: JSON.stringify(input),
   });
   if (!response.ok) {
+    const data: unknown = authenticatedCandidate ? await response.json().catch(() => null) : null;
+    const error = data && typeof data === 'object' && 'error' in data ? data.error : null;
+    const code =
+      error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : undefined;
     throw new PublicRequestError(
       `Public application request failed with status ${response.status}`,
       response.status,
+      code,
     );
   }
   return PublicApplicationSubmitResponseSchema.parse(await response.json());
@@ -2741,6 +2784,22 @@ export async function listInternalPublicApplications(
     apiBaseUrl,
   );
   return InternalPublicApplicationListResponseSchema.parse(await response.json());
+}
+
+export async function downloadSubmittedCv(
+  accessToken: string,
+  missionId: string,
+  applicationId: string,
+) {
+  const response = await missionRequest(
+    accessToken,
+    '/' + missionId + '/public-opportunity/applications/' + applicationId + '/cv',
+    { cache: 'no-store' },
+  );
+  return {
+    blob: await response.blob(),
+    mimeType: response.headers.get('content-type')?.split(';')[0],
+  };
 }
 
 async function taskRequest(
@@ -4299,8 +4358,11 @@ export async function listAccountingFinancialPlacementOptions(
 async function generationRequest(
   accessToken: string,
   path: string,
-  body: DocumentGenerationRequest,
+  body: DocumentGenerationRequest | InvoiceDocumentGenerationRequest,
   apiBaseUrl = getApiBaseUrl(),
+  parseBody: (value: unknown) => DocumentGenerationRequest | InvoiceDocumentGenerationRequest = (
+    value,
+  ) => DocumentGenerationRequestSchema.parse(value),
 ): Promise<DocumentGenerationResponse> {
   const headers = new Headers();
   headers.set('Content-Type', 'application/json');
@@ -4309,7 +4371,7 @@ async function generationRequest(
     method: 'POST',
     credentials: 'include',
     headers,
-    body: JSON.stringify(DocumentGenerationRequestSchema.parse(body)),
+    body: JSON.stringify(parseBody(body)),
   });
   if (!response.ok) {
     throw new Error(`Generation request failed with status ${response.status}`);
@@ -4362,7 +4424,7 @@ export async function generateContractDocument(
 export async function generateInvoiceDocument(
   accessToken: string,
   invoiceId: string,
-  body: DocumentGenerationRequest,
+  body: InvoiceDocumentGenerationRequest,
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<DocumentGenerationResponse> {
   return generationRequest(
@@ -4370,6 +4432,7 @@ export async function generateInvoiceDocument(
     `/commercial/invoices/${invoiceId}/generate`,
     body,
     apiBaseUrl,
+    (value) => InvoiceDocumentGenerationRequestSchema.parse(value),
   );
 }
 

@@ -543,15 +543,48 @@ function OpportunityEditor({
 export function MissionPublicApplications({
   applications,
   onRetry,
+  onDownloadCv,
 }: {
   applications: SectionState<InternalPublicApplicationSummary[]>;
   onRetry: () => void;
+  onDownloadCv?: (id: string) => Promise<{ blob: Blob; mimeType?: string }>;
 }) {
   const { formatDateTime, t } = useI18n();
   const title = t('missions.applications.title');
+  const [downloading, setDownloading] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  async function download(id: string) {
+    if (!onDownloadCv || downloading) return;
+    setDownloading(id);
+    setFailed(false);
+    try {
+      const { blob, mimeType } = await onDownloadCv(id);
+      const suffix =
+        mimeType === 'application/pdf'
+          ? '.pdf'
+          : mimeType === 'image/png'
+            ? '.png'
+            : mimeType === 'image/jpeg'
+              ? '.jpg'
+              : mimeType === 'text/plain'
+                ? '.txt'
+                : '';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'application-cv' + suffix;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setFailed(true);
+    } finally {
+      setDownloading(undefined);
+    }
+  }
   return (
     <section aria-label={t('missions.applications.region')} className="mission-section">
       <h3 className="mission-section__title">{title}</h3>
+      {failed ? <p role="alert">{t('missions.applications.cvDownloadError')}</p> : null}
       <SectionStatus onRetry={onRetry} section={applications}>
         {(rows) =>
           rows.length === 0 ? (
@@ -582,6 +615,16 @@ export function MissionPublicApplications({
                       </td>
                       <td className="u-tabular">
                         {t('missions.applications.files', { count: application.fileCount })}
+                        {application.portalCvAvailable && onDownloadCv ? (
+                          <Button
+                            size="compact"
+                            variant="secondary"
+                            disabled={!!downloading}
+                            onClick={() => void download(application.id)}
+                          >
+                            {t('missions.applications.downloadCv')}
+                          </Button>
+                        ) : null}
                       </td>
                       <td className="u-tabular">{formatDateTime(application.submittedAt)}</td>
                     </tr>

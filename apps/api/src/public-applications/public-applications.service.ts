@@ -23,6 +23,11 @@ import {
   notFound,
   temporarilyUnavailable,
 } from './public-application.errors.js';
+import { CandidateClamav } from '../candidate-portal/candidate-clamav.js';
+import {
+  CandidateWorkspace,
+  unavailableCv,
+} from '../candidate-portal/candidate-workspace.service.js';
 import type { RequestContext } from '../auth/auth.types.js';
 import { normalizeEmail } from '../auth/normalize-email.js';
 import { RateLimitService } from '../auth/rate-limit.service.js';
@@ -102,6 +107,8 @@ export class PublicApplicationsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ProtectedStorageService) private readonly storage: ProtectedStorageService,
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
+    @Inject(CandidateWorkspace) private readonly workspace: CandidateWorkspace,
+    @Inject(CandidateClamav) private readonly candidateScanner: UploadMalwareScanProvider,
     @Optional()
     @Inject(UPLOAD_MALWARE_SCAN_PROVIDER)
     private readonly malwareScan?: UploadMalwareScanProvider,
@@ -128,6 +135,7 @@ export class PublicApplicationsService {
     publicSlug: string,
     input: PublicApplicationSubmitRequest,
     context: RequestContext,
+    ownerIdentityId?: string,
   ): Promise<PublicApplicationSubmitResponse> {
     this.rateLimit.assertAllowed(
       `public-application:${publicSlug}:${context.ipAddress ?? 'unknown'}`,
@@ -142,14 +150,42 @@ export class PublicApplicationsService {
     }
 
     const opportunity = await this.findAvailableOpportunity(publicSlug, false);
-    this.assertUploadRequirements(opportunity, input.files);
-    const preparedFiles = this.prepareFiles(publicSlug, input.files);
+    const files = [...input.files];
+    const selectedVersionId = input.candidateCvVersionId;
+    if (selectedVersionId && !ownerIdentityId) {
+      throw badRequest('INVALID_PUBLIC_APPLICATION_REQUEST', 'Invalid application request.');
+    }
+    if (
+      ownerIdentityId &&
+      (await this.prisma.publicCandidateApplication.findUnique({
+        where: {
+          publicOpportunityId_submittedNormalizedEmail: {
+            publicOpportunityId: opportunity.id,
+            submittedNormalizedEmail: normalizeEmail(input.email),
+          },
+        },
+        select: { id: true },
+      }))
+    )
+      return successResponse;
+    if (selectedVersionId && ownerIdentityId) {
+      if (files.some((file) => file.category === 'CV')) {
+        throw badRequest(
+          'INVALID_PUBLIC_APPLICATION_REQUEST',
+          'Select either a saved CV or a new file.',
+        );
+      }
+      files.push(await this.workspace.fileForApplication(ownerIdentityId, selectedVersionId));
+    }
+    this.assertUploadRequirements(opportunity, files);
+    const preparedFiles = this.prepareFiles(publicSlug, files);
     const storedKeys: string[] = [];
 
     try {
-      if (this.malwareScan) {
+      const scanner = ownerIdentityId ? this.candidateScanner : this.malwareScan;
+      if (scanner) {
         for (const file of preparedFiles) {
-          await this.malwareScan.scan(file.buffer, {
+          await scanner.scan(file.buffer, {
             source: 'public_application',
             mimeType: file.contentType,
             filename: file.sanitizedFilename,
@@ -164,7 +200,14 @@ export class PublicApplicationsService {
       }
 
       const accepted = await this.prisma.$transaction(async (transaction) =>
-        this.createApplicationRecords(transaction, opportunity.id, input, preparedFiles, context),
+        this.createApplicationRecords(
+          transaction,
+          opportunity.id,
+          input,
+          preparedFiles,
+          context,
+          ownerIdentityId,
+        ),
       );
 
       if (!accepted) {
@@ -366,9 +409,66 @@ export class PublicApplicationsService {
         submittedCountry: application.submittedCountry,
         submittedCurrentPosition: application.submittedCurrentPosition,
         fileCount: application.files.length,
+        ...(application.ownerIdentityId && application.files.some((file) => file.category === 'CV')
+          ? { portalCvAvailable: true as const }
+          : {}),
         submittedAt: application.submittedAt.toISOString(),
       })),
     };
+  }
+
+  async downloadApplicationCv(
+    missionId: string,
+    applicationId: string,
+    actorId: string,
+    canTransfer: boolean,
+    context: RequestContext,
+  ) {
+    this.rateLimit.assertAllowed('candidate-application-cv-review:' + actorId, 30, 60_000);
+    const staff = await this.prisma.user.findFirst({
+      where: { id: actorId, userType: 'INTERNAL', status: 'ACTIVE', archivedAt: null },
+      select: { id: true },
+    });
+    if (!staff) throw notFound('PUBLIC_APPLICATION_FILE_NOT_FOUND');
+    const file = await this.prisma.publicCandidateApplicationFile.findFirst({
+      where: {
+        publicCandidateApplicationId: applicationId,
+        missionId,
+        category: 'CV',
+        application: { ownerIdentityId: { not: null }, status: { not: 'ARCHIVED' } },
+        mission: {
+          archivedAt: null,
+          ...(canTransfer
+            ? {}
+            : {
+                recruiters: {
+                  some: { userId: actorId, status: 'ACTIVE', archivedAt: null },
+                },
+              }),
+        },
+        candidateDocumentVersion: { status: 'ACTIVE', archivedAt: null },
+      },
+      select: { id: true, storageKey: true, mimeType: true, sanitizedFilename: true },
+    });
+    if (!file) throw notFound('PUBLIC_APPLICATION_FILE_NOT_FOUND');
+    const content = await this.storage.get(file.storageKey);
+    await this.candidateScanner.scan(content, {
+      source: 'public_application',
+      filename: file.sanitizedFilename,
+      mimeType: file.mimeType,
+      storageKey: file.storageKey,
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: actorId,
+        action: 'public_applications.cv.downloaded',
+        entityType: 'PublicCandidateApplication',
+        entityId: applicationId,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      },
+    });
+    return { content, filename: file.sanitizedFilename, mimeType: file.mimeType };
   }
 
   private async createApplicationRecords(
@@ -377,6 +477,7 @@ export class PublicApplicationsService {
     input: PublicApplicationSubmitRequest,
     files: PreparedFile[],
     context: RequestContext,
+    ownerIdentityId?: string,
   ): Promise<boolean> {
     const opportunity = await transaction.publicOpportunity.findUnique({
       where: { id: opportunityId },
@@ -404,9 +505,34 @@ export class PublicApplicationsService {
       return false;
     }
 
-    const existingCandidate = await transaction.candidate.findUnique({
-      where: { normalizedEmail },
-    });
+    // Portal intake is bound only to a CRM record this identity created through a
+    // submitted application. The anonymous fallback retains its legacy matching.
+    if (ownerIdentityId) {
+      await transaction.$queryRaw`SELECT id FROM "CandidateIdentity" WHERE id = ${ownerIdentityId}::uuid FOR UPDATE`;
+    }
+    if (
+      ownerIdentityId &&
+      input.candidateCvVersionId &&
+      !(await transaction.candidatePortalCvVersion.findFirst({
+        where: {
+          id: input.candidateCvVersionId,
+          cv: { identityId: ownerIdentityId, removedAt: null },
+        },
+        select: { id: true },
+      }))
+    )
+      throw unavailableCv();
+    const intake = ownerIdentityId
+      ? await transaction.candidateIdentity.findUniqueOrThrow({
+          where: { id: ownerIdentityId },
+          select: { intakeCandidate: true },
+        })
+      : null;
+    const existingCandidate = intake
+      ? intake.intakeCandidate
+      : await transaction.candidate.findUnique({
+          where: { normalizedEmail },
+        });
     if (existingCandidate) {
       await this.lockCandidate(existingCandidate.id, transaction);
       if (existingCandidate.status === CandidateStatus.ARCHIVED || existingCandidate.archivedAt) {
@@ -428,7 +554,7 @@ export class PublicApplicationsService {
         data: {
           displayName: input.fullName,
           email: input.email,
-          normalizedEmail,
+          normalizedEmail: ownerIdentityId ? null : normalizedEmail,
           phone: optional(input.phone),
           normalizedPhone: normalizePhoneOrUndefined(input.phone),
           city: optional(input.city),
@@ -445,6 +571,13 @@ export class PublicApplicationsService {
           salaryExpectationCurrency: optional(input.salaryExpectationCurrency),
         },
       }));
+
+    if (ownerIdentityId && !existingCandidate) {
+      await transaction.candidateIdentity.update({
+        where: { id: ownerIdentityId },
+        data: { intakeCandidateId: candidate.id },
+      });
+    }
 
     const recruiterUserId = await this.findResponsibleRecruiter(mission.id, transaction);
     const missionCandidate = await transaction.missionCandidate.create({
@@ -471,6 +604,8 @@ export class PublicApplicationsService {
 
     const application = await transaction.publicCandidateApplication.create({
       data: {
+        ownerIdentityId,
+        selectedPortalCvVersionId: input.candidateCvVersionId,
         publicOpportunityId: opportunity.id,
         missionId: mission.id,
         candidateId: candidate.id,

@@ -8,7 +8,7 @@ import type {
   TrainingSessionStatus,
   TrainingSessionSummary,
 } from '@hire-me/contracts';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useI18n } from '../i18n/index.js';
 import { InlineMessage, PageHeader } from '../ui/index.js';
@@ -152,7 +152,8 @@ export function TrainingWorkspace({
   writesLocked: boolean;
 }) {
   const { t } = useI18n();
-  const [createOpen, setCreateOpen] = useState(false);
+  const createDetailsRef = useRef<HTMLDetailsElement>(null);
+  const [createFormKey, setCreateFormKey] = useState(0);
   const [draft, setDraft] = useState<ProgramFormValues>(EMPTY_PROGRAM_FORM);
   const message = t as (key: TrainingFeedback['messageKey']) => string;
   const program = programs.selected;
@@ -188,25 +189,23 @@ export function TrainingWorkspace({
       ) : null}
 
       {access.createProgram ? (
-        <details
-          className="training-disclosure training-create"
-          onToggle={(event) => setCreateOpen(event.currentTarget.open)}
-          open={createOpen}
-        >
+        <details className="training-disclosure training-create" ref={createDetailsRef}>
           <summary className="training-disclosure__summary">
             <h2 className="training-disclosure__title">{t('training.programForm.createTitle')}</h2>
           </summary>
           <ProgramForm
             access={access}
+            key={createFormKey}
             loadClients={loaders.clients}
             loadOwners={loaders.owners}
             mode="create"
             onChange={setDraft}
-            onSubmit={() => {
-              void programs.onCreate(draft).then((created) => {
+            onSubmit={(values) => {
+              void programs.onCreate(values).then((created) => {
                 if (created) {
                   setDraft(EMPTY_PROGRAM_FORM);
-                  setCreateOpen(false);
+                  setCreateFormKey((key) => key + 1);
+                  if (createDetailsRef.current) createDetailsRef.current.open = false;
                 }
               });
             }}

@@ -1,0 +1,114 @@
+{
+  "browser": "Playwright Chromium",
+  "chromeExecutable": null,
+  "reference": "TRN-2026-277",
+  "programName": "Chrome Synthetic Program",
+  "results": [
+    {
+      "locale": "en",
+      "viewport": "narrow",
+      "steps": [
+        {
+          "step": "first-character-after-T",
+          "value": "T"
+        },
+        {
+          "step": "first-character-after-picker-load",
+          "value": "T"
+        },
+        {
+          "step": "full-reference",
+          "value": "TRN-2026-277"
+        },
+        {
+          "step": "name-still-empty",
+          "value": ""
+        },
+        {
+          "step": "reference-focused-before-submit",
+          "focusedId": "_r_5_"
+        },
+        {
+          "step": "duplicate-feedback"
+        },
+        {
+          "step": "reference-after-retype",
+          "value": "TRN-2026-277"
+        },
+        {
+          "step": "created-success"
+        },
+        {
+          "step": "list-shows-created-program"
+        },
+        {
+          "step": "reload-and-sign-in-keeps-created-program"
+        }
+      ],
+      "screenshot": "docs/audit/pr-277-training-program-create/pr-277-en-narrow.png",
+      "posts": [
+        {
+          "reference": "TRN-2026-277",
+          "name": "Chrome Synthetic Program"
+        },
+        {
+          "reference": "TRN-2026-277",
+          "name": "Chrome Synthetic Program"
+        }
+      ]
+    },
+    {
+      "locale": "fr",
+      "viewport": "narrow",
+      "steps": [
+        {
+          "step": "first-character-after-T",
+          "value": "T"
+        },
+        {
+          "step": "first-character-after-picker-load",
+          "value": "T"
+        },
+        {
+          "step": "full-reference",
+          "value": "TRN-2026-277"
+        },
+        {
+          "step": "name-still-empty",
+          "value": ""
+        },
+        {
+          "step": "reference-focused-before-submit",
+          "focusedId": "_r_5_"
+        },
+        {
+          "step": "duplicate-feedback"
+        },
+        {
+          "step": "reference-after-retype",
+          "value": "TRN-2026-277"
+        },
+        {
+          "step": "created-success"
+        },
+        {
+          "step": "list-shows-created-program"
+        },
+        {
+          "step": "reload-and-sign-in-keeps-created-program"
+        }
+      ],
+      "screenshot": "docs/audit/pr-277-training-program-create/pr-277-fr-narrow.png",
+      "posts": [
+        {
+          "reference": "TRN-2026-277",
+          "name": "Chrome Synthetic Program"
+        },
+        {
+          "reference": "TRN-2026-277",
+          "name": "Chrome Synthetic Program"
+        }
+      ]
+    }
+  ]
+}

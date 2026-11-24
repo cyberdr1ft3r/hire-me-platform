@@ -25,7 +25,7 @@ export function PublicOpportunitiesPanel() {
     listPublicOpportunities().then(
       (response) => {
         if (request === latestRequest.current) {
-          setList({ opportunities: response.opportunities, status: 'ready' });
+          setList({ ...response, status: 'ready' });
         }
       },
       () => {
@@ -40,7 +40,10 @@ export function PublicOpportunitiesPanel() {
   }, [attempt]);
 
   return (
-    <PublicSite showRolesLink={false}>
+    <PublicSite
+      showRolesLink={false}
+      showCandidateLink={list.status === 'ready' && list.candidateAuthenticationRequired === true}
+    >
       <PublicOpportunityList list={list} onRetry={() => setAttempt((value) => value + 1)} />
     </PublicSite>
   );

@@ -50,6 +50,7 @@ import {
   listClients,
   listEvaluations,
   listInternalPublicApplications,
+  downloadSubmittedCv,
   listInterviews,
   listMissionAssignmentUserOptions,
   listMissionAssignments,
@@ -2214,6 +2215,11 @@ export function MissionsPanel({
         },
         detail,
         lifecycle: { onArchive: handleArchive, onClose: handleClose, onMove: handleMove },
+        onDownloadApplicationCv:
+          readyMission && permissions.includes('documents:download')
+            ? (applicationId: string) =>
+                downloadSubmittedCv(accessToken, readyMission.id, applicationId)
+            : undefined,
         onRetryApplications: () => {
           if (readyMission) {
             void loadApplications(readyMission.id, captureMissionContext(readyMission.id), false);

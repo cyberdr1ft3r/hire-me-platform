@@ -80,6 +80,7 @@ export const APPLICATION_FIELD_LIMITS = {
 /** Everything one submission needs, read from the form in a single pass. */
 export interface ApplicationSnapshot {
   consentGranted: boolean;
+  savedCv?: { id: string; sizeBytes: number };
   files: Partial<Record<ApplicationFileSlot, File>>;
   values: Record<ApplicationTextField, string>;
 }
@@ -95,7 +96,7 @@ export type ApplicationFieldError =
 export type ApplicationErrorTarget = ApplicationTextField | ApplicationFileSlot | 'consentGranted';
 
 export interface ApplicationValidation {
-  /** Field errors in form order, so the first key is the first invalid control. */
+  /** The form locates these errors in the current DOM reading order. */
   fields: Partial<Record<ApplicationErrorTarget, ApplicationFieldError>>;
   /** Set when every file is individually acceptable but together they exceed the total. */
   totalLimitBytes: number | null;
@@ -230,6 +231,13 @@ export function validateApplication(
   let totalBytes = 0;
   for (const slot of visibleFileSlots(requirements)) {
     const file = snapshot.files[slot];
+    if (slot === 'cv' && !file && snapshot.savedCv) {
+      totalBytes += snapshot.savedCv.sizeBytes;
+      if (snapshot.savedCv.sizeBytes > requirements.maxFileSizeBytes) {
+        fields.cv = { code: 'fileSize', limitBytes: requirements.maxFileSizeBytes };
+      }
+      continue;
+    }
     if (!file) {
       if (isFileRequired(slot, requirements)) {
         fields[slot] = { code: 'fileRequired' };
@@ -328,6 +336,7 @@ export function buildApplicationRequest(
     professionalLinks: trimmedOrUndefined(values.professionalLinks),
     motivation: trimmedOrUndefined(values.motivation),
     consentGranted: snapshot.consentGranted,
+    ...(snapshot.savedCv ? { candidateCvVersionId: snapshot.savedCv.id } : {}),
     captchaToken: undefined,
     website: trimmedOrUndefined(values.website),
     files,

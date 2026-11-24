@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Inject, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Inject,
+  Param,
+  Patch,
+  Req,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import {
   InternalPublicApplicationListResponseSchema,
   InternalPublicOpportunityDetailResponseSchema,
@@ -13,6 +24,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import type { RequestContext, RequestWithUser } from '../auth/auth.types.js';
 import { PermissionGuard } from '../auth/permission.guard.js';
 import { RequirePermissions } from '../auth/permissions.decorator.js';
+import { DOCUMENT_PERMISSIONS } from '../documents/document-permissions.js';
 import { PermissionsService } from '../auth/permissions.service.js';
 
 const UuidParamSchema = z.string().uuid();
@@ -61,6 +73,34 @@ export class InternalPublicApplicationsController {
     return InternalPublicApplicationListResponseSchema.parse(
       await this.service.listInternalApplications(this.uuid(missionId)),
     );
+  }
+
+  @Get('applications/:applicationId/cv')
+  @RequirePermissions(
+    PUBLIC_APPLICATION_PERMISSIONS.PUBLIC_APPLICATIONS_VIEW,
+    DOCUMENT_PERMISSIONS.DOCUMENTS_DOWNLOAD,
+  )
+  @Header('Cache-Control', 'no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async downloadApplicationCv(
+    @Param('missionId') missionId: string,
+    @Param('applicationId') applicationId: string,
+    @Req() request: RequestWithUser,
+  ) {
+    const actorId = request.user!.id;
+    const effective = await this.permissions.getEffectivePermissionCodes(actorId);
+    const { content, filename, mimeType } = await this.service.downloadApplicationCv(
+      this.uuid(missionId),
+      this.uuid(applicationId),
+      actorId,
+      effective.includes('mission_candidates:transfer'),
+      this.getContext(request),
+    );
+    return new StreamableFile(content, {
+      type: mimeType,
+      disposition: 'attachment; filename="' + filename.replace(/"/g, '') + '"',
+      length: content.length,
+    });
   }
 
   private uuid(value: string): string {

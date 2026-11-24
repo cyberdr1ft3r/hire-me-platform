@@ -7,6 +7,21 @@ import {
   PlacementStatusSchema,
 } from './missions.js';
 
+// Reporting clients and route guards share the exact effective permission gate.
+export const REPORTING_REQUIRED_OPERATIONAL_READS = [
+  'missions:view',
+  'mission_candidates:view',
+  'public_applications:view',
+  'interviews:view',
+  'offers:view',
+  'placements:view',
+] as const;
+
+export const REPORTING_VIEW_REQUIRED_PERMISSIONS = [
+  'reporting:recruitment:view',
+  ...REPORTING_REQUIRED_OPERATIONAL_READS,
+] as const;
+
 // Maximum reporting window, in days, accepted by any bounded reporting query.
 export const ReportingMaxWindowDays = 366;
 // Maximum number of drilldown/export rows returned by a single request.
@@ -131,6 +146,16 @@ export const ReportingSummarySchema = z.object({
   offers: ReportingOffersSummarySchema,
   placements: ReportingPlacementsSummarySchema,
   aging: ReportingAgingSummarySchema,
+  upcomingDeadlines: z
+    .array(
+      z.object({
+        missionId: z.string().uuid(),
+        missionTitle: z.string(),
+        deadline: z.string().datetime(),
+      }),
+    )
+    .max(5)
+    .optional(),
 });
 
 export const ReportingSummaryResponseSchema = z.object({

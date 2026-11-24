@@ -1,6 +1,6 @@
 # Delivery Roadmap
 
-Last updated: 2026-10-25
+Last updated: 2026-11-10
 
 This roadmap records sequencing and dependencies. It does not replace individual GitHub issues or their acceptance criteria.
 
@@ -11,7 +11,8 @@ PageHeader, Workspace Surface, feedback, drawers, and EN/FR infrastructure. Over
 merged through #218, Clients v2.1 through #210, and Agenda/Tasks through #220. Issue #221 migrates
 the Messages frame only while preserving PR #215 scroll ownership. Remaining migrations continue
 independently: Candidates/Missions; Reporting; Commercial/Accounting; Training/Documents; Meetings;
-Administration after localization and form-label prerequisites. See
+Administration navigation and localization are implemented for review in Issue #257; the deeper Billing,
+Users, Roles presentation, and cross-section E2E work remain isolated in Issues #258–#261. See
 `docs/design/unified-page-system-foundation.md`; no broad all-workspace rewrite.
 
 ## Phase 0 - Discovery
@@ -149,6 +150,10 @@ Issue #29 completed the internal offer-to-placement lifecycle. Issue #31 complet
   concurrency-safe configurable references, immutable versioned issuance snapshots, individual buyers,
   Accompagnement line items, and French MAD amount-in-words. Production values and issuance activation
   remain business-acceptance gates coordinated with Issue #242.
+- Issue #252 / D-096 adds standalone manual-client invoices: one required buyer name plus optional address, ICE, and IF are stored in the invoice snapshot without creating a CRM client. Registered-client source links and accounting attribution remain unavailable for these records until separately modeled.
+- PR #262 and #263 are consolidated for review on one successor branch with template v8. The proposed
+  PDF presentation keeps issue and service dates separate; accounting approval remains required before
+  merge, official regeneration or rollout.
 
 Remaining accounting scope requires its own approved issues and is not assumed here: Moroccan payroll (Phase 8a), statutory and general-ledger and tax accounting, bank reconciliation, balance-sheet behavior, credit notes and refunds, aging buckets beyond the current overdue outstanding figure, accounting exports, and training-program profitability, which first needs an authoritative link from commercial revenue to a training program.
 
@@ -180,6 +185,7 @@ Remaining accounting scope requires its own approved issues and is not assumed h
 
 - Any client portal or client account experience requires a separate product and security issue.
 - Existing `clientVisible` terms mean approved for external sharing, not current portal visibility.
+- The [#236 implementation readiness package](../design/external-portals/README.md) proposes Client Portal V1 recruitment demands first, with a separately gated Candidate Portal lane. Scope, decision owners and dependencies are pending review.
 
 ## Phase 11 - Integrations and migration
 

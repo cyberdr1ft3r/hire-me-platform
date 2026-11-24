@@ -219,6 +219,7 @@ export function useRecordLeaveGuard(
     container.setAttribute(UNSAVED_GUARD_SCOPE_ATTRIBUTE, '');
     const forms = tracked.current;
     let undecidedCheck: number | undefined;
+    let inputNotification: number | undefined;
 
     const startEditing = (event: Event) => {
       const form = formOf(event.target);
@@ -235,7 +236,10 @@ export function useRecordLeaveGuard(
       if (state) state.edited = true;
       else forms.set(form, { baseline: null, edited: true });
       if (submission.current?.form === form) submission.current.editedSince = true;
-      notifyNavigationGuardStateChanged();
+      // Track the edit now for navigation checks. Notify the shell after React has
+      // handled the native event, so a shell render cannot restore the old input value.
+      window.clearTimeout(inputNotification);
+      inputNotification = window.setTimeout(notifyNavigationGuardStateChanged, 0);
     };
     const clearReset = (event: Event) => {
       if (!(event.target instanceof HTMLFormElement)) return;
@@ -296,6 +300,7 @@ export function useRecordLeaveGuard(
       container.removeEventListener('submit', handleSubmit, true);
       window.removeEventListener('beforeunload', beforeUnload);
       window.clearTimeout(undecidedCheck);
+      window.clearTimeout(inputNotification);
       container.removeAttribute(UNSAVED_GUARD_SCOPE_ATTRIBUTE);
       release();
       forms.clear();

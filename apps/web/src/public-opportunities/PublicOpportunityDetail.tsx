@@ -10,7 +10,11 @@ import {
   formatPublishedSalary,
   publishedText,
 } from './public-opportunity-format.js';
-import type { PublicDetailState, PublicSubmissionState } from './public-opportunity-state.js';
+import type {
+  CandidateAccess,
+  PublicDetailState,
+  PublicSubmissionState,
+} from './public-opportunity-state.js';
 
 /**
  * One public opportunity: reading first, then the application.
@@ -41,6 +45,8 @@ export function PublicOpportunityDetail({
     default:
       return (
         <OpportunityContent
+          candidateAccess={detail.candidateAccess}
+          onRetry={onRetry}
           onSubmit={onSubmit}
           opportunity={detail.opportunity}
           submission={submission}
@@ -127,10 +133,14 @@ function Fact({ children, label, lang }: { children: ReactNode; label: string; l
 }
 
 function OpportunityContent({
+  candidateAccess,
+  onRetry,
   onSubmit,
   opportunity,
   submission,
 }: {
+  candidateAccess?: CandidateAccess;
+  onRetry: () => void;
   onSubmit: (snapshot: ApplicationSnapshot) => void;
   opportunity: PublicOpportunity;
   submission: PublicSubmissionState;
@@ -141,6 +151,8 @@ function OpportunityContent({
   const aboutId = useId();
   const skillsId = useId();
   const applyId = useId();
+  const returnTo =
+    '?returnTo=' + encodeURIComponent('/opportunities/' + opportunity.publicSlug + '#apply');
 
   const summary = publishedText(opportunity.publicSummary);
   const description = publishedText(opportunity.publicDescription);
@@ -175,6 +187,11 @@ function OpportunityContent({
           <h2 className="public-facts__title" id={factsId}>
             {t('publicOpportunity.detail.keyDetails')}
           </h2>
+          {submission.status === 'received' ? null : (
+            <a className="public-link-button public-link-button--primary" href="#apply">
+              {t('publicOpportunity.detail.apply')}
+            </a>
+          )}
           <dl className="public-facts__list">
             {/* A hidden client name has always read as confidential, never as blank. */}
             <Fact label={t('publicOpportunity.fields.company')}>
@@ -211,11 +228,6 @@ function OpportunityContent({
               </Fact>
             ) : null}
           </dl>
-          {submission.status === 'received' ? null : (
-            <a className="public-link-button public-link-button--primary" href="#apply">
-              {t('publicOpportunity.detail.apply')}
-            </a>
-          )}
         </aside>
 
         <div className="public-opportunity__content">
@@ -235,14 +247,46 @@ function OpportunityContent({
               </p>
             </section>
           ) : null}
-          <section aria-labelledby={applyId} className="public-apply" id="apply">
-            <h2 className="public-apply__title" id={applyId} tabIndex={-1}>
+          <section aria-labelledby={applyId} className="public-apply" id="apply" tabIndex={-1}>
+            <h2 className="public-apply__title" id={applyId}>
               {t('publicOpportunity.application.title')}
             </h2>
             {submission.status === 'received' ? (
-              <ApplicationReceived />
+              <ApplicationReceived accountRequired={Boolean(candidateAccess)} />
+            ) : candidateAccess?.status === 'checking' ? (
+              <p role="status">{t('publicOpportunity.candidate.checking')}</p>
+            ) : candidateAccess?.status === 'error' ? (
+              <div>
+                <p role="alert">{t('publicOpportunity.candidate.unavailable')}</p>
+                <Button onClick={onRetry} variant="secondary">
+                  {t('common.actions.retry')}
+                </Button>
+              </div>
+            ) : candidateAccess?.status === 'guest' ? (
+              <div className="public-form__stack">
+                <p>{t('publicOpportunity.candidate.required')}</p>
+                <a
+                  className="public-link-button public-link-button--primary"
+                  href={'/candidate/sign-in' + returnTo}
+                >
+                  {t('publicOpportunity.candidate.signIn')}
+                </a>
+                <a href={'/candidate/sign-up' + returnTo}>
+                  {t('publicOpportunity.candidate.signUp')}
+                </a>
+              </div>
             ) : (
               <PublicApplicationForm
+                candidateProfile={
+                  candidateAccess?.status === 'signedIn' ? candidateAccess.profile : undefined
+                }
+                candidateCvs={
+                  candidateAccess?.status === 'signedIn' ? candidateAccess.cvs : undefined
+                }
+                candidateEmail={
+                  candidateAccess?.status === 'signedIn' ? candidateAccess.email : undefined
+                }
+                signInHref={'/candidate/sign-in' + returnTo}
                 labelledBy={applyId}
                 onSubmit={onSubmit}
                 opportunity={opportunity}
@@ -261,7 +305,7 @@ function OpportunityContent({
  * answer guarantees and nothing more: no response time, contact, or ranking.
  * Focus moves to its heading so keyboard and screen-reader users land on it.
  */
-function ApplicationReceived() {
+function ApplicationReceived({ accountRequired }: { accountRequired: boolean }) {
   const { t } = useI18n();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -278,7 +322,18 @@ function ApplicationReceived() {
         <h3 ref={headingRef} tabIndex={-1}>
           {t('publicOpportunity.feedback.receivedTitle')}
         </h3>
-        <p>{t('publicOpportunity.feedback.receivedBody')}</p>
+        <p>
+          {t(
+            accountRequired
+              ? 'publicOpportunity.candidate.received'
+              : 'publicOpportunity.feedback.receivedBody',
+          )}
+        </p>
+        {accountRequired ? (
+          <p>
+            <a href="/candidate/applications">{t('publicOpportunity.candidate.applications')}</a>
+          </p>
+        ) : null}
         <a href="/opportunities">{t('publicOpportunity.feedback.browseRoles')}</a>
       </div>
     </div>

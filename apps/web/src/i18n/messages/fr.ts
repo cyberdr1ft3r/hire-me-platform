@@ -167,6 +167,42 @@ export const frMessages: Messages = {
     }),
     title: 'Notifications',
   },
+  executiveDashboard: {
+    title: 'Tableau de bord exécutif',
+    description: 'Les priorités de recrutement et d’opérations selon vos accès.',
+    pulse: 'Vue du recrutement',
+    active: 'Missions actives',
+    pipeline: 'Candidats de la mission',
+    progress: 'Progression du recrutement',
+    presented: 'Présentés aux clients',
+    completed: 'Entretiens terminés',
+    placements: 'Placements confirmés',
+    bottlenecks: 'Points de blocage',
+    overdueMissions: 'Missions hors délai',
+    stale: 'Processus sans activité récente',
+    assigned: 'Missions qui vous sont assignées',
+    broad: 'Toutes les missions autorisées',
+    deadlines: 'Prochaines dates limites de candidature',
+    interviews: 'Vos prochains entretiens',
+    attention: 'Tâches à traiter',
+    overdueTasks: 'En retard',
+    dueSoonTasks: 'À échéance dans les 7 prochains jours',
+    activity: 'Activité récente du recrutement',
+    newProcesses: 'Processus de candidature créés au cours des 7 derniers jours',
+    empty: 'Aucun résultat.',
+    loading: 'Chargement…',
+    error: 'Impossible de charger ces informations.',
+    interview: 'Entretien planifié',
+    report: 'Ouvrir les rapports de recrutement',
+    agenda: 'Ouvrir l’agenda',
+    tasks: 'Ouvrir les tâches',
+    totalProcesses: 'Processus de candidature en mission',
+    deadlineHint: '7 prochains jours · jusqu’à 5 missions',
+    interviewHint:
+      '7 prochains jours · jusqu’à 5 entretiens que vous organisez ou auxquels vous participez',
+    numberedProcess: '{label} (entrée {position} sur {total})',
+    processLabel: '{mission} — {stage}',
+  },
   overview: {
     description:
       'Naviguez entre le recrutement, les opérations et la gestion commerciale depuis un espace de travail unique et cohérent.',
@@ -228,6 +264,7 @@ export const frMessages: Messages = {
     region: 'Réunion',
   },
   auth: {
+    restoringSession: 'Vérification de votre session…',
     apiChecking: 'Vérification du service en cours',
     apiReady: 'Service disponible',
     apiStatusRegion: 'État de l’API',
@@ -259,10 +296,210 @@ export const frMessages: Messages = {
     deniedTitle: 'Espace protégé',
   },
   admin: {
+    header: {
+      description:
+        'Gérez la facturation de l’entreprise, les utilisateurs internes et les accès approuvés dans des sections ciblées et sécurisées.',
+      eyebrow: 'Système',
+      title: 'Administration',
+    },
+    navigation: {
+      label: 'Sections d’administration',
+    },
+    sections: {
+      billing: {
+        description:
+          'Gérez le profil de facturation existant, les modalités de paiement et la numérotation protégée des factures.',
+        title: 'Facturation',
+      },
+      users: {
+        description:
+          'Gérez les comptes internes, les rôles attribués, le statut des comptes et les sessions actives.',
+        title: 'Utilisateurs',
+      },
+      access: {
+        description:
+          'Consultez les catalogues approuvés des rôles et permissions. Cette section est en lecture seule.',
+        title: 'Rôles et permissions',
+      },
+    },
+    denied: {
+      message: 'Vous n’avez pas la permission de consulter cette section d’administration.',
+      title: 'Section indisponible',
+    },
+    access: {
+      allAreas: 'Tous les domaines',
+      area: 'Domaine fonctionnel',
+      areas: {
+        administration: 'Administration',
+        clients: 'Clients et contacts',
+        collaboration: 'Tâches, agenda et messagerie',
+        documents: 'Documents',
+        finance: 'Commercial et comptabilité',
+        recruitment: 'Recrutement',
+        reporting: 'Rapports',
+        training: 'Formation',
+        uncategorized: 'Autres accès',
+      },
+      clear: 'Effacer les filtres d’accès',
+      deprecated: 'Obsolète',
+      empty: 'Aucun accès approuvé n’est disponible.',
+      errorMessage: 'Les catalogues approuvés des rôles et permissions n’ont pas pu être chargés.',
+      errorTitle: 'Vue des accès indisponible',
+      filters: 'Filtrer les rôles et permissions',
+      groupSummary: plural({
+        one: '{area} · {count} permission',
+        other: '{area} · {count} permissions',
+      }),
+      loading: 'Chargement des rôles et permissions…',
+      noMatches: 'Aucune entrée ne correspond à ces filtres.',
+      permissionCount: plural({
+        one: '{count} permission du catalogue',
+        other: '{count} permissions du catalogue',
+      }),
+      permissionsTitle: 'Catalogue des permissions',
+      retry: 'Réessayer de charger les accès',
+      roleCount: plural({ one: '{count} rôle', other: '{count} rôles' }),
+      roleGrants: plural({
+        one: 'Voir {count} permission du rôle',
+        other: 'Voir {count} permissions du rôle',
+      }),
+      rolesTitle: 'Rôles approuvés',
+      search: 'Rechercher des rôles et permissions',
+    },
+    users: {
+      actions: {
+        archive: 'Archiver',
+        assignRole: 'Attribuer un rôle',
+        reactivate: 'Réactiver',
+        removeRole: 'Retirer le rôle',
+        statusRegion: 'Actions sur le statut du compte',
+        suspend: 'Suspendre',
+        update: 'Modifier le profil',
+      },
+      back: 'Retour aux utilisateurs',
+      confirm: {
+        archive:
+          'Archiver le compte de {name} ? Toutes ses sessions seront révoquées et le compte ne pourra plus être réactivé.',
+        assign: 'Choisissez un rôle pour accorder ses accès à {name}.',
+        reactivate:
+          'Réactiver le compte de {name} ? La personne pourra se reconnecter. Les sessions révoquées le restent.',
+        remove:
+          'Retirer le rôle {role} à {name} ? Les accès accordés par ses autres rôles sont conservés.',
+        revoke:
+          'Révoquer la session {position} de {name}, ouverte le {date} ? Elle ne pourra plus être renouvelée.',
+        revokeAll:
+          'Révoquer toutes les sessions actives de {name} ? Elles ne pourront plus être renouvelées.',
+        suspend:
+          'Suspendre le compte de {name} ? Ses sessions seront révoquées et la personne ne pourra plus se connecter pendant la suspension.',
+      },
+      create: {
+        description: 'Définissez un mot de passe initial et la langue préférée de ce compte.',
+        open: 'Nouvel utilisateur',
+        submit: 'Créer l’utilisateur',
+        title: 'Créer un utilisateur interne',
+      },
+      detailError: 'Impossible de charger l’utilisateur',
+      detailLoading: 'Chargement du compte…',
+      detailRegion: 'Détail de l’utilisateur sélectionné',
+      detailTitle: 'Détail de l’utilisateur',
+      editTitle: 'Modifier le profil de {name}',
+      effectivePermissions: 'Permissions effectives',
+      effectivePermissionsHint:
+        'Accès indiqués par le serveur pour ce compte. Ils peuvent provenir de plusieurs rôles attribués.',
+      emptyDirectory: 'Créez un compte interne pour commencer l’annuaire.',
+      emptyMessage: 'Essayez un autre nom, e-mail ou statut, ou effacez les filtres.',
+      emptyTitle: 'Aucun utilisateur trouvé',
+      errorMessage: 'Réessayez de charger l’annuaire.',
+      errorTitle: 'Utilisateurs indisponibles',
+      feedback: {
+        archived: 'Un compte archivé ne peut pas être réactivé.',
+        created: 'Utilisateur créé.',
+        denied: 'Vos permissions ne vous autorisent pas à effectuer cette action.',
+        failed: 'Impossible de terminer la demande. Réessayez.',
+        lastAdmin: 'Le dernier super-administrateur actif doit conserver son compte et son rôle.',
+        roleAssigned: 'Rôle attribué.',
+        roleRemoved: 'Rôle retiré.',
+        roleScope: 'Vous ne pouvez attribuer que des rôles dont vous détenez les permissions.',
+        selfLockout:
+          'Vous ne pouvez ni modifier ainsi votre propre compte ni retirer votre accès administrateur.',
+        sessionMissing:
+          'Cette session n’est plus disponible. Rouvrez le compte pour actualiser ses sessions.',
+        sessionRevoked: 'Session révoquée.',
+        sessionsRevoked: 'Toutes les sessions ont été révoquées.',
+        statusChanged: 'Statut du compte mis à jour.',
+        updated: 'Utilisateur mis à jour.',
+      },
+      fields: {
+        displayName: 'Nom affiché',
+        email: 'E-mail',
+        initialPassword: 'Mot de passe initial',
+        locale: 'Langue préférée',
+        role: 'Rôle',
+      },
+      filters: {
+        anyStatus: 'Tous les statuts',
+        clear: 'Effacer les filtres',
+        placeholder: 'Nom ou e-mail',
+        region: 'Filtres des utilisateurs',
+        search: 'Rechercher',
+        status: 'Statut',
+        submit: 'Rechercher',
+      },
+      languages: {
+        en: 'Anglais',
+        fr: 'Français',
+      },
+      listRegion: 'Annuaire des utilisateurs',
+      loading: 'Chargement des utilisateurs…',
+      none: 'Aucun',
+      pagination: {
+        label: 'Pages de l’annuaire',
+        next: 'Suivante',
+        page: 'Page {page} sur {pages}',
+        previous: 'Précédente',
+      },
+      profile: {
+        lastLogin: 'Dernière connexion',
+        never: 'Jamais connecté',
+        title: 'Compte',
+      },
+      roles: {
+        choose: 'Choisir un rôle',
+        empty: 'Aucun rôle attribué',
+        error: 'Impossible de charger les rôles',
+        loading: 'Chargement des rôles…',
+        noneAvailable: 'Tous les rôles disponibles sont déjà attribués.',
+        removeLabel: 'Retirer le rôle {role}',
+        title: 'Rôles attribués',
+      },
+      sessions: {
+        empty: 'Aucune session active.',
+        expires: 'Expire le {date}',
+        revoke: 'Révoquer la session',
+        revokeAll: 'Révoquer toutes les sessions',
+        revokeLabel: 'Révoquer la session {position}, ouverte le {date}',
+        started: 'Session {position} · {date}',
+        title: 'Sessions actives',
+      },
+      status: {
+        ACTIVE: 'Actif',
+        ARCHIVED: 'Archivé',
+        SUSPENDED: 'Suspendu',
+      },
+      validation: {
+        duplicateEmail: 'Un compte utilise déjà cette adresse e-mail.',
+        email: 'Saisissez une adresse e-mail valide.',
+        locale: 'Saisissez un code de langue de 2 à 12 caractères.',
+        localeHint: 'Utilisez fr pour le français ou en pour l’anglais.',
+        name: 'Saisissez un nom affiché de 120 caractères maximum.',
+        password: 'Saisissez un mot de passe initial de 12 à 256 caractères.',
+        passwordPolicy:
+          'Utilisez au moins 12 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.',
+      },
+      results: plural({ one: '{count} utilisateur', other: '{count} utilisateurs' }),
+    },
     billing: {
       title: 'Paramètres de facturation',
-      description:
-        'Profil société réutilisable. Les factures émises conservent leur propre instantané immuable.',
       sellerLegalName: 'Raison sociale',
       sellerLegalForm: 'Forme juridique',
       sellerCapital: 'Capital',
@@ -276,23 +513,88 @@ export const frMessages: Messages = {
       sellerWebsite: 'Site web',
       paymentTerms: 'Conditions de règlement',
       paymentMethod: 'Mode de règlement',
-      bankDetails: 'Coordonnées bancaires (facultatif)',
       invoicePrefix: 'Préfixe des factures',
       invoiceDigits: 'Nombre de chiffres',
-      numberingEnabled:
-        'Activer la numérotation automatique après confirmation de la base annuelle',
       save: 'Enregistrer les paramètres',
       loading: 'Chargement des paramètres de facturation…',
       failed:
         'Les paramètres de facturation n’ont pas pu être chargés ou enregistrés. Vérifiez les valeurs requises et réessayez.',
       saved: 'Paramètres de facturation enregistrés.',
-      baselineTitle: 'Base annuelle vérifiée',
-      baselineHelp:
-        'Enregistrez le préfixe avec la numérotation désactivée, renseignez le plus grand numéro déjà émis hors HireMe, puis activez la numérotation. Cette valeur ne sera jamais devinée.',
       year: 'Année',
-      externalHighest: 'Plus grand numéro externe',
-      confirmBaseline: 'Confirmer la base',
-      baselineConfirmed: 'Base confirmée pour {prefix}-{year} ; prochain numéro après {number}.',
+      description:
+        'Modifiez les données de la société utilisées pour préparer les prochaines factures. Chaque facture émise conserve son propre instantané immuable.',
+      legal: 'Identité légale',
+      contact: 'Coordonnées',
+      payment: 'Paiement',
+      numberingTitle: 'Numérotation / base annuelle',
+      bankDetails: 'Coordonnées bancaires',
+      editProfile: 'Modifier le profil société',
+      saveProfile: 'Enregistrer le profil société',
+      profileOptional:
+        'Tous les champs de ce profil sont facultatifs. La raison sociale, l’adresse du siège et les conditions de règlement peuvent préremplir les données requises lors de la préparation d’une prochaine facture.',
+      readOnly: 'Vous avez accès à ces paramètres en lecture seule.',
+      lastSaved: 'Dernier enregistrement le {date}',
+      missing: 'Non renseigné',
+      loadFailed: 'Impossible de charger les paramètres de facturation.',
+      writeFailed:
+        'Impossible d’enregistrer la modification. Vos saisies sont conservées. Réessayez.',
+      denied: 'Vos permissions ne vous autorisent pas à effectuer cette modification.',
+      emailInvalid: 'Saisissez une adresse e-mail valide.',
+      websiteInvalid: 'Saisissez une URL complète.',
+      textInvalid: 'Saisissez jusqu’à 1 000 caractères.',
+      numberingEnabled: 'Utiliser la numérotation automatique',
+      numberingHelp:
+        'Ce réglage détermine comment la référence est attribuée lors de l’émission des prochaines factures.',
+      state: 'Numérotation automatique',
+      enabled: 'Activée',
+      disabled: 'Désactivée',
+      editNumbering: 'Modifier la numérotation',
+      openBaseline: 'Définir la base annuelle',
+      baselineTitle: 'Définir la base annuelle',
+      baselineHelp:
+        'Pour une nouvelle série, enregistrez le préfixe et le nombre de chiffres avec la numérotation automatique désactivée. Vérifiez le plus grand numéro de facture émis hors HireMe pour cette série et cette année avant de le confirmer.',
+      externalHighest: 'Plus grand numéro émis hors HireMe',
+      highestHelp:
+        'Saisissez uniquement le suffixe numérique. Saisissez 0 uniquement après avoir vérifié qu’aucune facture n’a été émise dans cette série pour l’année choisie.',
+      reviewBaseline: 'Vérifier la base',
+      reviewNumbering: 'Vérifier la modification',
+      reviewTitle: 'Vérifier la modification',
+      backToEdit: 'Revenir à la saisie',
+      confirmBaseline: 'Confirmer la base annuelle',
+      confirmNumbering: 'Confirmer la numérotation',
+      savedSeries: 'La série enregistrée {prefix} utilise {digits} chiffres.',
+      nextReference:
+        'Si la série est utilisée, la prochaine référence automatique serait {reference}.',
+      exhausted:
+        'Cette base utilise le dernier numéro disponible avec le nombre de chiffres enregistré.',
+      enableConsequence:
+        'L’activation exige une base confirmée pour {year} (UTC) avec le même préfixe et le même nombre de chiffres.',
+      disableConsequence:
+        'La numérotation automatique sera désactivée. Les références et les instantanés des factures existantes sont conservés.',
+      prefixInvalid: 'Utilisez 2 à 10 lettres ou chiffres, en commençant par une lettre.',
+      digitsInvalid: 'Saisissez un entier entre 3 et 8.',
+      yearInvalid: 'Saisissez une année entre 2000 et 2200.',
+      highestInvalid: 'Saisissez un entier positif ou nul.',
+      baselineRequired:
+        'Confirmez la base de l’année UTC en cours pour ce préfixe et ce nombre de chiffres avant l’activation.',
+      seriesRequired:
+        'Enregistrez un préfixe et un nombre de chiffres avant de confirmer une base ou d’activer la numérotation.',
+      rangeExceeded: 'Le numéro dépasse le nombre de chiffres enregistré pour cette série.',
+      baselineRegression: 'La base ne peut pas être inférieure à un numéro déjà réservé.',
+      seriesChanged:
+        'La série enregistrée a changé pendant votre saisie. Fermez ce panneau puis rouvrez-le pour consulter les derniers paramètres.',
+      baselineConfirmed: 'Base confirmée pour {prefix}-{year} au numéro {number}.',
+    },
+    roleDescriptions: {
+      SUPER_ADMIN: 'Administration de l’ensemble de la plateforme.',
+      ADMIN: 'Administration courante de la plateforme.',
+      HR_MANAGER: 'Opérations de recrutement.',
+      MANAGER: 'Opérations dans le périmètre de l’équipe.',
+      TEAM_LEADER: 'Activités dans le périmètre de l’équipe.',
+      EMPLOYEE: 'Travail assigné.',
+      FINANCE_MANAGER: 'Opérations commerciales et comptables dans le périmètre client autorisé.',
+      GUEST: 'Lecture des dossiers partagés individuellement.',
+      CLIENT_USER: 'Réservé aux accès limités au périmètre client.',
     },
     roleNames: {
       ADMIN: 'Administrateur',
@@ -1184,9 +1486,20 @@ export const frMessages: Messages = {
     },
   },
   publicOpportunity: {
+    candidate: {
+      checking: 'Vérification de la connexion candidat…',
+      unavailable: 'Impossible de vérifier la connexion candidat.',
+      required: 'Connectez-vous ou créez un compte candidat pour postuler.',
+      signIn: 'Connexion candidat',
+      signUp: 'Créer un compte candidat',
+      fields:
+        'Les champs marqués d’un * sont obligatoires. Votre adresse vérifiée est utilisée pour cette candidature.',
+      received: 'Merci pour votre candidature.',
+      applications: 'Mes candidatures',
+    },
     application: {
       consent: 'J’accepte que HireMe traite cette candidature.',
-      description: 'Les champs marqués d’un * sont obligatoires.',
+      description: 'Aucun compte nécessaire. Les champs marqués d’un * sont obligatoires.',
       fields: {
         availability: 'Disponibilité',
         city: 'Ville',
@@ -1206,6 +1519,9 @@ export const frMessages: Messages = {
       files: {
         choose: 'Choisir un fichier',
         none: 'Aucun fichier sélectionné',
+        optional: '(facultatif)',
+        remove: 'Retirer le fichier',
+        removeLabel: 'Retirer le fichier pour {document}',
       },
       hints: {
         availability: 'Par exemple, votre préavis ou votre date de disponibilité',
@@ -1215,11 +1531,14 @@ export const frMessages: Messages = {
         salaryAmount: 'Par exemple 36000 ou 36000,50, sans espace ni symbole',
         salaryCurrency: 'Code à trois lettres, par exemple EUR ou MAD',
       },
+      optionalDetails: 'Ajouter des informations facultatives',
       sections: {
-        about: 'À propos de vous',
+        about: 'Coordonnées',
         documents: 'Documents',
         experience: 'Expérience',
+        moreContact: 'Coordonnées complémentaires',
         motivation: 'Liens et motivation',
+        optionalDocuments: 'Documents facultatifs',
         salary: 'Prétentions salariales',
       },
       submit: 'Envoyer ma candidature',
@@ -1241,18 +1560,28 @@ export const frMessages: Messages = {
     feedback: {
       browseRoles: 'Voir les autres postes à pourvoir',
       failure: {
-        failed: 'Votre candidature n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.',
+        failed:
+          'Vos fichiers n’ont pas pu être préparés. Sélectionnez-les à nouveau, puis réessayez.',
         invalid:
           'Certaines informations n’ont pas pu être acceptées. Vérifiez vos informations et vos documents, puis réessayez.',
         payloadTooLarge:
           'Vos documents et vos réponses dépassent la taille maximale pour une candidature. Retirez ou compressez des fichiers, puis réessayez.',
         rateLimited: 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.',
         unavailable: 'Cette offre n’accepte plus de candidatures.',
+        cvUnavailable:
+          'Le CV sélectionné n’est plus disponible. Choisissez un autre CV ou téléversez un fichier.',
+        unsafeFile: 'Un fichier n’a pas été accepté. Choisissez un autre fichier.',
+        scannerUnavailable:
+          'L’analyse des fichiers est temporairement indisponible. Réessayez plus tard.',
+        signIn: 'Votre session candidat a expiré. Reconnectez-vous pour postuler.',
+        unconfirmed:
+          'Nous n’avons pas pu confirmer la réception de votre candidature. Vos informations et fichiers sont toujours ici. Réessayez avec la même adresse e-mail et les mêmes fichiers.',
       },
       failureTitle: 'Candidature non envoyée',
       receivedBody:
-        'Merci. Votre candidature a bien été reçue et sera examinée si cette offre est toujours disponible.',
+        'Merci pour votre candidature. Aucun compte ni autre démarche n’est nécessaire.',
       receivedTitle: 'Candidature reçue',
+      unconfirmedTitle: 'Réception non confirmée',
     },
     fields: {
       company: 'Entreprise',

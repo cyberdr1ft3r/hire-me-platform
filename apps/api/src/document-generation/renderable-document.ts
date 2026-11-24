@@ -33,6 +33,24 @@ export type RenderableDocument = {
   blocks: RenderableBlock[];
   footer: string | null;
   presentation?: RenderablePresentation;
+  /** PDF-only invoice layout; the neutral blocks remain authoritative for other formats. */
+  pdfInvoice?: {
+    clientHeading: string;
+    amountHeading: string;
+    paymentHeading: string;
+    sellerLines: string[];
+    sellerEmail: string | null;
+    sellerWebsite: { label: string; url: string } | null;
+    clientLines: string[];
+    columns: string[];
+    rows: string[][];
+    totals: RenderableKeyValue[];
+    amountInWords: string | null;
+    paymentLines: string[];
+    taxHeading: string | null;
+    taxTreatment: string | null;
+    footer: string;
+  };
 };
 
 /**

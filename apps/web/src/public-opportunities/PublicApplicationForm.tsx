@@ -1,11 +1,19 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import type { PublicOpportunity } from '@hire-me/contracts';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
+import type { CandidateCv, CandidateProfileFields, PublicOpportunity } from '@hire-me/contracts';
 
+import { workspaceCopy } from '../candidate-portal/workspace-copy.js';
 import { LOCALE_METADATA, useI18n, type PlainMessageKey } from '../i18n/index.js';
-import { Button, InlineMessage, TextArea, TextField } from '../ui/index.js';
+import { Button, InlineMessage, Select, TextArea, TextField } from '../ui/index.js';
 import {
   APPLICATION_FIELD_LIMITS,
-  APPLICATION_FILE_SLOTS,
   hasValidationErrors,
   isFileRequired,
   readApplicationForm,
@@ -20,8 +28,6 @@ import {
 } from './public-application.js';
 import { formatAcceptedTypes, formatMegabytes } from './public-opportunity-format.js';
 import type { PublicSubmissionFailure, PublicSubmissionState } from './public-opportunity-state.js';
-
-type UploadRequirements = PublicOpportunity['uploadRequirements'];
 
 /**
  * Controls rendered as `type="number"`, whose text the browser may refuse to
@@ -60,22 +66,20 @@ function badNumberInputs(form: HTMLFormElement): Set<ApplicationTextField> {
   return bad;
 }
 
-function focusFirstInvalid(
-  form: HTMLFormElement,
-  validation: ApplicationValidation,
-  requirements: UploadRequirements,
-): void {
-  const first: ApplicationErrorTarget | undefined =
-    (Object.keys(validation.fields)[0] as ApplicationErrorTarget | undefined) ??
-    (validation.totalLimitBytes !== null ? visibleFileSlots(requirements)[0] : undefined);
-  const control = first ? form.elements.namedItem(first) : null;
+function focusFirstInvalid(form: HTMLFormElement, validation: ApplicationValidation): void {
+  const control =
+    Array.from(form.elements).find((element) =>
+      Object.hasOwn(validation.fields, element.getAttribute('name') ?? ''),
+    ) ?? (validation.totalLimitBytes !== null ? form.elements.namedItem('cv') : null);
   if (control instanceof HTMLElement) {
+    const disclosure = control.closest('details');
+    if (disclosure) disclosure.open = true;
     control.focus();
   }
 }
 
 /**
- * The application form, with exactly the fields the page has always offered.
+ * Required fields and the CV are visible before optional details are expanded.
  *
  * It validates locally, then hands one snapshot of the form to the container,
  * which owns the request. While a submission is in flight the form refuses a
@@ -86,11 +90,19 @@ function focusFirstInvalid(
  * messages without clearing anything the candidate has typed or chosen.
  */
 export function PublicApplicationForm({
+  candidateEmail,
+  candidateProfile,
+  candidateCvs,
+  signInHref,
   labelledBy,
   onSubmit,
   opportunity,
   submission,
 }: {
+  candidateEmail?: string;
+  candidateProfile?: CandidateProfileFields | null;
+  candidateCvs?: CandidateCv[];
+  signInHref?: string;
   labelledBy: string;
   onSubmit: (snapshot: ApplicationSnapshot) => void;
   opportunity: PublicOpportunity;
@@ -98,9 +110,40 @@ export function PublicApplicationForm({
 }) {
   const { formatNumber, locale, t } = useI18n();
   const requirements = opportunity.uploadRequirements;
+  const copy = workspaceCopy[locale];
+  const [selectedCvId, setSelectedCvId] = useState(
+    () => candidateCvs?.find((cv) => cv.preferred)?.versions[0]?.id ?? '',
+  );
+  const cvOptions = candidateCvs?.flatMap((cv) => cv.versions.slice(0, 1)) ?? [];
+  const savedCv = cvOptions.find((version) => version.id === selectedCvId);
+  const read = (form: HTMLFormElement): ApplicationSnapshot => ({
+    ...readApplicationForm(form),
+    savedCv,
+  });
   const [validation, setValidation] = useState<ApplicationValidation | null>(null);
   const documentsHintId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const focusInvalid = useRef(false);
+  const feedbackRef = useRef<HTMLDivElement>(null);
   const submitting = submission.status === 'submitting';
+  const failure = submission.status === 'failed' ? submission.failure : null;
+
+  useLayoutEffect(() => {
+    if (focusInvalid.current && validation && formRef.current) {
+      focusInvalid.current = false;
+      focusFirstInvalid(formRef.current, validation);
+    }
+  }, [validation]);
+
+  useEffect(() => {
+    if (failure) feedbackRef.current?.focus();
+  }, [failure]);
+
+  function updateValidation(form: HTMLFormElement): void {
+    if (!validation) return;
+    const result = validateApplication(read(form), requirements, badNumberInputs(form));
+    setValidation(hasValidationErrors(result) ? result : null);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -108,11 +151,11 @@ export function PublicApplicationForm({
       return;
     }
     const form = event.currentTarget;
-    const snapshot = readApplicationForm(form);
+    const snapshot = read(form);
     const result = validateApplication(snapshot, requirements, badNumberInputs(form));
     if (hasValidationErrors(result)) {
+      focusInvalid.current = true;
       setValidation(result);
-      focusFirstInvalid(form, result, requirements);
       return;
     }
     setValidation(null);
@@ -133,6 +176,24 @@ export function PublicApplicationForm({
 
   const accept = requirements.allowedMimeTypes.join(',');
   const fileSlots = visibleFileSlots(requirements);
+  const primaryFiles = fileSlots
+    .filter((name) => !savedCv || name !== 'cv')
+    .filter((name) => name === 'cv' || isFileRequired(name, requirements));
+  const optionalFiles = fileSlots.filter((name) => name !== 'cv' && !primaryFiles.includes(name));
+
+  function renderFiles(slots: ApplicationFileSlot[]): ReactNode {
+    return slots.map((name) => (
+      <PublicFileField
+        accept={accept}
+        error={errorFor(name)}
+        key={name}
+        label={t(FILE_CATEGORY_LABELS[name])}
+        name={name}
+        onClear={updateValidation}
+        required={isFileRequired(name, requirements)}
+      />
+    ));
+  }
 
   return (
     <form
@@ -140,9 +201,17 @@ export function PublicApplicationForm({
       aria-labelledby={labelledBy}
       className="public-form"
       noValidate
+      onChange={(event) => updateValidation(event.currentTarget)}
       onSubmit={handleSubmit}
+      ref={formRef}
     >
-      <p className="public-form__note">{t('publicOpportunity.application.description')}</p>
+      <p className="public-form__note">
+        {t(
+          candidateEmail
+            ? 'publicOpportunity.candidate.fields'
+            : 'publicOpportunity.application.description',
+        )}
+      </p>
 
       <FormGroup legend={t('publicOpportunity.application.sections.about')}>
         <TextField
@@ -151,10 +220,13 @@ export function PublicApplicationForm({
           label={t('publicOpportunity.application.fields.fullName')}
           maxLength={APPLICATION_FIELD_LIMITS.fullName}
           name="fullName"
+          defaultValue={candidateProfile?.fullName}
           required
         />
         <TextField
           autoComplete="email"
+          defaultValue={candidateEmail}
+          readOnly={Boolean(candidateEmail)}
           error={errorFor('email')}
           label={t('publicOpportunity.application.fields.email')}
           maxLength={APPLICATION_FIELD_LIMITS.email}
@@ -162,107 +234,6 @@ export function PublicApplicationForm({
           required
           type="email"
         />
-        <TextField
-          autoComplete="tel"
-          label={t('publicOpportunity.application.fields.phone')}
-          maxLength={APPLICATION_FIELD_LIMITS.text}
-          name="phone"
-          type="tel"
-        />
-        <TextField
-          autoComplete="address-level2"
-          label={t('publicOpportunity.application.fields.city')}
-          maxLength={APPLICATION_FIELD_LIMITS.text}
-          name="city"
-        />
-        <TextField
-          autoComplete="country-name"
-          label={t('publicOpportunity.application.fields.country')}
-          maxLength={APPLICATION_FIELD_LIMITS.text}
-          name="country"
-        />
-      </FormGroup>
-
-      <FormGroup legend={t('publicOpportunity.application.sections.experience')}>
-        <TextField
-          autoComplete="organization-title"
-          label={t('publicOpportunity.application.fields.currentPosition')}
-          maxLength={APPLICATION_FIELD_LIMITS.text}
-          name="currentPosition"
-        />
-        <TextField
-          error={errorFor('experienceYears')}
-          inputMode="numeric"
-          label={t('publicOpportunity.application.fields.experienceYears')}
-          max={APPLICATION_FIELD_LIMITS.experienceYearsMax}
-          min={0}
-          name="experienceYears"
-          step={1}
-          type="number"
-        />
-        <Wide>
-          <TextField
-            hint={t('publicOpportunity.application.hints.availability')}
-            label={t('publicOpportunity.application.fields.availability')}
-            maxLength={APPLICATION_FIELD_LIMITS.text}
-            name="availability"
-          />
-        </Wide>
-        <Wide>
-          <TextArea
-            label={t('publicOpportunity.application.fields.skills')}
-            maxLength={APPLICATION_FIELD_LIMITS.text}
-            name="skills"
-            rows={3}
-          />
-        </Wide>
-        <Wide>
-          <TextArea
-            label={t('publicOpportunity.application.fields.languages')}
-            maxLength={APPLICATION_FIELD_LIMITS.text}
-            name="languages"
-            rows={2}
-          />
-        </Wide>
-      </FormGroup>
-
-      <FormGroup legend={t('publicOpportunity.application.sections.salary')}>
-        <TextField
-          error={errorFor('salaryExpectationAmount')}
-          hint={t('publicOpportunity.application.hints.salaryAmount')}
-          inputMode="decimal"
-          label={t('publicOpportunity.application.fields.salaryAmount')}
-          maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationAmount}
-          name="salaryExpectationAmount"
-        />
-        <TextField
-          autoCapitalize="characters"
-          error={errorFor('salaryExpectationCurrency')}
-          hint={t('publicOpportunity.application.hints.salaryCurrency')}
-          label={t('publicOpportunity.application.fields.salaryCurrency')}
-          maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationCurrency}
-          name="salaryExpectationCurrency"
-        />
-      </FormGroup>
-
-      <FormGroup legend={t('publicOpportunity.application.sections.motivation')}>
-        <Wide>
-          <TextArea
-            hint={t('publicOpportunity.application.hints.professionalLinks')}
-            label={t('publicOpportunity.application.fields.professionalLinks')}
-            maxLength={APPLICATION_FIELD_LIMITS.text}
-            name="professionalLinks"
-            rows={2}
-          />
-        </Wide>
-        <Wide>
-          <TextArea
-            label={t('publicOpportunity.application.fields.motivation')}
-            maxLength={APPLICATION_FIELD_LIMITS.text}
-            name="motivation"
-            rows={5}
-          />
-        </Wide>
       </FormGroup>
 
       <FormGroup
@@ -281,16 +252,26 @@ export function PublicApplicationForm({
             ),
           })}
         </p>
-        {APPLICATION_FILE_SLOTS.filter(({ name }) => fileSlots.includes(name)).map(({ name }) => (
-          <PublicFileField
-            accept={accept}
-            error={errorFor(name)}
-            key={name}
-            label={t(FILE_CATEGORY_LABELS[name])}
-            name={name}
-            required={isFileRequired(name, requirements)}
-          />
-        ))}
+        {cvOptions.length ? (
+          <Select
+            name={savedCv ? 'cv' : 'savedCv'}
+            label={copy.savedCv}
+            value={selectedCvId}
+            error={savedCv ? errorFor('cv') : undefined}
+            onChange={(event) => {
+              setSelectedCvId(event.target.value);
+              setValidation(null);
+            }}
+          >
+            <option value="">{copy.newCv}</option>
+            {cvOptions.map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.filename} · {copy.version} {version.version}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        {renderFiles(primaryFiles)}
         {validation?.totalLimitBytes ? (
           <p className="ui-field__error" role="alert">
             {t('publicOpportunity.validation.fileTotal', {
@@ -300,6 +281,132 @@ export function PublicApplicationForm({
         ) : null}
       </FormGroup>
 
+      <details className="public-form__optional">
+        <summary>{t('publicOpportunity.application.optionalDetails')}</summary>
+        <div className="public-form__optional-body">
+          {optionalFiles.length > 0 ? (
+            <FormGroup
+              describedBy={documentsHintId}
+              legend={t('publicOpportunity.application.sections.optionalDocuments')}
+              single
+            >
+              {renderFiles(optionalFiles)}
+            </FormGroup>
+          ) : null}
+          <FormGroup legend={t('publicOpportunity.application.sections.moreContact')}>
+            <TextField
+              autoComplete="tel"
+              label={t('publicOpportunity.application.fields.phone')}
+              maxLength={APPLICATION_FIELD_LIMITS.text}
+              name="phone"
+              defaultValue={candidateProfile?.phone}
+              type="tel"
+            />
+            <TextField
+              autoComplete="address-level2"
+              label={t('publicOpportunity.application.fields.city')}
+              maxLength={APPLICATION_FIELD_LIMITS.text}
+              name="city"
+              defaultValue={candidateProfile?.city}
+            />
+            <TextField
+              autoComplete="country-name"
+              label={t('publicOpportunity.application.fields.country')}
+              maxLength={APPLICATION_FIELD_LIMITS.text}
+              name="country"
+              defaultValue={candidateProfile?.country}
+            />
+          </FormGroup>
+
+          <FormGroup legend={t('publicOpportunity.application.sections.experience')}>
+            <TextField
+              autoComplete="organization-title"
+              label={t('publicOpportunity.application.fields.currentPosition')}
+              maxLength={APPLICATION_FIELD_LIMITS.text}
+              name="currentPosition"
+              defaultValue={candidateProfile?.currentPosition}
+            />
+            <TextField
+              error={errorFor('experienceYears')}
+              inputMode="numeric"
+              label={t('publicOpportunity.application.fields.experienceYears')}
+              max={APPLICATION_FIELD_LIMITS.experienceYearsMax}
+              min={0}
+              name="experienceYears"
+              step={1}
+              type="number"
+            />
+            <Wide>
+              <TextField
+                hint={t('publicOpportunity.application.hints.availability')}
+                label={t('publicOpportunity.application.fields.availability')}
+                maxLength={APPLICATION_FIELD_LIMITS.text}
+                name="availability"
+                defaultValue={candidateProfile?.availability}
+              />
+            </Wide>
+            <Wide>
+              <TextArea
+                label={t('publicOpportunity.application.fields.skills')}
+                maxLength={APPLICATION_FIELD_LIMITS.text}
+                name="skills"
+                defaultValue={candidateProfile?.skills}
+                rows={3}
+              />
+            </Wide>
+            <Wide>
+              <TextArea
+                label={t('publicOpportunity.application.fields.languages')}
+                maxLength={APPLICATION_FIELD_LIMITS.text}
+                name="languages"
+                defaultValue={candidateProfile?.languages}
+                rows={2}
+              />
+            </Wide>
+          </FormGroup>
+
+          <FormGroup legend={t('publicOpportunity.application.sections.salary')}>
+            <TextField
+              error={errorFor('salaryExpectationAmount')}
+              hint={t('publicOpportunity.application.hints.salaryAmount')}
+              inputMode="decimal"
+              label={t('publicOpportunity.application.fields.salaryAmount')}
+              maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationAmount}
+              name="salaryExpectationAmount"
+            />
+            <TextField
+              autoCapitalize="characters"
+              error={errorFor('salaryExpectationCurrency')}
+              hint={t('publicOpportunity.application.hints.salaryCurrency')}
+              label={t('publicOpportunity.application.fields.salaryCurrency')}
+              maxLength={APPLICATION_FIELD_LIMITS.salaryExpectationCurrency}
+              name="salaryExpectationCurrency"
+            />
+          </FormGroup>
+
+          <FormGroup legend={t('publicOpportunity.application.sections.motivation')}>
+            <Wide>
+              <TextArea
+                hint={t('publicOpportunity.application.hints.professionalLinks')}
+                label={t('publicOpportunity.application.fields.professionalLinks')}
+                maxLength={APPLICATION_FIELD_LIMITS.text}
+                name="professionalLinks"
+                defaultValue={candidateProfile?.professionalLinks}
+                rows={2}
+              />
+            </Wide>
+            <Wide>
+              <TextArea
+                label={t('publicOpportunity.application.fields.motivation')}
+                maxLength={APPLICATION_FIELD_LIMITS.text}
+                name="motivation"
+                rows={5}
+              />
+            </Wide>
+          </FormGroup>
+        </div>
+      </details>
+
       <ConsentField error={errorFor('consentGranted')} />
 
       {/* Anti-spam trap: hidden from people and assistive technology, sent as before. */}
@@ -307,10 +414,16 @@ export function PublicApplicationForm({
         <input autoComplete="off" name="website" tabIndex={-1} />
       </div>
 
-      <FormFeedback
-        failure={submission.status === 'failed' ? submission.failure : null}
-        invalid={validation !== null}
-      />
+      {validation || failure ? (
+        <div ref={feedbackRef} tabIndex={-1}>
+          <FormFeedback failure={failure} invalid={validation !== null} />
+          {failure === 'signIn' && signInHref ? (
+            <p>
+              <a href={signInHref}>{t('publicOpportunity.candidate.signIn')}</a>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="public-form__actions">
         <Button
@@ -362,12 +475,14 @@ function PublicFileField({
   error,
   label,
   name,
+  onClear,
   required,
 }: {
   accept: string;
   error?: string;
   label: string;
   name: ApplicationFileSlot;
+  onClear: (form: HTMLFormElement) => void;
   required: boolean;
 }) {
   const { t } = useI18n();
@@ -376,12 +491,29 @@ function PublicFileField({
   const statusId = `${inputId}-status`;
   const errorId = `${inputId}-error`;
   const [fileName, setFileName] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function clearFile(): void {
+    const input = inputRef.current;
+    if (!input?.form) return;
+    input.value = '';
+    setFileName(null);
+    onClear(input.form);
+    input.focus();
+  }
 
   return (
     <div className="public-file" data-invalid={error ? 'true' : undefined}>
       <span className="ui-field__label" id={labelId}>
         {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
+        {required ? (
+          <span aria-hidden="true"> *</span>
+        ) : (
+          <span className="public-file__optional" aria-hidden="true">
+            {' '}
+            {t('publicOpportunity.application.files.optional')}
+          </span>
+        )}
       </span>
       <div className="public-file__control">
         <input
@@ -393,6 +525,7 @@ function PublicFileField({
           id={inputId}
           name={name}
           onChange={(event) => setFileName(event.currentTarget.files?.[0]?.name ?? null)}
+          ref={inputRef}
           required={required}
           type="file"
         />
@@ -402,6 +535,15 @@ function PublicFileField({
         <span className="public-file__name" id={statusId}>
           {fileName ?? t('publicOpportunity.application.files.none')}
         </span>
+        {fileName ? (
+          <Button
+            aria-label={t('publicOpportunity.application.files.removeLabel', { document: label })}
+            onClick={clearFile}
+            variant="quiet"
+          >
+            {t('publicOpportunity.application.files.remove')}
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <span className="ui-field__error" id={errorId} role="alert">
@@ -465,7 +607,15 @@ function FormFeedback({
   }
   if (failure) {
     return (
-      <InlineMessage announce title={t('publicOpportunity.feedback.failureTitle')} tone="danger">
+      <InlineMessage
+        announce
+        title={t(
+          failure === 'unconfirmed'
+            ? 'publicOpportunity.feedback.unconfirmedTitle'
+            : 'publicOpportunity.feedback.failureTitle',
+        )}
+        tone="danger"
+      >
         {t(failureLabelKey(failure))}
       </InlineMessage>
     );

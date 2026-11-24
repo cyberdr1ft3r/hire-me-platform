@@ -1,7 +1,71 @@
 # Project Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-24
 Status owner: repository maintainer
+
+## HIRE ME v1.0-dev integration (PR #285)
+
+- Branch `integration/hireme-dev-v1` preserves the verified #281 Administration stack (#274–#281),
+  integrates PR #284 public application UX, PR #265 invoice consolidation (superseding #253, #262, #263),
+  and PR #282 portal documentation. Exact-head CI passed all six jobs on head `aff3ca7` in run
+  [45377110525](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/45377110525) (2026-11-24).
+- Invoice issuance remains disabled. Accounting approval of issue/service-date presentation and
+  address-free standalone invoices remains open. See [invoice consolidation evidence](../audit/invoice-consolidation/README.md).
+- Candidate registration, isolated sessions and authenticated job applications are implemented on
+  draft PR #285 under the maintainer's [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7134325337).
+  See the [development runbook](../runbooks/candidate-portal-development.md) for configuration, test coverage and rollout limits.
+- Client Portal V1 is implemented for isolated development on draft PR #285, including invitation
+  and recovery, organization-scoped demand review and consented profile publication. See the
+  [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7135744378)
+  and [development runbook](../runbooks/client-portal-development.md).
+- Candidate profiles and the private, scanned CV library are implemented on draft PR #285.
+  New applications prefill from the candidate profile and retain their own fields and exact CV copy.
+  See the [Candidate Portal runbook](../runbooks/candidate-portal-development.md).
+- Production portal rollout remains subject to the owner decisions in
+  [external portal readiness](../design/external-portals/README.md).
+
+## External portals implementation readiness
+
+- Integrated from PR #282 (`43e910b`). The [#236 readiness package](../design/external-portals/README.md)
+  proposes Client Portal V1 from named invitations through scoped recruitment demands and auditable
+  conversion. Candidate contracts and backlog have their own gates. This is documentation pending product,
+  security and privacy approval.
+- The proposed first implementation PR is EP-01, the disabled authority boundary and synthetic scope tests.
+  Proceed only after applicable E01–E07 approval. See the [delivery plan](../design/external-portals/delivery.md).
+
+## Internal product UX stabilization
+
+The product UX branch starts from the verified #274 application commit. Issue #260 adds read-only search, functional permission groups, and technical disclosure in Administration. See the [access overview audit](../audit/issue-260-access-overview.md). Issues #258, #259, and #261 remain separate. #274 remains the UAT candidate.
+
+The dedicated Training integration branch starts from #276 at `6590673` and carries the
+complete #277 correction plus the Console input timing fix required for trusted Chrome entry.
+See the [Training keyboard audit](../audit/pr-277-training-program-create.md). Issue #259
+Administration Users is stacked on that verified Training head. Its directory, account
+drawers and access confirmations preserve the existing Admin APIs and role catalog. See
+the [Users audit and verification](../audit/issue-259-users/README.md). Issue #258 Billing
+is stacked on #279 and separates company profile editing from numbering and baseline review.
+See the [Billing audit and verification](../audit/issue-258-billing/README.md). Issue #261
+uses the exact #280 head for [combined Administration engineering acceptance](../audit/issue-261-administration/README.md).
+Assistive-technology, physical-device and business-user approvals remain separate gates.
+
+## Issue #283 — public application UX
+
+- Integrated on `integration/hireme-dev-v1` from PR #284 (`9e043837`). The flow shortens the initial bilingual application, keeps configured requirements visible, and verifies unlisted direct links, anonymous receipt and retry behavior in real Chrome with disposable PostgreSQL. Portal accounts and ownership are outside this flow. [Evidence](../audit/issue-283-public-application/README.md)
+
+## Invoice consolidation (integrated via PR #265)
+
+- Template v8 combines standalone manual clients (#253), optional buyer address and draft preview (#262),
+  and revised issued PDF layout with separate issue and service dates (#263). PR #285 integrates the
+  consolidated branch without duplicating the source PRs. Official issuance, historical PDF regeneration
+  and live-data correction remain unauthorized.
+
+## Recruitment lifecycle and external portal readiness
+
+Phase 3 builds from the exact Phase 2 head (`a66c585`). It adds browser coverage for the internal recruitment lifecycle, direct API checks for the nine seeded roles, and a [portal readiness inventory](../audit/recruitment-lifecycle/README.md). External account, organization membership, client demand and candidate data sharing decisions remain open.
+
+The [#236 portal preflight](../design/issue-236-authenticated-portals-preflight.md) and
+[implementation readiness package](../design/external-portals/README.md) record proposed contracts for
+review. External account implementation depends on their approval.
 
 ## Issue #254 — protected pre-merge staging releases
 
@@ -12,6 +76,13 @@ Status owner: repository maintainer
 - Final review pinned every privileged Action by commit, moved Dockerfile authority to trusted `main`, bound attestation verification to the exact trusted workflow commit, and validates SSH user/port values before shell use. Exact-head CI is still required after these changes.
 - The live `staging` Environment has one required reviewer and the exact `main` deployment branch policy, but administrator bypass is enabled and self-review is allowed. GitHub reports no branch protection or ruleset for `main`. Disable administrator bypass and add an explicitly reviewed `main` protection/ruleset before the first pre-merge deployment; enable prevent-self-review when a second trusted reviewer is available.
 - No new mechanism has been used and PR #253 is not deployed by this implementation task.
+
+## Issue #252 — standalone manual-client invoices
+
+- Branch `feat/client-libre-invoices` adds a bilingual Registered client / Manual client choice to invoice creation. A manual invoice requires a name, accepts optional address, ICE, and IF, stores those values in the invoice buyer snapshot, and never creates a CRM `Client`.
+- Standalone manual invoices cannot link missions, placements, quotations, contracts, purchase orders, or correction sources. Registered-client behavior, invoice dates, lifecycle, numbering, immutable issuance snapshots, and issuance validation remain unchanged.
+- The database permits a nullable invoice `clientId` only when a non-blank buyer legal name is stored. Authorization remains fail-closed under the existing invoice, commercial-data, and client-view capabilities. Client balances, payment allocation, and profitability remain registered-client accounting paths; standalone invoices are excluded rather than attributed to a synthetic client.
+- Focused PostgreSQL regressions prove create, issue, reload, history persistence, no CRM-client creation, and real PDF rendering from the stored manual buyer snapshot. Contracts, Prisma validation, typecheck, lint, architecture/style checks, and focused web behavior are green locally. Review and exact-head CI remain required; the branch is unmerged and undeployed.
 
 ## Main CI frontend stabilization
 

@@ -105,10 +105,12 @@ export const PublicOpportunitySchema = z.object({
 });
 
 export const PublicOpportunityListResponseSchema = z.object({
+  candidateAuthenticationRequired: z.literal(true).optional(),
   opportunities: z.array(PublicOpportunitySchema),
 });
 
 export const PublicOpportunityDetailResponseSchema = z.object({
+  candidateAuthenticationRequired: z.literal(true).optional(),
   opportunity: PublicOpportunitySchema,
 });
 
@@ -120,6 +122,7 @@ export const PublicApplicationFileInputSchema = z.object({
 });
 
 export const PublicApplicationSubmitRequestSchema = z.object({
+  candidateCvVersionId: z.string().uuid().optional(),
   fullName: z.string().trim().min(1).max(160),
   email: z.string().trim().email().max(254),
   phone: TrimmedTextSchema.optional(),
@@ -225,6 +228,7 @@ export const InternalPublicApplicationSummarySchema = z.object({
   submittedCity: z.string().nullable(),
   submittedCountry: z.string().nullable(),
   submittedCurrentPosition: z.string().nullable(),
+  portalCvAvailable: z.literal(true).optional(),
   fileCount: z.number().int().nonnegative(),
   submittedAt: z.string().datetime(),
 });

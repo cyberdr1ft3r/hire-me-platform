@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { getPublicOpportunity, submitPublicApplication } from '../api.js';
+import { candidateCvs, candidateProfile, candidateSession } from '../candidate-portal/api.js';
 import {
   buildApplicationRequest,
   encodeApplicationFiles,
@@ -52,9 +53,37 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
     const request = ++latestLoad.current;
     setDetail({ status: 'loading' });
     getPublicOpportunity(publicSlug).then(
-      (response) => {
+      async (response) => {
         if (request === latestLoad.current) {
-          setDetail({ opportunity: response.opportunity, status: 'ready' });
+          const next = { opportunity: response.opportunity, status: 'ready' as const };
+          if (!response.candidateAuthenticationRequired) {
+            setDetail(next);
+            return;
+          }
+          setDetail({ ...next, candidateAccess: { status: 'checking' } });
+          try {
+            const candidate = await candidateSession();
+            const workspace = candidate
+              ? await Promise.all([candidateProfile(), candidateCvs()])
+              : null;
+            if (request === latestLoad.current) {
+              setDetail({
+                ...next,
+                candidateAccess:
+                  candidate && workspace
+                    ? {
+                        status: 'signedIn',
+                        email: candidate.email,
+                        profile: workspace[0].profile,
+                        cvs: workspace[1],
+                      }
+                    : { status: 'guest' },
+              });
+            }
+          } catch {
+            if (request === latestLoad.current)
+              setDetail({ ...next, candidateAccess: { status: 'error' } });
+          }
         }
       },
       (error: unknown) => {
@@ -75,15 +104,26 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
     submitting.current = true;
     const owner = session.current;
     setSubmission({ status: 'submitting' });
+    let requestStarted = false;
     try {
       const files = await encodeApplicationFiles(snapshot);
-      await submitPublicApplication(publicSlug, buildApplicationRequest(snapshot, files));
+      const request = buildApplicationRequest(snapshot, files);
+      requestStarted = true;
+      await submitPublicApplication(
+        publicSlug,
+        request,
+        undefined,
+        detail.status === 'ready' && detail.candidateAccess?.status === 'signedIn',
+      );
       if (owner === session.current) {
         setSubmission({ status: 'received' });
       }
     } catch (error: unknown) {
       if (owner === session.current) {
-        setSubmission({ failure: classifySubmissionFailure(error), status: 'failed' });
+        setSubmission({
+          failure: requestStarted ? classifySubmissionFailure(error) : 'failed',
+          status: 'failed',
+        });
       }
     } finally {
       if (owner === session.current) {

@@ -132,13 +132,13 @@ export function followUpKinds(kind: CommercialKind, status: CommercialStatus): C
   return [];
 }
 
-/** Lifecycle states the document generation endpoints accept (unchanged from the legacy panel). */
+/** Lifecycle states the protected document generation endpoints accept. */
 export function generationEligible(kind: CommercialKind, status: CommercialStatus): boolean {
   switch (kind) {
     case 'quotation':
       return ['ISSUED', 'ACCEPTED', 'REJECTED', 'EXPIRED'].includes(status);
     case 'invoice':
-      return status === 'ISSUED';
+      return status === 'DRAFT' || status === 'ISSUED';
     case 'contract':
     case 'purchaseOrder':
       return status !== 'CANCELED' && status !== 'ARCHIVED';

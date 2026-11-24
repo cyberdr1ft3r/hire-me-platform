@@ -124,6 +124,7 @@ export interface MissionDetailModel {
   detail: MissionDetailState;
   lifecycle: MissionLifecycleModel;
   onRetryApplications: () => void;
+  onDownloadApplicationCv?: (id: string) => Promise<{ blob: Blob; mimeType?: string }>;
   pipeline: MissionPipelineModel;
   processContext: MissionProcessContextModel;
   profile: MissionProfileModel;
@@ -659,6 +660,7 @@ function MissionDetailPane({
             <MissionPublicApplications
               applications={model.applications}
               onRetry={model.onRetryApplications}
+              onDownloadCv={model.onDownloadApplicationCv}
             />
           ) : null}
         </div>

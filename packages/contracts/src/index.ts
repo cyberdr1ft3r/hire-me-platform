@@ -490,6 +490,8 @@ export type {
 export { HealthResponseSchema } from './health.js';
 export type { HealthResponse } from './health.js';
 export {
+  REPORTING_REQUIRED_OPERATIONAL_READS,
+  REPORTING_VIEW_REQUIRED_PERMISSIONS,
   ReportingAppliedFiltersSchema,
   ReportingAgingSummarySchema,
   ReportingApplicationsSummarySchema,
@@ -1014,6 +1016,8 @@ export {
   GenerationIdempotencyKeySchema,
   GenerationLanguageSchema,
   GenerationOutputFamilySchema,
+  InvoiceDocumentGenerationRequestSchema,
+  InvoiceGenerationPurposeSchema,
 } from './document-generation.js';
 
 export type {
@@ -1023,6 +1027,8 @@ export type {
   GeneratedVersionProvenance,
   GenerationLanguage,
   GenerationOutputFamily,
+  InvoiceDocumentGenerationRequest,
+  InvoiceGenerationPurpose,
 } from './document-generation.js';
 export {
   CONVERSATION_PAGE_SIZE,
@@ -1120,3 +1126,7 @@ export type {
   ReadCursorResponse,
   UnreadSummaryResponse,
 } from './messaging.js';
+
+export * from './candidate-portal.js';
+export * from './client-portal.js';
+export * from './candidate-workspace.js';

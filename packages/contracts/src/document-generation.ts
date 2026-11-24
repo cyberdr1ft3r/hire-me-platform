@@ -36,6 +36,21 @@ export const DocumentGenerationRequestSchema = z.object({
   idempotencyKey: GenerationIdempotencyKeySchema,
 });
 
+/** Invoice outputs distinguish a tax invoice from a non-issued draft preview. */
+export const InvoiceGenerationPurposeSchema = z.enum(['ISSUED', 'DRAFT_PREVIEW']);
+
+export const InvoiceDocumentGenerationRequestSchema = DocumentGenerationRequestSchema.extend({
+  purpose: InvoiceGenerationPurposeSchema.default('ISSUED'),
+}).superRefine((request, context) => {
+  if (request.purpose === 'DRAFT_PREVIEW' && request.outputFamily !== 'PDF') {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['outputFamily'],
+      message: 'Draft invoice previews are available as PDF only.',
+    });
+  }
+});
+
 /**
  * Bounded provenance for one generated version. It answers what produced these exact
  * bytes without carrying the rendered content, storage key, or any commercial payload.
@@ -69,5 +84,9 @@ export type GenerationOutputFamily = z.infer<typeof GenerationOutputFamilySchema
 export type GenerationLanguage = z.infer<typeof GenerationLanguageSchema>;
 export type GeneratedDocumentSource = z.infer<typeof GeneratedDocumentSourceSchema>;
 export type DocumentGenerationRequest = z.infer<typeof DocumentGenerationRequestSchema>;
+export type InvoiceGenerationPurpose = z.infer<typeof InvoiceGenerationPurposeSchema>;
+export type InvoiceDocumentGenerationRequest = z.infer<
+  typeof InvoiceDocumentGenerationRequestSchema
+>;
 export type GeneratedVersionProvenance = z.infer<typeof GeneratedVersionProvenanceSchema>;
 export type DocumentGenerationResponse = z.infer<typeof DocumentGenerationResponseSchema>;

@@ -27,6 +27,7 @@ import {
   getPurchaseOrder,
   getQuotation,
   issueInvoice,
+  updateInvoice,
   listCommercialContracts,
   listInvoices,
   listPurchaseOrders,
@@ -159,6 +160,24 @@ export type LifecycleInput = {
   includeFrenchAmountInWords?: boolean;
 };
 
+export type ManualInvoiceClientUpdate = {
+  name: string;
+  address?: string;
+  ice?: string;
+  taxId?: string;
+};
+
+export async function updateManualInvoiceClient(
+  accessToken: string,
+  invoiceId: string,
+  manualClient: ManualInvoiceClientUpdate,
+): Promise<CommercialDetail> {
+  return {
+    kind: 'invoice',
+    record: (await updateInvoice(accessToken, invoiceId, { manualClient })).invoice,
+  };
+}
+
 function optionalReason(input: LifecycleInput): string | undefined {
   const reason = input.reason?.trim();
   return reason ? reason.slice(0, 500) : undefined;
@@ -256,6 +275,7 @@ export function generateCommercialDocument(
   kind: CommercialKind,
   id: string,
   body: DocumentGenerationRequest,
+  invoicePurpose: 'ISSUED' | 'DRAFT_PREVIEW' = 'ISSUED',
 ): Promise<DocumentGenerationResponse> {
   switch (kind) {
     case 'quotation':
@@ -265,6 +285,6 @@ export function generateCommercialDocument(
     case 'purchaseOrder':
       return generatePurchaseOrderDocument(accessToken, id, body);
     case 'invoice':
-      return generateInvoiceDocument(accessToken, id, body);
+      return generateInvoiceDocument(accessToken, id, { ...body, purpose: invoicePurpose });
   }
 }
