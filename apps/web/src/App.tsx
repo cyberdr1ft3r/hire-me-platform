@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthenticatedUser } from '@hire-me/contracts';
 
@@ -41,6 +41,11 @@ interface AppLocation {
 }
 
 type LoginErrorState = 'invalid-credentials' | 'unavailable';
+const LazyCandidatePortal = lazy(() =>
+  import('./candidate-portal/CandidatePortal.js').then((module) => ({
+    default: module.CandidatePortal,
+  })),
+);
 
 /**
  * One localization provider wraps the whole application, so the public
@@ -57,6 +62,13 @@ export function App() {
 
 function AppRoutes() {
   const pathname = window.location.pathname;
+  if (pathname.startsWith('/candidate/')) {
+    return (
+      <RouteModuleBoundary>
+        <LazyCandidatePortal pathname={pathname} />
+      </RouteModuleBoundary>
+    );
+  }
   const slug = pathname.match(/^\/opportunities\/([^/]+)$/)?.[1];
   if (pathname === '/opportunities') {
     return (

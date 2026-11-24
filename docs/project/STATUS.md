@@ -11,6 +11,9 @@ Status owner: repository maintainer
   [45377110525](https://github.com/cyberdr1ft3r/hire-me-platform/actions/runs/45377110525) (2026-11-24).
 - Invoice issuance remains disabled. Accounting approval of issue/service-date presentation and
   address-free standalone invoices remains open. See [invoice consolidation evidence](../audit/invoice-consolidation/README.md).
+- Candidate registration, isolated sessions and authenticated job applications are implemented on
+  draft PR #285 under the maintainer's [development approval](https://github.com/cyberdr1ft3r/hire-me-platform/pull/285#issuecomment-7134325337).
+  See the [development runbook](../runbooks/candidate-portal-development.md) for configuration, test coverage and rollout limits.
 - External portal implementation (EP-01) remains blocked pending E01–E07 owner decisions in
   [external portal readiness](../design/external-portals/README.md).
 

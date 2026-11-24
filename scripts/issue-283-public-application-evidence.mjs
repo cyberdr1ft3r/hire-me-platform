@@ -24,9 +24,11 @@ const apiPort = 3118;
 const webPort = 5198;
 const api = base(apiPort);
 const web = base(webPort);
+const candidatePortal = process.argv.includes('--candidate-portal');
 const evidenceRoot = path.join(root, '.tmp-runtime/issue283');
 await mkdir(evidenceRoot, { recursive: true });
 const evidence = await mkdtemp(path.join(evidenceRoot, 'run-'));
+const candidateOutbox = path.join(evidence, 'candidate-mail');
 
 function start(args, cwd, env, stdio = 'inherit') {
   const child = spawn(process.execPath, args, { cwd, env, stdio });
@@ -84,6 +86,10 @@ try {
     AUTH_ACCESS_TOKEN_SECRET: 'FunctionalQaOnlyAccessTokenSecretWithEnoughCharacters',
     AUTH_REFRESH_TOKEN_PEPPER: 'FunctionalQaOnlyRefreshTokenPepperWithEnoughCharacters',
     AUTH_COOKIE_SECURE: 'false',
+    CANDIDATE_PORTAL_ENABLED: candidatePortal ? 'true' : 'false',
+    ...(candidatePortal
+      ? { CANDIDATE_MAIL_OUTBOX: candidateOutbox, CANDIDATE_GOOGLE_CLIENT_ID: undefined }
+      : {}),
     INVOICE_ISSUANCE_ENABLED: 'false',
     PRIVATE_UPLOAD_STORAGE_ROOT: path.join(evidence, 'private-uploads'),
   });
@@ -109,12 +115,22 @@ try {
     },
   );
   await ready(frontend, web, (result) => result.ok);
-  await run(['--test', 'scripts/issue-283-public-application.test.mjs'], root, {
-    ...process.env,
-    HIREME_E2E_API: api,
-    HIREME_E2E_WEB: web,
-    HIREME_E2E_EVIDENCE: evidence,
-  });
+  await run(
+    [
+      '--test',
+      candidatePortal
+        ? 'scripts/candidate-portal.test.mjs'
+        : 'scripts/issue-283-public-application.test.mjs',
+    ],
+    root,
+    {
+      ...process.env,
+      HIREME_E2E_API: api,
+      HIREME_E2E_WEB: web,
+      HIREME_E2E_EVIDENCE: evidence,
+      ...(candidatePortal ? { CANDIDATE_MAIL_OUTBOX: candidateOutbox } : {}),
+    },
+  );
 } finally {
   for (const { child } of services) child.kill();
   await Promise.allSettled(services.map(({ exited }) => exited));

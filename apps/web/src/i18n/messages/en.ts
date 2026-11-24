@@ -1441,6 +1441,16 @@ export const enMessages = {
    * own public text and is shown exactly as published, never translated.
    */
   publicOpportunity: {
+    candidate: {
+      checking: 'Checking candidate sign-in…',
+      unavailable: 'Candidate sign-in could not be checked.',
+      required: 'Sign in or create a candidate account to apply for this job.',
+      signIn: 'Candidate sign in',
+      signUp: 'Create a candidate account',
+      fields: 'Fields marked * are required. Your verified email is used for this application.',
+      received: 'Thank you for applying.',
+      applications: 'My applications',
+    },
     application: {
       consent: 'I consent to HireMe processing this application.',
       description: 'No account needed. Fields marked * are required.',
@@ -1510,6 +1520,7 @@ export const enMessages = {
           'Your documents and answers together exceed the size limit for one application. Remove or compress files, then try again.',
         rateLimited: 'Too many attempts in a short time. Wait a minute, then try again.',
         unavailable: 'This opportunity is no longer accepting applications.',
+        signIn: 'Your candidate session has expired. Sign in again to apply.',
         unconfirmed:
           'We couldn’t confirm whether your application was received. Your details and files are still here. Try again with the same email and files.',
       },

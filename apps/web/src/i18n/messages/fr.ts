@@ -1486,6 +1486,17 @@ export const frMessages: Messages = {
     },
   },
   publicOpportunity: {
+    candidate: {
+      checking: 'Vérification de la connexion candidat…',
+      unavailable: 'Impossible de vérifier la connexion candidat.',
+      required: 'Connectez-vous ou créez un compte candidat pour postuler.',
+      signIn: 'Connexion candidat',
+      signUp: 'Créer un compte candidat',
+      fields:
+        'Les champs marqués d’un * sont obligatoires. Votre adresse vérifiée est utilisée pour cette candidature.',
+      received: 'Merci pour votre candidature.',
+      applications: 'Mes candidatures',
+    },
     application: {
       consent: 'J’accepte que HireMe traite cette candidature.',
       description: 'Aucun compte nécessaire. Les champs marqués d’un * sont obligatoires.',
@@ -1557,6 +1568,7 @@ export const frMessages: Messages = {
           'Vos documents et vos réponses dépassent la taille maximale pour une candidature. Retirez ou compressez des fichiers, puis réessayez.',
         rateLimited: 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.',
         unavailable: 'Cette offre n’accepte plus de candidatures.',
+        signIn: 'Votre session candidat a expiré. Reconnectez-vous pour postuler.',
         unconfirmed:
           'Nous n’avons pas pu confirmer la réception de votre candidature. Vos informations et fichiers sont toujours ici. Réessayez avec la même adresse e-mail et les mêmes fichiers.',
       },

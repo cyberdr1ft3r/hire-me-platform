@@ -9,6 +9,11 @@ const EnvironmentSchema = z.object({
   AUTH_ACCESS_TOKEN_SECRET: z.string().min(32),
   AUTH_COOKIE_SECURE: z.coerce.boolean().optional(),
   AUTH_REFRESH_TOKEN_PEPPER: z.string().min(32),
+  CANDIDATE_PORTAL_ENABLED: z.enum(['true', 'false']).default('false'),
+  CANDIDATE_GOOGLE_CLIENT_ID: z.string().endsWith('.apps.googleusercontent.com').optional(),
+  CANDIDATE_MAIL_OUTBOX: z.string().min(1).optional(),
+  CANDIDATE_RESEND_API_KEY: z.string().min(1).optional(),
+  CANDIDATE_MAIL_FROM: z.string().min(1).optional(),
   DATABASE_URL: z.string().url(),
   INVOICE_ISSUANCE_ENABLED: z
     .enum(['true', 'false'])
@@ -34,6 +39,18 @@ export function loadEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
   }
 
   const environment = parsed.data;
+
+  if (environment.CANDIDATE_PORTAL_ENABLED === 'true') {
+    if (environment.NODE_ENV === 'production') {
+      throw new Error('Candidate Portal is approved for isolated development and test only');
+    }
+    if (
+      !environment.CANDIDATE_MAIL_OUTBOX &&
+      !(environment.CANDIDATE_RESEND_API_KEY && environment.CANDIDATE_MAIL_FROM)
+    ) {
+      throw new Error('Candidate Portal requires a verification email delivery configuration');
+    }
+  }
 
   if (environment.NODE_ENV === 'production') {
     if (environment.INVOICE_ISSUANCE_ENABLED === undefined) {

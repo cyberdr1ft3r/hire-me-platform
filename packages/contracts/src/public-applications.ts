@@ -105,10 +105,12 @@ export const PublicOpportunitySchema = z.object({
 });
 
 export const PublicOpportunityListResponseSchema = z.object({
+  candidateAuthenticationRequired: z.literal(true).optional(),
   opportunities: z.array(PublicOpportunitySchema),
 });
 
 export const PublicOpportunityDetailResponseSchema = z.object({
+  candidateAuthenticationRequired: z.literal(true).optional(),
   opportunity: PublicOpportunitySchema,
 });
 

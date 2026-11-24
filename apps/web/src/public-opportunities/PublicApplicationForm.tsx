@@ -89,11 +89,15 @@ function focusFirstInvalid(form: HTMLFormElement, validation: ApplicationValidat
  * messages without clearing anything the candidate has typed or chosen.
  */
 export function PublicApplicationForm({
+  candidateEmail,
+  signInHref,
   labelledBy,
   onSubmit,
   opportunity,
   submission,
 }: {
+  candidateEmail?: string;
+  signInHref?: string;
   labelledBy: string;
   onSubmit: (snapshot: ApplicationSnapshot) => void;
   opportunity: PublicOpportunity;
@@ -190,7 +194,13 @@ export function PublicApplicationForm({
       onSubmit={handleSubmit}
       ref={formRef}
     >
-      <p className="public-form__note">{t('publicOpportunity.application.description')}</p>
+      <p className="public-form__note">
+        {t(
+          candidateEmail
+            ? 'publicOpportunity.candidate.fields'
+            : 'publicOpportunity.application.description',
+        )}
+      </p>
 
       <FormGroup legend={t('publicOpportunity.application.sections.about')}>
         <TextField
@@ -203,6 +213,8 @@ export function PublicApplicationForm({
         />
         <TextField
           autoComplete="email"
+          defaultValue={candidateEmail}
+          readOnly={Boolean(candidateEmail)}
           error={errorFor('email')}
           label={t('publicOpportunity.application.fields.email')}
           maxLength={APPLICATION_FIELD_LIMITS.email}
@@ -366,6 +378,11 @@ export function PublicApplicationForm({
       {validation || failure ? (
         <div ref={feedbackRef} tabIndex={-1}>
           <FormFeedback failure={failure} invalid={validation !== null} />
+          {failure === 'signIn' && signInHref ? (
+            <p>
+              <a href={signInHref}>{t('publicOpportunity.candidate.signIn')}</a>
+            </p>
+          ) : null}
         </div>
       ) : null}
 

@@ -9,7 +9,7 @@ import { PublicRequestError } from '../api.js';
 export type PublicListState =
   | { status: 'error' }
   | { status: 'loading' }
-  | { opportunities: PublicOpportunity[]; status: 'ready' };
+  | { opportunities: PublicOpportunity[]; status: 'ready'; candidateAuthenticationRequired?: true };
 
 /**
  * `notFound` is every 404 the API returns. The server answers an unknown slug,
@@ -23,11 +23,20 @@ export type PublicDetailState =
   | { status: 'error' }
   | { status: 'loading' }
   | { status: 'notFound' }
-  | { opportunity: PublicOpportunity; status: 'ready' };
+  | { opportunity: PublicOpportunity; status: 'ready'; candidateAccess?: CandidateAccess };
+
+export type CandidateAccess =
+  { status: 'checking' | 'guest' | 'error' } | { status: 'signedIn'; email: string };
 
 /** Safe, language-neutral categories for a submission the server refused. */
 export type PublicSubmissionFailure =
-  'failed' | 'invalid' | 'payloadTooLarge' | 'rateLimited' | 'unavailable' | 'unconfirmed';
+  | 'failed'
+  | 'invalid'
+  | 'payloadTooLarge'
+  | 'rateLimited'
+  | 'unavailable'
+  | 'unconfirmed'
+  | 'signIn';
 
 /**
  * `received` is shown only after the server has answered `RECEIVED`. The server
@@ -50,6 +59,8 @@ export function classifySubmissionFailure(error: unknown): PublicSubmissionFailu
     return 'unconfirmed';
   }
   switch (error.status) {
+    case 401:
+      return 'signIn';
     case 400:
       return 'invalid';
     case 404:

@@ -2715,10 +2715,12 @@ export async function submitPublicApplication(
   publicSlug: string,
   input: PublicApplicationSubmitRequest,
   apiBaseUrl = getApiBaseUrl(),
+  authenticatedCandidate = false,
 ): Promise<PublicApplicationSubmitResponse> {
   const response = await fetch(`${apiBaseUrl}/v1/public/opportunities/${publicSlug}/applications`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(authenticatedCandidate ? { credentials: 'include' } : {}),
     body: JSON.stringify(input),
   });
   if (!response.ok) {

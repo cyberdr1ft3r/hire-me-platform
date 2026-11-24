@@ -1117,6 +1117,9 @@ model PublicOpportunity {
 
 model PublicCandidateApplication {
   id                                 String                  @id @default(uuid()) @db.Uuid
+  ownerIdentityId                    String?                 @db.Uuid
+  ownerIdentity                      CandidateIdentity?      @relation(fields: [ownerIdentityId], references: [id], onDelete: Restrict)
+  @@index([ownerIdentityId, submittedAt, id])
   publicOpportunityId                String                  @db.Uuid
   missionId                          String                  @db.Uuid
   candidateId                        String                  @db.Uuid
@@ -1158,6 +1161,49 @@ model PublicCandidateApplication {
   @@index([candidateId])
   @@index([status])
   @@index([submittedAt])
+}
+
+model CandidateIdentity {
+  id            String @id @default(uuid()) @db.Uuid
+  email         String @unique
+  verifiedAt    DateTime?
+  passwordHash  String?
+  googleSubject String? @unique
+  createdAt     DateTime @default(now())
+  sessions      CandidatePortalSession[]
+  tokens        CandidatePortalEmailToken[]
+  applications  PublicCandidateApplication[]
+}
+
+model CandidatePortalSession {
+  tokenHash  String @id
+  identityId String @db.Uuid
+  identity   CandidateIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  @@index([identityId])
+  @@index([expiresAt])
+}
+
+enum CandidatePortalEmailPurpose {
+  VERIFY
+  RESET
+}
+
+model CandidatePortalEmailToken {
+  tokenHash  String @id
+  identityId String @db.Uuid
+  identity   CandidateIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  purpose    CandidatePortalEmailPurpose
+  expiresAt  DateTime
+  @@index([identityId, purpose])
+  @@index([expiresAt])
+}
+
+model CandidatePortalGoogleChallenge {
+  bindingHash String @id
+  nonce       String
+  expiresAt   DateTime
+  @@index([expiresAt])
 }
 
 model PublicCandidateApplicationFile {

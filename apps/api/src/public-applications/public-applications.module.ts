@@ -4,11 +4,12 @@ import { InternalPublicApplicationsController } from './public-applications.inte
 import { PublicApplicationsController } from './public-applications.controller.js';
 import { PublicApplicationsService } from './public-applications.service.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CandidatePortalModule } from '../candidate-portal/candidate-portal.module.js';
 import { PrismaModule } from '../persistence/prisma/prisma.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 
 @Module({
-  imports: [AuthModule, PrismaModule, StorageModule],
+  imports: [AuthModule, CandidatePortalModule, PrismaModule, StorageModule],
   controllers: [PublicApplicationsController, InternalPublicApplicationsController],
   providers: [PublicApplicationsService],
 })

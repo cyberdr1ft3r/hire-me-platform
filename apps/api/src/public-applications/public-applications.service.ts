@@ -128,6 +128,7 @@ export class PublicApplicationsService {
     publicSlug: string,
     input: PublicApplicationSubmitRequest,
     context: RequestContext,
+    ownerIdentityId?: string,
   ): Promise<PublicApplicationSubmitResponse> {
     this.rateLimit.assertAllowed(
       `public-application:${publicSlug}:${context.ipAddress ?? 'unknown'}`,
@@ -164,7 +165,14 @@ export class PublicApplicationsService {
       }
 
       const accepted = await this.prisma.$transaction(async (transaction) =>
-        this.createApplicationRecords(transaction, opportunity.id, input, preparedFiles, context),
+        this.createApplicationRecords(
+          transaction,
+          opportunity.id,
+          input,
+          preparedFiles,
+          context,
+          ownerIdentityId,
+        ),
       );
 
       if (!accepted) {
@@ -377,6 +385,7 @@ export class PublicApplicationsService {
     input: PublicApplicationSubmitRequest,
     files: PreparedFile[],
     context: RequestContext,
+    ownerIdentityId?: string,
   ): Promise<boolean> {
     const opportunity = await transaction.publicOpportunity.findUnique({
       where: { id: opportunityId },
@@ -471,6 +480,7 @@ export class PublicApplicationsService {
 
     const application = await transaction.publicCandidateApplication.create({
       data: {
+        ownerIdentityId,
         publicOpportunityId: opportunity.id,
         missionId: mission.id,
         candidateId: candidate.id,

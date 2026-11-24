@@ -14,10 +14,12 @@ import { LanguageSelect } from '../ui/shell/LanguageSelect.js';
 export function PublicSite({
   children,
   showRolesLink = true,
+  showCandidateLink = false,
 }: {
   children: ReactNode;
   /** The footer link back to the list is omitted on the list itself. */
   showRolesLink?: boolean;
+  showCandidateLink?: boolean;
 }) {
   const { t } = useI18n();
 
@@ -46,6 +48,9 @@ export function PublicSite({
         <div className="public-site__footer-inner">
           <span>HireMe</span>
           {showRolesLink ? <a href="/opportunities">{t('publicOpportunity.list.title')}</a> : null}
+          {showCandidateLink ? (
+            <a href="/candidate/applications">{t('publicOpportunity.candidate.applications')}</a>
+          ) : null}
         </div>
       </footer>
     </div>

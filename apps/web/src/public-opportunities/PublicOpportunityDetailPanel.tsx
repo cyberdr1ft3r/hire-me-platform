@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { getPublicOpportunity, submitPublicApplication } from '../api.js';
+import { candidateSession } from '../candidate-portal/api.js';
 import {
   buildApplicationRequest,
   encodeApplicationFiles,
@@ -52,9 +53,28 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
     const request = ++latestLoad.current;
     setDetail({ status: 'loading' });
     getPublicOpportunity(publicSlug).then(
-      (response) => {
+      async (response) => {
         if (request === latestLoad.current) {
-          setDetail({ opportunity: response.opportunity, status: 'ready' });
+          const next = { opportunity: response.opportunity, status: 'ready' as const };
+          if (!response.candidateAuthenticationRequired) {
+            setDetail(next);
+            return;
+          }
+          setDetail({ ...next, candidateAccess: { status: 'checking' } });
+          try {
+            const candidate = await candidateSession();
+            if (request === latestLoad.current) {
+              setDetail({
+                ...next,
+                candidateAccess: candidate
+                  ? { status: 'signedIn', email: candidate.email }
+                  : { status: 'guest' },
+              });
+            }
+          } catch {
+            if (request === latestLoad.current)
+              setDetail({ ...next, candidateAccess: { status: 'error' } });
+          }
         }
       },
       (error: unknown) => {
@@ -80,7 +100,12 @@ export function PublicOpportunityDetailPanel({ publicSlug }: { publicSlug: strin
       const files = await encodeApplicationFiles(snapshot);
       const request = buildApplicationRequest(snapshot, files);
       requestStarted = true;
-      await submitPublicApplication(publicSlug, request);
+      await submitPublicApplication(
+        publicSlug,
+        request,
+        undefined,
+        detail.status === 'ready' && detail.candidateAccess?.status === 'signedIn',
+      );
       if (owner === session.current) {
         setSubmission({ status: 'received' });
       }

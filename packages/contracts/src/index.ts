@@ -1126,3 +1126,5 @@ export type {
   ReadCursorResponse,
   UnreadSummaryResponse,
 } from './messaging.js';
+
+export * from './candidate-portal.js';
